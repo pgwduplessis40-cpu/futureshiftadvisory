@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use Illuminate\Foundation\Application;
@@ -16,10 +17,18 @@ return Application::configure(basePath: dirname(__DIR__))
     ->withMiddleware(function (Middleware $middleware): void {
         $middleware->encryptCookies(except: ['appearance', 'sidebar_state']);
 
+        // EnforceClientScope must run on every authenticated route so the
+        // Postgres session variables driving row-level security policies
+        // are always set. See PLAN.md section 6.2 and 7.4.
         $middleware->web(append: [
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            EnforceClientScope::class,
+        ]);
+
+        $middleware->api(append: [
+            EnforceClientScope::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

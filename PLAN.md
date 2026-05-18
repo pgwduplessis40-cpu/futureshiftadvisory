@@ -1247,6 +1247,7 @@ This is a faithful condensed view of spec §26 for Phase 2–4; treat as the nex
 | R8 | DB-level RLS is dependent on the request setting `fsa.role`/`fsa.client_ids` — a bug in the middleware bypasses RLS | Covered by test in WO-02; add a CI assertion that middleware is bound | Ongoing |
 | R9 | Inertia + SSR is not enabled by default — fine for Phase 1; revisit when SEO matters | None Phase 1 | Phase 4 (mobile/web SEO) |
 | R10 | The 9-user-type matrix in spec §5 has some ambiguity around "Junior Advisor / Analyst" approval scope — locked here as draft-only, but revisit with owner | Owner confirm matrix in WO-07 PR | WO-07 PR review |
+| R11 | PostgreSQL not yet installed locally — Herd free edition does not bundle it; Herd Pro or a standalone Postgres install is required to actually run WO-02's migrations and tests. WO-02 code is shipped unverified against Postgres. | Owner: install Postgres (Herd Pro or standalone), then run `php artisan migrate:fresh` and `composer test` to verify | Before WO-03 PR merge |
 
 ---
 
