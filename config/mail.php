@@ -115,4 +115,10 @@ return [
         'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Laravel')),
     ],
 
+    /*
+    | Owner address — destination for public-site prospect-lead notifications.
+    | Falls back to MAIL_FROM_ADDRESS so dev sends-to-log still work.
+    */
+    'owner_address' => env('OWNER_EMAIL', env('MAIL_FROM_ADDRESS')),
+
 ];
