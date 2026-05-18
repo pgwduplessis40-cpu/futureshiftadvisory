@@ -1,8 +1,11 @@
 <?php
 
+use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Http\Middleware\LogAuditEvent;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
@@ -30,6 +33,22 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->api(append: [
             EnforceClientScope::class,
         ]);
+
+        // Aliased so individual routes can opt in to read-tracking
+        // (e.g. ->middleware('audit.read:document.downloaded') on a
+        // sensitive endpoint). See PLAN.md section 7.3.
+        $middleware->alias([
+            'audit.read' => LogAuditEvent::class,
+        ]);
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        // Daily audit chain integrity check. Failures are surfaced via
+        // process exit code today; once notifications land (WO-12) the
+        // command will also notify super-admins.
+        $schedule->command(VerifyAuditChain::class)
+            ->dailyAt('02:30')
+            ->name('fsa-audit-verify')
+            ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
