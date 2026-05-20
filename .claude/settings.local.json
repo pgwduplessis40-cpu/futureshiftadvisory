@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(rm -f .claude/settings.local.json)",
+      "Bash(git stash *)",
+      "Bash(git add *)"
+    ]
+  }
+}
