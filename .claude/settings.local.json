@@ -3,7 +3,9 @@
     "allow": [
       "Bash(rm -f .claude/settings.local.json)",
       "Bash(git stash *)",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git commit -m ' *)",
+      "Bash(git merge *)"
     ]
   }
 }
