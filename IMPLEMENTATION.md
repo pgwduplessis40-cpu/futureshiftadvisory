@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **5 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05) |
+| Work orders complete | **6 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06) |
 | Work orders in progress | none |
-| Next work order | **WO-06** - Secure file storage + virus scanning interface |
+| Next work order | **WO-07** - User roles, permissions, RBAC |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -25,7 +25,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-02 | included in foundation history | PostgreSQL migration + RLS scaffold | Postgres helpers, RLS context middleware, `KeyEnvelope`. |
 | WO-03 | included in foundation history | Immutable audit trail | `audit_events`, append-only triggers, redaction, audit chain command. |
 | WO-04 | `6c266d5` | AI Integrity foundation | `AiClient`, DTOs, prompt registry, source attribution, bias detector, fake/live client, learning-update scaffolding. |
-| WO-05 | this commit | Integration resilience layer | `ResilientHttp`, retry policy, circuit breaker, per-call logging, health rollups. |
+| WO-05 | `286c2ce` | Integration resilience layer | `ResilientHttp`, retry policy, circuit breaker, per-call logging, health rollups. |
+| WO-06 | this commit | Secure file storage + virus scanning interface | `SecureFileWriter`, encrypted local disk, scanner contract/stubs, quarantine flow. |
 
 ## Completed WO Details
 
@@ -71,6 +72,16 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `AggregateIntegrationHealth` command scheduled every five minutes.
 - Architecture doc: `docs/architecture/integration-pattern.md`.
 
+### WO-06 - Secure File Storage + Virus Scanning Interface
+
+- `documents` metadata ledger for sensitive upload persistence and future document verification.
+- `secure_local` filesystem disk registered with an encrypted Flysystem wrapper that uses `KeyEnvelope` on write/read.
+- `FileScanner` contract with `NoopScanner` for dev/test degraded mode and `ClamAvScanner` skeleton for live ClamAV INSTREAM scanning.
+- `SecureFileWriter` enforces scan-before-store, encrypted persistence, metadata creation, and immutable audit events.
+- Infected uploads are rejected before persistence with an audit event.
+- Scanner errors persist under `quarantine/`, set `scanner_result=error`, stay out of `Document::visibleToClients()`, and raise a cache/audit advisor notice until WO-12 centralises notifications.
+- Architecture doc: `docs/architecture/secure-file-storage.md`.
+
 ## Verification
 
 Latest local checks:
@@ -84,7 +95,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 82 tests, 237 assertions.
+- `composer test`: passed, 86 tests, 260 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -95,8 +106,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-06 | Secure file storage + virus scanning interface | next | WO-02, WO-05 |
-| WO-07 | User roles, permissions, RBAC | not started | WO-02, WO-03 |
+| WO-07 | User roles, permissions, RBAC | next | WO-02, WO-03 |
 | WO-08 | Invite-only registration + MFA enforcement | not started | WO-07 |
 | WO-09 | Session management + step-up MFA | not started | WO-08 |
 | WO-10 | Terms model + version control + admin clause editor | not started | WO-07 |
@@ -129,7 +139,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 | NZBN / Companies Office / IRD access | WO-13 live mode | Stubs until arranged. |
 | Meridian Warm brand kit | Client-facing UI | Placeholder files exist. |
 | Lawyer-reviewed T&C text | WO-10/11 | Placeholder exists. |
-| ClamAV deployment plan | Production uploads | Interface lands in WO-06. |
+| ClamAV deployment plan | Production uploads | Interface exists; production daemon host/port still pending. |
 
 ## Process Reminder
 
@@ -140,3 +150,4 @@ Note: the local test DB required using the actual local Postgres connection valu
 - No raw secrets, unowned placeholder comments, or debug calls in shipped code.
 - All AI calls go through `AiClient`.
 - All future external calls go through the resilience layer introduced in WO-05.
+- All sensitive upload persistence goes through `SecureFileWriter`; do not bypass scan-before-store.

@@ -69,3 +69,27 @@ Key columns:
 - `success_rate`
 - `p95_latency_ms`
 - `health` (`green`, `amber`, `red`)
+
+## WO-06 - Secure file storage + virus scanning
+
+### `documents`
+
+Ledger for sensitive uploads. File bytes are stored on the `secure_local` encrypted disk; this table stores metadata, scan state, and future linkage to clients, entrepreneur profiles, verification rows, and upload owners.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `entrepreneur_profile_id`
+- `category` (`financial_statement`, `contract`, `insurance_certificate`, `hr_record`, `compliance_doc`, `plan_attachment`, `dd_artifact`, `other`)
+- `original_filename`
+- `stored_path`
+- `byte_size`
+- `mime_type`
+- `sha256`
+- `uploaded_by_user_id`
+- `scanner_result` (`pending`, `clean`, `infected`, `error`)
+- `scanner_payload` JSONB
+- `expires_at`
+
+Scanner errors are persisted as quarantined documents with `scanner_result=error`; client-visible queries must use the model's `visibleToClients` scope.

@@ -47,6 +47,37 @@ return [
             'report' => false,
         ],
 
+        'secure_local' => [
+            'driver' => 'encrypted-local',
+            'root' => storage_path('app/secure'),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
+        /*
+        |--------------------------------------------------------------------------
+        | Phase 2 secure S3 placeholder
+        |--------------------------------------------------------------------------
+        |
+        | Production will use an NZ/AU-region bucket with server-side encryption
+        | and the same SecureFileWriter orchestration. WO-06 keeps writes local.
+        |
+        */
+        'secure_s3' => [
+            'driver' => 's3',
+            'key' => env('SECURE_AWS_ACCESS_KEY_ID', env('AWS_ACCESS_KEY_ID')),
+            'secret' => env('SECURE_AWS_SECRET_ACCESS_KEY', env('AWS_SECRET_ACCESS_KEY')),
+            'region' => env('SECURE_AWS_DEFAULT_REGION', 'ap-southeast-2'),
+            'bucket' => env('SECURE_AWS_BUCKET'),
+            'url' => env('SECURE_AWS_URL'),
+            'endpoint' => env('SECURE_AWS_ENDPOINT'),
+            'use_path_style_endpoint' => env('SECURE_AWS_USE_PATH_STYLE_ENDPOINT', false),
+            'visibility' => 'private',
+            'throw' => true,
+            'report' => true,
+        ],
+
         's3' => [
             'driver' => 's3',
             'key' => env('AWS_ACCESS_KEY_ID'),

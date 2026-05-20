@@ -67,7 +67,7 @@ final class AuditWriter
         return AuditEvent::query()->create([
             'id' => (string) Str::uuid(),
             'occurred_at' => now(),
-            'actor_user_id' => $actor?->getAuthIdentifier(),
+            'actor_user_id' => $this->resolveActorUserId($actor),
             'actor_role' => $this->resolveActorRole($actor),
             'client_id' => $this->resolveClientId($subject),
             'action' => $action,
@@ -107,6 +107,19 @@ final class AuditWriter
         }
 
         return 'authenticated';
+    }
+
+    private function resolveActorUserId(?Authenticatable $actor): ?string
+    {
+        if ($actor === null) {
+            return null;
+        }
+
+        $identifier = $actor->getAuthIdentifier();
+
+        return is_scalar($identifier) && Str::isUuid((string) $identifier)
+            ? (string) $identifier
+            : null;
     }
 
     private function resolveClientId(?Model $subject): ?string
