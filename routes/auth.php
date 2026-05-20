@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Admin\InvitationController;
+use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Auth\InviteAcceptController;
 use App\Http\Controllers\Auth\MfaChallengeController;
 use App\Http\Controllers\Auth\MfaSetupController;
@@ -31,5 +32,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
             Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
             Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
+
+            Route::get('terms', [TermsController::class, 'index'])->name('terms.index');
+            Route::post('terms', [TermsController::class, 'store'])->name('terms.store');
+            Route::get('terms/{termsVersion}/edit', [TermsController::class, 'edit'])->name('terms.edit');
+            Route::put('terms/{termsVersion}', [TermsController::class, 'update'])->name('terms.update');
+            Route::get('terms/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms.preview');
+            Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
+            Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
         });
 });

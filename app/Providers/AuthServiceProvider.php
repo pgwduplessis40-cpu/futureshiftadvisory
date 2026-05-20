@@ -7,6 +7,7 @@ namespace App\Providers;
 use App\Models\AuditEvent;
 use App\Models\Document;
 use App\Models\ProspectLead;
+use App\Models\TermsVersion;
 use App\Policies\AuditEventPolicy;
 use App\Policies\ClientPolicy;
 use App\Policies\DocumentPolicy;
@@ -28,7 +29,7 @@ final class AuthServiceProvider extends ServiceProvider
         Gate::policy('App\\Models\\Notification', NotificationPolicy::class);
         Gate::policy('App\\Models\\KnowledgeEntry', KnowledgeEntryPolicy::class);
         Gate::policy(ProspectLead::class, ProspectLeadPolicy::class);
-        Gate::policy('App\\Models\\TermsVersion', TermsVersionPolicy::class);
+        Gate::policy(TermsVersion::class, TermsVersionPolicy::class);
         Gate::policy(AuditEvent::class, AuditEventPolicy::class);
     }
 }

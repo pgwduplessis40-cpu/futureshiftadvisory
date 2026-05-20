@@ -166,3 +166,52 @@ Key columns:
 - `step_up_at` timestamp when the session was last forced into step-up MFA
 
 The enforcement source of truth remains the server-side session store: `EnforceSessionSecurity` keeps last activity and device-signal markers in session data so the same logic works with the array session driver in tests.
+
+## WO-10 - Terms model + version control
+
+### `terms_versions`
+
+Version header for the platform terms contract. Published versions are immutable and remain readable forever.
+
+Key columns:
+
+- `id` UUID primary key
+- `version`
+- `title`
+- `material`
+- `published_at`
+- `published_by_user_id`
+- `notice_period_days`
+- `reviewer_reference`
+- `pdf_path`
+- `created_by_user_id`
+
+### `terms_clauses`
+
+The 14-clause body for each terms version. Clauses are copied forward into drafts so historical text remains intact.
+
+Key columns:
+
+- `id` UUID primary key
+- `terms_version_id`
+- `clause_number`
+- `title`
+- `body`
+- `material`
+
+### `terms_acceptances`
+
+Acceptance ledger scaffolded now for WO-11. WO-10 uses it to expire active acceptances when a material version is published.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `terms_version_id`
+- `accepted_at`
+- `declined_at`
+- `expires_at`
+- `reacceptance_notice_queued_at`
+- `signed_pdf_path`
+- `ip`
+- `user_agent`

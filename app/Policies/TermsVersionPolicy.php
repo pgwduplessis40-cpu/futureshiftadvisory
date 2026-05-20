@@ -34,7 +34,8 @@ final class TermsVersionPolicy
 
     public function publish(User $user, mixed $termsVersion = null): bool
     {
-        return $this->allows($user, Permission::TERMS_PUBLISH);
+        return $user->user_type === User::TYPE_SUPER_ADMIN
+            && $this->allows($user, Permission::TERMS_PUBLISH);
     }
 
     public function delete(User $user, mixed $termsVersion = null): bool
