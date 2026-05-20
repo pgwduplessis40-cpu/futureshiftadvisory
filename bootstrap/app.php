@@ -3,6 +3,7 @@
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\EnforceClientScope;
+use App\Http\Middleware\EnforceSessionSecurity;
 use App\Http\Middleware\EnsurePermission;
 use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
@@ -32,6 +33,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
             EnforceClientScope::class,
+            EnforceSessionSecurity::class,
         ]);
 
         $middleware->api(append: [

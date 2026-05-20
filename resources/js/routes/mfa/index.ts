@@ -80,7 +80,7 @@ setup.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     setup.form = setupForm
 /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
 export const challenge = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -95,7 +95,7 @@ challenge.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
 challenge.url = (options?: RouteQueryOptions) => {
@@ -104,7 +104,7 @@ challenge.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
 challenge.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -113,7 +113,7 @@ challenge.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
 challenge.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -123,7 +123,7 @@ challenge.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
     const challengeForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -133,7 +133,7 @@ challenge.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
         challengeForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -142,7 +142,7 @@ challenge.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Auth\MfaChallengeController::challenge
- * @see app/Http/Controllers/Auth/MfaChallengeController.php:19
+ * @see app/Http/Controllers/Auth/MfaChallengeController.php:26
  * @route '/mfa/challenge'
  */
         challengeForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

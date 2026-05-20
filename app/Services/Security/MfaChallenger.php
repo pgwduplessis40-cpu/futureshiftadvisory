@@ -12,12 +12,19 @@ use Illuminate\Support\Facades\Date;
 use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Fortify;
+use Throwable;
 
 final class MfaChallenger
 {
     public const SESSION_CONFIRMED_AT = 'auth.mfa_confirmed_at';
 
     public const SESSION_USER_ID = 'auth.mfa_user_id';
+
+    public const SESSION_STEP_UP_REQUIRED = 'auth.step_up_required';
+
+    public const SESSION_STEP_UP_REASON = 'auth.step_up_reason';
+
+    public const SESSION_STEP_UP_SCORE = 'auth.step_up_score';
 
     public function __construct(
         private readonly TwoFactorAuthenticationProvider $provider,
@@ -38,7 +45,8 @@ final class MfaChallenger
         }
 
         return (string) $request->session()->get(self::SESSION_USER_ID) === (string) $user->getAuthIdentifier()
-            && is_numeric($request->session()->get(self::SESSION_CONFIRMED_AT));
+            && is_numeric($request->session()->get(self::SESSION_CONFIRMED_AT))
+            && ! $this->stepUpRequired($request);
     }
 
     public function markConfirmed(User $user, Request $request): void
@@ -58,6 +66,11 @@ final class MfaChallenger
             $request->session()->put([
                 self::SESSION_CONFIRMED_AT => Date::now()->getTimestamp(),
                 self::SESSION_USER_ID => (string) $user->getAuthIdentifier(),
+            ]);
+            $request->session()->forget([
+                self::SESSION_STEP_UP_REQUIRED,
+                self::SESSION_STEP_UP_REASON,
+                self::SESSION_STEP_UP_SCORE,
             ]);
         }
 
@@ -91,16 +104,36 @@ final class MfaChallenger
         throw ValidationException::withMessages(['code' => 'The provided two-factor authentication code was invalid.']);
     }
 
+    public function requireStepUp(Request $request, StepUpAssessment $assessment): void
+    {
+        if ($request->hasSession()) {
+            $request->session()->put([
+                self::SESSION_STEP_UP_REQUIRED => true,
+                self::SESSION_STEP_UP_REASON => 'step_up',
+                self::SESSION_STEP_UP_SCORE => $assessment->score,
+            ]);
+        }
+    }
+
+    public function stepUpRequired(Request $request): bool
+    {
+        return $request->hasSession() && $request->session()->get(self::SESSION_STEP_UP_REQUIRED) === true;
+    }
+
     private function verifyCode(User $user, string $code): bool
     {
         if ($user->two_factor_secret === null) {
             return false;
         }
 
-        return $this->provider->verify(
-            Fortify::currentEncrypter()->decrypt($user->two_factor_secret),
-            $code,
-        );
+        try {
+            return $this->provider->verify(
+                Fortify::currentEncrypter()->decrypt($user->two_factor_secret),
+                $code,
+            );
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function verifyRecoveryCode(User $user, string $recoveryCode): bool

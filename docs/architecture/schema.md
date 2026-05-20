@@ -110,7 +110,7 @@ Key rules:
 
 ### `users` additions
 
-Identity and MFA metadata used before the full WO-07 RBAC matrix lands.
+Identity and MFA metadata used by invite-only auth, MFA enforcement, RBAC fallback role resolution, and WO-09 session timeout policy.
 
 Key columns:
 
@@ -153,3 +153,16 @@ Key columns:
 - `recovery_codes_envelope`
 - `confirmed_at`
 - `last_used_at`
+
+## WO-09 - Session management + step-up MFA
+
+### `sessions` additions
+
+The Laravel database session table carries lightweight security observability for the WO-09 middleware.
+
+Key columns:
+
+- `risk_score` latest calculated request risk score for the session
+- `step_up_at` timestamp when the session was last forced into step-up MFA
+
+The enforcement source of truth remains the server-side session store: `EnforceSessionSecurity` keeps last activity and device-signal markers in session data so the same logic works with the array session driver in tests.

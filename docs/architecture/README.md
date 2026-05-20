@@ -20,6 +20,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `secure-file-storage.md` | WO-06 | SecureFileWriter, encrypted disk wrapper, scanner contract, quarantine flow |
 | `rbac-matrix.md` | WO-07 | Spatie role/permission matrix, DD guest token-only rule, middleware/policy gates |
 | `auth-invite-mfa.md` | WO-08 | Invite-only account creation, Fortify MFA enforcement, session MFA gate |
+| `session-security.md` | WO-09 | Per-user-type session timeout, step-up MFA risk scoring, session audit hooks |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

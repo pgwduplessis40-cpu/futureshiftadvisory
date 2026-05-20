@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **8 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08) |
+| Work orders complete | **9 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09) |
 | Work orders in progress | none |
-| Next work order | **WO-09** - Session management + step-up MFA |
+| Next work order | **WO-10** - Terms model + version control + admin clause editor |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -27,8 +27,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-04 | `6c266d5` | AI Integrity foundation | `AiClient`, DTOs, prompt registry, source attribution, bias detector, fake/live client, learning-update scaffolding. |
 | WO-05 | `286c2ce` | Integration resilience layer | `ResilientHttp`, retry policy, circuit breaker, per-call logging, health rollups. |
 | WO-06 | `eaa9ebd` | Secure file storage + virus scanning interface | `SecureFileWriter`, encrypted local disk, scanner contract/stubs, quarantine flow. |
-| WO-07 | this commit | User roles, permissions, RBAC | Spatie permission tables, nine-role matrix, middleware, policies, matrix tests. |
+| WO-07 | `543b7b7` | User roles, permissions, RBAC | Spatie permission tables, nine-role matrix, middleware, policies, matrix tests. |
 | WO-08 | `3336e56` | Invite-only registration + MFA enforcement | Public registration removed, invite tokens, MFA gate, Fortify 2FA integration. |
+| WO-09 | this commit | Session management + step-up MFA | Per-user-type timeouts, risk scoring, step-up MFA redirect, audit logging. |
 
 ## Completed WO Details
 
@@ -109,6 +110,17 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - Admin invitation UI now sits behind the WO-07 Spatie RBAC matrix.
 - Architecture doc: `docs/architecture/auth-invite-mfa.md`.
 
+### WO-09 - Session Management + Step-Up MFA
+
+- `sessions` table now records `risk_score` and `step_up_at` for database-session observability.
+- `EnforceSessionSecurity` runs on authenticated web requests and enforces per-user-type inactivity timeouts.
+- Timeout resolution uses `users.session_timeout_minutes` first, then config defaults (`super_admin` 15 minutes, advisors 30, clients/entrepreneurs/brokers/coaches 60).
+- Expired sessions write `security.session_expired`, log the user out, invalidate the session, and redirect to login.
+- `StepUpEvaluator` scores Phase 1 risk signals: IP change, country header change, user-agent change, and super-admin route access from a changed device.
+- Sessions over the risk threshold are redirected to `mfa.challenge?reason=step_up`; failed step-up attempts write `security.step_up_failed`.
+- `MfaChallenger` now fails closed on malformed/legacy TOTP secrets instead of leaking provider exceptions.
+- Architecture doc: `docs/architecture/session-security.md`.
+
 ## Verification
 
 Latest local checks:
@@ -122,7 +134,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 99 tests, 327 assertions.
+- `composer test`: passed, 105 tests, 350 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -133,7 +145,6 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-09 | Session management + step-up MFA | not started | WO-08 |
 | WO-10 | Terms model + version control + admin clause editor | not started | WO-07 |
 | WO-11 | T&C acceptance gate + signed-PDF generation | not started | WO-10, WO-06 |
 | WO-12 | Centralised notifications + channel preferences | not started | WO-07, WO-09 |
