@@ -1,5 +1,6 @@
 <?php
 
+use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\HandleAppearance;
@@ -48,6 +49,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(VerifyAuditChain::class)
             ->dailyAt('02:30')
             ->name('fsa-audit-verify')
+            ->withoutOverlapping();
+
+        $schedule->command(AggregateIntegrationHealth::class)
+            ->everyFiveMinutes()
+            ->name('fsa-integration-health-aggregate')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

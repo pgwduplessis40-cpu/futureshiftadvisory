@@ -37,3 +37,35 @@ Key columns:
 - `review_due`
 - `review_outcome`
 - `rolled_back_at`
+
+## WO-05 - Integration resilience layer
+
+### `integration_calls`
+
+Per-attempt ledger for external integration calls. Every retry, success, failure, cached response, and fallback response is recorded with a shared correlation id for the logical call.
+
+Key columns:
+
+- `id` UUID primary key
+- `service`
+- `endpoint`
+- `request_id`
+- `status` (`success`, `retry`, `failure`, `cached`, `fallback`)
+- `latency_ms`
+- `attempt`
+- `error_payload` JSONB
+- `correlation_id`
+- `occurred_at`
+
+### `integration_health_samples`
+
+Five-minute rollup table for WO-30 dashboard surfaces.
+
+Key columns:
+
+- `id` UUID primary key
+- `service`
+- `window_start`, `window_end`
+- `success_rate`
+- `p95_latency_ms`
+- `health` (`green`, `amber`, `red`)

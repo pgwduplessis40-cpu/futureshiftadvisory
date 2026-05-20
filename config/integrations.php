@@ -1,0 +1,33 @@
+<?php
+
+declare(strict_types=1);
+
+return [
+    'retry' => [
+        'attempts' => (int) env('INTEGRATION_RETRY_ATTEMPTS', 3),
+        'base_delay_ms' => (int) env('INTEGRATION_RETRY_BASE_DELAY_MS', 100),
+        'max_delay_ms' => (int) env('INTEGRATION_RETRY_MAX_DELAY_MS', 1000),
+        'retry_statuses' => [408, 409, 425, 429, 500, 502, 503, 504],
+    ],
+
+    'circuit_breaker' => [
+        'failure_threshold' => (int) env('INTEGRATION_BREAKER_FAILURE_THRESHOLD', 5),
+        'window_seconds' => (int) env('INTEGRATION_BREAKER_WINDOW_SECONDS', 60),
+        'open_seconds' => (int) env('INTEGRATION_BREAKER_OPEN_SECONDS', 300),
+    ],
+
+    'cache' => [
+        'ttl_seconds' => (int) env('INTEGRATION_CACHE_TTL_SECONDS', 900),
+    ],
+
+    'health' => [
+        'green' => [
+            'min_success_rate' => (float) env('INTEGRATION_HEALTH_GREEN_SUCCESS_RATE', 0.99),
+            'max_p95_latency_ms' => (int) env('INTEGRATION_HEALTH_GREEN_P95_MS', 1000),
+        ],
+        'amber' => [
+            'min_success_rate' => (float) env('INTEGRATION_HEALTH_AMBER_SUCCESS_RATE', 0.95),
+            'max_p95_latency_ms' => (int) env('INTEGRATION_HEALTH_AMBER_P95_MS', 3000),
+        ],
+    ],
+];

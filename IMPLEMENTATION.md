@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **4 / 30** (WO-01, WO-02, WO-03, WO-04) |
+| Work orders complete | **5 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05) |
 | Work orders in progress | none |
-| Next work order | **WO-05** - Integration resilience layer |
+| Next work order | **WO-06** - Secure file storage + virus scanning interface |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -24,7 +24,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-01 | included in foundation history | Project foundations & critical rules | Docs, `CLAUDE.md`, architecture folder, setup docs. |
 | WO-02 | included in foundation history | PostgreSQL migration + RLS scaffold | Postgres helpers, RLS context middleware, `KeyEnvelope`. |
 | WO-03 | included in foundation history | Immutable audit trail | `audit_events`, append-only triggers, redaction, audit chain command. |
-| WO-04 | `569920c` plus follow-up amend | AI Integrity foundation | `AiClient`, DTOs, prompt registry, source attribution, bias detector, fake/live client, learning-update scaffolding. |
+| WO-04 | `6c266d5` | AI Integrity foundation | `AiClient`, DTOs, prompt registry, source attribution, bias detector, fake/live client, learning-update scaffolding. |
+| WO-05 | this commit | Integration resilience layer | `ResilientHttp`, retry policy, circuit breaker, per-call logging, health rollups. |
 
 ## Completed WO Details
 
@@ -59,6 +60,17 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `learning_updates` and `learning_update_implementations` tables scaffold future governed learning without self-modifying behaviour.
 - Architecture docs: `docs/architecture/ai-integrity.md` and `docs/architecture/schema.md`.
 
+### WO-05 - Integration Resilience Layer
+
+- `integration_calls` ledger for every success, retry, failure, cached response, and fallback response.
+- `integration_health_samples` five-minute rollup table for WO-30 dashboard surfaces.
+- `RetryPolicy` with config-driven attempts, retry status codes, and exponential backoff.
+- `CircuitBreaker` with default five failures in sixty seconds and a five-minute open window.
+- `HealthRecorder` as the single write path for integration call health rows.
+- `ResilientHttp` wrapper for future live integrations, including cached fallback and graceful degraded response support.
+- `AggregateIntegrationHealth` command scheduled every five minutes.
+- Architecture doc: `docs/architecture/integration-pattern.md`.
+
 ## Verification
 
 Latest local checks:
@@ -72,7 +84,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 78 tests, 218 assertions.
+- `composer test`: passed, 82 tests, 237 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -83,8 +95,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-05 | Integration resilience layer | next | WO-03 |
-| WO-06 | Secure file storage + virus scanning interface | not started | WO-02, WO-05 |
+| WO-06 | Secure file storage + virus scanning interface | next | WO-02, WO-05 |
 | WO-07 | User roles, permissions, RBAC | not started | WO-02, WO-03 |
 | WO-08 | Invite-only registration + MFA enforcement | not started | WO-07 |
 | WO-09 | Session management + step-up MFA | not started | WO-08 |
