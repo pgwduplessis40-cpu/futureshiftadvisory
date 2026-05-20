@@ -93,3 +93,51 @@ Key columns:
 - `expires_at`
 
 Scanner errors are persisted as quarantined documents with `scanner_result=error`; client-visible queries must use the model's `visibleToClients` scope.
+
+## WO-08 - Invite-only registration + MFA enforcement
+
+### `users` additions
+
+Identity and MFA metadata used before the full WO-07 RBAC matrix lands.
+
+Key columns:
+
+- `user_type` (`super_admin`, `advisor`, `junior_advisor`, `entrepreneur_mentor`, `client_primary`, `client_team`, `entrepreneur`, `broker`, `coach`)
+- `primary_role`
+- `mfa_enabled_at`
+- `mfa_method`
+- `last_password_set_at`
+- `session_timeout_minutes`
+- `suspended_at`
+- `suspended_reason`
+
+### `invite_tokens`
+
+One-shot account invitation records. Only the SHA-256 token hash is stored.
+
+Key columns:
+
+- `id` UUID primary key
+- `email`
+- `target_role`
+- `target_user_type`
+- `token_hash`
+- `expires_at`
+- `accepted_at`
+- `issued_by_user_id`
+- `accepted_by_user_id`
+
+### `mfa_factors`
+
+MFA factor ledger synced from Fortify's TOTP state.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `type` (`totp`)
+- `label`
+- `secret_envelope`
+- `recovery_codes_envelope`
+- `confirmed_at`
+- `last_used_at`

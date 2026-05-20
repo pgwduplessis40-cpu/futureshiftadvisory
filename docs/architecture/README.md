@@ -18,6 +18,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `ai-integrity.md` | WO-04 | AiClient contract, prompt registry, attribution validator, bias detector |
 | `integration-pattern.md` | WO-05 | ResilientHttp + RetryPolicy + CircuitBreaker + cached fallback shape |
 | `secure-file-storage.md` | WO-06 | SecureFileWriter, encrypted disk wrapper, scanner contract, quarantine flow |
+| `auth-invite-mfa.md` | WO-08 | Invite-only account creation, Fortify MFA enforcement, session MFA gate |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

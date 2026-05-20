@@ -6,6 +6,7 @@ use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
+use App\Http\Middleware\RequireMfa;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -40,6 +41,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // sensitive endpoint). See PLAN.md section 7.3.
         $middleware->alias([
             'audit.read' => LogAuditEvent::class,
+            'mfa' => RequireMfa::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {

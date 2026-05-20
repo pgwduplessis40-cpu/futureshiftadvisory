@@ -15,7 +15,7 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->get(route('profile.edit'));
 
         $response->assertOk();
@@ -26,7 +26,7 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->patch(route('profile.update'), [
                 'name' => 'Test User',
                 'email' => 'test@example.com',
@@ -48,7 +48,7 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->patch(route('profile.update'), [
                 'name' => 'Test User',
                 'email' => $user->email,
@@ -66,7 +66,7 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->delete(route('profile.destroy'), [
                 'password' => 'password',
             ]);
@@ -84,7 +84,7 @@ class ProfileUpdateTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->from(route('profile.edit'))
             ->delete(route('profile.destroy'), [
                 'password' => 'wrong-password',

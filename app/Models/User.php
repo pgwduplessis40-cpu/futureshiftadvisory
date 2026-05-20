@@ -7,16 +7,49 @@ use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 
-#[Fillable(['name', 'email', 'password'])]
+#[Fillable([
+    'name',
+    'email',
+    'password',
+    'user_type',
+    'primary_role',
+    'mfa_enabled_at',
+    'mfa_method',
+    'last_password_set_at',
+    'session_timeout_minutes',
+    'suspended_at',
+    'suspended_reason',
+])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, TwoFactorAuthenticatable;
+
+    public const TYPE_SUPER_ADMIN = 'super_admin';
+
+    public const TYPE_ADVISOR = 'advisor';
+
+    public const TYPE_JUNIOR_ADVISOR = 'junior_advisor';
+
+    public const TYPE_ENTREPRENEUR_MENTOR = 'entrepreneur_mentor';
+
+    public const TYPE_CLIENT_PRIMARY = 'client_primary';
+
+    public const TYPE_CLIENT_TEAM = 'client_team';
+
+    public const TYPE_ENTREPRENEUR = 'entrepreneur';
+
+    public const TYPE_BROKER = 'broker';
+
+    public const TYPE_COACH = 'coach';
+
+    public const MFA_METHOD_TOTP = 'totp';
 
     /**
      * Get the attributes that should be cast.
@@ -29,6 +62,49 @@ class User extends Authenticatable
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
             'two_factor_confirmed_at' => 'datetime',
+            'mfa_enabled_at' => 'datetime',
+            'last_password_set_at' => 'datetime',
+            'session_timeout_minutes' => 'integer',
+            'suspended_at' => 'datetime',
+        ];
+    }
+
+    /**
+     * @return HasMany<MfaFactor>
+     */
+    public function mfaFactors(): HasMany
+    {
+        return $this->hasMany(MfaFactor::class);
+    }
+
+    public function fsaRole(): string
+    {
+        return $this->primary_role ?: ($this->user_type ?: 'authenticated');
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public function accessibleClientIds(): array
+    {
+        return [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function userTypes(): array
+    {
+        return [
+            self::TYPE_SUPER_ADMIN,
+            self::TYPE_ADVISOR,
+            self::TYPE_JUNIOR_ADVISOR,
+            self::TYPE_ENTREPRENEUR_MENTOR,
+            self::TYPE_CLIENT_PRIMARY,
+            self::TYPE_CLIENT_TEAM,
+            self::TYPE_ENTREPRENEUR,
+            self::TYPE_BROKER,
+            self::TYPE_COACH,
         ];
     }
 }

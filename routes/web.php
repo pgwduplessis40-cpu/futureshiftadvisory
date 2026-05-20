@@ -8,8 +8,9 @@ use Illuminate\Support\Facades\Route;
 | from the authenticated portal/advisor/admin areas defined in PLAN.md.
 */
 require __DIR__.'/public.php';
+require __DIR__.'/auth.php';
 
-Route::middleware(['auth', 'verified'])->group(function () {
+Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');
 });
 

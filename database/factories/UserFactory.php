@@ -33,6 +33,14 @@ class UserFactory extends Factory
             'two_factor_secret' => null,
             'two_factor_recovery_codes' => null,
             'two_factor_confirmed_at' => null,
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+            'mfa_enabled_at' => null,
+            'mfa_method' => null,
+            'last_password_set_at' => now(),
+            'session_timeout_minutes' => null,
+            'suspended_at' => null,
+            'suspended_reason' => null,
         ];
     }
 
@@ -55,6 +63,16 @@ class UserFactory extends Factory
             'two_factor_secret' => encrypt('secret'),
             'two_factor_recovery_codes' => encrypt(json_encode(['recovery-code-1'])),
             'two_factor_confirmed_at' => now(),
+            'mfa_enabled_at' => now(),
+            'mfa_method' => User::MFA_METHOD_TOTP,
+        ]);
+    }
+
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'user_type' => User::TYPE_SUPER_ADMIN,
+            'primary_role' => User::TYPE_SUPER_ADMIN,
         ]);
     }
 }

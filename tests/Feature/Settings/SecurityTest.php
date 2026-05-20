@@ -94,7 +94,7 @@ class SecurityTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->from(route('security.edit'))
             ->put(route('user-password.update'), [
                 'current_password' => 'password',
@@ -114,7 +114,7 @@ class SecurityTest extends TestCase
         $user = User::factory()->create();
 
         $response = $this
-            ->actingAs($user)
+            ->actingAsMfa($user)
             ->from(route('security.edit'))
             ->put(route('user-password.update'), [
                 'current_password' => 'wrong-password',
