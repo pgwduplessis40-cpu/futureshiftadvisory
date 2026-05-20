@@ -1,11 +1,13 @@
 <?php
 
 use Illuminate\Support\Facades\Route;
-use Laravel\Fortify\Features;
 
-Route::inertia('/', 'welcome', [
-    'canRegister' => Features::enabled(Features::registration()),
-])->name('home');
+/*
+| Public marketing site (no auth) — futureshiftadvisory.nz
+| Lives in its own file so routes/controllers/pages stay clearly separated
+| from the authenticated portal/advisor/admin areas defined in PLAN.md.
+*/
+require __DIR__.'/public.php';
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::inertia('dashboard', 'dashboard')->name('dashboard');

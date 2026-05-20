@@ -2,6 +2,8 @@
 
 @import 'tw-animate-css';
 
+@import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Outfit:wght@300;400;500;600;700&family=Cormorant+Garamond:ital,wght@0,400;0,600;1,400;1,600&display=swap');
+
 @source '../views';
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 
@@ -140,4 +142,70 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/* ──────────────────────────────────────────────────────────────
+   Meridian Warm — public marketing site brand tokens.
+   Scoped to .public so the authenticated app/auth/settings UI
+   (cool greys, shadcn defaults) remains untouched.
+   ────────────────────────────────────────────────────────────── */
+.public {
+    /* Primary — structure & authority */
+    --fs-admiralty: #1C2B45;
+    --fs-commodore: #2A3B5C;
+    --fs-harbour: #1B5070;
+    --fs-pacific: #0D7A7A;
+    --fs-deep-cove: #0D6A5A;
+
+    /* Accent — warmth & premium */
+    --fs-antique-gold: #B8860B;
+    --fs-warm-gold: #D4A020;
+    --fs-cognac: #8B6C42;
+    --fs-champagne: #E8D5A0;
+
+    /* Neutral — warm whites & greys */
+    --fs-parchment: #F9F6F0;
+    --fs-linen: #F0EAD8;
+    --fs-sand: #E0D8CC;
+    --fs-graphite: #5A6A7A;
+
+    /* Semantic surfaces */
+    --fs-bg: var(--fs-parchment);
+    --fs-bg-elevated: #FFFFFF;
+    --fs-text: var(--fs-admiralty);
+    --fs-text-muted: var(--fs-graphite);
+    --fs-text-accent: var(--fs-cognac);
+    --fs-border: var(--fs-sand);
+
+    background: var(--fs-bg);
+    color: var(--fs-text);
+    font-family: 'Outfit', ui-sans-serif, system-ui, sans-serif;
+    font-weight: 400;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+.public .font-display {
+    font-family: 'DM Serif Display', ui-serif, Georgia, serif;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+}
+
+.public .font-accent {
+    font-family: 'Cormorant Garamond', ui-serif, Georgia, serif;
+}
+
+.public .eyebrow {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    color: var(--fs-cognac);
+}
+
+.public .gold-rule {
+    height: 1px;
+    background: var(--fs-warm-gold);
+    width: 56px;
+    border: 0;
 }
