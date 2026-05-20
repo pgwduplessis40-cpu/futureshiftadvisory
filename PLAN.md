@@ -13,7 +13,7 @@
 1. Read sections 1–7 once before starting. They lock decisions you are not free to revisit without the owner.
 2. Implement **Work Orders (WOs)** in section 8 in numeric order. Dependencies are listed; do not break order without explicit owner approval.
 3. Each WO has explicit **acceptance criteria** and **tests**. A WO is not "done" until every acceptance criterion is demonstrably true and tests pass.
-4. After each WO: commit on a branch `wo/<id>-<slug>`, open a PR, link the WO ID in the title. Do not merge multiple WOs in one PR.
+4. After each WO: commit directly on the `featureApp` branch. Do **not** create a separate branch, worktree, or PR per WO. One commit per completed WO, message format: `WO-<id>: <slug summary>`.
 5. Do not invent features beyond what the spec or this plan explicitly require. Spec V2.4 is the source of truth; this plan translates it to Laravel/Inertia. If you find a gap, raise it in the PR description rather than guessing.
 6. If a WO references an external system (Anthropic, NZBN, Stripe, ClamAV, etc.) and credentials are not configured, build the **interface + stub + tests** per section 7.4. Do not block on credentials.
 7. Treat the spec's **AI Integrity Principle (§3)** and **Document AI Verification (§9)** as non-negotiable architecture, not features — they thread through every AI-touching WO.
