@@ -23,15 +23,17 @@ export default function About() {
                 <SectionEyebrow>About</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
                     The structure of clarity.{' '}
-                    <span className="font-accent italic text-[var(--fs-cognac)]">
+                    <span className="font-accent text-[var(--fs-cognac)] italic">
                         The soul of straight talk.
                     </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <SectionLead>
-                    Future Shift Advisory is a Hamilton-based advisory practice working with
-                    New&nbsp;Zealand SMEs, acquirers, and founders. We exist to give business owners
-                    a clear, honest, evidence-backed read on where they stand — and what to do next.
+                    Future Shift Advisory is a Hamilton-based advisory practice
+                    working with New&nbsp;Zealand SMEs, acquirers, and founders.
+                    We exist to give business owners a clear, honest,
+                    evidence-backed read on where they stand — and what to do
+                    next.
                 </SectionLead>
             </Section>
 
@@ -39,10 +41,13 @@ export default function About() {
             <div className="bg-[var(--fs-linen)] py-20">
                 <Section>
                     <SectionEyebrow>What we hold non-negotiable</SectionEyebrow>
-                    <SectionTitle className="mt-3">The AI Integrity Principle.</SectionTitle>
+                    <SectionTitle className="mt-3">
+                        The AI Integrity Principle.
+                    </SectionTitle>
                     <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                        Every output — analysis, guidance, scoring, recommendation, document review —
-                        is held to the same standard.
+                        Every output — analysis, guidance, scoring,
+                        recommendation, document review — is held to the same
+                        standard.
                     </p>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-2">
@@ -95,14 +100,15 @@ export default function About() {
                         <div className="aspect-[4/5] w-full overflow-hidden rounded-xl bg-[var(--fs-admiralty)] p-1">
                             <div className="flex h-full w-full items-center justify-center rounded-lg bg-gradient-to-br from-[var(--fs-commodore)] via-[var(--fs-harbour)] to-[var(--fs-pacific)] text-[var(--fs-parchment)]">
                                 <div className="text-center">
-                                    <div className="font-display text-6xl">PD</div>
-                                    <div className="mt-3 text-[11px] tracking-[0.2em] uppercase text-[var(--fs-warm-gold)]">
+                                    <div className="font-display text-6xl">
+                                        PD
+                                    </div>
+                                    <div className="mt-3 text-[11px] tracking-[0.2em] text-[var(--fs-warm-gold)] uppercase">
                                         Principal Advisor
                                     </div>
                                 </div>
                             </div>
                         </div>
-                        {/* TODO: replace with a real portrait once available */}
                     </div>
 
                     <div className="md:col-span-7">
@@ -111,18 +117,21 @@ export default function About() {
                             Pieter Du Plessis
                         </h2>
                         <p className="mt-6 text-base leading-relaxed text-[var(--fs-graphite)]">
-                            Future Shift Advisory is led by Pieter Du Plessis from Hamilton,
-                            New&nbsp;Zealand. The practice was founded on a simple frustration: that
-                            too many SME owners receive advice that is either vague, flattering, or
-                            disconnected from the evidence sitting in their own books.
+                            Future Shift Advisory is led by Pieter Du Plessis
+                            from Hamilton, New&nbsp;Zealand. The practice was
+                            founded on a simple frustration: that too many SME
+                            owners receive advice that is either vague,
+                            flattering, or disconnected from the evidence
+                            sitting in their own books.
                         </p>
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
-                            What we built instead is an advisory engagement that runs on structure,
-                            cites every finding, and tells you what the evidence actually says — not
-                            what is easiest to hear.
+                            What we built instead is an advisory engagement that
+                            runs on structure, cites every finding, and tells
+                            you what the evidence actually says — not what is
+                            easiest to hear.
                         </p>
 
-                        <blockquote className="font-accent mt-8 border-l-2 border-[var(--fs-warm-gold)] pl-5 text-2xl leading-snug italic text-[var(--fs-admiralty)]">
+                        <blockquote className="font-accent mt-8 border-l-2 border-[var(--fs-warm-gold)] pl-5 text-2xl leading-snug text-[var(--fs-admiralty)] italic">
                             &ldquo;The truth before the comfortable.&rdquo;
                         </blockquote>
                     </div>
@@ -136,32 +145,41 @@ export default function About() {
                         <div>
                             <div className="eyebrow">Where we are</div>
                             <h3 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)]">
-                                Hamilton,<br />working nationwide
+                                Hamilton,
+                                <br />
+                                working nationwide
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                Based in the Waikato, working with SMEs and founders across
-                                New&nbsp;Zealand. Engagements are run remotely with in-person work
-                                where it adds value.
+                                Based in the Waikato, working with SMEs and
+                                founders across New&nbsp;Zealand. Engagements
+                                are run remotely with in-person work where it
+                                adds value.
                             </p>
                         </div>
                         <div>
-                            <div className="eyebrow">How we are NZ-grounded</div>
+                            <div className="eyebrow">
+                                How we are NZ-grounded
+                            </div>
                             <h3 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)]">
                                 NZBN, Companies Office, IRD context
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                Our analysis, frameworks, and references are calibrated to NZ tax,
-                                compliance, and entity structures — not borrowed playbooks.
+                                Our analysis, frameworks, and references are
+                                calibrated to NZ tax, compliance, and entity
+                                structures — not borrowed playbooks.
                             </p>
                         </div>
                         <div>
-                            <div className="eyebrow">How we treat your data</div>
+                            <div className="eyebrow">
+                                How we treat your data
+                            </div>
                             <h3 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)]">
                                 MFA, encryption, audit trail
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                Multi-factor authentication on every account. Documents encrypted
-                                at rest and scanned before storage. Every action permanently logged.
+                                Multi-factor authentication on every account.
+                                Documents encrypted at rest and scanned before
+                                storage. Every action permanently logged.
                             </p>
                         </div>
                     </div>
@@ -184,7 +202,8 @@ export default function About() {
                                 href="/contact"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
-                                Book a discovery call <ArrowRight className="h-4 w-4" />
+                                Book a discovery call{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
                     </div>

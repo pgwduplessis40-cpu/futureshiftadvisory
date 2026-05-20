@@ -10,7 +10,9 @@ export function Section({ children, className, id }: SectionProps) {
     return (
         <section
             id={id}
-            className={['mx-auto max-w-6xl px-6 lg:px-8', className].filter(Boolean).join(' ')}
+            className={['mx-auto max-w-6xl px-6 lg:px-8', className]
+                .filter(Boolean)
+                .join(' ')}
         >
             {children}
         </section>
@@ -34,7 +36,9 @@ export function SectionTitle({
         <As
             className={[
                 'font-display text-[var(--fs-admiralty)]',
-                As === 'h1' ? 'text-4xl leading-[1.05] sm:text-5xl lg:text-6xl' : 'text-3xl leading-tight sm:text-4xl',
+                As === 'h1'
+                    ? 'text-4xl leading-[1.05] sm:text-5xl lg:text-6xl'
+                    : 'text-3xl leading-tight sm:text-4xl',
                 className,
             ]
                 .filter(Boolean)
@@ -54,5 +58,7 @@ export function SectionLead({ children }: { children: ReactNode }) {
 }
 
 export function GoldRule({ className }: { className?: string }) {
-    return <hr className={['gold-rule', className].filter(Boolean).join(' ')} />;
+    return (
+        <hr className={['gold-rule', className].filter(Boolean).join(' ')} />
+    );
 }

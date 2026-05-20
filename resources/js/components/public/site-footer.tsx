@@ -13,7 +13,8 @@ export function SiteFooter() {
                     <div className="md:col-span-5">
                         <BrandMark variant="dark" width={184} />
                         <p className="font-accent mt-5 max-w-sm text-base text-[#E0D8CC] italic">
-                            Evidence-based advisory for New&nbsp;Zealand SMEs and entrepreneurs.
+                            Evidence-based advisory for New&nbsp;Zealand SMEs
+                            and entrepreneurs.
                         </p>
                         <Link
                             href="/contact"
@@ -28,10 +29,38 @@ export function SiteFooter() {
                             Explore
                         </p>
                         <ul className="mt-4 space-y-2 text-sm">
-                            <li><Link href="/services" className="text-[#E0D8CC] hover:text-white">Services</Link></li>
-                            <li><Link href="/about" className="text-[#E0D8CC] hover:text-white">About</Link></li>
-                            <li><Link href="/faq" className="text-[#E0D8CC] hover:text-white">FAQ</Link></li>
-                            <li><Link href="/contact" className="text-[#E0D8CC] hover:text-white">Contact</Link></li>
+                            <li>
+                                <Link
+                                    href="/services"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Services
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/about"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    About
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/faq"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    FAQ
+                                </Link>
+                            </li>
+                            <li>
+                                <Link
+                                    href="/contact"
+                                    className="text-[#E0D8CC] hover:text-white"
+                                >
+                                    Contact
+                                </Link>
+                            </li>
                         </ul>
                     </div>
 
@@ -41,7 +70,6 @@ export function SiteFooter() {
                         </p>
                         <ul className="mt-4 space-y-2 text-sm text-[#E0D8CC]">
                             <li>Hamilton, New&nbsp;Zealand</li>
-                            {/* TODO: replace placeholder once production contact details are confirmed */}
                             <li>
                                 <a
                                     href="mailto:hello@futureshiftadvisory.nz"
@@ -63,8 +91,13 @@ export function SiteFooter() {
                 </div>
 
                 <div className="mt-12 flex flex-col items-start justify-between gap-3 border-t border-[#2A3B5C] pt-6 text-xs text-[#9AAAB8] md:flex-row md:items-center">
-                    <p>&copy; {year} Future Shift Advisory. All rights reserved.</p>
-                    <p className="text-[11px] tracking-wider uppercase">futureshiftadvisory.nz</p>
+                    <p>
+                        &copy; {year} Future Shift Advisory. All rights
+                        reserved.
+                    </p>
+                    <p className="text-[11px] tracking-wider uppercase">
+                        futureshiftadvisory.nz
+                    </p>
                 </div>
             </div>
         </footer>

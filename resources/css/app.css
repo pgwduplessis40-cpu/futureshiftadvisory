@@ -151,27 +151,27 @@
    ────────────────────────────────────────────────────────────── */
 .public {
     /* Primary — structure & authority */
-    --fs-admiralty: #1C2B45;
-    --fs-commodore: #2A3B5C;
-    --fs-harbour: #1B5070;
-    --fs-pacific: #0D7A7A;
-    --fs-deep-cove: #0D6A5A;
+    --fs-admiralty: #1c2b45;
+    --fs-commodore: #2a3b5c;
+    --fs-harbour: #1b5070;
+    --fs-pacific: #0d7a7a;
+    --fs-deep-cove: #0d6a5a;
 
     /* Accent — warmth & premium */
-    --fs-antique-gold: #B8860B;
-    --fs-warm-gold: #D4A020;
-    --fs-cognac: #8B6C42;
-    --fs-champagne: #E8D5A0;
+    --fs-antique-gold: #b8860b;
+    --fs-warm-gold: #d4a020;
+    --fs-cognac: #8b6c42;
+    --fs-champagne: #e8d5a0;
 
     /* Neutral — warm whites & greys */
-    --fs-parchment: #F9F6F0;
-    --fs-linen: #F0EAD8;
-    --fs-sand: #E0D8CC;
-    --fs-graphite: #5A6A7A;
+    --fs-parchment: #f9f6f0;
+    --fs-linen: #f0ead8;
+    --fs-sand: #e0d8cc;
+    --fs-graphite: #5a6a7a;
 
     /* Semantic surfaces */
     --fs-bg: var(--fs-parchment);
-    --fs-bg-elevated: #FFFFFF;
+    --fs-bg-elevated: #ffffff;
     --fs-text: var(--fs-admiralty);
     --fs-text-muted: var(--fs-graphite);
     --fs-text-accent: var(--fs-cognac);

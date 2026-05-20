@@ -15,9 +15,7 @@ class ProspectLeadReceived extends Mailable
 {
     use Queueable, SerializesModels;
 
-    public function __construct(public ProspectLead $lead)
-    {
-    }
+    public function __construct(public ProspectLead $lead) {}
 
     public function envelope(): Envelope
     {

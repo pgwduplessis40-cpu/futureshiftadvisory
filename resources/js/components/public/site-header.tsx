@@ -16,6 +16,7 @@ export function SiteHeader() {
         const onScroll = () => setScrolled(window.scrollY > 8);
         onScroll();
         window.addEventListener('scroll', onScroll, { passive: true });
+
         return () => window.removeEventListener('scroll', onScroll);
     }, []);
 
@@ -51,7 +52,7 @@ export function SiteHeader() {
                             className={[
                                 'text-sm transition-colors',
                                 item.active
-                                    ? 'text-[var(--fs-admiralty)] font-semibold'
+                                    ? 'font-semibold text-[var(--fs-admiralty)]'
                                     : 'text-[var(--fs-graphite)] hover:text-[var(--fs-admiralty)]',
                             ].join(' ')}
                         >
@@ -84,7 +85,11 @@ export function SiteHeader() {
                     onClick={() => setOpen((v) => !v)}
                     className="-mr-2 rounded-md p-2 text-[var(--fs-admiralty)] md:hidden"
                 >
-                    {open ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+                    {open ? (
+                        <X className="h-5 w-5" />
+                    ) : (
+                        <Menu className="h-5 w-5" />
+                    )}
                 </button>
             </div>
 
@@ -99,7 +104,7 @@ export function SiteHeader() {
                                 className={[
                                     'rounded-md px-2 py-2 text-sm',
                                     item.active
-                                        ? 'bg-[var(--fs-linen)] text-[var(--fs-admiralty)] font-semibold'
+                                        ? 'bg-[var(--fs-linen)] font-semibold text-[var(--fs-admiralty)]'
                                         : 'text-[var(--fs-graphite)] hover:bg-[var(--fs-linen)]',
                                 ].join(' ')}
                             >

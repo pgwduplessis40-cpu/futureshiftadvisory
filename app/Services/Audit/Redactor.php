@@ -34,18 +34,19 @@ final class Redactor
     private const PATTERNS = [
         'email' => '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/',
 
-        // NZ phone numbers: optional +64 prefix, optional leading 0,
-        // 8-10 digits split by spaces or dashes. Conservative pattern to
-        // avoid eating short numeric tokens.
-        'phone' => '/(?:\+?64|0)[ \-]?(?:\d[ \-]?){7,9}\d/',
-
-        // NZ bank account: BB-bbbb-AAAAAAA-SSS, with or without dashes.
+        // More specific numeric identifiers run before the phone pattern so
+        // it cannot partially consume a bank account or NZBN-like sequence.
         'bank' => '/\b\d{2}-\d{4}-\d{7}-\d{2,3}\b/',
 
         // IRD number: 8 or 9 digits, optionally formatted NN-NNN-NNN or
         // NNN-NNN-NNN. Anchored to word boundaries to avoid swallowing
         // longer numeric strings.
         'ird' => '/\b\d{2,3}-\d{3}-\d{3}\b/',
+
+        // NZ phone numbers: optional +64 prefix, optional leading 0,
+        // 8-10 digits split by spaces or dashes. Conservative pattern to
+        // avoid eating short numeric tokens.
+        'phone' => '/(?<![\d\-])(?:\+?64|0)[ \-]?(?:\d[ \-]?){7,9}\d(?![\d\-])/',
     ];
 
     /**

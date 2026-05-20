@@ -19,18 +19,21 @@ export default function ContactThanks() {
                 <div className="mx-auto max-w-2xl text-center">
                     <CheckCircle2 className="mx-auto h-12 w-12 text-[var(--fs-pacific)]" />
                     <SectionEyebrow>
-                        <span className="mt-6 inline-block">Enquiry received</span>
+                        <span className="mt-6 inline-block">
+                            Enquiry received
+                        </span>
                     </SectionEyebrow>
                     <SectionTitle className="mt-4">
                         Thanks &mdash;{' '}
-                        <span className="font-accent italic text-[var(--fs-cognac)]">
+                        <span className="font-accent text-[var(--fs-cognac)] italic">
                             we&rsquo;ll be in touch.
                         </span>
                     </SectionTitle>
                     <GoldRule className="mx-auto mt-6" />
                     <p className="mt-6 text-lg leading-relaxed text-[var(--fs-graphite)]">
-                        Your message has reached us. We respond personally &mdash; usually within a
-                        working day. If something is urgent, email{' '}
+                        Your message has reached us. We respond personally
+                        &mdash; usually within a working day. If something is
+                        urgent, email{' '}
                         <a
                             href="mailto:hello@futureshiftadvisory.nz"
                             className="text-[var(--fs-admiralty)] underline underline-offset-2 hover:text-[var(--fs-pacific)]"

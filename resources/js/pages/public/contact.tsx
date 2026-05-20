@@ -24,7 +24,10 @@ export default function Contact({
         const q = url.split('?')[1] ?? '';
         const params = new URLSearchParams(q);
         const interest = params.get('interest');
-        return engagementOptions.some((o) => o.value === interest) ? interest! : '';
+
+        return engagementOptions.some((o) => o.value === interest)
+            ? interest!
+            : '';
     }, [url, engagementOptions]);
 
     return (
@@ -40,14 +43,15 @@ export default function Contact({
                 <SectionEyebrow>Contact</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
                     Start with a{' '}
-                    <span className="font-accent italic text-[var(--fs-cognac)]">
+                    <span className="font-accent text-[var(--fs-cognac)] italic">
                         30-minute conversation.
                     </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                    Tell us a bit about your business and what you are trying to figure out.
-                    We respond personally — usually within a working day. No automated funnels.
+                    Tell us a bit about your business and what you are trying to
+                    figure out. We respond personally — usually within a working
+                    day. No automated funnels.
                 </p>
             </Section>
 
@@ -147,12 +151,19 @@ export default function Contact({
                                                 defaultValue={initialInterest}
                                                 className={inputClass}
                                             >
-                                                <option value="">Select one (optional)</option>
-                                                {engagementOptions.map((opt) => (
-                                                    <option key={opt.value} value={opt.value}>
-                                                        {opt.label}
-                                                    </option>
-                                                ))}
+                                                <option value="">
+                                                    Select one (optional)
+                                                </option>
+                                                {engagementOptions.map(
+                                                    (opt) => (
+                                                        <option
+                                                            key={opt.value}
+                                                            value={opt.value}
+                                                        >
+                                                            {opt.label}
+                                                        </option>
+                                                    ),
+                                                )}
                                             </select>
                                         </Field>
 
@@ -168,20 +179,26 @@ export default function Contact({
                                                 name="message"
                                                 required
                                                 rows={6}
-                                                className={[inputClass, 'min-h-[160px] resize-y'].join(' ')}
+                                                className={[
+                                                    inputClass,
+                                                    'min-h-[160px] resize-y',
+                                                ].join(' ')}
                                             />
                                         </Field>
 
                                         <div className="flex flex-col gap-3 pt-2 sm:flex-row sm:items-center sm:justify-between">
                                             <p className="text-xs text-[var(--fs-graphite)]">
-                                                By submitting you agree we can contact you about your enquiry.
+                                                By submitting you agree we can
+                                                contact you about your enquiry.
                                             </p>
                                             <button
                                                 type="submit"
                                                 disabled={processing}
                                                 className="inline-flex items-center justify-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)] disabled:opacity-60"
                                             >
-                                                {processing && <Loader2 className="h-4 w-4 animate-spin" />}
+                                                {processing && (
+                                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                                )}
                                                 Send enquiry
                                             </button>
                                         </div>
@@ -202,7 +219,6 @@ export default function Contact({
                                 </li>
                                 <li className="flex items-start gap-3">
                                     <Mail className="mt-0.5 h-4 w-4 text-[var(--fs-cognac)]" />
-                                    {/* TODO: replace placeholder with confirmed contact email */}
                                     <a
                                         href="mailto:hello@futureshiftadvisory.nz"
                                         className="hover:underline"
@@ -221,9 +237,10 @@ export default function Contact({
                                         Confidentiality is the baseline
                                     </h3>
                                     <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                        Your enquiry is treated as confidential. We do not share, sell,
-                                        or use it for marketing lists. If we are not the right fit, we
-                                        say so.
+                                        Your enquiry is treated as confidential.
+                                        We do not share, sell, or use it for
+                                        marketing lists. If we are not the right
+                                        fit, we say so.
                                     </p>
                                 </div>
                             </div>
@@ -260,11 +277,15 @@ function Field({
                 className="mb-1.5 block text-sm font-medium text-[var(--fs-admiralty)]"
             >
                 {label}
-                {required && <span className="ml-1 text-[var(--fs-cognac)]">*</span>}
+                {required && (
+                    <span className="ml-1 text-[var(--fs-cognac)]">*</span>
+                )}
             </label>
             {children}
             {hint && !error && (
-                <p className="mt-1.5 text-xs text-[var(--fs-graphite)]">{hint}</p>
+                <p className="mt-1.5 text-xs text-[var(--fs-graphite)]">
+                    {hint}
+                </p>
             )}
             <InputError message={error} className="mt-1.5" />
         </div>

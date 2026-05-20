@@ -14,6 +14,7 @@ type Faq = { group: string; question: string; answer: string };
 export default function Faq({ faqs }: { faqs: Faq[] }) {
     const grouped = faqs.reduce<Record<string, Faq[]>>((acc, f) => {
         (acc[f.group] ??= []).push(f);
+
         return acc;
     }, {});
 
@@ -36,8 +37,9 @@ export default function Faq({ faqs }: { faqs: Faq[] }) {
                 />
                 <script
                     type="application/ld+json"
-                    // eslint-disable-next-line react/no-danger
-                    dangerouslySetInnerHTML={{ __html: JSON.stringify(faqJsonLd) }}
+                    dangerouslySetInnerHTML={{
+                        __html: JSON.stringify(faqJsonLd),
+                    }}
                 />
             </Head>
 
@@ -45,14 +47,15 @@ export default function Faq({ faqs }: { faqs: Faq[] }) {
                 <SectionEyebrow>FAQ</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
                     Honest answers to{' '}
-                    <span className="font-accent italic text-[var(--fs-cognac)]">
+                    <span className="font-accent text-[var(--fs-cognac)] italic">
                         common questions.
                     </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <SectionLead>
-                    If your question is not here, the contact form is the fastest way to a real answer.
-                    We do not gate our reply behind a sales sequence.
+                    If your question is not here, the contact form is the
+                    fastest way to a real answer. We do not gate our reply
+                    behind a sales sequence.
                 </SectionLead>
             </Section>
 
@@ -94,7 +97,8 @@ export default function Faq({ faqs }: { faqs: Faq[] }) {
                                 Still have a question?
                             </h2>
                             <p className="mt-3 max-w-xl text-base text-[var(--fs-graphite)]">
-                                Ask it directly. We respond personally — usually within a working day.
+                                Ask it directly. We respond personally — usually
+                                within a working day.
                             </p>
                         </div>
                         <div className="md:col-span-4 md:text-right">
@@ -102,7 +106,8 @@ export default function Faq({ faqs }: { faqs: Faq[] }) {
                                 href="/contact"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] transition hover:bg-[var(--fs-commodore)]"
                             >
-                                Ask a question <ArrowRight className="h-4 w-4" />
+                                Ask a question{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
                     </div>

@@ -44,13 +44,16 @@ export default function Services({
                 <SectionEyebrow>Services</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
                     Four ways to{' '}
-                    <span className="font-accent italic text-[var(--fs-cognac)]">work with us.</span>
+                    <span className="font-accent text-[var(--fs-cognac)] italic">
+                        work with us.
+                    </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <SectionLead>
-                    Each engagement type is its own commitment, with its own deliverables and its own
-                    cadence. They share one thing: every finding is evidenced, and nothing is asserted
-                    without a reason.
+                    Each engagement type is its own commitment, with its own
+                    deliverables and its own cadence. They share one thing:
+                    every finding is evidenced, and nothing is asserted without
+                    a reason.
                 </SectionLead>
 
                 <nav className="mt-10 flex flex-wrap gap-3">
@@ -80,7 +83,8 @@ export default function Services({
                                         <span
                                             className={[
                                                 'inline-block h-2 w-10 rounded-full',
-                                                accentBar[e.accent] ?? 'bg-[var(--fs-pacific)]',
+                                                accentBar[e.accent] ??
+                                                    'bg-[var(--fs-pacific)]',
                                             ].join(' ')}
                                         />
                                         <span className="eyebrow">
@@ -90,7 +94,7 @@ export default function Services({
                                     <h2 className="font-display mt-4 text-3xl text-[var(--fs-admiralty)] sm:text-4xl">
                                         {e.title}
                                     </h2>
-                                    <p className="font-accent mt-2 text-xl italic text-[var(--fs-cognac)]">
+                                    <p className="font-accent mt-2 text-xl text-[var(--fs-cognac)] italic">
                                         {e.tagline}
                                     </p>
                                     <p className="mt-6 text-base leading-relaxed text-[var(--fs-graphite)]">
@@ -98,17 +102,26 @@ export default function Services({
                                     </p>
 
                                     <div className="mt-6 rounded-md bg-[var(--fs-linen)] px-4 py-3 text-sm text-[var(--fs-admiralty)]">
-                                        <span className="font-semibold">Who it's for:</span>{' '}
-                                        <span className="text-[var(--fs-graphite)]">{e.audience}</span>
+                                        <span className="font-semibold">
+                                            Who it's for:
+                                        </span>{' '}
+                                        <span className="text-[var(--fs-graphite)]">
+                                            {e.audience}
+                                        </span>
                                     </div>
                                 </div>
 
                                 <div className="md:col-span-5">
                                     <div className="rounded-lg border border-[var(--fs-sand)] bg-[var(--fs-parchment)] p-6">
-                                        <div className="eyebrow">What you receive</div>
+                                        <div className="eyebrow">
+                                            What you receive
+                                        </div>
                                         <ul className="mt-4 space-y-3">
                                             {e.deliverables.map((d) => (
-                                                <li key={d} className="flex gap-3 text-sm text-[var(--fs-admiralty)]">
+                                                <li
+                                                    key={d}
+                                                    className="flex gap-3 text-sm text-[var(--fs-admiralty)]"
+                                                >
                                                     <Check className="mt-0.5 h-4 w-4 shrink-0 text-[var(--fs-pacific)]" />
                                                     <span>{d}</span>
                                                 </li>
@@ -118,7 +131,8 @@ export default function Services({
                                             href={`/contact?interest=${e.slug}`}
                                             className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                                         >
-                                            Enquire about {e.title.toLowerCase()}{' '}
+                                            Enquire about{' '}
+                                            {e.title.toLowerCase()}{' '}
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </div>
@@ -137,8 +151,10 @@ export default function Services({
                                 Not sure which one fits?
                             </h2>
                             <p className="font-accent mt-3 max-w-xl text-lg text-[#E0D8CC] italic">
-                                Start with a discovery call. We will listen, ask, and tell you honestly
-                                which engagement makes sense — or that another provider would serve you better.
+                                Start with a discovery call. We will listen,
+                                ask, and tell you honestly which engagement
+                                makes sense — or that another provider would
+                                serve you better.
                             </p>
                         </div>
                         <div className="md:col-span-4 md:text-right">
@@ -146,7 +162,8 @@ export default function Services({
                                 href="/contact"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
-                                Book a discovery call <ArrowRight className="h-4 w-4" />
+                                Book a discovery call{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
                     </div>

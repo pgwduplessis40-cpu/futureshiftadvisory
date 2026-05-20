@@ -1,3 +1,4 @@
+import type { AiNotice } from '@/components/ai-unavailable-notice';
 import type { Auth } from '@/types/auth';
 
 declare module 'react' {
@@ -12,6 +13,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            aiNotice?: AiNotice | null;
             sidebarOpen: boolean;
             [key: string]: unknown;
         };

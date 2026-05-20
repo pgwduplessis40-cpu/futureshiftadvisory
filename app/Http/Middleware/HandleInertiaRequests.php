@@ -2,6 +2,7 @@
 
 namespace App\Http\Middleware;
 
+use App\Services\Ai\AdvisorAiNotice;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -41,6 +42,9 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'aiNotice' => fn () => $request->user()
+                ? app(AdvisorAiNotice::class)->latest()
+                : null,
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }

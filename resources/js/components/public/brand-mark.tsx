@@ -34,9 +34,30 @@ export function BrandMark({
                 aria-label="Future Shift Advisory"
             >
                 <rect x="0" y="42" width="9" height="10" rx="1.5" fill={bar1} />
-                <rect x="13" y="32" width="9" height="20" rx="1.5" fill={bar2} />
-                <rect x="26" y="20" width="9" height="32" rx="1.5" fill={bar3} />
-                <rect x="39" y="10" width="9" height="42" rx="1.5" fill={bar4} />
+                <rect
+                    x="13"
+                    y="32"
+                    width="9"
+                    height="20"
+                    rx="1.5"
+                    fill={bar2}
+                />
+                <rect
+                    x="26"
+                    y="20"
+                    width="9"
+                    height="32"
+                    rx="1.5"
+                    fill={bar3}
+                />
+                <rect
+                    x="39"
+                    y="10"
+                    width="9"
+                    height="42"
+                    rx="1.5"
+                    fill={bar4}
+                />
                 <line
                     x1="4"
                     y1="47"

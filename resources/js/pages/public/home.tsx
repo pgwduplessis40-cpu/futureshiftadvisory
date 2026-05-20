@@ -45,27 +45,31 @@ export default function Home({
                         <SectionEyebrow>Future Shift Advisory</SectionEyebrow>
                         <SectionTitle as="h1" className="mt-4">
                             Your business, shifted{' '}
-                            <span className="font-accent italic text-[var(--fs-cognac)]">
+                            <span className="font-accent text-[var(--fs-cognac)] italic">
                                 forward.
                             </span>
                         </SectionTitle>
                         <GoldRule className="mt-6" />
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                            Evidence-based business advisory for New&nbsp;Zealand SMEs and entrepreneurs.
-                            Honest findings. Cited sources. The truth before the comfortable.
+                            Evidence-based business advisory for
+                            New&nbsp;Zealand SMEs and entrepreneurs. Honest
+                            findings. Cited sources. The truth before the
+                            comfortable.
                         </p>
                         <div className="mt-10 flex flex-wrap items-center gap-4">
                             <Link
                                 href="/contact"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-admiralty)] px-5 py-3 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
                             >
-                                Book a discovery call <ArrowRight className="h-4 w-4" />
+                                Book a discovery call{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </Link>
                             <Link
                                 href="/services"
                                 className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                             >
-                                See how we work <ArrowRight className="h-4 w-4" />
+                                See how we work{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
                     </div>
@@ -115,8 +119,9 @@ export default function Home({
                     <SectionEyebrow>How we work together</SectionEyebrow>
                     <SectionTitle className="mt-3">Four ways in.</SectionTitle>
                     <SectionLead>
-                        Most engagements start with a Standard Advisory diagnostic. Others come in
-                        through due diligence on an acquisition, post-acquisition advisory, or the
+                        Most engagements start with a Standard Advisory
+                        diagnostic. Others come in through due diligence on an
+                        acquisition, post-acquisition advisory, or the
                         entrepreneur module for founders pre-launch.
                     </SectionLead>
 
@@ -126,14 +131,15 @@ export default function Home({
                                 key={e.slug}
                                 href={`/services#${e.slug}`}
                                 className={[
-                                    'group rounded-lg border border-[var(--fs-sand)] border-l-4 bg-white p-6 shadow-[0_1px_2px_rgba(28,43,69,0.03)] transition hover:shadow-[0_8px_24px_rgba(28,43,69,0.08)]',
-                                    accentClass[e.accent] ?? 'border-l-[var(--fs-pacific)]',
+                                    'group rounded-lg border border-l-4 border-[var(--fs-sand)] bg-white p-6 shadow-[0_1px_2px_rgba(28,43,69,0.03)] transition hover:shadow-[0_8px_24px_rgba(28,43,69,0.08)]',
+                                    accentClass[e.accent] ??
+                                        'border-l-[var(--fs-pacific)]',
                                 ].join(' ')}
                             >
                                 <div className="font-display text-2xl text-[var(--fs-admiralty)]">
                                     {e.title}
                                 </div>
-                                <div className="font-accent mt-1 text-base italic text-[var(--fs-cognac)]">
+                                <div className="font-accent mt-1 text-base text-[var(--fs-cognac)] italic">
                                     {e.tagline}
                                 </div>
                                 <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
@@ -193,8 +199,9 @@ export default function Home({
                                 Have a 30-minute conversation with us.
                             </h2>
                             <p className="font-accent mt-4 max-w-xl text-lg text-[#E0D8CC] italic">
-                                No prepared slides. No upsell. We listen, ask, and tell you honestly
-                                whether we are the right fit.
+                                No prepared slides. No upsell. We listen, ask,
+                                and tell you honestly whether we are the right
+                                fit.
                             </p>
                         </div>
                         <div className="md:col-span-4 md:text-right">
@@ -202,7 +209,8 @@ export default function Home({
                                 href="/contact"
                                 className="inline-flex items-center gap-2 rounded-md bg-[var(--fs-warm-gold)] px-5 py-3 text-sm font-semibold text-[var(--fs-admiralty)] transition hover:bg-[var(--fs-champagne)]"
                             >
-                                Book a discovery call <ArrowRight className="h-4 w-4" />
+                                Book a discovery call{' '}
+                                <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
                     </div>
