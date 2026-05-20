@@ -94,6 +94,18 @@ Key columns:
 
 Scanner errors are persisted as quarantined documents with `scanner_result=error`; client-visible queries must use the model's `visibleToClients` scope.
 
+## WO-07 - User roles, permissions, RBAC
+
+### `roles`, `permissions`, `model_has_roles`, `model_has_permissions`, `role_has_permissions`
+
+Spatie `laravel-permission` tables back the Phase 1 RBAC matrix. `roles.name` values match the nine `users.user_type` values; permission names are defined in `app/Enums/Permission.php` and seeded by `PermissionSeeder`/`RoleSeeder`.
+
+Key rules:
+
+- The executable role matrix is `RoleSeeder::rolePermissions()`.
+- `User::fsaRole()` resolves the first assigned Spatie role for RLS request context and falls back to `primary_role` only when no Spatie role has been assigned.
+- `dd_guest` is a token type only for future DD upload links; it is not a Spatie role and must not be stored as `users.user_type`.
+
 ## WO-08 - Invite-only registration + MFA enforcement
 
 ### `users` additions

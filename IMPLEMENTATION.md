@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **7 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-08) |
+| Work orders complete | **8 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08) |
 | Work orders in progress | none |
-| Next work order | **WO-07** - User roles, permissions, RBAC |
+| Next work order | **WO-09** - Session management + step-up MFA |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -27,7 +27,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-04 | `6c266d5` | AI Integrity foundation | `AiClient`, DTOs, prompt registry, source attribution, bias detector, fake/live client, learning-update scaffolding. |
 | WO-05 | `286c2ce` | Integration resilience layer | `ResilientHttp`, retry policy, circuit breaker, per-call logging, health rollups. |
 | WO-06 | `eaa9ebd` | Secure file storage + virus scanning interface | `SecureFileWriter`, encrypted local disk, scanner contract/stubs, quarantine flow. |
-| WO-08 | this commit | Invite-only registration + MFA enforcement | Public registration removed, invite tokens, MFA gate, Fortify 2FA integration. |
+| WO-07 | this commit | User roles, permissions, RBAC | Spatie permission tables, nine-role matrix, middleware, policies, matrix tests. |
+| WO-08 | `3336e56` | Invite-only registration + MFA enforcement | Public registration removed, invite tokens, MFA gate, Fortify 2FA integration. |
 
 ## Completed WO Details
 
@@ -83,6 +84,18 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - Scanner errors persist under `quarantine/`, set `scanner_result=error`, stay out of `Document::visibleToClients()`, and raise a cache/audit advisor notice until WO-12 centralises notifications.
 - Architecture doc: `docs/architecture/secure-file-storage.md`.
 
+### WO-07 - User Roles, Permissions, RBAC
+
+- `spatie/laravel-permission` installed and published with its permission tables/config.
+- `app/Enums/Permission.php` defines the canonical permission constants and the executable nine-role matrix.
+- `PermissionSeeder` and `RoleSeeder` seed all nine spec user types as Spatie roles with their capability lists.
+- `User` now uses Spatie `HasRoles`; `User::fsaRole()` resolves assigned roles for RLS context with `primary_role` as a legacy fallback.
+- `EnsureRole` and `EnsurePermission` route middleware are registered as `role:*` and `permission:*`.
+- Admin invitation routes are role-gated, invite acceptance assigns the matching Spatie role when seeded, and unsupported target roles are rejected.
+- Policies exist for `Client`, `Document`, `Questionnaire`, `Notification`, `KnowledgeEntry`, `ProspectLead`, `TermsVersion`, and `AuditEvent`.
+- DD guest remains token-only via `Permission::DD_GUEST_TOKEN_TYPE`; it is not a user type or Spatie role.
+- Architecture doc: `docs/architecture/rbac-matrix.md`.
+
 ### WO-08 - Invite-Only Registration + MFA Enforcement
 
 - Public Fortify registration is disabled; `/register` GET/POST now returns 404.
@@ -93,7 +106,7 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `RequireMfa` protects authenticated app/settings/admin routes and redirects unenrolled users to setup or enrolled users without a verified session to the MFA challenge.
 - Fortify 2FA confirmation and login challenge events sync `mfa_enabled_at`, `mfa_factors`, and session verification.
 - Temporary terms-pending placeholder route preserves the WO-08 order before the full WO-11 terms gate.
-- Admin invitation UI exists with a string `user_type`/`primary_role` guard; full Spatie RBAC remains WO-07.
+- Admin invitation UI now sits behind the WO-07 Spatie RBAC matrix.
 - Architecture doc: `docs/architecture/auth-invite-mfa.md`.
 
 ## Verification
@@ -109,7 +122,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 94 tests, 288 assertions.
+- `composer test`: passed, 99 tests, 327 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -120,8 +133,6 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-07 | User roles, permissions, RBAC | next | WO-02, WO-03 |
-| WO-08 | Invite-only registration + MFA enforcement | complete out of order | WO-07 |
 | WO-09 | Session management + step-up MFA | not started | WO-08 |
 | WO-10 | Terms model + version control + admin clause editor | not started | WO-07 |
 | WO-11 | T&C acceptance gate + signed-PDF generation | not started | WO-10, WO-06 |
@@ -160,7 +171,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 - Stay on `featureApp`.
 - Implement WOs in numeric order.
 - Commit each completed WO directly on `featureApp` with `WO-<id>: <slug summary>`.
-- WO-08 was completed before WO-07 by explicit owner request; close the RBAC dependency before building further role-sensitive surfaces.
+- WO-08 was completed before WO-07 by explicit owner request; the RBAC dependency is now closed before further role-sensitive surfaces.
 - Do not invent Phase 2+ features.
 - No raw secrets, unowned placeholder comments, or debug calls in shipped code.
 - All AI calls go through `AiClient`.

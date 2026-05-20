@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\InviteToken;
 use App\Models\User;
@@ -58,6 +59,9 @@ final class InvitationController extends Controller
 
     private function authorizeInvites(Request $request): void
     {
-        abort_unless($request->user()?->user_type === User::TYPE_SUPER_ADMIN, 403);
+        $user = $request->user();
+
+        abort_unless($user?->user_type === User::TYPE_SUPER_ADMIN, 403);
+        abort_unless($user->can(Permission::USERS_INVITE->value) || $user->fsaRole() === User::TYPE_SUPER_ADMIN, 403);
     }
 }

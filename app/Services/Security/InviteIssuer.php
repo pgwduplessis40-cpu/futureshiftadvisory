@@ -23,7 +23,7 @@ final class InviteIssuer
         ?Authenticatable $issuedBy = null,
     ): IssuedInvite {
         $email = Str::lower(trim($email));
-        $this->validateTarget($email, $targetUserType);
+        $this->validateTarget($email, $targetUserType, $targetRole);
 
         $plainToken = Str::random(64);
         $invite = InviteToken::query()->create([
@@ -58,7 +58,7 @@ final class InviteIssuer
         return new IssuedInvite($invite, $plainToken, $acceptUrl);
     }
 
-    private function validateTarget(string $email, string $targetUserType): void
+    private function validateTarget(string $email, string $targetUserType, string $targetRole): void
     {
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw ValidationException::withMessages(['email' => 'A valid invitee email address is required.']);
@@ -70,6 +70,10 @@ final class InviteIssuer
 
         if (! in_array($targetUserType, User::userTypes(), true)) {
             throw ValidationException::withMessages(['target_user_type' => 'The requested user type is not supported.']);
+        }
+
+        if (! in_array($targetRole, User::userTypes(), true)) {
+            throw ValidationException::withMessages(['target_role' => 'The requested role is not supported.']);
         }
     }
 }

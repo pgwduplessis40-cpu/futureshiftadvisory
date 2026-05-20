@@ -11,9 +11,9 @@ Accounts are created through `InviteIssuer` and `/invite/{token}`:
 - only a SHA-256 token hash is stored in `invite_tokens`
 - tokens expire according to `INVITE_TOKEN_TTL_HOURS`
 - accepted tokens are one-shot via `accepted_at`
-- accepting an invite creates the user with `user_type` and `primary_role`, logs the user in, and redirects to MFA setup
+- accepting an invite creates the user with `user_type` and `primary_role`, assigns the matching Spatie role when the WO-07 matrix is seeded, logs the user in, and redirects to MFA setup
 
-WO-07 is still pending, so `primary_role` is a string seam. Spatie role/permission assignment must be added there.
+`primary_role` remains as a legacy/audit-friendly string seam, but Spatie roles now drive authorization. If a historical user has no Spatie role assignment, `User::fsaRole()` falls back to `primary_role` until a seeder or admin repair assigns the role.
 
 ## MFA enforcement
 

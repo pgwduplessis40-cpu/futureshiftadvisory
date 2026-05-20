@@ -7,6 +7,7 @@ use App\Http\Controllers\Auth\InviteAcceptController;
 use App\Http\Controllers\Auth\MfaChallengeController;
 use App\Http\Controllers\Auth\MfaSetupController;
 use App\Http\Controllers\Auth\TermsPendingController;
+use App\Models\User;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware('guest')->group(function (): void {
@@ -25,7 +26,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
     Route::prefix('admin')
         ->name('admin.')
-        ->middleware('mfa')
+        ->middleware(['mfa', 'role:'.User::TYPE_SUPER_ADMIN])
         ->group(function (): void {
             Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
             Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');

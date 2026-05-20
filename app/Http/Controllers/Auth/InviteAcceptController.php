@@ -15,6 +15,7 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
 use Inertia\Response;
+use Spatie\Permission\Models\Role;
 
 final class InviteAcceptController extends Controller
 {
@@ -51,6 +52,10 @@ final class InviteAcceptController extends Controller
             'primary_role' => $invite->target_role,
             'last_password_set_at' => now(),
         ]);
+
+        if (Role::query()->where('name', $invite->target_role)->where('guard_name', 'web')->exists()) {
+            $user->assignRole($invite->target_role);
+        }
 
         $invite->markAccepted($user);
 

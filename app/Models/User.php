@@ -10,7 +10,9 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\Schema;
 use Laravel\Fortify\TwoFactorAuthenticatable;
+use Spatie\Permission\Traits\HasRoles;
 
 #[Fillable([
     'name',
@@ -29,7 +31,7 @@ use Laravel\Fortify\TwoFactorAuthenticatable;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, TwoFactorAuthenticatable;
+    use HasFactory, HasRoles, Notifiable, TwoFactorAuthenticatable;
 
     public const TYPE_SUPER_ADMIN = 'super_admin';
 
@@ -50,6 +52,8 @@ class User extends Authenticatable
     public const TYPE_COACH = 'coach';
 
     public const MFA_METHOD_TOTP = 'totp';
+
+    protected string $guard_name = 'web';
 
     /**
      * Get the attributes that should be cast.
@@ -79,6 +83,17 @@ class User extends Authenticatable
 
     public function fsaRole(): string
     {
+        if (
+            Schema::hasTable(config('permission.table_names.roles', 'roles'))
+            && Schema::hasTable(config('permission.table_names.model_has_roles', 'model_has_roles'))
+        ) {
+            $role = $this->getRoleNames()->first();
+
+            if (is_string($role) && $role !== '') {
+                return $role;
+            }
+        }
+
         return $this->primary_role ?: ($this->user_type ?: 'authenticated');
     }
 

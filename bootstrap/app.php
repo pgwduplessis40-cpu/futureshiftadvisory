@@ -3,6 +3,8 @@
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\EnforceClientScope;
+use App\Http\Middleware\EnsurePermission;
+use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
@@ -42,6 +44,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'audit.read' => LogAuditEvent::class,
             'mfa' => RequireMfa::class,
+            'permission' => EnsurePermission::class,
+            'role' => EnsureRole::class,
         ]);
     })
     ->withSchedule(function (Schedule $schedule): void {
