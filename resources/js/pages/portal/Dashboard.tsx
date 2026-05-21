@@ -3,6 +3,7 @@ import {
     Bell,
     ClipboardList,
     FileText,
+    HeartPulse,
     MessageSquare,
     TrendingUp,
 } from 'lucide-react';
@@ -41,6 +42,12 @@ type Props = {
         unread: number;
         urgent: number;
     };
+    wellbeing: {
+        prompt_due: boolean;
+        period_start: string;
+        submitted_at: string | null;
+        url: string;
+    };
     documents: DocumentPayload[];
     messagesUrl: string;
 };
@@ -66,6 +73,7 @@ export default function PortalDashboard({
     progress,
     onboardingUrl,
     notificationSummary,
+    wellbeing,
     documents,
     messagesUrl,
 }: Props) {
@@ -129,6 +137,40 @@ export default function PortalDashboard({
                             className="h-2 rounded-full bg-[var(--fs-admiralty)]"
                             style={{ width: `${progress.percentage}%` }}
                         />
+                    </div>
+                </section>
+
+                <section
+                    className="rounded-md border bg-background p-4"
+                    aria-labelledby="wellbeing-heading"
+                >
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-start gap-3">
+                            <HeartPulse
+                                className="mt-0.5 size-4 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div>
+                                <h2
+                                    id="wellbeing-heading"
+                                    className="text-sm font-medium"
+                                >
+                                    Wellbeing check-in
+                                </h2>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {wellbeing.prompt_due
+                                        ? 'Optional monthly pulse available.'
+                                        : `Shared ${formatDate(wellbeing.submitted_at)}.`}
+                                </p>
+                            </div>
+                        </div>
+                        <Button asChild variant="outline" size="sm">
+                            <Link href={wellbeing.url}>
+                                {wellbeing.prompt_due
+                                    ? 'Open pulse'
+                                    : 'View pulse'}
+                            </Link>
+                        </Button>
                     </div>
                 </section>
 
@@ -266,6 +308,17 @@ function DocumentTile({ document }: { document: DocumentPayload }) {
             )}
         </article>
     );
+}
+
+function formatDate(value: string | null) {
+    if (!value) {
+        return 'this month';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        day: 'numeric',
+        month: 'short',
+    }).format(new Date(value));
 }
 
 function StatusPanel({

@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\User;
+use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\DataQuality\DataQualityScorer;
 use Illuminate\Http\RedirectResponse;
@@ -142,16 +143,18 @@ final class ClientController extends Controller
         return to_route('advisor.clients.show', $client)->with('status', 'client-created');
     }
 
-    public function show(Client $client): Response
+    public function show(Request $request, Client $client): Response
     {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
+        $user = $request->user();
 
         return Inertia::render('advisor/clients/Show', [
             'client' => [
                 ...$this->clientSummary($client),
                 'data_quality' => $dataQuality->level,
                 'data_quality_summary' => $dataQuality->toPayload(),
+                'wellbeing_trend' => $user instanceof User ? $this->wellbeingTrend($client, $user) : null,
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -205,5 +208,51 @@ final class ClientController extends Controller
             'filing_status' => $client->filing_status,
             'data_quality' => $client->data_quality,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>|null
+     */
+    private function wellbeingTrend(Client $client, User $user): ?array
+    {
+        if (! $this->canViewWellbeing($client, $user)) {
+            return null;
+        }
+
+        return WellbeingCheckin::query()
+            ->where('client_id', $client->getKey())
+            ->with('user')
+            ->latest('period_start')
+            ->limit(12)
+            ->get()
+            ->sortBy('period_start')
+            ->map(fn (WellbeingCheckin $checkin): array => [
+                'id' => $checkin->id,
+                'period_start' => $checkin->period_start?->toDateString(),
+                'business_confidence' => $checkin->business_confidence,
+                'personal_coping' => $checkin->personal_coping,
+                'notes' => $checkin->notes,
+                'submitted_at' => $checkin->submitted_at?->toIso8601String(),
+                'submitted_by' => $checkin->user?->name,
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function canViewWellbeing(Client $client, User $user): bool
+    {
+        if ($user->user_type === User::TYPE_SUPER_ADMIN) {
+            return true;
+        }
+
+        if ($user->user_type !== User::TYPE_ADVISOR) {
+            return false;
+        }
+
+        return ClientTeamMember::query()
+            ->where('client_id', $client->getKey())
+            ->where('user_id', $user->getKey())
+            ->where('role', 'lead_advisor')
+            ->exists();
     }
 }

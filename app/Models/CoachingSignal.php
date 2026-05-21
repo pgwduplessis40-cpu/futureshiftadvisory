@@ -1,0 +1,47 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+
+final class CoachingSignal extends Model
+{
+    use HasUuids;
+
+    public const TYPE_LOW_PERSONAL_COPING_STREAK = 'low_personal_coping_streak';
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'evidence' => 'array',
+        'generated_at' => 'datetime',
+    ];
+
+    /**
+     * @return BelongsTo<Client, CoachingSignal>
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<User, CoachingSignal>
+     */
+    public function user(): BelongsTo
+    {
+        return $this->belongsTo(User::class);
+    }
+
+    /**
+     * @return BelongsTo<WellbeingCheckin, CoachingSignal>
+     */
+    public function triggerCheckin(): BelongsTo
+    {
+        return $this->belongsTo(WellbeingCheckin::class, 'trigger_checkin_id');
+    }
+}

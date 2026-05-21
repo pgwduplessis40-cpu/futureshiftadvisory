@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\AggregateIntegrationHealth;
+use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\EnforceSessionSecurity;
@@ -76,6 +77,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->job(new DispatchWeeklyDigest)
             ->weeklyOn(1, '08:00')
             ->name('fsa-notifications-weekly-digest')
+            ->withoutOverlapping();
+
+        $schedule->command(SendWellbeingCheckinPrompts::class)
+            ->monthlyOn(1, '09:00')
+            ->name('fsa-wellbeing-monthly-prompts')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

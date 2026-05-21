@@ -9,6 +9,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\User;
+use App\Models\WellbeingCheckin;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
@@ -39,6 +41,7 @@ final class DashboardController extends Controller
                 'unread' => 0,
                 'urgent' => 0,
             ],
+            'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'documents' => $this->documentPayload($client),
             'messagesUrl' => '#messages-phase-1',
         ]);
@@ -98,6 +101,28 @@ final class DashboardController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function wellbeingPayload(Client $client, mixed $user): array
+    {
+        $current = $user instanceof User
+            ? WellbeingCheckin::query()
+                ->where('client_id', $client->getKey())
+                ->where('user_id', $user->getKey())
+                ->whereDate('period_start', now()->startOfMonth()->toDateString())
+                ->latest('submitted_at')
+                ->first()
+            : null;
+
+        return [
+            'prompt_due' => ! $current instanceof WellbeingCheckin,
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'submitted_at' => $current?->submitted_at?->toIso8601String(),
+            'url' => route('portal.wellbeing.show'),
+        ];
     }
 
     private function documentVerificationState(Document $document): string

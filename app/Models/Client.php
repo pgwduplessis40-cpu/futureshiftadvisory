@@ -68,6 +68,22 @@ final class Client extends Model
         return $this->hasMany(ConflictDeclaration::class);
     }
 
+    /**
+     * @return HasMany<WellbeingCheckin>
+     */
+    public function wellbeingCheckins(): HasMany
+    {
+        return $this->hasMany(WellbeingCheckin::class);
+    }
+
+    /**
+     * @return HasMany<CoachingSignal>
+     */
+    public function coachingSignals(): HasMany
+    {
+        return $this->hasMany(CoachingSignal::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

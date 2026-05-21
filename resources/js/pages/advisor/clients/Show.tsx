@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, LockKeyhole } from 'lucide-react';
+import { ArrowLeft, HeartPulse, LockKeyhole } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
@@ -9,6 +9,7 @@ import type { ClientSummary } from './types';
 
 type ClientDetail = ClientSummary & {
     data_quality_summary: DataQualitySummary;
+    wellbeing_trend: WellbeingPoint[] | null;
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -29,6 +30,16 @@ type ConflictDeclaration = {
 type Props = {
     client: ClientDetail;
     conflictDeclaration: ConflictDeclaration;
+};
+
+type WellbeingPoint = {
+    id: string;
+    period_start: string | null;
+    business_confidence: number;
+    personal_coping: number;
+    notes: string | null;
+    submitted_at: string | null;
+    submitted_by: string | null;
 };
 
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
@@ -128,6 +139,16 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         </dl>
                     </section>
                 </div>
+
+                {client.wellbeing_trend && (
+                    <section className="space-y-4 rounded-md border p-4">
+                        <div className="flex items-center gap-2">
+                            <HeartPulse className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">Wellbeing</h2>
+                        </div>
+                        <WellbeingTrend points={client.wellbeing_trend} />
+                    </section>
+                )}
             </div>
         </>
     );
@@ -163,6 +184,76 @@ function Detail({
             <dd>{value || '-'}</dd>
         </div>
     );
+}
+
+function WellbeingTrend({ points }: { points: WellbeingPoint[] }) {
+    if (points.length === 0) {
+        return (
+            <p className="text-sm text-muted-foreground">
+                No wellbeing check-ins yet.
+            </p>
+        );
+    }
+
+    return (
+        <div className="space-y-3">
+            {points.map((point) => (
+                <article key={point.id} className="grid gap-2 text-sm">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="font-medium">
+                            {formatMonth(point.period_start)}
+                        </div>
+                        <div className="text-muted-foreground">
+                            {point.submitted_by ?? 'Client'}
+                        </div>
+                    </div>
+                    <ScoreBar
+                        label="Business confidence"
+                        value={point.business_confidence}
+                    />
+                    <ScoreBar
+                        label="Personal coping"
+                        value={point.personal_coping}
+                    />
+                    {point.notes && (
+                        <p className="rounded-md bg-muted px-3 py-2 text-muted-foreground">
+                            {point.notes}
+                        </p>
+                    )}
+                </article>
+            ))}
+        </div>
+    );
+}
+
+function ScoreBar({ label, value }: { label: string; value: number }) {
+    const width = `${Math.max(0, Math.min(100, (value / 5) * 100))}%`;
+
+    return (
+        <div className="grid gap-1">
+            <div className="flex items-center justify-between text-xs text-muted-foreground">
+                <span>{label}</span>
+                <span>{value}/5</span>
+            </div>
+            <div className="h-2 rounded-full bg-muted">
+                <div
+                    className="h-2 rounded-full bg-[var(--fs-admiralty)]"
+                    style={{ width }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function formatMonth(value: string | null) {
+    if (!value) {
+        return 'Current period';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        year: 'numeric',
+    }).format(new Date(`${value}T00:00:00`));
 }
 
 ClientsShow.layout = {

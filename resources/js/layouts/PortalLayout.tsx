@@ -2,6 +2,7 @@ import { Link, usePage } from '@inertiajs/react';
 import {
     Bell,
     ClipboardList,
+    HeartPulse,
     LayoutDashboard,
     Menu,
     MessageSquare,
@@ -45,6 +46,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   label: 'Onboarding',
                   href: '/portal/onboarding',
                   icon: ClipboardList,
+              },
+              {
+                  label: 'Wellbeing',
+                  href: '/portal/wellbeing',
+                  icon: HeartPulse,
               },
               {
                   label: 'Messages',
