@@ -13,12 +13,13 @@
 ## 0. How to use this plan
 
 1. Read §1–§7 once before starting. They carry forward the non-negotiable principles and lock the new Phase 2 architecture (the analysis spine, the PV engine, the data feeds, the report composer).
-2. Implement **Work Orders** in §8 in numeric order. Dependencies are explicit. Phase 2 has more parallelisable branches than Phase 1 — see the dependency graph in §8.0.
-3. Follow the same commit discipline used in Phase 1 (per `IMPLEMENTATION.md`): commit each completed WO directly on `featureApp` with `WO-<id>: <slug>` unless the owner changes the branching rule.
+2. Implement **Work Orders** in §8 in strict numeric order. Dependencies are explicit, but they do **not** permit starting later WOs early.
+3. Stay on `featureApp`. Do **not** create WO branches. Commit each completed WO directly on `featureApp` with `WO-<id>: <slug>`.
 4. Every WO ships with its tests. A WO is not done until acceptance criteria are demonstrably true and `composer test`, `npm run lint:check`, `npm run types:check`, `npm run format:check` all pass.
-5. **Do not invent features beyond the spec.** Phase 3/4 features stay out (see §2.2). If you find a gap, raise it in the commit/PR body or add a risk row to §12.
-6. Every analysis-bearing WO **must** route through the Phase 2 analysis spine (§7.1) so the AI Integrity Principle, Document Verification gate, and Data Quality gate are enforced uniformly — never re-implemented per module.
-7. Update `IMPLEMENTATION.md` after each WO (snapshot count, commit log, per-WO detail, verification results), exactly as Phase 1 did.
+5. Update `IMPLEMENTATION.md` after each WO (snapshot count, commit log, per-WO detail, verification results), exactly as Phase 1 did.
+6. After each WO is completed, verified, committed, and documented, **stop and ask the owner whether to proceed to the next WO**. Do not begin the next WO until the owner approves.
+7. **Do not invent features beyond the spec.** Phase 3/4 features stay out (see §2.2). If you find a gap, raise it in the commit body or add a risk row to §12.
+8. Every analysis-bearing WO **must** route through the Phase 2 analysis spine (§7.1) so the AI Integrity Principle, Document Verification gate, and Data Quality gate are enforced uniformly — never re-implemented per module.
 
 ---
 
@@ -242,7 +243,7 @@ WO-43 + proposals ──> WO-62 Practice health ─┴─> WO-63 Advisor dashboa
 WO-20 (Phase 1) ──> WO-64 Wellbeing monthly pulse + analytics
 ```
 
-Parallelisable once WO-31 + WO-36 + WO-37 land: the analysis modules (WO-44…54) and the PV chain (WO-40…43) can proceed largely in parallel.
+This dependency map is for context only. Execution is serial: complete, verify, commit, document, and owner-approve each WO before starting the next numeric WO.
 
 ---
 
@@ -296,7 +297,7 @@ Both follow the Phase 1 integration pattern exactly: fill the existing `Rbnz/Sta
 > Format per WO: **ID** · **Title** · spec refs · goal · depends-on · key files · acceptance criteria · tests · out-of-scope.
 
 ### 8.0 Ordering
-Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data feeds), then PV chain (WO-40→43) and analysis modules (WO-44→54) in parallel, then commerce (WO-55→56), reporting (WO-57→60), and practice management (WO-61→64). WO-32/33/34/35 attach to the spine and can follow WO-31 immediately.
+Strict order: **WO-31 first**, then **WO-32**, then **WO-33**, continuing one-by-one through **WO-64**. The dependency graph explains why later work depends on earlier foundations, but it is not permission to work out of order. After each WO, commit directly on `featureApp`, update `IMPLEMENTATION.md`, stop, and ask the owner whether to proceed to the next WO.
 
 ---
 
@@ -622,6 +623,9 @@ Same bar as Phase 1 (`PLAN.md` §9), plus Phase-2-specific gates:
 8. **Every finding/number carries attribution.** AI Integrity Principle holds across prose and PV figures.
 9. **Every external call goes through `ResilientHttp`; every AI call through `AiClient`.** New integrations gated by `FEATURE_*_LIVE` with fixtures for tests.
 10. Architecture doc added/updated for the WO under `docs/architecture/`.
+11. Work remains on `featureApp`; no WO branch is created.
+12. The completed WO is committed directly on `featureApp` with `WO-<id>: <slug>`.
+13. After the commit, pause and ask the owner whether to proceed to the next numeric WO; no next-WO work begins until approved.
 
 ## 10. Test strategy (Phase 2 additions)
 

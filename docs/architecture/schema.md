@@ -1,4 +1,4 @@
-# Phase 1 schema notes
+# Schema notes
 
 This file records schema additions by work order. It is intentionally concise; migrations remain the source of truth.
 
@@ -424,3 +424,62 @@ Key columns:
 - `last_red_window_end`
 - `notified_at`
 - `notification_id`
+
+## WO-31 - Analysis spine
+
+### `analysis_runs`
+
+Run ledger for every Phase 2 analysis module. The row is created before AI execution so blocked and failed runs remain auditable.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `module` (`financial`, `website_audit`, `competitor`, `swot`, `hr`, `operational`, `systems`, `compliance`, `regulatory_impact`, `insurance_risk`, `knowledge_assessment`, `scenario`, `succession`)
+- `status` (`queued`, `running`, `blocked_documents`, `blocked_data_quality`, `completed`, `failed`)
+- `framework_lenses` JSONB containing produced lenses
+- `data_quality_snapshot` JSONB from `DataQualityScorer`
+- `ai_model`, `prompt_version`, `prompt_hash`
+- `tokens_in`, `tokens_out`
+- `started_at`, `completed_at`
+- `created_by_user_id`
+
+Client-scoped RLS applies.
+
+### `analysis_findings`
+
+Governed findings produced by an analysis run.
+
+Key columns:
+
+- `id` UUID primary key
+- `analysis_run_id`
+- `client_id`
+- `lens` (`descriptive`, `diagnostic`, `predictive`, `prescriptive`)
+- `severity` (`info`, `low`, `medium`, `high`, `critical`)
+- `title`, `body`
+- `attributions` JSONB with claim/source-reference pairs
+- `document_support` (`verified`, `advisory_flag`, `accuracy_discrepancy`, `none`)
+- `uncertainty` (`high`, `medium`, `low`, `none`)
+- `data_quality_disclaimer`
+- `bias_signals` JSONB
+- `pv_link_id`
+
+Client-scoped RLS applies.
+
+### `analysis_feedback`
+
+Advisor feedback ledger for governed analysis findings. WO-31 creates storage and policy only; WO-32 adds capture surfaces and learning-update emission.
+
+Key columns:
+
+- `id` UUID primary key
+- `analysis_finding_id`
+- `advisor_user_id`
+- `decision` (`confirm`, `correct`, `rate`, `add_context`)
+- `rating`
+- `corrected_body`
+- `note`
+- `created_at`
+
+RLS scopes rows through the parent `analysis_findings.client_id`.

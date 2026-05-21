@@ -8,7 +8,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 - A decision diverges from the spec — record the deviation, the rationale, the trigger for revisiting.
 - A cross-cutting concern needs its own write-up (security, audit, AI integrity, integration patterns).
 
-## Files expected during Phase 1
+## Architecture file index
 
 | File | Created by WO | Purpose |
 |---|---|---|
@@ -30,6 +30,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `client-portal.md` | WO-16 | Client portal shell, onboarding wizard state, questionnaire placeholders |
 | `questionnaire-engine.md` | WO-17 | Versioned questionnaire sets, conditional logic, admin builder, portal renderer |
 | `document-verification.md` | WO-18 | Secure upload verification records, AI outcomes, advisor flags, analysis gate |
+| `analysis-spine.md` | WO-31 | Shared Phase 2 analysis pipeline, run/finding storage, gates, RLS |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.
