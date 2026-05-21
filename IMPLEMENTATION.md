@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **15 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13, WO-14, WO-15) |
+| Work orders complete | **16 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13, WO-14, WO-15, WO-16) |
 | Work orders in progress | none |
-| Next work order | **WO-16** - Client portal shell + onboarding wizard |
+| Next work order | **WO-17** - Questionnaire engine |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -35,7 +35,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-12 | `969a0ff` | Centralised notifications + channel preferences | Preference model, channel resolver, database decision ledger, digest jobs, communication settings UI. |
 | WO-13 | `684e77a` | NZ integration scaffolds | NZBN, Companies Office, and IRD clients with fixture stubs, resilience fallback, feature flags, and empty named future integration scaffolds. |
 | WO-14 | `be1fa65` | Add New Client | Advisor client index/create/show flow, engagement type enum, client/team/conflict tables, NZBN auto-population, conflict gate, RLS scope update. |
-| WO-15 | this commit | Add New Entrepreneur | Basic entrepreneur profiles, advisor invite flow, invite acceptance handoff, Phase 1 placeholder portal, and advisor capacity gates. |
+| WO-15 | `a9d7be5` | Add New Entrepreneur | Basic entrepreneur profiles, advisor invite flow, invite acceptance handoff, Phase 1 placeholder portal, and advisor capacity gates. |
+| WO-16 | this commit | Client portal shell + onboarding wizard | Portal layout, dashboard, persisted seven-step onboarding state, server step enforcement, and engagement-type questionnaire placeholders. |
 
 ## Completed WO Details
 
@@ -190,6 +191,18 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `AdvisorEntrepreneurCapacity` enforces the default 30 active entrepreneur hard limit and exposes the 24 active entrepreneur warning threshold.
 - Architecture doc: `docs/architecture/entrepreneur-profiles.md`.
 
+### WO-16 - Client Portal Shell + Onboarding Wizard
+
+- `clients.onboarding_wizard_state` stores current step, completed steps, per-step payloads, submission time, and update time.
+- `routes/portal.php` defines the authenticated client portal dashboard and onboarding routes.
+- `ClientPortalResolver` restricts portal access to `client_primary` and `client_team` users with an assigned client scope.
+- `/dashboard` now redirects scoped client users to `/portal` while entrepreneur users continue to `/portal/entrepreneur`.
+- `PortalLayout` provides the top navigation, notification stub, skip link, and mobile menu for portal pages.
+- `portal/Dashboard` surfaces onboarding progress, data quality, notifications, messages, milestones, and referral placeholders.
+- `OnboardingWizard` owns the seven-step sequence and engagement-type questionnaire placeholder mapping.
+- `OnboardingController` enforces step order server-side and persists each step before moving forward.
+- Architecture doc: `docs/architecture/client-portal.md`.
+
 ## Verification
 
 Latest local checks:
@@ -203,7 +216,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 140 tests, 635 assertions.
+- `composer test`: passed, 146 tests, 709 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -217,7 +230,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 | WO-13 | NZ integration scaffolds | complete | WO-05 |
 | WO-14 | Add New Client | complete | WO-07, WO-13, WO-21, WO-22 |
 | WO-15 | Add New Entrepreneur | complete | WO-14 |
-| WO-16 | Client portal shell + onboarding wizard | not started | WO-11, WO-12, WO-14 |
+| WO-16 | Client portal shell + onboarding wizard | complete | WO-11, WO-12, WO-14 |
 | WO-17 | Questionnaire engine | not started | WO-14, WO-16 |
 | WO-18 | Document upload + verification pipeline | not started | WO-04, WO-06, WO-17 |
 | WO-19 | Data quality gate | not started | WO-17, WO-18 |

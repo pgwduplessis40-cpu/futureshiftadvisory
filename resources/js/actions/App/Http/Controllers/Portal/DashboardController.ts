@@ -1,17 +1,15 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
-import entrepreneur from './entrepreneur'
-import onboarding from './onboarding'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: dashboard.url(options),
+const DashboardController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: DashboardController.url(options),
     method: 'get',
 })
 
-dashboard.definition = {
+DashboardController.definition = {
     methods: ["get","head"],
     url: '/portal',
 } satisfies RouteDefinition<["get","head"]>
@@ -21,8 +19,8 @@ dashboard.definition = {
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-dashboard.url = (options?: RouteQueryOptions) => {
-    return dashboard.definition.url + queryParams(options)
+DashboardController.url = (options?: RouteQueryOptions) => {
+    return DashboardController.definition.url + queryParams(options)
 }
 
 /**
@@ -30,8 +28,8 @@ dashboard.url = (options?: RouteQueryOptions) => {
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
-    url: dashboard.url(options),
+DashboardController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: DashboardController.url(options),
     method: 'get',
 })
 /**
@@ -39,8 +37,8 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
-    url: dashboard.url(options),
+DashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: DashboardController.url(options),
     method: 'head',
 })
 
@@ -49,8 +47,8 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-    const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-        action: dashboard.url(options),
+    const DashboardControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: DashboardController.url(options),
         method: 'get',
     })
 
@@ -59,8 +57,8 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-        dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: dashboard.url(options),
+        DashboardControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: DashboardController.url(options),
             method: 'get',
         })
             /**
@@ -68,8 +66,8 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
  * @see app/Http/Controllers/Portal/DashboardController.php:23
  * @route '/portal'
  */
-        dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
-            action: dashboard.url({
+        DashboardControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: DashboardController.url({
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
                             ...(options?.query ?? options?.mergeQuery ?? {}),
@@ -78,11 +76,5 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
             method: 'get',
         })
 
-    dashboard.form = dashboardForm
-const portal = {
-    dashboard: Object.assign(dashboard, dashboard),
-entrepreneur: Object.assign(entrepreneur, entrepreneur),
-onboarding: Object.assign(onboarding, onboarding),
-}
-
-export default portal
+    DashboardController.form = DashboardControllerForm
+export default DashboardController

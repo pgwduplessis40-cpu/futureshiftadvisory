@@ -4,6 +4,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
+import PortalLayout from '@/layouts/PortalLayout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 
@@ -17,6 +18,8 @@ createInertiaApp({
                 return PublicLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name.startsWith('portal/'):
+                return PortalLayout;
             case name.startsWith('settings/'):
                 return [AppLayout, SettingsLayout];
             default:

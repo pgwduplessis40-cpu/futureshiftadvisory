@@ -20,6 +20,14 @@ final class DashboardController extends Controller
             return to_route('portal.entrepreneur.dashboard');
         }
 
+        if (
+            $user instanceof User
+            && in_array($user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
+            && $user->accessibleClientIds() !== []
+        ) {
+            return to_route('portal.dashboard');
+        }
+
         return Inertia::render('dashboard');
     }
 }

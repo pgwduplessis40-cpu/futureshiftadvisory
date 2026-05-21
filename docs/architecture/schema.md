@@ -312,3 +312,13 @@ Key columns:
 - `email`
 - `stage` (`invited` or `onboarding` reachable in Phase 1; full enum is forward-compatible with Phase 3)
 - `concept_summary`
+
+## WO-16 - Client portal shell + onboarding wizard
+
+### `clients` addition
+
+The portal wizard persists Phase 1 onboarding progress directly on the client row.
+
+Key column:
+
+- `onboarding_wizard_state` JSONB containing `current_step`, `completed_steps`, per-step payloads under `steps`, `submitted_at`, and `updated_at`

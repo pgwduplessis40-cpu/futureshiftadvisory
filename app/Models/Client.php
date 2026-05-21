@@ -32,6 +32,7 @@ final class Client extends Model
         'gst_registered' => 'boolean',
         'directors' => 'array',
         'registry_sources' => 'array',
+        'onboarding_wizard_state' => 'array',
         'engagement_type_locked_at' => 'datetime',
     ];
 
