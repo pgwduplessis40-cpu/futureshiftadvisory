@@ -5,14 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Enums\EngagementType;
+use App\Enums\QuestionnaireSet;
 use App\Models\Client;
+use App\Models\Questionnaire;
 use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
-use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -131,17 +131,21 @@ final class AddClientTest extends TestCase
 
         $this->assertFalse($client->engagementTypeIsLocked());
 
-        Schema::create('questionnaire_responses', function (Blueprint $table): void {
-            $table->uuid('id')->primary();
-            $table->uuid('client_id');
-            $table->timestampsTz();
-        });
-
         $this->assertFalse($client->engagementTypeIsLocked());
+
+        $questionnaire = Questionnaire::query()->create([
+            'set' => QuestionnaireSet::STANDARD_ADVISORY,
+            'version' => '1',
+            'title' => 'Standard Advisory Questionnaire',
+            'published_at' => now(),
+        ]);
 
         DB::table('questionnaire_responses')->insert([
             'id' => (string) Str::uuid(),
             'client_id' => $client->id,
+            'questionnaire_id' => $questionnaire->id,
+            'submitted_at' => now(),
+            'submitted_by_user_id' => null,
             'created_at' => now(),
             'updated_at' => now(),
         ]);

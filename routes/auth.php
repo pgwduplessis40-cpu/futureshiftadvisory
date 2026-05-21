@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Http\Controllers\Admin\InvitationController;
+use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Auth\InviteAcceptController;
 use App\Http\Controllers\Auth\MfaChallengeController;
@@ -36,6 +37,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
             Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
             Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
+
+            Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
+            Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');
+            Route::get('questionnaires/{questionnaire}/edit', [QuestionnaireController::class, 'edit'])->name('questionnaires.edit');
+            Route::put('questionnaires/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaires.update');
+            Route::get('questionnaires/{questionnaire}/preview', [QuestionnaireController::class, 'preview'])->name('questionnaires.preview');
+            Route::post('questionnaires/{questionnaire}/publish', [QuestionnaireController::class, 'publish'])->name('questionnaires.publish');
 
             Route::get('terms', [TermsController::class, 'index'])->name('terms.index');
             Route::post('terms', [TermsController::class, 'store'])->name('terms.store');

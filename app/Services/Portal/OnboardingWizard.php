@@ -158,7 +158,7 @@ final class OnboardingWizard
                 'title' => 'Standard Advisory Questionnaire',
                 'available' => true,
                 'phase' => 'Phase 1',
-                'description' => 'WO-17 adds the live question engine. This step reserves the standard advisory questionnaire path.',
+                'description' => 'Complete the Standard Advisory questionnaire for the current engagement.',
             ],
             EngagementType::DUE_DILIGENCE => [
                 'set' => 'dd_specific',

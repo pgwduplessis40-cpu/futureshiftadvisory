@@ -2,6 +2,7 @@ import { Link } from '@inertiajs/react';
 import {
     BookOpen,
     BriefcaseBusiness,
+    ClipboardList,
     FolderGit2,
     LayoutGrid,
     UsersRound,
@@ -37,6 +38,11 @@ const mainNavItems: NavItem[] = [
         title: 'Entrepreneurs',
         href: '/advisor/entrepreneurs',
         icon: UsersRound,
+    },
+    {
+        title: 'Questionnaires',
+        href: '/admin/questionnaires',
+        icon: ClipboardList,
     },
 ];
 

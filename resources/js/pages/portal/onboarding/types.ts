@@ -1,3 +1,8 @@
+import type {
+    QuestionnaireAnswers,
+    QuestionnaireSchema,
+} from '@/types/questionnaire';
+
 export type ClientPayload = {
     id: string;
     legal_name: string;
@@ -42,4 +47,6 @@ export type Questionnaire = {
     available: boolean;
     phase: string;
     description: string;
+    schema: QuestionnaireSchema | null;
+    answers: QuestionnaireAnswers;
 };

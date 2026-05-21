@@ -30,7 +30,7 @@ WO-16 adds `clients.onboarding_wizard_state` as JSONB. The persisted shape is:
 - `submitted_at`
 - `updated_at`
 
-`OnboardingWizard` owns the step list, progress calculation, questionnaire placeholder selection, current-step resolution, and state writes. `OnboardingController` enforces step order server-side by redirecting any request for a future step back to the current step.
+`OnboardingWizard` owns the step list, progress calculation, questionnaire set selection, current-step resolution, and state writes. `OnboardingController` enforces step order server-side by redirecting any request for a future step back to the current step.
 
 ## Seven steps
 
@@ -46,9 +46,9 @@ The Phase 1 wizard steps are:
 
 Step 5 maps engagement type to questionnaire path:
 
-- `standard_advisory` -> `standard_advisory`, available in Phase 1 as a WO-17 placeholder.
+- `standard_advisory` -> `standard_advisory`, available in Phase 1 through the WO-17 questionnaire engine.
 - `due_diligence` -> `dd_specific`, gated to Phase 3.
 - `post_acquisition_advisory` -> `post_acquisition_gap`, gated to Phase 3.
 - `entrepreneur_module` -> `entrepreneur_readiness`, gated to Phase 3.
 
-Actual questionnaire rendering, document upload, milestone tracking, notification centre, and messaging all remain owned by later WOs.
+Actual questionnaire rendering is owned by WO-17. Document upload, milestone tracking, notification centre, and messaging all remain owned by later WOs.

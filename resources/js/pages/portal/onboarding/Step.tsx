@@ -12,12 +12,14 @@ import {
 } from 'lucide-react';
 import type { ComponentType, FormEvent, ReactNode } from 'react';
 import InputError from '@/components/input-error';
+import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import type { QuestionnaireAnswers } from '@/types/questionnaire';
 import type {
     ClientPayload,
     Progress,
@@ -51,6 +53,7 @@ type OnboardingForm = {
     success_measure: string;
     questionnaire_set_acknowledged: boolean;
     phase_three_acknowledged: boolean;
+    answers: QuestionnaireAnswers;
     documents_acknowledged: boolean;
     review_confirmed: boolean;
 };
@@ -80,6 +83,7 @@ export default function OnboardingStep({
         phase_three_acknowledged: booleanValue(
             stepData.phase_three_acknowledged,
         ),
+        answers: questionnaire.answers ?? {},
         documents_acknowledged: booleanValue(stepData.documents_acknowledged),
         review_confirmed: booleanValue(stepData.review_confirmed),
     });
@@ -366,7 +370,16 @@ function StepContent({
                         </Badge>
                         <Badge variant="outline">{questionnaire.phase}</Badge>
                     </div>
-                    {questionnaire.available ? (
+                    {questionnaire.available && questionnaire.schema ? (
+                        <QuestionnaireRenderer
+                            schema={questionnaire.schema}
+                            answers={form.data.answers}
+                            errors={errors}
+                            onChange={(answers) =>
+                                form.setData('answers', answers)
+                            }
+                        />
+                    ) : questionnaire.available ? (
                         <CheckboxField
                             id="questionnaire_set_acknowledged"
                             label="Use the Standard Advisory questionnaire path."

@@ -322,3 +322,71 @@ The portal wizard persists Phase 1 onboarding progress directly on the client ro
 Key column:
 
 - `onboarding_wizard_state` JSONB containing `current_step`, `completed_steps`, per-step payloads under `steps`, `submitted_at`, and `updated_at`
+
+## WO-17 - Questionnaire engine
+
+### `questionnaires`
+
+Version header for each questionnaire set.
+
+Key columns:
+
+- `id` UUID primary key
+- `set` (`standard_advisory`, `dd_specific`, `post_acquisition_gap`, `entrepreneur_readiness`, `entrepreneur_idea_validation`)
+- `version`
+- `title`
+- `published_at`
+- `created_by_user_id`
+- `published_by_user_id`
+
+### `questionnaire_sections`
+
+Ordered section headings and help text for a questionnaire version.
+
+Key columns:
+
+- `id` UUID primary key
+- `questionnaire_id`
+- `order`
+- `title`
+- `help_text`
+
+### `questionnaire_questions`
+
+Ordered question definitions. `conditional_logic` stores simple `when` plus `equals` or `in` rules with a `show` target question id.
+
+Key columns:
+
+- `id` UUID primary key
+- `questionnaire_section_id`
+- `order`
+- `type` (`text`, `long-text`, `number`, `currency`, `date`, `single-select`, `multi-select`, `file-attach`, `likert`)
+- `prompt`
+- `help_text`
+- `options` JSONB
+- `conditional_logic` JSONB
+- `required`
+
+### `questionnaire_responses`
+
+One client response per questionnaire version. Client-scoped RLS applies.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `questionnaire_id`
+- `submitted_at`
+- `submitted_by_user_id`
+
+### `questionnaire_answers`
+
+Answer values and document links for each visible submitted question. Answer rows are scoped through their parent response.
+
+Key columns:
+
+- `id` UUID primary key
+- `response_id`
+- `question_id`
+- `value` JSONB
+- `attached_document_ids` JSONB

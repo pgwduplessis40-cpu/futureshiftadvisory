@@ -7,10 +7,14 @@ namespace App\Http\Controllers\Portal;
 use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\Questionnaire;
+use App\Models\QuestionnaireResponse;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\Questionnaires\QuestionnairePayload;
+use App\Services\Questionnaires\QuestionnaireResponseRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -23,6 +27,8 @@ final class OnboardingController extends Controller
         private readonly ClientPortalResolver $clients,
         private readonly OnboardingWizard $wizard,
         private readonly AuditWriter $auditWriter,
+        private readonly QuestionnairePayload $questionnairePayload,
+        private readonly QuestionnaireResponseRecorder $responses,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -107,7 +113,7 @@ final class OnboardingController extends Controller
             'state' => $state,
             'stepData' => Arr::get($state, "steps.{$step['slug']}", []),
             'progress' => $this->wizard->progress($client),
-            'questionnaire' => $this->wizard->questionnaire($client),
+            'questionnaire' => $this->questionnaireFor($client),
             'submitUrl' => route('portal.onboarding.store', ['step' => $step['slug']]),
             'dashboardUrl' => route('portal.dashboard'),
             'authUser' => [
@@ -154,6 +160,21 @@ final class OnboardingController extends Controller
     private function validateQuestionnaire(Request $request, Client $client): array
     {
         $questionnaire = $this->wizard->questionnaire($client);
+        $active = $this->activeQuestionnaire($client);
+
+        if ($questionnaire['available'] === true && $active instanceof Questionnaire) {
+            /** @var User $user */
+            $user = $request->user();
+            $response = $this->responses->record($client, $user, $active, $request->all());
+
+            return [
+                'questionnaire_set' => $questionnaire['set'],
+                'questionnaire_available' => true,
+                'questionnaire_id' => $active->getKey(),
+                'response_id' => $response->getKey(),
+            ];
+        }
+
         $field = $questionnaire['available'] === true
             ? 'questionnaire_set_acknowledged'
             : 'phase_three_acknowledged';
@@ -165,5 +186,50 @@ final class OnboardingController extends Controller
             'questionnaire_set' => $questionnaire['set'],
             'questionnaire_available' => $questionnaire['available'],
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function questionnaireFor(Client $client): array
+    {
+        $meta = $this->wizard->questionnaire($client);
+        $active = $this->activeQuestionnaire($client);
+
+        if (! $active instanceof Questionnaire) {
+            return [
+                ...$meta,
+                'schema' => null,
+                'answers' => [],
+            ];
+        }
+
+        $response = QuestionnaireResponse::query()
+            ->where('client_id', $client->getKey())
+            ->where('questionnaire_id', $active->getKey())
+            ->with('answers')
+            ->first();
+
+        return [
+            ...$meta,
+            'schema' => $this->questionnairePayload->schema($active),
+            'answers' => $this->questionnairePayload->answers($response),
+        ];
+    }
+
+    private function activeQuestionnaire(Client $client): ?Questionnaire
+    {
+        $meta = $this->wizard->questionnaire($client);
+        if ($meta['available'] !== true) {
+            return null;
+        }
+
+        return Questionnaire::query()
+            ->forSet((string) $meta['set'])
+            ->published()
+            ->with('sections.questions')
+            ->orderByDesc('published_at')
+            ->orderByDesc('created_at')
+            ->first();
     }
 }

@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **16 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13, WO-14, WO-15, WO-16) |
+| Work orders complete | **17 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13, WO-14, WO-15, WO-16, WO-17) |
 | Work orders in progress | none |
-| Next work order | **WO-17** - Questionnaire engine |
+| Next work order | **WO-18** - Document upload + verification pipeline |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -36,7 +36,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-13 | `684e77a` | NZ integration scaffolds | NZBN, Companies Office, and IRD clients with fixture stubs, resilience fallback, feature flags, and empty named future integration scaffolds. |
 | WO-14 | `be1fa65` | Add New Client | Advisor client index/create/show flow, engagement type enum, client/team/conflict tables, NZBN auto-population, conflict gate, RLS scope update. |
 | WO-15 | `a9d7be5` | Add New Entrepreneur | Basic entrepreneur profiles, advisor invite flow, invite acceptance handoff, Phase 1 placeholder portal, and advisor capacity gates. |
-| WO-16 | this commit | Client portal shell + onboarding wizard | Portal layout, dashboard, persisted seven-step onboarding state, server step enforcement, and engagement-type questionnaire placeholders. |
+| WO-16 | `6437c27` | Client portal shell + onboarding wizard | Portal layout, dashboard, persisted seven-step onboarding state, server step enforcement, and engagement-type questionnaire placeholders. |
+| WO-17 | this commit | Questionnaire engine | Versioned questionnaire schema, Standard Advisory seed, admin builder, conditional logic, portal renderer, and response persistence. |
 
 ## Completed WO Details
 
@@ -203,6 +204,17 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `OnboardingController` enforces step order server-side and persists each step before moving forward.
 - Architecture doc: `docs/architecture/client-portal.md`.
 
+### WO-17 - Questionnaire Engine
+
+- `questionnaires`, `questionnaire_sections`, `questionnaire_questions`, `questionnaire_responses`, and `questionnaire_answers` store versioned questionnaire definitions and client-scoped responses.
+- `QuestionnaireSet` and `QuestionnaireQuestionType` define the supported sets and Phase 1 question types.
+- `StandardAdvisoryQuestionnaireSeeder` seeds the required 10-section Standard Advisory set and covers text, long-text, number, currency, date, single-select, multi-select, file-attach, and Likert questions.
+- `QuestionnaireRuleEngine` evaluates simple `when` plus `equals` / `in` conditional rules server-side; the React evaluator mirrors it for builder and portal preview.
+- `QuestionnaireResponseRecorder` validates visible required questions by type, ignores hidden answers, records `attached_document_ids`, persists responses, and audits `questionnaire.submitted`.
+- Super-admin routes under `/admin/questionnaires` provide list, draft, edit, preview, and publish flows with drag-and-drop ordering via `@dnd-kit/core`.
+- Portal onboarding Step 5 now renders and submits the latest published Standard Advisory questionnaire while keeping Phase 3 questionnaire sets gated.
+- Architecture doc: `docs/architecture/questionnaire-engine.md`.
+
 ## Verification
 
 Latest local checks:
@@ -216,7 +228,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 146 tests, 709 assertions.
+- `composer test`: passed, 149 tests, 743 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -231,7 +243,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 | WO-14 | Add New Client | complete | WO-07, WO-13, WO-21, WO-22 |
 | WO-15 | Add New Entrepreneur | complete | WO-14 |
 | WO-16 | Client portal shell + onboarding wizard | complete | WO-11, WO-12, WO-14 |
-| WO-17 | Questionnaire engine | not started | WO-14, WO-16 |
+| WO-17 | Questionnaire engine | complete | WO-14, WO-16 |
 | WO-18 | Document upload + verification pipeline | not started | WO-04, WO-06, WO-17 |
 | WO-19 | Data quality gate | not started | WO-17, WO-18 |
 | WO-20 | Wellbeing check-in | not started | WO-16 |
