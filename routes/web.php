@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -12,7 +14,9 @@ require __DIR__.'/auth.php';
 require __DIR__.'/advisor.php';
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('portal/entrepreneur', EntrepreneurDashboardController::class)
+        ->name('portal.entrepreneur.dashboard');
 });
 
 require __DIR__.'/settings.php';

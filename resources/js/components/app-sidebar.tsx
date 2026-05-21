@@ -4,6 +4,7 @@ import {
     BriefcaseBusiness,
     FolderGit2,
     LayoutGrid,
+    UsersRound,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
@@ -31,6 +32,11 @@ const mainNavItems: NavItem[] = [
         title: 'Clients',
         href: '/advisor/clients',
         icon: BriefcaseBusiness,
+    },
+    {
+        title: 'Entrepreneurs',
+        href: '/advisor/entrepreneurs',
+        icon: UsersRound,
     },
 ];
 

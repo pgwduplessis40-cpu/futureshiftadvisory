@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\Advisor\ClientController;
+use App\Http\Controllers\Advisor\EntrepreneurController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -25,4 +26,17 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients/{client}', [ClientController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.show');
+
+        Route::get('entrepreneurs', [EntrepreneurController::class, 'index'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.index');
+        Route::get('entrepreneurs/create', [EntrepreneurController::class, 'create'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.create');
+        Route::post('entrepreneurs', [EntrepreneurController::class, 'store'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.store');
+        Route::get('entrepreneurs/{entrepreneurProfile}', [EntrepreneurController::class, 'show'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.show');
     });

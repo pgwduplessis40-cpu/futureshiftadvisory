@@ -91,6 +91,22 @@ class User extends Authenticatable
         return $this->hasOne(CommunicationPreference::class);
     }
 
+    /**
+     * @return HasMany<EntrepreneurProfile>
+     */
+    public function assignedEntrepreneurProfiles(): HasMany
+    {
+        return $this->hasMany(EntrepreneurProfile::class, 'assigned_advisor_id');
+    }
+
+    /**
+     * @return HasOne<EntrepreneurProfile>
+     */
+    public function entrepreneurProfile(): HasOne
+    {
+        return $this->hasOne(EntrepreneurProfile::class);
+    }
+
     public function fsaRole(): string
     {
         if (

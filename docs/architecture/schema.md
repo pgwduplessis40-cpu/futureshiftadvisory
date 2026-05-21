@@ -295,3 +295,20 @@ Key columns:
 - `advisor_id`
 - `declaration` JSONB
 - `declared_at`
+
+## WO-15 - Add New Entrepreneur
+
+### `entrepreneur_profiles`
+
+Phase 1 entrepreneur profile and invite handoff record. The full entrepreneur module remains Phase 3; Phase 1 only stores enough to issue invites and route accepted users to the placeholder portal.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id` accepted entrepreneur account, nullable until invite acceptance
+- `assigned_advisor_id`
+- `invite_token_id`
+- `name`
+- `email`
+- `stage` (`invited` or `onboarding` reachable in Phase 1; full enum is forward-compatible with Phase 3)
+- `concept_summary`
