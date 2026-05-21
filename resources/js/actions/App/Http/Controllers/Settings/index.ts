@@ -1,8 +1,13 @@
-import ProfileController from './ProfileController'
-import SecurityController from './SecurityController'
+import ProfileController from './ProfileController';
+import CommunicationController from './CommunicationController';
+import SecurityController from './SecurityController';
 const Settings = {
     ProfileController: Object.assign(ProfileController, ProfileController),
-SecurityController: Object.assign(SecurityController, SecurityController),
-}
+    CommunicationController: Object.assign(
+        CommunicationController,
+        CommunicationController,
+    ),
+    SecurityController: Object.assign(SecurityController, SecurityController),
+};
 
-export default Settings
+export default Settings;

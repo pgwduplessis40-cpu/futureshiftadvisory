@@ -9,13 +9,10 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Messages\MailMessage;
-use Illuminate\Notifications\Notification;
 
-final class TermsDeclinedUrgentNotification extends Notification
+final class TermsDeclinedUrgentNotification extends ChannelAwareNotification
 {
     use Queueable;
-
-    public string $urgency = 'urgent';
 
     public function __construct(
         public readonly User $declinedUser,
@@ -23,12 +20,9 @@ final class TermsDeclinedUrgentNotification extends Notification
         public readonly TermsAcceptance $acceptance,
     ) {}
 
-    /**
-     * @return array<int, string>
-     */
-    public function via(object $notifiable): array
+    public function urgency(): string
     {
-        return ['mail'];
+        return 'urgent';
     }
 
     public function toMail(object $notifiable): MailMessage

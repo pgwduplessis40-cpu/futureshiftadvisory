@@ -21,7 +21,7 @@ When a material version is published, active acceptances for the prior published
 - `expires_at = published_at + notice_period_days`
 - `reacceptance_notice_queued_at = published_at`
 
-This timestamp is the Phase 1 notification queue seam. WO-12 will move user-facing notification delivery into the central notification centre.
+This timestamp is the Phase 1 notification queue seam. WO-12 provides the central resolver that future user-facing re-acceptance notifications can use.
 
 Non-material publishing writes the immutable audit event only and does not touch existing acceptances.
 

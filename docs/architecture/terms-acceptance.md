@@ -40,4 +40,4 @@ The PDF bytes are written to the encrypted `secure_local` disk under `terms/acce
 
 ## Decline notifications
 
-Declining terms creates a declined `terms_acceptances` row, suspends the user, writes `terms.declined`, and sends `TermsDeclinedUrgentNotification` to all current advisor and super-admin users. WO-12 will move this urgent path into the central notification preference resolver.
+Declining terms creates a declined `terms_acceptances` row, suspends the user, writes `terms.declined`, and sends `TermsDeclinedUrgentNotification` to all current advisor and super-admin users. WO-12 routes this notification through the central resolver while preserving urgent preference bypass.

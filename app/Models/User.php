@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\Schema;
@@ -79,6 +80,14 @@ class User extends Authenticatable
     public function mfaFactors(): HasMany
     {
         return $this->hasMany(MfaFactor::class);
+    }
+
+    /**
+     * @return HasOne<CommunicationPreference>
+     */
+    public function communicationPreference(): HasOne
+    {
+        return $this->hasOne(CommunicationPreference::class);
     }
 
     public function fsaRole(): string

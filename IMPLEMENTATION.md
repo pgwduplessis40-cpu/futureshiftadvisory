@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **11 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11) |
+| Work orders complete | **12 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12) |
 | Work orders in progress | none |
-| Next work order | **WO-12** - Centralised notifications + channel preferences |
+| Next work order | **WO-13** - NZ integration scaffolds |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -31,7 +31,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-08 | `3336e56` | Invite-only registration + MFA enforcement | Public registration removed, invite tokens, MFA gate, Fortify 2FA integration. |
 | WO-09 | `b133147` | Session management + step-up MFA | Per-user-type timeouts, risk scoring, step-up MFA redirect, audit logging. |
 | WO-10 | `454c11f` | Terms model + version control + admin clause editor | Version/clause schema, 14-clause seeder, admin edit/preview/publish flow, material re-acceptance seam. |
-| WO-11 | this commit | T&C acceptance gate + signed-PDF generation | Authenticated gate, scroll-end acceptance, signed PDF evidence, decline suspension, urgent advisor/super-admin notification. |
+| WO-11 | `badb95f` | T&C acceptance gate + signed-PDF generation | Authenticated gate, scroll-end acceptance, signed PDF evidence, decline suspension, urgent advisor/super-admin notification. |
+| WO-12 | this commit | Centralised notifications + channel preferences | Preference model, channel resolver, database decision ledger, digest jobs, communication settings UI. |
 
 ## Completed WO Details
 
@@ -62,7 +63,7 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `BiasDetector` logs every AI output and creates governed `learning_updates` candidates for heuristic bias signals.
 - `AnthropicClaudeClient` is the only live Anthropic HTTP exit point.
 - `FakeAiClient` returns deterministic degraded responses when Anthropic is unavailable.
-- `AdvisorAiNotice` records degraded-mode notices and authenticated Inertia pages render an AI-deferred banner until WO-12 moves this into the notification centre.
+- `AdvisorAiNotice` records degraded-mode notices and authenticated Inertia pages render an AI-deferred banner; future notification-specific work can route it through the WO-12 resolver.
 - `learning_updates` and `learning_update_implementations` tables scaffold future governed learning without self-modifying behaviour.
 - Architecture docs: `docs/architecture/ai-integrity.md` and `docs/architecture/schema.md`.
 
@@ -84,7 +85,7 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `FileScanner` contract with `NoopScanner` for dev/test degraded mode and `ClamAvScanner` skeleton for live ClamAV INSTREAM scanning.
 - `SecureFileWriter` enforces scan-before-store, encrypted persistence, metadata creation, and immutable audit events.
 - Infected uploads are rejected before persistence with an audit event.
-- Scanner errors persist under `quarantine/`, set `scanner_result=error`, stay out of `Document::visibleToClients()`, and raise a cache/audit advisor notice until WO-12 centralises notifications.
+- Scanner errors persist under `quarantine/`, set `scanner_result=error`, stay out of `Document::visibleToClients()`, and raise a cache/audit advisor notice that future notification-specific work can route through the WO-12 resolver.
 - Architecture doc: `docs/architecture/secure-file-storage.md`.
 
 ### WO-07 - User Roles, Permissions, RBAC
@@ -108,7 +109,7 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `mfa_factors` stores the TOTP factor ledger using `KeyEnvelope` for secret/recovery-code envelopes.
 - `RequireMfa` protects authenticated app/settings/admin routes and redirects unenrolled users to setup or enrolled users without a verified session to the MFA challenge.
 - Fortify 2FA confirmation and login challenge events sync `mfa_enabled_at`, `mfa_factors`, and session verification.
-- Temporary terms-pending placeholder route preserves the WO-08 order before the full WO-11 terms gate.
+- Invite and MFA completion now hand users to the WO-11 terms gate before portal access.
 - Admin invitation UI now sits behind the WO-07 Spatie RBAC matrix.
 - Architecture doc: `docs/architecture/auth-invite-mfa.md`.
 
@@ -144,6 +145,17 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `spatie/browsershot` is installed for the production `BrowsershotRenderer`; tests bind a fake renderer.
 - Architecture doc: `docs/architecture/terms-acceptance.md`.
 
+### WO-12 - Centralised Notifications + Channel Preferences
+
+- `communication_preferences` stores per-user channel (`email_only`, `in_platform_only`, `both`) and frequency (`immediate`, `daily`, `weekly`) settings.
+- The Laravel-compatible `notifications` ledger now records `urgency` and `channel_decision` for every `ChannelAwareNotification`.
+- `ChannelResolver` routes non-urgent mail immediately or into daily/weekly digest windows, while urgent notifications bypass preferences and always route to mail plus the database ledger.
+- `fsa_database` is the custom database notification channel that writes the durable routing decision for audit and future WO-24 notification UI.
+- `DispatchDailyDigest` and `DispatchWeeklyDigest` are scheduled jobs backed by `DigestDispatcher` and `NotificationDigestMail`.
+- Users can update communication preferences under settings.
+- `TermsDeclinedUrgentNotification` now uses the central notification resolver.
+- Architecture doc: `docs/architecture/notifications.md`.
+
 ## Verification
 
 Latest local checks:
@@ -157,7 +169,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 119 tests, 446 assertions.
+- `composer test`: passed, 124 tests, 472 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -168,7 +180,6 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-12 | Centralised notifications + channel preferences | not started | WO-07, WO-09 |
 | WO-13 | NZ integration scaffolds | not started | WO-05 |
 | WO-14 | Add New Client | not started | WO-07, WO-13, WO-21, WO-22 |
 | WO-15 | Add New Entrepreneur | not started | WO-14 |

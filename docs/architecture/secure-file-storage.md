@@ -33,4 +33,4 @@ If ClamAV cannot connect or returns an unknown response, the scan result is `err
 
 `infected` scan results are rejected before persistence. No file is written and an immutable audit event records the rejection.
 
-`error` scan results are persisted under `quarantine/`, recorded with `scanner_result=error`, excluded from `Document::visibleToClients()`, and surfaced through `SecureStorageNotice` until WO-12 moves notifications into the central notification system.
+`error` scan results are persisted under `quarantine/`, recorded with `scanner_result=error`, excluded from `Document::visibleToClients()`, and surfaced through `SecureStorageNotice`. Future work can convert that cache/audit notice into a `ChannelAwareNotification` now that WO-12 has introduced the central notification resolver.

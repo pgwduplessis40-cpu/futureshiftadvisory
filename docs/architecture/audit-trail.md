@@ -73,7 +73,7 @@ Route::get('/documents/{document}/download', [DocumentController::class, 'downlo
 2. No `request_id` spans more than 24 hours of events.
 3. The most recent event is not older than 7 days (silent platform == suspicious).
 
-Failures exit non-zero and print findings. Real alerting (notify super-admin) wires in once WO-12 (notifications) lands.
+Failures exit non-zero and print findings. WO-12 provides the notification resolver and digest primitive; a future command-specific notification can route audit-chain failures through it.
 
 ## What this does NOT cover (Phase 1)
 

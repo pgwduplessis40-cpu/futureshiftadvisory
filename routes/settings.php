@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Settings\CommunicationController;
 use App\Http\Controllers\Settings\ProfileController;
 use App\Http\Controllers\Settings\SecurityController;
 use Illuminate\Support\Facades\Route;
@@ -9,6 +10,8 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
 
     Route::get('settings/profile', [ProfileController::class, 'edit'])->name('profile.edit');
     Route::patch('settings/profile', [ProfileController::class, 'update'])->name('profile.update');
+    Route::get('settings/communication', [CommunicationController::class, 'edit'])->name('communication.edit');
+    Route::put('settings/communication', [CommunicationController::class, 'update'])->name('communication.update');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

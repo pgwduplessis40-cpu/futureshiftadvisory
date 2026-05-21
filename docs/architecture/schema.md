@@ -218,3 +218,32 @@ Key columns:
 - `signed_pdf_byte_size`
 - `ip`
 - `user_agent`
+
+## WO-12 - Notifications and communication preferences
+
+### `communication_preferences`
+
+Per-user delivery preference used by `ChannelResolver`.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `channel` (`email_only`, `in_platform_only`, `both`)
+- `frequency` (`immediate`, `daily`, `weekly`)
+- `timezone`
+
+### `notifications`
+
+Laravel-compatible notification ledger extended with Phase 1 routing evidence. It is the durable source for future in-platform notification UI and digest dispatch.
+
+Key columns:
+
+- `id` UUID primary key
+- `type`
+- `notifiable_type`
+- `notifiable_id`
+- `data`
+- `urgency`
+- `channel_decision`
+- `read_at`

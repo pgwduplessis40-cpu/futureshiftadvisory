@@ -11,6 +11,8 @@ use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
 use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireMfa;
+use App\Jobs\DispatchDailyDigest;
+use App\Jobs\DispatchWeeklyDigest;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -64,6 +66,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(AggregateIntegrationHealth::class)
             ->everyFiveMinutes()
             ->name('fsa-integration-health-aggregate')
+            ->withoutOverlapping();
+
+        $schedule->job(new DispatchDailyDigest)
+            ->dailyAt('17:00')
+            ->name('fsa-notifications-daily-digest')
+            ->withoutOverlapping();
+
+        $schedule->job(new DispatchWeeklyDigest)
+            ->weeklyOn(1, '08:00')
+            ->name('fsa-notifications-weekly-digest')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

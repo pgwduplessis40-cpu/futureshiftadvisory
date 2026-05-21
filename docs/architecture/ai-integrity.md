@@ -20,7 +20,7 @@ All AI call sites resolve `App\Services\Ai\Contracts\AiClient`. The app never co
 2. `FallbackAiClient` uses Anthropic when configured and falls back to `FakeAiClient` when the key is absent or the live call is unavailable.
 3. `SourceAttribution` rejects any response with text but no source attribution.
 4. `BiasDetector` logs every inspected output and creates a governed `learning_updates` candidate when Phase 1 heuristics flag wording for review.
-5. `AdvisorAiNotice` records degraded-mode notices in cache and audit so WO-12 can surface them in the notification centre.
+5. `AdvisorAiNotice` records degraded-mode notices in cache and audit; a future notification-specific pass can route them through the WO-12 resolver.
 
 ## Degraded mode
 
