@@ -390,3 +390,22 @@ Key columns:
 - `question_id`
 - `value` JSONB
 - `attached_document_ids` JSONB
+
+## WO-29 - Website integration prospect capture
+
+### `prospect_leads` additions
+
+The public website integration writes signed intake payloads into the existing prospect lead table. Advisors triage rows from the authenticated prospect inbox; an `invited` outcome issues a normal WO-08 invite token and stores the linkage without creating platform access automatically.
+
+Key columns:
+
+- `status` (`new`, `invited`, `parked`, `declined`)
+- `assigned_advisor_user_id`
+- `dedupe_key`
+- `payload_hash`
+- `intake_payload` JSONB
+- `triage_outcome` (`invited`, `parked`, `declined`)
+- `triage_notes`
+- `triaged_at`
+- `triaged_by_user_id`
+- `invite_token_id`

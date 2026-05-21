@@ -68,7 +68,7 @@ final class DashboardTest extends TestCase
                 ->where('pendingTermsReacceptance.total', 1)
                 ->where('pendingTermsReacceptance.items.0.user_name', 'Client Contact')
                 ->where('prospectInbox.total', 2)
-                ->where('prospectInbox.triage_enabled', false)
+                ->where('prospectInbox.triage_enabled', true)
                 ->where('integrationHealth.summary.total', 1)
                 ->where('integrationHealth.services.0.service', 'nzbn'));
     }

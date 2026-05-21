@@ -5,6 +5,8 @@ declare(strict_types=1);
 return [
     'mfa_required' => env('MFA_REQUIRED', true),
     'invite_token_ttl_hours' => (int) env('INVITE_TOKEN_TTL_HOURS', 72),
+    'prospect_intake_secret' => env('PROSPECT_INTAKE_SECRET'),
+    'prospect_intake_tolerance_seconds' => (int) env('PROSPECT_INTAKE_TOLERANCE_SECONDS', 300),
     'session_timeouts' => [
         'default' => (int) env('SESSION_TIMEOUT_DEFAULT_MINUTES', 30),
         'super_admin' => (int) env('SESSION_TIMEOUT_SUPER_ADMIN_MINUTES', 15),

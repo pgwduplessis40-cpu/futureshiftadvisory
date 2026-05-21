@@ -11,6 +11,7 @@ use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\OffboardingController;
+use App\Http\Controllers\Advisor\ProspectInboxController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -94,6 +95,13 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::delete('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'destroy'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
             ->name('knowledge.destroy');
+
+        Route::get('prospects', [ProspectInboxController::class, 'index'])
+            ->middleware('permission:'.Permission::PROSPECTS_VIEW->value)
+            ->name('prospects.index');
+        Route::patch('prospects/{prospectLead}/triage', [ProspectInboxController::class, 'triage'])
+            ->middleware('permission:'.Permission::PROSPECTS_TRIAGE->value)
+            ->name('prospects.triage');
 
         Route::patch('document-verifications/{documentVerification}', [DocumentVerificationController::class, 'update'])
             ->middleware('permission:'.Permission::DOCUMENTS_VERIFY->value)

@@ -5,6 +5,7 @@ import {
     BriefcaseBusiness,
     ClipboardList,
     FolderGit2,
+    Inbox,
     LayoutGrid,
     UsersRound,
 } from 'lucide-react';
@@ -44,6 +45,11 @@ const mainNavItems: NavItem[] = [
         title: 'Knowledge',
         href: '/advisor/knowledge',
         icon: BookOpen,
+    },
+    {
+        title: 'Prospects',
+        href: '/advisor/prospects',
+        icon: Inbox,
     },
     {
         title: 'Notifications',

@@ -64,12 +64,14 @@ type PendingTermsPayload = {
 type ProspectInboxPayload = {
     total: number;
     triage_enabled: boolean;
+    index_url: string;
     items: Array<{
         id: number;
         name: string;
         email: string;
         company: string | null;
         source: string;
+        status: string;
         created_at: string | null;
     }>;
 };
@@ -333,7 +335,12 @@ function ProspectInbox({ payload }: { payload: ProspectInboxPayload }) {
                     <Inbox className="size-4" aria-hidden="true" />
                     <h2 className="text-sm font-medium">Prospect inbox</h2>
                 </div>
-                <Badge variant="secondary">{payload.total} total</Badge>
+                <div className="flex items-center gap-2">
+                    <Badge variant="secondary">{payload.total} total</Badge>
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={payload.index_url}>Open</Link>
+                    </Button>
+                </div>
             </div>
 
             {!payload.triage_enabled && (
@@ -360,7 +367,14 @@ function ProspectInbox({ payload }: { payload: ProspectInboxPayload }) {
                                         {lead.company ?? lead.email}
                                     </div>
                                 </div>
-                                <Badge variant="outline">{lead.source}</Badge>
+                                <div className="flex flex-wrap justify-end gap-2">
+                                    <Badge variant="outline">
+                                        {lead.source}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        {lead.status}
+                                    </Badge>
+                                </div>
                             </div>
                             <div className="text-xs text-muted-foreground">
                                 {formatDate(lead.created_at)}

@@ -407,6 +407,7 @@ final class DashboardController extends Controller
             return [
                 'total' => 0,
                 'triage_enabled' => false,
+                'index_url' => route('advisor.prospects.index', absolute: false),
                 'items' => [],
             ];
         }
@@ -422,6 +423,7 @@ final class DashboardController extends Controller
                 'email' => $lead->email,
                 'company' => $lead->company,
                 'source' => $lead->source,
+                'status' => $lead->status ?? ProspectLead::STATUS_NEW,
                 'created_at' => $lead->created_at?->toIso8601String(),
             ])
             ->values()
@@ -430,6 +432,7 @@ final class DashboardController extends Controller
         return [
             'total' => ProspectLead::query()->count(),
             'triage_enabled' => $hasStatus,
+            'index_url' => route('advisor.prospects.index', absolute: false),
             'items' => $leads,
         ];
     }
