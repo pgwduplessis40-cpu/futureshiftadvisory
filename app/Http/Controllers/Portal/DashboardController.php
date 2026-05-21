@@ -12,6 +12,7 @@ use App\Models\DocumentVerification;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ final class DashboardController extends Controller
         private readonly ClientPortalResolver $clients,
         private readonly OnboardingWizard $wizard,
         private readonly DataQualityScorer $dataQuality,
+        private readonly NotificationCenter $notifications,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -37,10 +39,9 @@ final class DashboardController extends Controller
             'onboardingUrl' => route('portal.onboarding.step', [
                 'step' => $this->wizard->currentStepSlug($client),
             ]),
-            'notificationSummary' => [
-                'unread' => 0,
-                'urgent' => 0,
-            ],
+            'notificationSummary' => $request->user() instanceof User
+                ? $this->notifications->counts($request->user())
+                : ['unread' => 0, 'urgent' => 0],
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'documents' => $this->documentPayload($client),
             'messagesUrl' => '#messages-phase-1',

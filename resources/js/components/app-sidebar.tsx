@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import {
+    Bell,
     BookOpen,
     BriefcaseBusiness,
     ClipboardList,
@@ -38,6 +39,11 @@ const mainNavItems: NavItem[] = [
         title: 'Entrepreneurs',
         href: '/advisor/entrepreneurs',
         icon: UsersRound,
+    },
+    {
+        title: 'Notifications',
+        href: '/notifications',
+        icon: Bell,
     },
     {
         title: 'Questionnaires',

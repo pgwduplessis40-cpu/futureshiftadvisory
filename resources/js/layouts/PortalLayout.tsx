@@ -1,6 +1,5 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
-    Bell,
     ClipboardList,
     HeartPulse,
     LayoutDashboard,
@@ -10,6 +9,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
+import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BrandMark } from '@/components/public/brand-mark';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -91,14 +91,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                     </nav>
 
                     <div className="flex items-center gap-2">
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            aria-label="Notifications"
-                        >
-                            <Bell className="size-4" aria-hidden="true" />
-                        </Button>
+                        <NotificationBell />
                         <Button
                             type="button"
                             variant="outline"

@@ -1,6 +1,8 @@
 <?php
 
+use App\Enums\Permission;
 use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -15,6 +17,15 @@ require __DIR__.'/portal.php';
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('notifications', [NotificationController::class, 'index'])
+        ->middleware('permission:'.Permission::NOTIFICATIONS_VIEW->value)
+        ->name('notifications.index');
+    Route::patch('notifications/read-all', [NotificationController::class, 'markAllRead'])
+        ->middleware('permission:'.Permission::NOTIFICATIONS_VIEW->value)
+        ->name('notifications.mark-all-read');
+    Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead'])
+        ->middleware('permission:'.Permission::NOTIFICATIONS_VIEW->value)
+        ->name('notifications.mark-read');
 });
 
 require __DIR__.'/settings.php';
