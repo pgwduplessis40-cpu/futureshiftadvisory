@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Permission;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
+use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\OffboardingController;
@@ -35,6 +36,18 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('clients/{client}/lifecycle', [ClientLifecycleController::class, 'update'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.lifecycle.update');
+        Route::get('clients/{client}/messages', [ClientMessageController::class, 'index'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.messages.index');
+        Route::post('clients/{client}/messages', [ClientMessageController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.messages.store');
+        Route::get('clients/{client}/messages/{messageThread}', [ClientMessageController::class, 'show'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.messages.show');
+        Route::post('clients/{client}/messages/{messageThread}', [ClientMessageController::class, 'reply'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.messages.reply');
         Route::get('clients/{client}', [ClientController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.show');

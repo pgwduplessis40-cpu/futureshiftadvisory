@@ -108,6 +108,22 @@ class User extends Authenticatable
         return $this->hasOne(EntrepreneurProfile::class);
     }
 
+    /**
+     * @return HasMany<MessageThreadParticipant>
+     */
+    public function messageThreadParticipants(): HasMany
+    {
+        return $this->hasMany(MessageThreadParticipant::class);
+    }
+
+    /**
+     * @return HasMany<Message>
+     */
+    public function sentMessages(): HasMany
+    {
+        return $this->hasMany(Message::class, 'sender_user_id');
+    }
+
     public function fsaRole(): string
     {
         if (

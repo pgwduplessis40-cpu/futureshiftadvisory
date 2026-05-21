@@ -44,7 +44,7 @@ final class DashboardController extends Controller
                 : ['unread' => 0, 'urgent' => 0],
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'documents' => $this->documentPayload($client),
-            'messagesUrl' => '#messages-phase-1',
+            'messagesUrl' => route('portal.messages.index', absolute: false),
         ]);
     }
 

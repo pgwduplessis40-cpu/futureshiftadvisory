@@ -28,6 +28,8 @@ final class Document extends Model
 
     public const CATEGORY_DD_ARTIFACT = 'dd_artifact';
 
+    public const CATEGORY_MESSAGE_ATTACHMENT = 'message_attachment';
+
     public const CATEGORY_OTHER = 'other';
 
     public const SCANNER_PENDING = 'pending';

@@ -6,6 +6,7 @@ import {
     FileCheck2,
     HeartPulse,
     LockKeyhole,
+    MessageSquare,
     PauseCircle,
     RotateCcw,
 } from 'lucide-react';
@@ -109,6 +110,17 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        <Button asChild size="sm" variant="outline">
+                            <Link
+                                href={`/advisor/clients/${client.id}/messages`}
+                            >
+                                <MessageSquare
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Messages
+                            </Link>
+                        </Button>
                         <Button asChild size="sm" variant="outline">
                             <Link
                                 href={`/advisor/clients/${client.id}/offboarding`}

@@ -94,6 +94,14 @@ final class Client extends Model
         return $this->hasMany(OffboardingRecord::class);
     }
 
+    /**
+     * @return HasMany<MessageThread>
+     */
+    public function messageThreads(): HasMany
+    {
+        return $this->hasMany(MessageThread::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

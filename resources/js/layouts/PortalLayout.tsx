@@ -54,7 +54,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
               },
               {
                   label: 'Messages',
-                  href: '#messages-phase-1',
+                  href: '/portal/messages',
                   icon: MessageSquare,
               },
           ];

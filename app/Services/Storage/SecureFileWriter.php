@@ -163,6 +163,7 @@ final class SecureFileWriter
             Document::CATEGORY_COMPLIANCE_DOC,
             Document::CATEGORY_PLAN_ATTACHMENT,
             Document::CATEGORY_DD_ARTIFACT,
+            Document::CATEGORY_MESSAGE_ATTACHMENT,
             Document::CATEGORY_OTHER,
         ], true) ? $normalised : Document::CATEGORY_OTHER;
     }
