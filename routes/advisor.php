@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\Advisor\ClientController;
+use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
@@ -36,6 +37,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('clients/{client}/lifecycle', [ClientLifecycleController::class, 'update'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.lifecycle.update');
+        Route::get('clients/{client}/compose', [ClientEmailController::class, 'create'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.compose');
+        Route::post('clients/{client}/email', [ClientEmailController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.email.store');
         Route::get('clients/{client}/messages', [ClientMessageController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.messages.index');

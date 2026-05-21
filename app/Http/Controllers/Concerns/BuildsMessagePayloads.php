@@ -87,6 +87,11 @@ trait BuildsMessagePayloads
         return [
             'id' => $message->id,
             'body' => $message->body,
+            'channel' => $message->channel ?? Message::CHANNEL_IN_APP,
+            'delivery_state' => $message->delivery_state ?? Message::DELIVERY_SENT,
+            'email_subject' => $message->email_subject,
+            'email_recipients' => $message->email_recipients ?? [],
+            'channel_decision' => $message->channel_decision ?? null,
             'sender_name' => $message->sender?->name ?? 'Future Shift Advisory',
             'sender_user_id' => $message->sender_user_id,
             'sender_user_type' => $message->sender?->user_type,

@@ -12,10 +12,26 @@ final class Message extends Model
 {
     use HasUuids;
 
+    public const CHANNEL_IN_APP = 'in_app';
+
+    public const CHANNEL_EMAIL = 'email';
+
+    public const DELIVERY_SENT = 'sent';
+
+    public const DELIVERY_PARTIAL = 'partial';
+
+    public const DELIVERY_FAILED = 'failed';
+
+    public const DELIVERY_SKIPPED_PREFERENCE = 'skipped_preference';
+
+    public const DELIVERY_SKIPPED_PARALLEL_IN_APP = 'skipped_parallel_in_app';
+
     protected $guarded = [];
 
     protected $casts = [
         'attachments' => 'array',
+        'channel_decision' => 'array',
+        'email_recipients' => 'array',
         'sent_at' => 'datetime',
     ];
 

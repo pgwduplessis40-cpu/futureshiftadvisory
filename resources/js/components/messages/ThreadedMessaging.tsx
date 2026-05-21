@@ -2,6 +2,7 @@ import { Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Inbox,
+    Mail,
     MessageSquare,
     Paperclip,
     Plus,
@@ -51,6 +52,16 @@ export type ThreadMessage = {
     sender_name: string;
     sender_user_id: number | null;
     sender_user_type: string | null;
+    channel: string;
+    delivery_state: string;
+    email_subject: string | null;
+    email_recipients: Array<{
+        user_id: number;
+        email: string;
+        name: string;
+        delivery_state: string;
+    }>;
+    channel_decision: Record<string, unknown> | null;
     mine: boolean;
     attachments: Array<{
         document_id: string;
@@ -373,11 +384,39 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
             )}
         >
             <div className="flex flex-wrap items-center justify-between gap-2">
-                <div className="text-sm font-medium">{message.sender_name}</div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="text-sm font-medium">
+                        {message.sender_name}
+                    </div>
+                    {message.channel === 'email' && (
+                        <Badge variant="outline" className="gap-1">
+                            <Mail className="size-3" aria-hidden="true" />
+                            Email
+                        </Badge>
+                    )}
+                    {message.channel === 'email' && (
+                        <Badge variant="secondary">
+                            {deliveryLabel(message.delivery_state)}
+                        </Badge>
+                    )}
+                </div>
                 <div className="text-xs text-muted-foreground">
                     {formatDate(message.sent_at)}
                 </div>
             </div>
+            {message.email_subject && (
+                <div className="mt-2 text-sm font-medium">
+                    {message.email_subject}
+                </div>
+            )}
+            {message.email_recipients.length > 0 && (
+                <div className="mt-1 text-xs text-muted-foreground">
+                    To:{' '}
+                    {message.email_recipients
+                        .map((recipient) => recipient.name || recipient.email)
+                        .join(', ')}
+                </div>
+            )}
             <p className="mt-2 text-sm leading-6 whitespace-pre-wrap">
                 {message.body}
             </p>
@@ -485,4 +524,16 @@ function formatDate(value: string | null) {
 
 function shortDocumentId(id: string) {
     return `Document ${id.slice(0, 8)}`;
+}
+
+function deliveryLabel(value: string) {
+    const labels: Record<string, string> = {
+        failed: 'Failed',
+        partial: 'Partial',
+        sent: 'Sent',
+        skipped_parallel_in_app: 'Skipped: in-app',
+        skipped_preference: 'Skipped: preference',
+    };
+
+    return labels[value] ?? value.replaceAll('_', ' ');
 }

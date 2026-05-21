@@ -6,6 +6,7 @@ import {
     FileCheck2,
     HeartPulse,
     LockKeyhole,
+    Mail,
     MessageSquare,
     PauseCircle,
     RotateCcw,
@@ -119,6 +120,14 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                     aria-hidden="true"
                                 />
                                 Messages
+                            </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                            <Link
+                                href={`/advisor/clients/${client.id}/compose`}
+                            >
+                                <Mail className="size-4" aria-hidden="true" />
+                                Email
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline">
