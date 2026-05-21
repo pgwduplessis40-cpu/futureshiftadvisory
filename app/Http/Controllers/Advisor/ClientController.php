@@ -150,6 +150,7 @@ final class ClientController extends Controller
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
                 'engagement_type_locked' => $client->engagementTypeIsLocked(),
+                'offboarding' => $this->offboardingSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
             'conflictDeclaration' => $client->conflictDeclarations()
@@ -198,6 +199,27 @@ final class ClientController extends Controller
             'gst_registered' => $client->gst_registered,
             'filing_status' => $client->filing_status,
             'data_quality' => $client->data_quality,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function offboardingSummary(Client $client): ?array
+    {
+        $record = $client->offboardingRecords()
+            ->latest('triggered_at')
+            ->first();
+
+        if ($record === null) {
+            return null;
+        }
+
+        return [
+            'id' => $record->id,
+            'triggered_at' => $record->triggered_at?->toIso8601String(),
+            'reengagement_due' => $record->reengagement_due?->toIso8601String(),
+            'advisor_capacity_released' => $record->advisor_capacity_released,
         ];
     }
 

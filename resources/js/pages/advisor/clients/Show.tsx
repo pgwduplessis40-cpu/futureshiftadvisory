@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, HeartPulse, LockKeyhole } from 'lucide-react';
+import { ArrowLeft, FileCheck2, HeartPulse, LockKeyhole } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
@@ -10,6 +10,7 @@ import type { ClientSummary } from './types';
 type ClientDetail = ClientSummary & {
     data_quality_summary: DataQualitySummary;
     wellbeing_trend: WellbeingPoint[] | null;
+    offboarding: OffboardingSummary | null;
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -42,6 +43,13 @@ type WellbeingPoint = {
     submitted_by: string | null;
 };
 
+type OffboardingSummary = {
+    id: string;
+    triggered_at: string | null;
+    reengagement_due: string | null;
+    advisor_capacity_released: boolean;
+};
+
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
     return (
         <>
@@ -57,12 +65,28 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                             {client.engagement_type_label}
                         </div>
                     </div>
-                    <Button asChild size="sm" variant="outline">
-                        <Link href="/advisor/clients">
-                            <ArrowLeft className="size-4" aria-hidden="true" />
-                            Back
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button asChild size="sm" variant="outline">
+                            <Link
+                                href={`/advisor/clients/${client.id}/offboarding`}
+                            >
+                                <FileCheck2
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Offboard
+                            </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                            <Link href="/advisor/clients">
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Back
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
@@ -125,6 +149,16 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                 label="Conflict"
                                 value={
                                     conflictDeclaration ? 'declared' : 'missing'
+                                }
+                            />
+                            <Detail
+                                label="Offboarding"
+                                value={
+                                    client.offboarding
+                                        ? formatDate(
+                                              client.offboarding.triggered_at,
+                                          )
+                                        : 'not started'
                                 }
                             />
                             <Detail
@@ -254,6 +288,16 @@ function formatMonth(value: string | null) {
         month: 'short',
         year: 'numeric',
     }).format(new Date(`${value}T00:00:00`));
+}
+
+function formatDate(value: string | null) {
+    if (!value) {
+        return null;
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+    }).format(new Date(value));
 }
 
 ClientsShow.layout = {

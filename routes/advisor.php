@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
+use App\Http\Controllers\Advisor\OffboardingController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -24,6 +25,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients', [ClientController::class, 'store'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.store');
+        Route::get('clients/{client}/offboarding', [OffboardingController::class, 'create'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.offboarding.create');
+        Route::post('clients/{client}/offboarding', [OffboardingController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.offboarding.store');
         Route::get('clients/{client}', [ClientController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.show');

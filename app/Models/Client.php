@@ -84,6 +84,14 @@ final class Client extends Model
         return $this->hasMany(CoachingSignal::class);
     }
 
+    /**
+     * @return HasMany<OffboardingRecord>
+     */
+    public function offboardingRecords(): HasMany
+    {
+        return $this->hasMany(OffboardingRecord::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

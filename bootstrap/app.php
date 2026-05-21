@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\AggregateIntegrationHealth;
+use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\EnforceClientScope;
@@ -82,6 +83,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(SendWellbeingCheckinPrompts::class)
             ->monthlyOn(1, '09:00')
             ->name('fsa-wellbeing-monthly-prompts')
+            ->withoutOverlapping();
+
+        $schedule->command(SendReengagementReminders::class)
+            ->dailyAt('09:30')
+            ->name('fsa-offboarding-reengagement-reminders')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
