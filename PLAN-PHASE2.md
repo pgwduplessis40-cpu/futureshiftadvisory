@@ -2,9 +2,9 @@
 
 **Source spec:** `docs/spec/Future_Shift_Advisory_App_Specification_v2.4.docx` (definitive, May 2026)
 **Plan scope:** Phase 2 — Intelligence (Months 3–6) in implementation detail. Phases 3–4 remain forward roadmap.
-**Predecessor:** Phase 1 — Foundation (WO-01…WO-30) — **complete** on branch `featureApp`. See `IMPLEMENTATION.md`.
+**Predecessor:** Phase 1 — Foundation (WO-01…WO-30) — **complete and verified** on branch `featureApp` (see §3.0). See also `IMPLEMENTATION.md`.
 **Work orders:** WO-31 … WO-64 (continues the single global sequence from Phase 1).
-**Plan version:** 1.0
+**Plan version:** 1.1 (Phase 1 verified baseline folded in)
 
 > This document does **not** replace `PLAN.md`. `PLAN.md` is the Phase 1 plan and stays as-is. This is the Phase 2 companion. When Phase 2 begins, mirror the §0 process rules below.
 
@@ -65,6 +65,30 @@ Concretely, by end of Phase 2:
 - **Testimonial capture, voice-to-text, bulk communications, document expiry tracking, offline PWA** — Phase 3.
 
 > NZ-benchmarking in Phase 2 means *industry benchmark reference data* (MBIE/NZ Business Brokers multiples, wage rates), **not** the anonymous cross-client benchmarking community (Phase 4). Keep the distinction sharp.
+
+---
+
+## 3.0 Phase 1 verified baseline
+
+Phase 1 was reviewed and confirmed complete before Phase 2 began. The numbers below are the starting baseline; do not regress them.
+
+| Gate | Result at handoff |
+|---|---|
+| PHPUnit suite (against PostgreSQL `futureshift_test`) | **196 tests / 1237 assertions — all pass** |
+| Pint (PHP style) | pass |
+| ESLint | pass |
+| TypeScript (`tsc --noEmit`) | pass |
+| Prettier | pass |
+| WO commits on `featureApp` | **30 / 30** (WO-01 … WO-30) |
+| Forbidden markers (`TODO`/`FIXME` in `app/`+`routes/`, `dd()`/`dump()`, `console.log`) | **0** |
+
+Inventory at handoff: 31 migrations · 32 models · ~57 test files · 6 seeders · 36 controllers · 54 Inertia pages · 21 architecture docs · 8 client-scoped tables with RLS policies.
+
+Verified invariants Phase 2 must preserve: invite-only (no public `/register`, asserted by test), per-client RLS (`RlsHarnessTest`), append-only `audit_events` (trigger + test), global MFA / terms-gate / client-scope / session-security middleware, `AiClient` single exit with hard-fail on missing attribution, `DocumentVerificationGate` pausing analysis on accuracy discrepancies.
+
+> **Running the suite locally.** `.env.testing` ships Herd defaults (`herd` role, empty password). On a standalone PostgreSQL install you must point the test connection at your real credentials via the process environment, e.g. set `DB_HOST/DB_PORT/DB_DATABASE=futureshift_test/DB_USERNAME/DB_PASSWORD` before `php artisan test`. The test database must be separate from the dev database (`RefreshDatabase` wipes it on every run). Never commit local DB credentials.
+
+**Carryover owner inputs** (deferred by design, not Phase 1 gaps — but several now block client-facing Phase 2 output): Anthropic API key (analysis degrades without it), live NZ-API + accounting credentials (stubs/fixtures until arranged), Meridian Warm brand kit, lawyer-reviewed T&C text, ClamAV production host. Tracked in §12 and `IMPLEMENTATION.md`.
 
 ---
 
