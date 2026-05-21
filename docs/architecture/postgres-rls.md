@@ -4,9 +4,11 @@ Per spec §4 ("row-level database security per client"), every client-scoped tab
 
 ## How it works
 
-1. **Per-request context.** On every authenticated request, the `EnforceClientScope` middleware (`app/Http/Middleware/EnforceClientScope.php`) calls the Postgres function `fsa_set_request_context(role, client_ids)` (installed by migration `0000_01_01_000010_install_rls_helpers.php`). That function sets two session-local variables: `fsa.role` (e.g. `super_admin`, `advisor`) and `fsa.client_ids` (comma-separated UUID list).
+1. **Per-request context.** On every authenticated request, the `EnforceClientScope` middleware (`app/Http/Middleware/EnforceClientScope.php`) calls the Postgres function `fsa_set_request_context(role, client_ids, user_id)` (installed by migration `0000_01_01_000010_install_rls_helpers.php` and extended by WO-14). That function sets three session-local variables: `fsa.role` (e.g. `super_admin`, `advisor`), `fsa.client_ids` (comma-separated UUID list), and `fsa.user_id` (the authenticated user id).
 2. **RLS policies on each table.** Every client-scoped table has `ROW LEVEL SECURITY` enabled and a policy that consults those variables. Unauthenticated requests still go through the middleware (with an empty client list and `role='guest'`), so any RLS-protected query returns zero rows by default — no leak through forgotten context.
-3. **Helper readers.** `fsa_current_role()` and `fsa_current_client_ids()` are convenience functions used by policies for legibility.
+3. **Helper readers.** `fsa_current_role()`, `fsa_current_client_ids()`, and `fsa_current_user_id()` are convenience functions used by policies for legibility.
+
+WO-14 applies context in two steps: first role plus user id, then the client ids resolved from `client_team`, then the final role/user/client context. That allows `client_team` itself to be RLS-protected while still letting the current user discover their own memberships.
 
 ## Adding a new client-scoped table
 

@@ -32,9 +32,13 @@ final class EnforceClientScope
         $user = $request->user();
 
         $role = $this->context->resolveRole($user);
+        $userId = $user?->getAuthIdentifier();
+        $userId = is_scalar($userId) ? (string) $userId : null;
+
+        $this->context->apply($role, [], $userId);
         $clientIds = $this->context->resolveClientIds($user);
 
-        $this->context->apply($role, $clientIds);
+        $this->context->apply($role, $clientIds, $userId);
 
         return $next($request);
     }

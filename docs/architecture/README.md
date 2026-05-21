@@ -25,6 +25,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `terms-acceptance.md` | WO-11 | Authenticated T&C gate, signed PDF evidence, decline suspension |
 | `notifications.md` | WO-12 | Channel preferences, notification decision ledger, digest jobs |
 | `nz-integrations.md` | WO-13 | NZBN, Companies Office, IRD clients and empty named integration scaffolds |
+| `client-management.md` | WO-14 | Client creation, engagement type, NZBN population, conflict declaration gate |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

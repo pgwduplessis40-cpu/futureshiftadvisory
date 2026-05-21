@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **13 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13) |
+| Work orders complete | **14 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13, WO-14) |
 | Work orders in progress | none |
-| Next work order | **WO-14** - Add New Client |
+| Next work order | **WO-15** - Add New Entrepreneur |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -33,7 +33,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-10 | `454c11f` | Terms model + version control + admin clause editor | Version/clause schema, 14-clause seeder, admin edit/preview/publish flow, material re-acceptance seam. |
 | WO-11 | `badb95f` | T&C acceptance gate + signed-PDF generation | Authenticated gate, scroll-end acceptance, signed PDF evidence, decline suspension, urgent advisor/super-admin notification. |
 | WO-12 | `969a0ff` | Centralised notifications + channel preferences | Preference model, channel resolver, database decision ledger, digest jobs, communication settings UI. |
-| WO-13 | this commit | NZ integration scaffolds | NZBN, Companies Office, and IRD clients with fixture stubs, resilience fallback, feature flags, and empty named future integration scaffolds. |
+| WO-13 | `684e77a` | NZ integration scaffolds | NZBN, Companies Office, and IRD clients with fixture stubs, resilience fallback, feature flags, and empty named future integration scaffolds. |
+| WO-14 | this commit | Add New Client | Advisor client index/create/show flow, engagement type enum, client/team/conflict tables, NZBN auto-population, conflict gate, RLS scope update. |
 
 ## Completed WO Details
 
@@ -166,6 +167,17 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - Empty interface plus fake class scaffolds exist for FSP, PPSR, LINZ, IPONZ, Stats NZ, RBNZ, MBIE, NZ Parliament, WorkSafe, Stripe, Windcave, Xero, MYOB, QuickBooks, SES/SendGrid, Whisper, Google Calendar, and Microsoft Graph.
 - Architecture doc: `docs/architecture/nz-integrations.md`.
 
+### WO-14 - Add New Client
+
+- `clients`, `client_team`, and `conflict_declarations` tables are in place with RLS policies.
+- `EnforceClientScope` / `RequestContext` now include `fsa.user_id` so `client_team` can safely resolve current-user client memberships.
+- `EngagementType` defines the four Phase 1 engagement types used by advisor workflows.
+- `PopulateFromNzbn` normalizes NZBN, Companies Office, and IRD fixture/live results for create-time auto-population and source badges.
+- Advisor routes under `/advisor/clients` provide index, create, NZBN lookup, store, and show.
+- Client creation requires a conflict declaration before save, records the lead advisor membership, stores registry source badges, initializes `data_quality=insufficient`, and audits `client.created` plus `conflict.declared`.
+- `Client::engagementTypeIsLocked()` returns true once questionnaire responses exist, giving WO-17 the lock point without creating questionnaire tables early.
+- Architecture doc: `docs/architecture/client-management.md`.
+
 ## Verification
 
 Latest local checks:
@@ -179,7 +191,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 130 tests, 549 assertions.
+- `composer test`: passed, 135 tests, 582 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -191,7 +203,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 | WO | Title | Status | Depends on |
 |---|---|---|---|
 | WO-13 | NZ integration scaffolds | complete | WO-05 |
-| WO-14 | Add New Client | not started | WO-07, WO-13, WO-21, WO-22 |
+| WO-14 | Add New Client | complete | WO-07, WO-13, WO-21, WO-22 |
 | WO-15 | Add New Entrepreneur | not started | WO-14 |
 | WO-16 | Client portal shell + onboarding wizard | not started | WO-11, WO-12, WO-14 |
 | WO-17 | Questionnaire engine | not started | WO-14, WO-16 |

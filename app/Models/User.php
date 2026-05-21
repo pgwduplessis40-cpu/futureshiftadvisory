@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
@@ -111,7 +112,16 @@ class User extends Authenticatable
      */
     public function accessibleClientIds(): array
     {
-        return [];
+        if (! Schema::hasTable('client_team')) {
+            return [];
+        }
+
+        $ids = DB::table('client_team')
+            ->where('user_id', $this->getKey())
+            ->pluck('client_id')
+            ->all();
+
+        return array_values(array_unique(array_map('strval', $ids)));
     }
 
     /**

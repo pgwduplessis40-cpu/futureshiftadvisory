@@ -247,3 +247,51 @@ Key columns:
 - `urgency`
 - `channel_decision`
 - `read_at`
+
+## WO-14 - Add New Client
+
+### `clients`
+
+Client record and Phase 1 registry snapshot.
+
+Key columns:
+
+- `id` UUID primary key
+- `engagement_type` (`standard_advisory`, `due_diligence`, `post_acquisition_advisory`, `entrepreneur_module`)
+- `nzbn`
+- `legal_name`
+- `trading_name`
+- `entity_type`
+- `address` JSONB
+- `gst_registered`
+- `directors` JSONB
+- `filing_status`
+- `data_quality` (`insufficient` initially; WO-19 owns scoring)
+- `registry_sources` JSONB source badges from NZBN, Companies Office, and IRD
+- `created_by_user_id`
+- `primary_contact_user_id`
+- `engagement_type_locked_at`
+
+### `client_team`
+
+User-to-client access ledger used by RLS scope resolution.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `user_id`
+- `granted_modules` JSONB
+- `role`
+
+### `conflict_declarations`
+
+Mandatory conflict declaration captured before a client can be saved. WO-21 will expand this primitive for referrals and DD-specific declarations.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `advisor_id`
+- `declaration` JSONB
+- `declared_at`

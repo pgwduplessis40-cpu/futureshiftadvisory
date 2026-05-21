@@ -10,7 +10,8 @@ use Illuminate\Support\Facades\DB;
 /**
  * Resolves the per-request FSA role and client scope, and pushes them down
  * into the Postgres session so row-level security policies can enforce
- * isolation at the database layer.
+ * isolation at the database layer. WO-14 also stores the authenticated
+ * user id so the client-team lookup can discover a user's client scope.
  *
  * Phase 1 ships a deliberately minimal user-to-scope resolver: the
  * implementation reads a hard-coded "no clients yet" set until the clients
@@ -79,15 +80,15 @@ final class RequestContext
      *
      * @param  array<int, string>  $clientIds
      */
-    public function apply(string $role, array $clientIds): void
+    public function apply(string $role, array $clientIds, ?string $userId = null): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
             return;
         }
 
         DB::statement(
-            'SELECT fsa_set_request_context(?, ?)',
-            [$role, implode(',', $clientIds)]
+            'SELECT fsa_set_request_context(?, ?, ?)',
+            [$role, implode(',', $clientIds), $userId]
         );
     }
 }

@@ -8,7 +8,8 @@ namespace App\Support\Public;
  * Public-site catalog of engagement types.
  * Mirrors the spec's `clients.engagement_type` enum
  * (standard_advisory, due_diligence, post_acquisition_advisory, entrepreneur_module).
- * Will be replaced by reads from EngagementType model once that lands per PLAN.md WO-14.
+ * Kept as public-site copy so marketing pages do not depend on advisor
+ * workflow copy, while the slugs stay aligned with App\Enums\EngagementType.
  */
 final class EngagementTypeCatalog
 {
