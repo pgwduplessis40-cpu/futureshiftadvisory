@@ -1,6 +1,7 @@
 <?php
 
 use App\Console\Commands\AggregateIntegrationHealth;
+use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -69,6 +70,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(AggregateIntegrationHealth::class)
             ->everyFiveMinutes()
             ->name('fsa-integration-health-aggregate')
+            ->withoutOverlapping();
+
+        $schedule->command(AlertStuckRedIntegrations::class)
+            ->everyFiveMinutes()
+            ->name('fsa-integration-health-stuck-red-alerts')
             ->withoutOverlapping();
 
         $schedule->job(new DispatchDailyDigest)

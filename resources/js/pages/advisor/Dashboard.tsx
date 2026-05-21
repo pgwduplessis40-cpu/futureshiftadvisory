@@ -83,6 +83,7 @@ type IntegrationHealthPayload = {
         amber: number;
         red: number;
     };
+    index_url: string | null;
     services: Array<{
         id: string;
         service: string;
@@ -388,6 +389,8 @@ function ProspectInbox({ payload }: { payload: ProspectInboxPayload }) {
 }
 
 function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
+    const dashboardUrl = payload.index_url;
+
     return (
         <section className="space-y-4 rounded-md border bg-background p-4">
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -395,7 +398,7 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
                     <PlugZap className="size-4" aria-hidden="true" />
                     <h2 className="text-sm font-medium">Integration health</h2>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">
                         {payload.summary.green} green
                     </Badge>
@@ -405,6 +408,11 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
                     <Badge variant="destructive">
                         {payload.summary.red} red
                     </Badge>
+                    {dashboardUrl && (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={dashboardUrl}>Open</Link>
+                        </Button>
+                    )}
                 </div>
             </div>
 

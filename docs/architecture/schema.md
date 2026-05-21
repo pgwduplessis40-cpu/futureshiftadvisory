@@ -409,3 +409,18 @@ Key columns:
 - `triaged_at`
 - `triaged_by_user_id`
 - `invite_token_id`
+
+## WO-30 - API health dashboard
+
+### `integration_health_alerts`
+
+Idempotency ledger for stuck-red integration alerts. The alerting command creates one row for each contiguous red incident once the red run exceeds 30 minutes, then notifies super-admins without spamming repeated scheduler runs.
+
+Key columns:
+
+- `id` UUID primary key
+- `service`
+- `stuck_started_at`
+- `last_red_window_end`
+- `notified_at`
+- `notification_id`

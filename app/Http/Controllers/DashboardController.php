@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\Permission;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
@@ -63,7 +64,7 @@ final class DashboardController extends Controller
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
-            'integrationHealth' => $this->integrationHealth(),
+            'integrationHealth' => $this->integrationHealth($user),
         ];
     }
 
@@ -440,18 +441,14 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function integrationHealth(): array
+    private function integrationHealth(User $user): array
     {
+        if (! $user->can(Permission::INTEGRATION_HEALTH_VIEW->value)) {
+            return $this->emptyIntegrationHealth();
+        }
+
         if (! Schema::hasTable('integration_health_samples')) {
-            return [
-                'summary' => [
-                    'total' => 0,
-                    'green' => 0,
-                    'amber' => 0,
-                    'red' => 0,
-                ],
-                'services' => [],
-            ];
+            return $this->emptyIntegrationHealth();
         }
 
         $samples = IntegrationHealthSample::query()
@@ -468,6 +465,7 @@ final class DashboardController extends Controller
                 'amber' => $samples->where('health', IntegrationHealthSample::HEALTH_AMBER)->count(),
                 'red' => $samples->where('health', IntegrationHealthSample::HEALTH_RED)->count(),
             ],
+            'index_url' => route('admin.integration-health.index', absolute: false),
             'services' => $samples
                 ->map(fn (IntegrationHealthSample $sample): array => [
                     'id' => $sample->id,
@@ -478,6 +476,23 @@ final class DashboardController extends Controller
                     'window_end' => $sample->window_end?->toIso8601String(),
                 ])
                 ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyIntegrationHealth(): array
+    {
+        return [
+            'summary' => [
+                'total' => 0,
+                'green' => 0,
+                'amber' => 0,
+                'red' => 0,
+            ],
+            'index_url' => null,
+            'services' => [],
         ];
     }
 }

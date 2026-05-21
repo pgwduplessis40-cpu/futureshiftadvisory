@@ -35,6 +35,7 @@ enum Permission: string
     case TERMS_PUBLISH = 'terms.publish';
     case AUDIT_VIEW = 'audit.view';
     case REPORTS_VIEW = 'reports.view';
+    case INTEGRATION_HEALTH_VIEW = 'integration_health.view';
     case REPORTS_PUBLISH = 'reports.publish';
     case PROPOSALS_RELEASE = 'proposals.release';
     case PAYMENTS_MANAGE = 'payments.manage';
@@ -87,6 +88,7 @@ enum Permission: string
                 self::TERMS_VIEW,
                 self::AUDIT_VIEW,
                 self::REPORTS_VIEW,
+                self::INTEGRATION_HEALTH_VIEW,
                 self::REPORTS_PUBLISH,
                 self::PROPOSALS_RELEASE,
                 self::PAYMENTS_MANAGE,

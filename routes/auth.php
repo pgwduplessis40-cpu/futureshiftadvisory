@@ -2,6 +2,8 @@
 
 declare(strict_types=1);
 
+use App\Enums\Permission;
+use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\TermsController;
@@ -52,5 +54,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('terms/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms.preview');
             Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::INTEGRATION_HEALTH_VIEW->value])
+        ->group(function (): void {
+            Route::get('integration-health', IntegrationHealthController::class)
+                ->name('integration-health.index');
         });
 });

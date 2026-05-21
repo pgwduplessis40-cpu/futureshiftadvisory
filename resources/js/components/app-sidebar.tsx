@@ -7,6 +7,7 @@ import {
     FolderGit2,
     Inbox,
     LayoutGrid,
+    PlugZap,
     UsersRound,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -55,6 +56,11 @@ const mainNavItems: NavItem[] = [
         title: 'Notifications',
         href: '/notifications',
         icon: Bell,
+    },
+    {
+        title: 'API Health',
+        href: '/admin/integration-health',
+        icon: PlugZap,
     },
     {
         title: 'Questionnaires',
