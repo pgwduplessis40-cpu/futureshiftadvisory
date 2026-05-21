@@ -30,4 +30,22 @@ return [
             'max_p95_latency_ms' => (int) env('INTEGRATION_HEALTH_AMBER_P95_MS', 3000),
         ],
     ],
+
+    'nzbn' => [
+        'live' => (bool) env('FEATURE_NZBN_LIVE', false),
+        'base_url' => env('NZBN_BASE_URL', 'https://api.business.govt.nz/services/v4'),
+        'api_key' => env('NZBN_API_KEY'),
+    ],
+
+    'companies_office' => [
+        'live' => (bool) env('FEATURE_COMPANIES_OFFICE_LIVE', false),
+        'base_url' => env('COMPANIES_OFFICE_BASE_URL', 'https://api.business.govt.nz/services/v1/companies'),
+        'api_key' => env('COMPANIES_OFFICE_API_KEY'),
+    ],
+
+    'ird' => [
+        'live' => (bool) env('FEATURE_IRD_LIVE', false),
+        'base_url' => env('IRD_BASE_URL', 'https://api.ird.govt.nz'),
+        'api_key' => env('IRD_API_KEY'),
+    ],
 ];

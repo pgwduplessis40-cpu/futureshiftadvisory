@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **12 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12) |
+| Work orders complete | **13 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13) |
 | Work orders in progress | none |
-| Next work order | **WO-13** - NZ integration scaffolds |
+| Next work order | **WO-14** - Add New Client |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -32,7 +32,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-09 | `b133147` | Session management + step-up MFA | Per-user-type timeouts, risk scoring, step-up MFA redirect, audit logging. |
 | WO-10 | `454c11f` | Terms model + version control + admin clause editor | Version/clause schema, 14-clause seeder, admin edit/preview/publish flow, material re-acceptance seam. |
 | WO-11 | `badb95f` | T&C acceptance gate + signed-PDF generation | Authenticated gate, scroll-end acceptance, signed PDF evidence, decline suspension, urgent advisor/super-admin notification. |
-| WO-12 | this commit | Centralised notifications + channel preferences | Preference model, channel resolver, database decision ledger, digest jobs, communication settings UI. |
+| WO-12 | `969a0ff` | Centralised notifications + channel preferences | Preference model, channel resolver, database decision ledger, digest jobs, communication settings UI. |
+| WO-13 | this commit | NZ integration scaffolds | NZBN, Companies Office, and IRD clients with fixture stubs, resilience fallback, feature flags, and empty named future integration scaffolds. |
 
 ## Completed WO Details
 
@@ -156,6 +157,15 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - `TermsDeclinedUrgentNotification` now uses the central notification resolver.
 - Architecture doc: `docs/architecture/notifications.md`.
 
+### WO-13 - NZ Integration Scaffolds
+
+- `NzbnClient`, `CompaniesOfficeClient`, and `IrdClient` contracts resolve through `IntegrationServiceProvider`.
+- Fixture-backed fake clients return deterministic canned data for NZBN `9429000000000`.
+- Live clients use `ResilientHttp`; when `FEATURE_*_LIVE` is off they raise `IntegrationDisabledException`, and the resolver returns the stub.
+- Live mode without credentials records failure/fallback rows through the WO-05 resilience layer and returns a `stub_live_fallback` badge for UI source stamping.
+- Empty interface plus fake class scaffolds exist for FSP, PPSR, LINZ, IPONZ, Stats NZ, RBNZ, MBIE, NZ Parliament, WorkSafe, Stripe, Windcave, Xero, MYOB, QuickBooks, SES/SendGrid, Whisper, Google Calendar, and Microsoft Graph.
+- Architecture doc: `docs/architecture/nz-integrations.md`.
+
 ## Verification
 
 Latest local checks:
@@ -169,7 +179,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 124 tests, 472 assertions.
+- `composer test`: passed, 130 tests, 549 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -180,7 +190,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-13 | NZ integration scaffolds | not started | WO-05 |
+| WO-13 | NZ integration scaffolds | complete | WO-05 |
 | WO-14 | Add New Client | not started | WO-07, WO-13, WO-21, WO-22 |
 | WO-15 | Add New Entrepreneur | not started | WO-14 |
 | WO-16 | Client portal shell + onboarding wizard | not started | WO-11, WO-12, WO-14 |
