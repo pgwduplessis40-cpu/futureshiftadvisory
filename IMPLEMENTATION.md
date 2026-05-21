@@ -1,21 +1,21 @@
 # Future Shift Advisory - Implementation Status & Handoff
 
-Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.md) and [`CLAUDE.md`](./CLAUDE.md).
+Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
-**Last updated:** 2026-05-21
-**Phase:** 1 - Foundation
-**Plan:** 30 work orders. See [`PLAN.md` section 8](./PLAN.md).
+**Last updated:** 2026-05-22
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence: not started (next: WO-31).
+**Plan:** Phase 1 = 30 work orders (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **17 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11, WO-12, WO-13, WO-14, WO-15, WO-16, WO-17) |
+| Work orders complete | **30 / 30 — Phase 1 COMPLETE** (WO-01 … WO-30) |
 | Work orders in progress | none |
-| Next work order | **WO-18** - Document upload + verification pipeline |
+| Next work order | **WO-31** — Analysis spine (Phase 2; see `PLAN-PHASE2.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
+| Verification status | **Reviewed and confirmed complete.** PHPUnit **196 tests / 1237 assertions — all pass** (against PostgreSQL `futureshift_test`); Pint, ESLint, `tsc --noEmit`, Prettier all green; 30/30 WO commits present; zero `TODO`/`FIXME`/`dd()`/`dump()`/`console.log` in shipped code. |
 
 ## Commit Log
 
@@ -37,7 +37,20 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-14 | `be1fa65` | Add New Client | Advisor client index/create/show flow, engagement type enum, client/team/conflict tables, NZBN auto-population, conflict gate, RLS scope update. |
 | WO-15 | `a9d7be5` | Add New Entrepreneur | Basic entrepreneur profiles, advisor invite flow, invite acceptance handoff, Phase 1 placeholder portal, and advisor capacity gates. |
 | WO-16 | `6437c27` | Client portal shell + onboarding wizard | Portal layout, dashboard, persisted seven-step onboarding state, server step enforcement, and engagement-type questionnaire placeholders. |
-| WO-17 | this commit | Questionnaire engine | Versioned questionnaire schema, Standard Advisory seed, admin builder, conditional logic, portal renderer, and response persistence. |
+| WO-17 | `f2e0248` | Questionnaire engine | Versioned questionnaire schema, Standard Advisory seed, admin builder, conditional logic, portal renderer, and response persistence. |
+| WO-18 | `241e7a8` | Document upload + verification pipeline | Upload pipeline, `DocumentVerification`, `DocumentVerifier`, `DocumentVerificationGate` (blocks outstanding advisory_flag + accuracy_discrepancy), advisor flag panel. |
+| WO-19 | `11bee7c` | Data quality gate | `DataQualityScorer`/`DataQualityScore`/`DataQualitySignal`, pre-analysis gate, recompute job, profile-header score. |
+| WO-20 | `7ee4902` | Wellbeing check-ins | `wellbeing_checkins` + `coaching_signals` scaffold (RLS), monthly pulse primitive, advisor-only visibility, low-score signal. |
+| WO-21 | `f020e23` | Conflict declaration primitive | Reusable conflict-of-interest declaration used at client create and (future) referrals. |
+| WO-22 | `d25ceca` | Structured offboarding | `offboarding_records`, artifact generation, re-engagement reminder, capacity decrement. |
+| WO-23 | `fff4a5c` | Client lifecycle management | Status transitions via a single manager, audit + notification side effects, portal access gating. |
+| WO-24 | `3110a32` | Notification centre | Bell + popover + `/notifications`, unread badge, urgent badging, mark-read. |
+| WO-25 | `4b35703` | Threaded messaging | `message_threads`/participants/`messages`, advisor + portal threads, attachments via the document pipeline. |
+| WO-26 | `fc32cb6` | Email from app | Advisor compose, channel-preference-aware send, communication-log persistence. |
+| WO-27 | `5be0336` | Advisor knowledge base | `knowledge_entries`, manual entry, tsvector search, per-advisor scoping. |
+| WO-28 | `18fe325` | Advisor dashboard shell | Advisor layout + dashboard with clients-health, doc-verification flags, pending T&C reacceptance, prospect inbox, integration health slots. |
+| WO-29 | `a467679` | Prospect intake + triage | Signed website intake webhook (HMAC), prospect inbox, triage outcomes, invited → WO-08 invite. |
+| WO-30 | `8db3c53` | API health dashboard | `integration_health_alerts`, Green/Amber/Red rollups surfaced, stuck-red (>30min) super-admin alert with idempotency. |
 
 ## Completed WO Details
 
@@ -238,40 +251,33 @@ npm run types:check
 npm run format:check
 ```
 
-Results on 2026-05-21:
+Results of the Phase 1 completion review (full suite, all 30 WOs present):
 
-- `composer test`: passed, 153 tests, 767 assertions.
-- `php artisan test tests\Feature\Documents`: passed, 4 tests, 24 assertions.
-- `npm run lint:check`: passed.
-- `npm run types:check`: passed.
-- `npm run format:check`: passed.
-- `npm run build`: passed with existing CSS import/chunk-size warnings.
-- Browser smoke: `/portal` on the local PHP server redirected unauthenticated users to `/login`.
+- `php artisan test` (against PostgreSQL `futureshift_test`): **passed — 196 tests, 1237 assertions.**
+- `./vendor/bin/pint --test`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Hygiene scan: zero `TODO`/`FIXME` in `app/`+`routes/`, zero `dd()`/`dump()`, zero `console.log` in `resources/js`.
+- Git history: 30/30 distinct WO commits (WO-01 … WO-30) on `featureApp`.
 
-Note: the local test DB required using the actual local Postgres connection values from `.env` in the process environment. Do not commit local DB credentials.
+Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Phase 1
 
-| WO | Title | Status | Depends on |
-|---|---|---|---|
-| WO-13 | NZ integration scaffolds | complete | WO-05 |
-| WO-14 | Add New Client | complete | WO-07, WO-13, WO-21, WO-22 |
-| WO-15 | Add New Entrepreneur | complete | WO-14 |
-| WO-16 | Client portal shell + onboarding wizard | complete | WO-11, WO-12, WO-14 |
-| WO-17 | Questionnaire engine | complete | WO-14, WO-16 |
-| WO-18 | Document upload + verification pipeline | complete | WO-04, WO-06, WO-17 |
-| WO-19 | Data quality gate | not started | WO-17, WO-18 |
-| WO-20 | Wellbeing check-in | not started | WO-16 |
-| WO-21 | Conflict of interest declaration | not started | WO-07 |
-| WO-22 | Structured offboarding | not started | WO-11, WO-12 |
-| WO-23 | Client lifecycle management | not started | WO-14, WO-22 |
-| WO-24 | Notification centre UI | not started | WO-12, WO-16 |
-| WO-25 | In-app messaging | not started | WO-12, WO-16, WO-18 |
-| WO-26 | Email-from-app | not started | WO-12, WO-25 |
-| WO-27 | Advisor knowledge base | not started | WO-07 |
-| WO-28 | Advisor dashboard shell | not started | WO-14, WO-18, WO-29, WO-30 |
-| WO-29 | Website integration layer | not started | WO-05, WO-12 |
-| WO-30 | API health dashboard | not started | WO-05, WO-12 |
+**None — Phase 1 (WO-01 … WO-30) is complete and verified.** Next is Phase 2 (WO-31, the analysis spine) — see `PLAN-PHASE2.md`.
+
+> Per-WO detail above covers WO-01 … WO-16; WO-17 … WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and its tests (folded into the 196-test suite). The git log and architecture docs are the authoritative per-WO record for WO-17 … WO-30.
+
+### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
+
+| Item | Needed for | Status |
+|---|---|---|
+| Anthropic API key | Live AI (analysis degrades to deferred without it) | Optional in P1; needed early in P2 |
+| NZBN / Companies Office / IRD + accounting (Xero/MYOB/QuickBooks) credentials | Live integration mode | Stubs/fixtures until arranged |
+| Meridian Warm brand kit | Client-facing UI + report branding | Placeholder in `docs/brand/` |
+| Lawyer-reviewed 14-clause T&C text | Anything client-facing | Placeholder in `docs/legal/terms-v1.md` |
+| ClamAV production host | Production uploads | Interface ready; host/port pending |
 
 ## Open Inputs
 

@@ -27,7 +27,7 @@
 Everything in `CLAUDE.md` and `PLAN.md` §1 remains in force. Phase 2 turns these from *foundations* into *behaviours*, so they get **more** load-bearing, not less:
 
 - **AI Integrity Principle (spec §3).** Every analysis finding, score, fee suggestion, report sentence, and red-flag must be honest, evidence-based (source-attributed), accurate (NZ-current), free from bias, truthful. Phase 1 built the enforcement primitives (`SourceAttribution`, `BiasDetector`, `Uncertainty`, the `AiClient` single exit). Phase 2 wires them into every output. **Missing attribution remains a hard failure**, now across dozens of analysis surfaces.
-- **Document AI Verification (spec §9).** Every analysis that relies on uploaded documents consults the existing `DocumentVerificationGate`. **Accuracy discrepancies pause the affected analysis** — Phase 2 is the first phase where there are real analyses to pause. Findings carry their document-support status in every report.
+- **Document AI Verification (spec §9).** Every analysis that relies on uploaded documents consults the existing `DocumentVerificationGate`. **Any outstanding (unresolved) `advisory_flag` *or* `accuracy_discrepancy` blocks the affected analysis** — this matches the gate's current behaviour (`DocumentVerification::scopeOutstandingFlags()` / `isBlockingAnalysis()` block both outcomes). Phase 2 must preserve that stricter behaviour, not loosen it to discrepancies-only. Phase 2 is the first phase where there are real analyses to pause. Findings carry their document-support status in every report.
 - **Data Quality gate (spec §10 intro).** `DataQualityScorer` runs before every analysis. Medium/Low data attaches a disclaimer to every affected finding and report line; Insufficient blocks the run.
 - **No silent learning (spec §23).** Phase 2 activates the four Phase-2-tagged learning layers, but only through the governed `learning_updates` queue. No model or framework changes its own behaviour without a queued, owner-approvable update. The approval **UI** is still Phase 3; Phase 2 only *produces* candidates and runs the scheduled cadence.
 - **Security baseline (spec §4).** All external calls (RBNZ, Stats NZ, MBIE, Xero, MYOB, QuickBooks, …) go through `ResilientHttp`. All AI calls through `AiClient`. All audit through `AuditWriter`. All encryption through `KeyEnvelope`. PQC/HSM remain Phase 4 (SD-01/SD-02).
@@ -54,9 +54,9 @@ Concretely, by end of Phase 2:
 
 ### 2.2 Out of scope (Phase 3–4 — do not build)
 
-- **Digital proposal sign-off flow (7-step), payment authority, Stripe/Windcave, monthly payment processing, receipts** — Phase 3. (Phase 2 stops at proposal *generation + release + expiry*.)
+- **Digital proposal sign-off flow (7-step), payment authority, Stripe/Windcave, monthly payment processing, receipts** — Phase 3. (Phase 2 stops at proposal *generation + release + expiry*.) The `proposals.status` enum reserves `awaiting_signature` and `signed` for Phase 3; in Phase 2 these states are **unreachable** — no Phase 2 code path transitions a proposal into them (see §4.5 and WO-56).
 - **Due Diligence module, virtual data room, 8 workstreams, DD report, post-acquisition pipeline** — Phase 3. (Phase 2 report engine scaffolds the DD report *type* only.)
-- **Broker portal, Coach portal, panel agreements, referral workflows, coaching signal detection** — Phase 3.
+- **Broker portal, Coach portal, panel agreements, referral workflows** — Phase 3. Also Phase 3: the **coaching referral signal *detection / calibration* layer** (spec §15.4 thresholds + §23 "Coach referral signal calibration" learning layer) and any referral generation. **Boundary:** Phase 2 only *records raw internal observations* into the existing `coaching_signals` scaffold table (created in Phase 1 WO-20, RLS-protected) — e.g. a low wellbeing trend, a leadership-capability gap, an owner-readiness gap. Phase 2 does **not** classify, calibrate, threshold-tune, or act on them. WO-35, WO-54, and WO-64 write these raw rows; nothing in Phase 2 consumes them. The Phase 3 coach layer reads `coaching_signals` and owns all detection/referral logic.
 - **Entrepreneur module beyond Phase 1 profile** (readiness, idea validation, plan builder, rating framework, assessment, conversion) — Phase 3. (Phase 2 report engine scaffolds the Entrepreneur-Assessment report *type* only.)
 - **Goals & milestones tracker, proof-of-completion** — Phase 3. (So PV-into-milestones integration waits; Phase 2 integrates PV into dashboard, reports, proposals only.)
 - **Learning update queue admin UI, rollback UI, T&C version manager UI** — Phase 3. (Phase 2 produces queue candidates; no approval UI.)
@@ -84,7 +84,7 @@ Phase 1 was reviewed and confirmed complete before Phase 2 began. The numbers be
 
 Inventory at handoff: 31 migrations · 32 models · ~57 test files · 6 seeders · 36 controllers · 54 Inertia pages · 21 architecture docs · 8 client-scoped tables with RLS policies.
 
-Verified invariants Phase 2 must preserve: invite-only (no public `/register`, asserted by test), per-client RLS (`RlsHarnessTest`), append-only `audit_events` (trigger + test), global MFA / terms-gate / client-scope / session-security middleware, `AiClient` single exit with hard-fail on missing attribution, `DocumentVerificationGate` pausing analysis on accuracy discrepancies.
+Verified invariants Phase 2 must preserve: invite-only (no public `/register`, asserted by test), per-client RLS (`RlsHarnessTest`), append-only `audit_events` (trigger + test), global MFA / terms-gate / client-scope / session-security middleware, `AiClient` single exit with hard-fail on missing attribution, `DocumentVerificationGate` pausing analysis on any outstanding `advisory_flag` or `accuracy_discrepancy`.
 
 > **Running the suite locally.** `.env.testing` ships Herd defaults (`herd` role, empty password). On a standalone PostgreSQL install you must point the test connection at your real credentials via the process environment, e.g. set `DB_HOST/DB_PORT/DB_DATABASE=futureshift_test/DB_USERNAME/DB_PASSWORD` before `php artisan test`. The test database must be separate from the dev database (`RefreshDatabase` wipes it on every run). Never commit local DB credentials.
 
@@ -147,16 +147,21 @@ Grouped by WO. Same conventions as Phase 1: `uuid` PKs via `gen_random_uuid()`, 
 - `improvement_opportunities` — `client_id`, `analysis_finding_id` (nullable), `pv_calculation_id`, `annual_benefit`, `duration_years`, `pv_of_impact`, `rank`
 - `risk_costs` — `client_id`, `analysis_finding_id` (nullable), `pv_calculation_id`, `financial_impact`, `probability`, `duration_years`, `statutory_penalty_range` (jsonb), `pv_of_cost`, `rank`
 
+### 4.4a Scenario & succession outputs (WO-53/54)
+- `scenarios` — `client_id`, `analysis_run_id` (nullable — the run that produced it), `name`, `kind` (best, expected, worst, custom), `assumptions` (jsonb), `economic_overlay` (jsonb — OCR/CPI/etc snapshot used), `pv_calculation_id` (nullable → the PV-impact calc), `pv_impact` (numeric), `position` (smallint, 1–5 for side-by-side ordering), `is_client_visible` (bool — spec §7 lets clients view named scenarios), `created_by_user_id`. Max 5 active scenarios per client enforced in the service (spec §10/§20).
+- `succession_plans` — `client_id`, `analysis_run_id` (nullable), `exit_readiness_score` (1–10), `options` (jsonb — assessed exit options), `owner_dependency_plan` (jsonb), `target_exit_pv_calculation_id` (nullable → PV target), `target_exit_pv` (numeric), `owner_readiness_is_primary_constraint` (bool — drives the WO-54 coaching signal), `created_by_user_id`. Both tables are client-scoped → RLS policy + RLS test required (per §9 item 3).
+
 ### 4.5 Fee & proposal (WO-55/56)
 - `fee_calculations` — `client_id`, `method` (hours_based, outcome_based, entrepreneur), `inputs` (jsonb), `suggested_low`, `suggested_mid`, `suggested_high`, `improvement_pv_total`, `risk_cost_pv_total`, `roi_ratio`, `justification` (jsonb — PV-referenced), `created_by_user_id`
-- `proposals` — `client_id`, `fee_calculation_id`, `status` (draft, released, awaiting_signature, signed, expired, renewed), `scope` (jsonb), `services` (jsonb), `pv_summary` (jsonb), `roi_ratio`, `released_at`, `expires_at`, `recalled_at`, `released_by_user_id`, `pdf_path` — *signing/payment fields are Phase 3*; `awaiting_signature`/`signed` states are reachable only when Phase 3 lands.
+- `proposals` — `client_id`, `fee_calculation_id`, `status`, `scope` (jsonb), `services` (jsonb), `pv_summary` (jsonb), `roi_ratio`, `released_at`, `expires_at`, `recalled_at`, `released_by_user_id`, `pdf_path`. **Phase 2 reachable statuses:** `draft`, `released`, `recalled`, `expired`, `renewed`. **Reserved for Phase 3 (defined in the enum but unreachable in Phase 2 — no Phase 2 code path transitions into them):** `awaiting_signature`, `signed`. The sign-off/payment columns those states need (signature evidence, payment authority) are **not** added until Phase 3. A Phase 2 test asserts no transition produces `awaiting_signature`/`signed`.
 - `consents` — generic consent ledger (`user_id`, `client_id`, `consent_type` insurance_referral|coach_referral|marketing, `granted`, `granted_at`, `revoked_at`, `source`). Created here because the proposal references insurance/coach consent election (spec §13), even though broker/coach portals are Phase 3.
 
 ### 4.6 Reporting (WO-57/58/59/60)
 - `reports` — `client_id`, `type` (client, advisor, stakeholder, due_diligence, entrepreneur_assessment), `status` (draft, generated, shared), `format` (pdf, pptx), `pv_snapshot` (jsonb), `findings_snapshot` (jsonb), `disclaimers` (jsonb), `generated_pdf_path`, `generated_pptx_path`, `generated_by_user_id`, `generated_at` — DD + entrepreneur_assessment types are engine-scaffolded only in Phase 2.
 - `report_sections` — `report_id`, `order`, `heading`, `body`, `attributions` (jsonb), `document_support_note`, `data_quality_note`
+- `meetings` — `client_id`, `title`, `scheduled_at`, `location`/`link`, `attendees` (jsonb), `created_by_user_id`, `external_ref` (nullable — for future calendar-sync linkage). Minimal advisor-entered meeting record; this is the concrete source WO-60 reads to know a meeting is 24h away. (Two-way Google/Outlook sync stays scaffolded — Phase 4 — but the local `meetings` table gives Phase 2 a real trigger.) Client-scoped → RLS policy + test.
 - `industry_briefings` — `client_id`, `period` (month), `body`, `sources` (jsonb), `status` (draft, advisor_reviewed, sent), `reviewed_by_user_id`, `sent_at`
-- `pre_meeting_briefs` — `client_id`, `meeting_at`, `body`, `red_flag_ids` (jsonb), `generated_at`, `reviewed_by_user_id`
+- `pre_meeting_briefs` — `meeting_id` (→ `meetings`), `client_id`, `meeting_at`, `body`, `red_flag_ids` (jsonb), `generated_at`, `reviewed_by_user_id`
 
 ### 4.7 Knowledge assessment & analytics (WO-35/61/62)
 - `knowledge_assessments` — `client_id`, `financial_literacy` (1–5), `strategic_awareness` (1–5), `leadership` (1–5), `calibration` (jsonb — derived language/depth settings), `assessed_at`, `assessed_by_user_id`
@@ -250,7 +255,7 @@ Every Phase 2 analysis module is a thin adapter over a shared pipeline. The modu
 ```
 AnalysisRunner::run(client, module, options)
   1. DataQualityScorer->score(client)           // gate: Insufficient => abort with reason
-  2. DocumentVerificationGate->ensureClear(client) // pause if accuracy_discrepancy outstanding
+  2. DocumentVerificationGate->ensureClear(client) // throws if ANY outstanding advisory_flag OR accuracy_discrepancy
   3. Gather inputs (questionnaire, docs, financial_snapshots, economic_indicators)
   4. Build PromptEnvelope (input + dataQualitySummary + sourceReferences + integrity preamble)
   5. AiClient->analyse(envelope)                // single sanctioned AI exit
@@ -267,7 +272,7 @@ Key rules baked into the spine:
 - **No finding without attribution.** Step 6 is non-negotiable. A finding whose source_reference is empty is dropped and logged as an `AiIntegrityViolation`, never shown.
 - **Document support on every finding.** Step 8 stamps each finding with its document-verification status so reports can render the notation (spec §19).
 - **Data-quality disclaimer.** Medium/Low attaches the disclaimer text to each finding; reports surface it.
-- **Pause, never suppress.** If `DocumentVerificationGate` reports an outstanding accuracy discrepancy for the client, the run returns `blocked_documents` and the advisor is notified — output is not rendered.
+- **Pause, never suppress.** If `DocumentVerificationGate->ensureClear()` finds **any** outstanding (unresolved) `advisory_flag` *or* `accuracy_discrepancy` for the client, the run returns `blocked_documents` and the advisor is notified — output is not rendered. This is the gate's existing Phase 1 behaviour (`scopeOutstandingFlags()` / `isBlockingAnalysis()` cover both outcomes); Phase 2 preserves it and must not relax the gate to discrepancies-only.
 
 ### 7.2 Analytical framework helper
 A small value object enumerates the four lenses and is used by prompt construction and finding tagging. Reports group findings by lens where useful.
@@ -300,8 +305,8 @@ Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data 
 **Goal:** Build the shared `AnalysisRunner` pipeline (§7.1), the `analysis_runs` / `analysis_findings` / `analysis_feedback` tables, the four-lens framework helper, and the integrity guarantees every module inherits.
 **Depends on:** Phase 1 (WO-04, WO-18, WO-19).
 **Key files:** `app/Services/Analysis/AnalysisRunner.php`, `app/Services/Analysis/AnalyticalFramework.php`, `app/Services/Analysis/Contracts/AnalysisModule.php`, `app/Models/AnalysisRun.php`, `AnalysisFinding.php`, `AnalysisFeedback.php`, migrations + RLS policies, `app/Enums/AnalysisModule.php`, `AnalysisLens.php`, `FindingSeverity.php`.
-**Acceptance:** A demo module run produces findings each carrying a non-empty attribution, a document-support status, an uncertainty, and (when data is Medium/Low) a disclaimer; a run is `blocked_documents` when an accuracy discrepancy is outstanding; a run is aborted on Insufficient data quality; every run is audited.
-**Tests:** spine pipeline with `FakeAiClient`; integrity-violation drop path; doc-verification block; data-quality abort; RLS isolation on `analysis_runs`/`analysis_findings`.
+**Acceptance:** A demo module run produces findings each carrying a non-empty attribution, a document-support status, an uncertainty, and (when data is Medium/Low) a disclaimer; a run is `blocked_documents` when **any** outstanding `advisory_flag` *or* `accuracy_discrepancy` exists for the client (matching `DocumentVerificationGate`'s existing behaviour); a run is aborted on Insufficient data quality; every run is audited.
+**Tests:** spine pipeline with `FakeAiClient`; integrity-violation drop path; doc-verification block on **both** an outstanding advisory_flag and an accuracy_discrepancy; data-quality abort; RLS isolation on `analysis_runs`/`analysis_findings`.
 **Out of scope:** the real modules (their own WOs).
 
 ### WO-32 — AI feedback capture loop
@@ -336,9 +341,9 @@ Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data 
 **Goal:** Capture financial-literacy / strategic-awareness / leadership scores; derive a calibration that adjusts AI output language and depth (injected into `PromptEnvelope`).
 **Depends on:** WO-31.
 **Key files:** `knowledge_assessments` table + model, `app/Services/Analysis/KnowledgeCalibration.php` (feeds prompt construction), advisor UI.
-**Acceptance:** an assessment changes the calibration block passed into subsequent runs' envelopes (verifiable in the prompt hash/inputs); leadership-gap surfaces a coaching signal record (consumed by Phase 3 coach referral).
-**Tests:** calibration injection; coaching-signal emission.
-**Out of scope:** coach referral workflow (Phase 3).
+**Acceptance:** an assessment changes the calibration block passed into subsequent runs' envelopes (verifiable in the prompt hash/inputs); a leadership-capability gap **records a raw row in the existing `coaching_signals` scaffold** (Phase 1 WO-20) with a neutral signal type — no classification, thresholding, or referral. The Phase 3 coach layer consumes it.
+**Tests:** calibration injection; raw `coaching_signals` row written on leadership gap (and *not* acted on).
+**Out of scope:** coaching-signal detection/calibration and the coach referral workflow (Phase 3).
 
 ### WO-36 — NZ economic indicators feed
 **Spec refs:** §24; §11 (Legislative/economic currency); §23 layer "Economic indicator auto-update"
@@ -506,10 +511,10 @@ Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data 
 **Spec refs:** §10/§20 (Succession Planning)
 **Goal:** Exit-readiness score, options assessment, owner-dependency reduction plan, target exit PV. (DD integration for sale is Phase 3.)
 **Depends on:** WO-31, WO-43.
-**Key files:** `app/Services/Analysis/SuccessionPlanner.php`, `succession_plans` table.
-**Acceptance:** readiness score; options; owner-dependency plan; target exit PV set; owner-readiness gap emits a coaching signal (Phase 3 consumer).
-**Tests:** readiness scoring; PV target; coaching-signal emission.
-**Out of scope:** DD integration (Phase 3).
+**Key files:** `app/Services/Analysis/SuccessionPlanner.php`, `succession_plans` table + model (schema in §4.4a; client-scoped → RLS policy + test).
+**Acceptance:** readiness score; options; owner-dependency plan; target exit PV set; when `owner_readiness_is_primary_constraint` is true, a **raw row is recorded in the existing `coaching_signals` scaffold** — no detection/referral logic in Phase 2.
+**Tests:** readiness scoring; PV target; raw `coaching_signals` row written when owner-readiness is the primary constraint.
+**Out of scope:** coaching-signal detection/calibration + coach referral (Phase 3); DD integration for sale (Phase 3).
 
 ### WO-55 — Fee calculator
 **Spec refs:** §13 (Hours-Based, Outcome-Based, Entrepreneur Fee)
@@ -522,12 +527,12 @@ Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data 
 
 ### WO-56 — Fee proposal generation + release control + expiry
 **Spec refs:** §13 (Proposal Contents, Expiry, Release Control); §19
-**Goal:** Generate a proposal (scope, services, fee, PV summary with ROI, insurance/coach consent election, acceptance section); manual "Release to Client" with recall; expiry countdown (default 30 days, configurable) with renewal; status lifecycle Draft→Released→Awaiting Signature→Signed→Expired→Renewed (Signed/payment reachable only in Phase 3); branded PDF.
+**Goal:** Generate a proposal (scope, services, fee, PV summary with ROI, insurance/coach consent election, acceptance section); manual "Release to Client" with recall; expiry countdown (default 30 days, configurable) with renewal; branded PDF. **Phase 2 lifecycle: Draft → Released → (Recalled) → Expired → Renewed.** The full spec lifecycle includes `Awaiting Signature` and `Signed`, but those are **Phase 3** (sign-off + payment) and are **unreachable in Phase 2** — the enum defines them, no Phase 2 transition reaches them.
 **Depends on:** WO-55, Phase 1 WO-11 (PdfRenderer), WO-12.
 **Key files:** `app/Services/Proposals/ProposalBuilder.php`, `proposals` + `consents` tables/models, advisor proposal controller + UI, expiry scheduler.
-**Acceptance:** proposal PDF includes PV summary + ROI; release is a manual advisor action, recallable before signature; expiry countdown shown, expired proposals require re-release; all transitions audited; consent election captured.
-**Tests:** generation, release/recall, expiry transition, renewal, audit.
-**Out of scope:** 7-step sign-off flow + payment (Phase 3).
+**Acceptance:** proposal PDF includes PV summary + ROI; release is a manual advisor action, recallable before release expires; expiry countdown shown, expired proposals require re-release; all transitions audited; consent election captured; **a test asserts no Phase 2 path transitions a proposal into `awaiting_signature` or `signed`.**
+**Tests:** generation, release/recall, expiry transition, renewal, audit, reserved-state guard.
+**Out of scope:** 7-step sign-off flow + payment + the `awaiting_signature`/`signed` transitions (Phase 3).
 
 ### WO-57 — Report engine + Client & Advisor reports
 **Spec refs:** §19 (report types, AI source attribution, document-verification notation, data-quality disclaimer)
@@ -558,12 +563,12 @@ Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data 
 
 ### WO-60 — Industry intelligence briefings + pre-meeting brief
 **Spec refs:** §19 (Industry Intelligence Briefings; Automated Pre-Meeting Brief)
-**Goal:** Monthly per-client AI-generated industry briefing (NZ sources cited, advisor-reviewed before send); 24h-before automated pre-meeting brief (last actions, completions, red flags, financial changes; one page; advisor-reviewed).
-**Depends on:** WO-57, WO-34 (red flags), WO-38 (financial changes).
-**Key files:** `app/Services/Reports/IndustryBriefingGenerator.php`, `PreMeetingBriefGenerator.php`, `industry_briefings` + `pre_meeting_briefs` tables, schedulers.
-**Acceptance:** monthly briefing generated with cited NZ sources, held for advisor review; pre-meeting brief generated 24h before a scheduled meeting summarising the right signals; both route via `ChannelResolver` after review.
-**Tests:** briefing generation + review gate; pre-meeting trigger timing; content assembly.
-**Out of scope:** calendar two-way sync (Phase 2 reads meeting times from existing data; full Google/Outlook sync remains scaffolded).
+**Goal:** Monthly per-client AI-generated industry briefing (NZ sources cited, advisor-reviewed before send); 24h-before automated pre-meeting brief (last actions, completions, red flags, financial changes; one page; advisor-reviewed). The pre-meeting brief reads its trigger from the minimal `meetings` table (§4.6) — an advisor-entered meeting record with `scheduled_at`. There is **no** meeting scheduling in Phase 1, so this WO also delivers the minimal `meetings` table + an advisor "add meeting" form; full calendar sync stays scaffolded for Phase 4.
+**Depends on:** WO-57, WO-34 (red flags), WO-38 (financial changes); the `meetings` table (created in this WO).
+**Key files:** `app/Services/Reports/IndustryBriefingGenerator.php`, `PreMeetingBriefGenerator.php`, `industry_briefings` + `pre_meeting_briefs` + `meetings` tables, advisor meeting form, schedulers.
+**Acceptance:** monthly briefing generated with cited NZ sources, held for advisor review; a `meetings` row with `scheduled_at` ~24h out triggers exactly one pre-meeting brief summarising the right signals; the scheduler does not double-generate for the same meeting; both outputs route via `ChannelResolver` after review.
+**Tests:** briefing generation + review gate; pre-meeting trigger fires at the 24h window off a `meetings` row; no duplicate brief per meeting; content assembly; `meetings` RLS isolation.
+**Out of scope:** two-way Google/Outlook calendar sync (Phase 4 — the `meetings` table is a local stand-in).
 
 ### WO-61 — Funnel analytics
 **Spec refs:** §7 (Funnel Analytics); §22
@@ -594,12 +599,12 @@ Strict prerequisites: **WO-31 first** (the spine), then **WO-36 + WO-37** (data 
 
 ### WO-64 — Wellbeing monthly pulse + analytics
 **Spec refs:** §6 (Wellbeing Check-In); §26 Phase 2 row
-**Goal:** Extend the Phase 1 wellbeing primitive (WO-20) with the monthly optional pulse scheduling, advisor-only trend analytics, and the low-score coaching signal (consumed by Phase 3 coach referral).
+**Goal:** Extend the Phase 1 wellbeing primitive (WO-20) with the monthly optional pulse scheduling and advisor-only trend analytics. On the fixed spec §15.4 observation (personal-coping ≤ 2 for two consecutive months) it **records a raw row in the existing `coaching_signals` scaffold** — a factual observation, not a calibrated detection or a referral.
 **Depends on:** Phase 1 WO-20, WO-12.
-**Key files:** monthly pulse scheduler, advisor trend view, coaching-signal emission (reuses the `coaching_signals` scaffold from WO-20).
-**Acceptance:** monthly prompt scheduled; responses advisor-only; two-consecutive-months low score emits a coaching signal per spec §15.4 thresholds.
-**Tests:** scheduling; visibility scope; signal threshold.
-**Out of scope:** coach referral workflow (Phase 3).
+**Key files:** monthly pulse scheduler, advisor trend view, raw `coaching_signals` writer (reuses the WO-20 scaffold).
+**Acceptance:** monthly prompt scheduled; responses advisor-only; two-consecutive-months personal-coping ≤ 2 writes exactly one raw `coaching_signals` row and **nothing in Phase 2 acts on it**.
+**Tests:** scheduling; visibility scope; raw signal written once on the two-month rule; no Phase 2 consumer.
+**Out of scope:** coaching-signal *calibration* (spec §23 layer) and the coach referral workflow (Phase 3).
 
 ---
 
@@ -620,18 +625,21 @@ Same bar as Phase 1 (`PLAN.md` §9), plus Phase-2-specific gates:
 
 ## 10. Test strategy (Phase 2 additions)
 
-- **Spine contract test** — a fixture module proves the integrity pipeline (attribution enforced, doc-verification block, data-quality abort, lens tagging) once; modules then test only their mapping.
+- **Spine contract test** — a fixture module proves the integrity pipeline once: attribution enforced, **doc-verification block on both an outstanding `advisory_flag` and an `accuracy_discrepancy`**, data-quality abort, lens tagging; modules then test only their mapping.
+- **Document-verification gate parity test** — explicitly assert the spine blocks for *both* outstanding outcomes, matching `DocumentVerificationGate` / `DocumentVerification::scopeOutstandingFlags()`. Guards against anyone loosening the gate to discrepancies-only.
 - **`FakeAiClient` everywhere** — every analysis/report/fee test uses the fake; a guard test asserts the live client is never bound in `testing`.
 - **PV correctness tests** — discounting math and reconciliation verified against hand-computed fixtures.
 - **Integration contract tests** — each new live client and its fixture stub satisfy the same contract test (as Phase 1).
-- **RLS tests** — every new client-scoped table (`analysis_runs`, `analysis_findings`, `pv_calculations`, `proposals`, `reports`, `financial_snapshots`, …) gets a cross-client isolation test.
+- **RLS tests** — every new client-scoped table (`analysis_runs`, `analysis_findings`, `pv_calculations`, `proposals`, `reports`, `financial_snapshots`, `scenarios`, `succession_plans`, `meetings`, …) gets a cross-client isolation test.
+- **Reserved-state guard (proposals)** — a test asserts no Phase 2 transition produces `awaiting_signature` or `signed`.
+- **Coaching-signal boundary guard** — WO-35/54/64 tests assert a *raw* `coaching_signals` row is written and that **nothing in Phase 2 reads or acts on it** (detection/referral is Phase 3).
 - **Governed-learning guard** — a test asserts Phase 2 learning layers only ever create `learning_updates` in `detected` status; nothing auto-implements.
 - **Report notation tests** — assert every `report_section` carries attribution + document-support + data-quality notes.
 - **Redaction tests** — Client report excludes recommendations/fees; Stakeholder excludes FSA methodology/IP.
 
 ## 11. Phase 3 / 4 — what comes after (unchanged roadmap)
 
-See `PLAN.md` §11 for the full Phase 3/4 list. Phase 2 deliberately leaves these seams: proposal `awaiting_signature`/`signed` states (Phase 3 sign-off + payment), the DD and entrepreneur-assessment report *types* (Phase 3 modules fill them), PV-into-milestones (Phase 3 goals tracker), coaching signals (Phase 3 coach referral), the learning-queue approval UI (Phase 3), and cross-client/anonymous intelligence (Phase 4).
+See `PLAN.md` §11 for the full Phase 3/4 list. Phase 2 deliberately leaves these seams: proposal `awaiting_signature`/`signed` states (Phase 3 sign-off + payment), the DD and entrepreneur-assessment report *types* (Phase 3 modules fill them), PV-into-milestones (Phase 3 goals tracker), coaching-signal detection/calibration + referral (Phase 3 — Phase 2 only records raw `coaching_signals` rows), the learning-queue approval UI (Phase 3), and cross-client/anonymous intelligence (Phase 4).
 
 ## 12. Open risks & decisions to revisit (Phase 2)
 
