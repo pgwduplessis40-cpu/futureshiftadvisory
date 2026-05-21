@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Offboarding;
 
 use App\Console\Commands\SendReengagementReminders;
+use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -87,6 +88,7 @@ final class OffboardingTest extends TestCase
 
         $this->assertSame($client->id, $record->client_id);
         $this->assertSame($advisor->id, $record->triggered_by_user_id);
+        $this->assertSame(ClientStatus::OFFBOARDED, $client->refresh()->status);
         $this->assertTrue($record->advisor_capacity_released);
         $this->assertSame(1, $record->advisor_capacity_before);
         $this->assertSame(0, $record->advisor_capacity_after);

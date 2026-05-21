@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\ClientStatus;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -132,9 +133,21 @@ class User extends Authenticatable
             return [];
         }
 
-        $ids = DB::table('client_team')
-            ->where('user_id', $this->getKey())
-            ->pluck('client_id')
+        $query = DB::table('client_team')
+            ->where('client_team.user_id', $this->getKey());
+
+        if (
+            Schema::hasTable('clients')
+            && Schema::hasColumn('clients', 'status')
+            && in_array($this->user_type, [self::TYPE_CLIENT_PRIMARY, self::TYPE_CLIENT_TEAM], true)
+        ) {
+            $query
+                ->join('clients', 'clients.id', '=', 'client_team.client_id')
+                ->where('clients.status', '!=', ClientStatus::SUSPENDED->value);
+        }
+
+        $ids = $query
+            ->pluck('client_team.client_id')
             ->all();
 
         return array_values(array_unique(array_map('strval', $ids)));

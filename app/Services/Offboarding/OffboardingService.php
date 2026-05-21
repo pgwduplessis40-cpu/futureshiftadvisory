@@ -14,6 +14,7 @@ use App\Notifications\OffboardingCompletedNotification;
 use App\Notifications\ReengagementReminderNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\AdvisorClientCapacity;
+use App\Services\Clients\LifecycleManager;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\SecureFileWriter;
 use Carbon\CarbonInterface;
@@ -31,6 +32,7 @@ final class OffboardingService
         private readonly AdvisorClientCapacity $capacity,
         private readonly PdfRenderer $renderer,
         private readonly SecureFileWriter $writer,
+        private readonly LifecycleManager $lifecycle,
     ) {}
 
     /**
@@ -95,6 +97,12 @@ final class OffboardingService
             return $record;
         });
 
+        $this->lifecycle->offboard(
+            client: $client,
+            actor: $triggeredBy,
+            reason: 'Structured offboarding completed.',
+            sendNotifications: false,
+        );
         $this->notifyClient($record);
 
         return $record->refresh();

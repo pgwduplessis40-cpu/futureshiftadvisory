@@ -36,6 +36,9 @@ export default function ClientsIndex({ clients }: Props) {
                                         Engagement
                                     </th>
                                     <th className="px-3 py-2 font-medium">
+                                        Status
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
                                         NZBN
                                     </th>
                                     <th className="px-3 py-2 font-medium">
@@ -61,6 +64,18 @@ export default function ClientsIndex({ clients }: Props) {
                                         </td>
                                         <td className="px-3 py-2">
                                             {client.engagement_type_label}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            <Badge
+                                                variant={
+                                                    client.status ===
+                                                    'suspended'
+                                                        ? 'destructive'
+                                                        : 'outline'
+                                                }
+                                            >
+                                                {client.status_label}
+                                            </Badge>
                                         </td>
                                         <td className="px-3 py-2">
                                             {client.nzbn ?? '—'}

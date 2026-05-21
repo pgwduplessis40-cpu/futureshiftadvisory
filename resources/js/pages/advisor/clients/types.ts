@@ -4,6 +4,8 @@ export type ClientSummary = {
     id: string;
     engagement_type: string;
     engagement_type_label: string;
+    status: string;
+    status_label: string;
     nzbn: string | null;
     legal_name: string;
     trading_name: string | null;

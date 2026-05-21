@@ -2,7 +2,9 @@
 
 namespace App\Providers;
 
+use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
+use App\Observers\ClientLifecycleObserver;
 use App\Services\Integration\Resilience\RetryPolicy;
 use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
@@ -44,6 +46,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
+        Client::observe(ClientLifecycleObserver::class);
         $this->registerSecureLocalDisk();
         Notification::extend('fsa_database', fn ($app): FsaDatabaseChannel => $app->make(FsaDatabaseChannel::class));
         $this->configureDefaults();

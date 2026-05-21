@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Portal;
 
+use App\Enums\ClientStatus;
 use App\Models\Client;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -26,6 +27,7 @@ final class ClientPortalResolver
 
         return Client::query()
             ->whereIn('id', $clientIds)
+            ->where('status', '!=', ClientStatus::SUSPENDED->value)
             ->latest()
             ->firstOrFail();
     }

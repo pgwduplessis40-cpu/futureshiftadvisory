@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Clients;
 
+use App\Enums\ClientStatus;
 use App\Models\OffboardingRecord;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +25,7 @@ final class AdvisorClientCapacity
             ->join('clients', 'clients.id', '=', 'client_team.client_id')
             ->where('client_team.user_id', $advisor->getKey())
             ->where('client_team.role', 'lead_advisor')
+            ->where('clients.status', '!=', ClientStatus::OFFBOARDED->value)
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')
                     ->from('offboarding_records')

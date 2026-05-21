@@ -1,16 +1,29 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, FileCheck2, HeartPulse, LockKeyhole } from 'lucide-react';
+import { Head, Link, useForm } from '@inertiajs/react';
+import {
+    ArrowLeft,
+    Ban,
+    CheckCircle2,
+    FileCheck2,
+    HeartPulse,
+    LockKeyhole,
+    PauseCircle,
+    RotateCcw,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Label } from '@/components/ui/label';
 import type { ClientSummary } from './types';
 
 type ClientDetail = ClientSummary & {
     data_quality_summary: DataQualitySummary;
     wellbeing_trend: WellbeingPoint[] | null;
     offboarding: OffboardingSummary | null;
+    status_options: StatusOption[];
+    lifecycle_update_url: string;
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -50,7 +63,37 @@ type OffboardingSummary = {
     advisor_capacity_released: boolean;
 };
 
+type StatusOption = {
+    value: string;
+    label: string;
+};
+
+type LifecycleForm = {
+    status: string;
+    reason: string;
+};
+
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
+    const lifecycleForm = useForm<LifecycleForm>({
+        status: client.status,
+        reason: '',
+    });
+
+    const submitLifecycle = (status: string) => {
+        lifecycleForm.setData('status', status);
+        lifecycleForm.transform((data) => ({
+            ...data,
+            status,
+        }));
+        lifecycleForm.patch(client.lifecycle_update_url, {
+            preserveScroll: true,
+            onFinish: () =>
+                lifecycleForm.transform((data) => ({
+                    ...data,
+                })),
+        });
+    };
+
     return (
         <>
             <Head title={client.legal_name} />
@@ -91,15 +134,16 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 <div className="grid gap-4 md:grid-cols-3">
                     <Metric label="NZBN" value={client.nzbn ?? '-'} />
+                    <Metric label="Lifecycle">
+                        <Badge variant={statusVariant(client.status)}>
+                            {client.status_label}
+                        </Badge>
+                    </Metric>
                     <Metric label="Data quality">
                         <DataQualityBadge
                             summary={client.data_quality_summary}
                         />
                     </Metric>
-                    <Metric
-                        label="GST"
-                        value={client.gst_registered ? 'registered' : 'no'}
-                    />
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
@@ -146,6 +190,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                 value={client.engagement_type_label}
                             />
                             <Detail
+                                label="Status"
+                                value={client.status_label}
+                            />
+                            <Detail
                                 label="Conflict"
                                 value={
                                     conflictDeclaration ? 'declared' : 'missing'
@@ -173,6 +221,65 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         </dl>
                     </section>
                 </div>
+
+                <section className="space-y-4 rounded-md border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <RotateCcw className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">Lifecycle</h2>
+                            <Badge variant={statusVariant(client.status)}>
+                                {client.status_label}
+                            </Badge>
+                        </div>
+                        <div className="text-xs text-muted-foreground">
+                            Portal access is revoked while suspended.
+                        </div>
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="lifecycle_reason">Reason</Label>
+                        <textarea
+                            id="lifecycle_reason"
+                            value={lifecycleForm.data.reason}
+                            onChange={(event) =>
+                                lifecycleForm.setData(
+                                    'reason',
+                                    event.target.value,
+                                )
+                            }
+                            rows={3}
+                            className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        />
+                        <InputError message={lifecycleForm.errors.reason} />
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {lifecycleActions(client.status).map((action) => {
+                            const Icon = lifecycleIcon(action.status);
+
+                            return (
+                                <Button
+                                    key={action.status}
+                                    type="button"
+                                    variant={
+                                        action.status === 'suspended'
+                                            ? 'destructive'
+                                            : 'outline'
+                                    }
+                                    disabled={lifecycleForm.processing}
+                                    onClick={() =>
+                                        submitLifecycle(action.status)
+                                    }
+                                >
+                                    <Icon
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {action.label}
+                                </Button>
+                            );
+                        })}
+                    </div>
+                    <InputError message={lifecycleForm.errors.status} />
+                </section>
 
                 {client.wellbeing_trend && (
                     <section className="space-y-4 rounded-md border p-4">
@@ -298,6 +405,56 @@ function formatDate(value: string | null) {
     return new Intl.DateTimeFormat(undefined, {
         dateStyle: 'medium',
     }).format(new Date(value));
+}
+
+function statusVariant(
+    status: string,
+): 'secondary' | 'destructive' | 'outline' {
+    if (status === 'suspended') {
+        return 'destructive';
+    }
+
+    if (status === 'active') {
+        return 'secondary';
+    }
+
+    return 'outline';
+}
+
+function lifecycleActions(status: string) {
+    if (status === 'active') {
+        return [
+            { status: 'paused', label: 'Pause' },
+            { status: 'suspended', label: 'Suspend' },
+            { status: 'offboarded', label: 'Mark offboarded' },
+        ];
+    }
+
+    if (status === 'paused') {
+        return [
+            { status: 'active', label: 'Restore' },
+            { status: 'suspended', label: 'Suspend' },
+            { status: 'offboarded', label: 'Mark offboarded' },
+        ];
+    }
+
+    return [{ status: 'active', label: 'Restore' }];
+}
+
+function lifecycleIcon(status: string) {
+    if (status === 'paused') {
+        return PauseCircle;
+    }
+
+    if (status === 'suspended') {
+        return Ban;
+    }
+
+    if (status === 'offboarded') {
+        return CheckCircle2;
+    }
+
+    return RotateCcw;
 }
 
 ClientsShow.layout = {

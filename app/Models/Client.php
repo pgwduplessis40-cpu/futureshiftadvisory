@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
@@ -28,6 +29,7 @@ final class Client extends Model
 
     protected $casts = [
         'engagement_type' => EngagementType::class,
+        'status' => ClientStatus::class,
         'address' => 'array',
         'gst_registered' => 'boolean',
         'directors' => 'array',

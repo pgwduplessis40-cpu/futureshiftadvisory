@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Advisor;
 
 use App\Actions\Clients\PopulateFromNzbn;
+use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
@@ -146,6 +147,8 @@ final class ClientController extends Controller
                 'data_quality' => $dataQuality->level,
                 'data_quality_summary' => $dataQuality->toPayload(),
                 'wellbeing_trend' => $user instanceof User ? $this->wellbeingTrend($client, $user) : null,
+                'status_options' => ClientStatus::options(),
+                'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -187,11 +190,16 @@ final class ClientController extends Controller
         $engagementType = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type
             : EngagementType::from((string) $client->engagement_type);
+        $status = $client->status instanceof ClientStatus
+            ? $client->status
+            : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
 
         return [
             'id' => $client->id,
             'engagement_type' => $engagementType->value,
             'engagement_type_label' => $engagementType->label(),
+            'status' => $status->value,
+            'status_label' => $status->label(),
             'nzbn' => $client->nzbn,
             'legal_name' => $client->legal_name,
             'trading_name' => $client->trading_name,
