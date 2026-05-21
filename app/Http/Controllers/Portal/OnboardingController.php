@@ -114,6 +114,7 @@ final class OnboardingController extends Controller
             'stepData' => Arr::get($state, "steps.{$step['slug']}", []),
             'progress' => $this->wizard->progress($client),
             'questionnaire' => $this->questionnaireFor($client),
+            'documentUploadUrl' => route('portal.documents.store'),
             'submitUrl' => route('portal.onboarding.store', ['step' => $step['slug']]),
             'dashboardUrl' => route('portal.dashboard'),
             'authUser' => [

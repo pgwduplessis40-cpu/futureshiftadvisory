@@ -215,6 +215,18 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - Portal onboarding Step 5 now renders and submits the latest published Standard Advisory questionnaire while keeping Phase 3 questionnaire sets gated.
 - Architecture doc: `docs/architecture/questionnaire-engine.md`.
 
+### WO-18 - Document Upload + Verification Pipeline
+
+- `document_verifications` stores per-document claim verification outcomes with client-scoped RLS, advisor resolution metadata, prompt hashes, and AI payloads.
+- `/portal/documents` accepts client uploads and persists only through `SecureFileWriter`, preserving the WO-06 scan-before-encrypted-write path.
+- `VerifyDocumentJob` builds verification claims from upload context or saved WO-17 questionnaire answers, applies system DB context for async execution, and delegates to `DocumentVerifier`.
+- `DocumentVerifier` uses the `document.verify` prompt registry entry and `AiClient::verifyDocument` to populate verified, advisory, discrepancy, or error outcomes.
+- Fake AI now returns deterministic document verification outcomes so clean and discrepancy paths can be tested without live credentials.
+- Accuracy discrepancies create urgent advisor notifications and appear in the dashboard `DocumentVerificationFlagPanel`.
+- The portal dashboard now shows document tiles with verification badges and client-facing flag explanations.
+- `DocumentVerificationGate` blocks future Phase 2 analysis output while unresolved advisory or discrepancy rows exist.
+- Architecture doc: `docs/architecture/document-verification.md`.
+
 ## Verification
 
 Latest local checks:
@@ -228,10 +240,13 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 149 tests, 743 assertions.
+- `composer test`: passed, 153 tests, 767 assertions.
+- `php artisan test tests\Feature\Documents`: passed, 4 tests, 24 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
+- `npm run build`: passed with existing CSS import/chunk-size warnings.
+- Browser smoke: `/portal` on the local PHP server redirected unauthenticated users to `/login`.
 
 Note: the local test DB required using the actual local Postgres connection values from `.env` in the process environment. Do not commit local DB credentials.
 
@@ -244,7 +259,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 | WO-15 | Add New Entrepreneur | complete | WO-14 |
 | WO-16 | Client portal shell + onboarding wizard | complete | WO-11, WO-12, WO-14 |
 | WO-17 | Questionnaire engine | complete | WO-14, WO-16 |
-| WO-18 | Document upload + verification pipeline | not started | WO-04, WO-06, WO-17 |
+| WO-18 | Document upload + verification pipeline | complete | WO-04, WO-06, WO-17 |
 | WO-19 | Data quality gate | not started | WO-17, WO-18 |
 | WO-20 | Wellbeing check-in | not started | WO-16 |
 | WO-21 | Conflict of interest declaration | not started | WO-07 |

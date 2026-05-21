@@ -1,5 +1,8 @@
+import { Upload, X } from 'lucide-react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -17,6 +20,12 @@ type Props = {
     errors?: Record<string, string | undefined>;
     onChange?: (answers: QuestionnaireAnswers) => void;
     readOnly?: boolean;
+    uploadUrl?: string;
+};
+
+type UploadedDocument = {
+    id: string;
+    original_filename: string;
 };
 
 export function QuestionnaireRenderer({
@@ -25,7 +34,11 @@ export function QuestionnaireRenderer({
     errors = {},
     onChange,
     readOnly = false,
+    uploadUrl,
 }: Props) {
+    const [uploadedDocuments, setUploadedDocuments] = useState<
+        Record<string, UploadedDocument>
+    >({});
     const visibleQuestionIds = evaluateVisibleQuestionIds(schema, answers);
 
     const updateAnswer = (
@@ -94,6 +107,14 @@ export function QuestionnaireRenderer({
                                         ]
                                     }
                                     readOnly={readOnly}
+                                    uploadUrl={uploadUrl}
+                                    uploadedDocuments={uploadedDocuments}
+                                    onDocumentUploaded={(document) =>
+                                        setUploadedDocuments((current) => ({
+                                            ...current,
+                                            [document.id]: document,
+                                        }))
+                                    }
                                     onChange={(answer) =>
                                         updateAnswer(question.id, answer)
                                     }
@@ -112,12 +133,18 @@ function QuestionField({
     answer,
     error,
     readOnly,
+    uploadUrl,
+    uploadedDocuments,
+    onDocumentUploaded,
     onChange,
 }: {
     question: QuestionnaireQuestion;
     answer: QuestionnaireAnswer;
     error?: string;
     readOnly: boolean;
+    uploadUrl?: string;
+    uploadedDocuments: Record<string, UploadedDocument>;
+    onDocumentUploaded: (document: UploadedDocument) => void;
     onChange: (answer: Partial<QuestionnaireAnswer>) => void;
 }) {
     const fieldId = `question-${question.id}`;
@@ -147,6 +174,17 @@ function QuestionField({
                 readOnly={readOnly}
                 onChange={onChange}
             />
+
+            {uploadUrl && !readOnly && (
+                <DocumentAttachmentControl
+                    question={question}
+                    answer={answer}
+                    uploadUrl={uploadUrl}
+                    uploadedDocuments={uploadedDocuments}
+                    onDocumentUploaded={onDocumentUploaded}
+                    onChange={onChange}
+                />
+            )}
 
             <InputError message={error} />
         </div>
@@ -317,6 +355,138 @@ function QuestionControl({
     }
 }
 
+function DocumentAttachmentControl({
+    question,
+    answer,
+    uploadUrl,
+    uploadedDocuments,
+    onDocumentUploaded,
+    onChange,
+}: {
+    question: QuestionnaireQuestion;
+    answer: QuestionnaireAnswer;
+    uploadUrl: string;
+    uploadedDocuments: Record<string, UploadedDocument>;
+    onDocumentUploaded: (document: UploadedDocument) => void;
+    onChange: (answer: Partial<QuestionnaireAnswer>) => void;
+}) {
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [error, setError] = useState<string | null>(null);
+
+    const upload = async () => {
+        if (!file) {
+            return;
+        }
+
+        setUploading(true);
+        setError(null);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', 'plan_attachment');
+        formData.append('question_id', question.id);
+        formData.append('question_prompt', question.prompt);
+        formData.append('claim_value', claimValue(question, answer));
+
+        const response = await fetch(uploadUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: formData,
+        });
+
+        setUploading(false);
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+                message?: string;
+            } | null;
+            setError(payload?.message ?? 'Upload failed.');
+
+            return;
+        }
+
+        const payload = (await response.json()) as {
+            document?: UploadedDocument;
+        };
+        const document = payload.document;
+
+        if (!document) {
+            setError('Upload response was missing document details.');
+
+            return;
+        }
+
+        onDocumentUploaded(document);
+        onChange({
+            attached_document_ids: unique([
+                ...answer.attached_document_ids,
+                document.id,
+            ]),
+        });
+        setFile(null);
+    };
+
+    return (
+        <div className="space-y-2 rounded-md border border-dashed p-3">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                <Input
+                    type="file"
+                    aria-label={`Attach document for ${question.prompt}`}
+                    onChange={(event) =>
+                        setFile(event.target.files?.[0] ?? null)
+                    }
+                />
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={!file || uploading}
+                    onClick={() => void upload()}
+                >
+                    <Upload className="size-4" aria-hidden="true" />
+                    {uploading ? 'Uploading' : 'Upload'}
+                </Button>
+            </div>
+
+            {answer.attached_document_ids.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                    {answer.attached_document_ids.map((documentId) => (
+                        <Badge
+                            key={documentId}
+                            variant="secondary"
+                            className="gap-2"
+                        >
+                            {uploadedDocuments[documentId]?.original_filename ??
+                                documentId}
+                            <button
+                                type="button"
+                                className="rounded-xs outline-none focus-visible:ring-[2px] focus-visible:ring-ring"
+                                aria-label="Remove attached document"
+                                onClick={() =>
+                                    onChange({
+                                        attached_document_ids:
+                                            answer.attached_document_ids.filter(
+                                                (id) => id !== documentId,
+                                            ),
+                                    })
+                                }
+                            >
+                                <X className="size-3" aria-hidden="true" />
+                            </button>
+                        </Badge>
+                    ))}
+                </div>
+            )}
+
+            <InputError message={error ?? undefined} />
+        </div>
+    );
+}
+
 function emptyAnswer(): QuestionnaireAnswer {
     return {
         value: null,
@@ -332,4 +502,33 @@ function stringValue(value: unknown): string {
 
 function arrayValue(value: unknown): string[] {
     return Array.isArray(value) ? value.map(String) : [];
+}
+
+function claimValue(
+    question: QuestionnaireQuestion,
+    answer: QuestionnaireAnswer,
+): string {
+    if (Array.isArray(answer.value)) {
+        return answer.value.join(', ');
+    }
+
+    if (typeof answer.value === 'string' || typeof answer.value === 'number') {
+        const value = String(answer.value).trim();
+
+        return value === '' ? question.prompt : value;
+    }
+
+    return question.prompt;
+}
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
+    );
+}
+
+function unique(values: string[]): string[] {
+    return Array.from(new Set(values));
 }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\Advisor\ClientController;
+use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use Illuminate\Support\Facades\Route;
 
@@ -39,4 +40,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}', [EntrepreneurController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.show');
+
+        Route::patch('document-verifications/{documentVerification}', [DocumentVerificationController::class, 'update'])
+            ->middleware('permission:'.Permission::DOCUMENTS_VERIFY->value)
+            ->name('document-verifications.update');
     });

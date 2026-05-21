@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Questionnaires;
 
 use App\Enums\QuestionnaireQuestionType;
+use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\Questionnaire;
+use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
@@ -101,8 +103,50 @@ final class QuestionnaireResponseRecorder
                 'answers_recorded' => count($normalised),
             ]);
 
-            return $response->refresh()->load('answers');
+            $response = $response->refresh()->load('answers.question');
+            $this->dispatchDocumentVerifications($response);
+
+            return $response;
         });
+    }
+
+    private function dispatchDocumentVerifications(QuestionnaireResponse $response): void
+    {
+        /** @var QuestionnaireAnswer $answer */
+        foreach ($response->answers as $answer) {
+            $documentIds = $answer->attached_document_ids ?? [];
+            if ($documentIds === []) {
+                continue;
+            }
+
+            foreach ($documentIds as $documentId) {
+                VerifyDocumentJob::dispatch((string) $documentId, [
+                    'claims' => [[
+                        'source' => 'questionnaire_answer',
+                        'questionnaire_response_id' => $response->getKey(),
+                        'questionnaire_answer_id' => $answer->getKey(),
+                        'questionnaire_question_id' => $answer->question_id,
+                        'question_prompt' => $answer->question?->prompt,
+                        'claim' => $this->claimText($answer),
+                    ]],
+                ])->afterCommit();
+            }
+        }
+    }
+
+    private function claimText(QuestionnaireAnswer $answer): string
+    {
+        $value = $answer->value;
+
+        if (is_array($value)) {
+            $value = implode(', ', array_map('strval', Arr::flatten($value)));
+        }
+
+        if (is_scalar($value) && trim((string) $value) !== '') {
+            return trim((string) $value);
+        }
+
+        return $answer->question?->prompt ?? 'Uploaded supporting document';
     }
 
     /**

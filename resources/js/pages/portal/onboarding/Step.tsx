@@ -36,6 +36,7 @@ type Props = {
     stepData: Record<string, unknown>;
     progress: Progress;
     questionnaire: Questionnaire;
+    documentUploadUrl: string;
     submitUrl: string;
     dashboardUrl: string;
     authUser: {
@@ -66,6 +67,7 @@ export default function OnboardingStep({
     stepData,
     progress,
     questionnaire,
+    documentUploadUrl,
     submitUrl,
     dashboardUrl,
     authUser,
@@ -181,6 +183,7 @@ export default function OnboardingStep({
                             form={form}
                             errors={errors}
                             questionnaire={questionnaire}
+                            documentUploadUrl={documentUploadUrl}
                             authUser={authUser}
                         />
                     </section>
@@ -209,6 +212,7 @@ function StepContent({
     form,
     errors,
     questionnaire,
+    documentUploadUrl,
     authUser,
 }: {
     client: ClientPayload;
@@ -217,6 +221,7 @@ function StepContent({
     form: ReturnType<typeof useForm<OnboardingForm>>;
     errors: Record<string, string | undefined>;
     questionnaire: Questionnaire;
+    documentUploadUrl: string;
     authUser: { name: string; email: string };
 }) {
     switch (step.slug) {
@@ -375,6 +380,7 @@ function StepContent({
                             schema={questionnaire.schema}
                             answers={form.data.answers}
                             errors={errors}
+                            uploadUrl={documentUploadUrl}
                             onChange={(answers) =>
                                 form.setData('answers', answers)
                             }

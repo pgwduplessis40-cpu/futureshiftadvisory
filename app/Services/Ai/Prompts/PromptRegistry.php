@@ -25,8 +25,8 @@ final class PromptRegistry
 
         $this->register(
             id: 'document.verify',
-            version: '2026-05-wo04',
-            body: 'Compare the supplied claim with the supplied document evidence and return only the structured schema.',
+            version: '2026-05-wo18',
+            body: 'Compare the supplied claim with the supplied document evidence. Return only JSON matching the schema, including metadata.verification_outcome as one of verified, advisory_flag, accuracy_discrepancy, or verification_error; metadata.confidence from 0 to 1; and metadata.client_explanation in plain English.',
             task: 'verify_document',
         );
     }

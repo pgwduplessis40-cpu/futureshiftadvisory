@@ -9,6 +9,9 @@ import {
 import type { ComponentType } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { VerificationBadge } from '@/components/verification/Badge';
+import type { VerificationOutcome } from '@/components/verification/Badge';
+import { FlagBanner } from '@/components/verification/FlagBanner';
 
 type ClientPayload = {
     id: string;
@@ -35,7 +38,24 @@ type Props = {
         unread: number;
         urgent: number;
     };
+    documents: DocumentPayload[];
     messagesUrl: string;
+};
+
+type DocumentPayload = {
+    id: string;
+    original_filename: string;
+    category: string;
+    uploaded_at: string | null;
+    verification_state: VerificationOutcome;
+    client_explanation: string;
+    verifications: Array<{
+        id: string;
+        outcome: VerificationOutcome;
+        claim_text: string;
+        client_explanation: string;
+        resolved_at: string | null;
+    }>;
 };
 
 export default function PortalDashboard({
@@ -43,6 +63,7 @@ export default function PortalDashboard({
     progress,
     onboardingUrl,
     notificationSummary,
+    documents,
     messagesUrl,
 }: Props) {
     return (
@@ -126,6 +147,39 @@ export default function PortalDashboard({
                     />
                 </div>
 
+                <section
+                    className="space-y-4 rounded-md border bg-background p-4"
+                    aria-labelledby="documents-heading"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <FileText className="size-4" aria-hidden="true" />
+                            <h2
+                                id="documents-heading"
+                                className="text-sm font-medium"
+                            >
+                                Documents
+                            </h2>
+                        </div>
+                        <Badge variant="outline">{documents.length}</Badge>
+                    </div>
+
+                    {documents.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No documents uploaded yet.
+                        </p>
+                    ) : (
+                        <div className="grid gap-3 md:grid-cols-2">
+                            {documents.map((document) => (
+                                <DocumentTile
+                                    key={document.id}
+                                    document={document}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </section>
+
                 <div className="grid gap-6 lg:grid-cols-2">
                     <section
                         className="space-y-4 rounded-md border bg-background p-4"
@@ -168,6 +222,42 @@ export default function PortalDashboard({
                 </div>
             </div>
         </>
+    );
+}
+
+function DocumentTile({ document }: { document: DocumentPayload }) {
+    const flagged =
+        document.verification_state === 'advisory_flag' ||
+        document.verification_state === 'accuracy_discrepancy' ||
+        document.verification_state === 'verification_error';
+
+    return (
+        <article className="space-y-3 rounded-md border p-3">
+            <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                    <h3 className="truncate text-sm font-medium">
+                        {document.original_filename}
+                    </h3>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {document.category.replaceAll('_', ' ')}
+                    </p>
+                </div>
+                <VerificationBadge outcome={document.verification_state} />
+            </div>
+
+            {flagged ? (
+                <FlagBanner
+                    outcome={document.verification_state}
+                    title="Verification review"
+                >
+                    {document.client_explanation}
+                </FlagBanner>
+            ) : (
+                <p className="text-sm text-muted-foreground">
+                    {document.client_explanation}
+                </p>
+            )}
+        </article>
     );
 }
 

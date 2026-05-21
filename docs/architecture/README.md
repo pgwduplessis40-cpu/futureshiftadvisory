@@ -29,6 +29,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `entrepreneur-profiles.md` | WO-15 | Basic entrepreneur profiles, invite handoff, Phase 1 capacity gates |
 | `client-portal.md` | WO-16 | Client portal shell, onboarding wizard state, questionnaire placeholders |
 | `questionnaire-engine.md` | WO-17 | Versioned questionnaire sets, conditional logic, admin builder, portal renderer |
+| `document-verification.md` | WO-18 | Secure upload verification records, AI outcomes, advisor flags, analysis gate |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

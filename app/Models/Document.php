@@ -7,6 +7,8 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class Document extends Model
 {
@@ -56,5 +58,37 @@ final class Document extends Model
     public function isVisibleToClients(): bool
     {
         return $this->scanner_result === self::SCANNER_CLEAN;
+    }
+
+    /**
+     * @return BelongsTo<Client, Document>
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<EntrepreneurProfile, Document>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<User, Document>
+     */
+    public function uploadedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'uploaded_by_user_id');
+    }
+
+    /**
+     * @return HasMany<DocumentVerification>
+     */
+    public function verifications(): HasMany
+    {
+        return $this->hasMany(DocumentVerification::class);
     }
 }
