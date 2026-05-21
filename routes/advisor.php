@@ -9,6 +9,7 @@ use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
+use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use Illuminate\Support\Facades\Route;
 
@@ -71,6 +72,28 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}', [EntrepreneurController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.show');
+
+        Route::get('knowledge', [KnowledgeController::class, 'index'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
+            ->name('knowledge.index');
+        Route::get('knowledge/create', [KnowledgeController::class, 'create'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->name('knowledge.create');
+        Route::post('knowledge', [KnowledgeController::class, 'store'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->name('knowledge.store');
+        Route::get('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'show'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
+            ->name('knowledge.show');
+        Route::get('knowledge/{knowledgeEntry}/edit', [KnowledgeController::class, 'edit'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->name('knowledge.edit');
+        Route::patch('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'update'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->name('knowledge.update');
+        Route::delete('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'destroy'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->name('knowledge.destroy');
 
         Route::patch('document-verifications/{documentVerification}', [DocumentVerificationController::class, 'update'])
             ->middleware('permission:'.Permission::DOCUMENTS_VERIFY->value)

@@ -124,6 +124,14 @@ class User extends Authenticatable
         return $this->hasMany(Message::class, 'sender_user_id');
     }
 
+    /**
+     * @return HasMany<KnowledgeEntry>
+     */
+    public function knowledgeEntries(): HasMany
+    {
+        return $this->hasMany(KnowledgeEntry::class, 'author_user_id');
+    }
+
     public function fsaRole(): string
     {
         if (

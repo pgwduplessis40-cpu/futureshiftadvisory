@@ -102,6 +102,14 @@ final class Client extends Model
         return $this->hasMany(MessageThread::class);
     }
 
+    /**
+     * @return HasMany<KnowledgeEntry>
+     */
+    public function knowledgeEntries(): HasMany
+    {
+        return $this->hasMany(KnowledgeEntry::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

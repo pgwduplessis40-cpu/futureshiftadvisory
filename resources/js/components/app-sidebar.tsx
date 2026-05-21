@@ -41,6 +41,11 @@ const mainNavItems: NavItem[] = [
         icon: UsersRound,
     },
     {
+        title: 'Knowledge',
+        href: '/advisor/knowledge',
+        icon: BookOpen,
+    },
+    {
         title: 'Notifications',
         href: '/notifications',
         icon: Bell,
