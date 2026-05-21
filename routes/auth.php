@@ -21,9 +21,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::get('mfa/challenge', [MfaChallengeController::class, 'show'])->name('mfa.challenge');
     Route::post('mfa/challenge', [MfaChallengeController::class, 'store'])->name('mfa.challenge.store');
 
-    Route::get('terms/pending', TermsPendingController::class)
-        ->middleware('mfa')
-        ->name('terms.pending');
+    Route::middleware('mfa')->group(function (): void {
+        Route::get('terms', [TermsPendingController::class, 'show'])->name('terms.show');
+        Route::get('terms/pending', [TermsPendingController::class, 'show'])->name('terms.pending');
+        Route::post('terms/accept', [TermsPendingController::class, 'accept'])->name('terms.accept');
+        Route::post('terms/decline', [TermsPendingController::class, 'decline'])->name('terms.decline');
+        Route::get('terms/declined', [TermsPendingController::class, 'declined'])->name('terms.declined');
+    });
 
     Route::prefix('admin')
         ->name('admin.')

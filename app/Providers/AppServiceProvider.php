@@ -6,6 +6,8 @@ use App\Services\Integration\Resilience\RetryPolicy;
 use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
+use App\Services\Pdf\BrowsershotRenderer;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
 use App\Services\Storage\WriteWrappedAdapter;
 use Carbon\CarbonImmutable;
@@ -32,6 +34,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(FileScanner::class, fn (): FileScanner => (bool) config('virus-scanner.live', false)
             ? $this->app->make(ClamAvScanner::class)
             : $this->app->make(NoopScanner::class));
+        $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
     }
 
     /**

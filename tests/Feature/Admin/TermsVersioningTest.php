@@ -84,6 +84,7 @@ final class TermsVersioningTest extends TestCase
         $admin = $this->superAdmin();
         $prior = $this->termsVersion('1', published: true);
         $draft = $this->termsVersion('2');
+        $this->acceptTerms($admin, $prior);
         $user = User::factory()->withTwoFactor()->create();
         $acceptance = TermsAcceptance::query()->create([
             'user_id' => $user->id,
@@ -117,6 +118,7 @@ final class TermsVersioningTest extends TestCase
         $admin = $this->superAdmin();
         $prior = $this->termsVersion('1', published: true);
         $draft = $this->termsVersion('2');
+        $this->acceptTerms($admin, $prior);
         $user = User::factory()->withTwoFactor()->create();
         $acceptance = TermsAcceptance::query()->create([
             'user_id' => $user->id,
@@ -146,6 +148,7 @@ final class TermsVersioningTest extends TestCase
         $admin = $this->superAdmin();
         $prior = $this->termsVersion('1', published: true);
         $draft = $this->termsVersion('2');
+        $this->acceptTerms($admin, $prior);
 
         $this->actingAsMfa($admin)
             ->post(route('admin.terms.publish', $draft), [
@@ -182,7 +185,21 @@ final class TermsVersioningTest extends TestCase
         $user = User::factory()->superAdmin()->withTwoFactor()->create();
         $user->assignRole(User::TYPE_SUPER_ADMIN);
 
+        $publishedTerms = TermsVersion::query()->published()->latest('published_at')->first();
+        if ($publishedTerms instanceof TermsVersion) {
+            $this->acceptTerms($user, $publishedTerms);
+        }
+
         return $user;
+    }
+
+    private function acceptTerms(User $user, TermsVersion $terms): void
+    {
+        TermsAcceptance::query()->create([
+            'user_id' => $user->id,
+            'terms_version_id' => $terms->id,
+            'accepted_at' => now()->subMinute(),
+        ]);
     }
 
     private function termsVersion(string $version, bool $published = false): TermsVersion

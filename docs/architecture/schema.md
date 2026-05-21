@@ -201,7 +201,7 @@ Key columns:
 
 ### `terms_acceptances`
 
-Acceptance ledger scaffolded now for WO-11. WO-10 uses it to expire active acceptances when a material version is published.
+Acceptance ledger. WO-10 uses it to expire active acceptances when a material version is published; WO-11 writes accepted/declined gate outcomes and signed-PDF evidence.
 
 Key columns:
 
@@ -213,5 +213,8 @@ Key columns:
 - `expires_at`
 - `reacceptance_notice_queued_at`
 - `signed_pdf_path`
+- `signed_pdf_sha256_envelope`
+- `signed_pdf_envelope_meta`
+- `signed_pdf_byte_size`
 - `ip`
 - `user_agent`

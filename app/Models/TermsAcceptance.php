@@ -20,6 +20,8 @@ final class TermsAcceptance extends Model
         'declined_at' => 'datetime',
         'expires_at' => 'datetime',
         'reacceptance_notice_queued_at' => 'datetime',
+        'signed_pdf_envelope_meta' => 'array',
+        'signed_pdf_byte_size' => 'integer',
     ];
 
     /**

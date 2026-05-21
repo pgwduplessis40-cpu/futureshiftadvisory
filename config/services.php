@@ -41,4 +41,11 @@ return [
         'endpoint' => env('ANTHROPIC_ENDPOINT', 'https://api.anthropic.com/v1/messages'),
     ],
 
+    'browsershot' => [
+        'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
+        'npm_binary' => env('BROWSERSHOT_NPM_BINARY'),
+        'chrome_path' => env('BROWSERSHOT_CHROME_PATH'),
+        'timeout_seconds' => (int) env('BROWSERSHOT_TIMEOUT_SECONDS', 60),
+    ],
+
 ];

@@ -9,6 +9,7 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
+use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireMfa;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
@@ -34,6 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
             EnforceClientScope::class,
             EnforceSessionSecurity::class,
+            RequireAcceptedTerms::class,
         ]);
 
         $middleware->api(append: [

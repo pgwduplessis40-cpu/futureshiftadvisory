@@ -35,6 +35,6 @@ Fortify remains the TOTP engine. Event listeners sync Fortify events into FSA me
 
 `mfa_factors.secret_envelope` and `mfa_factors.recovery_codes_envelope` use `KeyEnvelope`, keeping MFA secrets aligned with the platform encryption-at-rest seam.
 
-## Terms gate placeholder
+## Terms acceptance handoff
 
-After invite acceptance and MFA confirmation, the user is sent to `terms.pending`. The full T&C acceptance model and signed-PDF flow remain WO-11.
+After invite acceptance and MFA confirmation, the user is sent to `terms.pending`. WO-11 replaces the temporary placeholder with the live terms gate, signed-PDF acceptance primitive, and decline suspension state.

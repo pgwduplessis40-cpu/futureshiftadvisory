@@ -6,7 +6,7 @@ WO-10 introduces the editable and publishable terms contract used by the WO-11 a
 
 - `terms_versions` is the immutable version header once published.
 - `terms_clauses` stores the 14 clauses for each version.
-- `terms_acceptances` is created now because material republishing needs to expire active acceptances before WO-11 adds signed PDFs.
+- `terms_acceptances` is created here because material republishing needs to expire active acceptances; WO-11 extends the table with signed-PDF evidence columns.
 
 `TermsVersionSeeder` reads `docs/legal/terms-v1.md`, imports exactly 14 clauses, and marks clauses 1, 5, 6, 10, and 12 as material by default.
 

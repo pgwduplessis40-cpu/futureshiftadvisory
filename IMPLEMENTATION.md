@@ -10,9 +10,9 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 
 | | |
 |---|---|
-| Work orders complete | **10 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10) |
+| Work orders complete | **11 / 30** (WO-01, WO-02, WO-03, WO-04, WO-05, WO-06, WO-07, WO-08, WO-09, WO-10, WO-11) |
 | Work orders in progress | none |
-| Next work order | **WO-11** - T&C acceptance gate + signed-PDF generation |
+| Next work order | **WO-12** - Centralised notifications + channel preferences |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Verification status | Full PHP suite, ESLint, TypeScript, and Prettier are passing locally. |
@@ -30,7 +30,8 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 | WO-07 | `543b7b7` | User roles, permissions, RBAC | Spatie permission tables, nine-role matrix, middleware, policies, matrix tests. |
 | WO-08 | `3336e56` | Invite-only registration + MFA enforcement | Public registration removed, invite tokens, MFA gate, Fortify 2FA integration. |
 | WO-09 | `b133147` | Session management + step-up MFA | Per-user-type timeouts, risk scoring, step-up MFA redirect, audit logging. |
-| WO-10 | this commit | Terms model + version control + admin clause editor | Version/clause schema, 14-clause seeder, admin edit/preview/publish flow, material re-acceptance seam. |
+| WO-10 | `454c11f` | Terms model + version control + admin clause editor | Version/clause schema, 14-clause seeder, admin edit/preview/publish flow, material re-acceptance seam. |
+| WO-11 | this commit | T&C acceptance gate + signed-PDF generation | Authenticated gate, scroll-end acceptance, signed PDF evidence, decline suspension, urgent advisor/super-admin notification. |
 
 ## Completed WO Details
 
@@ -133,6 +134,16 @@ Living status document for the Phase 1 build. Read alongside [`PLAN.md`](./PLAN.
 - Admin Inertia pages exist under `resources/js/pages/admin/terms/*`.
 - Architecture doc: `docs/architecture/terms-versioning.md`.
 
+### WO-11 - T&C Acceptance Gate + Signed-PDF Generation
+
+- `RequireAcceptedTerms` redirects MFA-verified users to the terms gate when they lack a valid current or still-grace-period acceptance.
+- Material republishes respect the WO-10 `expires_at` notice window; non-material republishes do not force users with an active prior acceptance through the gate.
+- `resources/js/pages/terms/Gate.tsx` renders the full terms document and keeps Accept disabled until the gate emits `scroll-end`.
+- Accepting terms writes a `terms_acceptances` row, renders a signed PDF via the `PdfRenderer` contract, stores it on `secure_local`, and records the PDF hash through `KeyEnvelope`.
+- Declining terms writes a declined acceptance, sets `users.suspended_at` / `suspended_reason = terms_declined`, sends urgent advisor/super-admin notifications, and lets the user return later to accept.
+- `spatie/browsershot` is installed for the production `BrowsershotRenderer`; tests bind a fake renderer.
+- Architecture doc: `docs/architecture/terms-acceptance.md`.
+
 ## Verification
 
 Latest local checks:
@@ -146,7 +157,7 @@ npm run format:check
 
 Results on 2026-05-21:
 
-- `composer test`: passed, 111 tests, 389 assertions.
+- `composer test`: passed, 119 tests, 446 assertions.
 - `npm run lint:check`: passed.
 - `npm run types:check`: passed.
 - `npm run format:check`: passed.
@@ -157,7 +168,6 @@ Note: the local test DB required using the actual local Postgres connection valu
 
 | WO | Title | Status | Depends on |
 |---|---|---|---|
-| WO-11 | T&C acceptance gate + signed-PDF generation | not started | WO-10, WO-06 |
 | WO-12 | Centralised notifications + channel preferences | not started | WO-07, WO-09 |
 | WO-13 | NZ integration scaffolds | not started | WO-05 |
 | WO-14 | Add New Client | not started | WO-07, WO-13, WO-21, WO-22 |
