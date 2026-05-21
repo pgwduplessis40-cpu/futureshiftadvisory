@@ -2,6 +2,7 @@ import { createInertiaApp } from '@inertiajs/react';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
+import AdvisorLayout from '@/layouts/AdvisorLayout';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
@@ -21,6 +22,8 @@ createInertiaApp({
                 return AuthLayout;
             case name.startsWith('portal/'):
                 return PortalLayout;
+            case name.startsWith('advisor/'):
+                return AdvisorLayout;
             case name.startsWith('notifications/'):
                 return NotificationsLayout;
             case name.startsWith('settings/'):

@@ -84,7 +84,7 @@ final class VerificationOutcomesTest extends TestCase
             ->get(route('dashboard'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
-                ->component('dashboard')
+                ->component('advisor/Dashboard')
                 ->has('documentVerificationFlags', 1)
                 ->where(
                     'documentVerificationFlags.0.outcome',
