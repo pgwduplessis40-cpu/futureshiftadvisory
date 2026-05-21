@@ -1,17 +1,23 @@
+import Webhook from './Webhook'
 import Public from './Public'
 import Auth from './Auth'
 import Admin from './Admin'
 import Advisor from './Advisor'
-import DashboardController from './DashboardController'
 import Portal from './Portal'
+import DocumentController from './DocumentController'
+import DashboardController from './DashboardController'
+import NotificationController from './NotificationController'
 import Settings from './Settings'
 const Controllers = {
-    Public: Object.assign(Public, Public),
+    Webhook: Object.assign(Webhook, Webhook),
+Public: Object.assign(Public, Public),
 Auth: Object.assign(Auth, Auth),
 Admin: Object.assign(Admin, Admin),
 Advisor: Object.assign(Advisor, Advisor),
-DashboardController: Object.assign(DashboardController, DashboardController),
 Portal: Object.assign(Portal, Portal),
+DocumentController: Object.assign(DocumentController, DocumentController),
+DashboardController: Object.assign(DashboardController, DashboardController),
+NotificationController: Object.assign(NotificationController, NotificationController),
 Settings: Object.assign(Settings, Settings),
 }
 

@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
@@ -153,7 +153,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
@@ -208,14 +208,14 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-export const show = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const show = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
@@ -230,7 +230,7 @@ show.definition = {
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-show.url = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+show.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { entrepreneurProfile: args }
     }
@@ -238,7 +238,7 @@ show.url = (args: { entrepreneurProfile: string | number | { id: string | number
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -263,7 +263,7 @@ show.url = (args: { entrepreneurProfile: string | number | { id: string | number
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-show.get = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+show.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
@@ -272,7 +272,7 @@ show.get = (args: { entrepreneurProfile: string | number | { id: string | number
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-show.head = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
 })
@@ -282,7 +282,7 @@ show.head = (args: { entrepreneurProfile: string | number | { id: string | numbe
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-    const showForm = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const showForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: show.url(args, options),
         method: 'get',
     })
@@ -292,7 +292,7 @@ show.head = (args: { entrepreneurProfile: string | number | { id: string | numbe
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-        showForm.get = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        showForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, options),
             method: 'get',
         })
@@ -301,7 +301,7 @@ show.head = (args: { entrepreneurProfile: string | number | { id: string | numbe
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:110
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
-        showForm.head = (args: { entrepreneurProfile: string | number | { id: string | number } } | [entrepreneurProfile: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -310,7 +310,7 @@ show.head = (args: { entrepreneurProfile: string | number | { id: string | numbe
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const EntrepreneurController = { index, create, store, show }
 

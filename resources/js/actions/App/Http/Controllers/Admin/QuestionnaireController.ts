@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::store
@@ -130,14 +130,14 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::edit
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-export const edit = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const edit = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
 })
@@ -152,7 +152,7 @@ edit.definition = {
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-edit.url = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+edit.url = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { questionnaire: args }
     }
@@ -160,7 +160,7 @@ edit.url = (args: { questionnaire: string | number | { id: string | number } } |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -185,7 +185,7 @@ edit.url = (args: { questionnaire: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-edit.get = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+edit.get = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: edit.url(args, options),
     method: 'get',
 })
@@ -194,7 +194,7 @@ edit.get = (args: { questionnaire: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-edit.head = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+edit.head = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: edit.url(args, options),
     method: 'head',
 })
@@ -204,7 +204,7 @@ edit.head = (args: { questionnaire: string | number | { id: string | number } } 
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-    const editForm = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const editForm = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: edit.url(args, options),
         method: 'get',
     })
@@ -214,7 +214,7 @@ edit.head = (args: { questionnaire: string | number | { id: string | number } } 
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-        editForm.get = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        editForm.get = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: edit.url(args, options),
             method: 'get',
         })
@@ -223,7 +223,7 @@ edit.head = (args: { questionnaire: string | number | { id: string | number } } 
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:79
  * @route '/admin/questionnaires/{questionnaire}/edit'
  */
-        editForm.head = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        editForm.head = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: edit.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -232,14 +232,14 @@ edit.head = (args: { questionnaire: string | number | { id: string | number } } 
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::update
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:90
  * @route '/admin/questionnaires/{questionnaire}'
  */
-export const update = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+export const update = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: update.url(args, options),
     method: 'put',
 })
@@ -254,7 +254,7 @@ update.definition = {
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:90
  * @route '/admin/questionnaires/{questionnaire}'
  */
-update.url = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+update.url = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { questionnaire: args }
     }
@@ -262,7 +262,7 @@ update.url = (args: { questionnaire: string | number | { id: string | number } }
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -287,7 +287,7 @@ update.url = (args: { questionnaire: string | number | { id: string | number } }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:90
  * @route '/admin/questionnaires/{questionnaire}'
  */
-update.put = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
+update.put = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
     url: update.url(args, options),
     method: 'put',
 })
@@ -297,7 +297,7 @@ update.put = (args: { questionnaire: string | number | { id: string | number } }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:90
  * @route '/admin/questionnaires/{questionnaire}'
  */
-    const updateForm = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const updateForm = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: update.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PUT',
@@ -312,7 +312,7 @@ update.put = (args: { questionnaire: string | number | { id: string | number } }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:90
  * @route '/admin/questionnaires/{questionnaire}'
  */
-        updateForm.put = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        updateForm.put = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: update.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PUT',
@@ -321,14 +321,14 @@ update.put = (args: { questionnaire: string | number | { id: string | number } }
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::preview
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-export const preview = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const preview = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: preview.url(args, options),
     method: 'get',
 })
@@ -343,7 +343,7 @@ preview.definition = {
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-preview.url = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+preview.url = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { questionnaire: args }
     }
@@ -351,7 +351,7 @@ preview.url = (args: { questionnaire: string | number | { id: string | number } 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -376,7 +376,7 @@ preview.url = (args: { questionnaire: string | number | { id: string | number } 
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-preview.get = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+preview.get = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: preview.url(args, options),
     method: 'get',
 })
@@ -385,7 +385,7 @@ preview.get = (args: { questionnaire: string | number | { id: string | number } 
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-preview.head = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+preview.head = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: preview.url(args, options),
     method: 'head',
 })
@@ -395,7 +395,7 @@ preview.head = (args: { questionnaire: string | number | { id: string | number }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-    const previewForm = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const previewForm = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: preview.url(args, options),
         method: 'get',
     })
@@ -405,7 +405,7 @@ preview.head = (args: { questionnaire: string | number | { id: string | number }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-        previewForm.get = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        previewForm.get = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: preview.url(args, options),
             method: 'get',
         })
@@ -414,7 +414,7 @@ preview.head = (args: { questionnaire: string | number | { id: string | number }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:175
  * @route '/admin/questionnaires/{questionnaire}/preview'
  */
-        previewForm.head = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        previewForm.head = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: preview.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -423,14 +423,14 @@ preview.head = (args: { questionnaire: string | number | { id: string | number }
                     }),
             method: 'get',
         })
-
+    
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::publish
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:184
  * @route '/admin/questionnaires/{questionnaire}/publish'
  */
-export const publish = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const publish = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: publish.url(args, options),
     method: 'post',
 })
@@ -445,7 +445,7 @@ publish.definition = {
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:184
  * @route '/admin/questionnaires/{questionnaire}/publish'
  */
-publish.url = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+publish.url = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { questionnaire: args }
     }
@@ -453,7 +453,7 @@ publish.url = (args: { questionnaire: string | number | { id: string | number } 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -478,7 +478,7 @@ publish.url = (args: { questionnaire: string | number | { id: string | number } 
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:184
  * @route '/admin/questionnaires/{questionnaire}/publish'
  */
-publish.post = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+publish.post = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: publish.url(args, options),
     method: 'post',
 })
@@ -488,7 +488,7 @@ publish.post = (args: { questionnaire: string | number | { id: string | number }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:184
  * @route '/admin/questionnaires/{questionnaire}/publish'
  */
-    const publishForm = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const publishForm = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: publish.url(args, options),
         method: 'post',
     })
@@ -498,11 +498,11 @@ publish.post = (args: { questionnaire: string | number | { id: string | number }
  * @see app/Http/Controllers/Admin/QuestionnaireController.php:184
  * @route '/admin/questionnaires/{questionnaire}/publish'
  */
-        publishForm.post = (args: { questionnaire: string | number | { id: string | number } } | [questionnaire: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        publishForm.post = (args: { questionnaire: string | { id: string } } | [questionnaire: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: publish.url(args, options),
             method: 'post',
         })
-
+    
     publish.form = publishForm
 const QuestionnaireController = { index, store, edit, update, preview, publish }
 
