@@ -9,10 +9,10 @@ use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
-use App\Models\ConflictDeclaration;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
+use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\DataQuality\DataQualityScorer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,6 +27,7 @@ final class ClientController extends Controller
 {
     public function __construct(
         private readonly AuditWriter $auditWriter,
+        private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
     ) {}
 
@@ -79,7 +80,7 @@ final class ClientController extends Controller
             'trading_name' => ['nullable', 'string', 'max:255'],
             'entity_type' => ['nullable', 'string', 'max:120'],
             'conflict.declared' => ['accepted'],
-            'conflict.referral_type' => ['required', Rule::in(['client_creation', 'due_diligence', 'broker_referral', 'coach_referral'])],
+            'conflict.referral_type' => ['required', Rule::in(ConflictDeclarer::referralTypes())],
             'conflict.existing_relationship' => ['required', 'boolean'],
             'conflict.details' => ['nullable', 'string', 'max:2000'],
         ]);
@@ -111,23 +112,13 @@ final class ClientController extends Controller
                 'granted_modules' => [$validated['engagement_type']],
             ]);
 
-            $declaration = ConflictDeclaration::query()->create([
-                'client_id' => $client->id,
-                'advisor_id' => $user->getKey(),
-                'declaration' => [
-                    'declared' => true,
-                    'referral_type' => Arr::get($validated, 'conflict.referral_type'),
-                    'existing_relationship' => (bool) Arr::get($validated, 'conflict.existing_relationship'),
-                    'details' => Arr::get($validated, 'conflict.details'),
-                ],
-                'declared_at' => now(),
-            ]);
-
-            $this->auditWriter->record('conflict.declared', subject: $declaration, actor: $user, after: [
-                'client_id' => $client->id,
-                'referral_type' => Arr::get($validated, 'conflict.referral_type'),
-                'existing_relationship' => (bool) Arr::get($validated, 'conflict.existing_relationship'),
-            ]);
+            $this->conflicts->declare(
+                advisor: $user,
+                client: $client,
+                referralType: (string) Arr::get($validated, 'conflict.referral_type'),
+                existingRelationship: (bool) Arr::get($validated, 'conflict.existing_relationship'),
+                details: Arr::get($validated, 'conflict.details'),
+            );
 
             $this->auditWriter->record('client.created', subject: $client, actor: $user, after: [
                 'client_id' => $client->id,

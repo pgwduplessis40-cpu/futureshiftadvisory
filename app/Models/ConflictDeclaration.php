@@ -34,4 +34,17 @@ final class ConflictDeclaration extends Model
     {
         return $this->belongsTo(User::class, 'advisor_id');
     }
+
+    public function referralType(): ?string
+    {
+        $type = $this->declaration['referral_type'] ?? null;
+
+        return is_string($type) && $type !== '' ? $type : null;
+    }
+
+    public function isFreshFor(int $days): bool
+    {
+        return $this->declared_at !== null
+            && $this->declared_at->greaterThanOrEqualTo(now()->subDays($days));
+    }
 }

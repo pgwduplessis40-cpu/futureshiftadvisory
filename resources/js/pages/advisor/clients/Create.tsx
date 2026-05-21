@@ -1,10 +1,10 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Building2, Save, Search } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { ConflictDeclarationModal } from '@/components/conflicts/ConflictDeclarationModal';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -202,66 +202,13 @@ export default function ClientsCreate({
                             </div>
                         </div>
 
-                        <div className="space-y-4 rounded-md border p-4">
-                            <div className="flex items-start gap-3">
-                                <Checkbox
-                                    id="conflict_declared"
-                                    checked={form.data.conflict.declared}
-                                    onCheckedChange={(checked) =>
-                                        form.setData('conflict', {
-                                            ...form.data.conflict,
-                                            declared: checked === true,
-                                        })
-                                    }
-                                />
-                                <div className="grid gap-1">
-                                    <Label htmlFor="conflict_declared">
-                                        Conflict declaration complete
-                                    </Label>
-                                    <InputError
-                                        message={errors['conflict.declared']}
-                                    />
-                                </div>
-                            </div>
-
-                            <div className="flex items-start gap-3">
-                                <Checkbox
-                                    id="existing_relationship"
-                                    checked={
-                                        form.data.conflict.existing_relationship
-                                    }
-                                    onCheckedChange={(checked) =>
-                                        form.setData('conflict', {
-                                            ...form.data.conflict,
-                                            existing_relationship:
-                                                checked === true,
-                                        })
-                                    }
-                                />
-                                <Label htmlFor="existing_relationship">
-                                    Existing relationship or referral interest
-                                </Label>
-                            </div>
-
-                            <div className="grid gap-2">
-                                <Label htmlFor="conflict_details">
-                                    Declaration notes
-                                </Label>
-                                <Input
-                                    id="conflict_details"
-                                    value={form.data.conflict.details}
-                                    onChange={(event) =>
-                                        form.setData('conflict', {
-                                            ...form.data.conflict,
-                                            details: event.target.value,
-                                        })
-                                    }
-                                />
-                                <InputError
-                                    message={errors['conflict.details']}
-                                />
-                            </div>
-                        </div>
+                        <ConflictDeclarationModal
+                            value={form.data.conflict}
+                            onChange={(conflict) =>
+                                form.setData('conflict', conflict)
+                            }
+                            errors={errors}
+                        />
 
                         <Button type="submit" disabled={form.processing}>
                             <Save className="size-4" aria-hidden="true" />
