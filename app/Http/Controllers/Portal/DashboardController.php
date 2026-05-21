@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use Illuminate\Http\Request;
@@ -20,6 +21,7 @@ final class DashboardController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly OnboardingWizard $wizard,
+        private readonly DataQualityScorer $dataQuality,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -50,6 +52,7 @@ final class DashboardController extends Controller
         $engagementType = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type
             : EngagementType::from((string) $client->engagement_type);
+        $dataQuality = $this->dataQuality->score($client);
 
         return [
             'id' => $client->id,
@@ -57,7 +60,8 @@ final class DashboardController extends Controller
             'trading_name' => $client->trading_name,
             'engagement_type' => $engagementType->value,
             'engagement_type_label' => $engagementType->label(),
-            'data_quality' => $client->data_quality,
+            'data_quality' => $dataQuality->level,
+            'data_quality_summary' => $dataQuality->toPayload(),
             'nzbn' => $client->nzbn,
         ];
     }

@@ -12,6 +12,7 @@ use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\DataQuality\DataQualityScorer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -23,7 +24,10 @@ use Inertia\Response;
 
 final class ClientController extends Controller
 {
-    public function __construct(private readonly AuditWriter $auditWriter) {}
+    public function __construct(
+        private readonly AuditWriter $auditWriter,
+        private readonly DataQualityScorer $dataQuality,
+    ) {}
 
     public function index(): Response
     {
@@ -141,10 +145,13 @@ final class ClientController extends Controller
     public function show(Client $client): Response
     {
         Gate::authorize('view', $client);
+        $dataQuality = $this->dataQuality->score($client);
 
         return Inertia::render('advisor/clients/Show', [
             'client' => [
                 ...$this->clientSummary($client),
+                'data_quality' => $dataQuality->level,
+                'data_quality_summary' => $dataQuality->toPayload(),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],

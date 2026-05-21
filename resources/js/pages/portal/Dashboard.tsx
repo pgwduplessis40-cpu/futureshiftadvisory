@@ -6,7 +6,9 @@ import {
     MessageSquare,
     TrendingUp,
 } from 'lucide-react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
+import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VerificationBadge } from '@/components/verification/Badge';
@@ -20,6 +22,7 @@ type ClientPayload = {
     engagement_type: string;
     engagement_type_label: string;
     data_quality: string;
+    data_quality_summary: DataQualitySummary;
     nzbn: string | null;
 };
 
@@ -133,7 +136,11 @@ export default function PortalDashboard({
                     <StatusPanel
                         icon={TrendingUp}
                         label="Data quality"
-                        value={client.data_quality}
+                        value={
+                            <DataQualityBadge
+                                summary={client.data_quality_summary}
+                            />
+                        }
                     />
                     <StatusPanel
                         icon={Bell}
@@ -268,7 +275,7 @@ function StatusPanel({
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     label: string;
-    value: string;
+    value: ReactNode;
 }) {
     return (
         <section className="rounded-md border bg-background p-4">

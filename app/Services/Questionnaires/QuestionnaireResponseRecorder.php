@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Questionnaires;
 
 use App\Enums\QuestionnaireQuestionType;
+use App\Jobs\RecomputeDataQualityScore;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\Questionnaire;
@@ -13,6 +14,7 @@ use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
@@ -105,6 +107,7 @@ final class QuestionnaireResponseRecorder
 
             $response = $response->refresh()->load('answers.question');
             $this->dispatchDocumentVerifications($response);
+            RecomputeDataQualityScore::dispatch((string) $client->getKey())->afterCommit();
 
             return $response;
         });

@@ -1,10 +1,14 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, LockKeyhole } from 'lucide-react';
+import type { ReactNode } from 'react';
+import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
+import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ClientSummary } from './types';
 
 type ClientDetail = ClientSummary & {
+    data_quality_summary: DataQualitySummary;
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -51,12 +55,12 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
-                    <Metric label="NZBN" value={client.nzbn ?? '—'} />
-                    <Metric
-                        label="Data quality"
-                        value={client.data_quality}
-                        badge
-                    />
+                    <Metric label="NZBN" value={client.nzbn ?? '-'} />
+                    <Metric label="Data quality">
+                        <DataQualityBadge
+                            summary={client.data_quality_summary}
+                        />
+                    </Metric>
                     <Metric
                         label="GST"
                         value={client.gst_registered ? 'registered' : 'no'}
@@ -132,18 +136,16 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 function Metric({
     label,
     value,
-    badge = false,
+    children,
 }: {
     label: string;
-    value: string;
-    badge?: boolean;
+    value?: string;
+    children?: ReactNode;
 }) {
     return (
         <div className="rounded-md border p-4">
             <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-2 text-sm font-medium">
-                {badge ? <Badge variant="secondary">{value}</Badge> : value}
-            </div>
+            <div className="mt-2 text-sm font-medium">{children ?? value}</div>
         </div>
     );
 }
@@ -158,7 +160,7 @@ function Detail({
     return (
         <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-3">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd>{value || '—'}</dd>
+            <dd>{value || '-'}</dd>
         </div>
     );
 }

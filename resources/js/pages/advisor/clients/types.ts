@@ -1,3 +1,5 @@
+import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
+
 export type ClientSummary = {
     id: string;
     engagement_type: string;
@@ -9,6 +11,7 @@ export type ClientSummary = {
     gst_registered: boolean;
     filing_status: string | null;
     data_quality: string;
+    data_quality_summary?: DataQualitySummary;
 };
 
 export type RegistryLookup = {

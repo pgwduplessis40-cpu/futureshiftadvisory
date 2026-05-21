@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Ai\Verification;
 
+use App\Jobs\RecomputeDataQualityScore;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\User;
@@ -106,6 +107,10 @@ final class DocumentVerifier
             && $previousOutcome !== DocumentVerification::OUTCOME_ACCURACY_DISCREPANCY
         ) {
             $this->notifyAdvisors($verification->refresh());
+        }
+
+        if ($document->client_id !== null) {
+            RecomputeDataQualityScore::dispatch((string) $document->client_id)->afterCommit();
         }
 
         return $verification->refresh();
