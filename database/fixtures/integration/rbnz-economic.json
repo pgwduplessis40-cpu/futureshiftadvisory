@@ -1,0 +1,37 @@
+{
+  "current": {
+    "ocr": {
+      "indicator": "ocr",
+      "label": "Official Cash Rate",
+      "value": 5.5,
+      "unit": "percent",
+      "period_date": "2026-05-20",
+      "payload": {
+        "series": "OCR",
+        "release": "Monetary Policy Statement"
+      }
+    },
+    "exchange_rates": [
+      {
+        "base_currency": "NZD",
+        "quote_currency": "USD",
+        "rate": 0.6123,
+        "rate_date": "2026-05-22",
+        "payload": {
+          "series": "B1",
+          "name": "NZD/USD"
+        }
+      },
+      {
+        "base_currency": "NZD",
+        "quote_currency": "AUD",
+        "rate": 0.9251,
+        "rate_date": "2026-05-22",
+        "payload": {
+          "series": "B1",
+          "name": "NZD/AUD"
+        }
+      }
+    ]
+  }
+}

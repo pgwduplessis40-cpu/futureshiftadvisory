@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-35 complete (next: WO-36, pending owner approval).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-36 complete (next: WO-37, pending owner approval).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **35 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-35 complete |
+| Work orders complete | **36 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-36 complete |
 | Work orders in progress | none |
-| Next work order | **WO-36** - NZ economic indicators feed (pending owner approval) |
+| Next work order | **WO-37** - Accounting API integration (Xero / MYOB / QuickBooks) (pending owner approval) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-35 verified locally. `composer test` passed (Pint + PHPUnit **211 tests / 1378 assertions**) against PostgreSQL `futureshift_test`; `php artisan test tests\Feature\Analysis` passed **15 tests / 133 assertions**; WO-35 targeted tests passed **2 tests / 22 assertions**; advisor/client adjacent tests passed **17 tests / 171 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-36 verified locally. `composer test` passed (Pint + PHPUnit **216 tests / 1438 assertions**) against PostgreSQL `futureshift_test`; `php artisan test tests\Feature\Integration` passed **17 tests / 187 assertions**; WO-36 targeted tests passed **5 tests / 60 assertions**; `php artisan test tests\Feature\Advisor\DashboardTest.php` passed **2 tests / 46 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -55,7 +55,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-32 | `3b635a4` | AI feedback capture loop | Advisor finding feedback route/UI, `FeedbackRecorder`, `learning_layer_runs`, scheduled feedback learning command, governed `learning_updates` candidates. |
 | WO-33 | `b2fc7c2` | Bias detection layer | Per-analysis bias signal capture, systematic skew monitor, urgent governed alerts, and bias-monitor architecture docs. |
 | WO-34 | `f71b230` | AI red-flag alerts | Critical finding promotion, urgent red-flag notifications, dashboard panel, and audited acknowledge/resolve flow. |
-| WO-35 | this commit | Client knowledge assessment | Advisor-scored knowledge profile, prompt calibration injection, client detail UI, and raw leadership-gap coaching observation boundary. |
+| WO-35 | `f25fd93` | Client knowledge assessment | Advisor-scored knowledge profile, prompt calibration injection, client detail UI, and raw leadership-gap coaching observation boundary. |
+| WO-36 | this commit | NZ economic indicators feed | RBNZ/Stats NZ/MBIE fixture/live clients, persisted economic indicators and exchange rates, scheduled refresh, OCR-change learning candidate, dashboard tile. |
 
 ## Completed WO Details
 
@@ -299,6 +300,18 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover prompt calibration injection, raw leadership-gap signal persistence, and the absence of Phase 2 notification/red-flag side effects.
 - Architecture docs: `docs/architecture/knowledge-assessment.md` and `docs/architecture/schema.md`.
 
+### WO-36 - NZ Economic Indicators Feed
+
+- `economic_indicators` stores OCR, CPI, GDP, unemployment, minimum wage, and living wage values by source and period.
+- `exchange_rates` stores NZD exchange rates by currency pair, date, and source.
+- RBNZ, Stats NZ, and MBIE clients now have fixture, live, and fallback implementations using the WO-05 resilience layer.
+- `economic-indicators:refresh` persists the feed, records layer id `12` runs, audits refreshes, and is scheduled daily at 03:30.
+- Live mode without credentials degrades through `ResilientHttp`, records failure/fallback rows, and returns cached or fixture-backed data with source badges.
+- OCR changes create governed `learning_updates` candidates for PV discount-rate review with `automatic_application=false`; no PV/WACC logic is applied in WO-36.
+- The advisor dashboard includes an economic indicators panel showing latest values, exchange rates, source badges, degraded state, and OCR-change alerts.
+- Tests cover fixture refresh, live fallback, idempotent refresh, OCR-change candidate creation, no auto-implementation, and dashboard surfacing.
+- Architecture docs: `docs/architecture/economic-indicators.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -310,24 +323,24 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-35:
+Results after WO-36:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 211 tests, 1378 assertions.
-- `php artisan test tests\Feature\Analysis` (targeted analysis suite): passed - 15 tests, 133 assertions.
-- `php artisan test tests\Feature\Analysis\KnowledgeAssessmentTest.php` (WO-35 targeted): passed - 2 tests, 22 assertions.
-- `php artisan test tests\Feature\Clients tests\Feature\Advisor\AddClientTest.php tests\Feature\DataQuality\DataQualityGateTest.php tests\Feature\Wellbeing\WellbeingCheckinTest.php` (advisor/client adjacent coverage): passed - 17 tests, 171 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 216 tests, 1438 assertions.
+- `php artisan test tests\Feature\Integration` (targeted integration suite): passed - 17 tests, 187 assertions.
+- `php artisan test tests\Feature\Integration\EconomicIndicatorsTest.php` (WO-36 targeted): passed - 5 tests, 60 assertions.
+- `php artisan test tests\Feature\Advisor\DashboardTest.php` (dashboard economic indicators coverage plus existing widgets): passed - 2 tests, 46 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 35 distinct WO commits (WO-01...WO-35) on `featureApp`.
+- Git history after this commit: 36 distinct WO commits (WO-01...WO-36) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-35 are complete. WO-36 is next, pending owner approval.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-36 are complete. WO-37 is next, pending owner approval.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-35; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-36; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 
@@ -335,6 +348,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 |---|---|---|
 | Anthropic API key | Live AI (analysis degrades to deferred without it) | Optional in P1; needed early in P2 |
 | NZBN / Companies Office / IRD + accounting (Xero/MYOB/QuickBooks) credentials | Live integration mode | Stubs/fixtures until arranged |
+| RBNZ / Stats NZ / MBIE credentials or access policy | WO-36 live economic indicator mode | Fixture/fallback path works; live access can be enabled later |
 | Meridian Warm brand kit | Client-facing UI + report branding | Placeholder in `docs/brand/` |
 | Lawyer-reviewed 14-clause T&C text | Anything client-facing | Placeholder in `docs/legal/terms-v1.md` |
 | ClamAV production host | Production uploads | Interface ready; host/port pending |
@@ -345,6 +359,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 |---|---|---|
 | Anthropic API key | Live AI testing in WO-04/WO-18 | Optional; fake/degraded path works. |
 | NZBN / Companies Office / IRD access | WO-13 live mode | Stubs until arranged. |
+| RBNZ / Stats NZ / MBIE access | WO-36 live economic indicator mode | Fixtures and resilience fallback work until arranged. |
 | Meridian Warm brand kit | Client-facing UI | Placeholder files exist. |
 | Lawyer-reviewed T&C text | WO-10/11 | Placeholder exists. |
 | ClamAV deployment plan | Production uploads | Interface exists; production daemon host/port still pending. |

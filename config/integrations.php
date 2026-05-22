@@ -48,4 +48,22 @@ return [
         'base_url' => env('IRD_BASE_URL', 'https://api.ird.govt.nz'),
         'api_key' => env('IRD_API_KEY'),
     ],
+
+    'rbnz' => [
+        'live' => (bool) env('FEATURE_RBNZ_LIVE', false),
+        'base_url' => env('RBNZ_BASE_URL', 'https://api.rbnz.govt.nz'),
+        'api_key' => env('RBNZ_API_KEY'),
+    ],
+
+    'stats_nz' => [
+        'live' => (bool) env('FEATURE_STATS_NZ_LIVE', false),
+        'base_url' => env('STATS_NZ_BASE_URL', 'https://api.stats.govt.nz'),
+        'api_key' => env('STATS_NZ_API_KEY'),
+    ],
+
+    'mbie' => [
+        'live' => (bool) env('FEATURE_MBIE_LIVE', false),
+        'base_url' => env('MBIE_BASE_URL', 'https://api.mbie.govt.nz'),
+        'api_key' => env('MBIE_API_KEY'),
+    ],
 ];

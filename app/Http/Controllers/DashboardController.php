@@ -11,12 +11,16 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\EconomicIndicator;
+use App\Models\ExchangeRate;
 use App\Models\IntegrationHealthSample;
+use App\Models\LearningUpdate;
 use App\Models\MessageThread;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Terms\TermsAcceptanceGate;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -67,6 +71,7 @@ final class DashboardController extends Controller
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
+            'economicIndicators' => $this->economicIndicators(),
         ];
     }
 
@@ -553,6 +558,125 @@ final class DashboardController extends Controller
             ],
             'index_url' => null,
             'services' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function economicIndicators(): array
+    {
+        if (! Schema::hasTable('economic_indicators') || ! Schema::hasTable('exchange_rates')) {
+            return $this->emptyEconomicIndicators();
+        }
+
+        $indicatorOrder = [
+            EconomicIndicator::OCR,
+            EconomicIndicator::CPI_ANNUAL,
+            EconomicIndicator::GDP_QUARTERLY,
+            EconomicIndicator::UNEMPLOYMENT_RATE,
+            EconomicIndicator::MINIMUM_WAGE,
+            EconomicIndicator::LIVING_WAGE,
+        ];
+
+        $indicators = EconomicIndicator::query()
+            ->whereIn('indicator', $indicatorOrder)
+            ->latest('fetched_at')
+            ->limit(100)
+            ->get()
+            ->unique('indicator')
+            ->sortBy(function (EconomicIndicator $indicator) use ($indicatorOrder): int {
+                $position = array_search($indicator->indicator, $indicatorOrder, true);
+
+                return $position === false ? 999 : (int) $position;
+            })
+            ->values();
+
+        $exchangeRates = ExchangeRate::query()
+            ->where('base_currency', 'NZD')
+            ->whereIn('quote_currency', ['USD', 'AUD'])
+            ->latest('fetched_at')
+            ->limit(20)
+            ->get()
+            ->unique(fn (ExchangeRate $rate): string => $rate->base_currency.'/'.$rate->quote_currency)
+            ->values();
+
+        $alerts = Schema::hasTable('learning_updates')
+            ? LearningUpdate::query()
+                ->where('layer_id', EconomicIndicatorRefresher::LAYER_ID)
+                ->where('status', LearningUpdate::STATUS_DETECTED)
+                ->where('source->type', 'economic_indicator_auto_update')
+                ->latest()
+                ->limit(3)
+                ->get()
+            : collect();
+
+        $latestFetchedAt = $indicators
+            ->pluck('fetched_at')
+            ->merge($exchangeRates->pluck('fetched_at'))
+            ->filter()
+            ->sortDesc()
+            ->first();
+
+        return [
+            'summary' => [
+                'indicators' => $indicators->count(),
+                'exchange_rates' => $exchangeRates->count(),
+                'change_alerts' => $alerts->count(),
+                'latest_fetched_at' => $latestFetchedAt instanceof Carbon ? $latestFetchedAt->toIso8601String() : null,
+            ],
+            'indicators' => $indicators
+                ->map(fn (EconomicIndicator $indicator): array => [
+                    'id' => $indicator->id,
+                    'indicator' => $indicator->indicator,
+                    'label' => $indicator->label,
+                    'value' => $indicator->value,
+                    'unit' => $indicator->unit,
+                    'period_date' => $indicator->period_date?->toDateString(),
+                    'source' => $indicator->source,
+                    'source_badge' => $indicator->source_badge,
+                    'degraded' => $indicator->degraded,
+                    'fetched_at' => $indicator->fetched_at?->toIso8601String(),
+                ])
+                ->all(),
+            'exchange_rates' => $exchangeRates
+                ->map(fn (ExchangeRate $rate): array => [
+                    'id' => $rate->id,
+                    'base_currency' => $rate->base_currency,
+                    'quote_currency' => $rate->quote_currency,
+                    'rate' => $rate->rate,
+                    'rate_date' => $rate->rate_date?->toDateString(),
+                    'source' => $rate->source,
+                    'source_badge' => $rate->source_badge,
+                    'degraded' => $rate->degraded,
+                    'fetched_at' => $rate->fetched_at?->toIso8601String(),
+                ])
+                ->all(),
+            'alerts' => $alerts
+                ->map(fn (LearningUpdate $update): array => [
+                    'id' => $update->id,
+                    'summary' => $update->summary,
+                    'created_at' => $update->created_at?->toIso8601String(),
+                ])
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyEconomicIndicators(): array
+    {
+        return [
+            'summary' => [
+                'indicators' => 0,
+                'exchange_rates' => 0,
+                'change_alerts' => 0,
+                'latest_fetched_at' => null,
+            ],
+            'indicators' => [],
+            'exchange_rates' => [],
+            'alerts' => [],
         ];
     }
 }

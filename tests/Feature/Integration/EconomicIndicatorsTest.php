@@ -1,0 +1,252 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Integration;
+
+use App\Models\EconomicIndicator;
+use App\Models\ExchangeRate;
+use App\Models\IntegrationCall;
+use App\Models\LearningUpdate;
+use App\Models\LearningUpdateImplementation;
+use App\Models\User;
+use App\Services\EconomicData\EconomicIndicatorRefresher;
+use App\Services\Integration\Mbie\FakeMbieClient;
+use App\Services\Integration\Mbie\FallbackMbieClient;
+use App\Services\Integration\Mbie\LiveMbieClient;
+use App\Services\Integration\Rbnz\Contracts\RbnzClient;
+use App\Services\Integration\Rbnz\FakeRbnzClient;
+use App\Services\Integration\Rbnz\FallbackRbnzClient;
+use App\Services\Integration\Rbnz\LiveRbnzClient;
+use App\Services\Integration\Resilience\ResilientHttp;
+use App\Services\Integration\Resilience\RetryPolicy;
+use App\Services\Integration\StatsNz\FakeStatsNzClient;
+use App\Services\Integration\StatsNz\FallbackStatsNzClient;
+use App\Services\Integration\StatsNz\LiveStatsNzClient;
+use App\Support\RequestContext;
+use Database\Seeders\RoleSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+final class EconomicIndicatorsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RoleSeeder::class);
+        app(RequestContext::class)->apply('system', []);
+        Cache::flush();
+        Config::set('integrations.rbnz.live', false);
+        Config::set('integrations.stats_nz.live', false);
+        Config::set('integrations.mbie.live', false);
+        Config::set('integrations.retry.attempts', 1);
+        Config::set('integrations.retry.base_delay_ms', 0);
+        Config::set('integrations.retry.max_delay_ms', 0);
+        $this->forgetEconomicClients();
+    }
+
+    public function test_fixture_feed_refreshes_deterministic_economic_indicators(): void
+    {
+        $this->artisan('economic-indicators:refresh', [
+            '--fetched-at' => '2026-05-22T03:30:00+00:00',
+        ])->assertSuccessful();
+
+        $ocr = EconomicIndicator::query()->where('indicator', EconomicIndicator::OCR)->firstOrFail();
+        $this->assertSame('Official Cash Rate', $ocr->label);
+        $this->assertSame(5.5, $ocr->value);
+        $this->assertSame('percent', $ocr->unit);
+        $this->assertSame('rbnz', $ocr->source);
+        $this->assertSame('stub', $ocr->source_badge);
+        $this->assertFalse($ocr->degraded);
+        $this->assertSame('2026-05-20', $ocr->period_date?->toDateString());
+
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::CPI_ANNUAL,
+            'source' => 'stats_nz',
+            'source_badge' => 'stub',
+        ]);
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::MINIMUM_WAGE,
+            'source' => 'mbie',
+            'source_badge' => 'stub',
+        ]);
+
+        $rate = ExchangeRate::query()
+            ->where('base_currency', 'NZD')
+            ->where('quote_currency', 'USD')
+            ->firstOrFail();
+        $this->assertSame(0.6123, $rate->rate);
+        $this->assertSame('stub', $rate->source_badge);
+
+        $this->assertDatabaseCount('economic_indicators', 6);
+        $this->assertDatabaseCount('exchange_rates', 2);
+        $this->assertDatabaseHas('learning_layer_runs', [
+            'layer_id' => EconomicIndicatorRefresher::LAYER_ID,
+            'candidates_created' => 0,
+        ]);
+    }
+
+    public function test_live_mode_without_credentials_degrades_through_resilience_layer(): void
+    {
+        Config::set('integrations.rbnz.live', true);
+        Config::set('integrations.rbnz.api_key', null);
+        Config::set('integrations.stats_nz.live', true);
+        Config::set('integrations.stats_nz.api_key', null);
+        Config::set('integrations.mbie.live', true);
+        Config::set('integrations.mbie.api_key', null);
+        $this->forgetEconomicClients();
+
+        Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
+
+        app(EconomicIndicatorRefresher::class)->refresh(now());
+
+        $ocr = EconomicIndicator::query()->where('indicator', EconomicIndicator::OCR)->firstOrFail();
+        $this->assertSame('stub_live_fallback', $ocr->source_badge);
+        $this->assertTrue($ocr->degraded);
+        $this->assertNotNull($ocr->correlation_id);
+
+        Http::assertSentCount(4);
+        foreach (['rbnz', 'stats-nz', 'mbie'] as $service) {
+            $this->assertDatabaseHas('integration_calls', [
+                'service' => $service,
+                'status' => IntegrationCall::STATUS_FAILURE,
+                'attempt' => 1,
+            ]);
+            $this->assertDatabaseHas('integration_calls', [
+                'service' => $service,
+                'status' => IntegrationCall::STATUS_FALLBACK,
+                'attempt' => 1,
+            ]);
+        }
+    }
+
+    public function test_refresh_is_idempotent_for_same_source_periods(): void
+    {
+        $fetchedAt = now();
+
+        app(EconomicIndicatorRefresher::class)->refresh($fetchedAt);
+        app(EconomicIndicatorRefresher::class)->refresh($fetchedAt->copy()->addHour());
+
+        $this->assertDatabaseCount('economic_indicators', 6);
+        $this->assertDatabaseCount('exchange_rates', 2);
+        $this->assertDatabaseCount('learning_updates', 0);
+        $this->assertDatabaseCount('learning_layer_runs', 2);
+    }
+
+    public function test_ocr_change_queues_pv_discount_rate_candidate_without_auto_apply(): void
+    {
+        app(EconomicIndicatorRefresher::class)->refresh(now()->subDay());
+        $this->app->instance(RbnzClient::class, new ChangedOcrRbnzClient);
+
+        app(EconomicIndicatorRefresher::class)->refresh(now());
+        app(EconomicIndicatorRefresher::class)->refresh(now()->addHour());
+
+        $candidate = LearningUpdate::query()->firstOrFail();
+        $this->assertSame(EconomicIndicatorRefresher::LAYER_ID, $candidate->layer_id);
+        $this->assertSame(LearningUpdate::STATUS_DETECTED, $candidate->status);
+        $this->assertSame('economic_indicator_auto_update', $candidate->source['type']);
+        $this->assertSame('review_pv_discount_rate_assumptions', $candidate->proposed_change['action']);
+        $this->assertFalse($candidate->proposed_change['automatic_application']);
+        $this->assertSame(5.5, $candidate->evidence['previous_value']);
+        $this->assertEquals(6.0, $candidate->evidence['current_value']);
+        $this->assertDatabaseCount('learning_updates', 1);
+        $this->assertSame(0, LearningUpdateImplementation::query()->count());
+    }
+
+    public function test_advisor_dashboard_shows_latest_values_and_change_alerts(): void
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'email' => 'economic-dashboard@example.test',
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        app(EconomicIndicatorRefresher::class)->refresh(now()->subDay());
+        $this->app->instance(RbnzClient::class, new ChangedOcrRbnzClient);
+        app(EconomicIndicatorRefresher::class)->refresh(now());
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('economicIndicators.summary.indicators', 6)
+                ->where('economicIndicators.summary.exchange_rates', 2)
+                ->where('economicIndicators.summary.change_alerts', 1)
+                ->where('economicIndicators.indicators.0.indicator', EconomicIndicator::OCR)
+                ->where('economicIndicators.indicators.0.value', 6)
+                ->where('economicIndicators.exchange_rates.0.base_currency', 'NZD')
+                ->where('economicIndicators.alerts.0.summary', 'OCR changed from 5.50% to 6.00%; review PV discount-rate assumptions.'));
+    }
+
+    private function forgetEconomicClients(): void
+    {
+        foreach ([
+            RbnzClient::class,
+            FakeRbnzClient::class,
+            LiveRbnzClient::class,
+            FallbackRbnzClient::class,
+            FakeStatsNzClient::class,
+            LiveStatsNzClient::class,
+            FallbackStatsNzClient::class,
+            FakeMbieClient::class,
+            LiveMbieClient::class,
+            FallbackMbieClient::class,
+            RetryPolicy::class,
+            ResilientHttp::class,
+            EconomicIndicatorRefresher::class,
+        ] as $abstract) {
+            app()->forgetInstance($abstract);
+        }
+    }
+}
+
+final class ChangedOcrRbnzClient implements RbnzClient
+{
+    public function ocr(): array
+    {
+        return [
+            'indicator' => EconomicIndicator::OCR,
+            'label' => 'Official Cash Rate',
+            'value' => 6.0,
+            'unit' => 'percent',
+            'period_date' => '2026-06-01',
+            'source' => 'rbnz',
+            'source_badge' => 'stub',
+            'degraded' => false,
+            'payload' => ['series' => 'OCR'],
+        ];
+    }
+
+    public function exchangeRates(): array
+    {
+        return [
+            [
+                'base_currency' => 'NZD',
+                'quote_currency' => 'USD',
+                'rate' => 0.6001,
+                'rate_date' => '2026-06-01',
+                'source' => 'rbnz',
+                'source_badge' => 'stub',
+                'degraded' => false,
+            ],
+            [
+                'base_currency' => 'NZD',
+                'quote_currency' => 'AUD',
+                'rate' => 0.9202,
+                'rate_date' => '2026-06-01',
+                'source' => 'rbnz',
+                'source_badge' => 'stub',
+                'degraded' => false,
+            ],
+        ];
+    }
+}

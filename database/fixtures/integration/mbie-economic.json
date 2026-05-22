@@ -1,0 +1,26 @@
+{
+  "current": {
+    "wage_rates": [
+      {
+        "indicator": "minimum_wage",
+        "label": "Adult minimum wage",
+        "value": 23.15,
+        "unit": "nzd_per_hour",
+        "period_date": "2026-04-01",
+        "payload": {
+          "category": "adult"
+        }
+      },
+      {
+        "indicator": "living_wage",
+        "label": "Living Wage Aotearoa",
+        "value": 27.8,
+        "unit": "nzd_per_hour",
+        "period_date": "2026-04-01",
+        "payload": {
+          "category": "living_wage"
+        }
+      }
+    ]
+  }
+}

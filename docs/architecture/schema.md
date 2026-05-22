@@ -573,3 +573,52 @@ Client-scoped RLS applies.
 WO-35 reuses the WO-20 scaffold for leadership capability gaps. A low leadership score writes a raw `leadership_capability_gap` observation with `raw_observation_only=true` and `auto_referral=false` evidence.
 
 No Phase 2 path consumes the row for coach detection, calibration, thresholding, referral generation, or notification.
+
+## WO-36 - NZ economic indicators feed
+
+### `economic_indicators`
+
+Global reference-data ledger for the latest and historical economic indicators used by later Phase 2 analysis/PV work.
+
+Key columns:
+
+- `id` UUID primary key
+- `indicator` (`ocr`, `cpi_annual`, `gdp_quarterly`, `unemployment_rate`, `minimum_wage`, `living_wage`)
+- `label`
+- `value`
+- `unit`
+- `period_date`
+- `source` (`rbnz`, `stats_nz`, `mbie`)
+- `source_badge` (`stub`, `live`, `cached`, `stub_live_fallback`)
+- `degraded`
+- `correlation_id`
+- `fetched_at`
+- `payload` JSONB
+
+Rows are unique by `indicator`, `period_date`, and `source`.
+
+### `exchange_rates`
+
+Global reference-data ledger for NZD exchange rates from RBNZ.
+
+Key columns:
+
+- `id` UUID primary key
+- `base_currency`
+- `quote_currency`
+- `rate`
+- `rate_date`
+- `source`
+- `source_badge`
+- `degraded`
+- `correlation_id`
+- `fetched_at`
+- `payload` JSONB
+
+Rows are unique by `base_currency`, `quote_currency`, `rate_date`, and `source`.
+
+### `learning_layer_runs` / `learning_updates`
+
+WO-36 records refresh runs with layer id `12`. OCR value changes create governed `learning_updates` candidates with `source.type=economic_indicator_auto_update` and `proposed_change.automatic_application=false`.
+
+No WO-36 path applies PV discount-rate changes automatically.

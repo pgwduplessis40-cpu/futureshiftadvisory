@@ -2,6 +2,7 @@
 
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
+use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\SendReengagementReminders;
@@ -87,6 +88,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunBiasMonitor::class)
             ->dailyAt('03:15')
             ->name('fsa-analysis-bias-monitor')
+            ->withoutOverlapping();
+
+        $schedule->command(RefreshEconomicIndicators::class)
+            ->dailyAt('03:30')
+            ->name('fsa-economic-indicators-refresh')
             ->withoutOverlapping();
 
         $schedule->job(new DispatchDailyDigest)

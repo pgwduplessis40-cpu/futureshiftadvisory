@@ -7,6 +7,7 @@ import {
     Inbox,
     PlugZap,
     ShieldAlert,
+    TrendingUp,
     UsersRound,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
@@ -94,6 +95,43 @@ type IntegrationHealthPayload = {
     }>;
 };
 
+type EconomicIndicatorsPayload = {
+    summary: {
+        indicators: number;
+        exchange_rates: number;
+        change_alerts: number;
+        latest_fetched_at: string | null;
+    };
+    indicators: Array<{
+        id: string;
+        indicator: string;
+        label: string;
+        value: number;
+        unit: string;
+        period_date: string | null;
+        source: string;
+        source_badge: string;
+        degraded: boolean;
+        fetched_at: string | null;
+    }>;
+    exchange_rates: Array<{
+        id: string;
+        base_currency: string;
+        quote_currency: string;
+        rate: number;
+        rate_date: string | null;
+        source: string;
+        source_badge: string;
+        degraded: boolean;
+        fetched_at: string | null;
+    }>;
+    alerts: Array<{
+        id: string;
+        summary: string;
+        created_at: string | null;
+    }>;
+};
+
 type RedFlagsPayload = {
     summary: {
         open: number;
@@ -124,6 +162,7 @@ type Props = {
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
     integrationHealth: IntegrationHealthPayload;
+    economicIndicators: EconomicIndicatorsPayload;
 };
 
 export default function AdvisorDashboard({
@@ -133,6 +172,7 @@ export default function AdvisorDashboard({
     pendingTermsReacceptance,
     prospectInbox,
     integrationHealth,
+    economicIndicators,
 }: Props) {
     return (
         <>
@@ -188,8 +228,9 @@ export default function AdvisorDashboard({
                     </div>
                 </div>
 
-                <div className="grid gap-4 lg:grid-cols-2">
+                <div className="grid gap-4 xl:grid-cols-3">
                     <ProspectInbox payload={prospectInbox} />
+                    <EconomicIndicators payload={economicIndicators} />
                     <IntegrationHealth payload={integrationHealth} />
                 </div>
 
@@ -524,6 +565,110 @@ function ProspectInbox({ payload }: { payload: ProspectInboxPayload }) {
     );
 }
 
+function EconomicIndicators({
+    payload,
+}: {
+    payload: EconomicIndicatorsPayload;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Economic indicators</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.change_alerts > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.change_alerts} changes
+                    </Badge>
+                    <Badge variant="secondary">
+                        {payload.summary.indicators} indicators
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.indicators.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No economic indicators refreshed.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.indicators.map((indicator) => (
+                        <div
+                            key={indicator.id}
+                            className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">
+                                    {indicator.label}
+                                </div>
+                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <span>
+                                        {formatDateOnly(indicator.period_date)}
+                                    </span>
+                                    <Badge
+                                        variant={
+                                            indicator.degraded
+                                                ? 'outline'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {formatLabel(indicator.source_badge)}
+                                    </Badge>
+                                </div>
+                            </div>
+                            <div className="text-sm font-medium sm:text-right">
+                                {formatIndicatorValue(
+                                    indicator.value,
+                                    indicator.unit,
+                                )}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {payload.exchange_rates.length > 0 && (
+                <div className="grid gap-2 sm:grid-cols-2">
+                    {payload.exchange_rates.map((rate) => (
+                        <div key={rate.id} className="rounded-md border p-3">
+                            <div className="text-xs text-muted-foreground">
+                                {rate.base_currency}/{rate.quote_currency}
+                            </div>
+                            <div className="mt-1 text-sm font-medium">
+                                {rate.rate.toFixed(4)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            {payload.alerts.length > 0 && (
+                <div className="space-y-2">
+                    {payload.alerts.map((alert) => (
+                        <div
+                            key={alert.id}
+                            className="flex gap-2 rounded-md border px-3 py-2 text-xs text-muted-foreground"
+                        >
+                            <AlertTriangle
+                                className="mt-0.5 size-3.5 text-destructive"
+                                aria-hidden="true"
+                            />
+                            <span>{alert.summary}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
 function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
     const dashboardUrl = payload.index_url;
 
@@ -703,8 +848,32 @@ function formatDate(value: string | null): string {
     }).format(new Date(value));
 }
 
+function formatDateOnly(value: string | null): string {
+    if (!value) {
+        return 'No period';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    }).format(new Date(value));
+}
+
 function formatPercent(value: number): string {
     return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatIndicatorValue(value: number, unit: string): string {
+    if (unit === 'percent') {
+        return `${value.toFixed(1)}%`;
+    }
+
+    if (unit === 'nzd_per_hour') {
+        return `$${value.toFixed(2)}/hr`;
+    }
+
+    return value.toLocaleString();
 }
 
 AdvisorDashboard.layout = {

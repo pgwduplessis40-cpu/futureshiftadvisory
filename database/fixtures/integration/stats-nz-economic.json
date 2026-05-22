@@ -1,0 +1,39 @@
+{
+  "current": {
+    "indicators": [
+      {
+        "indicator": "cpi_annual",
+        "label": "Consumers Price Index annual change",
+        "value": 3.1,
+        "unit": "percent",
+        "period_date": "2026-03-31",
+        "payload": {
+          "series": "CPI",
+          "frequency": "quarterly"
+        }
+      },
+      {
+        "indicator": "gdp_quarterly",
+        "label": "Gross Domestic Product quarterly change",
+        "value": 0.7,
+        "unit": "percent",
+        "period_date": "2026-03-31",
+        "payload": {
+          "series": "GDP",
+          "frequency": "quarterly"
+        }
+      },
+      {
+        "indicator": "unemployment_rate",
+        "label": "Unemployment rate",
+        "value": 4.3,
+        "unit": "percent",
+        "period_date": "2026-03-31",
+        "payload": {
+          "series": "HLFS",
+          "frequency": "quarterly"
+        }
+      }
+    ]
+  }
+}
