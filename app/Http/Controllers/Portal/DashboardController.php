@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\Scenario;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\DataQuality\DataQualityScorer;
@@ -44,6 +45,7 @@ final class DashboardController extends Controller
                 : ['unread' => 0, 'urgent' => 0],
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'documents' => $this->documentPayload($client),
+            'scenarios' => $this->scenarioPayload($client),
             'messagesUrl' => route('portal.messages.index', absolute: false),
         ]);
     }
@@ -124,6 +126,34 @@ final class DashboardController extends Controller
             'submitted_at' => $current?->submitted_at?->toIso8601String(),
             'url' => route('portal.wellbeing.show'),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function scenarioPayload(Client $client): array
+    {
+        return Scenario::query()
+            ->where('client_id', $client->getKey())
+            ->where('is_client_visible', true)
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get()
+            ->sortBy('position')
+            ->map(fn (Scenario $scenario): array => [
+                'id' => $scenario->id,
+                'name' => $scenario->name,
+                'kind' => $scenario->kind,
+                'pv_impact' => $scenario->pv_impact,
+                'position' => $scenario->position,
+                'economic_overlay' => [
+                    'applied_growth_rate' => $scenario->economic_overlay['applied_growth_rate'] ?? null,
+                    'discount_method' => $scenario->economic_overlay['discount_method'] ?? null,
+                    'indicators' => $scenario->economic_overlay['indicators'] ?? [],
+                ],
+            ])
+            ->values()
+            ->all();
     }
 
     private function documentVerificationState(Document $document): string

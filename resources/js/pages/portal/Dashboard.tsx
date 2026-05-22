@@ -49,6 +49,7 @@ type Props = {
         url: string;
     };
     documents: DocumentPayload[];
+    scenarios: ScenarioPayload[];
     messagesUrl: string;
 };
 
@@ -68,6 +69,26 @@ type DocumentPayload = {
     }>;
 };
 
+type ScenarioPayload = {
+    id: string;
+    name: string;
+    kind: string;
+    pv_impact: number;
+    position: number;
+    economic_overlay: {
+        applied_growth_rate: number | null;
+        discount_method: string | null;
+        indicators: Record<
+            string,
+            {
+                value: number;
+                unit: string;
+                label: string;
+            }
+        >;
+    };
+};
+
 export default function PortalDashboard({
     client,
     progress,
@@ -75,6 +96,7 @@ export default function PortalDashboard({
     notificationSummary,
     wellbeing,
     documents,
+    scenarios,
     messagesUrl,
 }: Props) {
     return (
@@ -232,20 +254,18 @@ export default function PortalDashboard({
                 <div className="grid gap-6 lg:grid-cols-2">
                     <section
                         className="space-y-4 rounded-md border bg-background p-4"
-                        aria-labelledby="milestones-heading"
+                        aria-labelledby="scenarios-heading"
                     >
                         <div className="flex items-center gap-2">
                             <TrendingUp className="size-4" aria-hidden="true" />
                             <h2
-                                id="milestones-heading"
+                                id="scenarios-heading"
                                 className="text-sm font-medium"
                             >
-                                Milestones
+                                Scenarios
                             </h2>
                         </div>
-                        <div className="text-sm text-muted-foreground">
-                            Phase 2
-                        </div>
+                        <ScenarioList scenarios={scenarios} />
                     </section>
 
                     <section
@@ -271,6 +291,44 @@ export default function PortalDashboard({
                 </div>
             </div>
         </>
+    );
+}
+
+function ScenarioList({ scenarios }: { scenarios: ScenarioPayload[] }) {
+    if (scenarios.length === 0) {
+        return (
+            <p className="text-sm text-muted-foreground">
+                No scenarios released yet.
+            </p>
+        );
+    }
+
+    return (
+        <div className="divide-y rounded-md border">
+            {scenarios.map((scenario) => (
+                <article
+                    key={scenario.id}
+                    className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                >
+                    <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                            <h3 className="truncate text-sm font-medium">
+                                {scenario.name}
+                            </h3>
+                            <Badge variant="outline">
+                                {formatLabel(scenario.kind)}
+                            </Badge>
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            {formatOverlay(scenario)}
+                        </div>
+                    </div>
+                    <div className="text-sm font-medium sm:text-right">
+                        {formatCurrency(scenario.pv_impact)}
+                    </div>
+                </article>
+            ))}
+        </div>
     );
 }
 
@@ -319,6 +377,36 @@ function formatDate(value: string | null) {
         day: 'numeric',
         month: 'short',
     }).format(new Date(value));
+}
+
+function formatLabel(value: string): string {
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function formatOverlay(scenario: ScenarioPayload): string {
+    const growth = scenario.economic_overlay.applied_growth_rate;
+    const method = scenario.economic_overlay.discount_method;
+
+    if (growth === null && method === null) {
+        return 'Economic overlay pending';
+    }
+
+    const growthLabel =
+        growth === null ? 'growth n/a' : `${(growth * 100).toFixed(1)}% growth`;
+    const methodLabel = method === null ? 'rate n/a' : formatLabel(method);
+
+    return `${growthLabel} / ${methodLabel}`;
+}
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'NZD',
+        maximumFractionDigits: 0,
+    }).format(value);
 }
 
 function StatusPanel({

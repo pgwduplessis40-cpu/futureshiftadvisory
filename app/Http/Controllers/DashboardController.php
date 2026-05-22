@@ -18,6 +18,7 @@ use App\Models\LearningUpdate;
 use App\Models\MessageThread;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
+use App\Models\Scenario;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
@@ -77,6 +78,7 @@ final class DashboardController extends Controller
             'integrationHealth' => $this->integrationHealth($user),
             'economicIndicators' => $this->economicIndicators(),
             'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
+            'scenarioPlanning' => $this->scenarioPlanning($clientIds),
         ];
     }
 
@@ -682,6 +684,59 @@ final class DashboardController extends Controller
             'indicators' => [],
             'exchange_rates' => [],
             'alerts' => [],
+        ];
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function scenarioPlanning(?array $clientIds): array
+    {
+        if ($clientIds === [] || ! Schema::hasTable('scenarios')) {
+            return [
+                'summary' => [
+                    'scenarios' => 0,
+                    'clients' => 0,
+                ],
+                'items' => [],
+            ];
+        }
+
+        $query = Scenario::query()
+            ->with('client')
+            ->orderByDesc('created_at')
+            ->limit(15);
+
+        $countQuery = Scenario::query();
+
+        if (is_array($clientIds)) {
+            $query->whereIn('client_id', $clientIds);
+            $countQuery->whereIn('client_id', $clientIds);
+        }
+
+        $items = $query
+            ->get()
+            ->sortBy('position')
+            ->map(fn (Scenario $scenario): array => [
+                'id' => $scenario->id,
+                'client_id' => $scenario->client_id,
+                'client_name' => $scenario->client?->legal_name,
+                'name' => $scenario->name,
+                'kind' => $scenario->kind,
+                'pv_impact' => $scenario->pv_impact,
+                'position' => $scenario->position,
+                'is_client_visible' => $scenario->is_client_visible,
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'summary' => [
+                'scenarios' => $countQuery->count(),
+                'clients' => (clone $countQuery)->select('client_id')->distinct()->count('client_id'),
+            ],
+            'items' => $items,
         ];
     }
 }

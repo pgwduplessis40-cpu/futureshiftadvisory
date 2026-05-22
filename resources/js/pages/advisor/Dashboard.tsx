@@ -180,6 +180,23 @@ type PvWaterfallPayload = {
     }>;
 };
 
+type ScenarioPlanningPayload = {
+    summary: {
+        scenarios: number;
+        clients: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        name: string;
+        kind: string;
+        pv_impact: number;
+        position: number;
+        is_client_visible: boolean;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -189,6 +206,7 @@ type Props = {
     integrationHealth: IntegrationHealthPayload;
     economicIndicators: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
+    scenarioPlanning: ScenarioPlanningPayload;
 };
 
 export default function AdvisorDashboard({
@@ -200,6 +218,7 @@ export default function AdvisorDashboard({
     integrationHealth,
     economicIndicators,
     pvWaterfall,
+    scenarioPlanning,
 }: Props) {
     return (
         <>
@@ -257,17 +276,76 @@ export default function AdvisorDashboard({
 
                 <div className="grid gap-4 xl:grid-cols-3">
                     <PvWaterfallPanel payload={pvWaterfall} />
+                    <ScenarioPlanning payload={scenarioPlanning} />
                     <ProspectInbox payload={prospectInbox} />
-                    <EconomicIndicators payload={economicIndicators} />
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
+                    <EconomicIndicators payload={economicIndicators} />
                     <IntegrationHealth payload={integrationHealth} />
                 </div>
 
                 <UpcomingPanels />
             </div>
         </>
+    );
+}
+
+function ScenarioPlanning({ payload }: { payload: ScenarioPlanningPayload }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Scenario planning</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.scenarios} scenarios
+                    </Badge>
+                    <Badge variant="outline">
+                        {payload.summary.clients} clients
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No scenarios prepared yet.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.slice(0, 5).map((scenario) => (
+                        <article
+                            key={scenario.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="truncate text-sm font-medium">
+                                        {scenario.name}
+                                    </h3>
+                                    <Badge variant="outline">
+                                        {formatLabel(scenario.kind)}
+                                    </Badge>
+                                    {scenario.is_client_visible && (
+                                        <Badge variant="secondary">
+                                            Client
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {scenario.client_name ?? 'Client'}
+                                </div>
+                            </div>
+                            <div className="text-sm font-medium sm:text-right">
+                                {formatCurrency(scenario.pv_impact)}
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 

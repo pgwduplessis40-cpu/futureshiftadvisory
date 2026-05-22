@@ -877,3 +877,29 @@ existing `risk_costs` / `pv_calculations` rows by setting
 WO-52 adds no tables or columns. Insurance risk flags are governed
 `analysis_findings` under module `insurance_risk`, citing questionnaire answers
 and verified `insurance_certificate` documents for future broker-referral use.
+
+## WO-53 - Scenario planning
+
+### `scenarios`
+
+Client-scoped named scenario rows for side-by-side best/expected/worst/custom
+planning.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `analysis_run_id`
+- `name`
+- `kind` (`best`, `expected`, `worst`, `custom`)
+- `assumptions` JSONB
+- `economic_overlay` JSONB
+- `pv_calculation_id`
+- `pv_impact`
+- `position` (1-5 within the planning run)
+- `is_client_visible`
+- `created_by_user_id`
+
+Client-scoped RLS applies. `ScenarioPlanner` enforces the five-scenario bound,
+creates a `scenario` analysis run, snapshots latest NZ economic indicators, and
+routes every scenario through the shared PV ledger.
