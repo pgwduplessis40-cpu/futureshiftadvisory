@@ -52,6 +52,7 @@ type Props = {
     goals: GoalDashboard;
     documents: DocumentPayload[];
     scenarios: ScenarioPayload[];
+    proposals: ProposalPayload[];
     reports: ReportPayload[];
     messagesUrl: string;
 };
@@ -119,6 +120,16 @@ type ScenarioPayload = {
     };
 };
 
+type ProposalPayload = {
+    id: string;
+    version: number;
+    status: string;
+    status_label: string;
+    suggested_mid: number | null;
+    signed_at: string | null;
+    signoff_url: string;
+};
+
 type ReportPayload = {
     id: string;
     title: string;
@@ -134,6 +145,7 @@ export default function PortalDashboard({
     goals,
     documents,
     scenarios,
+    proposals,
     reports,
     messagesUrl,
 }: Props) {
@@ -257,6 +269,8 @@ export default function PortalDashboard({
                 </div>
 
                 <GoalProgressPanel goals={goals} />
+
+                <ProposalSignoffPanel proposals={proposals} />
 
                 <section
                     className="space-y-4 rounded-md border bg-background p-4"
@@ -496,6 +510,66 @@ function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
                                     ))}
                                 </div>
                             )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
+    return (
+        <section
+            className="space-y-4 rounded-md border bg-background p-4"
+            aria-labelledby="proposal-signoff-heading"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <FileText className="size-4" aria-hidden="true" />
+                    <h2
+                        id="proposal-signoff-heading"
+                        className="text-sm font-medium"
+                    >
+                        Proposals
+                    </h2>
+                </div>
+                <Badge variant="outline">{proposals.length}</Badge>
+            </div>
+
+            {proposals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No released proposals yet.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {proposals.map((proposal) => (
+                        <article
+                            key={proposal.id}
+                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                        >
+                            <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-sm font-medium">
+                                        Proposal v{proposal.version}
+                                    </h3>
+                                    <Badge variant="outline">
+                                        {proposal.status_label}
+                                    </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {formatCurrency(
+                                        proposal.suggested_mid ?? 0,
+                                    )}
+                                </div>
+                            </div>
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={proposal.signoff_url}>
+                                    {proposal.status === 'signed'
+                                        ? 'View'
+                                        : 'Open'}
+                                </Link>
+                            </Button>
                         </article>
                     ))}
                 </div>

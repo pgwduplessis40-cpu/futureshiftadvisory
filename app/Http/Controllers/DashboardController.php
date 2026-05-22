@@ -128,7 +128,7 @@ final class DashboardController extends Controller
             ->all();
         $statuses = [];
 
-        foreach (ProposalStatus::phaseTwoReachable() as $status) {
+        foreach (ProposalStatus::lifecycleStatuses() as $status) {
             $statuses[$status->value] = (int) ($statusCounts[$status->value] ?? 0);
         }
 
@@ -173,7 +173,7 @@ final class DashboardController extends Controller
     {
         $statuses = [];
 
-        foreach (ProposalStatus::phaseTwoReachable() as $status) {
+        foreach (ProposalStatus::lifecycleStatuses() as $status) {
             $statuses[$status->value] = 0;
         }
 

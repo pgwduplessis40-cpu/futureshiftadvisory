@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\Proposal;
 use App\Models\Report;
 use App\Models\Scenario;
 use App\Models\User;
@@ -50,6 +51,7 @@ final class DashboardController extends Controller
             'goals' => $this->goals->dashboard($client),
             'documents' => $this->documentPayload($client),
             'scenarios' => $this->scenarioPayload($client),
+            'proposals' => $this->proposalPayload($client),
             'reports' => $this->reportPayload($client),
             'messagesUrl' => route('portal.messages.index', absolute: false),
         ]);
@@ -156,6 +158,31 @@ final class DashboardController extends Controller
                     'discount_method' => $scenario->economic_overlay['discount_method'] ?? null,
                     'indicators' => $scenario->economic_overlay['indicators'] ?? [],
                 ],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function proposalPayload(Client $client): array
+    {
+        return Proposal::query()
+            ->with('feeCalculation')
+            ->where('client_id', $client->getKey())
+            ->whereIn('status', ['released', 'awaiting_signature', 'signed'])
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn (Proposal $proposal): array => [
+                'id' => $proposal->id,
+                'version' => $proposal->version,
+                'status' => $proposal->status->value,
+                'status_label' => str($proposal->status->value)->replace('_', ' ')->title()->toString(),
+                'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                'signed_at' => $proposal->signed_at?->toIso8601String(),
+                'signoff_url' => route('portal.proposals.signoff.show', $proposal, absolute: false),
             ])
             ->values()
             ->all();

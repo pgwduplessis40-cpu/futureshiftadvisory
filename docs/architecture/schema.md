@@ -965,7 +965,7 @@ Key columns:
 - `id` UUID primary key
 - `client_id`
 - `fee_calculation_id`
-- `status` (`draft`, `released`, `recalled`, `expired`, `renewed`; `awaiting_signature` and `signed` are enum-only reserved Phase 3 states)
+- `status` (`draft`, `released`, `recalled`, `expired`, `renewed`, `awaiting_signature`, `signed`)
 - `version`
 - `scope` JSONB
 - `services` JSONB
@@ -976,12 +976,15 @@ Key columns:
 - `released_at`, `released_by_user_id`, `expires_at`
 - `recalled_at`, `recalled_by_user_id`
 - `expired_at`
+- `awaiting_signature_at`
+- `signed_at`, `signed_by_user_id`
+- `signature_evidence_path`, `signature_evidence_sha256_envelope`, `signature_envelope_meta`, `signature_evidence_byte_size`
 - `renewed_from_proposal_id`
 - `created_by_user_id`
 
-Client-scoped RLS applies. `ProposalBuilder` is the single Phase 2 lifecycle
-writer and blocks reserved signature states until the Phase 3 signing workflow
-exists.
+Client-scoped RLS applies. `ProposalBuilder` owns draft/release/recall/expiry
+and renewal. WO-66 `SignoffFlow` is the only path allowed to move proposals
+into `awaiting_signature` and `signed`.
 
 ### `consents`
 
@@ -997,8 +1000,48 @@ Key columns:
 - `evidence` JSONB
 - `captured_by_user_id`, `captured_at`
 
-Rows are unique by proposal and consent type. Phase 2 stores the election only;
-it does not create broker, insurance, or coach referrals automatically.
+Rows are unique by proposal and consent type. WO-66 recaptures/revokes the
+insurance and coach consent elections during sign-off, but still does not create
+broker, insurance, or coach referrals automatically.
+
+## WO-66 - Proposal sign-off and authority capture
+
+### `proposal_signoff_steps`
+
+Ordered client sign-off state ledger.
+
+Key columns:
+
+- `id` UUID primary key
+- `proposal_id`
+- `client_id`
+- `step` (`review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`)
+- `completed_by_user_id`
+- `completed_at`
+- `payload` JSONB with step-specific sanitized evidence
+
+Rows are unique by `proposal_id + step`. Client-scoped RLS applies.
+
+### `payment_authorities`
+
+Tokenised payment authority records captured before a proposal can enter
+`awaiting_signature`.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `proposal_id`
+- `type` (`card`, `direct_debit`)
+- `gateway` (`stripe`, `windcave`)
+- `gateway_customer_ref`
+- `gateway_token_envelope` (`KeyEnvelope`; no raw card number or PAN)
+- `status` (`active`, `failed`, `revoked`)
+- `authorised_by_user_id`, `authorised_at`
+- `revoked_at`
+
+Client-scoped RLS applies. WO-66 only captures the authority; schedules,
+charges, failover charging, and receipts are later WOs.
 
 ## WO-57 - Report engine
 

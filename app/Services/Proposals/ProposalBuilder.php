@@ -19,7 +19,6 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use LogicException;
 use RuntimeException;
 
 final class ProposalBuilder
@@ -44,7 +43,7 @@ final class ProposalBuilder
             $proposal = Proposal::query()->create([
                 'client_id' => $client->getKey(),
                 'fee_calculation_id' => $feeCalculation->getKey(),
-                'status' => $this->phaseTwoStatus(ProposalStatus::Draft),
+                'status' => ProposalStatus::Draft,
                 'version' => 1,
                 'scope' => $this->scope($client, $input),
                 'services' => $this->services($feeCalculation, $input),
@@ -77,7 +76,7 @@ final class ProposalBuilder
         }
 
         $proposal->forceFill([
-            'status' => $this->phaseTwoStatus(ProposalStatus::Released),
+            'status' => ProposalStatus::Released,
             'released_at' => now(),
             'released_by_user_id' => $actor->getKey(),
             'expires_at' => now()->addDays(max(1, $expiryDays)),
@@ -102,7 +101,7 @@ final class ProposalBuilder
         }
 
         $proposal->forceFill([
-            'status' => $this->phaseTwoStatus(ProposalStatus::Recalled),
+            'status' => ProposalStatus::Recalled,
             'recalled_at' => now(),
             'recalled_by_user_id' => $actor->getKey(),
             'expires_at' => null,
@@ -125,7 +124,7 @@ final class ProposalBuilder
             $renewed = Proposal::query()->create([
                 'client_id' => $proposal->client_id,
                 'fee_calculation_id' => $proposal->fee_calculation_id,
-                'status' => $this->phaseTwoStatus(ProposalStatus::Renewed),
+                'status' => ProposalStatus::Renewed,
                 'version' => $proposal->version + 1,
                 'scope' => $proposal->scope,
                 'services' => $proposal->services,
@@ -173,7 +172,7 @@ final class ProposalBuilder
             ->where('expires_at', '<=', $now)
             ->each(function (Proposal $proposal) use (&$expired, $now): void {
                 $proposal->forceFill([
-                    'status' => $this->phaseTwoStatus(ProposalStatus::Expired),
+                    'status' => ProposalStatus::Expired,
                     'expired_at' => $now,
                 ])->save();
 
@@ -255,11 +254,11 @@ final class ProposalBuilder
     private function acceptanceTerms(): array
     {
         return [
-            'phase' => 'phase_2_release_only',
+            'phase' => 'phase_3_signoff_enabled',
             'client_acceptance_section_present' => true,
-            'payment_collection_enabled' => false,
-            'digital_signature_enabled' => false,
-            'reserved_phase_three_statuses' => [
+            'payment_authority_capture_enabled' => true,
+            'digital_signature_enabled' => true,
+            'signoff_managed_statuses' => [
                 ProposalStatus::AwaitingSignature->value,
                 ProposalStatus::Signed->value,
             ],
@@ -412,14 +411,5 @@ HTML,
         $id = Auth::id();
 
         return is_int($id) ? $id : null;
-    }
-
-    private function phaseTwoStatus(ProposalStatus $status): ProposalStatus
-    {
-        if ($status->phaseTwoReserved()) {
-            throw new LogicException('Phase 3 proposal statuses are reserved in Phase 2.');
-        }
-
-        return $status;
     }
 }

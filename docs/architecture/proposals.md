@@ -1,24 +1,44 @@
 # Fee proposals
 
 WO-56 turns the WO-55 fee calculation into a branded, release-controlled
-proposal artifact. It remains Phase 2 only: no payment collection, digital
-signature workflow, or client acceptance transition is reachable yet.
+proposal artifact. WO-66 adds the client portal sign-off flow, tokenised
+payment-authority capture, and signed proposal evidence.
 
 ## Lifecycle
 
-`ProposalStatus` defines the full forward-compatible state set, including
-`awaiting_signature` and `signed`, but Phase 2 guards those states as reserved.
-Reachable Phase 2 transitions are:
+`ProposalStatus` now has a sign-off-managed lifecycle. Draft/release/recall,
+expiry, and renewal remain advisor lifecycle actions. The signature states are
+reachable only through `SignoffFlow`; direct model writes to those statuses are
+blocked.
 
 - `draft` after generation
 - `released` after manual advisor release
 - `recalled` when a released proposal is withdrawn
 - `expired` when the release window elapses
 - `renewed` when an expired proposal is cloned into a new version
+- `awaiting_signature` after review, both consent steps, payment-method choice,
+  and a successful tokenised authority capture
+- `signed` after typed signature capture with a valid authority on file
 
 Renewed proposals must be released again before they have a client-visible
 window. The default release window is `PROPOSAL_EXPIRY_DAYS`, falling back to 30
 days.
+
+## Sign-Off Flow
+
+WO-66 records seven ordered steps in `proposal_signoff_steps`: `review`,
+`insurance_consent`, `coach_consent`, `payment_method`, `authority`,
+`signature`, and `confirmation`.
+
+The `authority` step calls `AuthorityCapture`, which delegates to the configured
+gateway contract (`StripeClient` or `WindcaveClient`). Gateway fixtures return a
+token, which is encrypted through `KeyEnvelope` and stored in
+`payment_authorities.gateway_token_envelope`. Raw card numbers are rejected
+before persistence.
+
+The `signature` step renders signed evidence to the encrypted `secure_local`
+disk and stores a `KeyEnvelope`-wrapped SHA-256 hash on the proposal. Signing
+does not require a successful charge; charges and receipts begin in WO-69.
 
 ## Artifact Generation
 
@@ -31,7 +51,8 @@ row.
 
 The proposal HTML includes the Future Shift Advisory brand, scope, services,
 fee range, PV summary, ROI ratio, referral consent elections, and an acceptance
-section that explicitly marks signature and payment as Phase 3.
+section. Signed evidence is rendered separately when the client completes the
+signature step.
 
 ## Expiry
 

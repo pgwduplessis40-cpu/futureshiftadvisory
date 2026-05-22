@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65 complete; next: WO-66).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-66 complete; next: WO-67).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **65 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (1/37, WO-65) |
+| Work orders complete | **66 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (2/37, WO-65...WO-66) |
 | Work orders in progress | none |
-| Next work order | **WO-66** - Digital proposal sign-off flow (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-67** - Payment schedules (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65 targeted verification passed: `php artisan test tests\Feature\Goals\GoalTrackerTest.php` against PostgreSQL `futureshift_test` (**3 tests / 57 assertions**), Pint dirty check, ESLint, `tsc --noEmit`, and Prettier. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65/WO-66 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -85,7 +85,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-62 | `acc1cf3` | Practice health report | Active-client PV portfolio, revenue under management, advisor/super-admin scoping, monthly cached snapshots, and dashboard summary. |
 | WO-63 | `72fcd95` | Advisor dashboard Phase 2 panels | Proposal status/expiry panel, questionnaire optimisation candidates, and completed Phase 2 dashboard composition. |
 | WO-64 | `979c6d0` | Wellbeing monthly pulse analytics | Advisor wellbeing analytics, duplicate-safe raw low-coping observation, and Phase 2 coaching-boundary documentation. |
-| WO-65 | this commit | Goals & milestones tracker | Client-scoped goals, milestones, actions, proof-of-completion verification, PV-realised dashboard payloads/UI, and RLS coverage. |
+| WO-65 | `5c0b1ee` | Goals & milestones tracker | Client-scoped goals, milestones, actions, proof-of-completion verification, PV-realised dashboard payloads/UI, and RLS coverage. |
+| WO-66 | this commit | Digital proposal sign-off flow | Seven-step portal sign-off, tokenised payment-authority capture, signed evidence, sign-off-only proposal status transitions, and RLS coverage. |
 
 ## Completed WO Details
 
@@ -552,7 +553,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - `proposals` stores client-scoped fee proposal artifacts with scope, services, PV summary, ROI ratio, PDF metadata, lifecycle timestamps, versioning, and renewal lineage.
 - `consents` stores insurance and coach referral elections per proposal; Phase 2 captures elections only and does not create referrals.
 - `ProposalBuilder` generates branded PDFs, writes consent rows, releases proposals with a configurable default 30-day expiry window, recalls released proposals, expires due proposals, and renews expired proposals into new versions.
-- Phase 3 statuses `awaiting_signature` and `signed` are defined for forward compatibility but blocked by Phase 2 guards.
+- WO-66 replaces the earlier forward-compatibility guard with a dedicated sign-off flow for `awaiting_signature` and `signed`.
 - `proposals:expire` is scheduled daily with overlap protection.
 - The advisor client detail page has a thin proposal panel for generating from recent fee calculations and manually releasing, recalling, or renewing proposals.
 - Tests cover generation, PDF storage, route payload, release/recall, scheduled expiry, renewal, audit writes, reserved-state blocking, and proposal/consent RLS isolation.
@@ -648,13 +649,25 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover PV linkage, proof verification and discrepancy blocking, dashboard payloads for advisor/client portal, and RLS isolation across all four new tables.
 - Architecture docs: `docs/architecture/schema.md`.
 
+### WO-66 - Digital Proposal Sign-Off Flow
+
+- Added proposal sign-off columns, `proposal_signoff_steps`, and `payment_authorities` with client-scoped RLS.
+- Replaced the Phase 2 reserved-status guard with a sign-off-only transition guard: direct writes to `awaiting_signature`/`signed` are blocked, while `SignoffFlow` can move a released proposal forward in order.
+- `SignoffFlow` enforces the seven steps (`review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`), updates/revokes proposal consents, and writes audit events.
+- `AuthorityCapture` calls the Stripe/Windcave gateway contracts, stores gateway tokens only inside `KeyEnvelope`, rejects raw card numbers before persistence, and keeps failed authority captures pre-`awaiting_signature`.
+- The client portal now surfaces released proposals and a sign-off page; signed evidence PDFs are stored on `secure_local` with a `KeyEnvelope`-wrapped hash.
+- Tests cover ordering, consent capture/revoke, gateway failure, no raw PAN persistence, portal payloads, replaced signature-state guard, and RLS isolation.
+- Architecture docs: `docs/architecture/proposals.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65 and WO-66 targeted checks:
 
 ```pwsh
 composer test
 php artisan test tests\Feature\Goals\GoalTrackerTest.php
+php artisan test tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
+php artisan test tests\Feature\Reports\PracticeHealthReportTest.php tests\Feature\Advisor\DashboardPhaseTwoPanelsTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -679,11 +692,21 @@ Results after WO-65:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 65 distinct WO commits (WO-01...WO-65) on `featureApp`.
 
+Results after WO-66:
+
+- `php artisan test tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php` (PostgreSQL `futureshift_test`): passed - 10 tests, 104 assertions.
+- `php artisan test tests\Feature\Reports\PracticeHealthReportTest.php tests\Feature\Advisor\DashboardPhaseTwoPanelsTest.php` (PostgreSQL `futureshift_test`): passed - 6 tests, 62 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 66 distinct WO commits (WO-01...WO-66) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65 complete; next is WO-66.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-66 complete; next is WO-67.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

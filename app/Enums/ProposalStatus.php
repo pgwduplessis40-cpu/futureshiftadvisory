@@ -28,19 +28,21 @@ enum ProposalStatus: string
     /**
      * @return array<int, self>
      */
-    public static function phaseTwoReachable(): array
+    public static function lifecycleStatuses(): array
     {
-        return [
-            self::Draft,
-            self::Released,
-            self::Recalled,
-            self::Expired,
-            self::Renewed,
-        ];
+        return self::cases();
     }
 
-    public function phaseTwoReserved(): bool
+    /**
+     * @return array<int, self>
+     */
+    public static function signatureManaged(): array
     {
-        return in_array($this, [self::AwaitingSignature, self::Signed], true);
+        return [self::AwaitingSignature, self::Signed];
+    }
+
+    public function requiresSignoffFlow(): bool
+    {
+        return in_array($this, self::signatureManaged(), true);
     }
 }

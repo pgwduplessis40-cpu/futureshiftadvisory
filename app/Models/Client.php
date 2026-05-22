@@ -167,6 +167,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<PaymentAuthority>
+     */
+    public function paymentAuthorities(): HasMany
+    {
+        return $this->hasMany(PaymentAuthority::class);
+    }
+
+    /**
      * @return HasMany<Report>
      */
     public function reports(): HasMany

@@ -190,13 +190,13 @@ final class ProposalBuilderTest extends TestCase
         $this->assertSame(ProposalStatus::Released, $releasedRenewal->status);
     }
 
-    public function test_reserved_signature_statuses_are_blocked_in_phase_two(): void
+    public function test_signature_statuses_are_blocked_outside_signoff_flow(): void
     {
         $client = $this->client('Reserved Proposal Limited');
         $calculation = $this->feeCalculation($client, 5000, 1.5);
 
         $this->expectException(LogicException::class);
-        $this->expectExceptionMessage('reserved for Phase 3');
+        $this->expectExceptionMessage('sign-off flow');
 
         Proposal::query()->create([
             'client_id' => $client->id,

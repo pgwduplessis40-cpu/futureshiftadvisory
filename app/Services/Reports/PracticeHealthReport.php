@@ -311,7 +311,7 @@ final class PracticeHealthReport
             }
         }
 
-        foreach (ProposalStatus::phaseTwoReachable() as $status) {
+        foreach (ProposalStatus::lifecycleStatuses() as $status) {
             $totals[$status->value] ??= 0;
         }
 
@@ -380,7 +380,7 @@ final class PracticeHealthReport
                 'funnel_events' => 0,
                 'funnel_worst_drop_off_rate' => 0.0,
                 'proposal_statuses' => array_fill_keys(
-                    array_map(fn (ProposalStatus $status): string => $status->value, ProposalStatus::phaseTwoReachable()),
+                    array_map(fn (ProposalStatus $status): string => $status->value, ProposalStatus::lifecycleStatuses()),
                     0,
                 ),
             ],
