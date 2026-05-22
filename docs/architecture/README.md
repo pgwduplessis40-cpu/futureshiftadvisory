@@ -42,6 +42,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `pv-foundation.md` | WO-40 | Shared PV engine, discount-rate methods, calculation ledger, attribution contract |
 | `business-valuation.md` | WO-41 | SDE, EBITDA, and DCF business valuation with reconciliation and adjustments |
 | `pv-impact-types.md` | WO-42 | Improvement-opportunity and risk-cost PV ranking with finding linkage |
+| `pv-integration.md` | WO-43 | Dashboard/report-ready PV waterfall assembly and advisor dashboard surface |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

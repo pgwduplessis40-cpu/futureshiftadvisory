@@ -10,6 +10,11 @@ import {
     TrendingUp,
     UsersRound,
 } from 'lucide-react';
+import {
+    PvSummaryBadges,
+    WaterfallChart,
+} from '@/components/pv/WaterfallChart';
+import type { WaterfallStep } from '@/components/pv/WaterfallChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DocumentVerificationFlagPanel } from '@/components/verification/DocumentVerificationFlagPanel';
@@ -155,6 +160,26 @@ type RedFlagsPayload = {
     }>;
 };
 
+type PvWaterfallPayload = {
+    summary: {
+        clients: number;
+        current_pv: number;
+        improvement_pv: number;
+        risk_mitigation_pv: number;
+        target_pv: number;
+    };
+    clients: Array<{
+        client_id: string;
+        client_name: string;
+        business_valuation_id: string | null;
+        current_pv: number;
+        improvement_pv: number;
+        risk_mitigation_pv: number;
+        target_pv: number;
+        waterfall: WaterfallStep[];
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -163,6 +188,7 @@ type Props = {
     prospectInbox: ProspectInboxPayload;
     integrationHealth: IntegrationHealthPayload;
     economicIndicators: EconomicIndicatorsPayload;
+    pvWaterfall: PvWaterfallPayload;
 };
 
 export default function AdvisorDashboard({
@@ -173,6 +199,7 @@ export default function AdvisorDashboard({
     prospectInbox,
     integrationHealth,
     economicIndicators,
+    pvWaterfall,
 }: Props) {
     return (
         <>
@@ -229,14 +256,58 @@ export default function AdvisorDashboard({
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
+                    <PvWaterfallPanel payload={pvWaterfall} />
                     <ProspectInbox payload={prospectInbox} />
                     <EconomicIndicators payload={economicIndicators} />
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
                     <IntegrationHealth payload={integrationHealth} />
                 </div>
 
                 <UpcomingPanels />
             </div>
         </>
+    );
+}
+
+function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
+    const firstClient = payload.clients[0] ?? null;
+
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">PV waterfall</h2>
+                </div>
+                <PvSummaryBadges
+                    current={payload.summary.current_pv}
+                    target={payload.summary.target_pv}
+                />
+            </div>
+
+            {firstClient === null ? (
+                <p className="text-sm text-muted-foreground">
+                    No PV baseline has been calculated yet.
+                </p>
+            ) : (
+                <div className="space-y-4">
+                    <div>
+                        <div className="text-sm font-medium">
+                            {firstClient.client_name}
+                        </div>
+                        <div className="mt-1 text-xs text-muted-foreground">
+                            {formatCurrency(firstClient.improvement_pv)}{' '}
+                            improvements +{' '}
+                            {formatCurrency(firstClient.risk_mitigation_pv)}{' '}
+                            risk mitigation
+                        </div>
+                    </div>
+                    <WaterfallChart steps={firstClient.waterfall} />
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -862,6 +933,14 @@ function formatDateOnly(value: string | null): string {
 
 function formatPercent(value: number): string {
     return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatCurrency(value: number): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'NZD',
+        maximumFractionDigits: 0,
+    }).format(value);
 }
 
 function formatIndicatorValue(value: number, unit: string): string {

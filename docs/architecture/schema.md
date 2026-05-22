@@ -810,3 +810,9 @@ Key columns:
 - `source_attributions` JSONB
 
 Client-scoped RLS applies to both tables. Rankings are stored after sorting by descending PV impact/cost.
+
+## WO-43 - PV integration + waterfall chart
+
+WO-43 adds no tables or columns. It reads the latest `business_valuations` row,
+summed `improvement_opportunities`, and summed `risk_costs` for visible clients,
+then emits dashboard/report-ready waterfall steps from those persisted PV tables.

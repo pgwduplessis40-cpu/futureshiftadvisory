@@ -21,6 +21,7 @@ use App\Models\RedFlag;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
+use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Terms\TermsAcceptanceGate;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -34,8 +35,11 @@ use Inertia\Response;
 
 final class DashboardController extends Controller
 {
-    public function __invoke(Request $request, TermsAcceptanceGate $termsGate): Response|RedirectResponse
-    {
+    public function __invoke(
+        Request $request,
+        TermsAcceptanceGate $termsGate,
+        PvWaterfallBuilder $pvWaterfalls,
+    ): Response|RedirectResponse {
         $user = $request->user();
 
         if ($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR) {
@@ -51,7 +55,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls));
         }
 
         return Inertia::render('dashboard');
@@ -60,7 +64,7 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function advisorDashboardPayload(User $user, TermsAcceptanceGate $termsGate): array
+    private function advisorDashboardPayload(User $user, TermsAcceptanceGate $termsGate, PvWaterfallBuilder $pvWaterfalls): array
     {
         $clientIds = $this->visibleClientIds($user);
 
@@ -72,6 +76,7 @@ final class DashboardController extends Controller
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
             'economicIndicators' => $this->economicIndicators(),
+            'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
         ];
     }
 
