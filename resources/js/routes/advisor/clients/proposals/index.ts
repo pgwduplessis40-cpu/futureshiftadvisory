@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Advisor\KnowledgeAssessmentController::store
- * @see app/Http/Controllers/Advisor/KnowledgeAssessmentController.php:17
- * @route '/advisor/clients/{client}/knowledge-assessments'
+* @see \App\Http\Controllers\Advisor\ProposalController::store
+ * @see app/Http/Controllers/Advisor/ProposalController.php:23
+ * @route '/advisor/clients/{client}/proposals'
  */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
@@ -11,13 +11,13 @@ export const store = (args: { client: string | { id: string } } | [client: strin
 
 store.definition = {
     methods: ["post"],
-    url: '/advisor/clients/{client}/knowledge-assessments',
+    url: '/advisor/clients/{client}/proposals',
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see \App\Http\Controllers\Advisor\KnowledgeAssessmentController::store
- * @see app/Http/Controllers/Advisor/KnowledgeAssessmentController.php:17
- * @route '/advisor/clients/{client}/knowledge-assessments'
+* @see \App\Http\Controllers\Advisor\ProposalController::store
+ * @see app/Http/Controllers/Advisor/ProposalController.php:23
+ * @route '/advisor/clients/{client}/proposals'
  */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
@@ -48,9 +48,9 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 }
 
 /**
-* @see \App\Http\Controllers\Advisor\KnowledgeAssessmentController::store
- * @see app/Http/Controllers/Advisor/KnowledgeAssessmentController.php:17
- * @route '/advisor/clients/{client}/knowledge-assessments'
+* @see \App\Http\Controllers\Advisor\ProposalController::store
+ * @see app/Http/Controllers/Advisor/ProposalController.php:23
+ * @route '/advisor/clients/{client}/proposals'
  */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
@@ -58,9 +58,9 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 })
 
     /**
-* @see \App\Http\Controllers\Advisor\KnowledgeAssessmentController::store
- * @see app/Http/Controllers/Advisor/KnowledgeAssessmentController.php:17
- * @route '/advisor/clients/{client}/knowledge-assessments'
+* @see \App\Http\Controllers\Advisor\ProposalController::store
+ * @see app/Http/Controllers/Advisor/ProposalController.php:23
+ * @route '/advisor/clients/{client}/proposals'
  */
     const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: store.url(args, options),
@@ -68,9 +68,9 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
     })
 
             /**
-* @see \App\Http\Controllers\Advisor\KnowledgeAssessmentController::store
- * @see app/Http/Controllers/Advisor/KnowledgeAssessmentController.php:17
- * @route '/advisor/clients/{client}/knowledge-assessments'
+* @see \App\Http\Controllers\Advisor\ProposalController::store
+ * @see app/Http/Controllers/Advisor/ProposalController.php:23
+ * @route '/advisor/clients/{client}/proposals'
  */
         storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
@@ -78,8 +78,8 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
         })
     
     store.form = storeForm
-const knowledgeAssessments = {
+const proposals = {
     store: Object.assign(store, store),
 }
 
-export default knowledgeAssessments
+export default proposals
