@@ -864,3 +864,10 @@ WO-50 adds no tables or columns. Compliance runs write to the existing
 verified documents, and statute references. Legislative-currency monitoring
 reuses `learning_layer_runs` and `learning_updates` with layer id `14`; no
 automatic implementation rows are written.
+
+## WO-51 - Regulatory change impact assessment
+
+WO-51 adds no tables or columns. Regulatory impact assessment writes to existing
+`analysis_runs` and `analysis_findings`, and links financial exposure through
+existing `risk_costs` / `pv_calculations` rows by setting
+`analysis_findings.pv_link_id`.

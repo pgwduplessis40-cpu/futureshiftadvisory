@@ -50,6 +50,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `hr-analysis.md` | WO-48 | HR/people analysis with wage benchmarking, verified HR-document support, and Holidays Act liability |
 | `operational-systems-analysis.md` | WO-49 | Operational bottleneck and systems integration analysis modules |
 | `compliance-legislative-currency.md` | WO-50 | NZ compliance checker with statute citations and governed legislative-currency monitor |
+| `regulatory-impact.md` | WO-51 | Client-specific regulatory impact findings with risk-cost PV linkage |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.
