@@ -1,21 +1,21 @@
 # Future Shift Advisory - Implementation Status & Handoff
 
-Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
+Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence **COMPLETE & VERIFIED** (34/34).
-**Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **not started** (next: WO-65).
+**Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **64 total** - Phase 1 complete (30/30) + Phase 2 complete (34/34, WO-31...WO-64) |
+| Work orders complete | **64 total** — Phase 1 (30/30) + Phase 2 (34/34, WO-31…WO-64) |
 | Work orders in progress | none |
-| Next work order | none in Phase 2 plan |
+| Next work order | **WO-65** — Goals & milestones tracker (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-64 verified locally. `composer test` passed (Pint + PHPUnit **293 tests / 2190 assertions**) against PostgreSQL `futureshift_test`; WO-64 targeted wellbeing tests passed **7 tests / 103 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** `php artisan test` against PostgreSQL `futureshift_test`: **293 tests / 2190 assertions — all pass**; Pint, ESLint, `tsc --noEmit`, Prettier all green; 64/64 WO commits present; zero `TODO`/`FIXME`/`dd()`/`dump()`/`console.log` in shipped code. |
 
 ## Commit Log
 
