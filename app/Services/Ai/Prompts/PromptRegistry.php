@@ -64,6 +64,20 @@ final class PromptRegistry
             body: 'Analyse HR and people evidence including CV/JD fit, staff structure, wage compliance, and Holidays Act liability. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.operational',
+            version: '2026-05-wo49',
+            body: 'Analyse operational evidence including SOPs, processes, bottlenecks, capacity constraints, and automation opportunities. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
+
+        $this->register(
+            id: 'analysis.systems',
+            version: '2026-05-wo49',
+            body: 'Analyse systems evidence including technology gaps, integration issues, manual workarounds, upgrade opportunities, and operational fit. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

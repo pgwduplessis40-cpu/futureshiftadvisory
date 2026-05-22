@@ -850,3 +850,9 @@ WO-48 adds no tables or columns. HR analysis writes to the existing
 `analysis_runs` and `analysis_findings` tables, cites questionnaire answers,
 verified HR `documents`, and wage `economic_indicators`, and uses the shared
 document-verification gate.
+
+## WO-49 - Operational analysis + systems review
+
+WO-49 adds no tables or columns. Operational and systems review runs write to the
+existing `analysis_runs` and `analysis_findings` tables, using questionnaire
+answers as cited evidence.
