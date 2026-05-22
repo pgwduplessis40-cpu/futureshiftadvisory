@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-40 complete (next: WO-41).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-41 complete (next: WO-42).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **40 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-40 complete |
+| Work orders complete | **41 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-41 complete |
 | Work orders in progress | none |
-| Next work order | **WO-41** - PV Type 1: Business valuation |
+| Next work order | **WO-42** - PV Type 2 & 3: Improvement opportunity + risk cost |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-40 verified locally. `composer test` passed (Pint + PHPUnit **230 tests / 1605 assertions**) against PostgreSQL `futureshift_test`; WO-40 targeted tests passed **3 tests / 19 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-41 verified locally. `composer test` passed (Pint + PHPUnit **232 tests / 1622 assertions**) against PostgreSQL `futureshift_test`; WO-41 targeted tests passed **2 tests / 17 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -60,7 +60,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-37 | `450eec1` | Accounting API integration | Xero/MYOB/QuickBooks OAuth connection flow, encrypted token envelopes, append-only financial snapshots, manual pull/revoke UI, fixture and live fallback coverage. |
 | WO-38 | `316ca38` | Continuous financial health monitoring | Scheduled daily/weekly accounting pulls, snapshot deterioration detection, `financial_alerts`, exact metric citations, and ChannelResolver notification routing. |
 | WO-39 | `836ac85` | Valuation multiple data feed | NZ-benchmarked EBITDA/SDE multiples by industry, active-row supersession, quarterly refresh, and governed learning candidates. |
-| WO-40 | this commit | PV engine + discount-rate methods | Shared PV calculation ledger, discounting math, OCR-linked/industry/advisor/client discount methods, and attribution contract. |
+| WO-40 | `531c805` | PV engine + discount-rate methods | Shared PV calculation ledger, discounting math, OCR-linked/industry/advisor/client discount methods, and attribution contract. |
+| WO-41 | this commit | Business valuation | SDE multiple, EBITDA multiple, DCF with terminal value, reconciled range, adjustments, and accounting/questionnaire input fallback. |
 
 ## Completed WO Details
 
@@ -362,6 +363,16 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover all four discount methods, OCR auto-update behavior, PV math, persisted calculations, and attribution presence.
 - Architecture docs: `docs/architecture/pv-foundation.md` and `docs/architecture/schema.md`.
 
+### WO-41 - Business Valuation
+
+- `business_valuations` stores client-scoped SDE multiple, EBITDA multiple, DCF, reconciled low/mid/high range, adjustments, and source attributions.
+- `BusinessValuation` prefers latest connected accounting snapshots and falls back to advisor/questionnaire financial inputs with a data-quality disclaimer.
+- SDE and EBITDA method values come from active WO-39 `valuation_multiples` rows.
+- DCF uses the WO-40 `PvEngine`, records terminal value, and links the valuation back to its `pv_calculation_id`.
+- Reconciliation averages the three valuation methods and applies explicit advisor adjustments with label, amount, and rationale.
+- Tests cover three-method calculation, reconciliation, adjustment application, accounting source preference, and questionnaire fallback disclaimer.
+- Architecture docs: `docs/architecture/business-valuation.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -373,22 +384,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-40:
+Results after WO-41:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 230 tests, 1605 assertions.
-- `php artisan test tests\Feature\Pv\PvEngineTest.php` (WO-40 targeted): passed - 3 tests, 19 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 232 tests, 1622 assertions.
+- `php artisan test tests\Feature\Pv\BusinessValuationTest.php` (WO-41 targeted): passed - 2 tests, 17 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 40 distinct WO commits (WO-01...WO-40) on `featureApp`.
+- Git history after this commit: 41 distinct WO commits (WO-01...WO-41) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-40 are complete. WO-41 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-41 are complete. WO-42 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-40; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-41; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

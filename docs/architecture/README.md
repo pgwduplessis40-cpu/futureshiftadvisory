@@ -40,6 +40,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `financial-monitoring.md` | WO-38 | Scheduled accounting pulls, deterioration alerts, snapshot citations, notification routing |
 | `valuation-multiples.md` | WO-39 | NZ-benchmarked EBITDA/SDE multiple feed, supersession, governed refresh candidates |
 | `pv-foundation.md` | WO-40 | Shared PV engine, discount-rate methods, calculation ledger, attribution contract |
+| `business-valuation.md` | WO-41 | SDE, EBITDA, and DCF business valuation with reconciliation and adjustments |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

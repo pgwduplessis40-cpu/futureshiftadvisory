@@ -746,3 +746,25 @@ Key columns:
 - `source_attributions` JSONB
 
 Client-scoped RLS applies. Discount rates are stored as decimals, not percentages. Every calculation must carry source attributions for the selected discount-rate method.
+
+## WO-41 - Business valuation
+
+### `business_valuations`
+
+Client-scoped business valuation output for PV Type 1.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `pv_calculation_id`
+- `sde_value` JSONB
+- `ebitda_value` JSONB
+- `dcf_value` JSONB
+- `reconciled_low`, `reconciled_mid`, `reconciled_high`
+- `adjustments` JSONB
+- `data_quality_disclaimer`
+- `source_attributions` JSONB
+- `as_at`
+
+Client-scoped RLS applies. The row stores side-by-side SDE multiple, EBITDA multiple, and DCF values; the linked `pv_calculation_id` points to the DCF calculation in the shared PV ledger.
