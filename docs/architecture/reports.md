@@ -2,8 +2,9 @@
 
 WO-57 introduces the shared report composer plus the first two report types:
 Client and Advisor. WO-58 fills the Stakeholder profile and PowerPoint export.
-Trajectory, due-diligence, and entrepreneur assessment report types remain
-forward-compatible enum values for later WOs or Phase 3.
+WO-59 fills the Trajectory profile and advisor review gate. Due-diligence and
+entrepreneur assessment report types remain forward-compatible enum values for
+Phase 3.
 
 ## Composition
 

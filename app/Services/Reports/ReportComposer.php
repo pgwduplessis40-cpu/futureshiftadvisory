@@ -9,6 +9,7 @@ use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
 use App\Models\BusinessValuation;
 use App\Models\Client;
+use App\Models\FinancialSnapshot;
 use App\Models\Proposal;
 use App\Models\Report;
 use App\Models\ReportSection;
@@ -37,7 +38,7 @@ final class ReportComposer
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
     {
-        if (! in_array($type, [ReportType::Client, ReportType::Advisor, ReportType::Stakeholder], true)) {
+        if (! in_array($type, [ReportType::Client, ReportType::Advisor, ReportType::Stakeholder, ReportType::Trajectory], true)) {
             throw new InvalidArgumentException("Report type [{$type->value}] is scaffolded but not composed in Phase 2 yet.");
         }
 
@@ -65,6 +66,7 @@ final class ReportComposer
                         ReportType::EntrepreneurAssessment->value,
                     ],
                 ],
+                'review_status' => $type === ReportType::Trajectory ? 'pending_review' : 'not_required',
             ]);
 
             foreach ($this->sections($client, $type, $findings, $waterfall, $valuation, $proposal) as $position => $section) {
@@ -91,6 +93,28 @@ final class ReportComposer
 
             return $report->refresh()->load('sections');
         });
+    }
+
+    public function markReviewed(Report $report, User $actor): Report
+    {
+        $report = $report->refresh();
+
+        if ($report->type !== ReportType::Trajectory) {
+            throw new InvalidArgumentException('Only trajectory reports use the advisor review gate in WO-59.');
+        }
+
+        $report->forceFill([
+            'review_status' => 'reviewed',
+            'reviewed_by_user_id' => $actor->getKey(),
+            'reviewed_at' => now(),
+        ])->save();
+
+        $this->audit->record('report.reviewed', subject: $report, actor: $actor, after: [
+            'type' => $report->type->value,
+            'review_status' => 'reviewed',
+        ]);
+
+        return $report->refresh();
     }
 
     /**
@@ -129,6 +153,7 @@ final class ReportComposer
             ReportType::Client => $this->clientSections($client, $findings, $waterfall, $valuation),
             ReportType::Advisor => $this->advisorSections($client, $findings, $waterfall, $valuation, $proposal),
             ReportType::Stakeholder => $this->stakeholderSections($client, $findings, $waterfall, $valuation),
+            ReportType::Trajectory => $this->trajectorySections($client, $findings),
             default => [],
         };
     }
@@ -201,6 +226,28 @@ final class ReportComposer
         $sections[] = $this->liabilityDisclaimerSection($client);
 
         return $sections;
+    }
+
+    /**
+     * @param  Collection<int, AnalysisFinding>  $findings
+     * @return array<int, array<string, mixed>>
+     */
+    private function trajectorySections(Client $client, Collection $findings): array
+    {
+        $snapshots = FinancialSnapshot::query()
+            ->where('client_id', $client->getKey())
+            ->orderBy('period_end')
+            ->get();
+        $valuations = BusinessValuation::query()
+            ->where('client_id', $client->getKey())
+            ->orderBy('as_at')
+            ->get();
+
+        return [
+            $this->financialTrendSection($client, $snapshots),
+            $this->pvMilestonesSection($client, $valuations),
+            $this->trajectoryNarrativeSection($client, $snapshots, $valuations, $findings),
+        ];
     }
 
     /**
@@ -361,6 +408,124 @@ final class ReportComposer
     }
 
     /**
+     * @param  Collection<int, FinancialSnapshot>  $snapshots
+     * @return array<string, mixed>
+     */
+    private function financialTrendSection(Client $client, Collection $snapshots): array
+    {
+        $first = $snapshots->first();
+        $latest = $snapshots->last();
+
+        if (! $first instanceof FinancialSnapshot || ! $latest instanceof FinancialSnapshot) {
+            return $this->generatedSection(
+                key: 'financial_trends',
+                title: 'Start to current metrics',
+                body: 'Financial trend snapshots are not available yet.',
+                sourceReference: 'financial_snapshots:none:'.$client->getKey(),
+                dataQualityNote: 'Data quality note: trend analysis is pending connected or imported financial snapshots.',
+            );
+        }
+
+        $metrics = collect(['revenue', 'gross_margin', 'cash_balance', 'debtor_days'])
+            ->map(function (string $metric) use ($first, $latest): string {
+                $start = data_get($first->metrics, $metric);
+                $current = data_get($latest->metrics, $metric);
+
+                return sprintf('%s: %s -> %s', str($metric)->replace('_', ' ')->title(), $this->formatMetric($start), $this->formatMetric($current));
+            })
+            ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'financial_trends',
+            title: 'Start to current metrics',
+            body: sprintf(
+                "Engagement start period: %s\nCurrent period: %s\n%s",
+                $first->period_end?->toDateString() ?? 'n/a',
+                $latest->period_end?->toDateString() ?? 'n/a',
+                $metrics,
+            ),
+            sourceReference: 'financial_snapshots:'.$first->getKey().':'.$latest->getKey(),
+            dataQualityNote: 'Data quality note: trend values compare earliest and latest persisted financial snapshots.',
+            metadata: [
+                'start_snapshot_id' => $first->getKey(),
+                'current_snapshot_id' => $latest->getKey(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, BusinessValuation>  $valuations
+     * @return array<string, mixed>
+     */
+    private function pvMilestonesSection(Client $client, Collection $valuations): array
+    {
+        if ($valuations->isEmpty()) {
+            return $this->generatedSection(
+                key: 'pv_milestones',
+                title: 'PV milestones',
+                body: 'PV milestones are not available yet.',
+                sourceReference: 'business_valuations:none:'.$client->getKey(),
+                dataQualityNote: 'Data quality note: milestone analysis is pending persisted valuations.',
+            );
+        }
+
+        $body = $valuations
+            ->map(fn (BusinessValuation $valuation): string => sprintf(
+                '%s: NZD %s midpoint',
+                $valuation->as_at?->toDateString() ?? 'undated',
+                number_format($valuation->reconciled_mid, 0),
+            ))
+            ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'pv_milestones',
+            title: 'PV milestones',
+            body: $body,
+            sourceReference: 'business_valuations:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: milestones are based on persisted business valuation rows.',
+            metadata: [
+                'valuation_ids' => $valuations->pluck('id')->values()->all(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, FinancialSnapshot>  $snapshots
+     * @param  Collection<int, BusinessValuation>  $valuations
+     * @param  Collection<int, AnalysisFinding>  $findings
+     * @return array<string, mixed>
+     */
+    private function trajectoryNarrativeSection(Client $client, Collection $snapshots, Collection $valuations, Collection $findings): array
+    {
+        $firstValuation = $valuations->first();
+        $latestValuation = $valuations->last();
+        $pvChange = $firstValuation instanceof BusinessValuation && $latestValuation instanceof BusinessValuation
+            ? $latestValuation->reconciled_mid - $firstValuation->reconciled_mid
+            : null;
+        $currentFindingTitles = $findings
+            ->take(3)
+            ->pluck('title')
+            ->implode('; ');
+        $body = sprintf(
+            "Auto-generated narrative for advisor review.\nSnapshots reviewed: %s.\nPV movement: %s.\nCurrent focus: %s.",
+            $snapshots->count(),
+            $pvChange === null ? 'not enough valuation milestones' : 'NZD '.number_format($pvChange, 0),
+            $currentFindingTitles !== '' ? $currentFindingTitles : 'no current findings',
+        );
+
+        return $this->generatedSection(
+            key: 'trajectory_narrative',
+            title: 'Advisor-reviewed trajectory narrative',
+            body: $body,
+            sourceReference: 'trajectory_report:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: narrative is generated from persisted report inputs and requires advisor review before sharing.',
+            metadata: [
+                'advisor_review_required' => true,
+            ],
+        );
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function generatedSection(
@@ -484,6 +649,15 @@ final class ReportComposer
             AnalysisLens::Predictive => 3,
             AnalysisLens::Prescriptive => 4,
         };
+    }
+
+    private function formatMetric(mixed $value): string
+    {
+        if (! is_numeric($value)) {
+            return 'n/a';
+        }
+
+        return number_format((float) $value, abs((float) $value) < 1 ? 2 : 0);
     }
 
     private function renderAndStorePdf(Report $report): void

@@ -1017,6 +1017,7 @@ Key columns:
 - `pptx_path`, `pptx_byte_size` (WO-58 stakeholder export)
 - `generated_by_user_id`, `generated_at`
 - `metadata` JSONB with redaction and scaffold notes
+- `review_status`, `reviewed_by_user_id`, `reviewed_at` (WO-59 trajectory review gate)
 
 Client-scoped RLS applies. WO-57 composes only `client` and `advisor`; other
 types are enum scaffolds for later work.
@@ -1055,3 +1056,11 @@ Stakeholder reports set `reports.type = stakeholder`, store PDF and PPTX
 artifacts on `secure_local`, and record `metadata.redactions` with
 `fsa_methodology` and `fsa_ip`. The dedicated liability-disclaimer section is
 stored in `report_sections` and is included in both PDF and PowerPoint exports.
+
+## WO-59 - Business health trajectory report
+
+WO-59 reuses `reports` and `report_sections`. Trajectory reports set
+`reports.type = trajectory` and `review_status = pending_review` until an
+advisor marks the report reviewed. `report_sections` stores start-to-current
+metric trends, ordered PV milestones, and the generated trajectory narrative
+with `metadata.advisor_review_required = true`.

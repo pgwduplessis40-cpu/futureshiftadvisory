@@ -97,6 +97,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('proposals/{proposal}/renew', [ProposalController::class, 'renew'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('proposals.renew');
+        Route::patch('reports/{report}/review', [ReportController::class, 'review'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('reports.review');
 
         Route::get('entrepreneurs', [EntrepreneurController::class, 'index'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)

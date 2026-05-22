@@ -13,12 +13,14 @@ use App\Enums\FindingSeverity;
 use App\Enums\ProposalStatus;
 use App\Enums\PvType;
 use App\Enums\ReportType;
+use App\Models\AccountingConnection;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\FeeCalculation;
+use App\Models\FinancialSnapshot;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\Report;
@@ -177,6 +179,60 @@ final class ReportComposerTest extends TestCase
         $this->assertStringNotContainsString('FSA methodology', $this->renderer->html);
         $this->assertStringNotContainsString('Future Shift methodology', $this->renderer->html);
         $this->assertSame(['fsa_methodology', 'fsa_ip'], $report->metadata['redactions']);
+    }
+
+    public function test_trajectory_report_assembles_trends_pv_milestones_and_requires_review(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('trajectory-advisor@example.test');
+        $this->financialSnapshot($client, now()->subMonths(9), [
+            'revenue' => 100000,
+            'gross_margin' => 0.41,
+            'cash_balance' => 18000,
+            'debtor_days' => 42,
+        ]);
+        $this->financialSnapshot($client, now(), [
+            'revenue' => 145000,
+            'gross_margin' => 0.48,
+            'cash_balance' => 32000,
+            'debtor_days' => 31,
+        ]);
+        $this->businessValuation($client, 400000, now()->subMonths(9));
+        $this->businessValuation($client, 560000, now());
+        $this->analysisFixture($client);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Trajectory, $advisor);
+
+        $this->assertSame(ReportType::Trajectory, $report->type);
+        $this->assertSame('pending_review', $report->review_status);
+        $this->assertTrue($report->sections->contains('key', 'financial_trends'));
+        $this->assertTrue($report->sections->contains('key', 'pv_milestones'));
+        $this->assertTrue($report->sections->contains('key', 'trajectory_narrative'));
+        $this->assertStringContainsString('Revenue: 100,000 -> 145,000', $report->sections->firstWhere('key', 'financial_trends')->body);
+        $this->assertStringContainsString('NZD 560,000 midpoint', $report->sections->firstWhere('key', 'pv_milestones')->body);
+        $this->assertStringContainsString('requires advisor review', $report->sections->firstWhere('key', 'trajectory_narrative')->data_quality_note);
+    }
+
+    public function test_trajectory_report_can_be_marked_reviewed_by_advisor(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('trajectory-reviewer@example.test');
+        $this->financialSnapshot($client, now()->subMonth(), ['revenue' => 80000]);
+        $this->financialSnapshot($client, now(), ['revenue' => 95000]);
+        $this->businessValuation($client, 300000, now()->subMonth());
+        $this->businessValuation($client, 340000, now());
+        $this->analysisFixture($client);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Trajectory, $advisor);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.reports.review', $report))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+        $this->assertTrue($report->refresh()->reviewed());
+        $this->assertSame($advisor->getKey(), $report->reviewed_by_user_id);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'report.reviewed',
+            'subject_id' => $report->id,
+        ]);
     }
 
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void
@@ -354,8 +410,9 @@ final class ReportComposerTest extends TestCase
         ]);
     }
 
-    private function businessValuation(Client $client, float $mid): BusinessValuation
+    private function businessValuation(Client $client, float $mid, mixed $asAt = null): BusinessValuation
     {
+        $asAt ??= now();
         $calculation = PvCalculation::query()->create([
             'client_id' => $client->getKey(),
             'type' => PvType::BusinessValuation,
@@ -364,7 +421,7 @@ final class ReportComposerTest extends TestCase
             'discount_rate_rationale' => 'Fixture valuation rate.',
             'inputs' => ['fixture' => true],
             'result' => ['present_value' => $mid],
-            'as_at' => now(),
+            'as_at' => $asAt,
             'source_attributions' => [
                 ['claim' => 'Fixture valuation', 'source_reference' => 'test:valuation'],
             ],
@@ -383,7 +440,41 @@ final class ReportComposerTest extends TestCase
             'source_attributions' => [
                 ['claim' => 'Fixture valuation', 'source_reference' => 'test:valuation'],
             ],
-            'as_at' => now(),
+            'as_at' => $asAt,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metrics
+     */
+    private function financialSnapshot(Client $client, mixed $periodEnd, array $metrics): FinancialSnapshot
+    {
+        $connection = AccountingConnection::query()->firstOrCreate([
+            'client_id' => $client->id,
+            'provider' => AccountingConnection::PROVIDER_XERO,
+            'external_tenant_id' => 'tenant-'.$client->id,
+        ], [
+            'status' => AccountingConnection::STATUS_CONNECTED,
+            'token_envelope' => 'fixture',
+            'token_envelope_meta' => ['fixture' => true],
+            'scopes' => ['accounting.reports.read'],
+            'connected_at' => now(),
+        ]);
+
+        return FinancialSnapshot::query()->create([
+            'client_id' => $client->id,
+            'accounting_connection_id' => $connection->id,
+            'provider' => AccountingConnection::PROVIDER_XERO,
+            'period_start' => $periodEnd->copy()->subMonth()->toDateString(),
+            'period_end' => $periodEnd->toDateString(),
+            'source' => 'fixture',
+            'source_badge' => 'fixture',
+            'degraded' => false,
+            'profit_and_loss' => ['revenue' => $metrics['revenue'] ?? 0],
+            'balance_sheet' => ['cash' => $metrics['cash_balance'] ?? 0],
+            'cash_flow' => [],
+            'metrics' => $metrics,
+            'pulled_at' => now(),
         ]);
     }
 

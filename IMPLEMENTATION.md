@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-58 complete (next: WO-59).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-59 complete (next: WO-60).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **58 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-58 complete |
+| Work orders complete | **59 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-59 complete |
 | Work orders in progress | none |
-| Next work order | **WO-59** - Business health trajectory report |
+| Next work order | **WO-60** - Industry intelligence briefings + pre-meeting brief |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-58 verified locally. `composer test` passed (Pint + PHPUnit **273 tests / 2009 assertions**) against PostgreSQL `futureshift_test`; WO-58 targeted report tests passed **5 tests / 74 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-59 verified locally. `composer test` passed (Pint + PHPUnit **275 tests / 2022 assertions**) against PostgreSQL `futureshift_test`; WO-59 targeted report tests passed **7 tests / 87 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -78,7 +78,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-55 | `dd92f8e` | Fee calculator | Hours-based, outcome-based, and entrepreneur fee suggestions with PV-referenced ROI and RLS. |
 | WO-56 | `2b1764a` | Proposal generation | Branded fee proposals with consent elections, release/recall, expiry, renewal, and reserved signature-state guards. |
 | WO-57 | `e7d0eab` | Report engine | Shared report composer with Client/Advisor reports, integrity notation, redaction rules, and branded PDFs. |
-| WO-58 | this commit | Stakeholder report export | Stakeholder redaction profile with liability disclaimer and PDF/PowerPoint artifacts. |
+| WO-58 | `d3a65c9` | Stakeholder report export | Stakeholder redaction profile with liability disclaimer and PDF/PowerPoint artifacts. |
+| WO-59 | this commit | Business health trajectory report | Start-to-current financial trends, PV milestones, generated narrative, and advisor review gate. |
 
 ## Completed WO Details
 
@@ -573,6 +574,15 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover stakeholder IP/methodology redaction, liability disclaimer presence, PDF/PPTX storage, route generation, and portal filtering.
 - Architecture docs: `docs/architecture/stakeholder-report.md`, `docs/architecture/reports.md`, and `docs/architecture/schema.md`.
 
+### WO-59 - Business Health Trajectory Report
+
+- `reports` now records `review_status`, `reviewed_by_user_id`, and `reviewed_at` so trajectory reports have an explicit advisor-review gate before sharing.
+- `ReportComposer` composes `trajectory` reports from start-to-current financial snapshots, PV valuation milestones, current findings, and a generated trajectory narrative with data-quality notation.
+- The trajectory narrative is marked advisor-review-required in section metadata, and review completion writes an immutable `report.reviewed` audit event.
+- The advisor client report panel can generate Trajectory reports and mark pending trajectory reports reviewed.
+- Tests cover trend assembly, PV milestone inclusion, narrative review notation, advisor review completion, and audit persistence.
+- Architecture docs: `docs/architecture/trajectory-report.md`, `docs/architecture/reports.md`, and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -584,22 +594,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-58:
+Results after WO-59:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 273 tests, 2009 assertions.
-- `php artisan test tests\Feature\Reports\ReportComposerTest.php` (WO-58 targeted report coverage): passed - 5 tests, 74 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 275 tests, 2022 assertions.
+- `php artisan test tests\Feature\Reports\ReportComposerTest.php` (WO-59 targeted report coverage): passed - 7 tests, 87 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 58 distinct WO commits (WO-01...WO-58) on `featureApp`.
+- Git history after this commit: 59 distinct WO commits (WO-01...WO-59) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-58 are complete. WO-59 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-59 are complete. WO-60 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-58; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-59; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

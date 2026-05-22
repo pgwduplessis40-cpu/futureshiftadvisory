@@ -8,6 +8,7 @@ use App\Actions\Clients\PopulateFromNzbn;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Enums\ProposalStatus;
+use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
@@ -285,6 +286,10 @@ final class ClientController extends Controller
                 'generated_at' => $report->generated_at?->toIso8601String(),
                 'pdf_byte_size' => $report->pdf_byte_size,
                 'pptx_byte_size' => $report->pptx_byte_size,
+                'review_status' => $report->review_status,
+                'reviewed_at' => $report->reviewed_at?->toIso8601String(),
+                'review_url' => route('advisor.reports.review', $report, absolute: false),
+                'can_review' => $report->type === ReportType::Trajectory && $report->review_status === 'pending_review',
             ])
             ->values()
             ->all();

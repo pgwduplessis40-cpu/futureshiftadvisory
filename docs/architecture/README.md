@@ -58,6 +58,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `proposals.md` | WO-56 | Branded fee proposals with consent elections, release/recall, expiry, and renewal |
 | `reports.md` | WO-57 | Shared report composer with Client/Advisor reports, integrity notes, and branded PDFs |
 | `stakeholder-report.md` | WO-58 | Stakeholder report redaction profile and PDF/PowerPoint export artifacts |
+| `trajectory-report.md` | WO-59 | Business health trajectory report with trends, PV milestones, and advisor review gate |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

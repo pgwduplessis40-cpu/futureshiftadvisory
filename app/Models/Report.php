@@ -22,7 +22,13 @@ final class Report extends Model
         'pptx_byte_size' => 'integer',
         'generated_at' => 'datetime',
         'metadata' => 'array',
+        'reviewed_at' => 'datetime',
     ];
+
+    public function reviewed(): bool
+    {
+        return $this->review_status === 'reviewed' && $this->reviewed_at !== null;
+    }
 
     /**
      * @return BelongsTo<Client, Report>
@@ -46,5 +52,13 @@ final class Report extends Model
     public function sections(): HasMany
     {
         return $this->hasMany(ReportSection::class);
+    }
+
+    /**
+     * @return BelongsTo<User, Report>
+     */
+    public function reviewedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'reviewed_by_user_id');
     }
 }

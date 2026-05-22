@@ -17,6 +17,7 @@ import {
     RotateCcw,
     Send,
     Star,
+    TrendingUp,
     Undo2,
     Unplug,
 } from 'lucide-react';
@@ -171,6 +172,10 @@ type ReportSummary = {
     generated_at: string | null;
     pdf_byte_size: number | null;
     pptx_byte_size: number | null;
+    review_status: string;
+    reviewed_at: string | null;
+    review_url: string;
+    can_review: boolean;
 };
 
 type AnalysisFindingFeedback = {
@@ -907,12 +912,18 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
 }
 
 function ReportsPanel({ client }: { client: ClientDetail }) {
-    const generate = (type: 'client' | 'advisor' | 'stakeholder') => {
+    const generate = (
+        type: 'client' | 'advisor' | 'stakeholder' | 'trajectory',
+    ) => {
         router.post(
             client.report_store_url,
             { type },
             { preserveScroll: true },
         );
+    };
+
+    const review = (report: ReportSummary) => {
+        router.patch(report.review_url, {}, { preserveScroll: true });
     };
 
     return (
@@ -953,6 +964,15 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                     <FileText className="size-4" aria-hidden="true" />
                     Stakeholder
                 </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generate('trajectory')}
+                >
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    Trajectory
+                </Button>
             </div>
 
             {client.reports.length === 0 ? (
@@ -979,11 +999,30 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                                     {report.title}
                                 </div>
                             </div>
-                            <div className="text-sm text-muted-foreground">
-                                PDF {formatBytes(report.pdf_byte_size)}
-                                {report.pptx_byte_size
-                                    ? ` / PPTX ${formatBytes(report.pptx_byte_size)}`
-                                    : ''}
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                <span>
+                                    PDF {formatBytes(report.pdf_byte_size)}
+                                    {report.pptx_byte_size
+                                        ? ` / PPTX ${formatBytes(report.pptx_byte_size)}`
+                                        : ''}
+                                </span>
+                                {report.review_status === 'pending_review' && (
+                                    <Badge variant="secondary">Review</Badge>
+                                )}
+                                {report.can_review && (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() => review(report)}
+                                    >
+                                        <CheckCircle2
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Mark reviewed
+                                    </Button>
+                                )}
                             </div>
                         </article>
                     ))}
