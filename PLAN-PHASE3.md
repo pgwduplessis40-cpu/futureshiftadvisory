@@ -16,9 +16,9 @@
 2. Implement **Work Orders** in §8. Phase 3 has five largely-independent tracks (Commerce, Broker/Coach, DD, Entrepreneur, Learning/Polish) — see the dependency graph in §6. Within a track, follow numeric order.
 3. **Commit cadence (locked — owner-confirmed):**
    - **Single branch.** All Phase 3 work happens on `featureApp`. **Do not create per-WO branches** and **do not open per-WO PRs.** (This supersedes the branch-per-WO / PR-per-WO language in `PLAN.md` §0, which applied only to the original Phase 1 model.)
-   - **One commit per completed WO**, subject line `WO-<id>: <slug>`, committed directly on `featureApp`. This keeps the granular per-WO history (matching the 64 Phase 1+2 commits).
+   - **Commits are per WO — never per track and never one-per-phase.** Exactly **one commit per completed WO**, subject line `WO-<id>: <slug>`, committed directly on `featureApp`. This keeps the granular per-WO history (matching the 64 Phase 1+2 commits). "Commit after each phase" was never about squashing — it referred to the *verify + push* rhythm below.
    - **`IMPLEMENTATION.md` is updated in the same commit as the WO it documents** — so the status doc never drifts from the code (this is the fix for the Phase 1→2 contradiction).
-   - **At each phase boundary** (not per WO): run the full verification (`composer test` + `npm run lint:check` + `npm run types:check` + `npm run format:check`), record the verified baseline in `IMPLEMENTATION.md`, and **push** `featureApp`. Pushing mid-phase is fine but not required.
+   - **Verify + push cadence.** Phase 3 has five tracks (Commerce, Broker/Coach, DD, Entrepreneur, Learning/Polish) — treat each **track as a sub-phase**. Run the full verification (`composer test` + `npm run lint:check` + `npm run types:check` + `npm run format:check`) and **push `featureApp`** at **each track boundary**, and again at the **full Phase 3 boundary** (where the §3.0-style verified baseline is recorded in `IMPLEMENTATION.md`). Pushing more often (e.g. per WO) is fine; less often than per-track is not. So: **commit = per WO; verify + push = per track (minimum) and per phase.**
 4. Every WO ships with its tests. A WO is done only when acceptance criteria are demonstrably true and `composer test`, `npm run lint:check`, `npm run types:check`, `npm run format:check` all pass.
 5. **Do not invent features beyond the spec.** Phase 4 features stay out (see §2.2). Gaps → raise in the commit body or add a §12 risk row.
 6. **Every analysis-bearing surface (DD workstreams, entrepreneur scoring) routes through the Phase 2 analysis spine** (`AnalysisRunner`) so AI integrity, document verification, and data-quality gating are enforced uniformly — never re-implemented.
@@ -116,10 +116,10 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, audit via `AuditW
 - `proof_of_completion` — `milestone_id`, `client_id`, `document_id`, `document_verification_id`, `status` (pending, verified, flagged), `reviewed_at` — uses the existing verification pipeline (AI reviews the evidence for relevance to the milestone)
 
 ### 4.2 Commerce: sign-off & payment (WO-66/67/68/69)
-- `proposals` **extended** — `signed_at`, `signature_evidence_path`, `signature_envelope_meta`, `signed_by_user_id`, `awaiting_signature_at`; the reserved `ProposalStatus::AWAITING_SIGNATURE` / `SIGNED` become reachable.
-- `proposal_signoff_steps` — `proposal_id`, `step`, `completed_at`, `payload` (jsonb). The **7 steps** (resolves spec §13's enumerated list against §26's "7-step" headline by treating the two consents as distinct, which they are — broker vs coach): `review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`. The state machine is exactly these seven, in order.
-- `payment_authorities` — `client_id`, `proposal_id`, `type` (card, direct_debit), `gateway` (stripe, windcave), `gateway_customer_ref`, `gateway_token_envelope` (KeyEnvelope; **no raw PAN**), `status` (active, failed, revoked), `authorised_by_user_id`, `authorised_at`
-- `payment_schedules` — `client_id`, `proposal_id`, `payment_authority_id`, `cadence` (one_off, monthly_retainer), `amount`, `currency` (NZD), `next_run_at`, `status`
+- `proposals` **extended** (WO-66) — `signed_at`, `signature_evidence_path`, `signature_envelope_meta`, `signed_by_user_id`, `awaiting_signature_at`; the reserved `ProposalStatus::AWAITING_SIGNATURE` / `SIGNED` become reachable, and WO-66 **removes/replaces the Phase 2 `phaseTwoReserved()` guard** that currently throws on them.
+- `proposal_signoff_steps` (WO-66) — `proposal_id`, `step`, `completed_at`, `payload` (jsonb). The **7 steps** (resolves spec §13's enumerated list against §26's "7-step" headline by treating the two consents as distinct, which they are — broker vs coach): `review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`. The state machine is exactly these seven, in order.
+- `payment_authorities` (**WO-66** — authority capture lives with the sign-off flow, against the gateway *contract*) — `client_id`, `proposal_id`, `type` (card, direct_debit), `gateway` (stripe, windcave), `gateway_customer_ref`, `gateway_token_envelope` (KeyEnvelope; **no raw PAN**), `status` (active, failed, revoked), `authorised_by_user_id`, `authorised_at`
+- `payment_schedules` (WO-67) — `client_id`, `proposal_id`, `payment_authority_id`, `cadence` (one_off, monthly_retainer), `amount`, `currency` (NZD), `next_run_at`, `status`
 - `payments` — `client_id`, `payment_schedule_id`, `amount`, `currency`, `gateway`, `gateway_ref`, `status` (pending, succeeded, failed, retrying), `attempt`, `failover_from` (nullable — records Stripe→Windcave failover), `failed_reason`, `processed_at`
 - `receipts` — `payment_id`, `client_id`, `number`, `pdf_path`, `issued_at`
 
@@ -202,9 +202,12 @@ PANEL_AGREEMENT_RESIGN_DAYS=14
 
 # Entrepreneur
 ENTREPRENEUR_ADVISOR_CAPACITY=30        # warn at 24, hard block at 30
+BENCHMARK_MIN_COHORT=5                   # suppress aggregate plan benchmarks below this cohort size (privacy)
 ```
 
-All payment/integration flags default off; without credentials the resilience layer degrades gracefully and tests run on fixtures. **Sign-off and payment must never silently fabricate a paid state** — a failed/unavailable gateway leaves the proposal in `awaiting_signature` and notifies, never `signed`/paid.
+All payment/integration flags default off; without credentials the resilience layer degrades gracefully and tests run on fixtures. **Sign-off and payment must never silently fabricate a paid or signed state.** Two distinct failure cases (see §7.4 for the full rule):
+- **Authority-capture failure** (the gateway cannot tokenise the payment method at the `authority` step): the proposal does **not** advance to `awaiting_signature` — it stays at the `payment_method`/`authority` step and notifies. No usable token ⇒ no `awaiting_signature`, no `signed`.
+- **Charge failure** (a later scheduled charge in WO-69 fails): the proposal **stays `signed`** (signature already captured); a failed-payment alert + retry + failover fire. A charge failure never reverts `signed` and a gateway outage never fabricates a paid state.
 
 ---
 
@@ -213,8 +216,9 @@ All payment/integration flags default off; without credentials the resilience la
 ```
 Commerce track:
   WO-65 Goals/milestones (PV + proof-of-completion)
-  WO-66 Sign-off (7-step) ─> WO-67 Payment authority ─> WO-68 Stripe+Windcave ─> WO-69 Payment processing
-        (WO-66 makes ProposalStatus awaiting_signature/signed reachable)
+  WO-66 Sign-off (7-step) + authority capture (via gateway contract) ─> WO-67 Payment schedules ─> WO-68 Stripe+Windcave live ─> WO-69 Payment processing
+        (WO-66 owns authority capture against the gateway *contract*; WO-68 fills the *live* gateway. No circular dep.)
+        (WO-66 removes the Phase 2 phaseTwoReserved() guard and makes awaiting_signature/signed reachable only via the sign-off flow.)
 
 Broker/Coach track:
   WO-70 Panel-portal foundation ─┬─> WO-71 Broker portal (FSP)
@@ -296,27 +300,27 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 #### WO-66 — Digital proposal sign-off flow (7-step)
 **Spec refs:** §13 (Sign-Off Flow)
 **Goal:** The 7-step flow (`review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`); insurance + coach consent elections (writes `consents`); tokenised payment-authority capture at the `authority` step; digital signature (signed-PDF + `KeyEnvelope` evidence). Status rule per §7.4: `awaiting_signature` after steps 1–5 (incl. a valid tokenised authority), `signed` on signature capture — **`signed` does not require a successful charge** (charging is WO-69).
-**Depends on:** Phase 2 WO-56 (proposal), Phase 1 WO-11 (signed PDF). (Authority token capture coordinates with WO-67; the `authority` step requires a usable gateway token.)
-**Key files:** `proposal_signoff_steps` table, extend `proposals`, `app/Services/Proposals/SignoffFlow.php`, portal sign-off UI.
-**Acceptance:** all 7 steps enforced in order server-side; both consent elections stored + revocable from portal settings; `awaiting_signature` only once a tokenised authority exists; `signed` reached only after the `signature` step; signed PDF with evidence; every transition audited.
-**Tests:** 7-step ordering; both consents capture/revoke; `awaiting_signature` blocked without a tokenised authority; `signed` only after signature; **no paid/signed state without the signature step**; gateway outage during authority capture does not advance the proposal.
-**Out of scope:** payment processing (WO-67/68/69).
+**Depends on:** Phase 2 WO-56 (proposal), Phase 1 WO-11 (signed PDF). **Authority capture lives in this WO** (not WO-67) — it calls the **payment-gateway contract** (the Stripe/Windcave interfaces scaffolded in Phase 1); WO-68 fills the *live* gateway later. Tests use the fixture gateway, so WO-66 is fully testable without live credentials and there is **no dependency on WO-67/68**.
+**Key files:** `proposal_signoff_steps` + **`payment_authorities`** tables, extend `proposals`, `app/Services/Proposals/SignoffFlow.php`, **`app/Services/Payments/AuthorityCapture.php`** (via the gateway contract), portal sign-off UI. **Remove/replace the Phase 2 `Proposal::booted()` `phaseTwoReserved()` guard** (and the `ProposalStatus::phaseTwoReserved()` helper) that currently throws on `awaiting_signature`/`signed`; replace it with a forward-only transition guard that permits the sign-off transitions while still rejecting illegal jumps. Keep the Phase 2 reserved-state test, inverted to assert the states are now reachable **only** via the sign-off flow.
+**Acceptance:** all 7 steps enforced in order server-side; both consent elections stored + revocable from portal settings; the `authority` step captures a tokenised authority via the gateway contract (no raw PAN; token in `KeyEnvelope`); `awaiting_signature` reached only once a tokenised authority exists; `signed` reached only after the `signature` step; signed PDF with evidence; the old reserved-state guard is gone and replaced; every transition audited.
+**Tests:** 7-step ordering; both consents capture/revoke; **authority-capture failure (fixture gateway error) keeps the proposal pre-`awaiting_signature`**; `awaiting_signature` blocked without a tokenised authority; `signed` only after signature; **no paid/signed state without the signature step**; replaced-guard test (reserved states reachable only via sign-off).
+**Out of scope:** recurring schedules (WO-67); live gateway + webhooks (WO-68); charges/receipts (WO-69).
 
-#### WO-67 — Payment authority schedules
+#### WO-67 — Payment schedules
 **Spec refs:** §13 (Payment Method, Authority)
-**Goal:** Capture card / direct-debit authority as gateway tokens (no raw PAN); build `payment_schedules` (one-off + monthly retainer).
-**Depends on:** WO-66.
-**Key files:** `payment_authorities` + `payment_schedules` tables/models, `app/Services/Payments/AuthorityCapture.php`.
-**Acceptance:** authority stores only a gateway token (in `KeyEnvelope`); schedule created from the proposal; revoke works; audited.
-**Tests:** token-only storage (no PAN); schedule creation; revoke.
-**Out of scope:** actual charges (WO-68/69).
+**Goal:** Build `payment_schedules` (one-off + monthly retainer) from the tokenised authority captured in WO-66.
+**Depends on:** WO-66 (authority capture).
+**Key files:** `payment_schedules` table/model, `app/Services/Payments/ScheduleBuilder.php`.
+**Acceptance:** a schedule is created from a signed proposal's authority; cadence (one-off / monthly) honoured; revoke cascades from authority revoke; audited.
+**Tests:** schedule creation from authority; cadence; revoke cascade.
+**Out of scope:** authority capture (WO-66); actual charges (WO-68/69).
 
-#### WO-68 — Stripe + Windcave integration (resilience failover)
+#### WO-68 — Stripe + Windcave live integration (resilience failover)
 **Spec refs:** §13; §4.2; §25
-**Goal:** Fill the Stripe + Windcave contracts via `ResilientHttp`; primary Stripe, automatic Windcave failover on persistent failure; webhook handling.
-**Depends on:** WO-67.
-**Key files:** live clients in `app/Services/Integration/{Stripe,Windcave}`, webhook controllers, `app/Services/Payments/Gateway.php`.
-**Acceptance:** a charge via fixture gateway succeeds; simulated primary failure fails over to secondary and records `failover_from`; both-gateway failure logged + notified; PCI-DSS: no raw card data persisted anywhere.
+**Goal:** Fill the **live** Stripe + Windcave clients behind the gateway contract that WO-66/67 already use, via `ResilientHttp`; primary Stripe, automatic Windcave failover on persistent failure; webhook handling.
+**Depends on:** WO-67 (and the gateway contract from WO-66).
+**Key files:** live clients in `app/Services/Integration/{Stripe,Windcave}`, webhook controllers, `app/Services/Payments/Gateway.php` (binds live clients behind the contract).
+**Acceptance:** a charge via fixture gateway still succeeds (contract unchanged); simulated primary failure fails over to secondary and records `failover_from`; both-gateway failure logged + notified; PCI-DSS: no raw card data persisted anywhere.
 **Tests:** charge success; failover path; double-failure handling; no-PAN assertion; webhook signature verification.
 **Out of scope:** scheduling/receipts (WO-69).
 
@@ -527,10 +531,11 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 #### WO-91 — Benchmarking + advisory readiness + living plan
 **Spec refs:** §17.7
 **Goal:** Anonymous **aggregate** plan benchmarking vs prior same-industry plans (no plan content shared); advisory-readiness indicator (auto-alert to advisor + entrepreneur dashboard progress); living business plan (post-launch quarterly update prompts, re-assessed, divergence flags advisory readiness).
+**Minimum-cohort privacy rule (spec §11 "minimum cohort sizes enforced"):** a benchmark is computed and shown **only if the cohort has at least `BENCHMARK_MIN_COHORT` prior finalised plans** (config, **default 5**). Below the threshold the benchmark is **suppressed** with a "not enough comparable plans yet" message — never a partial/identifiable figure. Only aggregate statistics (distribution, percentile band) are returned; no per-plan values, and no min/max that could reverse-identify a single plan when the cohort is near the floor.
 **Depends on:** WO-89.
-**Key files:** `advisory_readiness_signals` table/model, benchmarking aggregator (aggregate-only), living-plan scheduler.
-**Acceptance:** benchmarking is aggregate-only; readiness indicator alerts advisor; living-plan prompts quarterly and re-assesses.
-**Tests:** aggregate-only benchmarking; readiness alert; living-plan re-assessment.
+**Key files:** `advisory_readiness_signals` table/model, benchmarking aggregator (aggregate-only, min-cohort suppression), living-plan scheduler, `BENCHMARK_MIN_COHORT` config.
+**Acceptance:** benchmarking is aggregate-only; **a cohort below `BENCHMARK_MIN_COHORT` is suppressed (no figure shown)**; readiness indicator alerts advisor; living-plan prompts quarterly and re-assesses.
+**Tests:** aggregate-only benchmarking; **suppression below min cohort (e.g. cohort of 4 with default 5 → suppressed; 5 → shown)**; no single-plan-identifiable output near the floor; readiness alert; living-plan re-assessment.
 **Out of scope:** Phase 4 anonymous community/peer network.
 
 #### WO-92 — Advisory conversion + DD plan integration
@@ -682,7 +687,8 @@ See `PLAN.md` §11. Phase 4: full continuous-learning engine (32 layers active),
 | Goals & milestones tracker (PV + proof) | WO-65 |
 | Digital proposal sign-off (7-step) | WO-66 |
 | Insurance/coach consent in proposal | WO-66, WO-74 |
-| Card + direct-debit authority | WO-67 |
+| Card + direct-debit authority (capture) | WO-66 |
+| Payment schedules | WO-67 |
 | Stripe + Windcave failover | WO-68 |
 | Monthly payment processing + receipts | WO-69 |
 | Proposal expiry (countdown/alert/renewal) | Phase 2 WO-56 (base) + WO-66 (sign-off) |
