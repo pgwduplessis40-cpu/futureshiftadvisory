@@ -10,6 +10,7 @@ use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
+use App\Console\Commands\RunFunnelAnalyticsLayer;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -150,6 +151,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(GeneratePreMeetingBriefs::class)
             ->hourly()
             ->name('fsa-pre-meeting-briefs')
+            ->withoutOverlapping();
+
+        $schedule->command(RunFunnelAnalyticsLayer::class)
+            ->monthlyOn(1, '03:45')
+            ->name('fsa-funnel-analytics-learning-layer')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

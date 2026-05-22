@@ -21,6 +21,7 @@ use App\Models\RedFlag;
 use App\Models\Scenario;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Services\Analytics\FunnelTracker;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Terms\TermsAcceptanceGate;
@@ -40,6 +41,7 @@ final class DashboardController extends Controller
         Request $request,
         TermsAcceptanceGate $termsGate,
         PvWaterfallBuilder $pvWaterfalls,
+        FunnelTracker $funnels,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -56,7 +58,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels));
         }
 
         return Inertia::render('dashboard');
@@ -65,7 +67,7 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function advisorDashboardPayload(User $user, TermsAcceptanceGate $termsGate, PvWaterfallBuilder $pvWaterfalls): array
+    private function advisorDashboardPayload(User $user, TermsAcceptanceGate $termsGate, PvWaterfallBuilder $pvWaterfalls, FunnelTracker $funnels): array
     {
         $clientIds = $this->visibleClientIds($user);
 
@@ -79,6 +81,7 @@ final class DashboardController extends Controller
             'economicIndicators' => $this->economicIndicators(),
             'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
+            'funnelAnalytics' => $funnels->summary($clientIds),
         ];
     }
 

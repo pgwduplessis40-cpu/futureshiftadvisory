@@ -1117,3 +1117,25 @@ Key columns:
 
 The unique `meeting_id` enforces no duplicate brief generation for the same
 meeting. Client-scoped RLS applies.
+
+## WO-61 - Funnel analytics
+
+### `funnel_events`
+
+Entry/completion/abandonment ledger for multi-step app flows.
+
+Key columns:
+
+- `id` UUID primary key
+- `flow` (`onboarding`, `questionnaire`, `proposal`, ...)
+- `step`
+- `client_id` nullable
+- `user_id` nullable
+- `entered_at`
+- `completed_at`
+- `abandoned`
+
+Client-scoped RLS applies when `client_id` is present. User-only rows are
+visible to the matching user; system and super-admin roles can see all rows.
+The WO-61 governed learning layer writes UX-improvement candidates into
+`learning_updates` with `layer_id = 15` and `status = detected`.

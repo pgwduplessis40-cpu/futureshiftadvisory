@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
+    BarChart3,
     CheckCircle2,
     Clock,
     Inbox,
@@ -197,6 +198,23 @@ type ScenarioPlanningPayload = {
     }>;
 };
 
+type FunnelAnalyticsPayload = {
+    summary: {
+        events: number;
+        abandoned: number;
+        completed: number;
+        worst_drop_off_rate: number;
+    };
+    steps: Array<{
+        flow: string;
+        step: string;
+        entered: number;
+        completed: number;
+        abandoned: number;
+        drop_off_rate: number;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -207,6 +225,7 @@ type Props = {
     economicIndicators: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
     scenarioPlanning: ScenarioPlanningPayload;
+    funnelAnalytics: FunnelAnalyticsPayload;
 };
 
 export default function AdvisorDashboard({
@@ -219,6 +238,7 @@ export default function AdvisorDashboard({
     economicIndicators,
     pvWaterfall,
     scenarioPlanning,
+    funnelAnalytics,
 }: Props) {
     return (
         <>
@@ -283,11 +303,67 @@ export default function AdvisorDashboard({
                 <div className="grid gap-4 xl:grid-cols-3">
                     <EconomicIndicators payload={economicIndicators} />
                     <IntegrationHealth payload={integrationHealth} />
+                    <FunnelAnalytics payload={funnelAnalytics} />
                 </div>
 
                 <UpcomingPanels />
             </div>
         </>
+    );
+}
+
+function FunnelAnalytics({ payload }: { payload: FunnelAnalyticsPayload }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <BarChart3 className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Funnel analytics</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.events} events
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.abandoned > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.abandoned} abandoned
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.steps.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No funnel events captured yet.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.steps.slice(0, 6).map((step) => (
+                        <div
+                            key={`${step.flow}-${step.step}`}
+                            className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">
+                                    {formatLabel(step.flow)} /{' '}
+                                    {formatLabel(step.step)}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {step.completed} of {step.entered} completed
+                                </div>
+                            </div>
+                            <div className="text-sm font-medium sm:text-right">
+                                {formatPercent(step.drop_off_rate)} drop-off
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 

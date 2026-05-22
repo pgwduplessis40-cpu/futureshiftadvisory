@@ -60,6 +60,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `stakeholder-report.md` | WO-58 | Stakeholder report redaction profile and PDF/PowerPoint export artifacts |
 | `trajectory-report.md` | WO-59 | Business health trajectory report with trends, PV milestones, and advisor review gate |
 | `briefings.md` | WO-60 | Monthly industry briefings, local meetings, and 24-hour pre-meeting briefs |
+| `funnel-analytics.md` | WO-61 | Funnel event tracking, drop-off dashboard data, and governed UX-improvement candidates |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

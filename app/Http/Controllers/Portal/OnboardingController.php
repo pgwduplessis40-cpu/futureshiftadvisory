@@ -7,9 +7,11 @@ namespace App\Http\Controllers\Portal;
 use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\FunnelEvent;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
+use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
@@ -29,6 +31,7 @@ final class OnboardingController extends Controller
         private readonly AuditWriter $auditWriter,
         private readonly QuestionnairePayload $questionnairePayload,
         private readonly QuestionnaireResponseRecorder $responses,
+        private readonly FunnelTracker $funnels,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -51,6 +54,14 @@ final class OnboardingController extends Controller
             ])->with('status', 'onboarding-step-locked');
         }
 
+        $user = $request->user();
+        $this->funnels->enter(
+            FunnelEvent::FLOW_ONBOARDING,
+            $step,
+            $client,
+            $user instanceof User ? $user : null,
+        );
+
         return Inertia::render('portal/onboarding/Step', $this->payload($request, $client, $stepMeta));
     }
 
@@ -70,6 +81,7 @@ final class OnboardingController extends Controller
 
         /** @var User $user */
         $user = $request->user();
+        $this->funnels->complete(FunnelEvent::FLOW_ONBOARDING, $step, $client, $user);
         $this->auditWriter->record('portal.onboarding_step_saved', subject: $client, actor: $user, after: [
             'step' => $step,
             'step_number' => $stepMeta['number'],

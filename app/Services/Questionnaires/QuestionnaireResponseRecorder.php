@@ -8,11 +8,13 @@ use App\Enums\QuestionnaireQuestionType;
 use App\Jobs\RecomputeDataQualityScore;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
+use App\Models\FunnelEvent;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
+use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
@@ -24,6 +26,7 @@ final class QuestionnaireResponseRecorder
     public function __construct(
         private readonly QuestionnaireRuleEngine $rules,
         private readonly AuditWriter $auditWriter,
+        private readonly FunnelTracker $funnels,
     ) {}
 
     /**
@@ -104,6 +107,7 @@ final class QuestionnaireResponseRecorder
                 'questionnaire_id' => $questionnaire->getKey(),
                 'answers_recorded' => count($normalised),
             ]);
+            $this->funnels->complete(FunnelEvent::FLOW_QUESTIONNAIRE, 'submit', $client, $user);
 
             $response = $response->refresh()->load('answers.question');
             $this->dispatchDocumentVerifications($response);

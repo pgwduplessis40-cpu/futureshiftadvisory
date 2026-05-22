@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-60 complete (next: WO-61).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-61 complete (next: WO-62).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **60 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-60 complete |
+| Work orders complete | **61 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-61 complete |
 | Work orders in progress | none |
-| Next work order | **WO-61** - Funnel analytics |
+| Next work order | **WO-62** - Practice health report (PV portfolio) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-60 verified locally. `composer test` passed (Pint + PHPUnit **280 tests / 2067 assertions**) against PostgreSQL `futureshift_test`; WO-60 targeted briefing tests passed **5 tests / 45 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-61 verified locally. `composer test` passed (Pint + PHPUnit **284 tests / 2093 assertions**) against PostgreSQL `futureshift_test`; WO-61 targeted funnel tests passed **4 tests / 26 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -80,7 +80,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-57 | `e7d0eab` | Report engine | Shared report composer with Client/Advisor reports, integrity notation, redaction rules, and branded PDFs. |
 | WO-58 | `d3a65c9` | Stakeholder report export | Stakeholder redaction profile with liability disclaimer and PDF/PowerPoint artifacts. |
 | WO-59 | `34bef91` | Business health trajectory report | Start-to-current financial trends, PV milestones, generated narrative, and advisor review gate. |
-| WO-60 | this commit | Industry briefings + pre-meeting brief | Monthly NZ-sourced briefings, local meetings, 24-hour pre-meeting briefs, review/send gates, and scheduler commands. |
+| WO-60 | `152d38a` | Industry briefings + pre-meeting brief | Monthly NZ-sourced briefings, local meetings, 24-hour pre-meeting briefs, review/send gates, and scheduler commands. |
+| WO-61 | this commit | Funnel analytics | Funnel event ledger, onboarding/questionnaire/proposal capture, advisor dashboard drop-off panel, and governed UX-improvement candidates. |
 
 ## Completed WO Details
 
@@ -595,6 +596,16 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover briefing generation, review gates, notification routing, 24-hour trigger behavior, duplicate prevention, route payloads, and RLS isolation.
 - Architecture docs: `docs/architecture/briefings.md` and `docs/architecture/schema.md`.
 
+### WO-61 - Funnel Analytics
+
+- `funnel_events` records flow, step, client/user context, entry time, completion time, and abandonment state with RLS.
+- `FunnelTracker` captures step entry/completion, marks stale open entries abandoned, computes drop-off summaries, and feeds the advisor dashboard.
+- Onboarding step views/saves, questionnaire submission, and proposal generation/release now write funnel events.
+- The advisor dashboard includes a funnel analytics panel with event, abandonment, completion, and drop-off metrics.
+- `analytics:funnel-learning` runs monthly and queues a governed `learning_updates` candidate in `detected` status for the highest drop-off step; no UX change is auto-applied.
+- Tests cover event capture, abandonment, scoped dashboard summaries, governed candidate emission, no auto-implementation, and RLS isolation.
+- Architecture docs: `docs/architecture/funnel-analytics.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -606,22 +617,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-60:
+Results after WO-61:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 280 tests, 2067 assertions.
-- `php artisan test tests\Feature\Reports\BriefingGeneratorTest.php` (WO-60 targeted briefing coverage): passed - 5 tests, 45 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 284 tests, 2093 assertions.
+- `php artisan test tests\Feature\Analytics\FunnelTrackerTest.php` (WO-61 targeted funnel coverage): passed - 4 tests, 26 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 60 distinct WO commits (WO-01...WO-60) on `featureApp`.
+- Git history after this commit: 61 distinct WO commits (WO-01...WO-61) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-60 are complete. WO-61 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-61 are complete. WO-62 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-60; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-61; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 
