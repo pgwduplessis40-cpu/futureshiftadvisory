@@ -29,6 +29,13 @@ final class PromptRegistry
             body: 'Compare the supplied claim with the supplied document evidence. Return only JSON matching the schema, including metadata.verification_outcome as one of verified, advisory_flag, accuracy_discrepancy, or verification_error; metadata.confidence from 0 to 1; and metadata.client_explanation in plain English.',
             task: 'verify_document',
         );
+
+        $this->register(
+            id: 'analysis.financial',
+            version: '2026-05-wo44',
+            body: 'Analyse the client financial snapshot or questionnaire fallback across profitability, cash flow, drivers, ratios, root cause, and NZ economic overlay. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

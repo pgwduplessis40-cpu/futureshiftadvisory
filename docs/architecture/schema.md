@@ -816,3 +816,10 @@ Client-scoped RLS applies to both tables. Rankings are stored after sorting by d
 WO-43 adds no tables or columns. It reads the latest `business_valuations` row,
 summed `improvement_opportunities`, and summed `risk_costs` for visible clients,
 then emits dashboard/report-ready waterfall steps from those persisted PV tables.
+
+## WO-44 - Financial analysis module
+
+WO-44 adds no tables or columns. It writes governed financial findings to the
+existing `analysis_runs` and `analysis_findings` tables and, when a connected
+accounting snapshot exists, feeds the existing `improvement_opportunities` and
+`pv_calculations` tables through WO-42/WO-40 services.
