@@ -36,6 +36,13 @@ final class PromptRegistry
             body: 'Analyse the client financial snapshot or questionnaire fallback across profitability, cash flow, drivers, ratios, root cause, and NZ economic overlay. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.website_audit',
+            version: '2026-05-wo45',
+            body: 'Audit the client website evidence for SEO, content clarity, UX, calls to action, mobile performance, and New Zealand search visibility. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

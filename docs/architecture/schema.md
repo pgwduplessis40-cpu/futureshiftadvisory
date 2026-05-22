@@ -823,3 +823,9 @@ WO-44 adds no tables or columns. It writes governed financial findings to the
 existing `analysis_runs` and `analysis_findings` tables and, when a connected
 accounting snapshot exists, feeds the existing `improvement_opportunities` and
 `pv_calculations` tables through WO-42/WO-40 services.
+
+## WO-45 - Website audit module
+
+WO-45 adds no tables or columns. Website audit runs write to the existing
+`analysis_runs` and `analysis_findings` tables, using questionnaire answers and
+client profile rows as cited evidence.
