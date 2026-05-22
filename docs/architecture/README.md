@@ -55,6 +55,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `scenario-planning.md` | WO-53 | Five-scenario planning with PV deltas, economic overlay, and client visibility |
 | `succession-planning.md` | WO-54 | Exit readiness, target exit PV, and raw owner-readiness coaching observations |
 | `fee-calculator.md` | WO-55 | Hours-based, outcome-based, and entrepreneur fee calculations with PV ROI |
+| `proposals.md` | WO-56 | Branded fee proposals with consent elections, release/recall, expiry, and renewal |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

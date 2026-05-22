@@ -5,6 +5,7 @@ import {
     Brain,
     CheckCircle2,
     FileCheck2,
+    FileText,
     HeartPulse,
     LockKeyhole,
     Mail,
@@ -14,7 +15,9 @@ import {
     PencilLine,
     PlugZap,
     RotateCcw,
+    Send,
     Star,
+    Undo2,
     Unplug,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
@@ -34,6 +37,10 @@ type ClientDetail = ClientSummary & {
     lifecycle_update_url: string;
     knowledge_assessment_store_url: string;
     latest_knowledge_assessment: KnowledgeAssessmentSummary | null;
+    proposal_store_url: string;
+    proposal_expiry_days: number;
+    fee_calculations: FeeCalculationSummary[];
+    proposals: ProposalSummary[];
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -127,6 +134,33 @@ type FinancialSnapshotSummary = {
     pulled_at: string | null;
 };
 
+type FeeCalculationSummary = {
+    id: string;
+    method: string;
+    suggested_mid: number;
+    roi_ratio: number;
+    created_at: string | null;
+};
+
+type ProposalSummary = {
+    id: string;
+    status: string;
+    status_label: string;
+    version: number;
+    suggested_mid: number | null;
+    roi_ratio: number;
+    released_at: string | null;
+    expires_at: string | null;
+    days_to_expiry: number | null;
+    pdf_byte_size: number | null;
+    can_release: boolean;
+    can_recall: boolean;
+    can_renew: boolean;
+    release_url: string;
+    recall_url: string;
+    renew_url: string;
+};
+
 type AnalysisFindingFeedback = {
     id: string;
     analysis_run_id: string;
@@ -175,6 +209,13 @@ type KnowledgeAssessmentForm = {
     financial_literacy: number;
     strategic_awareness: number;
     leadership: number;
+};
+
+type ProposalForm = {
+    fee_calculation_id: string;
+    scope_summary: string;
+    insurance_consent: string;
+    coach_consent: string;
 };
 
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
@@ -348,6 +389,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 <KnowledgeAssessmentPanel client={client} />
 
                 <AccountingConnectionsPanel client={client} />
+
+                <ProposalsPanel client={client} />
 
                 <section className="space-y-4 rounded-md border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -616,6 +659,267 @@ function AccountingConnectionsPanel({ client }: { client: ClientDetail }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function ProposalsPanel({ client }: { client: ClientDetail }) {
+    const form = useForm<ProposalForm>({
+        fee_calculation_id: client.fee_calculations[0]?.id ?? '',
+        scope_summary: '',
+        insurance_consent: 'undecided',
+        coach_consent: 'undecided',
+    });
+
+    const submit = () => {
+        form.post(client.proposal_store_url, {
+            preserveScroll: true,
+            onSuccess: () => form.reset('scope_summary'),
+        });
+    };
+
+    const release = (proposal: ProposalSummary) => {
+        router.patch(
+            proposal.release_url,
+            { expiry_days: client.proposal_expiry_days },
+            { preserveScroll: true },
+        );
+    };
+
+    const recall = (proposal: ProposalSummary) => {
+        router.patch(proposal.recall_url, {}, { preserveScroll: true });
+    };
+
+    const renew = (proposal: ProposalSummary) => {
+        router.patch(proposal.renew_url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <FileText className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Proposals</h2>
+                </div>
+                <Badge variant="outline">{client.proposals.length}</Badge>
+            </div>
+
+            {client.fee_calculations.length > 0 && (
+                <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.45fr)]">
+                    <div className="grid gap-2">
+                        <Label htmlFor="proposal_scope">Scope</Label>
+                        <textarea
+                            id="proposal_scope"
+                            value={form.data.scope_summary}
+                            onChange={(event) =>
+                                form.setData(
+                                    'scope_summary',
+                                    event.target.value,
+                                )
+                            }
+                            rows={3}
+                            className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        />
+                        <InputError message={form.errors.scope_summary} />
+                    </div>
+
+                    <div className="grid gap-3">
+                        <div className="grid gap-2">
+                            <Label htmlFor="proposal_fee">Fee</Label>
+                            <select
+                                id="proposal_fee"
+                                value={form.data.fee_calculation_id}
+                                onChange={(event) =>
+                                    form.setData(
+                                        'fee_calculation_id',
+                                        event.target.value,
+                                    )
+                                }
+                                className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            >
+                                {client.fee_calculations.map((calculation) => (
+                                    <option
+                                        key={calculation.id}
+                                        value={calculation.id}
+                                    >
+                                        {formatLabel(calculation.method)} -{' '}
+                                        {formatCurrency(
+                                            calculation.suggested_mid,
+                                        )}
+                                    </option>
+                                ))}
+                            </select>
+                            <InputError
+                                message={form.errors.fee_calculation_id}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <ConsentSelect
+                                id="insurance_consent"
+                                label="Insurance"
+                                value={form.data.insurance_consent}
+                                error={form.errors.insurance_consent}
+                                onChange={(value) =>
+                                    form.setData('insurance_consent', value)
+                                }
+                            />
+                            <ConsentSelect
+                                id="coach_consent"
+                                label="Coach"
+                                value={form.data.coach_consent}
+                                error={form.errors.coach_consent}
+                                onChange={(value) =>
+                                    form.setData('coach_consent', value)
+                                }
+                            />
+                        </div>
+
+                        <Button
+                            type="button"
+                            disabled={
+                                form.processing ||
+                                form.data.fee_calculation_id === ''
+                            }
+                            onClick={submit}
+                        >
+                            <FileText className="size-4" aria-hidden="true" />
+                            Generate
+                        </Button>
+                    </div>
+                </div>
+            )}
+
+            {client.proposals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No proposals yet.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {client.proposals.map((proposal) => (
+                        <article
+                            key={proposal.id}
+                            className="space-y-3 rounded-md border p-3"
+                        >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-sm font-medium">
+                                            Proposal v{proposal.version}
+                                        </h3>
+                                        <Badge
+                                            variant={proposalStatusVariant(
+                                                proposal.status,
+                                            )}
+                                        >
+                                            {proposal.status_label}
+                                        </Badge>
+                                        {proposal.days_to_expiry !== null && (
+                                            <Badge variant="outline">
+                                                {proposal.days_to_expiry}d
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {formatCurrency(
+                                            proposal.suggested_mid ?? 0,
+                                        )}{' '}
+                                        mid fee
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!proposal.can_release}
+                                        onClick={() => release(proposal)}
+                                    >
+                                        <Send
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Release
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!proposal.can_recall}
+                                        onClick={() => recall(proposal)}
+                                    >
+                                        <Undo2
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Recall
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!proposal.can_renew}
+                                        onClick={() => renew(proposal)}
+                                    >
+                                        <RotateCcw
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Renew
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <dl className="grid gap-2 text-sm md:grid-cols-3">
+                                <Metric
+                                    label="Released"
+                                    value={formatDate(proposal.released_at)}
+                                />
+                                <Metric
+                                    label="Expires"
+                                    value={formatDate(proposal.expires_at)}
+                                />
+                                <Metric
+                                    label="ROI"
+                                    value={formatMetric(proposal.roi_ratio)}
+                                />
+                            </dl>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function ConsentSelect({
+    id,
+    label,
+    value,
+    error,
+    onChange,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    error?: string;
+    onChange: (value: string) => void;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label htmlFor={id}>{label}</Label>
+            <select
+                id={id}
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+                <option value="undecided">Undecided</option>
+                <option value="opt_in">Opt in</option>
+                <option value="opt_out">Opt out</option>
+            </select>
+            <InputError message={error} />
+        </div>
     );
 }
 
@@ -1112,6 +1416,14 @@ function formatMetric(value: unknown) {
     }).format(value);
 }
 
+function formatCurrency(value: number) {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'NZD',
+        maximumFractionDigits: 0,
+    }).format(value);
+}
+
 function statusVariant(
     status: string,
 ): 'secondary' | 'destructive' | 'outline' {
@@ -1120,6 +1432,20 @@ function statusVariant(
     }
 
     if (status === 'active') {
+        return 'secondary';
+    }
+
+    return 'outline';
+}
+
+function proposalStatusVariant(
+    status: string,
+): 'secondary' | 'destructive' | 'outline' {
+    if (status === 'expired') {
+        return 'destructive';
+    }
+
+    if (status === 'released' || status === 'renewed') {
         return 'secondary';
     }
 

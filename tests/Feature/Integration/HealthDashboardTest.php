@@ -26,8 +26,16 @@ final class HealthDashboardTest extends TestCase
         Mail::fake();
     }
 
+    protected function tearDown(): void
+    {
+        $this->travelBack();
+
+        parent::tearDown();
+    }
+
     public function test_advisor_can_view_latest_integration_health_samples(): void
     {
+        $this->travelTo(now()->setMicrosecond(0));
         $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'advisor@example.test');
         $this->sample('nzbn', IntegrationHealthSample::HEALTH_GREEN, now()->subMinutes(15), 1.0, 140);
         $this->sample('nzbn', IntegrationHealthSample::HEALTH_RED, now()->subMinutes(2), 0.40, 4200);

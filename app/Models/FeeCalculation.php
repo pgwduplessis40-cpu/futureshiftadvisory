@@ -8,6 +8,7 @@ use App\Enums\FeeMethod;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class FeeCalculation extends Model
 {
@@ -41,5 +42,13 @@ final class FeeCalculation extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * @return HasMany<Proposal>
+     */
+    public function proposals(): HasMany
+    {
+        return $this->hasMany(Proposal::class);
     }
 }

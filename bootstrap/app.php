@@ -2,6 +2,7 @@
 
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
+use App\Console\Commands\ExpireProposals;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\RunBiasMonitor;
@@ -132,6 +133,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(SendReengagementReminders::class)
             ->dailyAt('09:30')
             ->name('fsa-offboarding-reengagement-reminders')
+            ->withoutOverlapping();
+
+        $schedule->command(ExpireProposals::class)
+            ->dailyAt('00:20')
+            ->name('fsa-proposals-expire')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

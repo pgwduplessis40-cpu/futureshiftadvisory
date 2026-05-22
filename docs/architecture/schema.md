@@ -953,3 +953,49 @@ Client-scoped RLS applies. Outcome-based calculations store direct references to
 improvement PV, risk-cost PV, annual revenue, complexity, and ROI basis.
 Entrepreneur calculations are a distinct lower-entry path and do not introduce
 payment collection or signature workflow.
+
+## WO-56 - Fee proposal generation
+
+### `proposals`
+
+Client-scoped proposal artifacts generated from a `fee_calculations` row.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `fee_calculation_id`
+- `status` (`draft`, `released`, `recalled`, `expired`, `renewed`; `awaiting_signature` and `signed` are enum-only reserved Phase 3 states)
+- `version`
+- `scope` JSONB
+- `services` JSONB
+- `pv_summary` JSONB
+- `roi_ratio`
+- `acceptance_terms` JSONB
+- `pdf_path`, `pdf_byte_size`
+- `released_at`, `released_by_user_id`, `expires_at`
+- `recalled_at`, `recalled_by_user_id`
+- `expired_at`
+- `renewed_from_proposal_id`
+- `created_by_user_id`
+
+Client-scoped RLS applies. `ProposalBuilder` is the single Phase 2 lifecycle
+writer and blocks reserved signature states until the Phase 3 signing workflow
+exists.
+
+### `consents`
+
+Consent elections captured against a proposal for future referral workflows.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `proposal_id`
+- `type` (`insurance_referral`, `coach_referral`)
+- `election` (`opt_in`, `opt_out`, `undecided`)
+- `evidence` JSONB
+- `captured_by_user_id`, `captured_at`
+
+Rows are unique by proposal and consent type. Phase 2 stores the election only;
+it does not create broker, insurance, or coach referrals automatically.

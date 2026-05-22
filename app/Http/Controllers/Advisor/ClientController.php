@@ -7,14 +7,17 @@ namespace App\Http\Controllers\Advisor;
 use App\Actions\Clients\PopulateFromNzbn;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\ProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\KnowledgeAssessment;
+use App\Models\Proposal;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
@@ -156,6 +159,10 @@ final class ClientController extends Controller
                 'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
                 'knowledge_assessment_store_url' => route('advisor.clients.knowledge-assessments.store', $client, absolute: false),
                 'latest_knowledge_assessment' => $this->latestKnowledgeAssessment($client),
+                'proposal_store_url' => route('advisor.clients.proposals.store', $client, absolute: false),
+                'proposal_expiry_days' => (int) config('proposals.expiry_days', 30),
+                'fee_calculations' => $this->feeCalculationSummaries($client),
+                'proposals' => $this->proposalSummaries($client),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -195,6 +202,66 @@ final class ClientController extends Controller
             'calibration' => $assessment->calibration,
             'assessed_at' => $assessment->assessed_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function feeCalculationSummaries(Client $client): array
+    {
+        return FeeCalculation::query()
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn (FeeCalculation $calculation): array => [
+                'id' => $calculation->id,
+                'method' => $calculation->method->value,
+                'suggested_mid' => $calculation->suggested_mid,
+                'roi_ratio' => $calculation->roi_ratio,
+                'created_at' => $calculation->created_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function proposalSummaries(Client $client): array
+    {
+        return Proposal::query()
+            ->with('feeCalculation')
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(function (Proposal $proposal): array {
+                $status = $proposal->status;
+
+                return [
+                    'id' => $proposal->id,
+                    'status' => $status->value,
+                    'status_label' => str($status->value)->replace('_', ' ')->title()->toString(),
+                    'version' => $proposal->version,
+                    'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                    'roi_ratio' => $proposal->roi_ratio,
+                    'released_at' => $proposal->released_at?->toIso8601String(),
+                    'expires_at' => $proposal->expires_at?->toIso8601String(),
+                    'days_to_expiry' => $proposal->expires_at === null
+                        ? null
+                        : max(0, now()->startOfDay()->diffInDays($proposal->expires_at->copy()->startOfDay(), false)),
+                    'pdf_byte_size' => $proposal->pdf_byte_size,
+                    'can_release' => in_array($status, [ProposalStatus::Draft, ProposalStatus::Recalled, ProposalStatus::Renewed], true),
+                    'can_recall' => $status === ProposalStatus::Released,
+                    'can_renew' => $status === ProposalStatus::Expired,
+                    'release_url' => route('advisor.proposals.release', $proposal, absolute: false),
+                    'recall_url' => route('advisor.proposals.recall', $proposal, absolute: false),
+                    'renew_url' => route('advisor.proposals.renew', $proposal, absolute: false),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

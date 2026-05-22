@@ -14,6 +14,7 @@ use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\OffboardingController;
+use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use Illuminate\Support\Facades\Route;
@@ -46,6 +47,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/knowledge-assessments', [KnowledgeAssessmentController::class, 'store'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.knowledge-assessments.store');
+        Route::post('clients/{client}/proposals', [ProposalController::class, 'store'])
+            ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
+            ->name('clients.proposals.store');
         Route::get('clients/{client}/compose', [ClientEmailController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.compose');
@@ -79,6 +83,16 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients/{client}', [ClientController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.show');
+
+        Route::patch('proposals/{proposal}/release', [ProposalController::class, 'release'])
+            ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
+            ->name('proposals.release');
+        Route::patch('proposals/{proposal}/recall', [ProposalController::class, 'recall'])
+            ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
+            ->name('proposals.recall');
+        Route::patch('proposals/{proposal}/renew', [ProposalController::class, 'renew'])
+            ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
+            ->name('proposals.renew');
 
         Route::get('entrepreneurs', [EntrepreneurController::class, 'index'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
