@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-46 complete (next: WO-47).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-47 complete (next: WO-48).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **46 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-46 complete |
+| Work orders complete | **47 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-47 complete |
 | Work orders in progress | none |
-| Next work order | **WO-47** - SWOT / TOWS / MAPS module |
+| Next work order | **WO-48** - HR & people analysis |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-46 verified locally. `composer test` passed (Pint + PHPUnit **243 tests / 1710 assertions**) against PostgreSQL `futureshift_test`; WO-46 targeted tests passed **2 tests / 12 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-47 verified locally. `composer test` passed (Pint + PHPUnit **245 tests / 1725 assertions**) against PostgreSQL `futureshift_test`; WO-47 targeted tests passed **2 tests / 15 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -66,7 +66,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-43 | `bac642a` | PV integration + waterfall chart | Dashboard/report-ready PV waterfall assembly, advisor dashboard baseline/target PV surface, reusable React chart, and server-side report chart partial. |
 | WO-44 | `fd3b5eb` | Financial analysis module | Spine-native financial analysis over accounting snapshots, questionnaire fallback disclaimer, NZ economic overlay, and improvement-PV linkage. |
 | WO-45 | `2776fa5` | Website audit module | Spine-native website audit for SEO, content, UX, CTAs, mobile performance, NZ search context, and document-gate enforcement. |
-| WO-46 | this commit | Competitor analysis module | Spine-native competitor product, pricing, visibility, and gap analysis with six-competitor input bound. |
+| WO-46 | `817fe18` | Competitor analysis module | Spine-native competitor product, pricing, visibility, and gap analysis with six-competitor input bound. |
+| WO-47 | this commit | SWOT/TOWS/MAPS module | Strategic matrix assembler, spine-native SWOT/TOWS/MAPS analysis, reusable React matrix, and PV-referenced priorities. |
 
 ## Completed WO Details
 
@@ -431,6 +432,17 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover successful module execution with cited gap findings and the six-competitor bound.
 - Architecture docs: `docs/architecture/competitor-analysis.md` and `docs/architecture/schema.md`.
 
+### WO-47 - SWOT/TOWS/MAPS Module
+
+- `StrategicMatrixAssembler` builds deterministic SWOT, TOWS, MAPS, PV summary, and attribution payloads from questionnaire answers, recent governed findings, and top PV rows.
+- `StrategicMatrices` implements the shared `AnalysisModule` contract with prompt id `analysis.strategic_matrices` and module enum `swot`.
+- Findings cover SWOT, TOWS, MAPS, and a PV-referenced strategic priority across the four analysis lenses.
+- Prescriptive findings set `analysis_findings.pv_link_id` to the top improvement or risk PV row when available.
+- `resources/js/components/analysis/StrategicMatrix.tsx` adds a reusable matrix renderer for future advisor/report surfaces.
+- WO-47 adds no schema and does not create new PV calculations.
+- Tests cover matrix assembly, cited findings, and PV-linked strategic priority persistence.
+- Architecture docs: `docs/architecture/strategic-matrices.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -442,22 +454,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-46:
+Results after WO-47:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 243 tests, 1710 assertions.
-- `php artisan test tests\Feature\Analysis\CompetitorAnalysisTest.php` (WO-46 targeted): passed - 2 tests, 12 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 245 tests, 1725 assertions.
+- `php artisan test tests\Feature\Analysis\StrategicMatricesTest.php` (WO-47 targeted): passed - 2 tests, 15 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 46 distinct WO commits (WO-01...WO-46) on `featureApp`.
+- Git history after this commit: 47 distinct WO commits (WO-01...WO-47) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-46 are complete. WO-47 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-47 are complete. WO-48 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-46; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-47; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

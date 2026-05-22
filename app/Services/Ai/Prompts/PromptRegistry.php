@@ -50,6 +50,13 @@ final class PromptRegistry
             body: 'Analyse up to six competitors for product, pricing, visibility, and strategic gaps. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.strategic_matrices',
+            version: '2026-05-wo47',
+            body: 'Generate SWOT, TOWS, and MAPS strategic matrices from the supplied client evidence and PV context. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

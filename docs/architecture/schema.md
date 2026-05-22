@@ -836,3 +836,10 @@ WO-46 adds no tables or columns. Competitor analysis runs write to the existing
 `analysis_runs` and `analysis_findings` tables, using questionnaire answers as
 cited competitor evidence. The six-competitor cap is enforced in the module
 input mapper rather than through schema.
+
+## WO-47 - SWOT/TOWS/MAPS module
+
+WO-47 adds no tables or columns. Matrix runs write to the existing
+`analysis_runs` and `analysis_findings` tables. Prescriptive strategic findings
+may set `analysis_findings.pv_link_id` to an existing `improvement_opportunities`
+or `risk_costs` row.
