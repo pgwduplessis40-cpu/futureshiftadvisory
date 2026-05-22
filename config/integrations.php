@@ -89,5 +89,13 @@ return [
             'client_id' => env('QUICKBOOKS_CLIENT_ID'),
             'client_secret' => env('QUICKBOOKS_CLIENT_SECRET'),
         ],
+        'monitoring' => [
+            'enabled' => (bool) env('FEATURE_CONTINUOUS_MONITORING', false),
+            'net_profit_drop_threshold' => (float) env('FINANCIAL_MONITOR_NET_PROFIT_DROP_THRESHOLD', 0.2),
+            'revenue_drop_threshold' => (float) env('FINANCIAL_MONITOR_REVENUE_DROP_THRESHOLD', 0.15),
+            'cash_flow_drop_threshold' => (float) env('FINANCIAL_MONITOR_CASH_FLOW_DROP_THRESHOLD', 0.2),
+            'gross_margin_drop_points' => (float) env('FINANCIAL_MONITOR_GROSS_MARGIN_DROP_POINTS', 0.1),
+            'current_ratio_floor' => (float) env('FINANCIAL_MONITOR_CURRENT_RATIO_FLOOR', 1.2),
+        ],
     ],
 ];

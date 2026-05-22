@@ -5,6 +5,7 @@ use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
+use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -94,6 +95,18 @@ return Application::configure(basePath: dirname(__DIR__))
             ->dailyAt('03:30')
             ->name('fsa-economic-indicators-refresh')
             ->withoutOverlapping();
+
+        if ((bool) env('FEATURE_CONTINUOUS_MONITORING', false)) {
+            $schedule->command(RunFinancialMonitoring::class, ['--cadence' => 'daily'])
+                ->dailyAt('04:00')
+                ->name('fsa-financial-monitoring-daily')
+                ->withoutOverlapping();
+
+            $schedule->command(RunFinancialMonitoring::class, ['--cadence' => 'weekly'])
+                ->weeklyOn(1, '04:30')
+                ->name('fsa-financial-monitoring-weekly')
+                ->withoutOverlapping();
+        }
 
         $schedule->job(new DispatchDailyDigest)
             ->dailyAt('17:00')

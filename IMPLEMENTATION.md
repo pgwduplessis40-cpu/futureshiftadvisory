@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-37 complete (next: WO-38, pending owner approval).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-38 complete (next: WO-39, pending owner approval).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **37 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-37 complete |
+| Work orders complete | **38 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-38 complete |
 | Work orders in progress | none |
-| Next work order | **WO-38** - Scheduled accounting pulls (pending owner approval) |
+| Next work order | **WO-39** - Valuation multiple data feed (pending owner approval) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-37 verified locally. `composer test` passed (Pint + PHPUnit **221 tests / 1523 assertions**) against PostgreSQL `futureshift_test`; `php artisan test tests\Feature\Integration` passed **22 tests / 272 assertions**; WO-37 targeted tests passed **5 tests / 85 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-38 verified locally. `composer test` passed (Pint + PHPUnit **224 tests / 1555 assertions**) against PostgreSQL `futureshift_test`; WO-38 targeted tests passed **3 tests / 32 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -57,7 +57,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-34 | `f71b230` | AI red-flag alerts | Critical finding promotion, urgent red-flag notifications, dashboard panel, and audited acknowledge/resolve flow. |
 | WO-35 | `f25fd93` | Client knowledge assessment | Advisor-scored knowledge profile, prompt calibration injection, client detail UI, and raw leadership-gap coaching observation boundary. |
 | WO-36 | `62bbb24` | NZ economic indicators feed | RBNZ/Stats NZ/MBIE fixture/live clients, persisted economic indicators and exchange rates, scheduled refresh, OCR-change learning candidate, dashboard tile. |
-| WO-37 | this commit | Accounting API integration | Xero/MYOB/QuickBooks OAuth connection flow, encrypted token envelopes, append-only financial snapshots, manual pull/revoke UI, fixture and live fallback coverage. |
+| WO-37 | `450eec1` | Accounting API integration | Xero/MYOB/QuickBooks OAuth connection flow, encrypted token envelopes, append-only financial snapshots, manual pull/revoke UI, fixture and live fallback coverage. |
+| WO-38 | this commit | Continuous financial health monitoring | Scheduled daily/weekly accounting pulls, snapshot deterioration detection, `financial_alerts`, exact metric citations, and ChannelResolver notification routing. |
 
 ## Completed WO Details
 
@@ -325,6 +326,17 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover mocked OAuth callback, encrypted token storage, fixture snapshot pull, append-only snapshot enforcement, live fallback logging, revoke, and client show props.
 - Architecture docs: `docs/architecture/accounting-integration.md` and `docs/architecture/schema.md`.
 
+### WO-38 - Continuous Financial Health Monitoring
+
+- `financial_alerts` stores client-scoped early-warning alerts tied to the previous/current accounting snapshots that triggered them.
+- `RunFinancialMonitoring` pulls connected accounting providers on demand or through the scheduler when `FEATURE_CONTINUOUS_MONITORING` is enabled.
+- `HealthMonitor` applies system RLS context, pulls new snapshots through `FinancialSnapshotPuller`, compares consecutive snapshots, and audits completed runs and pull failures.
+- Deterioration rules cover revenue, net profit, operating cash flow, gross margin, and current ratio thresholds from `integrations.accounting.monitoring`.
+- Alerts carry exact `financial_snapshot:{id}:{path}` source references in `citation`, plus human-readable details with previous/current figures and period ends.
+- `FinancialAlertNotification` routes super-admin and assigned advisor alerts through `ChannelResolver`; normal urgency respects channel/frequency preferences.
+- Tests cover deterioration detection with citations, stable data with no false alert, notification channel routing, and feature-flag command gating.
+- Architecture docs: `docs/architecture/financial-monitoring.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -336,23 +348,23 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-37:
+Results after WO-38:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 221 tests, 1523 assertions.
-- `php artisan test tests\Feature\Integration` (targeted integration suite): passed - 22 tests, 272 assertions.
-- `php artisan test tests\Feature\Integration\AccountingIntegrationTest.php` (WO-37 targeted): passed - 5 tests, 85 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 224 tests, 1555 assertions.
+- `php artisan test tests\Feature\Accounting\FinancialMonitoringTest.php` (WO-38 targeted): passed - 3 tests, 32 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 37 distinct WO commits (WO-01...WO-37) on `featureApp`.
+- `FEATURE_CONTINUOUS_MONITORING=true php artisan schedule:list` showed the daily and weekly `financial-monitoring:run` entries.
+- Git history after this commit: 38 distinct WO commits (WO-01...WO-38) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-37 are complete. WO-38 is next, pending owner approval.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-38 are complete. WO-39 is next, pending owner approval.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-37; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-38; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

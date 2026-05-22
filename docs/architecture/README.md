@@ -37,6 +37,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `knowledge-assessment.md` | WO-35 | Client knowledge scores, analysis prompt calibration, raw coaching-signal boundary |
 | `economic-indicators.md` | WO-36 | RBNZ/Stats NZ/MBIE economic feeds, persisted rates, OCR-change candidates |
 | `accounting-integration.md` | WO-37 | Xero/MYOB/QuickBooks OAuth, encrypted tokens, append-only financial snapshots |
+| `financial-monitoring.md` | WO-38 | Scheduled accounting pulls, deterioration alerts, snapshot citations, notification routing |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

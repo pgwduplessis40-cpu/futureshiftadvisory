@@ -667,3 +667,29 @@ Key columns:
 - `pulled_at`
 
 Client-scoped RLS applies. PostgreSQL rejects direct update/delete attempts through the `financial_snapshots_append_only` trigger so historical snapshots remain immutable after creation.
+
+## WO-38 - Continuous financial health monitoring
+
+### `financial_alerts`
+
+Client-scoped early-warning alerts raised by comparing consecutive accounting snapshots for the same connection.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `accounting_connection_id`
+- `previous_snapshot_id`
+- `current_snapshot_id`
+- `alert_key` unique idempotency key for client/provider/connection/snapshot/metric
+- `category` (`profitability`, `cash_flow`, `liquidity`)
+- `severity` (`warning`, `critical`)
+- `metric`
+- `headline`, `detail`
+- `previous_value`, `current_value`
+- `change_amount`, `change_percent`
+- `citation` JSONB with exact previous/current snapshot metric references
+- `surfaced_at`
+- `notified_at`
+
+Client-scoped RLS applies. Alert citations point back to immutable `financial_snapshots` source rows; WO-38 does not mutate historical snapshots.

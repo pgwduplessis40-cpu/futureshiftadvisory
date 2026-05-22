@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class FinancialSnapshot extends Model
 {
@@ -39,5 +40,13 @@ final class FinancialSnapshot extends Model
     public function accountingConnection(): BelongsTo
     {
         return $this->belongsTo(AccountingConnection::class);
+    }
+
+    /**
+     * @return HasMany<FinancialAlert>
+     */
+    public function currentAlerts(): HasMany
+    {
+        return $this->hasMany(FinancialAlert::class, 'current_snapshot_id');
     }
 }
