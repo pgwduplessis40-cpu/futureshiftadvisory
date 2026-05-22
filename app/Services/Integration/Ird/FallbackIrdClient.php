@@ -22,4 +22,13 @@ final class FallbackIrdClient implements IrdClient
             return $this->fake->gstStatus($nzbn);
         }
     }
+
+    public function legislativeChanges(): array
+    {
+        try {
+            return $this->live->legislativeChanges();
+        } catch (IntegrationDisabledException) {
+            return $this->fake->legislativeChanges();
+        }
+    }
 }

@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-49 complete (next: WO-50).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-50 complete (next: WO-51).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **49 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-49 complete |
+| Work orders complete | **50 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-50 complete |
 | Work orders in progress | none |
-| Next work order | **WO-50** - NZ compliance checker + legislative currency |
+| Next work order | **WO-51** - Regulatory change impact assessment |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-49 verified locally. `composer test` passed (Pint + PHPUnit **249 tests / 1757 assertions**) against PostgreSQL `futureshift_test`; WO-49 targeted tests passed **2 tests / 16 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-50 verified locally. `composer test` passed (Pint + PHPUnit **251 tests / 1778 assertions**) against PostgreSQL `futureshift_test`; WO-50 targeted tests passed **2 tests / 21 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -69,7 +69,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-46 | `817fe18` | Competitor analysis module | Spine-native competitor product, pricing, visibility, and gap analysis with six-competitor input bound. |
 | WO-47 | `ca6288b` | SWOT/TOWS/MAPS module | Strategic matrix assembler, spine-native SWOT/TOWS/MAPS analysis, reusable React matrix, and PV-referenced priorities. |
 | WO-48 | `0281ee3` | HR and people analysis | Spine-native HR analysis with wage benchmarking, verified HR-document support, and Holidays Act liability quantification. |
-| WO-49 | this commit | Operational analysis + systems review | Spine-native operational bottleneck and systems integration analysis modules with cited findings. |
+| WO-49 | `0b0ee88` | Operational analysis + systems review | Spine-native operational bottleneck and systems integration analysis modules with cited findings. |
+| WO-50 | this commit | NZ compliance checker + legislative currency | Spine-native compliance checker with statute citations, verified document support, and governed legislative-currency candidates. |
 
 ## Completed WO Details
 
@@ -468,6 +469,19 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover successful operational and systems module runs with cited diagnostic findings.
 - Architecture docs: `docs/architecture/operational-systems-analysis.md` and `docs/architecture/schema.md`.
 
+### WO-50 - NZ Compliance Checker + Legislative Currency
+
+- `ComplianceChecker` implements the shared `AnalysisModule` contract with prompt id `analysis.compliance`.
+- The checker covers Employment Relations Act, Health and Safety at Work Act, Holidays Act, Privacy Act, and Companies Act signals.
+- Compliance findings carry questionnaire/document citations plus statute references such as `statute:nz:era`.
+- Verified compliance, HR, contract, and insurance documents stamp findings with `document_support=verified`; unresolved document flags still block through the shared gate.
+- NZ Parliament, WorkSafe, and IRD feed contracts now expose legislative-change data through fixture clients.
+- `LegislativeCurrencyMonitor` records layer id `14` runs and creates governed `learning_updates` candidates with `automatic_application=false`.
+- `legislative-currency:monitor` runs the monitor and is idempotent by change key.
+- WO-50 adds no schema and does not implement DD regulatory workstreams or auto-apply law changes.
+- Tests cover severity rating, statute citation, verified document cross-reference, candidate creation, idempotency, and no auto-implementation.
+- Architecture docs: `docs/architecture/compliance-legislative-currency.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -479,22 +493,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-49:
+Results after WO-50:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 249 tests, 1757 assertions.
-- `php artisan test tests\Feature\Analysis\OperationalSystemsAnalysisTest.php` (WO-49 targeted): passed - 2 tests, 16 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 251 tests, 1778 assertions.
+- `php artisan test tests\Feature\Analysis\ComplianceCheckerTest.php` (WO-50 targeted): passed - 2 tests, 21 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 49 distinct WO commits (WO-01...WO-49) on `featureApp`.
+- Git history after this commit: 50 distinct WO commits (WO-01...WO-50) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-49 are complete. WO-50 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-50 are complete. WO-51 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-49; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-50; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

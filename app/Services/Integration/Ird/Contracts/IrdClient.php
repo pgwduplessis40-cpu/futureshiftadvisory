@@ -10,4 +10,9 @@ interface IrdClient
      * @return array<string, mixed>
      */
     public function gstStatus(string $nzbn): array;
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function legislativeChanges(): array;
 }

@@ -44,4 +44,13 @@ final class LiveIrdClient implements IrdClient
             ]
             : $this->fake->fallbackGstStatus($nzbn);
     }
+
+    public function legislativeChanges(): array
+    {
+        if (! (bool) Config::get('integrations.ird.live', false)) {
+            throw IntegrationDisabledException::forService('ird');
+        }
+
+        return $this->fake->legislativeChanges();
+    }
 }

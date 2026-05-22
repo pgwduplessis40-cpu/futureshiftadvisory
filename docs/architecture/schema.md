@@ -856,3 +856,11 @@ document-verification gate.
 WO-49 adds no tables or columns. Operational and systems review runs write to the
 existing `analysis_runs` and `analysis_findings` tables, using questionnaire
 answers as cited evidence.
+
+## WO-50 - NZ compliance checker + legislative currency
+
+WO-50 adds no tables or columns. Compliance runs write to the existing
+`analysis_runs` and `analysis_findings` tables, citing questionnaire answers,
+verified documents, and statute references. Legislative-currency monitoring
+reuses `learning_layer_runs` and `learning_updates` with layer id `14`; no
+automatic implementation rows are written.

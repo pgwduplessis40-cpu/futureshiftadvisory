@@ -16,6 +16,21 @@ final class FakeIrdClient implements IrdClient
         return $this->withBadge($this->fixtures->find('ird', $nzbn), 'stub');
     }
 
+    public function legislativeChanges(): array
+    {
+        return [
+            [
+                'source' => 'ird',
+                'title' => 'Payroll and employer obligations watch',
+                'statute' => 'Tax Administration Act 1994',
+                'change_key' => 'ird-employer-obligations-2026',
+                'effective_date' => '2026-07-01',
+                'summary' => 'Review payroll settings and employer filing obligations for affected clients.',
+                'source_url' => 'https://www.ird.govt.nz/employing-staff',
+            ],
+        ];
+    }
+
     public function fallbackGstStatus(string $nzbn): array
     {
         return $this->withBadge($this->fixtures->find('ird', $nzbn), 'stub_live_fallback', degraded: true);

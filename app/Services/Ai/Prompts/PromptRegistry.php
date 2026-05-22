@@ -78,6 +78,13 @@ final class PromptRegistry
             body: 'Analyse systems evidence including technology gaps, integration issues, manual workarounds, upgrade opportunities, and operational fit. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.compliance',
+            version: '2026-05-wo50',
+            body: 'Check New Zealand compliance evidence against ERA, Health and Safety at Work Act, Holidays Act, Privacy Act, and Companies Act obligations. Return severity-rated, legislatively current findings with statute citations.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void
