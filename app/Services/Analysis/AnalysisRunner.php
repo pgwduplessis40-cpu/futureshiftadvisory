@@ -35,6 +35,7 @@ final class AnalysisRunner
         private readonly SourceAttribution $sourceAttribution,
         private readonly BiasDetector $biasDetector,
         private readonly AnalyticalFramework $framework,
+        private readonly RedFlagPromoter $redFlags,
         private readonly AuditWriter $audit,
     ) {}
 
@@ -245,7 +246,7 @@ final class AnalysisRunner
                 continue;
             }
 
-            AnalysisFinding::query()->create([
+            $persistedFinding = AnalysisFinding::query()->create([
                 'analysis_run_id' => $run->getKey(),
                 'client_id' => $client->getKey(),
                 'lens' => $finding->lens,
@@ -259,6 +260,7 @@ final class AnalysisRunner
                 'bias_signals' => $finding->biasSignals ?? $response->biasSignals,
                 'pv_link_id' => $finding->pvLinkId,
             ]);
+            $this->redFlags->promoteFinding($persistedFinding);
 
             $persistedLenses[] = $finding->lens;
         }

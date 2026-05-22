@@ -527,3 +527,24 @@ Systematic bias signals create governed candidates only:
 - `status` = `detected`
 
 No WO-33 path writes `learning_update_implementations` or changes existing findings.
+
+## WO-34 - AI red flag alerts
+
+### `red_flags`
+
+Advisor workflow ledger for critical analysis findings and future monitor-derived signals.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `analysis_finding_id` nullable and unique for finding-derived flags
+- `source_type`, `source_key` nullable idempotency pair for monitor-derived flags
+- `category` (`financial`, `compliance`, `key_person`, `insurance`, `viability`, `regulatory`)
+- `severity`
+- `headline`, `detail`
+- `surfaced_at`
+- `acknowledged_at`, `acknowledged_by_user_id`
+- `resolved_at`
+
+Client-scoped RLS applies. WO-34 creates rows only for `critical` findings and never mutates the source finding.

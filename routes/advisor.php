@@ -13,6 +13,7 @@ use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
+use App\Http\Controllers\Advisor\RedFlagController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -107,6 +108,13 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('document-verifications/{documentVerification}', [DocumentVerificationController::class, 'update'])
             ->middleware('permission:'.Permission::DOCUMENTS_VERIFY->value)
             ->name('document-verifications.update');
+
+        Route::patch('red-flags/{redFlag}/acknowledge', [RedFlagController::class, 'acknowledge'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('red-flags.acknowledge');
+        Route::patch('red-flags/{redFlag}/resolve', [RedFlagController::class, 'resolve'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('red-flags.resolve');
 
         Route::post('analysis-findings/{analysisFinding}/feedback', [AnalysisFeedbackController::class, 'store'])
             ->middleware('permission:'.Permission::LEARNING_UPDATES_VIEW->value)

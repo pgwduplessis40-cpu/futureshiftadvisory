@@ -11,6 +11,7 @@ use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\IntegrationHealthSample;
 use App\Models\ProspectLead;
+use App\Models\RedFlag;
 use App\Models\TermsAcceptance;
 use App\Models\TermsVersion;
 use App\Models\User;
@@ -48,6 +49,8 @@ final class DashboardTest extends TestCase
 
         $this->documentFlagFor($client, 'scoped-support.pdf');
         $this->documentFlagFor($otherClient, 'other-support.pdf');
+        $this->redFlagFor($client, 'Scoped critical flag');
+        $this->redFlagFor($otherClient, 'Other critical flag');
         $this->prospectLead('Lead One', 'lead-one@example.test');
         $this->prospectLead('Lead Two', 'lead-two@example.test');
         $this->integrationSample('nzbn', IntegrationHealthSample::HEALTH_GREEN);
@@ -62,6 +65,10 @@ final class DashboardTest extends TestCase
                 ->where('clientsHealth.clients.0.legal_name', 'Scoped Health Limited')
                 ->where('clientsHealth.clients.0.open_document_flags_count', 1)
                 ->has('clientsHealth.clients', 1)
+                ->where('redFlags.summary.open', 1)
+                ->where('redFlags.summary.unacknowledged', 1)
+                ->where('redFlags.items.0.headline', 'Scoped critical flag')
+                ->where('redFlags.items.0.client_name', 'Scoped Health Limited')
                 ->has('documentVerificationFlags', 1)
                 ->where('documentVerificationFlags.0.client_name', 'Scoped Health Limited')
                 ->where('documentVerificationFlags.0.document_name', 'scoped-support.pdf')
@@ -205,6 +212,20 @@ final class DashboardTest extends TestCase
             'confidence' => 0.45,
             'explanation' => 'The evidence is incomplete.',
             'verified_at' => now(),
+        ]);
+    }
+
+    private function redFlagFor(Client $client, string $headline): void
+    {
+        RedFlag::query()->create([
+            'client_id' => $client->id,
+            'source_type' => 'dashboard_test',
+            'source_key' => $headline,
+            'category' => RedFlag::CATEGORY_VIABILITY,
+            'severity' => 'critical',
+            'headline' => $headline,
+            'detail' => 'Critical analysis flag for dashboard scoping.',
+            'surfaced_at' => now(),
         ]);
     }
 

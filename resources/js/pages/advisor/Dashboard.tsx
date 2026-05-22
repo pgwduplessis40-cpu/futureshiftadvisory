@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
@@ -94,8 +94,32 @@ type IntegrationHealthPayload = {
     }>;
 };
 
+type RedFlagsPayload = {
+    summary: {
+        open: number;
+        unacknowledged: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        analysis_finding_id: string | null;
+        module: string | null;
+        category: string;
+        severity: string;
+        headline: string;
+        detail: string;
+        surfaced_at: string | null;
+        acknowledged_at: string | null;
+        acknowledge_url: string;
+        resolve_url: string;
+        client_url: string;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
+    redFlags: RedFlagsPayload;
     documentVerificationFlags: DocumentVerificationFlag[];
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
@@ -104,6 +128,7 @@ type Props = {
 
 export default function AdvisorDashboard({
     clientsHealth,
+    redFlags,
     documentVerificationFlags,
     pendingTermsReacceptance,
     prospectInbox,
@@ -135,6 +160,10 @@ export default function AdvisorDashboard({
                             value={clientsHealth.summary.needs_attention}
                         />
                         <Metric
+                            label="Red flags"
+                            value={redFlags.summary.open}
+                        />
+                        <Metric
                             label="Documents"
                             value={documentVerificationFlags.length}
                         />
@@ -149,6 +178,7 @@ export default function AdvisorDashboard({
                     <MyClientsHealth payload={clientsHealth} />
 
                     <div className="space-y-4">
+                        <RedFlagPanel payload={redFlags} />
                         <DocumentVerificationFlagPanel
                             flags={documentVerificationFlags}
                         />
@@ -166,6 +196,112 @@ export default function AdvisorDashboard({
                 <UpcomingPanels />
             </div>
         </>
+    );
+}
+
+function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
+    const patch = (url: string) => {
+        router.patch(url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <ShieldAlert className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">AI red flags</h2>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.unacknowledged > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.unacknowledged} new
+                    </Badge>
+                    <Badge variant="secondary">
+                        {payload.summary.open} open
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No open red flags.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((flag) => (
+                        <article key={flag.id} className="space-y-3 p-3">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="min-w-0 space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="destructive">
+                                            {formatLabel(flag.severity)}
+                                        </Badge>
+                                        <Badge variant="outline">
+                                            {formatLabel(flag.category)}
+                                        </Badge>
+                                        {flag.module && (
+                                            <Badge variant="secondary">
+                                                {formatLabel(flag.module)}
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <h3 className="text-sm font-medium">
+                                        {flag.headline}
+                                    </h3>
+                                    <div className="text-xs text-muted-foreground">
+                                        {flag.client_name ?? 'Client'} -{' '}
+                                        {formatDate(flag.surfaced_at)}
+                                    </div>
+                                </div>
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={flag.client_url}>Open</Link>
+                                </Button>
+                            </div>
+
+                            <p className="line-clamp-3 text-sm text-muted-foreground">
+                                {flag.detail}
+                            </p>
+
+                            <div className="flex flex-wrap gap-2">
+                                {flag.acknowledged_at === null && (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            patch(flag.acknowledge_url)
+                                        }
+                                    >
+                                        <CheckCircle2
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Acknowledge
+                                    </Button>
+                                )}
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => patch(flag.resolve_url)}
+                                >
+                                    <CheckCircle2
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Resolve
+                                </Button>
+                            </div>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -513,6 +649,13 @@ function HealthIcon({ health }: { health: HealthLevel }) {
 
 function qualityLabel(level: QualityLevel): string {
     return level.replace('_', ' ');
+}
+
+function formatLabel(value: string): string {
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }
 
 function qualityVariant(

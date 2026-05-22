@@ -14,6 +14,7 @@ use App\Models\DocumentVerification;
 use App\Models\IntegrationHealthSample;
 use App\Models\MessageThread;
 use App\Models\ProspectLead;
+use App\Models\RedFlag;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Terms\TermsAcceptanceGate;
@@ -61,6 +62,7 @@ final class DashboardController extends Controller
 
         return [
             'clientsHealth' => $this->clientsHealth($clientIds),
+            'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
@@ -90,6 +92,64 @@ final class DashboardController extends Controller
         }
 
         return $user->accessibleClientIds();
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function redFlags(?array $clientIds): array
+    {
+        if ($clientIds === []) {
+            return [
+                'summary' => [
+                    'open' => 0,
+                    'unacknowledged' => 0,
+                ],
+                'items' => [],
+            ];
+        }
+
+        $query = RedFlag::query()
+            ->whereNull('resolved_at');
+
+        if (is_array($clientIds)) {
+            $query->whereIn('client_id', $clientIds);
+        }
+
+        $open = (clone $query)->count();
+        $unacknowledged = (clone $query)->whereNull('acknowledged_at')->count();
+        $flags = $query
+            ->with(['client', 'finding.run'])
+            ->latest('surfaced_at')
+            ->limit(12)
+            ->get();
+
+        return [
+            'summary' => [
+                'open' => $open,
+                'unacknowledged' => $unacknowledged,
+            ],
+            'items' => $flags
+                ->map(fn (RedFlag $flag): array => [
+                    'id' => $flag->id,
+                    'client_id' => $flag->client_id,
+                    'client_name' => $flag->client?->legal_name,
+                    'analysis_finding_id' => $flag->analysis_finding_id,
+                    'module' => $flag->finding?->run?->module?->value,
+                    'category' => $flag->category,
+                    'severity' => $flag->severity,
+                    'headline' => $flag->headline,
+                    'detail' => $flag->detail,
+                    'surfaced_at' => $flag->surfaced_at?->toIso8601String(),
+                    'acknowledged_at' => $flag->acknowledged_at?->toIso8601String(),
+                    'acknowledge_url' => route('advisor.red-flags.acknowledge', $flag, absolute: false),
+                    'resolve_url' => route('advisor.red-flags.resolve', $flag, absolute: false),
+                    'client_url' => route('advisor.clients.show', $flag->client_id, absolute: false),
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     /**
