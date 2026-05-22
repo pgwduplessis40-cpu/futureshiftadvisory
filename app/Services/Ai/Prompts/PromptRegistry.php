@@ -57,6 +57,13 @@ final class PromptRegistry
             body: 'Generate SWOT, TOWS, and MAPS strategic matrices from the supplied client evidence and PV context. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.hr',
+            version: '2026-05-wo48',
+            body: 'Analyse HR and people evidence including CV/JD fit, staff structure, wage compliance, and Holidays Act liability. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

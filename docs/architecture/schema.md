@@ -843,3 +843,10 @@ WO-47 adds no tables or columns. Matrix runs write to the existing
 `analysis_runs` and `analysis_findings` tables. Prescriptive strategic findings
 may set `analysis_findings.pv_link_id` to an existing `improvement_opportunities`
 or `risk_costs` row.
+
+## WO-48 - HR and people analysis
+
+WO-48 adds no tables or columns. HR analysis writes to the existing
+`analysis_runs` and `analysis_findings` tables, cites questionnaire answers,
+verified HR `documents`, and wage `economic_indicators`, and uses the shared
+document-verification gate.
