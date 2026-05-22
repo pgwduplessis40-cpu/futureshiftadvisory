@@ -16,6 +16,8 @@ final class CoachingSignal extends Model
 
     public const TYPE_LEADERSHIP_CAPABILITY_GAP = 'leadership_capability_gap';
 
+    public const TYPE_OWNER_READINESS_PRIMARY_CONSTRAINT = 'owner_readiness_primary_constraint';
+
     protected $guarded = [];
 
     protected $casts = [

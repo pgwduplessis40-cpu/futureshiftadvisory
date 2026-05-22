@@ -69,4 +69,12 @@ final class AnalysisRun extends Model
     {
         return $this->hasMany(Scenario::class);
     }
+
+    /**
+     * @return HasMany<SuccessionPlan>
+     */
+    public function successionPlans(): HasMany
+    {
+        return $this->hasMany(SuccessionPlan::class);
+    }
 }

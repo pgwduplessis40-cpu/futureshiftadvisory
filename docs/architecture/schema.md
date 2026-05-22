@@ -903,3 +903,29 @@ Key columns:
 Client-scoped RLS applies. `ScenarioPlanner` enforces the five-scenario bound,
 creates a `scenario` analysis run, snapshots latest NZ economic indicators, and
 routes every scenario through the shared PV ledger.
+
+## WO-54 - Succession planning
+
+### `succession_plans`
+
+Client-scoped succession-planning outputs.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `analysis_run_id`
+- `exit_readiness_score` (1-10)
+- `options` JSONB
+- `owner_dependency_plan` JSONB
+- `target_exit_pv_calculation_id`
+- `target_exit_pv`
+- `owner_readiness_is_primary_constraint`
+- `created_by_user_id`
+
+Client-scoped RLS applies. `SuccessionPlanner` creates a `succession` analysis
+run, writes assessed exit options and owner-dependency actions, calculates
+target exit PV through the shared PV ledger, and writes a raw
+`coaching_signals.owner_readiness_primary_constraint` row only when owner
+readiness is the primary constraint. The coaching signal remains a Phase 2 raw
+observation; it does not trigger coach referral logic.
