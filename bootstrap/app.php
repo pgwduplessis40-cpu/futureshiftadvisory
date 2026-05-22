@@ -12,6 +12,7 @@ use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
+use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -162,6 +163,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(CreatePracticeHealthSnapshots::class, ['--all-advisors' => true])
             ->monthlyOn(1, '04:15')
             ->name('fsa-practice-health-snapshots')
+            ->withoutOverlapping();
+
+        $schedule->command(RunQuestionnaireOptimisationLayer::class)
+            ->cron('30 4 1 1,4,7,10 *')
+            ->name('fsa-questionnaire-optimisation-learning-layer')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

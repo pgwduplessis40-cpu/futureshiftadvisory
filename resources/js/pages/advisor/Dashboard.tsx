@@ -5,10 +5,12 @@ import {
     BarChart3,
     CheckCircle2,
     Clock,
+    FileText,
     Inbox,
     PieChart,
     PlugZap,
     ShieldAlert,
+    Sparkles,
     TrendingUp,
     UsersRound,
 } from 'lucide-react';
@@ -217,6 +219,25 @@ type PracticeHealthPayload = {
     generated_at: string;
 };
 
+type ProposalStatusPayload = {
+    summary: {
+        total: number;
+        released: number;
+        expiring_soon: number;
+        expired: number;
+    };
+    statuses: Record<string, number>;
+    expiry_alerts: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        version: number;
+        status: string;
+        expires_at: string | null;
+        client_url: string;
+    }>;
+};
+
 type ScenarioPlanningPayload = {
     summary: {
         scenarios: number;
@@ -251,6 +272,23 @@ type FunnelAnalyticsPayload = {
     }>;
 };
 
+type QuestionnaireOptimisationPayload = {
+    summary: {
+        detected_candidates: number;
+        latest_run_at: string | null;
+        latest_candidates_created: number;
+    };
+    items: Array<{
+        id: string;
+        summary: string;
+        magnitude: string;
+        confidence: number;
+        questionnaire_title: string | null;
+        question_prompt: string | null;
+        created_at: string | null;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -261,6 +299,8 @@ type Props = {
     economicIndicators: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
     practiceHealth: PracticeHealthPayload;
+    proposalStatus: ProposalStatusPayload;
+    questionnaireOptimisation: QuestionnaireOptimisationPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
 };
@@ -275,6 +315,8 @@ export default function AdvisorDashboard({
     economicIndicators,
     pvWaterfall,
     practiceHealth,
+    proposalStatus,
+    questionnaireOptimisation,
     scenarioPlanning,
     funnelAnalytics,
 }: Props) {
@@ -339,15 +381,89 @@ export default function AdvisorDashboard({
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
+                    <ProposalStatusPanel payload={proposalStatus} />
                     <ProspectInbox payload={prospectInbox} />
                     <EconomicIndicators payload={economicIndicators} />
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
                     <IntegrationHealth payload={integrationHealth} />
                     <FunnelAnalytics payload={funnelAnalytics} />
+                    <QuestionnaireOptimisation
+                        payload={questionnaireOptimisation}
+                    />
                 </div>
 
                 <UpcomingPanels />
             </div>
         </>
+    );
+}
+
+function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
+    const statusOrder = ['draft', 'released', 'recalled', 'expired', 'renewed'];
+
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <FileText className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Proposals</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.total} total
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.expiring_soon > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.expiring_soon} expiring
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+                {statusOrder.map((status) => (
+                    <PortfolioMetric
+                        key={status}
+                        label={formatLabel(status)}
+                        value={(payload.statuses[status] ?? 0).toString()}
+                    />
+                ))}
+            </div>
+
+            {payload.expiry_alerts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No released proposals are expiring soon.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.expiry_alerts.map((proposal) => (
+                        <div
+                            key={proposal.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">
+                                    {proposal.client_name ?? 'Client'}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    v{proposal.version} -{' '}
+                                    {formatDate(proposal.expires_at)}
+                                </div>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={proposal.client_url}>Open</Link>
+                            </Button>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -426,6 +542,67 @@ function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
                                 {formatCurrency(client.target_pv)}
                             </div>
                         </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function QuestionnaireOptimisation({
+    payload,
+}: {
+    payload: QuestionnaireOptimisationPayload;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <Sparkles className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Questionnaire optimisation
+                    </h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.detected_candidates > 0
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.detected_candidates} candidates
+                    </Badge>
+                    <Badge variant="outline">
+                        {payload.summary.latest_candidates_created} latest
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No governed candidates queued.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article key={item.id} className="space-y-2 p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline">
+                                    {formatLabel(item.magnitude)}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                    {formatPercent(item.confidence)} confidence
+                                </span>
+                            </div>
+                            <h3 className="line-clamp-2 text-sm font-medium">
+                                {item.questionnaire_title ??
+                                    'Questionnaire candidate'}
+                            </h3>
+                            <p className="line-clamp-3 text-sm text-muted-foreground">
+                                {item.summary}
+                            </p>
+                        </article>
                     ))}
                 </div>
             )}
@@ -1101,7 +1278,6 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
 
 function UpcomingPanels() {
     const panels = [
-        'Proposals',
         'Payments',
         'Broker referrals',
         'Coach referrals',

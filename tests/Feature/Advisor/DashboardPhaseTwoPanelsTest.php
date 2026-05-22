@@ -1,0 +1,143 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Advisor;
+
+use App\Enums\EngagementType;
+use App\Enums\FeeMethod;
+use App\Enums\ProposalStatus;
+use App\Models\Client;
+use App\Models\ClientTeamMember;
+use App\Models\FeeCalculation;
+use App\Models\LearningUpdate;
+use App\Models\Proposal;
+use App\Models\User;
+use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
+use App\Support\RequestContext;
+use Database\Seeders\RoleSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
+use Tests\TestCase;
+
+final class DashboardPhaseTwoPanelsTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RoleSeeder::class);
+        app(RequestContext::class)->apply('system', []);
+    }
+
+    public function test_phase_two_dashboard_panels_include_scoped_proposal_status_and_questionnaire_candidates(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor('phase-two-dashboard@example.test', 'Scoped Proposal Limited');
+        [, $otherClient] = $this->clientWithAdvisor('other-phase-two-dashboard@example.test', 'Other Proposal Limited');
+
+        $proposal = $this->releasedProposal($client, now()->addDays(7));
+        $this->releasedProposal($otherClient, now()->addDays(5));
+        $this->questionnaireCandidate();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('proposalStatus.summary.total', 1)
+                ->where('proposalStatus.summary.released', 1)
+                ->where('proposalStatus.summary.expiring_soon', 1)
+                ->where('proposalStatus.statuses.released', 1)
+                ->where('proposalStatus.expiry_alerts.0.id', $proposal->id)
+                ->where('proposalStatus.expiry_alerts.0.client_id', $client->id)
+                ->where('questionnaireOptimisation.summary.detected_candidates', 1)
+                ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory'));
+    }
+
+    /**
+     * @return array{0: User, 1: Client}
+     */
+    private function clientWithAdvisor(string $email, string $clientName): array
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'email' => $email,
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        app(RequestContext::class)->apply('system', [], (string) $advisor->getKey());
+
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'nzbn' => fake()->numerify('9429#########'),
+            'legal_name' => $clientName,
+            'data_quality' => Client::DATA_QUALITY_MEDIUM,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+            'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+        ]);
+
+        return [$advisor, $client];
+    }
+
+    private function releasedProposal(Client $client, mixed $expiresAt): Proposal
+    {
+        $calculation = FeeCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'method' => FeeMethod::OutcomeBased,
+            'inputs' => ['fixture' => true],
+            'suggested_low' => 8000,
+            'suggested_mid' => 10000,
+            'suggested_high' => 12000,
+            'improvement_pv_total' => 25000,
+            'risk_cost_pv_total' => 10000,
+            'roi_ratio' => 2.5,
+            'justification' => ['fixture' => true],
+        ]);
+
+        return Proposal::query()->create([
+            'client_id' => $client->getKey(),
+            'fee_calculation_id' => $calculation->getKey(),
+            'status' => ProposalStatus::Released,
+            'version' => 1,
+            'scope' => ['summary' => 'Dashboard proposal fixture.'],
+            'services' => [['name' => 'Advisory']],
+            'pv_summary' => ['target_pv' => 135000],
+            'roi_ratio' => 2.5,
+            'acceptance_terms' => ['phase' => 'phase_2_release_only'],
+            'released_at' => now(),
+            'expires_at' => $expiresAt,
+        ]);
+    }
+
+    private function questionnaireCandidate(): LearningUpdate
+    {
+        return LearningUpdate::query()->create([
+            'layer_id' => QuestionnaireOptimisationLayer::LAYER_ID,
+            'source' => [
+                'type' => 'questionnaire_optimisation_layer',
+                'questionnaire_title' => 'Standard Advisory',
+                'question_prompt' => 'Which answer was hard to complete?',
+            ],
+            'summary' => 'Questionnaire question has a high blank-response rate.',
+            'proposed_change' => [
+                'action' => 'review_questionnaire_question',
+                'automatic_application' => false,
+            ],
+            'impact_scope' => ['questionnaire_set' => 'standard_advisory'],
+            'clients_affected' => 3,
+            'magnitude' => 'low',
+            'confidence' => 0.72,
+            'evidence' => ['blank_rate' => 0.67],
+            'status' => LearningUpdate::STATUS_DETECTED,
+        ]);
+    }
+}

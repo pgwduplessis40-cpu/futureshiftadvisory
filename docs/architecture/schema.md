@@ -1161,3 +1161,21 @@ when `advisor_user_id::text = fsa_current_user_id()`. The metrics payload
 contains active-client count, current PV, improvement PV, risk-mitigation PV,
 target PV, revenue under management, proposal/report/red-flag counts, and
 funnel summary signals.
+
+## WO-63 - Advisor dashboard Phase 2 panels
+
+WO-63 does not add tables. It reuses:
+
+- `proposals` for status counts and 14-day expiry alerts
+- `economic_indicators`, `exchange_rates`, and `learning_updates` for economic
+  tiles and change alerts
+- `red_flags` for open critical alerts
+- `practice_health_snapshots` and `PracticeHealthReport` payloads for the
+  practice-health summary
+- `learning_layer_runs` and `learning_updates` for questionnaire optimisation
+  candidates
+
+The questionnaire optimisation layer uses `layer_id = 16` and writes governed
+candidate rows with `source.type = questionnaire_optimisation_layer` and
+`status = detected`. It deliberately creates no
+`learning_update_implementations` in Phase 2.

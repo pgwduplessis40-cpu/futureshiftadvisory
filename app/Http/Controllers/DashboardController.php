@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Enums\Permission;
+use App\Enums\ProposalStatus;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
@@ -16,6 +17,7 @@ use App\Models\ExchangeRate;
 use App\Models\IntegrationHealthSample;
 use App\Models\LearningUpdate;
 use App\Models\MessageThread;
+use App\Models\Proposal;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
 use App\Models\Scenario;
@@ -24,6 +26,7 @@ use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Pv\PvWaterfallBuilder;
+use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
 use App\Services\Reports\PracticeHealthReport;
 use App\Services\Terms\TermsAcceptanceGate;
 use DateTimeInterface;
@@ -44,6 +47,7 @@ final class DashboardController extends Controller
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
+        QuestionnaireOptimisationLayer $questionnaireOptimisation,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -60,7 +64,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels, $practiceHealth));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation));
         }
 
         return Inertia::render('dashboard');
@@ -75,6 +79,7 @@ final class DashboardController extends Controller
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
+        QuestionnaireOptimisationLayer $questionnaireOptimisation,
     ): array {
         $clientIds = $this->visibleClientIds($user);
 
@@ -88,8 +93,95 @@ final class DashboardController extends Controller
             'economicIndicators' => $this->economicIndicators(),
             'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
             'practiceHealth' => $practiceHealth->forClientIds($clientIds),
+            'proposalStatus' => $this->proposalStatus($clientIds),
+            'questionnaireOptimisation' => $questionnaireOptimisation->summary(),
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
             'funnelAnalytics' => $funnels->summary($clientIds),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function proposalStatus(?array $clientIds): array
+    {
+        if ($clientIds === [] || ! Schema::hasTable('proposals')) {
+            return $this->emptyProposalStatus();
+        }
+
+        $base = Proposal::query();
+
+        if (is_array($clientIds)) {
+            $base->whereIn('client_id', $clientIds);
+        }
+
+        $statusCounts = (clone $base)
+            ->select('status', DB::raw('count(*) as aggregate'))
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+        $statuses = [];
+
+        foreach (ProposalStatus::phaseTwoReachable() as $status) {
+            $statuses[$status->value] = (int) ($statusCounts[$status->value] ?? 0);
+        }
+
+        $expiryBase = (clone $base)
+            ->where('status', ProposalStatus::Released->value)
+            ->whereNotNull('expires_at')
+            ->whereBetween('expires_at', [now(), now()->addDays(14)]);
+        $expiringSoon = (clone $expiryBase)->count();
+        $expiryAlerts = $expiryBase
+            ->with('client')
+            ->orderBy('expires_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (Proposal $proposal): array => [
+                'id' => $proposal->id,
+                'client_id' => $proposal->client_id,
+                'client_name' => $proposal->client?->legal_name,
+                'version' => $proposal->version,
+                'status' => $proposal->status->value,
+                'expires_at' => $proposal->expires_at?->toIso8601String(),
+                'client_url' => route('advisor.clients.show', $proposal->client_id, absolute: false),
+            ])
+            ->values()
+            ->all();
+
+        return [
+            'summary' => [
+                'total' => array_sum($statuses),
+                'released' => $statuses[ProposalStatus::Released->value],
+                'expiring_soon' => $expiringSoon,
+                'expired' => $statuses[ProposalStatus::Expired->value],
+            ],
+            'statuses' => $statuses,
+            'expiry_alerts' => $expiryAlerts,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyProposalStatus(): array
+    {
+        $statuses = [];
+
+        foreach (ProposalStatus::phaseTwoReachable() as $status) {
+            $statuses[$status->value] = 0;
+        }
+
+        return [
+            'summary' => [
+                'total' => 0,
+                'released' => 0,
+                'expiring_soon' => 0,
+                'expired' => 0,
+            ],
+            'statuses' => $statuses,
+            'expiry_alerts' => [],
         ];
     }
 
