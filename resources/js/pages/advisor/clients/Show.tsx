@@ -170,6 +170,7 @@ type ReportSummary = {
     title: string;
     generated_at: string | null;
     pdf_byte_size: number | null;
+    pptx_byte_size: number | null;
 };
 
 type AnalysisFindingFeedback = {
@@ -906,7 +907,7 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
 }
 
 function ReportsPanel({ client }: { client: ClientDetail }) {
-    const generate = (type: 'client' | 'advisor') => {
+    const generate = (type: 'client' | 'advisor' | 'stakeholder') => {
         router.post(
             client.report_store_url,
             { type },
@@ -943,6 +944,15 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                     <FileText className="size-4" aria-hidden="true" />
                     Advisor
                 </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generate('stakeholder')}
+                >
+                    <FileText className="size-4" aria-hidden="true" />
+                    Stakeholder
+                </Button>
             </div>
 
             {client.reports.length === 0 ? (
@@ -970,7 +980,10 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                                 </div>
                             </div>
                             <div className="text-sm text-muted-foreground">
-                                {formatBytes(report.pdf_byte_size)}
+                                PDF {formatBytes(report.pdf_byte_size)}
+                                {report.pptx_byte_size
+                                    ? ` / PPTX ${formatBytes(report.pptx_byte_size)}`
+                                    : ''}
                             </div>
                         </article>
                     ))}

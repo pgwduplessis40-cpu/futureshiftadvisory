@@ -24,7 +24,7 @@ final class ReportController extends Controller
         abort_unless($user instanceof User, 403);
 
         $validated = $request->validate([
-            'type' => ['required', Rule::in([ReportType::Client->value, ReportType::Advisor->value])],
+            'type' => ['required', Rule::in([ReportType::Client->value, ReportType::Advisor->value, ReportType::Stakeholder->value])],
         ]);
 
         $reports->compose($client, ReportType::from((string) $validated['type']), $user);

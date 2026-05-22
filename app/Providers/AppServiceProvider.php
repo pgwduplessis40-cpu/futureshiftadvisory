@@ -11,6 +11,8 @@ use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
 use App\Services\Pdf\BrowsershotRenderer;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Services\Pptx\OpenXmlPptxGenerator;
 use App\Services\Storage\KeyEnvelope;
 use App\Services\Storage\WriteWrappedAdapter;
 use Carbon\CarbonImmutable;
@@ -39,6 +41,7 @@ class AppServiceProvider extends ServiceProvider
             ? $this->app->make(ClamAvScanner::class)
             : $this->app->make(NoopScanner::class));
         $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
+        $this->app->singleton(PptxGenerator::class, OpenXmlPptxGenerator::class);
     }
 
     /**

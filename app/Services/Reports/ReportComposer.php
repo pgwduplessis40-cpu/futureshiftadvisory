@@ -15,6 +15,7 @@ use App\Models\ReportSection;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use Illuminate\Support\Collection;
@@ -28,6 +29,7 @@ final class ReportComposer
 {
     public function __construct(
         private readonly PdfRenderer $renderer,
+        private readonly PptxGenerator $pptx,
         private readonly PvWaterfallBuilder $waterfalls,
         private readonly PvWaterfallReportChart $chart,
         private readonly AuditWriter $audit,
@@ -35,8 +37,8 @@ final class ReportComposer
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
     {
-        if (! in_array($type, [ReportType::Client, ReportType::Advisor], true)) {
-            throw new InvalidArgumentException("Report type [{$type->value}] is scaffolded but not composed in WO-57.");
+        if (! in_array($type, [ReportType::Client, ReportType::Advisor, ReportType::Stakeholder], true)) {
+            throw new InvalidArgumentException("Report type [{$type->value}] is scaffolded but not composed in Phase 2 yet.");
         }
 
         return DB::transaction(function () use ($client, $type, $actor): Report {
@@ -55,7 +57,7 @@ final class ReportComposer
                     'phase' => 'phase_2',
                     'redactions' => $type === ReportType::Client
                         ? ['recommendations', 'fee_detail']
-                        : [],
+                        : ($type === ReportType::Stakeholder ? ['fsa_methodology', 'fsa_ip'] : []),
                     'scaffolded_report_types' => [
                         ReportType::Stakeholder->value,
                         ReportType::Trajectory->value,
@@ -76,10 +78,15 @@ final class ReportComposer
 
             $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
 
+            if ($type === ReportType::Stakeholder) {
+                $this->renderAndStorePptx($report->refresh()->load(['client', 'sections']));
+            }
+
             $this->audit->record('report.generated', subject: $report, actor: $actor, after: [
                 'type' => $type->value,
                 'sections' => $report->sections()->count(),
                 'pdf_path' => $report->pdf_path,
+                'pptx_path' => $report->pptx_path,
             ]);
 
             return $report->refresh()->load('sections');
@@ -121,6 +128,7 @@ final class ReportComposer
         return match ($type) {
             ReportType::Client => $this->clientSections($client, $findings, $waterfall, $valuation),
             ReportType::Advisor => $this->advisorSections($client, $findings, $waterfall, $valuation, $proposal),
+            ReportType::Stakeholder => $this->stakeholderSections($client, $findings, $waterfall, $valuation),
             default => [],
         };
     }
@@ -168,6 +176,29 @@ final class ReportComposer
 
         $sections[] = $this->implementationPlanSection($client, $findings);
         $sections[] = $this->feeProposalSection($client, $proposal);
+
+        return $sections;
+    }
+
+    /**
+     * @param  Collection<int, AnalysisFinding>  $findings
+     * @param  array<string, mixed>  $waterfall
+     * @return array<int, array<string, mixed>>
+     */
+    private function stakeholderSections(Client $client, Collection $findings, array $waterfall, ?BusinessValuation $valuation): array
+    {
+        $sections = [
+            $this->valuationSection($client, $waterfall, $valuation),
+            $this->waterfallSection($client, $waterfall),
+        ];
+
+        $findings
+            ->filter(fn (AnalysisFinding $finding): bool => in_array($finding->lens, [AnalysisLens::Diagnostic, AnalysisLens::Predictive, AnalysisLens::Prescriptive], true))
+            ->each(function (AnalysisFinding $finding) use (&$sections): void {
+                $sections[] = $this->findingSection($finding);
+            });
+
+        $sections[] = $this->liabilityDisclaimerSection($client);
 
         return $sections;
     }
@@ -318,6 +349,20 @@ final class ReportComposer
     /**
      * @return array<string, mixed>
      */
+    private function liabilityDisclaimerSection(Client $client): array
+    {
+        return $this->generatedSection(
+            key: 'liability_disclaimer',
+            title: 'Liability disclaimer',
+            body: 'This stakeholder report is prepared for discussion and decision support only. It does not replace financial, legal, tax, lending, investment, or governance advice. Recipients should rely on their own professional advisers before acting on the information.',
+            sourceReference: 'stakeholder_disclaimer:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: the disclaimer applies to every exported stakeholder report.',
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
     private function generatedSection(
         string $key,
         string $title,
@@ -461,6 +506,29 @@ final class ReportComposer
         $report->forceFill([
             'pdf_path' => $path,
             'pdf_byte_size' => strlen($pdf),
+        ])->save();
+    }
+
+    private function renderAndStorePptx(Report $report): void
+    {
+        $pptx = $this->pptx->render($report);
+        $path = sprintf(
+            'reports/%s/%s/%s-%s.pptx',
+            $report->client_id,
+            now()->format('Y/m'),
+            Str::uuid(),
+            $report->type->value,
+        );
+
+        $written = Storage::disk('secure_local')->put($path, $pptx);
+
+        if ($written !== true) {
+            throw new RuntimeException('Report PowerPoint could not be stored.');
+        }
+
+        $report->forceFill([
+            'pptx_path' => $path,
+            'pptx_byte_size' => strlen($pptx),
         ])->save();
     }
 

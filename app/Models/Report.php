@@ -19,6 +19,7 @@ final class Report extends Model
     protected $casts = [
         'type' => ReportType::class,
         'pdf_byte_size' => 'integer',
+        'pptx_byte_size' => 'integer',
         'generated_at' => 'datetime',
         'metadata' => 'array',
     ];

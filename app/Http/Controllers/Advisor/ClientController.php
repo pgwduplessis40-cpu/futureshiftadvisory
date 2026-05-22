@@ -284,6 +284,7 @@ final class ClientController extends Controller
                 'title' => $report->title,
                 'generated_at' => $report->generated_at?->toIso8601String(),
                 'pdf_byte_size' => $report->pdf_byte_size,
+                'pptx_byte_size' => $report->pptx_byte_size,
             ])
             ->values()
             ->all();

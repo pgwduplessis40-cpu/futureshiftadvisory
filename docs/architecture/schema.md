@@ -1014,6 +1014,7 @@ Key columns:
 - `type` (`client`, `advisor`, `stakeholder`, `trajectory`, `due_diligence`, `entrepreneur_assessment`)
 - `title`
 - `pdf_path`, `pdf_byte_size`
+- `pptx_path`, `pptx_byte_size` (WO-58 stakeholder export)
 - `generated_by_user_id`, `generated_at`
 - `metadata` JSONB with redaction and scaffold notes
 
@@ -1045,3 +1046,12 @@ Every section carries source attribution, document-support notation, and a
 data-quality note. Client reports exclude prescriptive findings and fee/proposal
 sections; advisor reports include the full finding set, PV waterfall,
 implementation plan, and fee proposal ROI.
+
+## WO-58 - Stakeholder report + PowerPoint export
+
+WO-58 reuses the `reports` and `report_sections` tables from WO-57.
+
+Stakeholder reports set `reports.type = stakeholder`, store PDF and PPTX
+artifacts on `secure_local`, and record `metadata.redactions` with
+`fsa_methodology` and `fsa_ip`. The dedicated liability-disclaimer section is
+stored in `report_sections` and is included in both PDF and PowerPoint exports.

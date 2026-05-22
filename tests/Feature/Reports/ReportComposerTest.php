@@ -26,6 +26,7 @@ use App\Models\ReportSection;
 use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -42,6 +43,8 @@ final class ReportComposerTest extends TestCase
     private const RLS_APP_ROLE = 'fsa_reports_rls_app';
 
     private object $renderer;
+
+    private object $pptx;
 
     private bool $connectionBypassesRls = false;
 
@@ -66,6 +69,20 @@ final class ReportComposerTest extends TestCase
         };
 
         $this->app->instance(PdfRenderer::class, $this->renderer);
+
+        $this->pptx = new class implements PptxGenerator
+        {
+            public string $payload = '';
+
+            public function render(Report $report): string
+            {
+                $this->payload = $report->title."\n".$report->sections->pluck('title')->implode("\n");
+
+                return "PPTX\n".$this->payload;
+            }
+        };
+
+        $this->app->instance(PptxGenerator::class, $this->pptx);
 
         if (DB::connection()->getDriverName() === 'pgsql') {
             $this->connectionBypassesRls = $this->currentRoleBypassesRls();
@@ -139,6 +156,29 @@ final class ReportComposerTest extends TestCase
         ]);
     }
 
+    public function test_stakeholder_report_excludes_methodology_and_exports_pdf_and_powerpoint(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('stakeholder-advisor@example.test');
+        $this->businessValuation($client, 720000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Stakeholder, $advisor);
+
+        $this->assertSame(ReportType::Stakeholder, $report->type);
+        $this->assertNotNull($report->pdf_path);
+        $this->assertNotNull($report->pptx_path);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
+        Storage::disk('secure_local')->assertExists($report->pptx_path);
+        $this->assertGreaterThan(10, $report->pptx_byte_size);
+        $this->assertTrue($report->sections->contains('key', 'liability_disclaimer'));
+        $this->assertStringContainsString('Liability disclaimer', $this->renderer->html);
+        $this->assertStringContainsString('Liability disclaimer', $this->pptx->payload);
+        $this->assertStringNotContainsString('FSA methodology', $this->renderer->html);
+        $this->assertStringNotContainsString('Future Shift methodology', $this->renderer->html);
+        $this->assertSame(['fsa_methodology', 'fsa_ip'], $report->metadata['redactions']);
+    }
+
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithTeamAndClientUser();
@@ -158,14 +198,20 @@ final class ReportComposerTest extends TestCase
             ])
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
 
-        $this->assertDatabaseCount('reports', 2);
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.reports.store', $client), [
+                'type' => ReportType::Stakeholder->value,
+            ])
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+        $this->assertDatabaseCount('reports', 3);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.show', $client))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('client.report_store_url', route('advisor.clients.reports.store', $client, absolute: false))
-                ->has('client.reports', 2));
+                ->has('client.reports', 3));
 
         $this->actingAsMfa($clientUser)
             ->get(route('portal.dashboard'))
