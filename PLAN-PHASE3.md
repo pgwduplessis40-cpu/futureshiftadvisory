@@ -14,12 +14,16 @@
 
 1. Read §1–§7 once before starting. They carry forward the non-negotiable principles and lock the new Phase 3 architecture (the panel-portal abstraction, the DD data room, the entrepreneur rating framework, the proposal sign-off + payment pipeline, the learning-queue approval flow).
 2. Implement **Work Orders** in §8. Phase 3 has five largely-independent tracks (Commerce, Broker/Coach, DD, Entrepreneur, Learning/Polish) — see the dependency graph in §6. Within a track, follow numeric order.
-3. Commit discipline unchanged (per `IMPLEMENTATION.md`): one WO per commit on `featureApp`, `WO-<id>: <slug>`, unless the owner changes the branching rule.
+3. **Commit cadence (locked — owner-confirmed):**
+   - **Single branch.** All Phase 3 work happens on `featureApp`. **Do not create per-WO branches** and **do not open per-WO PRs.** (This supersedes the branch-per-WO / PR-per-WO language in `PLAN.md` §0, which applied only to the original Phase 1 model.)
+   - **One commit per completed WO**, subject line `WO-<id>: <slug>`, committed directly on `featureApp`. This keeps the granular per-WO history (matching the 64 Phase 1+2 commits).
+   - **`IMPLEMENTATION.md` is updated in the same commit as the WO it documents** — so the status doc never drifts from the code (this is the fix for the Phase 1→2 contradiction).
+   - **At each phase boundary** (not per WO): run the full verification (`composer test` + `npm run lint:check` + `npm run types:check` + `npm run format:check`), record the verified baseline in `IMPLEMENTATION.md`, and **push** `featureApp`. Pushing mid-phase is fine but not required.
 4. Every WO ships with its tests. A WO is done only when acceptance criteria are demonstrably true and `composer test`, `npm run lint:check`, `npm run types:check`, `npm run format:check` all pass.
 5. **Do not invent features beyond the spec.** Phase 4 features stay out (see §2.2). Gaps → raise in the commit body or add a §12 risk row.
 6. **Every analysis-bearing surface (DD workstreams, entrepreneur scoring) routes through the Phase 2 analysis spine** (`AnalysisRunner`) so AI integrity, document verification, and data-quality gating are enforced uniformly — never re-implemented.
 7. **Every money-handling surface goes through the resilience layer** (`ResilientHttp`) and is fully audited. Payment is the highest-risk Phase 3 area — see §7.4 and the §12 risks.
-8. Update `IMPLEMENTATION.md` after each WO.
+8. **Regenerate Wayfinder output (`php artisan wayfinder:generate --with-form`) and commit it whenever a WO adds/changes a controller route** — the `--with-form` flag is required (the bare command drops the `.form` variants the pages depend on). Stale Wayfinder output was a recurring defect in Phase 1/2; do not repeat it.
 
 ---
 
@@ -103,7 +107,7 @@ Reuse these directly — do not re-create.
 
 ## 4. New database schema (Phase 3)
 
-Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS on client-scoped tables, audit via `AuditWriter`.
+Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, audit via `AuditWriter`. **RLS:** client-scoped tables use the `client_id` policy pattern (per `docs/architecture/postgres-rls.md`); **entrepreneur-scoped tables use a different policy keyed on `entrepreneur_profiles` ownership — see the RLS note in §4.5** (and the `entrepreneur_profiles` RLS retrofit it calls for). XOR ownership columns (e.g. `referrals`, `business_plans`) get DB `CHECK` constraints — see those tables.
 
 ### 4.1 Goals & milestones (WO-65)
 - `goals` — `client_id`, `title`, `description`, `pv_target_calculation_id` (→ `pv_calculations`), `pv_target`, `status` (active, achieved, abandoned), `created_by_user_id`
@@ -113,7 +117,7 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 
 ### 4.2 Commerce: sign-off & payment (WO-66/67/68/69)
 - `proposals` **extended** — `signed_at`, `signature_evidence_path`, `signature_envelope_meta`, `signed_by_user_id`, `awaiting_signature_at`; the reserved `ProposalStatus::AWAITING_SIGNATURE` / `SIGNED` become reachable.
-- `proposal_signoff_steps` — `proposal_id`, `step` (review, consent, payment_method, authority, signature, confirmation), `completed_at`, `payload` (jsonb) — the 7-step flow state (spec §13).
+- `proposal_signoff_steps` — `proposal_id`, `step`, `completed_at`, `payload` (jsonb). The **7 steps** (resolves spec §13's enumerated list against §26's "7-step" headline by treating the two consents as distinct, which they are — broker vs coach): `review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`. The state machine is exactly these seven, in order.
 - `payment_authorities` — `client_id`, `proposal_id`, `type` (card, direct_debit), `gateway` (stripe, windcave), `gateway_customer_ref`, `gateway_token_envelope` (KeyEnvelope; **no raw PAN**), `status` (active, failed, revoked), `authorised_by_user_id`, `authorised_at`
 - `payment_schedules` — `client_id`, `proposal_id`, `payment_authority_id`, `cadence` (one_off, monthly_retainer), `amount`, `currency` (NZD), `next_run_at`, `status`
 - `payments` — `client_id`, `payment_schedule_id`, `amount`, `currency`, `gateway`, `gateway_ref`, `status` (pending, succeeded, failed, retrying), `attempt`, `failover_from` (nullable — records Stripe→Windcave failover), `failed_reason`, `processed_at`
@@ -122,9 +126,9 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 ### 4.3 Broker & Coach panels (WO-70/71/72/73/74)
 - `panel_members` — `type` (broker, coach), `user_id` (nullable until invite accepted), `invite_token_id`, `status` (invited, pending_approval, approved, suspended), `application` (jsonb — configurable fields), `profile` (jsonb), `specialisations` (jsonb — coach: life, business_executive, mental_health_wellbeing, financial_wellness, career), `fsp_number` (broker), `fsp_status` (broker — current, lapsed), `fsp_last_checked_at`, `approved_by_user_id`
 - `panel_agreements` — `panel_member_id`, `type`, `version`, `clauses_snapshot` (jsonb), `signed_at`, `signed_pdf_path`, `signed_pdf_envelope_meta`, `re_sign_due_at` (material change → 14 days)
-- `referrals` — `type` (broker, coach), `client_id` (nullable), `entrepreneur_profile_id` (nullable), `panel_member_id`, `specialisation` (coach), `stage` (enum per spec: broker = referral_sent…cover_placed/declined/no_response; coach = referral_sent…coaching_underway/concluded/declined), `rationale`, `rationale_document_id` (verified), `conflict_declaration_id`, `consent_id` (→ `consents`), `created_by_user_id`
+- `referrals` — `type` (broker, coach), `client_id` (nullable), `entrepreneur_profile_id` (nullable), `panel_member_id`, `specialisation` (coach), `stage` (enum per spec: broker = referral_sent…cover_placed/declined/no_response; coach = referral_sent…coaching_underway/concluded/declined), `rationale`, `rationale_document_id` (verified), `conflict_declaration_id`, `consent_id` (→ `consents`), `created_by_user_id`. **Subject is exactly one of client/entrepreneur — enforce a DB `CHECK ((client_id IS NOT NULL) <> (entrepreneur_profile_id IS NOT NULL))`** (XOR; neither-nor-both is rejected). A test asserts both the both-set and neither-set inserts fail.
 - `referral_messages` — `referral_id`, `sender_user_id`, `body`, `sent_at` — per-referral thread, stored against both profiles
-- `reverse_referrals` — `panel_member_id`, `type`, `payload` (jsonb), `created_client_id` (nullable), `created_entrepreneur_profile_id` (nullable), `status` (received, converted, declined)
+- `reverse_referrals` — `panel_member_id`, `type`, `payload` (jsonb), `created_client_id` (nullable), `created_entrepreneur_profile_id` (nullable), `status` (received, converted, declined). The two `created_*` columns are both nullable until conversion, then **at most one** is set — `CHECK (NOT (created_client_id IS NOT NULL AND created_entrepreneur_profile_id IS NOT NULL))`.
 
 ### 4.4 Due Diligence (WO-75/76/77/78/79/80/81)
 - `dd_engagements` — `client_id` (buyer), `target_name`, `target_details` (jsonb), `status` (in_progress, acquisition_proceeding, abandoned), `recommendation` (proceed, renegotiate, abandon — nullable until report), `conflict_declaration_id`, `created_by_user_id`
@@ -137,9 +141,15 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 - `post_acquisition_migrations` — `dd_engagement_id`, `new_client_id`, `gap_questionnaire_response_id`, `auto_proposal_id`, `migrated_at` — DD docs migrated with "Sourced from DD" label
 
 ### 4.5 Entrepreneur module (WO-82…92)
+
+> **RLS for entrepreneur-scoped tables (read this before creating any table below).** Entrepreneur tables are **not** `client_id`-scoped — they hang off `entrepreneur_profiles`. So the standard client RLS pattern does **not** apply. Instead:
+> - **First, retrofit `entrepreneur_profiles` with an RLS policy** (it was created in Phase 1 WO-15 *without* one — a known gap; fixing it is part of WO-82). Visibility: `fsa_current_role() = 'super_admin'` **OR** `assigned_advisor_id = fsa_current_user_id()` **OR** `user_id = fsa_current_user_id()` (the entrepreneur themselves). This needs an `fsa_current_user_id()` helper alongside the existing `fsa_current_role()`/`fsa_current_client_ids()` (the request context already sets `fsa.user_id` per Phase 1 WO-14 — expose it as a SQL helper).
+> - **Every child table** (`readiness_assessments`, `idea_validations`, `business_plans`, `plan_*`, `plan_assessments`, `plan_revisions`, `advisory_readiness_signals`) gets an RLS policy that joins to its `entrepreneur_profiles` row and applies the same advisor/entrepreneur/super-admin visibility. Each ships an RLS test proving an unassigned advisor and a different entrepreneur cannot read the rows.
+> - Admin-managed reference tables (`rating_frameworks`, `rating_criteria`, `nz_resources`) are **not** entrepreneur-scoped — they are global/admin and need no per-row RLS (authorisation via policy/permission instead).
+
 - `readiness_assessments` — `entrepreneur_profile_id`, `responses` (jsonb), `outcome` (ready, develop_first, not_yet), `personal_barriers` (jsonb), `assessed_at`
 - `idea_validations` — `entrepreneur_profile_id`, `problem`, `target_customer`, `solution`, `value_proposition`, `demand_signal`, `revenue_model`, `viability_alerts` (jsonb), `advisor_gate_passed_at` (nullable — advisor gate before plan builder opens)
-- `business_plans` — `entrepreneur_profile_id` (nullable), `dd_engagement_id` (nullable — DD-built plan), `status` (building, submitted, assessing, revising, finalised, launched), `current_phase` (1–5), `created_at`
+- `business_plans` — `entrepreneur_profile_id` (nullable), `dd_engagement_id` (nullable — DD-built plan), `status` (building, submitted, assessing, revising, finalised, launched), `current_phase` (1–5), `created_at`. **Owner is exactly one of entrepreneur/DD — enforce `CHECK ((entrepreneur_profile_id IS NOT NULL) <> (dd_engagement_id IS NOT NULL))`** (XOR; neither-nor-both rejected). RLS: an entrepreneur-owned plan scopes via `entrepreneur_profiles` (above); a DD-owned plan scopes via the buyer `client_id` on its `dd_engagement` (DD tables are client-scoped). A test asserts both-set and neither-set inserts fail, and that each owner type is correctly isolated.
 - `plan_phases` / `plan_sections` — `business_plan_id`, `phase` (1–5: foundation, market, strategy, legal_operations, financial), `section`, `body`, `attached_document_ids` (jsonb), `predictive_score` (jsonb — live running estimate, no flattery)
 - `rating_frameworks` — `version`, `status` (draft, published), `industry_variant` (nullable), `published_at`, `published_by_user_id` — **admin-managed, learning-evolved; never hardcoded**
 - `rating_criteria` — `rating_framework_id`, `number` (1–11), `name`, `weight`, `descriptors` (jsonb — per band) — founding 11 seeded from `docs/rating-criteria/Business_Plan_Rating_Matrix.pdf`
@@ -215,11 +225,15 @@ Broker/Coach track:
 DD track:
   WO-75 DD onboarding + questionnaire ─> WO-76 Data room + guest upload ─> WO-77 8 workstreams (spine)
   WO-77 ─> WO-78 DD valuation (reuse PvEngine) ─> WO-80 DD report
-  WO-77 ─> WO-79 DD business plan builder
+  WO-77 + WO-84(!) ─> WO-79 DD business plan builder   [!] blocked until WO-84 (shared plan-builder engine)
   WO-80 ─> WO-81 Post-acquisition pipeline (migration + gap questionnaire + auto-proposal)
 
+  ⚠️ CROSS-TRACK: WO-79 (DD) reuses the plan-builder engine built in WO-84 (Entrepreneur).
+     Implement WO-84 before WO-79. If the DD track must run ahead of the Entrepreneur
+     track, lift the plan-builder engine into a shared earlier WO first.
+
 Entrepreneur track:
-  WO-82 Readiness ─> WO-83 Idea validation (advisor gate) ─> WO-84 5-phase builder
+  WO-82 Readiness ─> WO-83 Idea validation (advisor gate) ─> WO-84 5-phase builder (shared engine, also used by WO-79)
   WO-85 AI-guided building + predictive score ; WO-86 section attachments + verification
   WO-87 Rating framework (founding PDF) ─> WO-88 AI first-pass + advisor assessment
   WO-88 ─> WO-89 Assessment report (4-part + concept PV)
@@ -247,7 +261,14 @@ Workstream-organised storage separate from the standard filing cabinet. Guest up
 The 11 founding criteria (spec §17.6 / Appendix C) seed from `docs/rating-criteria/Business_Plan_Rating_Matrix.pdf`. **Everything is admin-managed** — criteria, weights, scoring descriptors, industry variants — editable from admin settings with no developer involvement, versioned in `rating_frameworks`/`rating_criteria`. The framework evolves only through the governed learning queue along three dimensions (criterion weighting evolution, scoring descriptor calibration, industry-specific variants). Criteria are **hidden during building**, revealed in the assessment-report appendix after finalisation (prevents gaming, enables informed revision). Heightened AI Integrity: the live predictive score reflects real quality with no inflation.
 
 ### 7.4 Proposal sign-off + payment pipeline (WO-66…69)
-The 7-step sign-off (Review → Insurance/Coach Consent → Payment Method → Authority → Digital Signature → Confirmation) drives `proposal_signoff_steps` and flips the proposal through the reserved `awaiting_signature` → `signed` states. Payment uses Stripe (primary) + Windcave (automatic failover) via `ResilientHttp`; **PCI-DSS: gateway tokens only, never raw card data, tokens in `KeyEnvelope`.** Failed payments notify advisor + client immediately, retry, then failover; both failures logged. Every state transition is audited. A gateway outage never produces a false paid/signed state.
+The **7-step** sign-off — `review` → `insurance_consent` → `coach_consent` → `payment_method` → `authority` → `signature` → `confirmation` — drives `proposal_signoff_steps` and flips the proposal through the reserved `awaiting_signature` → `signed` states.
+
+**Exact status rule (resolves the awaiting_signature/signed ambiguity):**
+- The proposal enters **`awaiting_signature`** once steps 1–5 (`review` … `authority`) are complete — i.e. consents elected and a **tokenised payment authority is captured** (the gateway must return a usable token; a gateway failure capturing the authority keeps the proposal pre-signature and raises an alert — it never advances).
+- The proposal becomes **`signed`** when the **`signature` step is captured** (digital signature + `KeyEnvelope` evidence), provided a valid tokenised authority is on file. **`signed` requires signature + tokenised authority — it does NOT require a successful charge.**
+- **Charging is asynchronous and separate (WO-69).** The first and recurring charges run off `payment_schedules`. A failed charge raises a failed-payment alert + retry + Stripe→Windcave failover; **a failed charge never reverts `signed`** and a gateway outage never fabricates a paid/signed state.
+
+Payment uses Stripe (primary) + Windcave (automatic failover) via `ResilientHttp`; **PCI-DSS: gateway tokens only, never raw card data, tokens in `KeyEnvelope`.** Every state transition is audited.
 
 ### 7.5 Learning-queue approval UI + rollback (WO-93/94)
 Surface the existing `learning_updates` candidates as Update Summary Cards (update id, type, source, what changes, impact scope, clients affected, magnitude, confidence, evidence, effective date, before/after preview). Admin decisions: Approve / Approve-with-modified-date / Defer / Reject. Approved updates get a 7-day pre-implementation notice, then implementation, then a 30-day post-implementation review, with rollback restoring prior state. Still **no silent self-modification** — the engine only acts on owner-approved updates.
@@ -274,11 +295,11 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 
 #### WO-66 — Digital proposal sign-off flow (7-step)
 **Spec refs:** §13 (Sign-Off Flow)
-**Goal:** The 7-step flow; insurance/coach consent election (writes `consents`); digital signature (signed-PDF + `KeyEnvelope` evidence); flips `ProposalStatus` through `awaiting_signature` → `signed`.
-**Depends on:** Phase 2 WO-56 (proposal), Phase 1 WO-11 (signed PDF).
+**Goal:** The 7-step flow (`review`, `insurance_consent`, `coach_consent`, `payment_method`, `authority`, `signature`, `confirmation`); insurance + coach consent elections (writes `consents`); tokenised payment-authority capture at the `authority` step; digital signature (signed-PDF + `KeyEnvelope` evidence). Status rule per §7.4: `awaiting_signature` after steps 1–5 (incl. a valid tokenised authority), `signed` on signature capture — **`signed` does not require a successful charge** (charging is WO-69).
+**Depends on:** Phase 2 WO-56 (proposal), Phase 1 WO-11 (signed PDF). (Authority token capture coordinates with WO-67; the `authority` step requires a usable gateway token.)
 **Key files:** `proposal_signoff_steps` table, extend `proposals`, `app/Services/Proposals/SignoffFlow.php`, portal sign-off UI.
-**Acceptance:** all 7 steps enforced in order server-side; consent election stored + revocable from portal settings; signed PDF generated with signature evidence; status reaches `signed` only after the signature step; every transition audited.
-**Tests:** step ordering; consent capture/revoke; signature evidence; status transitions; **a paid/signed state is never reached without the signature step**.
+**Acceptance:** all 7 steps enforced in order server-side; both consent elections stored + revocable from portal settings; `awaiting_signature` only once a tokenised authority exists; `signed` reached only after the `signature` step; signed PDF with evidence; every transition audited.
+**Tests:** 7-step ordering; both consents capture/revoke; `awaiting_signature` blocked without a tokenised authority; `signed` only after signature; **no paid/signed state without the signature step**; gateway outage during authority capture does not advance the proposal.
 **Out of scope:** payment processing (WO-67/68/69).
 
 #### WO-67 — Payment authority schedules
@@ -304,8 +325,8 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 **Goal:** Scheduled processing of `payment_schedules`; `payments` records with retry; receipts (PDF); failed-payment immediate advisor + client notification.
 **Depends on:** WO-68.
 **Key files:** `payments` + `receipts` tables/models, `app/Console/Commands/ProcessScheduledPayments.php`, receipt PDF, alerts.
-**Acceptance:** due schedule charges and records a payment; failure triggers retry then failover then dual notification; receipt PDF generated on success; all audited.
-**Tests:** scheduled charge; failed-payment notification; retry/failover; receipt generation.
+**Acceptance:** due schedule charges and records a payment; failure triggers retry then failover then dual notification; receipt PDF generated on success; all audited; **a failed charge (incl. the first charge) raises an alert but never reverts the proposal's `signed` state** (per the §7.4 status rule — `signed` is independent of charge success).
+**Tests:** scheduled charge; failed-payment notification; retry/failover; receipt generation; **failed first charge does not change proposal status from `signed`**.
 **Out of scope:** none.
 
 ### Broker & Coach track
@@ -396,8 +417,8 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 #### WO-79 — DD business plan builder
 **Spec refs:** §16.3; §17.13
 **Goal:** Business plan builder available during DD; DD findings auto-populate relevant plan sections as workstreams complete; completeness check on "acquisition proceeding". Shares the entrepreneur plan-builder engine.
-**Depends on:** WO-77, WO-84 (plan builder engine).
-**Key files:** `business_plans` linkage (`dd_engagement_id`), `app/Services/Dd/PlanBuilder.php`.
+**Depends on:** WO-77 **and WO-84 (the shared plan-builder engine)**. ⚠️ **Cross-track ordering:** WO-79 is numbered in the DD track but is **blocked until WO-84 lands** — the `business_plans`/`plan_phases`/`plan_sections` engine is built once in WO-84 and reused here. Do **not** start WO-79 before WO-84, regardless of numeric order. (Alternative if the DD track must proceed first: pull the plan-builder engine out of WO-84 into a shared earlier WO — but the default plan is WO-84-first.)
+**Key files:** `business_plans` linkage (`dd_engagement_id`), `app/Services/Dd/PlanBuilder.php` (thin adapter over the WO-84 engine — no duplicate plan-builder logic).
 **Acceptance:** DD findings auto-populate plan sections; completeness check at acquisition-proceeding; DD-built plan becomes the founding plan for the new advisory engagement (WO-81).
 **Tests:** auto-population from workstreams; completeness gate; handoff to advisory.
 **Out of scope:** none.
@@ -424,11 +445,11 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 
 #### WO-82 — Readiness assessment
 **Spec refs:** §17.1
-**Goal:** Entrepreneur onboarding (invite/MFA/T&C/entrepreneur fee proposal — reuse Phase 1/2); 15–20 question readiness assessment → Ready / Develop First / Not Yet, capturing personal-readiness barriers.
-**Depends on:** Phase 1 WO-15 (entrepreneur profile), WO-17 (`entrepreneur_readiness` set).
-**Key files:** `readiness_assessments` table/model, `app/Services/Entrepreneurs/Readiness.php`, entrepreneur portal pages.
-**Acceptance:** assessment produces an outcome; personal barriers recorded; a "Develop First" with personal barriers writes a raw `coaching_signals` row (consumed by WO-73).
-**Tests:** outcome computation; barrier capture; coaching-signal write.
+**Goal:** Entrepreneur onboarding (invite/MFA/T&C/entrepreneur fee proposal — reuse Phase 1/2); 15–20 question readiness assessment → Ready / Develop First / Not Yet, capturing personal-readiness barriers. **Also: retrofit the missing RLS on `entrepreneur_profiles`** (Phase 1 WO-15 created it without a policy) and add the `fsa_current_user_id()` SQL helper — both are prerequisites for entrepreneur-scoped RLS across the track (see §4.5 RLS note).
+**Depends on:** Phase 1 WO-15 (entrepreneur profile), WO-17 (`entrepreneur_readiness` set), WO-02 (RLS harness — extend with `fsa_current_user_id()`).
+**Key files:** `readiness_assessments` table/model + RLS policy, `entrepreneur_profiles` RLS retrofit migration, `fsa_current_user_id()` helper, `app/Services/Entrepreneurs/Readiness.php`, entrepreneur portal pages.
+**Acceptance:** assessment produces an outcome; personal barriers recorded; a "Develop First" with personal barriers writes a raw `coaching_signals` row (consumed by WO-73); **`entrepreneur_profiles` and `readiness_assessments` enforce advisor/entrepreneur/super-admin RLS** (an unassigned advisor and a different entrepreneur see nothing).
+**Tests:** outcome computation; barrier capture; coaching-signal write; **`entrepreneur_profiles` + `readiness_assessments` RLS isolation** (unassigned advisor / other entrepreneur blocked).
 **Out of scope:** idea validation (WO-83).
 
 #### WO-83 — Idea validation
@@ -440,9 +461,9 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 **Tests:** AI evaluation with FakeAiClient; viability alerts; advisor gate.
 **Out of scope:** plan builder (WO-84).
 
-#### WO-84 — 5-phase milestone plan builder
+#### WO-84 — 5-phase milestone plan builder *(shared engine — prerequisite for WO-79)*
 **Spec refs:** §17.1
-**Goal:** 5 phases (Foundation, Market, Strategy, Legal & Operations, Financial) with logical dependencies + dependency warnings when jumping ahead.
+**Goal:** 5 phases (Foundation, Market, Strategy, Legal & Operations, Financial) with logical dependencies + dependency warnings when jumping ahead. **This is the shared plan-builder engine** — the DD plan builder (WO-79) is a thin adapter over it, so WO-84 must land before WO-79.
 **Depends on:** WO-83.
 **Key files:** `business_plans`/`plan_phases`/`plan_sections` tables/models, `app/Services/Entrepreneurs/PlanBuilder.php`, builder UI.
 **Acceptance:** phases ordered with dependencies; dependency warning on jump-ahead; sections persist. (Shared engine reused by DD plan builder WO-79.)
@@ -624,7 +645,7 @@ Same bar as Phase 1/2, plus:
 ## 10. Test strategy (Phase 3 additions)
 
 - **Payment safety tests** — no-PAN-persisted assertion; Stripe→Windcave failover; dual-failure handling; gateway-outage never flips to `signed`/paid.
-- **Sign-off ordering test** — 7 steps enforced; `signed` only after signature.
+- **Sign-off ordering test** — all **7** steps enforced in order; `awaiting_signature` requires a tokenised authority; `signed` only after the `signature` step; a failed/later charge never reverts `signed`.
 - **DD double-weight verification test** — DD uploads block analysis on outstanding flags, double-weighted.
 - **DD disclaimer test** — every DD output renders the liability disclaimer.
 - **Guest-upload security test** — upload-only, no view, virus-scanned, instant revoke, audited.
@@ -632,7 +653,8 @@ Same bar as Phase 1/2, plus:
 - **Rating-framework governance test** — framework changes only via the governed queue; never hardcoded.
 - **Learning approval/rollback tests** — no auto-implement; 4 decisions; rollback restores state.
 - **Panel isolation tests** — broker/coach portals are RLS/permission-isolated; reverse referral grants no platform access.
-- **RLS tests** — every new client-scoped table (goals, milestones, proposals' children, panel/referral, all `dd_*`, entrepreneur tables, etc.).
+- **RLS tests** — every new client-scoped table (goals, milestones, proposals' children, panel/referral, all `dd_*`). **Entrepreneur-scoped tables** (incl. the retrofitted `entrepreneur_profiles`) get their own RLS tests proving advisor/entrepreneur/super-admin visibility via `entrepreneur_profiles` ownership — an unassigned advisor and a different entrepreneur are blocked (see §4.5).
+- **XOR-ownership constraint tests** — `referrals` (client XOR entrepreneur) and `business_plans` (entrepreneur XOR DD) reject both-set and neither-set inserts at the DB level; `reverse_referrals` rejects both `created_*` set.
 - **`FakeAiClient` everywhere; live client never bound in `testing`.**
 
 ## 11. Phase 4 — what comes after (unchanged roadmap)
