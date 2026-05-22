@@ -85,6 +85,13 @@ final class PromptRegistry
             body: 'Check New Zealand compliance evidence against ERA, Health and Safety at Work Act, Holidays Act, Privacy Act, and Companies Act obligations. Return severity-rated, legislatively current findings with statute citations.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.insurance_risk',
+            version: '2026-05-wo52',
+            body: 'Detect insurance coverage gaps from client evidence and uploaded certificates. Verify coverage type, amount, and expiry evidence. Return evidence-based insurance risk flags only.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

@@ -871,3 +871,9 @@ WO-51 adds no tables or columns. Regulatory impact assessment writes to existing
 `analysis_runs` and `analysis_findings`, and links financial exposure through
 existing `risk_costs` / `pv_calculations` rows by setting
 `analysis_findings.pv_link_id`.
+
+## WO-52 - Insurance risk flags
+
+WO-52 adds no tables or columns. Insurance risk flags are governed
+`analysis_findings` under module `insurance_risk`, citing questionnaire answers
+and verified `insurance_certificate` documents for future broker-referral use.

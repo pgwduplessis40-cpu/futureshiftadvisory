@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-51 complete (next: WO-52).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-52 complete (next: WO-53).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **51 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-51 complete |
+| Work orders complete | **52 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-52 complete |
 | Work orders in progress | none |
-| Next work order | **WO-52** - Insurance risk flags |
+| Next work order | **WO-53** - Scenario planning |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-51 verified locally. `composer test` passed (Pint + PHPUnit **252 tests / 1790 assertions**) against PostgreSQL `futureshift_test`; WO-51 targeted tests passed **1 test / 12 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-52 verified locally. `composer test` passed (Pint + PHPUnit **253 tests / 1801 assertions**) against PostgreSQL `futureshift_test`; WO-52 targeted tests passed **1 test / 11 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -71,7 +71,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-48 | `0281ee3` | HR and people analysis | Spine-native HR analysis with wage benchmarking, verified HR-document support, and Holidays Act liability quantification. |
 | WO-49 | `0b0ee88` | Operational analysis + systems review | Spine-native operational bottleneck and systems integration analysis modules with cited findings. |
 | WO-50 | `37825fb` | NZ compliance checker + legislative currency | Spine-native compliance checker with statute citations, verified document support, and governed legislative-currency candidates. |
-| WO-51 | this commit | Regulatory change impact assessment | Legislative-change candidates produce client impact findings with compliance actions and risk-cost PV linkage. |
+| WO-51 | `f7464e8` | Regulatory change impact assessment | Legislative-change candidates produce client impact findings with compliance actions and risk-cost PV linkage. |
+| WO-52 | this commit | Insurance risk flags | Spine-native insurance risk module flags coverage gaps with verified certificate support for future broker referral. |
 
 ## Completed WO Details
 
@@ -494,6 +495,17 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover impact generation, recommended actions, risk-cost row creation, and PV linkage.
 - Architecture docs: `docs/architecture/regulatory-impact.md` and `docs/architecture/schema.md`.
 
+### WO-52 - Insurance Risk Flags
+
+- `InsuranceRiskFlags` implements the shared `AnalysisModule` contract with prompt id `analysis.insurance_risk`.
+- The module reads insurance, coverage, certificate, policy, public-liability, professional-indemnity, and key-person evidence from questionnaire answers.
+- Verified `insurance_certificate` documents stamp findings with `document_support=verified` and document citations.
+- Coverage gaps flag missing or low public liability, missing professional indemnity, missing key person cover, and expired certificate evidence.
+- Flags are recorded as governed analysis findings for future broker-referral workflows.
+- WO-52 adds no schema and does not create broker referrals.
+- Tests cover gap detection, certificate verification support, and document citations.
+- Architecture docs: `docs/architecture/insurance-risk-flags.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -505,22 +517,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-51:
+Results after WO-52:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 252 tests, 1790 assertions.
-- `php artisan test tests\Feature\Analysis\RegulatoryImpactAssessorTest.php` (WO-51 targeted): passed - 1 test, 12 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 253 tests, 1801 assertions.
+- `php artisan test tests\Feature\Analysis\InsuranceRiskFlagsTest.php` (WO-52 targeted): passed - 1 test, 11 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 51 distinct WO commits (WO-01...WO-51) on `featureApp`.
+- Git history after this commit: 52 distinct WO commits (WO-01...WO-52) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-51 are complete. WO-52 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-52 are complete. WO-53 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-51; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-52; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 
