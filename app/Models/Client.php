@@ -134,6 +134,14 @@ final class Client extends Model
         return $this->hasMany(SuccessionPlan::class);
     }
 
+    /**
+     * @return HasMany<FeeCalculation>
+     */
+    public function feeCalculations(): HasMany
+    {
+        return $this->hasMany(FeeCalculation::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

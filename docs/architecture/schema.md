@@ -929,3 +929,27 @@ target exit PV through the shared PV ledger, and writes a raw
 `coaching_signals.owner_readiness_primary_constraint` row only when owner
 readiness is the primary constraint. The coaching signal remains a Phase 2 raw
 observation; it does not trigger coach referral logic.
+
+## WO-55 - Fee calculator
+
+### `fee_calculations`
+
+Client-scoped ledger for Phase 2 fee suggestions.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `method` (`hours_based`, `outcome_based`, `entrepreneur`)
+- `inputs` JSONB
+- `suggested_low`, `suggested_mid`, `suggested_high`
+- `improvement_pv_total`
+- `risk_cost_pv_total`
+- `roi_ratio`
+- `justification` JSONB
+- `created_by_user_id`
+
+Client-scoped RLS applies. Outcome-based calculations store direct references to
+improvement PV, risk-cost PV, annual revenue, complexity, and ROI basis.
+Entrepreneur calculations are a distinct lower-entry path and do not introduce
+payment collection or signature workflow.

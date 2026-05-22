@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-54 complete (next: WO-55).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-55 complete (next: WO-56).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **54 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-54 complete |
+| Work orders complete | **55 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-55 complete |
 | Work orders in progress | none |
-| Next work order | **WO-55** - Fee calculator |
+| Next work order | **WO-56** - Fee proposal generation + release control + expiry |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-54 verified locally. `composer test` passed (Pint + PHPUnit **260 tests / 1860 assertions**) against PostgreSQL `futureshift_test`; WO-54 targeted tests passed **3 tests / 27 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-55 verified locally. `composer test` passed (Pint + PHPUnit **264 tests / 1882 assertions**) against PostgreSQL `futureshift_test`; WO-55 targeted tests passed **4 tests / 22 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -74,7 +74,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-51 | `f7464e8` | Regulatory change impact assessment | Legislative-change candidates produce client impact findings with compliance actions and risk-cost PV linkage. |
 | WO-52 | `b26cf77` | Insurance risk flags | Spine-native insurance risk module flags coverage gaps with verified certificate support for future broker referral. |
 | WO-53 | `e45c25a` | Scenario planning | Five named scenarios with economic overlay, per-scenario PV impact, RLS, and advisor/client read-only dashboard visibility. |
-| WO-54 | this commit | Succession planning | Exit-readiness scoring, assessed options, owner-dependency plan, target exit PV, RLS, and raw owner-readiness coaching observation. |
+| WO-54 | `e92d47f` | Succession planning | Exit-readiness scoring, assessed options, owner-dependency plan, target exit PV, RLS, and raw owner-readiness coaching observation. |
+| WO-55 | this commit | Fee calculator | Hours-based, outcome-based, and entrepreneur fee suggestions with PV-referenced ROI and RLS. |
 
 ## Completed WO Details
 
@@ -526,6 +527,16 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover readiness scoring, options persistence, target exit PV attribution, raw coaching-signal boundary, no Phase 2 notification/red-flag side effect, and succession-plan RLS isolation.
 - Architecture docs: `docs/architecture/succession-planning.md` and `docs/architecture/schema.md`.
 
+### WO-55 - Fee Calculator
+
+- `fee_calculations` stores client-scoped fee suggestions with method, inputs, low/mid/high range, improvement PV total, risk-cost PV total, ROI ratio, structured justification, and RLS.
+- `FeeCalculator` supports hours-based fees from per-service hours and rates, with optional retainer conversion.
+- Outcome-based fees directly reference current improvement PV, risk-cost PV, annual revenue, and complexity in the persisted justification.
+- `roi_ratio` is calculated as `improvement_pv_total / suggested_mid`, matching the Phase 2 requirement that ROI is improvement-PV based.
+- The entrepreneur method is a distinct lower-entry path and deliberately stops before payment collection or proposal signature workflow.
+- Tests cover all three methods, PV-referenced outcome justification, ROI ratio, entrepreneur lower-entry structure, and fee-calculation RLS isolation.
+- Architecture docs: `docs/architecture/fee-calculator.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -537,22 +548,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-54:
+Results after WO-55:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 260 tests, 1860 assertions.
-- `php artisan test tests\Feature\Analysis\SuccessionPlannerTest.php` (WO-54 targeted): passed - 3 tests, 27 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 264 tests, 1882 assertions.
+- `php artisan test tests\Feature\Fees\FeeCalculatorTest.php` (WO-55 targeted): passed - 4 tests, 22 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 54 distinct WO commits (WO-01...WO-54) on `featureApp`.
+- Git history after this commit: 55 distinct WO commits (WO-01...WO-55) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-54 are complete. WO-55 is next.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-55 are complete. WO-56 is next.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-54; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-55; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 
