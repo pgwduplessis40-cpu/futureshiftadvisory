@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     Clock,
     Inbox,
+    PieChart,
     PlugZap,
     ShieldAlert,
     TrendingUp,
@@ -181,6 +182,41 @@ type PvWaterfallPayload = {
     }>;
 };
 
+type PracticeHealthPayload = {
+    summary: {
+        active_clients: number;
+        clients_with_pv: number;
+        current_pv: number;
+        improvement_pv: number;
+        risk_mitigation_pv: number;
+        target_pv: number;
+        revenue_under_management: number;
+    };
+    phase_two: {
+        released_proposals: number;
+        open_red_flags: number;
+        generated_reports: number;
+        funnel_events: number;
+        funnel_worst_drop_off_rate: number;
+        proposal_statuses: Record<string, number>;
+    };
+    clients: Array<{
+        client_id: string;
+        client_name: string;
+        current_pv: number;
+        improvement_pv: number;
+        risk_mitigation_pv: number;
+        target_pv: number;
+        revenue_under_management: number;
+        released_proposals: number;
+        generated_reports: number;
+        open_red_flags: number;
+        latest_valuation_at: string | null;
+        latest_revenue_period_end: string | null;
+    }>;
+    generated_at: string;
+};
+
 type ScenarioPlanningPayload = {
     summary: {
         scenarios: number;
@@ -224,6 +260,7 @@ type Props = {
     integrationHealth: IntegrationHealthPayload;
     economicIndicators: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
+    practiceHealth: PracticeHealthPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
 };
@@ -237,6 +274,7 @@ export default function AdvisorDashboard({
     integrationHealth,
     economicIndicators,
     pvWaterfall,
+    practiceHealth,
     scenarioPlanning,
     funnelAnalytics,
 }: Props) {
@@ -295,12 +333,13 @@ export default function AdvisorDashboard({
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
+                    <PracticeHealth payload={practiceHealth} />
                     <PvWaterfallPanel payload={pvWaterfall} />
                     <ScenarioPlanning payload={scenarioPlanning} />
-                    <ProspectInbox payload={prospectInbox} />
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-3">
+                    <ProspectInbox payload={prospectInbox} />
                     <EconomicIndicators payload={economicIndicators} />
                     <IntegrationHealth payload={integrationHealth} />
                     <FunnelAnalytics payload={funnelAnalytics} />
@@ -309,6 +348,88 @@ export default function AdvisorDashboard({
                 <UpcomingPanels />
             </div>
         </>
+    );
+}
+
+function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
+    const topClients = [...payload.clients]
+        .sort((a, b) => b.target_pv - a.target_pv)
+        .slice(0, 4);
+
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <PieChart className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Practice health</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.active_clients} active
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.phase_two.open_red_flags > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.phase_two.open_red_flags} red flags
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-2">
+                <PortfolioMetric
+                    label="Target PV"
+                    value={formatCurrency(payload.summary.target_pv)}
+                />
+                <PortfolioMetric
+                    label="Revenue"
+                    value={formatCurrency(
+                        payload.summary.revenue_under_management,
+                    )}
+                />
+                <PortfolioMetric
+                    label="Released proposals"
+                    value={payload.phase_two.released_proposals.toString()}
+                />
+                <PortfolioMetric
+                    label="Reports"
+                    value={payload.phase_two.generated_reports.toString()}
+                />
+            </div>
+
+            {topClients.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No active client PV portfolio yet.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {topClients.map((client) => (
+                        <div
+                            key={client.client_id}
+                            className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="truncate text-sm font-medium">
+                                    {client.client_name}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    Revenue{' '}
+                                    {formatCurrency(
+                                        client.revenue_under_management,
+                                    )}
+                                </div>
+                            </div>
+                            <div className="text-sm font-medium sm:text-right">
+                                {formatCurrency(client.target_pv)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -568,6 +689,15 @@ function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function PortfolioMetric({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-md border px-3 py-2">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-1 text-sm font-medium">{value}</div>
+        </div>
     );
 }
 

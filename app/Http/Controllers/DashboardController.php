@@ -24,6 +24,7 @@ use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Pv\PvWaterfallBuilder;
+use App\Services\Reports\PracticeHealthReport;
 use App\Services\Terms\TermsAcceptanceGate;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
@@ -42,6 +43,7 @@ final class DashboardController extends Controller
         TermsAcceptanceGate $termsGate,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
+        PracticeHealthReport $practiceHealth,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -58,7 +60,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels, $practiceHealth));
         }
 
         return Inertia::render('dashboard');
@@ -67,8 +69,13 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function advisorDashboardPayload(User $user, TermsAcceptanceGate $termsGate, PvWaterfallBuilder $pvWaterfalls, FunnelTracker $funnels): array
-    {
+    private function advisorDashboardPayload(
+        User $user,
+        TermsAcceptanceGate $termsGate,
+        PvWaterfallBuilder $pvWaterfalls,
+        FunnelTracker $funnels,
+        PracticeHealthReport $practiceHealth,
+    ): array {
         $clientIds = $this->visibleClientIds($user);
 
         return [
@@ -80,6 +87,7 @@ final class DashboardController extends Controller
             'integrationHealth' => $this->integrationHealth($user),
             'economicIndicators' => $this->economicIndicators(),
             'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
+            'practiceHealth' => $practiceHealth->forClientIds($clientIds),
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
             'funnelAnalytics' => $funnels->summary($clientIds),
         ];

@@ -2,6 +2,7 @@
 
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
+use App\Console\Commands\CreatePracticeHealthSnapshots;
 use App\Console\Commands\ExpireProposals;
 use App\Console\Commands\GenerateMonthlyIndustryBriefings;
 use App\Console\Commands\GeneratePreMeetingBriefs;
@@ -156,6 +157,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunFunnelAnalyticsLayer::class)
             ->monthlyOn(1, '03:45')
             ->name('fsa-funnel-analytics-learning-layer')
+            ->withoutOverlapping();
+
+        $schedule->command(CreatePracticeHealthSnapshots::class, ['--all-advisors' => true])
+            ->monthlyOn(1, '04:15')
+            ->name('fsa-practice-health-snapshots')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

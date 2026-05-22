@@ -1139,3 +1139,25 @@ Client-scoped RLS applies when `client_id` is present. User-only rows are
 visible to the matching user; system and super-admin roles can see all rows.
 The WO-61 governed learning layer writes UX-improvement candidates into
 `learning_updates` with `layer_id = 15` and `status = detected`.
+
+## WO-62 - Practice health report
+
+### `practice_health_snapshots`
+
+Monthly cached portfolio health reports for the whole practice or for one
+advisor's active-client portfolio.
+
+Key columns:
+
+- `id` UUID primary key
+- `scope` (`super_admin` or `advisor`)
+- `advisor_user_id` nullable user id for advisor-scoped snapshots
+- `client_ids` JSONB list of client IDs represented by the snapshot
+- `metrics` JSONB payload from `PracticeHealthReport`
+- `generated_at`
+
+System and super-admin roles can see all rows. Advisor rows are visible only
+when `advisor_user_id::text = fsa_current_user_id()`. The metrics payload
+contains active-client count, current PV, improvement PV, risk-mitigation PV,
+target PV, revenue under management, proposal/report/red-flag counts, and
+funnel summary signals.
