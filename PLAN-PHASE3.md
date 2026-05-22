@@ -71,7 +71,7 @@ Inventory at handoff: 52 migrations · 60 models · 81 feature tests · 9 unit-t
 
 > **Running the suite locally.** As in Phase 2: on a standalone PostgreSQL install you must point the test connection at real credentials via the process environment (`DB_HOST/DB_PORT/DB_DATABASE=futureshift_test/DB_USERNAME/DB_PASSWORD`) before `php artisan test`, because `.env.testing` ships Herd defaults. The test DB is separate from dev (`RefreshDatabase` wipes it). Never commit local DB credentials.
 
-**Carryover owner inputs that now hard-block Phase 3 surfaces:** Anthropic API key (DD/entrepreneur AI), Stripe + Windcave merchant accounts (commerce — onboarding takes weeks, start now), FSP Register access (broker validation), PPSR/LINZ/IPONZ access (DD legal workstream), ~~`Business_Plan_Rating_Matrix.pdf`~~ **(now supplied — P3-R3 closed; the remaining entrepreneur gate is the owner's spec-vs-PDF reconciliation, P3-R3a)**, lawyer-reviewed T&C + panel agreement + DD disclaimer text, Whisper credentials (voice-to-text). Tracked in §12.
+**Carryover owner inputs that now hard-block Phase 3 surfaces:** Anthropic API key (DD/entrepreneur AI), Stripe + Windcave merchant accounts (commerce — onboarding takes weeks, start now), FSP Register access (broker validation), PPSR/LINZ/IPONZ access (DD legal workstream), ~~`Business_Plan_Rating_Matrix.pdf`~~ **(supplied; P3-R3 + P3-R3a closed — framework follows the spec's 11 criteria; founding weights/descriptors are owner-set in WO-87b before go-live)**, lawyer-reviewed T&C + panel agreement + DD disclaimer text, Whisper credentials (voice-to-text). Tracked in §12.
 
 ---
 
@@ -151,8 +151,8 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, audit via `AuditW
 - `idea_validations` — `entrepreneur_profile_id`, `problem`, `target_customer`, `solution`, `value_proposition`, `demand_signal`, `revenue_model`, `viability_alerts` (jsonb), `advisor_gate_passed_at` (nullable — advisor gate before plan builder opens)
 - `business_plans` — `entrepreneur_profile_id` (nullable), `dd_engagement_id` (nullable — DD-built plan), `status` (building, submitted, assessing, revising, finalised, launched), `current_phase` (1–5), `created_at`. **Owner is exactly one of entrepreneur/DD — enforce `CHECK ((entrepreneur_profile_id IS NOT NULL) <> (dd_engagement_id IS NOT NULL))`** (XOR; neither-nor-both rejected). RLS: an entrepreneur-owned plan scopes via `entrepreneur_profiles` (above); a DD-owned plan scopes via the buyer `client_id` on its `dd_engagement` (DD tables are client-scoped). A test asserts both-set and neither-set inserts fail, and that each owner type is correctly isolated.
 - `plan_phases` / `plan_sections` — `business_plan_id`, `phase` (1–5: foundation, market, strategy, legal_operations, financial), `section`, `body`, `attached_document_ids` (jsonb), `predictive_score` (jsonb — live running estimate, no flattery)
-- `rating_frameworks` — `version`, `status` (draft, published), `industry_variant` (nullable), `production_ready` (bool — false until WO-87b confirms founding values), `published_at`, `published_by_user_id` — **admin-managed, learning-evolved; never hardcoded**
-- `rating_criteria` — `rating_framework_id`, `number` (1–10), `name`, `weight`, `supporting_aspects` (jsonb), `descriptors` (jsonb — 4-point band scale 30/50/60/80%), `is_placeholder` (bool) — the **10 weighted Main Aspects** (sum 100%) seed in WO-87a from `docs/rating-criteria/founding-rating-matrix.md` (transcribed from the now-present PDF), flagged `is_placeholder=true` pending the WO-87b owner reconciliation (P3-R3a). **Note:** the spec §17.6 / Appendix C "11 criteria" are actually the supporting aspects of the *Business Overview* main aspect — see `founding-rating-matrix.md`.
+- `rating_frameworks` — `version`, `status` (draft, published), `industry_variant` (nullable), `production_ready` (bool — false until WO-87b sets founding weights/descriptors), `published_at`, `published_by_user_id` — **admin-managed, learning-evolved; never hardcoded**
+- `rating_criteria` — `rating_framework_id`, `number` (1–11), `name`, `weight`, `descriptors` (jsonb — per band), `is_placeholder` (bool) — the **11 founding criteria** (spec §17.6 / Appendix C: Type of business; Location; Means of doing business; Discuss the industry; What sets the business apart; Describe unique success factors; Mission and Vision statement; Intellectual property; Goals and objectives; Culture; Legal Environment) seed in WO-87a; weights/descriptors are admin-managed (placeholder until WO-87b). Owner decision (P3-R3a, 2026-05-23): framework follows the spec's 11-item list; the rating-matrix PDF was its starting point and is retained as historical reference only.
 - `plan_assessments` — `business_plan_id`, `round`, `rating_framework_id`, `ai_scores` (jsonb — first-pass per criterion), `advisor_scores` (jsonb — adjusted, each with mandatory note), `mentor_notes` (jsonb — per-section visible, overall visible, **private advisory note advisor-only**), `document_support` (jsonb — affects criterion score), `overall_grade` (exceptional, strong, developing, needs_work), `concept_pv_calculation_id`, `finalised_at`, `finalised_by_user_id`
 - `plan_revisions` — `business_plan_id`, `round`, `submitted_at`, `progress_comparison` (jsonb — per-criterion deltas, trajectory %)
 - `nz_resources` — `industry`, `business_type`, `title`, `url`, `gap_tags` (jsonb) — admin-managed resource layer; AI recommends by industry/type/gap
@@ -239,8 +239,8 @@ DD track:
 Entrepreneur track:
   WO-82 Readiness ─> WO-83 Idea validation (advisor gate) ─> WO-84 5-phase builder (shared engine, also used by WO-79)
   WO-85 AI-guided building + predictive score ; WO-86 section attachments + verification
-  WO-87a Rating framework engine (build now) ─> WO-88 AI first-pass + advisor assessment
-  WO-87b Confirm founding values [PDF present; ⛔ blocked on owner spec-vs-PDF reconciliation P3-R3a — gates entrepreneur GO-LIVE, not WO-88 dev]
+  WO-87a Rating framework engine — seeds spec's 11 criteria (build now) ─> WO-88 AI first-pass + advisor assessment
+  WO-87b Owner sets founding weights/descriptors via admin editor [gates entrepreneur GO-LIVE, not WO-88 dev]
   WO-88 ─> WO-89 Assessment report (4-part + concept PV)
   WO-90 Resubmission/round progress ; WO-91 benchmarking + readiness + living plan
   WO-92 Advisory conversion + DD plan integration
@@ -263,7 +263,7 @@ Spec §14/§15 explicitly state the Coach Panel uses the **same structural model
 Workstream-organised storage separate from the standard filing cabinet. Guest upload is a **tokenised link, not an account**: upload-only, cannot view anything, virus-scanned through `SecureFileWriter`, audit-logged, instantly revocable. Reuse the document pipeline; tag items with `Document` category `dd_artifact` and the workstream. Double-weight document verification for DD (spec §9 — direct buyer financial consequences).
 
 ### 7.3 Entrepreneur rating framework (WO-87a engine / WO-87b founding values) — admin-managed, learning-driven
-The founding matrix PDF is **now in the repo** (`docs/rating-criteria/Business_Plan_Rating_Matrix.pdf`, transcribed in `founding-rating-matrix.md`). It scores **10 weighted Main Aspects** (sum 100%) on a 4-point scale (30/50/60/80%) — **not** the 11 items spec §17.6/Appendix C named (those are the supporting aspects of the *Business Overview* aspect). **WO-87a** builds the engine + admin editor and seeds the 10 real aspects; **WO-87b** records the owner's spec-vs-PDF reconciliation (**P3-R3a**) and flips the framework to production-ready. **Everything is admin-managed** — criteria, weights, scoring descriptors, industry variants — editable from admin settings with no developer involvement, versioned in `rating_frameworks`/`rating_criteria`. The framework evolves only through the governed learning queue along three dimensions (criterion weighting evolution, scoring descriptor calibration, industry-specific variants). Criteria are **hidden during building**, revealed in the assessment-report appendix after finalisation (prevents gaming, enables informed revision). Heightened AI Integrity: the live predictive score reflects real quality with no inflation.
+The framework follows the **11 founding criteria** in spec §17.6 / Appendix C (owner decision P3-R3a, 2026-05-23: the rating-matrix PDF was the *starting point* for developing the spec; the spec is the refined authoritative version). The PDF (`docs/rating-criteria/Business_Plan_Rating_Matrix.pdf` + `founding-rating-matrix.md`) is retained as **historical reference** the advisor may draw on when setting admin-managed weights/descriptors. **WO-87a** builds the engine + admin editor and seeds the 11 criterion names (placeholder weights/descriptors); **WO-87b** is the owner setting the founding weights/descriptors/variants via the admin editor and flipping the framework to production-ready. **Everything is admin-managed** — criteria, weights, scoring descriptors, industry variants — editable from admin settings with no developer involvement, versioned in `rating_frameworks`/`rating_criteria`. The framework evolves only through the governed learning queue along three dimensions (criterion weighting evolution, scoring descriptor calibration, industry-specific variants). Criteria are **hidden during building**, revealed in the assessment-report appendix after finalisation (prevents gaming, enables informed revision). Heightened AI Integrity: the live predictive score reflects real quality with no inflation.
 
 ### 7.4 Proposal sign-off + payment pipeline (WO-66…69)
 The **7-step** sign-off — `review` → `insurance_consent` → `coach_consent` → `payment_method` → `authority` → `signature` → `confirmation` — drives `proposal_signoff_steps` and flips the proposal through the reserved `awaiting_signature` → `signed` states.
@@ -494,29 +494,29 @@ Every entrepreneur-facing AI output (predictive score, gap detection, industry r
 **Out of scope:** scoring mechanics (WO-88).
 
 #### WO-87a — Admin-managed rating framework engine *(buildable now)*
-**Spec refs:** §17.4; §17.6; Appendix C; **the actual matrix in `docs/rating-criteria/founding-rating-matrix.md`**
-**Goal:** The admin-managed framework engine: `rating_frameworks`/`rating_criteria` tables, the admin framework editor (edit criteria/weights/per-band descriptors/industry variants with **no code change**), versioning, and the governed-queue evolution path (3 dimensions). Seed the **10 weighted Main Aspects** (Executive Summary 5%, Product/Service 11%, Competitive Analysis 11%, Risk Analysis 11%, Market Analysis 11%, Sales & Marketing 11%, Management Team 10%, Operational Plan 10%, Financial Plan 15%, Business Overview 5% — sum 100%, from the real matrix) with their supporting aspects, scored on the matrix's 4-point scale (30/50/60/80% = 1/2/3/4). Mark them `is_placeholder=true` until WO-87b confirms (the structure is real; the placeholder flag just gates production-readiness pending the §P3-R3a reconciliation).
+**Spec refs:** §17.4; §17.6; Appendix C
+**Goal:** The admin-managed framework engine: `rating_frameworks`/`rating_criteria` tables, the admin framework editor (edit criteria/weights/per-band descriptors/industry variants with **no code change**), versioning, and the governed-queue evolution path (3 dimensions). Seed the **11 founding criteria** from spec §17.6 / Appendix C (owner decision 2026-05-23: the framework follows the spec's 11-item list — the rating-matrix PDF was its *starting point*, the spec is the refined authoritative version; see P3-R3a). The 11 criterion names are fixed by the spec; weights, per-band scoring descriptors, and industry variants are **admin-managed** — seed with placeholder defaults flagged `is_placeholder=true` until WO-87b. Overall-grade bands per spec §17.5 (Exceptional 90%+, Strong 75–89%, Developing 60–74%, Needs Work <60%).
 **Depends on:** Phase 2 learning-queue scaffolding.
-**Key files:** `rating_frameworks`/`rating_criteria` tables/models, admin framework editor UI, seeder reading `docs/rating-criteria/founding-rating-matrix.md`.
-**Acceptance:** the 10 weighted Main Aspects + supporting aspects seed (weights sum to 100%); admin can edit weights/descriptors/variants without code; changes versioned; the 4-point band scale captured; learning-driven changes go through the governed queue (no hardcoding, no silent update); **framework flagged "not production-ready" until WO-87b.**
-**Tests:** seed structure (10 aspects, weights = 100%, 4-point scale); admin edit + version; governed-change path; placeholder/production-ready flag surfaced.
-**Out of scope:** confirming/finalising founding values (WO-87b); scoring (WO-88).
+**Key files:** `rating_frameworks`/`rating_criteria` tables/models, admin framework editor UI, criteria seeder (11 names from spec §17.6 / Appendix C; placeholder weights/descriptors flagged `is_placeholder=true`).
+**Acceptance:** the 11 founding criteria seed (names per spec) with placeholder weights/descriptors flagged placeholder; admin can edit weights/descriptors/variants without code; changes versioned; overall-grade bands match §17.5; learning-driven changes go through the governed queue (no hardcoding, no silent update); **framework flagged "not production-ready" until WO-87b sets real values.**
+**Tests:** 11-criteria seed; admin edit + version; grade-band thresholds; governed-change path; placeholder/production-ready flag surfaced.
+**Out of scope:** the real founding weights/descriptors (WO-87b); scoring (WO-88).
 
-#### WO-87b — Confirm & finalise founding values *(needs owner reconciliation — P3-R3a)*
-**Spec refs:** §17.6; Appendix C; `docs/rating-criteria/founding-rating-matrix.md`
-**Goal:** The PDF is **present** (`docs/rating-criteria/Business_Plan_Rating_Matrix.pdf`, transcribed in `founding-rating-matrix.md`), so the founding values are known. This WO records the **owner's reconciliation decision** — whether the framework follows the **real PDF (10 weighted Main Aspects — recommended)** or the spec's narrower 11-item list — then clears the `is_placeholder` flags and sets `production_ready=true`. If the real matrix is confirmed, WO-87a's seed is already correct and this is mostly the sign-off + flag flip; any owner edits go through the admin editor.
-**Depends on:** WO-87a. ⛔ **Blocked on the owner's spec-vs-PDF reconciliation decision (P3-R3a)** — *not* on the PDF (which is now in the repo). Does **not** block WO-88/89 *development*; it blocks entrepreneur **go-live**.
-**Key files:** founding-values confirmation/seed step (largely data + flag flip via the WO-87a editor).
-**Acceptance:** owner reconciliation recorded; criteria carry the confirmed weights/descriptors/variants matching `founding-rating-matrix.md` (or the owner's edits); placeholder flags cleared; `production_ready=true`.
-**Tests:** values match the confirmed source; placeholder flags cleared; production-ready gate flips.
+#### WO-87b — Set founding weights & scoring descriptors *(owner data-entry via admin editor)*
+**Spec refs:** §17.4; §17.6; Appendix C
+**Goal:** The owner sets the **founding weights, per-band scoring descriptors, and any industry variants** for the 11 criteria via the WO-87a admin editor (the spec leaves these admin-managed — there are no spec-mandated values). The historical rating-matrix PDF (`docs/rating-criteria/Business_Plan_Rating_Matrix.pdf` + `founding-rating-matrix.md`) is available as reference the advisor may draw on. Clear `is_placeholder`; set `production_ready=true`.
+**Depends on:** WO-87a; **owner-entered founding weights/descriptors.** ⛔ **Blocked on owner data-entry** (the values are admin-managed, not in the spec or PDF as a fixed set). Does **not** block WO-88/89 *development* (they run against the WO-87a placeholder framework); it gates entrepreneur **go-live**.
+**Key files:** founding values entered via the WO-87a editor (likely no code) + a confirmation/seed step that flips the flags.
+**Acceptance:** the 11 criteria carry the owner-set weights + descriptors + any industry variants; placeholder flags cleared; `production_ready=true`.
+**Tests:** values persisted + production-ready gate flips; placeholder flags cleared.
 **Out of scope:** none.
 
 #### WO-88 — AI first-pass scoring + advisor assessment + mentor notes
 **Spec refs:** §17.5
-**Goal:** AI first-pass scores all **10 weighted Main Aspects** on submission using the current framework; advisor adjusts any score with a **mandatory note** (each adjustment teaches the AI via the governed queue); mentor notes (per-section visible, overall visible, **private advisory note advisor-only**); criteria hidden during building, revealed in the report appendix.
-**Depends on:** **WO-87a** (the framework engine — WO-88 develops/tests against it), WO-86, Phase 2 WO-31 (spine), WO-32 (feedback). Real entrepreneur assessments require **WO-87b** (confirmed founding values) before go-live.
+**Goal:** AI first-pass scores all **11 criteria** on submission using the current framework; advisor adjusts any score with a **mandatory note** (each adjustment teaches the AI via the governed queue); mentor notes (per-section visible, overall visible, **private advisory note advisor-only**); criteria hidden during building, revealed in the report appendix.
+**Depends on:** **WO-87a** (the framework engine — WO-88 develops/tests against it), WO-86, Phase 2 WO-31 (spine), WO-32 (feedback). Real entrepreneur assessments require **WO-87b** (founding values) before go-live.
 **Key files:** `plan_assessments` table/model, `app/Services/Entrepreneurs/Assessment.php`.
-**Acceptance:** AI scores all 10 weighted aspects; advisor adjustment requires a note and emits a governed learning candidate; private advisory note never visible to the entrepreneur; criteria hidden until finalisation.
+**Acceptance:** AI scores all 11 criteria; advisor adjustment requires a note and emits a governed learning candidate; private advisory note never visible to the entrepreneur; criteria hidden until finalisation.
 **Tests:** first-pass scoring; mandatory-note enforcement; private-note visibility; criteria hidden/revealed.
 **Out of scope:** report (WO-89).
 
@@ -683,7 +683,7 @@ See `PLAN.md` §11. Phase 4: full continuous-learning engine (32 layers active),
 | P3-R1 | Stripe + Windcave **merchant onboarding takes weeks** + PCI-DSS attestation | Start merchant applications immediately | Before WO-68 live |
 | P3-R2 | Payment is the highest-risk surface — needs NZ-qualified review (spec §27) before real charges | Engage reviewer | Before WO-69 production |
 | P3-R3 | ~~`Business_Plan_Rating_Matrix.pdf` missing~~ — **RESOLVED 2026-05-23.** PDF supplied and in `docs/rating-criteria/`, transcribed to `founding-rating-matrix.md`. | — | Closed |
-| P3-R3a | **Spec §17.6/Appendix C vs the real PDF disagree.** Spec named 11 "criteria"; the PDF scores **10 weighted Main Aspects** (the 11 are the *Business Overview* supporting aspects). The framework must follow one or the other. | Owner confirms: follow the real PDF (10 weighted aspects — recommended) or the spec's 11-item list | Before WO-87b finalisation / entrepreneur go-live (does **not** block WO-87a/88/89 development) |
+| P3-R3a | ~~Spec §17.6/Appendix C vs the PDF disagree~~ — **RESOLVED 2026-05-23.** Owner decision: the PDF was the *starting point* for developing the spec; **the framework follows the spec's 11-item list** (§17.6 / Appendix C). PDF retained as historical reference. WO-87a seeds the 11 criteria; WO-87b is owner data-entry of admin-managed weights/descriptors. | — | Closed (founding weights/descriptors still owner-set in WO-87b before go-live) |
 | P3-R4 | FSP Register / PPSR / LINZ / IPONZ access (some need agreements) | Register/arrange | Before WO-71 (FSP) / WO-77 (legal workstream) live |
 | P3-R5 | DD liability disclaimer + panel agreements + entrepreneur fee T&C need NZ lawyer review | Engage lawyer | Before any DD output / panel agreement / entrepreneur engagement goes live |
 | P3-R6 | Whisper (or AWS Transcribe) credentials + cost for voice-to-text | Provision + budget | Before WO-98 live |
@@ -723,8 +723,8 @@ See `PLAN.md` §11. Phase 4: full continuous-learning engine (32 layers active),
 | Entrepreneur 5-phase builder | WO-84 |
 | AI-guided building + predictive score | WO-85 |
 | Section-attached verification | WO-86 |
-| Admin-managed rating framework (engine) | WO-87a |
-| Rating framework founding values (confirm/finalise — PDF present) | WO-87b |
+| Admin-managed rating framework (engine, 11 criteria) | WO-87a |
+| Rating framework founding weights/descriptors (owner-set) | WO-87b |
 | AI first-pass + advisor assessment + mentor notes | WO-88 |
 | Assessment report (4-part + concept PV) | WO-89 |
 | Iterative resubmission + round progress | WO-90 |

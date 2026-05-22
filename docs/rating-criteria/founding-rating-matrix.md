@@ -1,14 +1,18 @@
-# Founding Rating Matrix — structured transcription
+# Founding Rating Matrix — transcription (HISTORICAL REFERENCE)
 
-> Authoritative transcription of `Business_Plan_Rating_Matrix.pdf` ("Annexure A: Rating Sheet of All-inclusive Business Plan"). This is the source the **WO-87b** seeder loads into `rating_frameworks` / `rating_criteria`. The PDF remains the canonical source; this file is the machine-friendly extraction.
+> Transcription of `Business_Plan_Rating_Matrix.pdf` ("Annexure A: Rating Sheet of All-inclusive Business Plan").
 
-## ⚠️ Discrepancy with spec §17.6 / Appendix C — owner confirmation needed
+## ✅ RESOLVED (P3-R3a, 2026-05-23) — this PDF is the historical starting point, NOT the framework
 
-Spec V2.4 §17.6 / Appendix C lists **11 "founding criteria"**: Type of business, Location, Means of doing business, Discuss the industry, What sets the business apart from its competitors, Describe unique success factors, Mission and Vision statement, Intellectual property, Goals and objectives, Culture, Legal Environment.
+**Owner decision:** the PDF was the *starting point* for developing the specification; the spec V2.4 is the refined, authoritative version. **The entrepreneur rating framework follows the spec §17.6 / Appendix C 11-item list** (see `README.md`), **not** the 10-weighted-aspect structure transcribed below.
 
-The **actual PDF** shows those 11 items are the **supporting aspects of one 5%-weighted main aspect — "Business Overview"** — not the whole framework. The real rating sheet scores **10 weighted Main Aspects** (summing to 100%), each rated on a 4-point scale across multiple supporting aspects.
+This file is retained only as **historical reference** — the advisor may draw on the aspects/weights below when setting the **admin-managed** weights and scoring descriptors for the 11 criteria in WO-87b. It is **not** loaded by the seeder. WO-87a seeds the 11 spec criteria; WO-87b is owner data-entry of weights/descriptors via the admin editor.
 
-**Action:** WO-87a builds the engine to the *actual* matrix structure below. Before entrepreneur go-live (WO-87b), the owner must confirm whether the framework should follow the **real PDF** (10 weighted aspects — recommended, it's the source document) or the **spec's narrower 11-item list**. Tracked as risk **P3-R3a**.
+Note for context: the spec's 11 criteria correspond to the supporting aspects of the PDF's "Business Overview" main aspect — i.e. the spec narrowed the rating focus to that set during its development.
+
+---
+
+_The remainder of this file is the verbatim PDF transcription, kept for historical reference only._
 
 ## Rating scale (per supporting aspect)
 
@@ -137,9 +141,6 @@ For each Main Aspect, the assessor rates its supporting aspects on the 1–4 (30
 - Culture.
 - Legal Environment — Licenses, permits, health and environmental regulations, special regulations w.r.t industry, zoning/building requirements, trademarks, copyrights, pending patents, patents purchased, insurance coverage.
 
-## Notes for the WO-87b seeder
+## Notes (historical only — the seeder does NOT use this file)
 
-- Seed the 10 Main Aspects as the weighted scoring criteria (`rating_criteria.number` 1–10, `weight` as above), each with its supporting aspects (store under a `supporting_aspects` jsonb on the criterion, or as child rows — implementer's choice).
-- The 4-point band scale (30/50/60/80%) is the scoring descriptor scale; capture it in `rating_criteria.descriptors` or framework config.
-- Everything stays **admin-managed** — the seeder writes the founding configuration; admins edit it thereafter via the WO-87a editor; learning-driven changes go through the governed queue.
-- Clear the WO-87a `is_placeholder` flags and set `rating_frameworks.production_ready = true` only after the owner confirms the spec-vs-PDF reconciliation (P3-R3a).
+Per the resolved P3-R3a decision, **WO-87a seeds the spec §17.6 / Appendix C 11 criteria** (see `README.md`), not the 10 aspects above. This transcription is reference the advisor may consult when setting the admin-managed weights/descriptors in WO-87b. The 4-point band scale (30/50/60/80%) and the aspect weights below are the *PDF's* approach — the spec leaves the 11 criteria's weights/descriptors admin-managed, so the owner may adopt, adapt, or replace them.
