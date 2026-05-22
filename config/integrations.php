@@ -66,4 +66,28 @@ return [
         'base_url' => env('MBIE_BASE_URL', 'https://api.mbie.govt.nz'),
         'api_key' => env('MBIE_API_KEY'),
     ],
+
+    'accounting' => [
+        'xero' => [
+            'live' => (bool) env('FEATURE_XERO_LIVE', false),
+            'base_url' => env('XERO_BASE_URL', 'https://api.xero.com'),
+            'authorize_url' => env('XERO_AUTHORIZE_URL', 'https://login.xero.com/identity/connect/authorize'),
+            'client_id' => env('XERO_CLIENT_ID'),
+            'client_secret' => env('XERO_CLIENT_SECRET'),
+        ],
+        'myob' => [
+            'live' => (bool) env('FEATURE_MYOB_LIVE', false),
+            'base_url' => env('MYOB_BASE_URL', 'https://api.myob.com'),
+            'authorize_url' => env('MYOB_AUTHORIZE_URL', 'https://secure.myob.com/oauth2/account/authorize'),
+            'client_id' => env('MYOB_CLIENT_ID'),
+            'client_secret' => env('MYOB_CLIENT_SECRET'),
+        ],
+        'quickbooks' => [
+            'live' => (bool) env('FEATURE_QUICKBOOKS_LIVE', false),
+            'base_url' => env('QUICKBOOKS_BASE_URL', 'https://quickbooks.api.intuit.com'),
+            'authorize_url' => env('QUICKBOOKS_AUTHORIZE_URL', 'https://appcenter.intuit.com/connect/oauth2'),
+            'client_id' => env('QUICKBOOKS_CLIENT_ID'),
+            'client_secret' => env('QUICKBOOKS_CLIENT_SECRET'),
+        ],
+    ],
 ];

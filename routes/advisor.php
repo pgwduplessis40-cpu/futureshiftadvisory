@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Permission;
+use App\Http\Controllers\Advisor\AccountingConnectionController;
 use App\Http\Controllers\Advisor\AnalysisFeedbackController;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
@@ -63,6 +64,18 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/messages/{messageThread}', [ClientMessageController::class, 'reply'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.messages.reply');
+        Route::get('clients/{client}/accounting/{provider}/connect', [AccountingConnectionController::class, 'connect'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.accounting.connect');
+        Route::get('clients/{client}/accounting/{provider}/callback', [AccountingConnectionController::class, 'callback'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.accounting.callback');
+        Route::post('clients/{client}/accounting/{accountingConnection}/pull', [AccountingConnectionController::class, 'pull'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.accounting.pull');
+        Route::patch('clients/{client}/accounting/{accountingConnection}/revoke', [AccountingConnectionController::class, 'revoke'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.accounting.revoke');
         Route::get('clients/{client}', [ClientController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.show');

@@ -1,4 +1,4 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
@@ -12,8 +12,10 @@ import {
     MessageSquarePlus,
     PauseCircle,
     PencilLine,
+    PlugZap,
     RotateCcw,
     Star,
+    Unplug,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
@@ -36,6 +38,7 @@ type ClientDetail = ClientSummary & {
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
     engagement_type_locked: boolean;
+    accounting: AccountingPayload;
     created_at: string | null;
     analysis_findings: AnalysisFindingFeedback[];
 };
@@ -84,6 +87,44 @@ type KnowledgeAssessmentSummary = {
     leadership: number;
     calibration: Record<string, unknown>;
     assessed_at: string | null;
+};
+
+type AccountingPayload = {
+    providers: AccountingProvider[];
+    connections: AccountingConnectionSummary[];
+};
+
+type AccountingProvider = {
+    provider: string;
+    label: string;
+    connected: boolean;
+    connect_url: string;
+};
+
+type AccountingConnectionSummary = {
+    id: string;
+    provider: string;
+    provider_label: string;
+    external_tenant_id: string | null;
+    status: string;
+    connected: boolean;
+    connected_at: string | null;
+    revoked_at: string | null;
+    last_snapshot_at: string | null;
+    pull_url: string;
+    revoke_url: string;
+    latest_snapshot: FinancialSnapshotSummary | null;
+};
+
+type FinancialSnapshotSummary = {
+    id: string;
+    period_start: string | null;
+    period_end: string | null;
+    source: string;
+    source_badge: string;
+    degraded: boolean;
+    metrics: Record<string, unknown>;
+    pulled_at: string | null;
 };
 
 type AnalysisFindingFeedback = {
@@ -306,6 +347,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 <KnowledgeAssessmentPanel client={client} />
 
+                <AccountingConnectionsPanel client={client} />
+
                 <section className="space-y-4 rounded-md border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
@@ -408,6 +451,171 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 )}
             </div>
         </>
+    );
+}
+
+function AccountingConnectionsPanel({ client }: { client: ClientDetail }) {
+    const pullSnapshot = (url: string) => {
+        router.post(url, {}, { preserveScroll: true });
+    };
+
+    const revokeConnection = (url: string) => {
+        router.patch(url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <PlugZap className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Accounting connections
+                    </h2>
+                </div>
+                <Badge variant="outline">
+                    {
+                        client.accounting.connections.filter(
+                            (connection) => connection.connected,
+                        ).length
+                    }
+                </Badge>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+                {client.accounting.providers.map((provider) => (
+                    <Button
+                        key={provider.provider}
+                        asChild
+                        size="sm"
+                        variant={provider.connected ? 'outline' : 'default'}
+                    >
+                        <Link href={provider.connect_url}>
+                            <PlugZap className="size-4" aria-hidden="true" />
+                            {provider.connected ? 'Reconnect' : 'Connect'}{' '}
+                            {provider.label}
+                        </Link>
+                    </Button>
+                ))}
+            </div>
+
+            {client.accounting.connections.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No accounting connections yet.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {client.accounting.connections.map((connection) => (
+                        <article
+                            key={connection.id}
+                            className="space-y-3 rounded-md border p-3"
+                        >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-sm font-medium">
+                                            {connection.provider_label}
+                                        </h3>
+                                        <Badge
+                                            variant={
+                                                connection.connected
+                                                    ? 'secondary'
+                                                    : 'outline'
+                                            }
+                                        >
+                                            {formatLabel(connection.status)}
+                                        </Badge>
+                                        {connection.latest_snapshot && (
+                                            <Badge variant="outline">
+                                                {
+                                                    connection.latest_snapshot
+                                                        .source_badge
+                                                }
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {connection.external_tenant_id ?? '-'}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!connection.connected}
+                                        onClick={() =>
+                                            pullSnapshot(connection.pull_url)
+                                        }
+                                    >
+                                        <RotateCcw
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Pull
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={!connection.connected}
+                                        onClick={() =>
+                                            revokeConnection(
+                                                connection.revoke_url,
+                                            )
+                                        }
+                                    >
+                                        <Unplug
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Revoke
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <dl className="grid gap-2 text-sm md:grid-cols-3">
+                                <Metric
+                                    label="Connected"
+                                    value={formatDate(connection.connected_at)}
+                                />
+                                <Metric
+                                    label="Last pull"
+                                    value={formatDate(
+                                        connection.last_snapshot_at,
+                                    )}
+                                />
+                                <Metric
+                                    label="Period"
+                                    value={
+                                        connection.latest_snapshot
+                                            ?.period_end ?? '-'
+                                    }
+                                />
+                            </dl>
+
+                            {connection.latest_snapshot && (
+                                <div className="flex flex-wrap gap-2">
+                                    {Object.entries(
+                                        connection.latest_snapshot.metrics,
+                                    )
+                                        .slice(0, 4)
+                                        .map(([metric, value]) => (
+                                            <Badge
+                                                key={metric}
+                                                variant="secondary"
+                                            >
+                                                {formatLabel(metric)}:{' '}
+                                                {formatMetric(value)}
+                                            </Badge>
+                                        ))}
+                                </div>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 
@@ -885,6 +1093,23 @@ function formatLabel(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatMetric(value: unknown) {
+    if (typeof value !== 'number') {
+        return String(value ?? '-');
+    }
+
+    if (Math.abs(value) <= 1) {
+        return new Intl.NumberFormat(undefined, {
+            style: 'percent',
+            maximumFractionDigits: 1,
+        }).format(value);
+    }
+
+    return new Intl.NumberFormat(undefined, {
+        maximumFractionDigits: 2,
+    }).format(value);
 }
 
 function statusVariant(

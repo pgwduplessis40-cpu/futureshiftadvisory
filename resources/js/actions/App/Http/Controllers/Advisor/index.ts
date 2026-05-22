@@ -4,6 +4,7 @@ import ClientLifecycleController from './ClientLifecycleController'
 import KnowledgeAssessmentController from './KnowledgeAssessmentController'
 import ClientEmailController from './ClientEmailController'
 import ClientMessageController from './ClientMessageController'
+import AccountingConnectionController from './AccountingConnectionController'
 import EntrepreneurController from './EntrepreneurController'
 import KnowledgeController from './KnowledgeController'
 import ProspectInboxController from './ProspectInboxController'
@@ -17,6 +18,7 @@ ClientLifecycleController: Object.assign(ClientLifecycleController, ClientLifecy
 KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, KnowledgeAssessmentController),
 ClientEmailController: Object.assign(ClientEmailController, ClientEmailController),
 ClientMessageController: Object.assign(ClientMessageController, ClientMessageController),
+AccountingConnectionController: Object.assign(AccountingConnectionController, AccountingConnectionController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
 KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 ProspectInboxController: Object.assign(ProspectInboxController, ProspectInboxController),

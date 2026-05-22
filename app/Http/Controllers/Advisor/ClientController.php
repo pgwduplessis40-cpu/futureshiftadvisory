@@ -8,10 +8,12 @@ use App\Actions\Clients\PopulateFromNzbn;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
+use App\Models\AccountingConnection;
 use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\FinancialSnapshot;
 use App\Models\KnowledgeAssessment;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
@@ -159,6 +161,7 @@ final class ClientController extends Controller
                 'registry_sources' => $client->registry_sources ?? [],
                 'engagement_type_locked' => $client->engagementTypeIsLocked(),
                 'offboarding' => $this->offboardingSummary($client),
+                'accounting' => $this->accountingSummary($client),
                 'analysis_findings' => $this->analysisFindingSummaries($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
@@ -259,6 +262,75 @@ final class ClientController extends Controller
             'triggered_at' => $record->triggered_at?->toIso8601String(),
             'reengagement_due' => $record->reengagement_due?->toIso8601String(),
             'advisor_capacity_released' => $record->advisor_capacity_released,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function accountingSummary(Client $client): array
+    {
+        $connections = AccountingConnection::query()
+            ->with('latestFinancialSnapshot')
+            ->where('client_id', $client->getKey())
+            ->latest('connected_at')
+            ->get();
+
+        $connectedProviders = $connections
+            ->filter(fn (AccountingConnection $connection): bool => $connection->connected())
+            ->pluck('provider')
+            ->unique()
+            ->values()
+            ->all();
+
+        return [
+            'providers' => collect(AccountingConnection::providerLabels())
+                ->map(fn (string $label, string $provider): array => [
+                    'provider' => $provider,
+                    'label' => $label,
+                    'connected' => in_array($provider, $connectedProviders, true),
+                    'connect_url' => route('advisor.clients.accounting.connect', [$client, $provider], absolute: false),
+                ])
+                ->values()
+                ->all(),
+            'connections' => $connections
+                ->map(fn (AccountingConnection $connection): array => [
+                    'id' => $connection->id,
+                    'provider' => $connection->provider,
+                    'provider_label' => $connection->providerLabel(),
+                    'external_tenant_id' => $connection->external_tenant_id,
+                    'status' => $connection->status,
+                    'connected' => $connection->connected(),
+                    'connected_at' => $connection->connected_at?->toIso8601String(),
+                    'revoked_at' => $connection->revoked_at?->toIso8601String(),
+                    'last_snapshot_at' => $connection->last_snapshot_at?->toIso8601String(),
+                    'pull_url' => route('advisor.clients.accounting.pull', [$client, $connection], absolute: false),
+                    'revoke_url' => route('advisor.clients.accounting.revoke', [$client, $connection], absolute: false),
+                    'latest_snapshot' => $this->financialSnapshotSummary($connection->latestFinancialSnapshot),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function financialSnapshotSummary(?FinancialSnapshot $snapshot): ?array
+    {
+        if (! $snapshot instanceof FinancialSnapshot) {
+            return null;
+        }
+
+        return [
+            'id' => $snapshot->id,
+            'period_start' => $snapshot->period_start?->toDateString(),
+            'period_end' => $snapshot->period_end?->toDateString(),
+            'source' => $snapshot->source,
+            'source_badge' => $snapshot->source_badge,
+            'degraded' => $snapshot->degraded,
+            'metrics' => $snapshot->metrics ?? [],
+            'pulled_at' => $snapshot->pulled_at?->toIso8601String(),
         ];
     }
 

@@ -4,6 +4,7 @@ import lifecycle from './lifecycle'
 import knowledgeAssessments from './knowledge-assessments'
 import email from './email'
 import messages from './messages'
+import accounting from './accounting'
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
  * @see app/Http/Controllers/Advisor/ClientController.php:38
@@ -485,6 +486,7 @@ knowledgeAssessments: Object.assign(knowledgeAssessments, knowledgeAssessments),
 compose: Object.assign(compose, compose),
 email: Object.assign(email, email),
 messages: Object.assign(messages, messages),
+accounting: Object.assign(accounting, accounting),
 show: Object.assign(show, show),
 }
 

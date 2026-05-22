@@ -1,0 +1,37 @@
+{
+  "default": {
+    "token": {
+      "access_token": "myob-access-token-fixture",
+      "refresh_token": "myob-refresh-token-fixture",
+      "expires_at": "2026-05-22T05:00:00+00:00",
+      "external_tenant_id": "myob-company-file-fixture",
+      "scopes": ["CompanyFile", "offline_access"]
+    },
+    "snapshot": {
+      "period_start": "2026-04-01",
+      "period_end": "2026-04-30",
+      "profit_and_loss": {
+        "revenue": 97000,
+        "gross_profit": 53000,
+        "operating_expenses": 39000,
+        "net_profit": 14000
+      },
+      "balance_sheet": {
+        "assets": 220000,
+        "liabilities": 118000,
+        "equity": 102000
+      },
+      "cash_flow": {
+        "operating_cash_flow": 12000,
+        "investing_cash_flow": -3000,
+        "financing_cash_flow": -2000,
+        "closing_cash": 46000
+      },
+      "metrics": {
+        "gross_margin": 0.5464,
+        "net_margin": 0.1443,
+        "current_ratio": 1.45
+      }
+    }
+  }
+}

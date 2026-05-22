@@ -28,6 +28,8 @@ use App\Services\Integration\MicrosoftGraph\Contracts\MicrosoftGraphClient;
 use App\Services\Integration\MicrosoftGraph\FakeMicrosoftGraphClient;
 use App\Services\Integration\Myob\Contracts\MyobClient;
 use App\Services\Integration\Myob\FakeMyobClient;
+use App\Services\Integration\Myob\FallbackMyobClient;
+use App\Services\Integration\Myob\LiveMyobClient;
 use App\Services\Integration\Nzbn\Contracts\NzbnClient;
 use App\Services\Integration\Nzbn\FakeNzbnClient;
 use App\Services\Integration\Nzbn\FallbackNzbnClient;
@@ -38,6 +40,8 @@ use App\Services\Integration\Ppsr\Contracts\PpsrClient;
 use App\Services\Integration\Ppsr\FakePpsrClient;
 use App\Services\Integration\QuickBooks\Contracts\QuickBooksClient;
 use App\Services\Integration\QuickBooks\FakeQuickBooksClient;
+use App\Services\Integration\QuickBooks\FallbackQuickBooksClient;
+use App\Services\Integration\QuickBooks\LiveQuickBooksClient;
 use App\Services\Integration\Rbnz\Contracts\RbnzClient;
 use App\Services\Integration\Rbnz\FakeRbnzClient;
 use App\Services\Integration\Rbnz\FallbackRbnzClient;
@@ -58,6 +62,8 @@ use App\Services\Integration\WorkSafe\Contracts\WorkSafeClient;
 use App\Services\Integration\WorkSafe\FakeWorkSafeClient;
 use App\Services\Integration\Xero\Contracts\XeroClient;
 use App\Services\Integration\Xero\FakeXeroClient;
+use App\Services\Integration\Xero\FallbackXeroClient;
+use App\Services\Integration\Xero\LiveXeroClient;
 use Illuminate\Support\ServiceProvider;
 
 final class IntegrationServiceProvider extends ServiceProvider
@@ -74,9 +80,6 @@ final class IntegrationServiceProvider extends ServiceProvider
         WorkSafeClient::class => FakeWorkSafeClient::class,
         StripeClient::class => FakeStripeClient::class,
         WindcaveClient::class => FakeWindcaveClient::class,
-        XeroClient::class => FakeXeroClient::class,
-        MyobClient::class => FakeMyobClient::class,
-        QuickBooksClient::class => FakeQuickBooksClient::class,
         SesSendGridClient::class => FakeSesSendGridClient::class,
         WhisperClient::class => FakeWhisperClient::class,
         GoogleCalendarClient::class => FakeGoogleCalendarClient::class,
@@ -120,6 +123,21 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveMbieClient::class);
         $this->app->singleton(FallbackMbieClient::class);
         $this->app->singleton(MbieClient::class, FallbackMbieClient::class);
+
+        $this->app->singleton(FakeXeroClient::class);
+        $this->app->singleton(LiveXeroClient::class);
+        $this->app->singleton(FallbackXeroClient::class);
+        $this->app->singleton(XeroClient::class, FallbackXeroClient::class);
+
+        $this->app->singleton(FakeMyobClient::class);
+        $this->app->singleton(LiveMyobClient::class);
+        $this->app->singleton(FallbackMyobClient::class);
+        $this->app->singleton(MyobClient::class, FallbackMyobClient::class);
+
+        $this->app->singleton(FakeQuickBooksClient::class);
+        $this->app->singleton(LiveQuickBooksClient::class);
+        $this->app->singleton(FallbackQuickBooksClient::class);
+        $this->app->singleton(QuickBooksClient::class, FallbackQuickBooksClient::class);
     }
 
     private function registerScaffolds(): void

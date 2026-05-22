@@ -622,3 +622,48 @@ Rows are unique by `base_currency`, `quote_currency`, `rate_date`, and `source`.
 WO-36 records refresh runs with layer id `12`. OCR value changes create governed `learning_updates` candidates with `source.type=economic_indicator_auto_update` and `proposed_change.automatic_application=false`.
 
 No WO-36 path applies PV discount-rate changes automatically.
+
+## WO-37 - Accounting API integration
+
+### `accounting_connections`
+
+Client-scoped OAuth connection ledger for Xero, MYOB, and QuickBooks.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `provider` (`xero`, `myob`, `quickbooks`)
+- `external_tenant_id`
+- `status` (`connected`, `revoked`)
+- `token_envelope` encrypted JSON token payload via `KeyEnvelope`
+- `token_envelope_meta` JSONB with envelope version, algorithm, and key id
+- `scopes` JSONB
+- `connected_by_user_id`, `connected_at`
+- `revoked_by_user_id`, `revoked_at`
+- `last_snapshot_at`
+
+Client-scoped RLS applies. Connecting a provider revokes any prior active connection for the same client/provider before creating the new connected row.
+
+### `financial_snapshots`
+
+Append-only financial statement snapshots pulled from an accounting connection.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `accounting_connection_id`
+- `provider`
+- `period_start`, `period_end`
+- `source`
+- `source_badge` (`stub`, `live`, `cached`, `stub_live_fallback`)
+- `degraded`
+- `correlation_id`
+- `profit_and_loss` JSONB
+- `balance_sheet` JSONB
+- `cash_flow` JSONB
+- `metrics` JSONB
+- `pulled_at`
+
+Client-scoped RLS applies. PostgreSQL rejects direct update/delete attempts through the `financial_snapshots_append_only` trigger so historical snapshots remain immutable after creation.
