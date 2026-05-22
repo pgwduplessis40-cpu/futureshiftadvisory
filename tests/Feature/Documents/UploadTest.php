@@ -123,6 +123,7 @@ final class UploadTest extends TestCase
             if (
                 str_ends_with($path, 'app/Services/Storage/SecureFileWriter.php')
                 || str_ends_with($path, 'app/Services/Proposals/ProposalBuilder.php')
+                || str_ends_with($path, 'app/Services/Reports/ReportComposer.php')
                 || str_ends_with($path, 'app/Services/Terms/SignedAcceptancePdf.php')
             ) {
                 continue;

@@ -50,6 +50,7 @@ type Props = {
     };
     documents: DocumentPayload[];
     scenarios: ScenarioPayload[];
+    reports: ReportPayload[];
     messagesUrl: string;
 };
 
@@ -89,6 +90,12 @@ type ScenarioPayload = {
     };
 };
 
+type ReportPayload = {
+    id: string;
+    title: string;
+    generated_at: string | null;
+};
+
 export default function PortalDashboard({
     client,
     progress,
@@ -97,6 +104,7 @@ export default function PortalDashboard({
     wellbeing,
     documents,
     scenarios,
+    reports,
     messagesUrl,
 }: Props) {
     return (
@@ -217,6 +225,46 @@ export default function PortalDashboard({
                         value="Not requested"
                     />
                 </div>
+
+                <section
+                    className="space-y-4 rounded-md border bg-background p-4"
+                    aria-labelledby="reports-heading"
+                >
+                    <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <FileText className="size-4" aria-hidden="true" />
+                            <h2
+                                id="reports-heading"
+                                className="text-sm font-medium"
+                            >
+                                Reports
+                            </h2>
+                        </div>
+                        <Badge variant="outline">{reports.length}</Badge>
+                    </div>
+
+                    {reports.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No client reports released yet.
+                        </p>
+                    ) : (
+                        <div className="divide-y rounded-md border">
+                            {reports.map((report) => (
+                                <article
+                                    key={report.id}
+                                    className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                >
+                                    <div className="text-sm font-medium">
+                                        {report.title}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {formatDate(report.generated_at)}
+                                    </div>
+                                </article>
+                            ))}
+                        </div>
+                    )}
+                </section>
 
                 <section
                     className="space-y-4 rounded-md border bg-background p-4"

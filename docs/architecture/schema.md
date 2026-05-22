@@ -999,3 +999,49 @@ Key columns:
 
 Rows are unique by proposal and consent type. Phase 2 stores the election only;
 it does not create broker, insurance, or coach referrals automatically.
+
+## WO-57 - Report engine
+
+### `reports`
+
+Client-scoped report headers for generated Client, Advisor, and later report
+types.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `type` (`client`, `advisor`, `stakeholder`, `trajectory`, `due_diligence`, `entrepreneur_assessment`)
+- `title`
+- `pdf_path`, `pdf_byte_size`
+- `generated_by_user_id`, `generated_at`
+- `metadata` JSONB with redaction and scaffold notes
+
+Client-scoped RLS applies. WO-57 composes only `client` and `advisor`; other
+types are enum scaffolds for later work.
+
+### `report_sections`
+
+Ordered report body sections with the integrity notation required by spec
+section 19.
+
+Key columns:
+
+- `id` UUID primary key
+- `report_id`
+- `client_id`
+- `key`
+- `title`
+- `body`
+- `position`
+- `lens` nullable analysis lens
+- `attributions` JSONB
+- `document_support`
+- `document_support_note`
+- `data_quality_note`
+- `metadata` JSONB
+
+Every section carries source attribution, document-support notation, and a
+data-quality note. Client reports exclude prescriptive findings and fee/proposal
+sections; advisor reports include the full finding set, PV waterfall,
+implementation plan, and fee proposal ROI.

@@ -150,6 +150,14 @@ final class Client extends Model
         return $this->hasMany(Proposal::class);
     }
 
+    /**
+     * @return HasMany<Report>
+     */
+    public function reports(): HasMany
+    {
+        return $this->hasMany(Report::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

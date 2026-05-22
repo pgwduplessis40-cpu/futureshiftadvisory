@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\Report;
 use App\Models\Scenario;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
@@ -46,6 +47,7 @@ final class DashboardController extends Controller
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'documents' => $this->documentPayload($client),
             'scenarios' => $this->scenarioPayload($client),
+            'reports' => $this->reportPayload($client),
             'messagesUrl' => route('portal.messages.index', absolute: false),
         ]);
     }
@@ -151,6 +153,26 @@ final class DashboardController extends Controller
                     'discount_method' => $scenario->economic_overlay['discount_method'] ?? null,
                     'indicators' => $scenario->economic_overlay['indicators'] ?? [],
                 ],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function reportPayload(Client $client): array
+    {
+        return Report::query()
+            ->where('client_id', $client->getKey())
+            ->where('type', 'client')
+            ->latest('generated_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (Report $report): array => [
+                'id' => $report->id,
+                'title' => $report->title,
+                'generated_at' => $report->generated_at?->toIso8601String(),
             ])
             ->values()
             ->all();

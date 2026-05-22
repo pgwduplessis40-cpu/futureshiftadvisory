@@ -18,6 +18,7 @@ use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\KnowledgeAssessment;
 use App\Models\Proposal;
+use App\Models\Report;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
@@ -163,6 +164,8 @@ final class ClientController extends Controller
                 'proposal_expiry_days' => (int) config('proposals.expiry_days', 30),
                 'fee_calculations' => $this->feeCalculationSummaries($client),
                 'proposals' => $this->proposalSummaries($client),
+                'report_store_url' => route('advisor.clients.reports.store', $client, absolute: false),
+                'reports' => $this->reportSummaries($client),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -260,6 +263,28 @@ final class ClientController extends Controller
                     'renew_url' => route('advisor.proposals.renew', $proposal, absolute: false),
                 ];
             })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function reportSummaries(Client $client): array
+    {
+        return Report::query()
+            ->where('client_id', $client->getKey())
+            ->latest('generated_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (Report $report): array => [
+                'id' => $report->id,
+                'type' => $report->type->value,
+                'type_label' => $report->type->label(),
+                'title' => $report->title,
+                'generated_at' => $report->generated_at?->toIso8601String(),
+                'pdf_byte_size' => $report->pdf_byte_size,
+            ])
             ->values()
             ->all();
     }

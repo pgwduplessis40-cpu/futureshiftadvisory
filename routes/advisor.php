@@ -17,6 +17,7 @@ use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
+use App\Http\Controllers\Advisor\ReportController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -50,6 +51,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/proposals', [ProposalController::class, 'store'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('clients.proposals.store');
+        Route::post('clients/{client}/reports', [ReportController::class, 'store'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('clients.reports.store');
         Route::get('clients/{client}/compose', [ClientEmailController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.compose');

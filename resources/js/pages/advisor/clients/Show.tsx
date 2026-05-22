@@ -41,6 +41,8 @@ type ClientDetail = ClientSummary & {
     proposal_expiry_days: number;
     fee_calculations: FeeCalculationSummary[];
     proposals: ProposalSummary[];
+    report_store_url: string;
+    reports: ReportSummary[];
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -159,6 +161,15 @@ type ProposalSummary = {
     release_url: string;
     recall_url: string;
     renew_url: string;
+};
+
+type ReportSummary = {
+    id: string;
+    type: string;
+    type_label: string;
+    title: string;
+    generated_at: string | null;
+    pdf_byte_size: number | null;
 };
 
 type AnalysisFindingFeedback = {
@@ -391,6 +402,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 <AccountingConnectionsPanel client={client} />
 
                 <ProposalsPanel client={client} />
+
+                <ReportsPanel client={client} />
 
                 <section className="space-y-4 rounded-md border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -884,6 +897,81 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                     value={formatMetric(proposal.roi_ratio)}
                                 />
                             </dl>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function ReportsPanel({ client }: { client: ClientDetail }) {
+    const generate = (type: 'client' | 'advisor') => {
+        router.post(
+            client.report_store_url,
+            { type },
+            { preserveScroll: true },
+        );
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <FileText className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Reports</h2>
+                </div>
+                <Badge variant="outline">{client.reports.length}</Badge>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generate('client')}
+                >
+                    <FileText className="size-4" aria-hidden="true" />
+                    Client
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generate('advisor')}
+                >
+                    <FileText className="size-4" aria-hidden="true" />
+                    Advisor
+                </Button>
+            </div>
+
+            {client.reports.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No reports generated yet.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {client.reports.map((report) => (
+                        <article
+                            key={report.id}
+                            className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                        >
+                            <div className="space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h3 className="text-sm font-medium">
+                                        {report.type_label}
+                                    </h3>
+                                    <Badge variant="outline">
+                                        {formatDate(report.generated_at)}
+                                    </Badge>
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {report.title}
+                                </div>
+                            </div>
+                            <div className="text-sm text-muted-foreground">
+                                {formatBytes(report.pdf_byte_size)}
+                            </div>
                         </article>
                     ))}
                 </div>
@@ -1422,6 +1510,18 @@ function formatCurrency(value: number) {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatBytes(value: number | null) {
+    if (!value) {
+        return '-';
+    }
+
+    if (value < 1024) {
+        return `${value} B`;
+    }
+
+    return `${(value / 1024).toFixed(1)} KB`;
 }
 
 function statusVariant(
