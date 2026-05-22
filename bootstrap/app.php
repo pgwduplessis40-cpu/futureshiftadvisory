@@ -3,6 +3,8 @@
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\ExpireProposals;
+use App\Console\Commands\GenerateMonthlyIndustryBriefings;
+use App\Console\Commands\GeneratePreMeetingBriefs;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\RunBiasMonitor;
@@ -138,6 +140,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ExpireProposals::class)
             ->dailyAt('00:20')
             ->name('fsa-proposals-expire')
+            ->withoutOverlapping();
+
+        $schedule->command(GenerateMonthlyIndustryBriefings::class)
+            ->monthlyOn(1, '08:30')
+            ->name('fsa-industry-briefings-monthly')
+            ->withoutOverlapping();
+
+        $schedule->command(GeneratePreMeetingBriefs::class)
+            ->hourly()
+            ->name('fsa-pre-meeting-briefs')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

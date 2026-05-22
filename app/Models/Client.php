@@ -158,6 +158,30 @@ final class Client extends Model
         return $this->hasMany(Report::class);
     }
 
+    /**
+     * @return HasMany<Meeting>
+     */
+    public function meetings(): HasMany
+    {
+        return $this->hasMany(Meeting::class);
+    }
+
+    /**
+     * @return HasMany<IndustryBriefing>
+     */
+    public function industryBriefings(): HasMany
+    {
+        return $this->hasMany(IndustryBriefing::class);
+    }
+
+    /**
+     * @return HasMany<PreMeetingBrief>
+     */
+    public function preMeetingBriefs(): HasMany
+    {
+        return $this->hasMany(PreMeetingBrief::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

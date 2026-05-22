@@ -17,7 +17,10 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
+use App\Models\IndustryBriefing;
 use App\Models\KnowledgeAssessment;
+use App\Models\Meeting;
+use App\Models\PreMeetingBrief;
 use App\Models\Proposal;
 use App\Models\Report;
 use App\Models\User;
@@ -167,6 +170,10 @@ final class ClientController extends Controller
                 'proposals' => $this->proposalSummaries($client),
                 'report_store_url' => route('advisor.clients.reports.store', $client, absolute: false),
                 'reports' => $this->reportSummaries($client),
+                'meeting_store_url' => route('advisor.clients.meetings.store', $client, absolute: false),
+                'meetings' => $this->meetingSummaries($client),
+                'industry_briefings' => $this->industryBriefingSummaries($client),
+                'pre_meeting_briefs' => $this->preMeetingBriefSummaries($client),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -290,6 +297,84 @@ final class ClientController extends Controller
                 'reviewed_at' => $report->reviewed_at?->toIso8601String(),
                 'review_url' => route('advisor.reports.review', $report, absolute: false),
                 'can_review' => $report->type === ReportType::Trajectory && $report->review_status === 'pending_review',
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function meetingSummaries(Client $client): array
+    {
+        return Meeting::query()
+            ->with('preMeetingBrief')
+            ->where('client_id', $client->getKey())
+            ->where('scheduled_at', '>=', now()->subDay())
+            ->orderBy('scheduled_at')
+            ->limit(8)
+            ->get()
+            ->map(fn (Meeting $meeting): array => [
+                'id' => $meeting->id,
+                'title' => $meeting->title,
+                'scheduled_at' => $meeting->scheduled_at?->toIso8601String(),
+                'location' => $meeting->location,
+                'link' => $meeting->link,
+                'attendees' => $meeting->attendees ?? [],
+                'brief_status' => $meeting->preMeetingBrief?->sent_at !== null
+                    ? 'sent'
+                    : ($meeting->preMeetingBrief instanceof PreMeetingBrief ? 'draft' : 'pending'),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function industryBriefingSummaries(Client $client): array
+    {
+        return IndustryBriefing::query()
+            ->where('client_id', $client->getKey())
+            ->latest('period')
+            ->limit(6)
+            ->get()
+            ->map(fn (IndustryBriefing $briefing): array => [
+                'id' => $briefing->id,
+                'period' => $briefing->period?->toDateString(),
+                'body' => $briefing->body,
+                'status' => $briefing->status,
+                'reviewed_at' => $briefing->reviewed_at?->toIso8601String(),
+                'sent_at' => $briefing->sent_at?->toIso8601String(),
+                'review_url' => route('advisor.industry-briefings.review', $briefing, absolute: false),
+                'can_review' => $briefing->status === IndustryBriefing::STATUS_DRAFT,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function preMeetingBriefSummaries(Client $client): array
+    {
+        return PreMeetingBrief::query()
+            ->with('meeting')
+            ->where('client_id', $client->getKey())
+            ->latest('meeting_at')
+            ->limit(6)
+            ->get()
+            ->map(fn (PreMeetingBrief $brief): array => [
+                'id' => $brief->id,
+                'meeting_title' => $brief->meeting?->title,
+                'meeting_at' => $brief->meeting_at?->toIso8601String(),
+                'body' => $brief->body,
+                'red_flag_count' => count($brief->red_flag_ids ?? []),
+                'generated_at' => $brief->generated_at?->toIso8601String(),
+                'reviewed_at' => $brief->reviewed_at?->toIso8601String(),
+                'sent_at' => $brief->sent_at?->toIso8601String(),
+                'review_url' => route('advisor.pre-meeting-briefs.review', $brief, absolute: false),
+                'can_review' => $brief->sent_at === null,
             ])
             ->values()
             ->all();

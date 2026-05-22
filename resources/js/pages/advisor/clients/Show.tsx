@@ -3,6 +3,7 @@ import {
     ArrowLeft,
     Ban,
     Brain,
+    CalendarClock,
     CheckCircle2,
     FileCheck2,
     FileText,
@@ -21,7 +22,7 @@ import {
     Undo2,
     Unplug,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import InputError from '@/components/input-error';
@@ -44,6 +45,10 @@ type ClientDetail = ClientSummary & {
     proposals: ProposalSummary[];
     report_store_url: string;
     reports: ReportSummary[];
+    meeting_store_url: string;
+    meetings: MeetingSummary[];
+    industry_briefings: IndustryBriefingSummary[];
+    pre_meeting_briefs: PreMeetingBriefSummary[];
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -178,6 +183,40 @@ type ReportSummary = {
     can_review: boolean;
 };
 
+type MeetingSummary = {
+    id: string;
+    title: string;
+    scheduled_at: string | null;
+    location: string | null;
+    link: string | null;
+    attendees: string[];
+    brief_status: string;
+};
+
+type IndustryBriefingSummary = {
+    id: string;
+    period: string | null;
+    body: string;
+    status: string;
+    reviewed_at: string | null;
+    sent_at: string | null;
+    review_url: string;
+    can_review: boolean;
+};
+
+type PreMeetingBriefSummary = {
+    id: string;
+    meeting_title: string | null;
+    meeting_at: string | null;
+    body: string;
+    red_flag_count: number;
+    generated_at: string | null;
+    reviewed_at: string | null;
+    sent_at: string | null;
+    review_url: string;
+    can_review: boolean;
+};
+
 type AnalysisFindingFeedback = {
     id: string;
     analysis_run_id: string;
@@ -233,6 +272,14 @@ type ProposalForm = {
     scope_summary: string;
     insurance_consent: string;
     coach_consent: string;
+};
+
+type MeetingForm = {
+    title: string;
+    scheduled_at: string;
+    location: string;
+    link: string;
+    attendees: string;
 };
 
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
@@ -410,6 +457,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 <ProposalsPanel client={client} />
 
                 <ReportsPanel client={client} />
+
+                <MeetingsBriefingsPanel client={client} />
 
                 <section className="space-y-4 rounded-md border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
@@ -1032,6 +1081,230 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
     );
 }
 
+function MeetingsBriefingsPanel({ client }: { client: ClientDetail }) {
+    const form = useForm<MeetingForm>({
+        title: '',
+        scheduled_at: '',
+        location: '',
+        link: '',
+        attendees: '',
+    });
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        form.post(client.meeting_store_url, {
+            preserveScroll: true,
+            onSuccess: () => form.reset(),
+        });
+    };
+
+    const review = (url: string) => {
+        router.patch(url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <CalendarClock className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Meetings and briefs</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge variant="outline">
+                        {client.meetings.length} meetings
+                    </Badge>
+                    <Badge variant="secondary">
+                        {client.pre_meeting_briefs.length} briefs
+                    </Badge>
+                </div>
+            </div>
+
+            <form onSubmit={submit} className="grid gap-3 lg:grid-cols-4">
+                <div className="grid gap-2">
+                    <Label htmlFor="meeting_title">Title</Label>
+                    <input
+                        id="meeting_title"
+                        value={form.data.title}
+                        onChange={(event) =>
+                            form.setData('title', event.target.value)
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.title} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="meeting_scheduled_at">Scheduled</Label>
+                    <input
+                        id="meeting_scheduled_at"
+                        type="datetime-local"
+                        value={form.data.scheduled_at}
+                        onChange={(event) =>
+                            form.setData('scheduled_at', event.target.value)
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.scheduled_at} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="meeting_location">Location</Label>
+                    <input
+                        id="meeting_location"
+                        value={form.data.location}
+                        onChange={(event) =>
+                            form.setData('location', event.target.value)
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.location} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="meeting_attendees">Attendees</Label>
+                    <input
+                        id="meeting_attendees"
+                        value={form.data.attendees}
+                        onChange={(event) =>
+                            form.setData('attendees', event.target.value)
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.attendees} />
+                </div>
+                <div className="grid gap-2 lg:col-span-3">
+                    <Label htmlFor="meeting_link">Link</Label>
+                    <input
+                        id="meeting_link"
+                        value={form.data.link}
+                        onChange={(event) =>
+                            form.setData('link', event.target.value)
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.link} />
+                </div>
+                <div className="flex items-end">
+                    <Button
+                        type="submit"
+                        size="sm"
+                        disabled={form.processing}
+                        className="w-full"
+                    >
+                        <CalendarClock className="size-4" aria-hidden="true" />
+                        Add meeting
+                    </Button>
+                </div>
+            </form>
+
+            <div className="grid gap-4 xl:grid-cols-3">
+                <BriefList
+                    title="Upcoming meetings"
+                    empty="No upcoming meetings."
+                    items={client.meetings.map((meeting) => ({
+                        id: meeting.id,
+                        heading: meeting.title,
+                        detail: [
+                            formatDate(meeting.scheduled_at),
+                            meeting.location,
+                            formatLabel(meeting.brief_status),
+                        ]
+                            .filter(Boolean)
+                            .join(' - '),
+                    }))}
+                />
+                <BriefList
+                    title="Industry briefings"
+                    empty="No industry briefings yet."
+                    items={client.industry_briefings.map((briefing) => ({
+                        id: briefing.id,
+                        heading: formatMonth(briefing.period),
+                        detail: `${formatLabel(briefing.status)} - ${truncate(briefing.body, 130)}`,
+                        action: briefing.can_review
+                            ? {
+                                  label: 'Review and send',
+                                  onClick: () => review(briefing.review_url),
+                              }
+                            : undefined,
+                    }))}
+                />
+                <BriefList
+                    title="Pre-meeting briefs"
+                    empty="No pre-meeting briefs yet."
+                    items={client.pre_meeting_briefs.map((brief) => ({
+                        id: brief.id,
+                        heading: brief.meeting_title ?? 'Meeting brief',
+                        detail: `${formatDate(brief.meeting_at)} - ${brief.red_flag_count} red flags`,
+                        action: brief.can_review
+                            ? {
+                                  label: 'Review and send',
+                                  onClick: () => review(brief.review_url),
+                              }
+                            : undefined,
+                    }))}
+                />
+            </div>
+        </section>
+    );
+}
+
+function BriefList({
+    title,
+    empty,
+    items,
+}: {
+    title: string;
+    empty: string;
+    items: Array<{
+        id: string;
+        heading: string;
+        detail: string;
+        action?: {
+            label: string;
+            onClick: () => void;
+        };
+    }>;
+}) {
+    return (
+        <div className="space-y-3">
+            <h3 className="text-xs font-medium text-muted-foreground uppercase">
+                {title}
+            </h3>
+            {items.length === 0 ? (
+                <p className="rounded-md border p-3 text-sm text-muted-foreground">
+                    {empty}
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {items.map((item) => (
+                        <article key={item.id} className="space-y-3 p-3">
+                            <div>
+                                <div className="text-sm font-medium">
+                                    {item.heading}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {item.detail}
+                                </div>
+                            </div>
+                            {item.action && (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={item.action.onClick}
+                                >
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {item.action.label}
+                                </Button>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function ConsentSelect({
     id,
     label,
@@ -1574,6 +1847,14 @@ function formatBytes(value: number | null) {
     }
 
     return `${(value / 1024).toFixed(1)} KB`;
+}
+
+function truncate(value: string, limit: number) {
+    if (value.length <= limit) {
+        return value;
+    }
+
+    return `${value.slice(0, Math.max(0, limit - 1))}...`;
 }
 
 function statusVariant(

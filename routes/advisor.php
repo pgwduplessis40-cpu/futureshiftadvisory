@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Permission;
 use App\Http\Controllers\Advisor\AccountingConnectionController;
 use App\Http\Controllers\Advisor\AnalysisFeedbackController;
+use App\Http\Controllers\Advisor\BriefingController;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
@@ -13,6 +14,7 @@ use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
+use App\Http\Controllers\Advisor\MeetingController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
@@ -54,6 +56,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/reports', [ReportController::class, 'store'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('clients.reports.store');
+        Route::post('clients/{client}/meetings', [MeetingController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.meetings.store');
         Route::get('clients/{client}/compose', [ClientEmailController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.compose');
@@ -100,6 +105,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('reports/{report}/review', [ReportController::class, 'review'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.review');
+        Route::patch('industry-briefings/{industryBriefing}/review', [BriefingController::class, 'reviewIndustry'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('industry-briefings.review');
+        Route::patch('pre-meeting-briefs/{preMeetingBrief}/review', [BriefingController::class, 'reviewPreMeeting'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('pre-meeting-briefs.review');
 
         Route::get('entrepreneurs', [EntrepreneurController::class, 'index'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)

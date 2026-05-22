@@ -1064,3 +1064,56 @@ WO-59 reuses `reports` and `report_sections`. Trajectory reports set
 advisor marks the report reviewed. `report_sections` stores start-to-current
 metric trends, ordered PV milestones, and the generated trajectory narrative
 with `metadata.advisor_review_required = true`.
+
+## WO-60 - Industry briefings and pre-meeting briefs
+
+### `meetings`
+
+Minimal advisor-entered meeting records used by Phase 2 pre-meeting briefs.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `title`
+- `scheduled_at`
+- `location`, `link`
+- `attendees` JSONB
+- `created_by_user_id`
+- `external_ref` nullable placeholder for future calendar sync
+
+Client-scoped RLS applies.
+
+### `industry_briefings`
+
+Monthly draft briefings held for advisor review before client notification.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `period` month start date
+- `body`
+- `sources` JSONB with NZ source attributions
+- `status` (`draft`, `sent`)
+- `created_by_user_id`, `reviewed_by_user_id`, `reviewed_at`, `sent_at`
+
+Unique on `client_id + period`; client-scoped RLS applies.
+
+### `pre_meeting_briefs`
+
+Generated one-page briefing records for meetings around 24 hours away.
+
+Key columns:
+
+- `id` UUID primary key
+- `meeting_id` unique
+- `client_id`
+- `meeting_at`
+- `body`
+- `red_flag_ids` JSONB
+- `generated_at`
+- `reviewed_by_user_id`, `reviewed_at`, `sent_at`
+
+The unique `meeting_id` enforces no duplicate brief generation for the same
+meeting. Client-scoped RLS applies.
