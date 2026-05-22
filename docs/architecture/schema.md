@@ -829,3 +829,10 @@ accounting snapshot exists, feeds the existing `improvement_opportunities` and
 WO-45 adds no tables or columns. Website audit runs write to the existing
 `analysis_runs` and `analysis_findings` tables, using questionnaire answers and
 client profile rows as cited evidence.
+
+## WO-46 - Competitor analysis module
+
+WO-46 adds no tables or columns. Competitor analysis runs write to the existing
+`analysis_runs` and `analysis_findings` tables, using questionnaire answers as
+cited competitor evidence. The six-competitor cap is enforced in the module
+input mapper rather than through schema.

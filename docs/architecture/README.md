@@ -45,6 +45,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `pv-integration.md` | WO-43 | Dashboard/report-ready PV waterfall assembly and advisor dashboard surface |
 | `financial-analysis.md` | WO-44 | Financial analysis module over snapshots, questionnaire fallback, economic overlay, and PV linkage |
 | `website-audit.md` | WO-45 | Website audit analysis for SEO, content, UX, CTAs, mobile performance, and NZ search context |
+| `competitor-analysis.md` | WO-46 | Competitor product, pricing, visibility, and gap analysis with six-competitor bound |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

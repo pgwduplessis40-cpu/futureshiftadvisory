@@ -43,6 +43,13 @@ final class PromptRegistry
             body: 'Audit the client website evidence for SEO, content clarity, UX, calls to action, mobile performance, and New Zealand search visibility. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.competitor',
+            version: '2026-05-wo46',
+            body: 'Analyse up to six competitors for product, pricing, visibility, and strategic gaps. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void
