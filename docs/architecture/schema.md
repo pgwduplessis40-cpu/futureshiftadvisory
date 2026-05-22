@@ -502,3 +502,28 @@ Key columns:
 ### `analysis_feedback`
 
 WO-32 activates the WO-31 feedback table through `FeedbackRecorder` and advisor routes. Rows continue to use the WO-31 columns and RLS policy; systematic correction patterns feed `learning_updates` with `status=detected` only.
+
+## WO-33 - Bias detection layer
+
+WO-33 reuses the WO-31/WO-32 schema rather than adding tables.
+
+### `analysis_findings`
+
+`AnalysisRunner` now guarantees `bias_signals` is populated from the shared `BiasDetector` for each completed analysis output, even when a direct test AI client bypasses the production integrity wrapper.
+
+### `learning_layer_runs`
+
+The bias monitor records layer id `3` executions with `window` JSONB containing `window_start`, `window_end`, `window_days`, `min_findings`, and `skew_threshold`.
+
+### `learning_updates`
+
+Systematic bias signals create governed candidates only:
+
+- `layer_id` = `3`
+- `source.type` = `bias_monitor`
+- `source.signal_key` idempotently identifies module + cohort + metric
+- `proposed_change.action` = `review_module_bias_or_calibration`
+- `proposed_change.automatic_application` = `false`
+- `status` = `detected`
+
+No WO-33 path writes `learning_update_implementations` or changes existing findings.

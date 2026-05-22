@@ -13,7 +13,7 @@ use Throwable;
 
 final class BiasDetector
 {
-    private const BIAS_LAYER_ID = 3;
+    public const LAYER_ID = 3;
 
     private const PRAISE_TERMS = [
         'amazing',
@@ -36,6 +36,7 @@ final class BiasDetector
         PromptEnvelope $prompt,
         AiResponse $response,
         array $subjectMetadata = [],
+        bool $recordLearningCandidate = true,
     ): array {
         $signals = $this->detectSignals($response);
         $payload = [
@@ -50,7 +51,9 @@ final class BiasDetector
 
         Log::info('ai.bias_assessed', $payload);
         $this->recordAuditEvent($payload);
-        $this->recordLearningUpdateIfNeeded($prompt, $response, $signals, $subjectMetadata);
+        if ($recordLearningCandidate) {
+            $this->recordLearningUpdateIfNeeded($prompt, $response, $signals, $subjectMetadata);
+        }
 
         return $signals;
     }
@@ -119,7 +122,7 @@ final class BiasDetector
 
         try {
             LearningUpdate::query()->create([
-                'layer_id' => self::BIAS_LAYER_ID,
+                'layer_id' => self::LAYER_ID,
                 'source' => [
                     'type' => 'bias_detector',
                     'prompt_id' => $prompt->id,

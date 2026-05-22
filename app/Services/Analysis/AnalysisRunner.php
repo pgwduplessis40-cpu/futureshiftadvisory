@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Exceptions\MissingAttributionException;
+use App\Services\Ai\Integrity\BiasDetector;
 use App\Services\Ai\Integrity\SourceAttribution;
 use App\Services\Ai\Prompts\PromptRegistry;
 use App\Services\Analysis\Contracts\AnalysisModule;
@@ -32,6 +33,7 @@ final class AnalysisRunner
         private readonly PromptRegistry $prompts,
         private readonly AiClient $ai,
         private readonly SourceAttribution $sourceAttribution,
+        private readonly BiasDetector $biasDetector,
         private readonly AnalyticalFramework $framework,
         private readonly AuditWriter $audit,
     ) {}
@@ -69,6 +71,19 @@ final class AnalysisRunner
             );
             $response = $this->ai->analyse($prompt);
             $this->sourceAttribution->validate($response);
+            $biasSignals = $this->biasDetector->inspect(
+                prompt: $prompt,
+                response: $response,
+                subjectMetadata: [
+                    'analysis_run_id' => $run->id,
+                    'client_id' => $client->id,
+                    'module' => $module->module()->value,
+                ],
+                recordLearningCandidate: false,
+            );
+            $response = $response->withBiasSignals(
+                $this->mergeBiasSignals($response->biasSignals, $biasSignals),
+            );
 
             $findings = $module->mapFindings($client, $response, $score);
             $persistedLenses = $this->persistFindings($run, $client, $response, $score, $findings, $options['actor'] ?? null);
@@ -249,6 +264,32 @@ final class AnalysisRunner
         }
 
         return $persistedLenses;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  ...$signalSets
+     * @return array<int, array<string, mixed>>
+     */
+    private function mergeBiasSignals(array ...$signalSets): array
+    {
+        $merged = [];
+        $seen = [];
+
+        foreach ($signalSets as $signals) {
+            foreach ($signals as $signal) {
+                $key = json_encode($signal);
+                $key = is_string($key) ? $key : serialize($signal);
+
+                if (isset($seen[$key])) {
+                    continue;
+                }
+
+                $seen[$key] = true;
+                $merged[] = $signal;
+            }
+        }
+
+        return $merged;
     }
 
     private function dataQualityDisclaimer(DataQualityScore $score): ?string

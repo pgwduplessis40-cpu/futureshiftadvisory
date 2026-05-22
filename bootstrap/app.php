@@ -2,6 +2,7 @@
 
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
+use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
@@ -81,6 +82,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunFeedbackLearningLayer::class)
             ->dailyAt('03:00')
             ->name('fsa-analysis-feedback-learning-layer')
+            ->withoutOverlapping();
+
+        $schedule->command(RunBiasMonitor::class)
+            ->dailyAt('03:15')
+            ->name('fsa-analysis-bias-monitor')
             ->withoutOverlapping();
 
         $schedule->job(new DispatchDailyDigest)
