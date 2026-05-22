@@ -36,6 +36,7 @@ final class AnalysisRunner
         private readonly BiasDetector $biasDetector,
         private readonly AnalyticalFramework $framework,
         private readonly RedFlagPromoter $redFlags,
+        private readonly KnowledgeCalibration $knowledgeCalibration,
         private readonly AuditWriter $audit,
     ) {}
 
@@ -66,7 +67,10 @@ final class AnalysisRunner
         try {
             $prompt = $this->prompts->envelope(
                 id: $module->promptId(),
-                input: $module->promptInput($client, $score),
+                input: [
+                    ...$module->promptInput($client, $score),
+                    'knowledge_calibration' => $this->knowledgeCalibration->forClient($client),
+                ],
                 dataQualitySummary: $score->toPayload(),
                 sourceReferences: $module->sourceReferences($client, $score),
             );

@@ -548,3 +548,28 @@ Key columns:
 - `resolved_at`
 
 Client-scoped RLS applies. WO-34 creates rows only for `critical` findings and never mutates the source finding.
+
+## WO-35 - Client knowledge assessment
+
+### `knowledge_assessments`
+
+Advisor-recorded client knowledge scores and the derived prompt-calibration payload used by subsequent Phase 2 analysis runs.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `financial_literacy` 1-5 score
+- `strategic_awareness` 1-5 score
+- `leadership` 1-5 score
+- `calibration` JSONB with language depth, financial detail, strategic framing, leadership context, review note, and raw scores
+- `assessed_at`
+- `assessed_by_user_id`
+
+Client-scoped RLS applies.
+
+### `coaching_signals`
+
+WO-35 reuses the WO-20 scaffold for leadership capability gaps. A low leadership score writes a raw `leadership_capability_gap` observation with `raw_observation_only=true` and `auto_referral=false` evidence.
+
+No Phase 2 path consumes the row for coach detection, calibration, thresholding, referral generation, or notification.

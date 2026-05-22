@@ -110,6 +110,14 @@ final class Client extends Model
         return $this->hasMany(KnowledgeEntry::class);
     }
 
+    /**
+     * @return HasMany<KnowledgeAssessment>
+     */
+    public function knowledgeAssessments(): HasMany
+    {
+        return $this->hasMany(KnowledgeAssessment::class);
+    }
+
     public function engagementTypeIsLocked(): bool
     {
         if ($this->engagement_type_locked_at !== null) {

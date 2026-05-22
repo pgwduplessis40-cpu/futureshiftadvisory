@@ -10,6 +10,7 @@ use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
+use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
@@ -41,6 +42,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('clients/{client}/lifecycle', [ClientLifecycleController::class, 'update'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.lifecycle.update');
+        Route::post('clients/{client}/knowledge-assessments', [KnowledgeAssessmentController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('clients.knowledge-assessments.store');
         Route::get('clients/{client}/compose', [ClientEmailController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.compose');

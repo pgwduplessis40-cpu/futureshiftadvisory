@@ -12,6 +12,7 @@ use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\KnowledgeAssessment;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
@@ -151,6 +152,8 @@ final class ClientController extends Controller
                 'wellbeing_trend' => $user instanceof User ? $this->wellbeingTrend($client, $user) : null,
                 'status_options' => ClientStatus::options(),
                 'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
+                'knowledge_assessment_store_url' => route('advisor.clients.knowledge-assessments.store', $client, absolute: false),
+                'latest_knowledge_assessment' => $this->latestKnowledgeAssessment($client),
                 'address' => $client->address,
                 'directors' => $client->directors ?? [],
                 'registry_sources' => $client->registry_sources ?? [],
@@ -164,6 +167,31 @@ final class ClientController extends Controller
                 ->first()
                 ?->only(['id', 'declaration', 'declared_at']),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function latestKnowledgeAssessment(Client $client): ?array
+    {
+        $assessment = KnowledgeAssessment::query()
+            ->where('client_id', $client->getKey())
+            ->latest('assessed_at')
+            ->latest('created_at')
+            ->first();
+
+        if (! $assessment instanceof KnowledgeAssessment) {
+            return null;
+        }
+
+        return [
+            'id' => $assessment->id,
+            'financial_literacy' => $assessment->financial_literacy,
+            'strategic_awareness' => $assessment->strategic_awareness,
+            'leadership' => $assessment->leadership,
+            'calibration' => $assessment->calibration,
+            'assessed_at' => $assessment->assessed_at?->toIso8601String(),
+        ];
     }
 
     /**

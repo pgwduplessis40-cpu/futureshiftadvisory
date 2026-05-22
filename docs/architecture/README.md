@@ -34,6 +34,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `analysis-feedback-learning.md` | WO-32 | Advisor feedback capture and governed feedback-learning cadence |
 | `bias-monitoring.md` | WO-33 | Per-output bias signals, systematic skew monitor, governed alerts |
 | `red-flags.md` | WO-34 | Critical analysis finding promotion, urgent alerts, acknowledge/resolve flow |
+| `knowledge-assessment.md` | WO-35 | Client knowledge scores, analysis prompt calibration, raw coaching-signal boundary |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

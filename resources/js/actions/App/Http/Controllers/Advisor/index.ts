@@ -1,6 +1,7 @@
 import ClientController from './ClientController'
 import OffboardingController from './OffboardingController'
 import ClientLifecycleController from './ClientLifecycleController'
+import KnowledgeAssessmentController from './KnowledgeAssessmentController'
 import ClientEmailController from './ClientEmailController'
 import ClientMessageController from './ClientMessageController'
 import EntrepreneurController from './EntrepreneurController'
@@ -13,6 +14,7 @@ const Advisor = {
     ClientController: Object.assign(ClientController, ClientController),
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
 ClientLifecycleController: Object.assign(ClientLifecycleController, ClientLifecycleController),
+KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, KnowledgeAssessmentController),
 ClientEmailController: Object.assign(ClientEmailController, ClientEmailController),
 ClientMessageController: Object.assign(ClientMessageController, ClientMessageController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),

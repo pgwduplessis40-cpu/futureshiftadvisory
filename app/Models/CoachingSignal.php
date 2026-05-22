@@ -14,6 +14,8 @@ final class CoachingSignal extends Model
 
     public const TYPE_LOW_PERSONAL_COPING_STREAK = 'low_personal_coping_streak';
 
+    public const TYPE_LEADERSHIP_CAPABILITY_GAP = 'leadership_capability_gap';
+
     protected $guarded = [];
 
     protected $casts = [

@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-34 complete (next: WO-35, pending owner approval).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-35 complete (next: WO-36, pending owner approval).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **34 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-34 complete |
+| Work orders complete | **35 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-35 complete |
 | Work orders in progress | none |
-| Next work order | **WO-35** - Client knowledge assessment (pending owner approval) |
+| Next work order | **WO-36** - NZ economic indicators feed (pending owner approval) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-34 verified locally. `composer test` passed (Pint + PHPUnit **209 tests / 1356 assertions**) against PostgreSQL `futureshift_test`; `php artisan test tests\Feature\Analysis` passed **13 tests / 111 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-35 verified locally. `composer test` passed (Pint + PHPUnit **211 tests / 1378 assertions**) against PostgreSQL `futureshift_test`; `php artisan test tests\Feature\Analysis` passed **15 tests / 133 assertions**; WO-35 targeted tests passed **2 tests / 22 assertions**; advisor/client adjacent tests passed **17 tests / 171 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -54,7 +54,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-31 | `d13ae0c` | Analysis spine | Shared `AnalysisRunner`, analysis runs/findings/feedback tables, RLS, integrity gates, and Phase 2 architecture docs. |
 | WO-32 | `3b635a4` | AI feedback capture loop | Advisor finding feedback route/UI, `FeedbackRecorder`, `learning_layer_runs`, scheduled feedback learning command, governed `learning_updates` candidates. |
 | WO-33 | `b2fc7c2` | Bias detection layer | Per-analysis bias signal capture, systematic skew monitor, urgent governed alerts, and bias-monitor architecture docs. |
-| WO-34 | this commit | AI red-flag alerts | Critical finding promotion, urgent red-flag notifications, dashboard panel, and audited acknowledge/resolve flow. |
+| WO-34 | `f71b230` | AI red-flag alerts | Critical finding promotion, urgent red-flag notifications, dashboard panel, and audited acknowledge/resolve flow. |
+| WO-35 | this commit | Client knowledge assessment | Advisor-scored knowledge profile, prompt calibration injection, client detail UI, and raw leadership-gap coaching observation boundary. |
 
 ## Completed WO Details
 
@@ -287,6 +288,17 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover critical-finding promotion, urgent preference bypass, dedupe, dashboard scoping, and audited acknowledge/resolve.
 - Architecture docs: `docs/architecture/red-flags.md` and `docs/architecture/schema.md`.
 
+### WO-35 - Client Knowledge Assessment
+
+- `knowledge_assessments` stores advisor-recorded financial-literacy, strategic-awareness, and leadership scores with client-scoped RLS.
+- `KnowledgeCalibration` derives language-depth, financial-detail, strategic-framing, and leadership-context calibration blocks from the latest assessment.
+- `AnalysisRunner` injects `knowledge_calibration` into every Phase 2 analysis prompt, making the calibration visible in prompt inputs and hashes.
+- The advisor client detail page includes a knowledge assessment panel for recording scores and reviewing the latest calibration labels.
+- Leadership scores at or below the raw-observation threshold write a neutral `leadership_capability_gap` row to `coaching_signals` with `raw_observation_only=true` and `auto_referral=false`.
+- WO-35 does not consume coaching signals, classify referrals, tune thresholds, notify coaches, or create coach referrals; that remains Phase 3.
+- Tests cover prompt calibration injection, raw leadership-gap signal persistence, and the absence of Phase 2 notification/red-flag side effects.
+- Architecture docs: `docs/architecture/knowledge-assessment.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -298,24 +310,24 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-34:
+Results after WO-35:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 209 tests, 1356 assertions.
-- `php artisan test tests\Feature\Analysis` (targeted analysis suite): passed - 13 tests, 111 assertions.
-- `php artisan test tests\Feature\Analysis\RedFlagTest.php` (WO-34 targeted): passed - 2 tests, 20 assertions.
-- `php artisan test tests\Feature\Advisor\DashboardTest.php` (dashboard red-flag panel coverage): passed - 2 tests, 46 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 211 tests, 1378 assertions.
+- `php artisan test tests\Feature\Analysis` (targeted analysis suite): passed - 15 tests, 133 assertions.
+- `php artisan test tests\Feature\Analysis\KnowledgeAssessmentTest.php` (WO-35 targeted): passed - 2 tests, 22 assertions.
+- `php artisan test tests\Feature\Clients tests\Feature\Advisor\AddClientTest.php tests\Feature\DataQuality\DataQualityGateTest.php tests\Feature\Wellbeing\WellbeingCheckinTest.php` (advisor/client adjacent coverage): passed - 17 tests, 171 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 34 distinct WO commits (WO-01...WO-34) on `featureApp`.
+- Git history after this commit: 35 distinct WO commits (WO-01...WO-35) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-34 are complete. WO-35 is next, pending owner approval.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-35 are complete. WO-36 is next, pending owner approval.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-34; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-35; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

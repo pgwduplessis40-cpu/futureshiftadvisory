@@ -2,6 +2,7 @@ import { Head, Link, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     Ban,
+    Brain,
     CheckCircle2,
     FileCheck2,
     HeartPulse,
@@ -29,6 +30,8 @@ type ClientDetail = ClientSummary & {
     offboarding: OffboardingSummary | null;
     status_options: StatusOption[];
     lifecycle_update_url: string;
+    knowledge_assessment_store_url: string;
+    latest_knowledge_assessment: KnowledgeAssessmentSummary | null;
     address: Record<string, string | null> | null;
     directors: Array<Record<string, string | null>>;
     registry_sources: Record<string, string>;
@@ -74,6 +77,15 @@ type StatusOption = {
     label: string;
 };
 
+type KnowledgeAssessmentSummary = {
+    id: string;
+    financial_literacy: number;
+    strategic_awareness: number;
+    leadership: number;
+    calibration: Record<string, unknown>;
+    assessed_at: string | null;
+};
+
 type AnalysisFindingFeedback = {
     id: string;
     analysis_run_id: string;
@@ -116,6 +128,12 @@ type FeedbackPayload = {
 type LifecycleForm = {
     status: string;
     reason: string;
+};
+
+type KnowledgeAssessmentForm = {
+    financial_literacy: number;
+    strategic_awareness: number;
+    leadership: number;
 };
 
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
@@ -286,6 +304,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                     </section>
                 </div>
 
+                <KnowledgeAssessmentPanel client={client} />
+
                 <section className="space-y-4 rounded-md border p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
@@ -388,6 +408,136 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 )}
             </div>
         </>
+    );
+}
+
+function KnowledgeAssessmentPanel({ client }: { client: ClientDetail }) {
+    const latest = client.latest_knowledge_assessment;
+    const form = useForm<KnowledgeAssessmentForm>({
+        financial_literacy: latest?.financial_literacy ?? 3,
+        strategic_awareness: latest?.strategic_awareness ?? 3,
+        leadership: latest?.leadership ?? 3,
+    });
+
+    const submit = () => {
+        form.post(client.knowledge_assessment_store_url, {
+            preserveScroll: true,
+        });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Brain className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Knowledge assessment
+                    </h2>
+                </div>
+                {latest && (
+                    <Badge variant="outline">
+                        {formatDate(latest.assessed_at)}
+                    </Badge>
+                )}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+                <ScoreInput
+                    id="financial_literacy"
+                    label="Financial literacy"
+                    value={form.data.financial_literacy}
+                    error={form.errors.financial_literacy}
+                    onChange={(value) =>
+                        form.setData('financial_literacy', value)
+                    }
+                />
+                <ScoreInput
+                    id="strategic_awareness"
+                    label="Strategic awareness"
+                    value={form.data.strategic_awareness}
+                    error={form.errors.strategic_awareness}
+                    onChange={(value) =>
+                        form.setData('strategic_awareness', value)
+                    }
+                />
+                <ScoreInput
+                    id="leadership"
+                    label="Leadership"
+                    value={form.data.leadership}
+                    error={form.errors.leadership}
+                    onChange={(value) => form.setData('leadership', value)}
+                />
+            </div>
+
+            {latest && (
+                <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">
+                        {formatLabel(
+                            String(
+                                latest.calibration.language_depth ?? 'standard',
+                            ),
+                        )}
+                    </Badge>
+                    <Badge variant="outline">
+                        {formatLabel(
+                            String(
+                                latest.calibration.financial_detail ??
+                                    'balanced',
+                            ),
+                        )}
+                    </Badge>
+                    <Badge variant="outline">
+                        {formatLabel(
+                            String(
+                                latest.calibration.leadership_context ??
+                                    'standard',
+                            ),
+                        )}
+                    </Badge>
+                </div>
+            )}
+
+            <div className="flex justify-end">
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={form.processing}
+                    onClick={submit}
+                >
+                    Save assessment
+                </Button>
+            </div>
+        </section>
+    );
+}
+
+function ScoreInput({
+    id,
+    label,
+    value,
+    error,
+    onChange,
+}: {
+    id: string;
+    label: string;
+    value: number;
+    error?: string;
+    onChange: (value: number) => void;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label htmlFor={id}>{label}</Label>
+            <input
+                id={id}
+                type="number"
+                min={1}
+                max={5}
+                value={value}
+                onChange={(event) => onChange(Number(event.target.value))}
+                className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            />
+            <InputError message={error} />
+        </div>
     );
 }
 
