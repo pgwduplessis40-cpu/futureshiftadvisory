@@ -724,3 +724,25 @@ Rows are global reference data rather than client-scoped rows. Refreshes mark pr
 WO-39 records refresh runs with layer id `13`. New active rows create governed `learning_updates` candidates with `source.type=valuation_multiple_refresh`, `proposed_change.action=review_valuation_multiple_assumptions`, and `automatic_application=false`.
 
 No WO-39 path performs valuation calculations or applies multiple changes to client outputs.
+
+## WO-40 - PV engine + discount-rate methods
+
+### `pv_calculations`
+
+Client-scoped ledger for present-value calculations. Later PV types write domain rows that point back to this table.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `type` (`business_valuation`, `improvement_opportunity`, `risk_cost`)
+- `discount_method` (`ocr_linked`, `industry_wacc`, `advisor_configured`, `client_inputted`)
+- `discount_rate`
+- `discount_rate_rationale`
+- `inputs` JSONB
+- `result` JSONB
+- `as_at`
+- `created_by_user_id`
+- `source_attributions` JSONB
+
+Client-scoped RLS applies. Discount rates are stored as decimals, not percentages. Every calculation must carry source attributions for the selected discount-rate method.
