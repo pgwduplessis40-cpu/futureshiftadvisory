@@ -63,6 +63,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `funnel-analytics.md` | WO-61 | Funnel event tracking, drop-off dashboard data, and governed UX-improvement candidates |
 | `practice-health-report.md` | WO-62 | Active-client PV portfolio, revenue under management, and monthly practice-health snapshots |
 | `dashboard-phase2.md` | WO-63 | Phase 2 dashboard panels, proposal status, and questionnaire optimisation candidates |
+| `wellbeing-analytics.md` | WO-64 | Monthly wellbeing pulse analytics and raw low-coping observation boundary |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

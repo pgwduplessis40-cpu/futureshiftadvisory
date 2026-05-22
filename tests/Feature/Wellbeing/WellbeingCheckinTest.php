@@ -163,6 +163,45 @@ final class WellbeingCheckinTest extends TestCase
         ]);
     }
 
+    public function test_low_personal_coping_streak_records_one_raw_signal_only(): void
+    {
+        [$user, $client] = $this->clientUserWithClient('streak.client@example.com');
+
+        app(RequestContext::class)->apply('system', []);
+        WellbeingCheckin::query()->create([
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'period_start' => now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+            'business_confidence' => 3,
+            'personal_coping' => 2,
+            'submitted_at' => now()->subMonthNoOverflow(),
+        ]);
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.wellbeing.store'), [
+                'business_confidence' => 3,
+                'personal_coping' => 2,
+                'notes' => 'Second low month.',
+            ]);
+
+        $this->travelTo(now()->addMonthNoOverflow()->startOfMonth()->addDay());
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.wellbeing.store'), [
+                'business_confidence' => 3,
+                'personal_coping' => 2,
+                'notes' => 'Still low, same streak.',
+            ]);
+
+        app(RequestContext::class)->apply('system', []);
+        $signal = CoachingSignal::query()->sole();
+
+        $this->assertSame(CoachingSignal::TYPE_LOW_PERSONAL_COPING_STREAK, $signal->signal_type);
+        $this->assertSame('raw_internal_observation_only', $signal->evidence['phase_2_boundary']);
+        $this->assertFalse($signal->evidence['auto_referral']);
+        $this->assertDatabaseCount('learning_updates', 0);
+    }
+
     public function test_wellbeing_trend_is_visible_to_lead_advisor_and_super_admin_only(): void
     {
         [$clientUser, $client] = $this->clientUserWithClient();
@@ -199,6 +238,52 @@ final class WellbeingCheckinTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('client.wellbeing_trend', null));
+    }
+
+    public function test_advisor_dashboard_surfaces_scoped_wellbeing_analytics(): void
+    {
+        [$clientUser, $client] = $this->clientUserWithClient('wellbeing-dashboard-client@example.com');
+        $advisor = $this->advisorFor($client, User::TYPE_ADVISOR, 'lead_advisor');
+        [$otherUser, $otherClient] = $this->clientUserWithClient('wellbeing-dashboard-other@example.com');
+        $this->advisorFor($otherClient, User::TYPE_ADVISOR, 'lead_advisor');
+
+        app(RequestContext::class)->apply('system', []);
+        WellbeingCheckin::query()->create([
+            'client_id' => $client->id,
+            'user_id' => $clientUser->id,
+            'period_start' => now()->subMonthNoOverflow()->startOfMonth()->toDateString(),
+            'business_confidence' => 4,
+            'personal_coping' => 3,
+            'submitted_at' => now()->subMonthNoOverflow(),
+        ]);
+        WellbeingCheckin::query()->create([
+            'client_id' => $client->id,
+            'user_id' => $clientUser->id,
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'business_confidence' => 2,
+            'personal_coping' => 2,
+            'submitted_at' => now(),
+        ]);
+        WellbeingCheckin::query()->create([
+            'client_id' => $otherClient->id,
+            'user_id' => $otherUser->id,
+            'period_start' => now()->startOfMonth()->toDateString(),
+            'business_confidence' => 1,
+            'personal_coping' => 1,
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('wellbeingAnalytics.summary.checkins', 2)
+                ->where('wellbeingAnalytics.summary.clients', 1)
+                ->where('wellbeingAnalytics.summary.average_personal_coping', 2.5)
+                ->where('wellbeingAnalytics.summary.low_personal_coping_checkins', 1)
+                ->where('wellbeingAnalytics.summary.current_period_completion_rate', 1)
+                ->has('wellbeingAnalytics.monthly', 2));
     }
 
     public function test_monthly_command_prompts_due_client_users_only(): void

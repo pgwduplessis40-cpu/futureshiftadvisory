@@ -29,6 +29,7 @@ use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
 use App\Services\Reports\PracticeHealthReport;
 use App\Services\Terms\TermsAcceptanceGate;
+use App\Services\Wellbeing\WellbeingTrendAnalytics;
 use DateTimeInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +49,7 @@ final class DashboardController extends Controller
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
         QuestionnaireOptimisationLayer $questionnaireOptimisation,
+        WellbeingTrendAnalytics $wellbeing,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -64,7 +66,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing));
         }
 
         return Inertia::render('dashboard');
@@ -80,6 +82,7 @@ final class DashboardController extends Controller
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
         QuestionnaireOptimisationLayer $questionnaireOptimisation,
+        WellbeingTrendAnalytics $wellbeing,
     ): array {
         $clientIds = $this->visibleClientIds($user);
 
@@ -95,6 +98,7 @@ final class DashboardController extends Controller
             'practiceHealth' => $practiceHealth->forClientIds($clientIds),
             'proposalStatus' => $this->proposalStatus($clientIds),
             'questionnaireOptimisation' => $questionnaireOptimisation->summary(),
+            'wellbeingAnalytics' => $wellbeing->forClientIds($clientIds),
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
             'funnelAnalytics' => $funnels->summary($clientIds),
         ];

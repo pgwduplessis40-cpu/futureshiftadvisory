@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-63 complete (next: WO-64).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence **COMPLETE & VERIFIED** (34/34).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **63 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-63 complete |
+| Work orders complete | **64 total** - Phase 1 complete (30/30) + Phase 2 complete (34/34, WO-31...WO-64) |
 | Work orders in progress | none |
-| Next work order | **WO-64** - Wellbeing monthly pulse + analytics |
+| Next work order | none in Phase 2 plan |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-63 verified locally. `composer test` passed (Pint + PHPUnit **291 tests / 2166 assertions**) against PostgreSQL `futureshift_test`; WO-63 targeted dashboard/questionnaire optimisation tests passed **2 tests / 35 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-64 verified locally. `composer test` passed (Pint + PHPUnit **293 tests / 2190 assertions**) against PostgreSQL `futureshift_test`; WO-64 targeted wellbeing tests passed **7 tests / 103 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -83,7 +83,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-60 | `152d38a` | Industry briefings + pre-meeting brief | Monthly NZ-sourced briefings, local meetings, 24-hour pre-meeting briefs, review/send gates, and scheduler commands. |
 | WO-61 | `2b0bd7c` | Funnel analytics | Funnel event ledger, onboarding/questionnaire/proposal capture, advisor dashboard drop-off panel, and governed UX-improvement candidates. |
 | WO-62 | `acc1cf3` | Practice health report | Active-client PV portfolio, revenue under management, advisor/super-admin scoping, monthly cached snapshots, and dashboard summary. |
-| WO-63 | this commit | Advisor dashboard Phase 2 panels | Proposal status/expiry panel, questionnaire optimisation candidates, and completed Phase 2 dashboard composition. |
+| WO-63 | `72fcd95` | Advisor dashboard Phase 2 panels | Proposal status/expiry panel, questionnaire optimisation candidates, and completed Phase 2 dashboard composition. |
+| WO-64 | this commit | Wellbeing monthly pulse analytics | Advisor wellbeing analytics, duplicate-safe raw low-coping observation, and Phase 2 coaching-boundary documentation. |
 
 ## Completed WO Details
 
@@ -627,6 +628,16 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover scoped dashboard proposal/candidate payloads and governed questionnaire candidate emission with no auto-implementation.
 - Architecture docs: `docs/architecture/dashboard-phase2.md` and `docs/architecture/schema.md`.
 
+### WO-64 - Wellbeing Monthly Pulse + Analytics
+
+- `WellbeingTrendAnalytics` aggregates advisor-visible six-month wellbeing trends without exposing client notes in the dashboard payload.
+- The advisor dashboard now includes wellbeing check-in count, average business confidence, average personal coping, low-coping count, current-month completion rate, and raw signal count.
+- `CoachingSignalDetector` now suppresses duplicate rows for a continuing low-personal-coping streak so the fixed Phase 2 observation creates one raw `coaching_signals` row only.
+- The raw low-coping signal evidence marks `auto_referral = false` and `phase_2_boundary = raw_internal_observation_only`; Phase 2 still has no coach calibration, referral, or consumer.
+- The existing monthly prompt command remains scheduled and covered, sending optional pulse prompts only to due client portal users.
+- Tests cover monthly prompts, advisor-only visibility, scoped dashboard analytics, the one-signal streak rule, and no Phase 2 learning/referral consumer.
+- Architecture docs: `docs/architecture/wellbeing-analytics.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -638,22 +649,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-63:
+Results after WO-64:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 291 tests, 2166 assertions.
-- `php artisan test tests\Feature\Advisor\DashboardPhaseTwoPanelsTest.php tests\Feature\Questionnaire\QuestionnaireOptimisationLayerTest.php` (WO-63 targeted dashboard/questionnaire optimisation coverage): passed - 2 tests, 35 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 293 tests, 2190 assertions.
+- `php artisan test tests\Feature\Wellbeing\WellbeingCheckinTest.php` (WO-64 targeted wellbeing coverage): passed - 7 tests, 103 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 63 distinct WO commits (WO-01...WO-63) on `featureApp`.
+- Git history after this commit: 64 distinct WO commits (WO-01...WO-64) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-63 are complete. WO-64 is next.
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified.**
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-63; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

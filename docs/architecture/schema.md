@@ -1179,3 +1179,24 @@ The questionnaire optimisation layer uses `layer_id = 16` and writes governed
 candidate rows with `source.type = questionnaire_optimisation_layer` and
 `status = detected`. It deliberately creates no
 `learning_update_implementations` in Phase 2.
+
+## WO-64 - Wellbeing monthly pulse and analytics
+
+WO-64 reuses the Phase 1 `wellbeing_checkins` and `coaching_signals` tables.
+
+Advisor dashboard analytics read `wellbeing_checkins` over the recent six-month
+window and expose aggregate check-in counts, average business confidence,
+average personal coping, low-coping counts, and current-period completion rate.
+The payload contains no client notes.
+
+The raw two-month coping observation is stored in `coaching_signals` with:
+
+- `signal_type = low_personal_coping_streak`
+- `status = detected`
+- `severity = advisor_attention`
+- `evidence.rule = two_consecutive_months_personal_coping_lte_2`
+- `evidence.auto_referral = false`
+- `evidence.phase_2_boundary = raw_internal_observation_only`
+
+The detector suppresses duplicate rows for an ongoing low-coping streak. Phase 2
+does not consume these signals for coach referral, calibration, or automation.

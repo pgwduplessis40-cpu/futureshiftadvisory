@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     Clock,
     FileText,
+    HeartPulse,
     Inbox,
     PieChart,
     PlugZap,
@@ -289,6 +290,34 @@ type QuestionnaireOptimisationPayload = {
     }>;
 };
 
+type WellbeingAnalyticsPayload = {
+    summary: {
+        checkins: number;
+        clients: number;
+        average_business_confidence: number;
+        average_personal_coping: number;
+        low_personal_coping_checkins: number;
+        active_low_coping_signals: number;
+        current_period_completion_rate: number;
+    };
+    monthly: Array<{
+        period_start: string;
+        checkins: number;
+        average_business_confidence: number;
+        average_personal_coping: number;
+        low_personal_coping_checkins: number;
+    }>;
+    signals: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        signal_type: string;
+        severity: string;
+        generated_at: string | null;
+        auto_referral: boolean;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -301,6 +330,7 @@ type Props = {
     practiceHealth: PracticeHealthPayload;
     proposalStatus: ProposalStatusPayload;
     questionnaireOptimisation: QuestionnaireOptimisationPayload;
+    wellbeingAnalytics: WellbeingAnalyticsPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
 };
@@ -317,6 +347,7 @@ export default function AdvisorDashboard({
     practiceHealth,
     proposalStatus,
     questionnaireOptimisation,
+    wellbeingAnalytics,
     scenarioPlanning,
     funnelAnalytics,
 }: Props) {
@@ -392,6 +423,10 @@ export default function AdvisorDashboard({
                     <QuestionnaireOptimisation
                         payload={questionnaireOptimisation}
                     />
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-3">
+                    <WellbeingAnalytics payload={wellbeingAnalytics} />
                 </div>
 
                 <UpcomingPanels />
@@ -603,6 +638,93 @@ function QuestionnaireOptimisation({
                                 {item.summary}
                             </p>
                         </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function WellbeingAnalytics({
+    payload,
+}: {
+    payload: WellbeingAnalyticsPayload;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4 xl:col-span-2">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <HeartPulse className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Wellbeing trends</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.checkins} check-ins
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.active_low_coping_signals > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.active_low_coping_signals} signals
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-4">
+                <PortfolioMetric
+                    label="Confidence"
+                    value={`${payload.summary.average_business_confidence}/5`}
+                />
+                <PortfolioMetric
+                    label="Coping"
+                    value={`${payload.summary.average_personal_coping}/5`}
+                />
+                <PortfolioMetric
+                    label="Low coping"
+                    value={payload.summary.low_personal_coping_checkins.toString()}
+                />
+                <PortfolioMetric
+                    label="This month"
+                    value={formatPercent(
+                        payload.summary.current_period_completion_rate,
+                    )}
+                />
+            </div>
+
+            {payload.monthly.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No wellbeing check-ins captured yet.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.monthly.slice(-6).map((month) => (
+                        <div
+                            key={month.period_start}
+                            className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">
+                                    {formatDateOnly(month.period_start)}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {month.checkins} check-ins -{' '}
+                                    {month.low_personal_coping_checkins} low
+                                    coping
+                                </div>
+                            </div>
+                            <div className="text-sm text-muted-foreground sm:text-right">
+                                <div>
+                                    Confidence{' '}
+                                    {month.average_business_confidence}/5
+                                </div>
+                                <div>
+                                    Coping {month.average_personal_coping}/5
+                                </div>
+                            </div>
+                        </div>
                     ))}
                 </div>
             )}

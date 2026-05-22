@@ -39,6 +39,17 @@ final class CoachingSignalDetector
 
         $this->context->apply('system', []);
 
+        $existing = CoachingSignal::query()
+            ->where('client_id', $checkin->client_id)
+            ->where('user_id', $checkin->user_id)
+            ->where('signal_type', CoachingSignal::TYPE_LOW_PERSONAL_COPING_STREAK)
+            ->where('status', 'detected')
+            ->first();
+
+        if ($existing instanceof CoachingSignal) {
+            return $existing;
+        }
+
         $signal = CoachingSignal::query()->firstOrCreate(
             [
                 'client_id' => $checkin->client_id,
@@ -52,6 +63,7 @@ final class CoachingSignalDetector
                 'evidence' => [
                     'rule' => 'two_consecutive_months_personal_coping_lte_2',
                     'auto_referral' => false,
+                    'phase_2_boundary' => 'raw_internal_observation_only',
                     'checkins' => [
                         [
                             'id' => $previous->id,
