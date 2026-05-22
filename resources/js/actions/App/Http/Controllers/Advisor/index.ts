@@ -2,6 +2,7 @@ import ClientController from './ClientController'
 import OffboardingController from './OffboardingController'
 import ClientLifecycleController from './ClientLifecycleController'
 import KnowledgeAssessmentController from './KnowledgeAssessmentController'
+import GoalController from './GoalController'
 import ProposalController from './ProposalController'
 import ReportController from './ReportController'
 import MeetingController from './MeetingController'
@@ -20,6 +21,7 @@ const Advisor = {
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
 ClientLifecycleController: Object.assign(ClientLifecycleController, ClientLifecycleController),
 KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, KnowledgeAssessmentController),
+GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
 ReportController: Object.assign(ReportController, ReportController),
 MeetingController: Object.assign(MeetingController, MeetingController),

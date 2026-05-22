@@ -1,5 +1,7 @@
 import clients from './clients'
 import proposals from './proposals'
+import goals from './goals'
+import milestones from './milestones'
 import reports from './reports'
 import industryBriefings from './industry-briefings'
 import preMeetingBriefs from './pre-meeting-briefs'
@@ -12,6 +14,8 @@ import analysisFindings from './analysis-findings'
 const advisor = {
     clients: Object.assign(clients, clients),
 proposals: Object.assign(proposals, proposals),
+goals: Object.assign(goals, goals),
+milestones: Object.assign(milestones, milestones),
 reports: Object.assign(reports, reports),
 industryBriefings: Object.assign(industryBriefings, industryBriefings),
 preMeetingBriefs: Object.assign(preMeetingBriefs, preMeetingBriefs),

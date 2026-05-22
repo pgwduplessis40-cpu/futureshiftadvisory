@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **not started** (next: WO-65).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65 complete; next: WO-66).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **64 total** — Phase 1 (30/30) + Phase 2 (34/34, WO-31…WO-64) |
+| Work orders complete | **65 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (1/37, WO-65) |
 | Work orders in progress | none |
-| Next work order | **WO-65** — Goals & milestones tracker (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-66** - Digital proposal sign-off flow (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** `php artisan test` against PostgreSQL `futureshift_test`: **293 tests / 2190 assertions — all pass**; Pint, ESLint, `tsc --noEmit`, Prettier all green; 64/64 WO commits present; zero `TODO`/`FIXME`/`dd()`/`dump()`/`console.log` in shipped code. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65 targeted verification passed: `php artisan test tests\Feature\Goals\GoalTrackerTest.php` against PostgreSQL `futureshift_test` (**3 tests / 57 assertions**), Pint dirty check, ESLint, `tsc --noEmit`, and Prettier. |
 
 ## Commit Log
 
@@ -84,7 +84,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-61 | `2b0bd7c` | Funnel analytics | Funnel event ledger, onboarding/questionnaire/proposal capture, advisor dashboard drop-off panel, and governed UX-improvement candidates. |
 | WO-62 | `acc1cf3` | Practice health report | Active-client PV portfolio, revenue under management, advisor/super-admin scoping, monthly cached snapshots, and dashboard summary. |
 | WO-63 | `72fcd95` | Advisor dashboard Phase 2 panels | Proposal status/expiry panel, questionnaire optimisation candidates, and completed Phase 2 dashboard composition. |
-| WO-64 | this commit | Wellbeing monthly pulse analytics | Advisor wellbeing analytics, duplicate-safe raw low-coping observation, and Phase 2 coaching-boundary documentation. |
+| WO-64 | `979c6d0` | Wellbeing monthly pulse analytics | Advisor wellbeing analytics, duplicate-safe raw low-coping observation, and Phase 2 coaching-boundary documentation. |
+| WO-65 | this commit | Goals & milestones tracker | Client-scoped goals, milestones, actions, proof-of-completion verification, PV-realised dashboard payloads/UI, and RLS coverage. |
 
 ## Completed WO Details
 
@@ -638,12 +639,23 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover monthly prompts, advisor-only visibility, scoped dashboard analytics, the one-signal streak rule, and no Phase 2 learning/referral consumer.
 - Architecture docs: `docs/architecture/wellbeing-analytics.md` and `docs/architecture/schema.md`.
 
+### WO-65 - Goals & Milestones Tracker
+
+- Added client-scoped `goals`, `milestones`, `milestone_actions`, and `proof_of_completion` tables with standard RLS policies.
+- `GoalTracker` creates PV-linked goals and milestones through `PvEngine`, tracks milestone actions, verifies proof uploads through `DocumentVerifier`, and excludes flagged/blocked milestones from PV-realised totals.
+- The advisor client detail page now includes goal, milestone, action, and proof-upload controls plus PV-realised progress; the client portal dashboard shows read-only goal progress.
+- `PvType` includes `goal_target` and `milestone_impact` calculation types.
+- Tests cover PV linkage, proof verification and discrepancy blocking, dashboard payloads for advisor/client portal, and RLS isolation across all four new tables.
+- Architecture docs: `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks:
+Latest local checks include the full WO-64 suite plus WO-65 targeted checks:
 
 ```pwsh
 composer test
+php artisan test tests\Feature\Goals\GoalTrackerTest.php
+vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
 npm run format:check
@@ -658,11 +670,20 @@ Results after WO-64:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 64 distinct WO commits (WO-01...WO-64) on `featureApp`.
 
+Results after WO-65:
+
+- `php artisan test tests\Feature\Goals\GoalTrackerTest.php` (PostgreSQL `futureshift_test`): passed - 3 tests, 57 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 65 distinct WO commits (WO-01...WO-65) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65 complete; next is WO-66.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
@@ -694,7 +715,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 - Stay on `featureApp`.
 - Implement WOs in numeric order.
 - Commit each completed WO directly on `featureApp` with `WO-<id>: <slug summary>`.
-- After each WO is committed, stop and ask the owner whether to proceed to the next numeric WO.
+- For WO-65 through WO-69, the owner instructed proceeding in sequence without approval pauses; still commit each WO before starting the next.
 - WO-08 was completed before WO-07 by explicit owner request; the RBAC dependency is now closed before further role-sensitive surfaces.
 - Do not invent Phase 2+ features.
 - No raw secrets, unowned placeholder comments, or debug calls in shipped code.

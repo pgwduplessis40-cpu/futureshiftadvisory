@@ -1,0 +1,320 @@
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::store
+ * @see app/Http/Controllers/Advisor/GoalController.php:21
+ * @route '/advisor/clients/{client}/goals'
+ */
+export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: store.url(args, options),
+    method: 'post',
+})
+
+store.definition = {
+    methods: ["post"],
+    url: '/advisor/clients/{client}/goals',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::store
+ * @see app/Http/Controllers/Advisor/GoalController.php:21
+ * @route '/advisor/clients/{client}/goals'
+ */
+store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { client: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { client: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    client: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        client: typeof args.client === 'object'
+                ? args.client.id
+                : args.client,
+                }
+
+    return store.definition.url
+            .replace('{client}', parsedArgs.client.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::store
+ * @see app/Http/Controllers/Advisor/GoalController.php:21
+ * @route '/advisor/clients/{client}/goals'
+ */
+store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: store.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\GoalController::store
+ * @see app/Http/Controllers/Advisor/GoalController.php:21
+ * @route '/advisor/clients/{client}/goals'
+ */
+    const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: store.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\GoalController::store
+ * @see app/Http/Controllers/Advisor/GoalController.php:21
+ * @route '/advisor/clients/{client}/goals'
+ */
+        storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: store.url(args, options),
+            method: 'post',
+        })
+    
+    store.form = storeForm
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::milestone
+ * @see app/Http/Controllers/Advisor/GoalController.php:41
+ * @route '/advisor/goals/{goal}/milestones'
+ */
+export const milestone = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: milestone.url(args, options),
+    method: 'post',
+})
+
+milestone.definition = {
+    methods: ["post"],
+    url: '/advisor/goals/{goal}/milestones',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::milestone
+ * @see app/Http/Controllers/Advisor/GoalController.php:41
+ * @route '/advisor/goals/{goal}/milestones'
+ */
+milestone.url = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { goal: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { goal: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    goal: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        goal: typeof args.goal === 'object'
+                ? args.goal.id
+                : args.goal,
+                }
+
+    return milestone.definition.url
+            .replace('{goal}', parsedArgs.goal.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::milestone
+ * @see app/Http/Controllers/Advisor/GoalController.php:41
+ * @route '/advisor/goals/{goal}/milestones'
+ */
+milestone.post = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: milestone.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\GoalController::milestone
+ * @see app/Http/Controllers/Advisor/GoalController.php:41
+ * @route '/advisor/goals/{goal}/milestones'
+ */
+    const milestoneForm = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: milestone.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\GoalController::milestone
+ * @see app/Http/Controllers/Advisor/GoalController.php:41
+ * @route '/advisor/goals/{goal}/milestones'
+ */
+        milestoneForm.post = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: milestone.url(args, options),
+            method: 'post',
+        })
+    
+    milestone.form = milestoneForm
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::action
+ * @see app/Http/Controllers/Advisor/GoalController.php:63
+ * @route '/advisor/milestones/{milestone}/actions'
+ */
+export const action = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: action.url(args, options),
+    method: 'post',
+})
+
+action.definition = {
+    methods: ["post"],
+    url: '/advisor/milestones/{milestone}/actions',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::action
+ * @see app/Http/Controllers/Advisor/GoalController.php:63
+ * @route '/advisor/milestones/{milestone}/actions'
+ */
+action.url = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { milestone: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { milestone: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    milestone: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        milestone: typeof args.milestone === 'object'
+                ? args.milestone.id
+                : args.milestone,
+                }
+
+    return action.definition.url
+            .replace('{milestone}', parsedArgs.milestone.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::action
+ * @see app/Http/Controllers/Advisor/GoalController.php:63
+ * @route '/advisor/milestones/{milestone}/actions'
+ */
+action.post = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: action.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\GoalController::action
+ * @see app/Http/Controllers/Advisor/GoalController.php:63
+ * @route '/advisor/milestones/{milestone}/actions'
+ */
+    const actionForm = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: action.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\GoalController::action
+ * @see app/Http/Controllers/Advisor/GoalController.php:63
+ * @route '/advisor/milestones/{milestone}/actions'
+ */
+        actionForm.post = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: action.url(args, options),
+            method: 'post',
+        })
+    
+    action.form = actionForm
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::proof
+ * @see app/Http/Controllers/Advisor/GoalController.php:83
+ * @route '/advisor/milestones/{milestone}/proof'
+ */
+export const proof = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: proof.url(args, options),
+    method: 'post',
+})
+
+proof.definition = {
+    methods: ["post"],
+    url: '/advisor/milestones/{milestone}/proof',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::proof
+ * @see app/Http/Controllers/Advisor/GoalController.php:83
+ * @route '/advisor/milestones/{milestone}/proof'
+ */
+proof.url = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { milestone: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { milestone: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    milestone: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        milestone: typeof args.milestone === 'object'
+                ? args.milestone.id
+                : args.milestone,
+                }
+
+    return proof.definition.url
+            .replace('{milestone}', parsedArgs.milestone.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\GoalController::proof
+ * @see app/Http/Controllers/Advisor/GoalController.php:83
+ * @route '/advisor/milestones/{milestone}/proof'
+ */
+proof.post = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: proof.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\GoalController::proof
+ * @see app/Http/Controllers/Advisor/GoalController.php:83
+ * @route '/advisor/milestones/{milestone}/proof'
+ */
+    const proofForm = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: proof.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\GoalController::proof
+ * @see app/Http/Controllers/Advisor/GoalController.php:83
+ * @route '/advisor/milestones/{milestone}/proof'
+ */
+        proofForm.post = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: proof.url(args, options),
+            method: 'post',
+        })
+    
+    proof.form = proofForm
+const GoalController = { store, milestone, action, proof }
+
+export default GoalController

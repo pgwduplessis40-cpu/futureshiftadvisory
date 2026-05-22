@@ -119,6 +119,22 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<Goal>
+     */
+    public function goals(): HasMany
+    {
+        return $this->hasMany(Goal::class);
+    }
+
+    /**
+     * @return HasMany<Milestone>
+     */
+    public function milestones(): HasMany
+    {
+        return $this->hasMany(Milestone::class);
+    }
+
+    /**
      * @return HasMany<Scenario>
      */
     public function scenarios(): HasMany

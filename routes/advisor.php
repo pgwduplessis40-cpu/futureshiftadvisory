@@ -12,6 +12,7 @@ use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
+use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
@@ -50,6 +51,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/knowledge-assessments', [KnowledgeAssessmentController::class, 'store'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.knowledge-assessments.store');
+        Route::post('clients/{client}/goals', [GoalController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.goals.store');
         Route::post('clients/{client}/proposals', [ProposalController::class, 'store'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('clients.proposals.store');
@@ -102,6 +106,15 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('proposals/{proposal}/renew', [ProposalController::class, 'renew'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('proposals.renew');
+        Route::post('goals/{goal}/milestones', [GoalController::class, 'milestone'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('goals.milestones.store');
+        Route::post('milestones/{milestone}/actions', [GoalController::class, 'action'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('milestones.actions.store');
+        Route::post('milestones/{milestone}/proof', [GoalController::class, 'proof'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('milestones.proof.store');
         Route::patch('reports/{report}/review', [ReportController::class, 'review'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.review');

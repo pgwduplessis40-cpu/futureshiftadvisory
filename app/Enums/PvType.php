@@ -9,6 +9,8 @@ enum PvType: string
     case BusinessValuation = 'business_valuation';
     case ImprovementOpportunity = 'improvement_opportunity';
     case RiskCost = 'risk_cost';
+    case GoalTarget = 'goal_target';
+    case MilestoneImpact = 'milestone_impact';
 
     /**
      * @return array<int, string>

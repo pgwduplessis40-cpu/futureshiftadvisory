@@ -5,6 +5,7 @@ import {
     FileText,
     HeartPulse,
     MessageSquare,
+    Target,
     TrendingUp,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
@@ -48,6 +49,7 @@ type Props = {
         submitted_at: string | null;
         url: string;
     };
+    goals: GoalDashboard;
     documents: DocumentPayload[];
     scenarios: ScenarioPayload[];
     reports: ReportPayload[];
@@ -68,6 +70,33 @@ type DocumentPayload = {
         client_explanation: string;
         resolved_at: string | null;
     }>;
+};
+
+type GoalDashboard = {
+    pv_realised_total: number;
+    active_goals: number;
+    goals: GoalSummary[];
+};
+
+type GoalSummary = {
+    id: string;
+    title: string;
+    description: string | null;
+    pv_target: number;
+    status: string;
+    milestones: MilestoneSummary[];
+};
+
+type MilestoneSummary = {
+    id: string;
+    title: string;
+    recommendation_ref: string | null;
+    pv_of_impact: number;
+    status: string;
+    due_date: string | null;
+    completed_at: string | null;
+    actions_count: number;
+    proof_status: string | null;
 };
 
 type ScenarioPayload = {
@@ -102,6 +131,7 @@ export default function PortalDashboard({
     onboardingUrl,
     notificationSummary,
     wellbeing,
+    goals,
     documents,
     scenarios,
     reports,
@@ -225,6 +255,8 @@ export default function PortalDashboard({
                         value="Not requested"
                     />
                 </div>
+
+                <GoalProgressPanel goals={goals} />
 
                 <section
                     className="space-y-4 rounded-md border bg-background p-4"
@@ -380,6 +412,98 @@ function ScenarioList({ scenarios }: { scenarios: ScenarioPayload[] }) {
     );
 }
 
+function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
+    return (
+        <section
+            className="space-y-4 rounded-md border bg-background p-4"
+            aria-labelledby="goals-heading"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Target className="size-4" aria-hidden="true" />
+                    <h2 id="goals-heading" className="text-sm font-medium">
+                        Goals
+                    </h2>
+                    <Badge variant="outline">{goals.active_goals} active</Badge>
+                </div>
+                <div className="text-sm font-medium">
+                    {formatCurrency(goals.pv_realised_total)} realised
+                </div>
+            </div>
+
+            {goals.goals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No goals published yet.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {goals.goals.map((goal) => (
+                        <article
+                            key={goal.id}
+                            className="rounded-md border p-3"
+                        >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-sm font-medium">
+                                            {goal.title}
+                                        </h3>
+                                        <Badge variant="outline">
+                                            {formatLabel(goal.status)}
+                                        </Badge>
+                                    </div>
+                                    {goal.description && (
+                                        <p className="text-sm text-muted-foreground">
+                                            {goal.description}
+                                        </p>
+                                    )}
+                                </div>
+                                <div className="text-sm font-medium">
+                                    {formatCurrency(goal.pv_target)}
+                                </div>
+                            </div>
+                            {goal.milestones.length > 0 && (
+                                <div className="mt-3 divide-y rounded-md border">
+                                    {goal.milestones.map((milestone) => (
+                                        <div
+                                            key={milestone.id}
+                                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                        >
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <span className="text-sm font-medium">
+                                                        {milestone.title}
+                                                    </span>
+                                                    <Badge variant="outline">
+                                                        {formatLabel(
+                                                            milestone.status,
+                                                        )}
+                                                    </Badge>
+                                                </div>
+                                                <div className="mt-1 text-xs text-muted-foreground">
+                                                    Due{' '}
+                                                    {formatOptionalDate(
+                                                        milestone.due_date,
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className="text-sm font-medium">
+                                                {formatCurrency(
+                                                    milestone.pv_of_impact,
+                                                )}
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
 function DocumentTile({ document }: { document: DocumentPayload }) {
     const flagged =
         document.verification_state === 'advisory_flag' ||
@@ -419,6 +543,17 @@ function DocumentTile({ document }: { document: DocumentPayload }) {
 function formatDate(value: string | null) {
     if (!value) {
         return 'this month';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        day: 'numeric',
+        month: 'short',
+    }).format(new Date(value));
+}
+
+function formatOptionalDate(value: string | null) {
+    if (!value) {
+        return '-';
     }
 
     return new Intl.DateTimeFormat(undefined, {

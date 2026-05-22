@@ -1200,3 +1200,71 @@ The raw two-month coping observation is stored in `coaching_signals` with:
 
 The detector suppresses duplicate rows for an ongoing low-coping streak. Phase 2
 does not consume these signals for coach referral, calibration, or automation.
+
+## WO-65 - Goals and milestones tracker
+
+### `goals`
+
+Client-scoped advisory goals with optional PV target linkage.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `title`, `description`
+- `pv_target_calculation_id` nullable link to `pv_calculations`
+- `pv_target`
+- `status` (`active`, `achieved`, `abandoned`)
+- `created_by_user_id`
+
+### `milestones`
+
+Goal milestones linked to recommendations and PV of impact.
+
+Key columns:
+
+- `id` UUID primary key
+- `goal_id`
+- `client_id`
+- `title`
+- `recommendation_ref`
+- `pv_of_impact_calculation_id` nullable link to `pv_calculations`
+- `pv_of_impact`
+- `due_date`
+- `status` (`pending`, `in_progress`, `completed`, `blocked`)
+- `completed_at`
+
+### `milestone_actions`
+
+Advisor action list for each milestone.
+
+Key columns:
+
+- `id` UUID primary key
+- `milestone_id`
+- `client_id`
+- `title`
+- `owner_user_id`
+- `due_date`
+- `priority`
+- `status`
+
+### `proof_of_completion`
+
+Proof ledger tying a milestone completion attempt to an uploaded document and
+the existing document-verification result.
+
+Key columns:
+
+- `id` UUID primary key
+- `milestone_id`
+- `client_id`
+- `document_id`
+- `document_verification_id`
+- `status` (`pending`, `verified`, `flagged`)
+- `reviewed_at`
+
+All four tables use the standard client-scoped RLS policy. Completed milestones
+are the source of the dashboard PV-realised total; verification outcomes that
+block analysis keep the milestone in `blocked` status and exclude its PV from
+realised totals.

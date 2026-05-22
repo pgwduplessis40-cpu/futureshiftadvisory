@@ -28,6 +28,7 @@ use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Goals\GoalTracker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -43,6 +44,7 @@ final class ClientController extends Controller
         private readonly AuditWriter $auditWriter,
         private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
+        private readonly GoalTracker $goals,
     ) {}
 
     public function index(): Response
@@ -164,6 +166,8 @@ final class ClientController extends Controller
                 'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
                 'knowledge_assessment_store_url' => route('advisor.clients.knowledge-assessments.store', $client, absolute: false),
                 'latest_knowledge_assessment' => $this->latestKnowledgeAssessment($client),
+                'goal_store_url' => route('advisor.clients.goals.store', $client, absolute: false),
+                'goals' => $this->goals->dashboard($client, includeAdvisorActions: true),
                 'proposal_store_url' => route('advisor.clients.proposals.store', $client, absolute: false),
                 'proposal_expiry_days' => (int) config('proposals.expiry_days', 30),
                 'fee_calculations' => $this->feeCalculationSummaries($client),

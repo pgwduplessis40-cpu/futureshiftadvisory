@@ -14,6 +14,7 @@ use App\Models\Scenario;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Goals\GoalTracker;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
@@ -28,6 +29,7 @@ final class DashboardController extends Controller
         private readonly OnboardingWizard $wizard,
         private readonly DataQualityScorer $dataQuality,
         private readonly NotificationCenter $notifications,
+        private readonly GoalTracker $goals,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -45,6 +47,7 @@ final class DashboardController extends Controller
                 ? $this->notifications->counts($request->user())
                 : ['unread' => 0, 'urgent' => 0],
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
+            'goals' => $this->goals->dashboard($client),
             'documents' => $this->documentPayload($client),
             'scenarios' => $this->scenarioPayload($client),
             'reports' => $this->reportPayload($client),
