@@ -31,6 +31,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `questionnaire-engine.md` | WO-17 | Versioned questionnaire sets, conditional logic, admin builder, portal renderer |
 | `document-verification.md` | WO-18 | Secure upload verification records, AI outcomes, advisor flags, analysis gate |
 | `analysis-spine.md` | WO-31 | Shared Phase 2 analysis pipeline, run/finding storage, gates, RLS |
+| `analysis-feedback-learning.md` | WO-32 | Advisor feedback capture and governed feedback-learning cadence |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

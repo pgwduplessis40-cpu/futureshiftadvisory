@@ -7,6 +7,7 @@ import EntrepreneurController from './EntrepreneurController'
 import KnowledgeController from './KnowledgeController'
 import ProspectInboxController from './ProspectInboxController'
 import DocumentVerificationController from './DocumentVerificationController'
+import AnalysisFeedbackController from './AnalysisFeedbackController'
 const Advisor = {
     ClientController: Object.assign(ClientController, ClientController),
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
@@ -17,6 +18,7 @@ EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurContro
 KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 ProspectInboxController: Object.assign(ProspectInboxController, ProspectInboxController),
 DocumentVerificationController: Object.assign(DocumentVerificationController, DocumentVerificationController),
+AnalysisFeedbackController: Object.assign(AnalysisFeedbackController, AnalysisFeedbackController),
 }
 
 export default Advisor

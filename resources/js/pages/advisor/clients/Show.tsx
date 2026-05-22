@@ -8,8 +8,11 @@ import {
     LockKeyhole,
     Mail,
     MessageSquare,
+    MessageSquarePlus,
     PauseCircle,
+    PencilLine,
     RotateCcw,
+    Star,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
@@ -31,6 +34,7 @@ type ClientDetail = ClientSummary & {
     registry_sources: Record<string, string>;
     engagement_type_locked: boolean;
     created_at: string | null;
+    analysis_findings: AnalysisFindingFeedback[];
 };
 
 type ConflictDeclaration = {
@@ -68,6 +72,45 @@ type OffboardingSummary = {
 type StatusOption = {
     value: string;
     label: string;
+};
+
+type AnalysisFindingFeedback = {
+    id: string;
+    analysis_run_id: string;
+    module: string | null;
+    status: string | null;
+    lens: string;
+    severity: string;
+    title: string;
+    body: string;
+    attributions: Array<{
+        claim?: string;
+        source_reference?: string;
+    }>;
+    document_support: string;
+    uncertainty: string | null;
+    data_quality_disclaimer: string | null;
+    created_at: string | null;
+    feedback_store_url: string;
+    feedback_count: number;
+    latest_feedback: AnalysisFeedbackSummary[];
+};
+
+type AnalysisFeedbackSummary = {
+    id: string;
+    decision: string;
+    rating: number | null;
+    note: string | null;
+    has_correction: boolean;
+    created_at: string | null;
+    advisor_name: string | null;
+};
+
+type FeedbackPayload = {
+    decision: string;
+    rating: number | null;
+    corrected_body: string | null;
+    note: string | null;
 };
 
 type LifecycleForm = {
@@ -302,6 +345,38 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                     <InputError message={lifecycleForm.errors.status} />
                 </section>
 
+                <section className="space-y-4 rounded-md border p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <MessageSquarePlus
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            <h2 className="text-sm font-medium">
+                                Analysis findings
+                            </h2>
+                        </div>
+                        <Badge variant="outline">
+                            {client.analysis_findings.length}
+                        </Badge>
+                    </div>
+
+                    {client.analysis_findings.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No analysis findings yet.
+                        </p>
+                    ) : (
+                        <div className="space-y-4">
+                            {client.analysis_findings.map((finding) => (
+                                <FindingFeedbackCard
+                                    key={finding.id}
+                                    finding={finding}
+                                />
+                            ))}
+                        </div>
+                    )}
+                </section>
+
                 {client.wellbeing_trend && (
                     <section className="space-y-4 rounded-md border p-4">
                         <div className="flex items-center gap-2">
@@ -313,6 +388,233 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 )}
             </div>
         </>
+    );
+}
+
+function FindingFeedbackCard({
+    finding,
+}: {
+    finding: AnalysisFindingFeedback;
+}) {
+    const feedbackForm = useForm<FeedbackPayload>({
+        decision: 'confirm',
+        rating: null,
+        corrected_body: '',
+        note: '',
+    });
+
+    const submitFeedback = (payload: FeedbackPayload) => {
+        feedbackForm.transform(() => payload);
+        feedbackForm.post(finding.feedback_store_url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                feedbackForm.reset();
+                feedbackForm.setData({
+                    decision: 'confirm',
+                    rating: null,
+                    corrected_body: '',
+                    note: '',
+                });
+            },
+            onFinish: () => feedbackForm.transform((data) => data),
+        });
+    };
+
+    return (
+        <article className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-2">
+                    <div className="flex flex-wrap gap-2">
+                        <Badge variant="secondary">
+                            {formatLabel(finding.module ?? 'analysis')}
+                        </Badge>
+                        <Badge variant="outline">
+                            {formatLabel(finding.lens)}
+                        </Badge>
+                        <Badge variant={severityVariant(finding.severity)}>
+                            {formatLabel(finding.severity)}
+                        </Badge>
+                    </div>
+                    <h3 className="text-sm font-medium">{finding.title}</h3>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    {formatDate(finding.created_at)}
+                </div>
+            </div>
+
+            <p className="text-sm leading-6 text-muted-foreground">
+                {finding.body}
+            </p>
+
+            <div className="flex flex-wrap gap-2">
+                <Badge variant="outline">
+                    {formatLabel(finding.document_support)}
+                </Badge>
+                {finding.uncertainty && (
+                    <Badge variant="outline">
+                        {formatLabel(finding.uncertainty)} uncertainty
+                    </Badge>
+                )}
+                {finding.attributions.slice(0, 3).map((attribution, index) => (
+                    <Badge key={index} variant="outline">
+                        {attribution.source_reference ?? 'source'}
+                    </Badge>
+                ))}
+            </div>
+
+            {finding.data_quality_disclaimer && (
+                <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                    {finding.data_quality_disclaimer}
+                </p>
+            )}
+
+            {finding.latest_feedback.length > 0 && (
+                <div className="space-y-2 text-xs text-muted-foreground">
+                    {finding.latest_feedback.map((feedback) => (
+                        <div
+                            key={feedback.id}
+                            className="flex flex-wrap items-center gap-2"
+                        >
+                            <Badge variant="outline">
+                                {formatLabel(feedback.decision)}
+                            </Badge>
+                            {feedback.rating && (
+                                <span>{feedback.rating}/5</span>
+                            )}
+                            {feedback.has_correction && <span>corrected</span>}
+                            {feedback.note && <span>{feedback.note}</span>}
+                            <span>{feedback.advisor_name ?? 'Advisor'}</span>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+                <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={feedbackForm.processing}
+                            onClick={() =>
+                                submitFeedback({
+                                    decision: 'confirm',
+                                    rating: null,
+                                    corrected_body: null,
+                                    note: null,
+                                })
+                            }
+                        >
+                            <CheckCircle2
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Confirm
+                        </Button>
+                        {[1, 2, 3, 4, 5].map((rating) => (
+                            <Button
+                                key={rating}
+                                type="button"
+                                size="icon"
+                                variant={
+                                    feedbackForm.data.rating === rating
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                                disabled={feedbackForm.processing}
+                                onClick={() =>
+                                    submitFeedback({
+                                        decision: 'rate',
+                                        rating,
+                                        corrected_body: null,
+                                        note: null,
+                                    })
+                                }
+                                aria-label={`Rate ${rating}`}
+                            >
+                                <Star className="size-4" aria-hidden="true" />
+                            </Button>
+                        ))}
+                    </div>
+                    <InputError message={feedbackForm.errors.rating} />
+                </div>
+
+                <div className="grid gap-3">
+                    <Label htmlFor={`correction_${finding.id}`}>
+                        Correction
+                    </Label>
+                    <textarea
+                        id={`correction_${finding.id}`}
+                        value={feedbackForm.data.corrected_body ?? ''}
+                        onChange={(event) =>
+                            feedbackForm.setData(
+                                'corrected_body',
+                                event.target.value,
+                            )
+                        }
+                        rows={3}
+                        className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <div className="flex justify-end">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={feedbackForm.processing}
+                            onClick={() =>
+                                submitFeedback({
+                                    decision: 'correct',
+                                    rating: null,
+                                    corrected_body:
+                                        feedbackForm.data.corrected_body,
+                                    note: null,
+                                })
+                            }
+                        >
+                            <PencilLine className="size-4" aria-hidden="true" />
+                            Save correction
+                        </Button>
+                    </div>
+                    <InputError message={feedbackForm.errors.corrected_body} />
+                </div>
+
+                <div className="grid gap-3 lg:col-span-2">
+                    <Label htmlFor={`context_${finding.id}`}>Context</Label>
+                    <textarea
+                        id={`context_${finding.id}`}
+                        value={feedbackForm.data.note ?? ''}
+                        onChange={(event) =>
+                            feedbackForm.setData('note', event.target.value)
+                        }
+                        rows={2}
+                        className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <div className="flex justify-end">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={feedbackForm.processing}
+                            onClick={() =>
+                                submitFeedback({
+                                    decision: 'add_context',
+                                    rating: null,
+                                    corrected_body: null,
+                                    note: feedbackForm.data.note,
+                                })
+                            }
+                        >
+                            <MessageSquare
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Add context
+                        </Button>
+                    </div>
+                    <InputError message={feedbackForm.errors.note} />
+                </div>
+            </div>
+        </article>
     );
 }
 
@@ -420,12 +722,19 @@ function formatMonth(value: string | null) {
 
 function formatDate(value: string | null) {
     if (!value) {
-        return null;
+        return '-';
     }
 
     return new Intl.DateTimeFormat(undefined, {
         dateStyle: 'medium',
     }).format(new Date(value));
+}
+
+function formatLabel(value: string) {
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }
 
 function statusVariant(
@@ -436,6 +745,20 @@ function statusVariant(
     }
 
     if (status === 'active') {
+        return 'secondary';
+    }
+
+    return 'outline';
+}
+
+function severityVariant(
+    severity: string,
+): 'secondary' | 'destructive' | 'outline' {
+    if (severity === 'critical' || severity === 'high') {
+        return 'destructive';
+    }
+
+    if (severity === 'medium') {
         return 'secondary';
     }
 

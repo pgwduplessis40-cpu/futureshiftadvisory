@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-31 complete (next: WO-32, pending owner approval).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-32 complete (next: WO-33, pending owner approval).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **31 total** - Phase 1 complete (30/30) + Phase 2 WO-31 complete |
+| Work orders complete | **32 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-32 complete |
 | Work orders in progress | none |
-| Next work order | **WO-32** - Feedback capture (Phase 2; pending owner approval) |
+| Next work order | **WO-33** - Bias detection layer (Phase 2; pending owner approval) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-31 verified locally. `composer test` passed (Pint + PHPUnit **203 tests / 1276 assertions**) against PostgreSQL `futureshift_test`; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-32 verified locally. `composer test` passed (Pint + PHPUnit **205 tests / 1305 assertions**) against PostgreSQL `futureshift_test`; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -51,7 +51,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-28 | `18fe325` | Advisor dashboard shell | Advisor layout + dashboard with clients-health, doc-verification flags, pending T&C reacceptance, prospect inbox, integration health slots. |
 | WO-29 | `a467679` | Prospect intake + triage | Signed website intake webhook (HMAC), prospect inbox, triage outcomes, invited → WO-08 invite. |
 | WO-30 | `8db3c53` | API health dashboard | `integration_health_alerts`, Green/Amber/Red rollups surfaced, stuck-red (>30min) super-admin alert with idempotency. |
-| WO-31 | this commit | Analysis spine | Shared `AnalysisRunner`, analysis runs/findings/feedback tables, RLS, integrity gates, and Phase 2 architecture docs. |
+| WO-31 | `d13ae0c` | Analysis spine | Shared `AnalysisRunner`, analysis runs/findings/feedback tables, RLS, integrity gates, and Phase 2 architecture docs. |
+| WO-32 | this commit | AI feedback capture loop | Advisor finding feedback route/UI, `FeedbackRecorder`, `learning_layer_runs`, scheduled feedback learning command, governed `learning_updates` candidates. |
 
 ## Completed WO Details
 
@@ -252,6 +253,16 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover completed runs, attribution drop/fail paths, data-quality blocking, both document-block outcomes, and RLS isolation for runs, findings, and feedback.
 - Architecture docs: `docs/architecture/analysis-spine.md` and `docs/architecture/schema.md`.
 
+### WO-32 - AI Feedback Capture Loop
+
+- Advisor feedback can now be recorded against every analysis finding with `confirm`, `correct`, `rate`, or `add_context` decisions.
+- `FeedbackRecorder` is the single write path for `analysis_feedback` rows and audits each feedback event as `analysis_feedback.recorded`.
+- The advisor client detail page includes recent analysis findings with attribution, document-support, uncertainty, data-quality, latest-feedback, and feedback controls.
+- `learning_layer_runs` records the scheduled feedback-learning cadence, and `RunFeedbackLearningLayer` runs daily at 03:00.
+- `FeedbackLearningLayer` scans correction feedback by module, creates one governed `learning_updates` candidate in `detected` status at the correction threshold, and does not create implementation rows or apply changes.
+- Tests cover feedback persistence/auditing/UI props, threshold candidate creation, idempotent reruns, and no auto-implementation.
+- Architecture docs: `docs/architecture/analysis-feedback-learning.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -263,22 +274,22 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-31:
+Results after WO-32:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 203 tests, 1276 assertions.
-- `php artisan test tests\Feature\Analysis` (targeted WO-31 suite): passed - 7 tests, 39 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 205 tests, 1305 assertions.
+- `php artisan test tests\Feature\Analysis` (targeted analysis suite): passed - 9 tests, 68 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- Git history after this commit: 31 distinct WO commits (WO-01...WO-31) on `featureApp`.
+- Git history after this commit: 32 distinct WO commits (WO-01...WO-32) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 is complete and WO-32 is next, pending owner approval.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 and WO-32 are complete. WO-33 is next, pending owner approval.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-32; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 

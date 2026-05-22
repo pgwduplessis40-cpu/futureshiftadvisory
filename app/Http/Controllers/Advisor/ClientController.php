@@ -8,6 +8,8 @@ use App\Actions\Clients\PopulateFromNzbn;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Http\Controllers\Controller;
+use App\Models\AnalysisFeedback;
+use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\User;
@@ -154,6 +156,7 @@ final class ClientController extends Controller
                 'registry_sources' => $client->registry_sources ?? [],
                 'engagement_type_locked' => $client->engagementTypeIsLocked(),
                 'offboarding' => $this->offboardingSummary($client),
+                'analysis_findings' => $this->analysisFindingSummaries($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
             'conflictDeclaration' => $client->conflictDeclarations()
@@ -229,6 +232,56 @@ final class ClientController extends Controller
             'reengagement_due' => $record->reengagement_due?->toIso8601String(),
             'advisor_capacity_released' => $record->advisor_capacity_released,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function analysisFindingSummaries(Client $client): array
+    {
+        return AnalysisFinding::query()
+            ->with(['run', 'feedback.advisor'])
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->limit(20)
+            ->get()
+            ->map(function (AnalysisFinding $finding): array {
+                $run = $finding->run;
+
+                return [
+                    'id' => $finding->id,
+                    'analysis_run_id' => $finding->analysis_run_id,
+                    'module' => $run?->module?->value,
+                    'status' => $run?->status,
+                    'lens' => $finding->lens->value,
+                    'severity' => $finding->severity->value,
+                    'title' => $finding->title,
+                    'body' => $finding->body,
+                    'attributions' => $finding->attributions ?? [],
+                    'document_support' => $finding->document_support,
+                    'uncertainty' => $finding->uncertainty?->value,
+                    'data_quality_disclaimer' => $finding->data_quality_disclaimer,
+                    'created_at' => $finding->created_at?->toIso8601String(),
+                    'feedback_store_url' => route('advisor.analysis-findings.feedback.store', $finding, absolute: false),
+                    'feedback_count' => $finding->feedback->count(),
+                    'latest_feedback' => $finding->feedback
+                        ->sortByDesc('created_at')
+                        ->take(3)
+                        ->map(fn (AnalysisFeedback $feedback): array => [
+                            'id' => $feedback->id,
+                            'decision' => $feedback->decision,
+                            'rating' => $feedback->rating,
+                            'note' => $feedback->note,
+                            'has_correction' => is_string($feedback->corrected_body) && trim($feedback->corrected_body) !== '',
+                            'created_at' => $feedback->created_at?->toIso8601String(),
+                            'advisor_name' => $feedback->advisor?->name,
+                        ])
+                        ->values()
+                        ->all(),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     /**

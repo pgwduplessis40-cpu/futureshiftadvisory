@@ -20,6 +20,19 @@ final class AnalysisFeedback extends Model
 
     public const DECISION_ADD_CONTEXT = 'add_context';
 
+    /**
+     * @return array<int, string>
+     */
+    public static function decisions(): array
+    {
+        return [
+            self::DECISION_CONFIRM,
+            self::DECISION_CORRECT,
+            self::DECISION_RATE,
+            self::DECISION_ADD_CONTEXT,
+        ];
+    }
+
     public $timestamps = false;
 
     protected $guarded = [];

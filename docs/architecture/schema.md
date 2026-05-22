@@ -483,3 +483,22 @@ Key columns:
 - `created_at`
 
 RLS scopes rows through the parent `analysis_findings.client_id`.
+
+## WO-32 - Analysis feedback learning loop
+
+### `learning_layer_runs`
+
+Observability ledger for scheduled Phase 2 learning-layer executions. The candidate rows remain in `learning_updates`.
+
+Key columns:
+
+- `id` UUID primary key
+- `layer_id`
+- `ran_at`
+- `candidates_created`
+- `window` JSONB with `window_start`, `window_end`, `window_days`, and `threshold`
+- `status` (`completed`, `failed`)
+
+### `analysis_feedback`
+
+WO-32 activates the WO-31 feedback table through `FeedbackRecorder` and advisor routes. Rows continue to use the WO-31 columns and RLS policy; systematic correction patterns feed `learning_updates` with `status=detected` only.

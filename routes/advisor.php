@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Permission;
+use App\Http\Controllers\Advisor\AnalysisFeedbackController;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
@@ -106,4 +107,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('document-verifications/{documentVerification}', [DocumentVerificationController::class, 'update'])
             ->middleware('permission:'.Permission::DOCUMENTS_VERIFY->value)
             ->name('document-verifications.update');
+
+        Route::post('analysis-findings/{analysisFinding}/feedback', [AnalysisFeedbackController::class, 'store'])
+            ->middleware('permission:'.Permission::LEARNING_UPDATES_VIEW->value)
+            ->name('analysis-findings.feedback.store');
     });
