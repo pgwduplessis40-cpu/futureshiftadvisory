@@ -693,3 +693,34 @@ Key columns:
 - `notified_at`
 
 Client-scoped RLS applies. Alert citations point back to immutable `financial_snapshots` source rows; WO-38 does not mutate historical snapshots.
+
+## WO-39 - Valuation multiple data feed
+
+### `valuation_multiples`
+
+Append-style NZ market reference data for future business valuation calculations.
+
+Key columns:
+
+- `id` UUID primary key
+- `industry_code`
+- `industry_label`
+- `metric` (`ebitda`, `sde`)
+- `multiple_low`, `multiple_mid`, `multiple_high`
+- `source` (`mbie`, `nz_business_brokers`)
+- `source_badge`
+- `degraded`
+- `correlation_id`
+- `quarter`
+- `fetched_at`
+- `superseded_at`
+- `record_hash` unique idempotency key for source/quarter/range values
+- `payload` JSONB
+
+Rows are global reference data rather than client-scoped rows. Refreshes mark prior active rows for the same industry, metric, and source with `superseded_at` before inserting the new active range.
+
+### `learning_layer_runs` / `learning_updates`
+
+WO-39 records refresh runs with layer id `13`. New active rows create governed `learning_updates` candidates with `source.type=valuation_multiple_refresh`, `proposed_change.action=review_valuation_multiple_assumptions`, and `automatic_application=false`.
+
+No WO-39 path performs valuation calculations or applies multiple changes to client outputs.

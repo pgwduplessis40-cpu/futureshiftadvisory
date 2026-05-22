@@ -40,6 +40,29 @@ final class LiveMbieClient implements MbieClient
         ));
     }
 
+    public function valuationMultiples(): array
+    {
+        if (! (bool) Config::get('integrations.mbie.live', false)) {
+            throw IntegrationDisabledException::forService('mbie');
+        }
+
+        $result = $this->http->get(
+            service: 'mbie',
+            endpoint: $this->endpoint('valuation-multiples'),
+            query: $this->query(),
+            cacheKey: 'integration:mbie:valuation-multiples',
+            fallback: fn (): array => $this->fake->fallbackValuationMultiples(),
+        );
+
+        $payload = is_array($result->data) ? $result->data : $this->fake->fallbackValuationMultiples();
+        $multiples = array_is_list($payload) ? $payload : (array) ($payload['valuation_multiples'] ?? []);
+
+        return array_values(array_map(
+            fn (array $multiple): array => $this->withTransportMeta($result, $multiple),
+            array_filter($multiples, 'is_array'),
+        ));
+    }
+
     /**
      * @param  array<string, mixed>  $record
      * @return array<string, mixed>
@@ -55,13 +78,13 @@ final class LiveMbieClient implements MbieClient
         ];
     }
 
-    private function endpoint(): string
+    private function endpoint(string $resource = 'wage-rates'): string
     {
         $apiKey = (string) Config::get('integrations.mbie.api_key', '');
 
         return $apiKey === ''
-            ? 'fsa-disabled://mbie/missing-api-key/wage-rates'
-            : rtrim((string) Config::get('integrations.mbie.base_url'), '/').'/wage-rates';
+            ? "fsa-disabled://mbie/missing-api-key/{$resource}"
+            : rtrim((string) Config::get('integrations.mbie.base_url'), '/')."/{$resource}";
     }
 
     /**

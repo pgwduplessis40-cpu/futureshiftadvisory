@@ -3,6 +3,7 @@
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\RefreshEconomicIndicators;
+use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
@@ -94,6 +95,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RefreshEconomicIndicators::class)
             ->dailyAt('03:30')
             ->name('fsa-economic-indicators-refresh')
+            ->withoutOverlapping();
+
+        $schedule->command(RefreshValuationMultiples::class)
+            ->cron('0 4 1 1,4,7,10 *')
+            ->name('fsa-valuation-multiples-refresh')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_CONTINUOUS_MONITORING', false)) {

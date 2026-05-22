@@ -1,0 +1,45 @@
+{
+  "current": {
+    "valuation_multiples": [
+      {
+        "industry_code": "M6962",
+        "industry_label": "Management advice and related consulting services",
+        "metric": "ebitda",
+        "multiple_low": 3.2,
+        "multiple_mid": 4.1,
+        "multiple_high": 5.0,
+        "source": "mbie",
+        "quarter": "2026Q2",
+        "payload": {
+          "fixture_reference": "mbie-market-reference-2026q2"
+        }
+      },
+      {
+        "industry_code": "M6962",
+        "industry_label": "Management advice and related consulting services",
+        "metric": "sde",
+        "multiple_low": 1.8,
+        "multiple_mid": 2.4,
+        "multiple_high": 3.1,
+        "source": "nz_business_brokers",
+        "quarter": "2026Q2",
+        "payload": {
+          "fixture_reference": "nz-business-brokers-2026q2"
+        }
+      },
+      {
+        "industry_code": "H4511",
+        "industry_label": "Cafes and restaurants",
+        "metric": "ebitda",
+        "multiple_low": 2.1,
+        "multiple_mid": 2.8,
+        "multiple_high": 3.6,
+        "source": "nz_business_brokers",
+        "quarter": "2026Q2",
+        "payload": {
+          "fixture_reference": "nz-business-brokers-2026q2"
+        }
+      }
+    ]
+  }
+}

@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-22
-**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-38 complete (next: WO-39, pending owner approval).
+**Phase:** 1 - Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 - Intelligence: WO-39 complete (next: WO-40, pending owner approval).
 **Plan:** Phase 1 = 30 work orders (`PLAN.md` section 8). Phase 2 = WO-31...WO-64 (`PLAN-PHASE2.md` section 8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **38 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-38 complete |
+| Work orders complete | **39 total** - Phase 1 complete (30/30) + Phase 2 WO-31...WO-39 complete |
 | Work orders in progress | none |
-| Next work order | **WO-39** - Valuation multiple data feed (pending owner approval) |
+| Next work order | **WO-40** - PV engine + discount-rate methods (pending owner approval) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | WO-38 verified locally. `composer test` passed (Pint + PHPUnit **224 tests / 1555 assertions**) against PostgreSQL `futureshift_test`; WO-38 targeted tests passed **3 tests / 32 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
+| Verification status | WO-39 verified locally. `composer test` passed (Pint + PHPUnit **227 tests / 1586 assertions**) against PostgreSQL `futureshift_test`; WO-39 targeted tests passed **3 tests / 31 assertions**; `npm run lint:check`, `npm run types:check`, and `npm run format:check` all passed. |
 
 ## Commit Log
 
@@ -58,7 +58,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-35 | `f25fd93` | Client knowledge assessment | Advisor-scored knowledge profile, prompt calibration injection, client detail UI, and raw leadership-gap coaching observation boundary. |
 | WO-36 | `62bbb24` | NZ economic indicators feed | RBNZ/Stats NZ/MBIE fixture/live clients, persisted economic indicators and exchange rates, scheduled refresh, OCR-change learning candidate, dashboard tile. |
 | WO-37 | `450eec1` | Accounting API integration | Xero/MYOB/QuickBooks OAuth connection flow, encrypted token envelopes, append-only financial snapshots, manual pull/revoke UI, fixture and live fallback coverage. |
-| WO-38 | this commit | Continuous financial health monitoring | Scheduled daily/weekly accounting pulls, snapshot deterioration detection, `financial_alerts`, exact metric citations, and ChannelResolver notification routing. |
+| WO-38 | `316ca38` | Continuous financial health monitoring | Scheduled daily/weekly accounting pulls, snapshot deterioration detection, `financial_alerts`, exact metric citations, and ChannelResolver notification routing. |
+| WO-39 | this commit | Valuation multiple data feed | NZ-benchmarked EBITDA/SDE multiples by industry, active-row supersession, quarterly refresh, and governed learning candidates. |
 
 ## Completed WO Details
 
@@ -337,6 +338,18 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover deterioration detection with citations, stable data with no false alert, notification channel routing, and feature-flag command gating.
 - Architecture docs: `docs/architecture/financial-monitoring.md` and `docs/architecture/schema.md`.
 
+### WO-39 - Valuation Multiple Data Feed
+
+- `valuation_multiples` stores global NZ reference-data rows for industry-level EBITDA and SDE low/mid/high ranges.
+- The MBIE integration client now exposes `valuationMultiples()` with fixture, live, and fallback paths using the existing resilience layer.
+- Fixture data includes MBIE and NZ Business Brokers rows; production live-source licensing remains an owner input.
+- `ValuationMultipleRefresher` imports active rows, uses a `record_hash` for idempotency, and marks prior active rows for the same industry, metric, and source with `superseded_at`.
+- `valuation-multiples:refresh` runs manually or on the quarterly scheduler and records layer id `13` in `learning_layer_runs`.
+- New active rows create governed `learning_updates` candidates with `automatic_application=false`; WO-39 never performs valuation calculations or mutates PV assumptions.
+- `ValuationMultipleProvider` exposes `lookup()` and `rangeFor()` for WO-41 business valuation work, including `valuation_multiple:{id}` source references.
+- Tests cover lookup, supersession, candidate idempotency, and no auto-implementation.
+- Architecture docs: `docs/architecture/valuation-multiples.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
 Latest local checks:
@@ -348,23 +361,23 @@ npm run types:check
 npm run format:check
 ```
 
-Results after WO-38:
+Results after WO-39:
 
-- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 224 tests, 1555 assertions.
-- `php artisan test tests\Feature\Accounting\FinancialMonitoringTest.php` (WO-38 targeted): passed - 3 tests, 32 assertions.
+- `composer test` (Pint + PHPUnit against PostgreSQL `futureshift_test`): passed - 227 tests, 1586 assertions.
+- `php artisan test tests\Feature\Pv\ValuationMultipleFeedTest.php` (WO-39 targeted): passed - 3 tests, 31 assertions.
 - `npm run lint:check` (ESLint): passed.
 - `npm run types:check` (`tsc --noEmit`): passed.
 - `npm run format:check` (Prettier): passed.
-- `FEATURE_CONTINUOUS_MONITORING=true php artisan schedule:list` showed the daily and weekly `financial-monitoring:run` entries.
-- Git history after this commit: 38 distinct WO commits (WO-01...WO-38) on `featureApp`.
+- `php artisan schedule:list` showed the quarterly `valuation-multiples:refresh` entry.
+- Git history after this commit: 39 distinct WO commits (WO-01...WO-39) on `featureApp`.
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-38 are complete. WO-39 is next, pending owner approval.
+**Phase 1 (WO-01...WO-30) is complete and verified.** Phase 2 has started; WO-31 through WO-39 are complete. WO-40 is next, pending owner approval.
 
-> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-38; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
+> Per-WO detail above covers WO-01...WO-18 and WO-31...WO-39; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
 ### Carryover owner inputs (deferred by design — not Phase 1 gaps; several now gate client-facing Phase 2 output)
 
@@ -372,7 +385,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 |---|---|---|
 | Anthropic API key | Live AI (analysis degrades to deferred without it) | Optional in P1; needed early in P2 |
 | NZBN / Companies Office / IRD + accounting (Xero/MYOB/QuickBooks) credentials | Live integration mode | Stubs/fixtures and resilience fallback until arranged |
-| RBNZ / Stats NZ / MBIE credentials or access policy | WO-36 live economic indicator mode | Fixture/fallback path works; live access can be enabled later |
+| RBNZ / Stats NZ / MBIE + NZ Business Brokers credentials or access policy | WO-36 live economic indicator mode; WO-39 live valuation multiples mode | Fixture/fallback path works; live access can be enabled later |
 | Meridian Warm brand kit | Client-facing UI + report branding | Placeholder in `docs/brand/` |
 | Lawyer-reviewed 14-clause T&C text | Anything client-facing | Placeholder in `docs/legal/terms-v1.md` |
 | ClamAV production host | Production uploads | Interface ready; host/port pending |
@@ -384,7 +397,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 | Anthropic API key | Live AI testing in WO-04/WO-18 | Optional; fake/degraded path works. |
 | NZBN / Companies Office / IRD access | WO-13 live mode | Stubs until arranged. |
 | Xero / MYOB / QuickBooks access | WO-37 live accounting mode | Fixtures and resilience fallback work until arranged. |
-| RBNZ / Stats NZ / MBIE access | WO-36 live economic indicator mode | Fixtures and resilience fallback work until arranged. |
+| RBNZ / Stats NZ / MBIE + NZ Business Brokers access | WO-36 live economic indicator mode; WO-39 live valuation multiples mode | Fixtures and resilience fallback work until arranged. |
 | Meridian Warm brand kit | Client-facing UI | Placeholder files exist. |
 | Lawyer-reviewed T&C text | WO-10/11 | Placeholder exists. |
 | ClamAV deployment plan | Production uploads | Interface exists; production daemon host/port still pending. |

@@ -30,6 +30,22 @@ final class FakeMbieClient implements MbieClient
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function valuationMultiples(): array
+    {
+        return $this->multipleRecords('stub');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function fallbackValuationMultiples(): array
+    {
+        return $this->multipleRecords('stub_live_fallback', degraded: true);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function records(string $badge, bool $degraded = false): array
     {
         $record = $this->fixtures->find('mbie-economic', 'current');
@@ -47,6 +63,29 @@ final class FakeMbieClient implements MbieClient
                 'degraded' => $degraded || (bool) ($rate['degraded'] ?? false),
             ],
             array_filter($rates, 'is_array'),
+        ));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function multipleRecords(string $badge, bool $degraded = false): array
+    {
+        $record = $this->fixtures->find('valuation-multiples', 'current');
+        $multiples = $record['valuation_multiples'] ?? [];
+
+        if (! is_array($multiples)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $multiple): array => [
+                ...$multiple,
+                'source' => (string) ($multiple['source'] ?? 'mbie'),
+                'source_badge' => $badge,
+                'degraded' => $degraded || (bool) ($multiple['degraded'] ?? false),
+            ],
+            array_filter($multiples, 'is_array'),
         ));
     }
 }

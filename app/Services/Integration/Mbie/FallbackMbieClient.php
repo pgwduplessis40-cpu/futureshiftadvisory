@@ -22,4 +22,13 @@ final class FallbackMbieClient implements MbieClient
             return $this->fake->wageRates();
         }
     }
+
+    public function valuationMultiples(): array
+    {
+        try {
+            return $this->live->valuationMultiples();
+        } catch (IntegrationDisabledException) {
+            return $this->fake->valuationMultiples();
+        }
+    }
 }
