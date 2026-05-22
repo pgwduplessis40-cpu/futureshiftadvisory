@@ -768,3 +768,45 @@ Key columns:
 - `as_at`
 
 Client-scoped RLS applies. The row stores side-by-side SDE multiple, EBITDA multiple, and DCF values; the linked `pv_calculation_id` points to the DCF calculation in the shared PV ledger.
+
+## WO-42 - Improvement opportunity + risk cost PV
+
+### `improvement_opportunities`
+
+Client-scoped PV Type 2 rows for measurable improvement opportunities.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `analysis_finding_id`
+- `pv_calculation_id`
+- `title`
+- `annual_benefit`
+- `duration_years`
+- `pv_of_impact`
+- `rank`
+- `source_attributions` JSONB
+
+### `risk_costs`
+
+Client-scoped PV Type 3 rows for measurable risk costs.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `analysis_finding_id`
+- `pv_calculation_id`
+- `title`
+- `financial_impact`
+- `probability`
+- `duration_years`
+- `statutory_penalty_range` JSONB
+- `applied_impact`
+- `annual_expected_cost`
+- `pv_of_cost`
+- `rank`
+- `source_attributions` JSONB
+
+Client-scoped RLS applies to both tables. Rankings are stored after sorting by descending PV impact/cost.

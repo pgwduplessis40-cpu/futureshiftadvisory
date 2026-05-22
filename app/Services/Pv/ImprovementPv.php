@@ -1,0 +1,91 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Services\Pv;
+
+use App\Enums\DiscountMethod;
+use App\Enums\PvType;
+use App\Models\Client;
+use App\Models\ImprovementOpportunity;
+
+final class ImprovementPv
+{
+    public function __construct(private readonly PvEngine $pv) {}
+
+    /**
+     * @param  array<int, array<string, mixed>>  $opportunities
+     * @param  array<string, mixed>  $discountOptions
+     * @return array<int, ImprovementOpportunity>
+     */
+    public function rank(
+        Client $client,
+        array $opportunities,
+        DiscountMethod $discountMethod = DiscountMethod::AdvisorConfigured,
+        array $discountOptions = ['rate' => 0.12, 'rationale' => 'Advisor default improvement PV discount rate.'],
+    ): array {
+        $models = [];
+
+        foreach ($opportunities as $opportunity) {
+            $annualBenefit = (float) ($opportunity['annual_benefit'] ?? 0);
+            $durationYears = max(1, min(10, (int) ($opportunity['duration_years'] ?? 1)));
+            $cashFlows = array_fill(1, $durationYears, $annualBenefit);
+
+            $calculation = $this->pv->calculate(
+                client: $client,
+                type: PvType::ImprovementOpportunity,
+                discountMethod: $discountMethod,
+                cashFlows: $cashFlows,
+                discountOptions: $discountOptions,
+            );
+
+            $models[] = ImprovementOpportunity::query()->create([
+                'client_id' => $client->getKey(),
+                'analysis_finding_id' => $opportunity['analysis_finding_id'] ?? null,
+                'pv_calculation_id' => $calculation->getKey(),
+                'title' => (string) ($opportunity['title'] ?? 'Improvement opportunity'),
+                'annual_benefit' => $annualBenefit,
+                'duration_years' => $durationYears,
+                'pv_of_impact' => (float) $calculation->result['present_value'],
+                'rank' => 0,
+                'source_attributions' => $this->sourceAttributions($opportunity, $calculation->source_attributions),
+            ]);
+        }
+
+        return $this->rankModels($models);
+    }
+
+    /**
+     * @param  array<string, mixed>  $opportunity
+     * @param  array<int, array{claim:string, source_reference:string}>  $calculationAttributions
+     * @return array<int, array{claim:string, source_reference:string}>
+     */
+    private function sourceAttributions(array $opportunity, array $calculationAttributions): array
+    {
+        $source = (string) ($opportunity['source_reference'] ?? 'advisor:improvement_opportunity');
+
+        return [
+            [
+                'claim' => 'Improvement opportunity benefit and duration were supplied for PV ranking.',
+                'source_reference' => $source,
+            ],
+            ...$calculationAttributions,
+        ];
+    }
+
+    /**
+     * @param  array<int, ImprovementOpportunity>  $models
+     * @return array<int, ImprovementOpportunity>
+     */
+    private function rankModels(array $models): array
+    {
+        usort($models, fn (ImprovementOpportunity $a, ImprovementOpportunity $b): int => $b->pv_of_impact <=> $a->pv_of_impact);
+
+        foreach ($models as $index => $model) {
+            $model->forceFill(['rank' => $index + 1])->save();
+            $models[$index] = $model->refresh();
+        }
+
+        return $models;
+    }
+}
