@@ -24,5 +24,9 @@ class DatabaseSeeder extends Seeder
             FoundingRatingFrameworkValuesSeeder::class,
             UserSeeder::class,
         ]);
+
+        if (filter_var(env('SEED_TESTING_DATA', false), FILTER_VALIDATE_BOOL)) {
+            $this->call(TestingSeedDataSeeder::class);
+        }
     }
 }
