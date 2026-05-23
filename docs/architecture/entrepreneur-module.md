@@ -235,3 +235,29 @@ The comparison payload includes:
 Advisor entrepreneur detail now receives the latest plan progress summary and
 renders round count, latest grade, trajectory percentage, biggest improvements,
 and remaining gaps.
+
+## WO-91 - Benchmarking, Advisory Readiness, and Living Plan
+
+`config/entrepreneurs.php` defines `benchmark_min_cohort` from
+`BENCHMARK_MIN_COHORT`, defaulting to 5. `Benchmarking::forPlan()` compares an
+entrepreneur plan only against prior finalised same-industry plans. If the
+cohort is below the configured threshold, the benchmark is suppressed and no
+figures, distributions, or cohort size are returned. When the cohort is large
+enough, output remains aggregate-only: cohort size, average score,
+percentile band, grade distribution, and privacy flags. It never returns
+per-plan values, plan ids, min, or max.
+
+`advisory_readiness_signals` stores the systematic advisory-readiness signal
+for a profile. `AdvisoryReadiness::evaluate()` creates or updates the signal
+when the latest assessed plan reaches the readiness threshold, moves the
+profile to `advisory_ready`, and sends an advisor notification.
+
+Living plans use quarterly timestamps on `business_plans`.
+`LivingPlan::schedule()` sets the next update date after launch,
+`LivingPlan::duePlans()` finds due launched entrepreneur plans,
+`LivingPlan::prompt()` records the prompt, and `LivingPlan::reassess()` creates
+a fresh assessment round, stores divergence flags, schedules the next quarterly
+update, and re-evaluates advisory readiness.
+
+The entrepreneur portal dashboard now receives latest plan progress, advisory
+readiness score, next living-plan update, and divergence flags.

@@ -9,6 +9,22 @@ type EntrepreneurProfile = {
     stage: string;
     stage_label: string;
     concept_summary: string | null;
+    latest_plan: {
+        id: string;
+        status: string;
+        assessment_count: number;
+        latest_grade: string | null;
+        living_plan_next_update_at: string | null;
+        living_plan_divergence_flags: {
+            diverged?: boolean;
+            remaining_gap_count?: number;
+            advisory_readiness_attention?: boolean;
+        } | null;
+    } | null;
+    advisory_readiness_signal: {
+        score: number;
+        surfaced_at: string | null;
+    } | null;
 } | null;
 
 type Props = {
@@ -38,13 +54,44 @@ export default function EntrepreneurDashboard({ profile }: Props) {
                 <section className="space-y-4 rounded-md border p-4">
                     <div className="flex items-center gap-2">
                         <Hourglass className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">Phase 1 access</h2>
+                        <h2 className="text-sm font-medium">Progress</h2>
                     </div>
-                    <p className="max-w-2xl text-sm text-muted-foreground">
-                        Your invite is active and the entrepreneur module is in
-                        onboarding mode. Readiness assessment, idea validation,
-                        plan building, and scoring arrive in Phase 3.
-                    </p>
+                    {profile?.latest_plan ? (
+                        <dl className="grid gap-3 text-sm md:grid-cols-2">
+                            <Detail
+                                label="Plan"
+                                value={profile.latest_plan.status}
+                            />
+                            <Detail
+                                label="Grade"
+                                value={
+                                    profile.latest_plan.latest_grade
+                                        ? gradeLabel(
+                                              profile.latest_plan.latest_grade,
+                                          )
+                                        : null
+                                }
+                            />
+                            <Detail
+                                label="Assessments"
+                                value={String(
+                                    profile.latest_plan.assessment_count,
+                                )}
+                            />
+                            <Detail
+                                label="Next update"
+                                value={formatDate(
+                                    profile.latest_plan
+                                        .living_plan_next_update_at,
+                                )}
+                            />
+                        </dl>
+                    ) : (
+                        <p className="max-w-2xl text-sm text-muted-foreground">
+                            Your invite is active and the entrepreneur module is
+                            ready for your next step.
+                        </p>
+                    )}
                 </section>
 
                 <section className="space-y-4 rounded-md border p-4">
@@ -60,6 +107,33 @@ export default function EntrepreneurDashboard({ profile }: Props) {
                         />
                     </dl>
                 </section>
+
+                {profile?.advisory_readiness_signal ? (
+                    <section className="space-y-4 rounded-md border p-4">
+                        <div className="flex items-center gap-2">
+                            <ClipboardCheck
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            <h2 className="text-sm font-medium">
+                                Advisory readiness
+                            </h2>
+                        </div>
+                        <dl className="grid gap-3 text-sm md:grid-cols-2">
+                            <Detail
+                                label="Score"
+                                value={`${profile.advisory_readiness_signal.score.toFixed(1)}/100`}
+                            />
+                            <Detail
+                                label="Surfaced"
+                                value={formatDate(
+                                    profile.advisory_readiness_signal
+                                        .surfaced_at,
+                                )}
+                            />
+                        </dl>
+                    </section>
+                ) : null}
             </div>
         </>
     );
@@ -78,6 +152,23 @@ function Detail({
             <dd>{value || '-'}</dd>
         </div>
     );
+}
+
+function formatDate(value: string | null): string {
+    if (!value) {
+        return '-';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+    }).format(new Date(value));
+}
+
+function gradeLabel(value: string): string {
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }
 
 EntrepreneurDashboard.layout = {

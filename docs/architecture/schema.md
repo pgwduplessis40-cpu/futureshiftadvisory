@@ -1864,6 +1864,39 @@ RLS joins through `business_plans` and the owning `entrepreneur_profiles` row.
 System and super-admin roles can read/write all rows; assigned advisors and the
 linked entrepreneur user can read their own revision rows.
 
+## WO-91 - Benchmarking, readiness, and living plan
+
+### `advisory_readiness_signals`
+
+Systematic signal when an entrepreneur nears advisory readiness.
+
+Key columns:
+
+- `id` UUID primary key
+- `entrepreneur_profile_id`
+- `business_plan_id`
+- `plan_assessment_id`
+- `score`
+- `surfaced_at`
+- `advisor_notified_at`
+
+`entrepreneur_profile_id` is unique so a profile has one current readiness
+signal. RLS joins to `entrepreneur_profiles` and allows system/super-admin,
+assigned-advisor, and linked-entrepreneur visibility.
+
+### `business_plans`
+
+WO-91 adds living-plan cadence fields:
+
+- `living_plan_next_update_at`
+- `living_plan_last_prompted_at`
+- `living_plan_last_assessed_at`
+- `living_plan_divergence_flags`
+
+Launched entrepreneur plans use these timestamps for quarterly update prompts
+and re-assessment cadence. Divergence flags record whether the latest living
+plan re-assessment regressed materially or still has criteria below 60.
+
 ## WO-57 - Report engine
 
 ### `reports`

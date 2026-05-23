@@ -67,4 +67,12 @@ final class EntrepreneurProfile extends Model
     {
         return $this->hasMany(BusinessPlan::class);
     }
+
+    /**
+     * @return HasMany<AdvisoryReadinessSignal>
+     */
+    public function advisoryReadinessSignals(): HasMany
+    {
+        return $this->hasMany(AdvisoryReadinessSignal::class);
+    }
 }

@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-90 complete; next: WO-91).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-91 complete; next: WO-92).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **91 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (27/37, WO-65...WO-90) |
+| Work orders complete | **92 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (28/37, WO-65...WO-91) |
 | Work orders in progress | none |
-| Next work order | **WO-91** - Entrepreneur benchmarking, advisory readiness, and living plan (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-92** - Entrepreneur conversion to advisory (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-90 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-91 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -111,7 +111,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-87b | `df268e6` | Entrepreneur founding rating values | Owner-value seed, complete descriptors, weights totalling 100, placeholders cleared, production-ready gate, and idempotency coverage. |
 | WO-88 | `3568450` | Entrepreneur plan assessment | First-pass scoring across 11 criteria, advisor adjustment notes, governed calibration candidates, mentor note visibility, and finalisation gate. |
 | WO-89 | `df9d1ec` | Entrepreneur assessment report | Four-part assessment report, advisor-adjusted score notation, grade thresholds, concept PV projection, NZ resource actions, and honest weak-plan tone. |
-| WO-90 | this commit | Entrepreneur plan revision progress | Unlimited resubmission rounds, reassessment on submit, per-criterion deltas, trajectory percentage, remaining gaps, advisor progress view, and RLS coverage. |
+| WO-90 | `39ec0b1` | Entrepreneur plan revision progress | Unlimited resubmission rounds, reassessment on submit, per-criterion deltas, trajectory percentage, remaining gaps, advisor progress view, and RLS coverage. |
+| WO-91 | this commit | Entrepreneur benchmarking and living plan | Aggregate-only benchmarks with min-cohort suppression, advisory-readiness signals, advisor alerts, entrepreneur progress dashboard, and quarterly living-plan reassessment. |
 
 ## Completed WO Details
 
@@ -948,9 +949,21 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover resubmission, round comparison, trajectory percentage, and revision-row RLS isolation.
 - Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
 
+### WO-91 - Entrepreneur Benchmarking, Readiness, and Living Plan
+
+- Added `BENCHMARK_MIN_COHORT` config with default 5.
+- Added `Benchmarking` aggregate-only same-industry plan benchmark service with suppression below the minimum cohort.
+- Benchmark outputs never expose per-plan values, plan ids, min, or max; shown output is limited to aggregate score distribution, cohort size, average score, percentile band, and privacy flags.
+- Added `advisory_readiness_signals`, `AdvisoryReadinessSignal`, and `AdvisoryReadinessNotification`.
+- Advisory readiness evaluation creates/updates a signal, moves the profile to `advisory_ready`, and alerts the assigned advisor.
+- Added living-plan cadence fields on `business_plans` plus `LivingPlan` scheduling, prompt, due-plan, reassessment, and divergence-flag logic.
+- Entrepreneur portal dashboard now surfaces latest plan progress, next living-plan update, divergence flags, and advisory-readiness score.
+- Tests cover benchmark suppression at cohort 4/default 5, aggregate-only output at cohort 5, no single-plan-identifiable benchmark output, readiness advisor alert, and quarterly living-plan reassessment.
+- Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-90 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-91 targeted checks:
 
 ```pwsh
 composer test
@@ -983,6 +996,7 @@ php artisan test tests\Feature\Entrepreneurs\FoundingRatingValuesTest.php tests\
 php artisan test tests\Feature\Entrepreneurs\AssessmentTest.php tests\Feature\Entrepreneurs\FoundingRatingValuesTest.php tests\Feature\Entrepreneurs\PlanDocumentsTest.php
 php artisan test tests\Feature\Entrepreneurs\AssessmentReportTest.php tests\Feature\Entrepreneurs\AssessmentTest.php tests\Feature\Reports\ReportComposerTest.php
 php artisan test tests\Feature\Entrepreneurs\RevisionTest.php tests\Feature\Entrepreneurs\AssessmentTest.php tests\Feature\Entrepreneurs\AssessmentReportTest.php
+php artisan test tests\Feature\Entrepreneurs\BenchmarkingReadinessTest.php tests\Feature\Entrepreneurs\RevisionTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -1242,11 +1256,20 @@ Results after WO-90:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 91 distinct WO commits (WO-01...WO-90) on `featureApp`.
 
+Results after WO-91:
+
+- `php artisan test tests\Feature\Entrepreneurs\BenchmarkingReadinessTest.php tests\Feature\Entrepreneurs\RevisionTest.php` (PostgreSQL `futureshift_test`): passed - 8 tests, 43 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 92 distinct WO commits (WO-01...WO-91) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-90 complete; next is WO-91.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-91 complete; next is WO-92.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

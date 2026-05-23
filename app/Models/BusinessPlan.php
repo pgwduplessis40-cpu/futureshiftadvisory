@@ -41,6 +41,10 @@ final class BusinessPlan extends Model
         'current_phase' => 'integer',
         'founding_advisory_payload' => 'array',
         'completed_at' => 'datetime',
+        'living_plan_next_update_at' => 'datetime',
+        'living_plan_last_prompted_at' => 'datetime',
+        'living_plan_last_assessed_at' => 'datetime',
+        'living_plan_divergence_flags' => 'array',
     ];
 
     /**
