@@ -1,8 +1,8 @@
 # Payment schedules
 
 WO-67 introduces the scheduling layer between proposal signature and actual
-gateway charges. It deliberately does not charge cards or bank accounts; WO-69
-will consume due schedules and create payment/receipt records.
+gateway charges. WO-68 fills the Stripe/Windcave gateway contract and failover
+boundary. WO-69 will consume due schedules and create payment/receipt records.
 
 ## Schedule Creation
 
@@ -32,8 +32,39 @@ This keeps the important payment distinction intact:
 - failed charge: proposal remains `signed`; WO-69 records a failed payment and
   notifications/retry/failover, without reverting signature state
 
+## Gateway Clients
+
+`Gateway` charges through the configured primary gateway (`stripe` by default)
+and fails over to the other gateway on a `PaymentGatewayException`. A successful
+failover returns `PaymentChargeResult.failoverFrom`, which WO-69 will persist to
+`payments.failover_from`.
+
+Stripe and Windcave each have fake, live, and fallback clients:
+
+- feature flag off: fallback delegates to fixture clients
+- feature flag on: live clients call `ResilientHttp`
+- missing credentials or failed live charge: the live client throws; it does not
+  fabricate a paid state
+
+When both gateways fail, `Gateway` writes a `payment_gateway.double_failure`
+audit event and sends an urgent `payment.gateway.failure` notification to super
+admins and client advisors.
+
+## Webhooks
+
+WO-68 adds signed webhook endpoints:
+
+- `POST /api/webhooks/payments/stripe`
+- `POST /api/webhooks/payments/windcave`
+
+Stripe verification uses the `Stripe-Signature` `t=...`, `v1=...` HMAC shape.
+Windcave verification uses `X-Windcave-Timestamp` and
+`X-Windcave-Signature`. Both compare `timestamp.raw_body` HMACs and reject stale
+timestamps. The endpoints currently audit receipt/rejection only; WO-69 will use
+them to reconcile persisted payment rows.
+
 ## Security
 
 Schedules reference tokenised authorities only. Raw card or bank details remain
-out of scope for this table and continue to be rejected at authority capture.
-Client-scoped RLS applies to `payment_schedules`.
+out of scope for this table and continue to be rejected at authority capture and
+charge request time. Client-scoped RLS applies to `payment_schedules`.

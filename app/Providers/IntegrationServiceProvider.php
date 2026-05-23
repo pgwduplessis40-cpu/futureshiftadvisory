@@ -54,10 +54,14 @@ use App\Services\Integration\StatsNz\FallbackStatsNzClient;
 use App\Services\Integration\StatsNz\LiveStatsNzClient;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Integration\Stripe\FakeStripeClient;
+use App\Services\Integration\Stripe\FallbackStripeClient;
+use App\Services\Integration\Stripe\LiveStripeClient;
 use App\Services\Integration\Whisper\Contracts\WhisperClient;
 use App\Services\Integration\Whisper\FakeWhisperClient;
 use App\Services\Integration\Windcave\Contracts\WindcaveClient;
 use App\Services\Integration\Windcave\FakeWindcaveClient;
+use App\Services\Integration\Windcave\FallbackWindcaveClient;
+use App\Services\Integration\Windcave\LiveWindcaveClient;
 use App\Services\Integration\WorkSafe\Contracts\WorkSafeClient;
 use App\Services\Integration\WorkSafe\FakeWorkSafeClient;
 use App\Services\Integration\Xero\Contracts\XeroClient;
@@ -78,8 +82,6 @@ final class IntegrationServiceProvider extends ServiceProvider
         IponzClient::class => FakeIponzClient::class,
         NzParliamentClient::class => FakeNzParliamentClient::class,
         WorkSafeClient::class => FakeWorkSafeClient::class,
-        StripeClient::class => FakeStripeClient::class,
-        WindcaveClient::class => FakeWindcaveClient::class,
         SesSendGridClient::class => FakeSesSendGridClient::class,
         WhisperClient::class => FakeWhisperClient::class,
         GoogleCalendarClient::class => FakeGoogleCalendarClient::class,
@@ -138,6 +140,16 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveQuickBooksClient::class);
         $this->app->singleton(FallbackQuickBooksClient::class);
         $this->app->singleton(QuickBooksClient::class, FallbackQuickBooksClient::class);
+
+        $this->app->singleton(FakeStripeClient::class);
+        $this->app->singleton(LiveStripeClient::class);
+        $this->app->singleton(FallbackStripeClient::class);
+        $this->app->singleton(StripeClient::class, FallbackStripeClient::class);
+
+        $this->app->singleton(FakeWindcaveClient::class);
+        $this->app->singleton(LiveWindcaveClient::class);
+        $this->app->singleton(FallbackWindcaveClient::class);
+        $this->app->singleton(WindcaveClient::class, FallbackWindcaveClient::class);
     }
 
     private function registerScaffolds(): void

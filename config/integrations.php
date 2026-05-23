@@ -98,4 +98,22 @@ return [
             'current_ratio_floor' => (float) env('FINANCIAL_MONITOR_CURRENT_RATIO_FLOOR', 1.2),
         ],
     ],
+
+    'payments' => [
+        'primary_gateway' => env('PAYMENT_PRIMARY_GATEWAY', 'stripe'),
+        'webhook_tolerance_seconds' => (int) env('PAYMENT_WEBHOOK_TOLERANCE_SECONDS', 300),
+        'stripe' => [
+            'live' => (bool) env('FEATURE_STRIPE_LIVE', false),
+            'base_url' => env('STRIPE_BASE_URL', 'https://api.stripe.com'),
+            'secret' => env('STRIPE_SECRET'),
+            'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
+        ],
+        'windcave' => [
+            'live' => (bool) env('FEATURE_WINDCAVE_LIVE', false),
+            'base_url' => env('WINDCAVE_BASE_URL', 'https://sec.windcave.com/api'),
+            'api_user' => env('WINDCAVE_API_USER'),
+            'api_key' => env('WINDCAVE_API_KEY'),
+            'webhook_secret' => env('WINDCAVE_WEBHOOK_SECRET'),
+        ],
+    ],
 ];

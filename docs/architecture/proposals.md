@@ -33,9 +33,10 @@ WO-66 records seven ordered steps in `proposal_signoff_steps`: `review`,
 
 The `authority` step calls `AuthorityCapture`, which delegates to the configured
 gateway contract (`StripeClient` or `WindcaveClient`). Gateway fixtures return a
-token, which is encrypted through `KeyEnvelope` and stored in
-`payment_authorities.gateway_token_envelope`. Raw card numbers are rejected
-before persistence.
+token when live payment flags are off; live clients use `ResilientHttp` when the
+Stripe/Windcave flags are enabled. The token is encrypted through `KeyEnvelope`
+and stored in `payment_authorities.gateway_token_envelope`. Raw card numbers are
+rejected before persistence.
 
 The `signature` step renders signed evidence to the encrypted `secure_local`
 disk and stores a `KeyEnvelope`-wrapped SHA-256 hash on the proposal. Signing

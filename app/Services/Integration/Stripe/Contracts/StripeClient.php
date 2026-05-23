@@ -6,8 +6,12 @@ namespace App\Services\Integration\Stripe\Contracts;
 
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
+use App\Services\Payments\PaymentChargeRequest;
+use App\Services\Payments\PaymentChargeResult;
 
 interface StripeClient
 {
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken;
+
+    public function charge(PaymentChargeRequest $request): PaymentChargeResult;
 }
