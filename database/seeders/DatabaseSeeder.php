@@ -16,6 +16,7 @@ class DatabaseSeeder extends Seeder
             RoleSeeder::class,
             TermsVersionSeeder::class,
             StandardAdvisoryQuestionnaireSeeder::class,
+            DdSpecificQuestionnaireSeeder::class,
             UserSeeder::class,
         ]);
     }

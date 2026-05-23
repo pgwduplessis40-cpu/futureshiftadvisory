@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-74 complete; next: WO-75).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-75 complete; next: WO-76).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **74 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (10/37, WO-65...WO-74) |
+| Work orders complete | **75 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (11/37, WO-65...WO-75) |
 | Work orders in progress | none |
-| Next work order | **WO-75** - DD onboarding + acquisition target tab + DD questionnaire (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-76** - DD virtual data room + guest upload (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-74 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-75 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -94,7 +94,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-71 | `f446ab5` | Insurance Broker portal | FSP fixture/live/fallback validation, approval-time FSP gate, periodic lapse suspension, advisor alerts, and broker referral stages. |
 | WO-72 | `164ce7f` | Coach portal | Five coach specialisations, admin-managed vetting, wellbeing scope-boundary clauses, coach referral stages, key-staff authorisations, and entrepreneur coach referrals. |
 | WO-73 | `bdd0548` | Coaching referral signal detection | Raw coaching signals mapped to advisor suggestions, dashboard panel, no auto-referrals, and governed calibration candidates only. |
-| WO-74 | this commit | Referral conflict + consent wiring | Fresh conflict and active-consent send gate, referral consent grants/revokes, and consent-revocation withdrawal cascade. |
+| WO-74 | `48d5256` | Referral conflict + consent wiring | Fresh conflict and active-consent send gate, referral consent grants/revokes, and consent-revocation withdrawal cascade. |
+| WO-75 | this commit | DD onboarding + acquisition target | DD engagement onboarding, acquisition-target isolation, DD-specific questionnaire seed, conflict gate, advisor target panel, and liability disclaimer. |
 
 ## Completed WO Details
 
@@ -749,9 +750,18 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover missing/stale conflict gates, missing/revoked consent gates, successful send after both gates, and revoke-to-withdraw behavior.
 - Architecture docs: `docs/architecture/panels.md` and `docs/architecture/schema.md`.
 
+### WO-75 - DD Onboarding + Acquisition Target
+
+- Added client-scoped `dd_engagements` with target details isolated from the buyer client profile, status/recommendation fields, conflict declaration link, and disclaimer acknowledgement.
+- Added `DdSpecificQuestionnaireSeeder` for the published `dd_specific` questionnaire; DD onboarding uses that set and defers standard advisory until the post-acquisition flow.
+- Added `DdOnboarding` and `DdDisclaimer`; onboarding requires a DD engagement-type client and a fresh `due_diligence` conflict declaration.
+- The advisor client detail payload/UI now includes a distinct acquisition-target panel with target data, DD questionnaire metadata, and the DD liability disclaimer.
+- Tests cover DD onboarding, conflict gate failure, target/buyer data separation, questionnaire publication, disclaimer text, and advisor target-tab payload.
+- Architecture docs: `docs/architecture/due-diligence.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-74 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-75 targeted checks:
 
 ```pwsh
 composer test
@@ -767,6 +777,7 @@ php artisan test tests\Feature\Panels\CoachPortalTest.php tests\Feature\Panels\B
 php artisan test tests\Feature\Panels\CoachSignalDetectorTest.php tests\Feature\Panels\CoachPortalTest.php tests\Feature\Advisor\DashboardPhaseTwoPanelsTest.php
 php artisan test tests\Feature\Panels\ReferralComplianceTest.php tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\CoachPortalTest.php tests\Feature\Panels\PanelFoundationTest.php
 php artisan test tests\Feature\Proposals\ProposalSignoffFlowTest.php tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php
+php artisan test tests\Feature\Dd\DdOnboardingTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -873,11 +884,20 @@ Results after WO-74:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 74 distinct WO commits (WO-01...WO-74) on `featureApp`.
 
+Results after WO-75:
+
+- `php artisan test tests\Feature\Dd\DdOnboardingTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php` (PostgreSQL `futureshift_test`): passed - 7 tests, 39 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 75 distinct WO commits (WO-01...WO-75) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-74 complete; next is WO-75.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-75 complete; next is WO-76.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

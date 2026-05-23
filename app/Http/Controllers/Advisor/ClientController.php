@@ -15,6 +15,7 @@ use App\Models\AnalysisFeedback;
 use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\DdEngagement;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\IndustryBriefing;
@@ -28,6 +29,7 @@ use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Dd\DdOnboarding;
 use App\Services\Goals\GoalTracker;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -45,6 +47,7 @@ final class ClientController extends Controller
         private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
+        private readonly DdOnboarding $ddOnboarding,
     ) {}
 
     public function index(): Response
@@ -185,6 +188,7 @@ final class ClientController extends Controller
                 'offboarding' => $this->offboardingSummary($client),
                 'accounting' => $this->accountingSummary($client),
                 'analysis_findings' => $this->analysisFindingSummaries($client),
+                'due_diligence' => $this->dueDiligenceSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
             'conflictDeclaration' => $client->conflictDeclarations()
@@ -192,6 +196,21 @@ final class ClientController extends Controller
                 ->first()
                 ?->only(['id', 'declaration', 'declared_at']),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function dueDiligenceSummary(Client $client): ?array
+    {
+        $engagement = DdEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->first();
+
+        return $engagement instanceof DdEngagement
+            ? $this->ddOnboarding->targetPanel($engagement)
+            : null;
     }
 
     /**

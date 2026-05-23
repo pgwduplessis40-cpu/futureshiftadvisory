@@ -19,6 +19,7 @@ import {
     PlugZap,
     RotateCcw,
     Send,
+    ShieldAlert,
     Star,
     Target,
     TrendingUp,
@@ -62,6 +63,7 @@ type ClientDetail = ClientSummary & {
     accounting: AccountingPayload;
     created_at: string | null;
     analysis_findings: AnalysisFindingFeedback[];
+    due_diligence: DueDiligenceSummary | null;
 };
 
 type ConflictDeclaration = {
@@ -165,6 +167,22 @@ type AccountingConnectionSummary = {
     pull_url: string;
     revoke_url: string;
     latest_snapshot: FinancialSnapshotSummary | null;
+};
+
+type DueDiligenceSummary = {
+    id: string;
+    status: string;
+    target_name: string;
+    target_details: Record<string, string | number | boolean | null>;
+    questionnaire: {
+        id: string;
+        set: string;
+        title: string;
+    };
+    standard_advisory_deferred: boolean;
+    liability_disclaimer: string;
+    disclaimer_acknowledged_at: string | null;
+    acquisition_target_tab: boolean;
 };
 
 type FinancialSnapshotSummary = {
@@ -513,6 +531,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         </dl>
                     </section>
                 </div>
+
+                {client.due_diligence && (
+                    <DueDiligenceTargetPanel payload={client.due_diligence} />
+                )}
 
                 <KnowledgeAssessmentPanel client={client} />
 
@@ -1086,6 +1108,54 @@ function ProofUploadFormPanel({ milestone }: { milestone: MilestoneSummary }) {
                 </Button>
             </div>
         </form>
+    );
+}
+
+function DueDiligenceTargetPanel({
+    payload,
+}: {
+    payload: DueDiligenceSummary;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <ShieldAlert className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Acquisition target</h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge variant="secondary">
+                        {formatLabel(payload.status)}
+                    </Badge>
+                    <Badge variant="outline">{payload.questionnaire.set}</Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(320px,0.8fr)]">
+                <dl className="grid gap-3 text-sm">
+                    <Detail label="Target" value={payload.target_name} />
+                    <Detail
+                        label="Vendor"
+                        value={stringDetail(payload.target_details.vendor_name)}
+                    />
+                    <Detail
+                        label="Industry"
+                        value={stringDetail(payload.target_details.industry)}
+                    />
+                    <Detail
+                        label="Target NZBN"
+                        value={stringDetail(payload.target_details.nzbn)}
+                    />
+                    <Detail
+                        label="Questionnaire"
+                        value={payload.questionnaire.title}
+                    />
+                </dl>
+                <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
+                    {payload.liability_disclaimer}
+                </div>
+            </div>
+        </section>
     );
 }
 
@@ -2334,6 +2404,10 @@ function formatLabel(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function stringDetail(value: string | number | boolean | null | undefined) {
+    return value === null || value === undefined ? null : String(value);
 }
 
 function formatMetric(value: unknown) {

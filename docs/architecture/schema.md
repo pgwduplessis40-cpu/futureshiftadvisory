@@ -1280,6 +1280,30 @@ fresh, client-matched, advisor-matched, and typed as `broker_referral` or
 `insurance_referral` or `coach_referral` for the same client. Revoking a consent
 withdraws linked non-terminal referrals.
 
+## WO-75 - DD onboarding
+
+### `dd_engagements`
+
+Buyer-scoped due diligence engagement record. The acquisition target is stored
+separately from buyer `clients` data.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id` buyer client
+- `target_name`
+- `target_details` JSONB, including `data_scope = acquisition_target_only`
+- `status` (`in_progress`, `acquisition_proceeding`, `abandoned`)
+- `recommendation` nullable (`proceed`, `renegotiate`, `abandon`)
+- `conflict_declaration_id`
+- `created_by_user_id`
+- `disclaimer_acknowledged_at`
+
+Client-scoped RLS applies. DD onboarding requires a fresh
+`due_diligence` conflict declaration and the published `dd_specific`
+questionnaire. The standard advisory questionnaire is deferred until the
+post-acquisition gap flow.
+
 ## WO-57 - Report engine
 
 ### `reports`

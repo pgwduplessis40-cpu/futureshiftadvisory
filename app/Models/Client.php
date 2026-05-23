@@ -215,6 +215,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<DdEngagement>
+     */
+    public function ddEngagements(): HasMany
+    {
+        return $this->hasMany(DdEngagement::class);
+    }
+
+    /**
      * @return HasMany<CoachReferralAuthorisation>
      */
     public function coachReferralAuthorisations(): HasMany
