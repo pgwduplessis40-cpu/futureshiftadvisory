@@ -81,6 +81,17 @@ Additional `learning_update_implementations` columns:
 - `before_state` JSONB
 - `after_state` JSONB
 
+## WO-95 - Learning cadence and monitoring
+
+No new tables are required. WO-95 formalises the 32-layer cadence registry over the existing `learning_layer_runs` and `learning_updates` governance tables.
+
+Operational notes:
+
+- `LayerCadenceRegistry` defines 32 registered learning layers with hourly, daily, weekly, or monthly cadence.
+- `learning:cadence` records due layer runs hourly through the scheduler.
+- Cadence-only rows write `window.governed_candidates_only = true` and `window.automatic_application = false`.
+- The admin learning queue payload now includes monitoring summary, layer latest-run state, queue counts, and recent run history.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

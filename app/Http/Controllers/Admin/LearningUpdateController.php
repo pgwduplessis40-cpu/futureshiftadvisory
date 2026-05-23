@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateImplementation;
 use App\Services\Learning\ApprovalFlow;
+use App\Services\Learning\LearningMonitorDashboard;
 use App\Services\Learning\Rollback as RollbackService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,13 +19,17 @@ use Inertia\Response;
 
 final class LearningUpdateController extends Controller
 {
-    public function __construct(private readonly ApprovalFlow $approvalFlow) {}
+    public function __construct(
+        private readonly ApprovalFlow $approvalFlow,
+        private readonly LearningMonitorDashboard $monitor,
+    ) {}
 
     public function index(): Response
     {
         return Inertia::render('admin/learning/Index', [
             'cards' => $this->approvalFlow->cards()->values(),
             'decisions' => $this->approvalFlow->decisions(),
+            'monitor' => $this->monitor->dashboard(),
         ]);
     }
 

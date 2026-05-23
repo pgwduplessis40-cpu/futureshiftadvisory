@@ -43,6 +43,36 @@ type LearningUpdateCard = {
 type Props = {
     cards: LearningUpdateCard[];
     decisions: Decision[];
+    monitor: LearningMonitor;
+};
+
+type LearningMonitor = {
+    summary: {
+        registered_layers: number;
+        queued_candidates: number;
+        approved_candidates: number;
+        recent_runs: number;
+    };
+    layers: {
+        id: number;
+        name: string;
+        cadence: string;
+        window_days: number;
+        command: string | null;
+        governed_candidates_only: boolean;
+        latest_run: LearningLayerRun | null;
+    }[];
+    recent_runs: LearningLayerRun[];
+    queue_by_status: Record<string, number>;
+};
+
+type LearningLayerRun = {
+    id: string;
+    layer_id: number;
+    ran_at: string | null;
+    candidates_created: number;
+    status: string;
+    window: Record<string, unknown> | null;
 };
 
 const decisionCopy: Record<Decision, string> = {
@@ -52,7 +82,11 @@ const decisionCopy: Record<Decision, string> = {
     reject: 'Reject',
 };
 
-export default function LearningUpdatesIndex({ cards, decisions }: Props) {
+export default function LearningUpdatesIndex({
+    cards,
+    decisions,
+    monitor,
+}: Props) {
     return (
         <>
             <Head title="Learning update queue" />
@@ -74,6 +108,8 @@ export default function LearningUpdatesIndex({ cards, decisions }: Props) {
                     <Badge variant="secondary">{cards.length} queued</Badge>
                 </header>
 
+                <MonitorPanel monitor={monitor} />
+
                 {cards.length === 0 ? (
                     <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
                         No governed learning updates are waiting for review.
@@ -91,6 +127,112 @@ export default function LearningUpdatesIndex({ cards, decisions }: Props) {
                 )}
             </div>
         </>
+    );
+}
+
+function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="grid gap-2 sm:grid-cols-4">
+                <Metric
+                    label="Layers"
+                    value={String(monitor.summary.registered_layers)}
+                />
+                <Metric
+                    label="Queued"
+                    value={String(monitor.summary.queued_candidates)}
+                />
+                <Metric
+                    label="Approved"
+                    value={String(monitor.summary.approved_candidates)}
+                />
+                <Metric
+                    label="Runs"
+                    value={String(monitor.summary.recent_runs)}
+                />
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.7fr)]">
+                <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Layer</th>
+                                <th className="px-3 py-2 font-medium">
+                                    Cadence
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Latest run
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Candidates
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {monitor.layers.slice(0, 12).map((layer) => (
+                                <tr key={layer.id} className="border-t">
+                                    <td className="px-3 py-2">
+                                        <div className="font-medium">
+                                            {layer.id}. {layer.name}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {layer.command ?? 'registry'}
+                                        </div>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        <Badge variant="outline">
+                                            {layer.cadence}
+                                        </Badge>
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        {formatDate(
+                                            layer.latest_run?.ran_at ?? null,
+                                        )}
+                                    </td>
+                                    <td className="px-3 py-2">
+                                        {layer.latest_run?.candidates_created ??
+                                            0}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="rounded-md border">
+                    <div className="border-b px-3 py-2 text-sm font-medium">
+                        Run history
+                    </div>
+                    <div className="divide-y">
+                        {monitor.recent_runs.slice(0, 8).map((run) => (
+                            <div
+                                key={run.id}
+                                className="grid grid-cols-[1fr_auto] gap-3 px-3 py-2 text-sm"
+                            >
+                                <div>
+                                    <div className="font-medium">
+                                        Layer {run.layer_id}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {formatDate(run.ran_at)}
+                                    </div>
+                                </div>
+                                <Badge
+                                    variant={
+                                        run.status === 'completed'
+                                            ? 'secondary'
+                                            : 'destructive'
+                                    }
+                                >
+                                    {run.status}
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </div>
+        </section>
     );
 }
 

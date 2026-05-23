@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:52
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:57
  * @route '/admin/learning-update-implementations/{learningUpdateImplementation}/rollback'
  */
 export const rollback = (args: { learningUpdateImplementation: string | { id: string } } | [learningUpdateImplementation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ rollback.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:52
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:57
  * @route '/admin/learning-update-implementations/{learningUpdateImplementation}/rollback'
  */
 rollback.url = (args: { learningUpdateImplementation: string | { id: string } } | [learningUpdateImplementation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ rollback.url = (args: { learningUpdateImplementation: string | { id: string } } 
 
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:52
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:57
  * @route '/admin/learning-update-implementations/{learningUpdateImplementation}/rollback'
  */
 rollback.patch = (args: { learningUpdateImplementation: string | { id: string } } | [learningUpdateImplementation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -59,7 +59,7 @@ rollback.patch = (args: { learningUpdateImplementation: string | { id: string } 
 
     /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:52
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:57
  * @route '/admin/learning-update-implementations/{learningUpdateImplementation}/rollback'
  */
     const rollbackForm = (args: { learningUpdateImplementation: string | { id: string } } | [learningUpdateImplementation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ rollback.patch = (args: { learningUpdateImplementation: string | { id: string } 
 
             /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:52
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:57
  * @route '/admin/learning-update-implementations/{learningUpdateImplementation}/rollback'
  */
         rollbackForm.patch = (args: { learningUpdateImplementation: string | { id: string } } | [learningUpdateImplementation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
