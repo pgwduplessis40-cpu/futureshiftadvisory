@@ -2,7 +2,7 @@
 
 **Source spec:** `docs/spec/Future_Shift_Advisory_App_Specification_v2.4.docx` (definitive, May 2026)
 **Plan scope:** Phase 4 (Months 9–12) — the final phase. Brings the platform to the complete V2.4 vision.
-**Predecessors:** Phase 1 (WO-01…30) and Phase 2 (WO-31…64) — **complete and full-suite-verified**; Phase 3 (WO-65…101) — **complete and structurally verified** (all WOs committed, services present, static checks green, zero forbidden markers); the full-suite pass count is being recorded (see §3.0). On `featureApp`.
+**Predecessors:** Phase 1 (WO-01…30) and Phase 2 (WO-31…64) — **complete and full-suite-verified**; Phase 3 (WO-65…101) — **complete and structurally verified** (all WOs committed, services present, zero forbidden markers); the full PHPUnit run **and** the static-check re-confirmation are being recorded (see §3.0) and must be filled before WO-102. On `featureApp`.
 **Work orders:** WO-102 … WO-120 (continues the single global sequence).
 **Plan version:** 1.0
 
@@ -13,7 +13,7 @@
 ## 0. How to use this plan
 
 1. Read §1–§7 once before starting. They carry forward the non-negotiable principles and lock the Phase 4 architecture (governed *active* learning, population-scale privacy, the PQC envelope swap, external-reach security).
-2. Implement **Work Orders** in §8. Phase 4 has five tracks (Active Learning, Population Intelligence, Platform Reach, Security Hardening, Scaling) — see §6. Within a track, follow numeric order.
+2. Implement **Work Orders** in §8. Phase 4 has five tracks (Active Learning, Population Intelligence, Platform Reach, Security Hardening, Scaling) — see §6. Follow numeric order within a track, **with two documented exceptions:** (a) **Platform Reach executes WO-112, WO-113, WO-115, WO-114, WO-116** — WO-114 (in-app voice) needs the WO-115 mobile shell; (b) **WO-105 precedes WO-108–111** — they reuse the `CohortGuard` built in WO-105.
 3. **Commit cadence (unchanged from Phase 3 §0):** single `featureApp` branch, **no WO branches/PRs**; **one commit per WO** (`WO-<id>: <slug>`); **`IMPLEMENTATION.md` updated in the same commit**; full verification + push **at each track boundary and at the Phase 4 boundary**. Regenerate Wayfinder (`--with-form`) on any controller change.
 4. Every WO ships with its tests. A WO is done only when acceptance criteria are demonstrably true and `composer test`, `npm run lint:check`, `npm run types:check`, `npm run format:check` all pass.
 5. **Do not exceed the V2.4 spec.** Phase 4 completes V2.4; anything beyond is a future V2.5+ decision, not this plan.
@@ -115,7 +115,7 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 - `advisor_api_clients` — `advisor_user_id`, `name`, `scopes` (jsonb — read-only + the limited writes: meeting notes, actions only), `token_hash`, `approved_by_user_id` (super-admin), `status`, `last_used_at` — per-integration super-admin approval (spec §25).
 - `advisor_api_audit` — (or reuse `audit_events`) every API call logged with scope + outcome.
 - `nz_tool_connections` — `client_id`, `provider` (employment_hero, cin7, tradify, …), `status`, `token_envelope` (KeyEnvelope), `connected_by_user_id`, `last_synced_at` — WO-113 (mirrors `accounting_connections`).
-- `voice_assistant_sessions` — `advisor_user_id`, `launch_source` (in_app, ios_app_intent, android_app_action), `intent` (note, action, status), `transcript` (captured + stored **in-app**), `occurred_at` — capture/transcription are in-app (WO-98 Whisper); the OS shortcut only deep-links a fixed intent, so no client content crosses the OS boundary (WO-114).
+- `voice_assistant_sessions` — `advisor_user_id`, `launch_source` (in_app, ios_app_intent, android_app_action), `intent` (note, action, status), `transcript`, `whisper_egress_consented` (bool), `occurred_at` — **audio is captured in-app** (the OS shortcut only deep-links a fixed intent — no client content to Siri/Google). **Transcription egresses to OpenAI Whisper** (`LiveWhisperClient`), so it is consent-gated + flagged + audited (WO-114), not in-app.
 - `industry_wacc_data` — `industry_code`, `wacc`, `components` (jsonb), `source` (nzx, …), `quarter`, `fetched_at`, `superseded_at` — WO-116; feeds the `DiscountMethod::IndustryWacc` resolver (full automation of the Phase 2 manual feed).
 - `device_registrations` (WO-115) — `user_id`, `platform` (ios, android), `push_token_envelope` (KeyEnvelope), `last_seen_at` — push/device registration for the mobile app. (Correction: the mobile app does **add** this table; it does **not** simply reuse existing tables — and it consumes a **first-party mobile API** built in WO-115, distinct from the WO-112 external advisor-integration API.)
 
@@ -209,10 +209,14 @@ Tracks are largely independent and parallelisable. **WO-102 must precede 103–1
 Every population-scale output passes a single `CohortGuard` (`App\Services\Privacy\CohortGuard`, **built in WO-105** by generalising the Phase 3 `Benchmarking` min-cohort logic; WO-108–111 reuse it and depend on WO-105): aggregate only, suppress when `cohort_size < min_cohort`, never emit min/max or any value that could reverse-identify a member. The privacy floor is the **single central config `privacy.min_cohort`** (see §5) — the Phase 3 `benchmark_min_cohort` is aliased to it so floors cannot drift. Peer/community membership is opt-in (`consents`), pseudonymous, and **moderated** (`PEER_NETWORK_MODERATION=manual`) before any post is visible. The shared-intelligence layer (WO-109) shares only anonymised patterns, never records. Privacy counsel signs off before go-live (P4-R2).
 
 ### 7.3 PQC envelope swap-in (WO-117) — the SD-01 closure
-`KeyEnvelope` already dispatches by `{v, alg}`. WO-117 adds the `v2` path: **ML-KEM-1024 (FIPS 203, derived from CRYSTALS-Kyber)** KEM wrapping an AES-256-GCM content key, with **ML-DSA (FIPS 204, derived from CRYSTALS-Dilithium)** signatures where envelopes are signed. (Spec V2.4 names Kyber/Dilithium; use the standardised FIPS names ML-KEM / ML-DSA in code and docs, noting the derivation.) `decrypt()` gains a `v2` branch (v1 AES envelopes stay readable forever); `encrypt()` writes v2 when `FEATURE_PQC=true`. A `php artisan envelopes:rewrap` command (idempotent, audited, recorded in `crypto_rotations`) streams existing v1 envelopes → v2. `KeyEnvelope::CURRENT_VERSION` flips to 2 at cutover. **NZ-qualified crypto review required before production** (spec §27).
+`KeyEnvelope` currently dispatches **on `v` only** (`KeyEnvelope::decrypt` matches `(int) $parsed['v']`; the `alg` field is stored but not validated). WO-117 hardens this to **validate the `{v, alg}` pair** (each version permits a known `alg`; a v/alg mismatch is rejected, not silently trusted) and then adds the `v2` path: **ML-KEM-1024 (FIPS 203, derived from CRYSTALS-Kyber)** KEM wrapping an AES-256-GCM content key, with **ML-DSA (FIPS 204, derived from CRYSTALS-Dilithium)** signatures where envelopes are signed. (Spec V2.4 names Kyber/Dilithium; use the standardised FIPS names ML-KEM / ML-DSA in code and docs, noting the derivation.) `decrypt()` gains a `v2` branch (v1 AES envelopes stay readable forever); `encrypt()` writes v2 when `FEATURE_PQC=true`. A `php artisan envelopes:rewrap` command (idempotent, audited, recorded in `crypto_rotations`) streams existing v1 envelopes → v2. `KeyEnvelope::CURRENT_VERSION` flips to 2 at cutover. **NZ-qualified crypto review required before production** (spec §27).
 
 ### 7.4 HSM key management (WO-118) — the SD-02 closure
-Keys move from env/software to an HSM (CloudHSM or Azure Dedicated HSM); the key material never enters application memory (spec §4). `KeyEnvelope` calls the HSM for wrap/unwrap of content keys. Scheduled rotation via `crypto_rotations`. Dev keeps software keys (`HSM_DRIVER=` empty); production must set a driver. Update `docs/architecture/security-decisions.md` to mark SD-01/SD-02 **closed**.
+Envelope-encryption model. The **master/wrapping key (KEK) is generated in and never leaves the HSM** — that is the testable invariant (not "no key material ever in app memory", which is false the moment a data key is unwrapped for a bulk AES-GCM operation). Two paths:
+- **Small secrets** (MFA secrets, payment/integration tokens): the HSM performs **encrypt/decrypt directly**, so no plaintext data key is ever exposed to the app.
+- **Bulk payloads** (file bodies, large blobs): per-item **data keys (DEKs)** are wrapped by the HSM KEK; the HSM **unwraps** a DEK on demand and the app uses it transiently for AES-256-GCM, then **zeroes it** immediately after use. The DEK exists in app memory only for the duration of the operation; the KEK never does.
+
+`KeyEnvelope` calls the HSM for KEK wrap/unwrap (or direct encrypt/decrypt for small secrets). Scheduled KEK rotation via `crypto_rotations`. Dev keeps software keys (`HSM_DRIVER=` empty); production must set a driver. Update `docs/architecture/security-decisions.md` to mark SD-01/SD-02 **closed**.
 
 ### 7.5 Advisor API security (WO-112)
 Read-only by default; the only writes permitted are meeting notes + actions (spec §25). Each integration is a per-advisor `advisor_api_clients` row requiring **super-admin approval**, with explicit scopes and a hashed token. Every call is RLS-scoped to the advisor's clients and audited. No bulk export. **Inbound rate-limiting uses Laravel's API throttling** (`RateLimiter` / `throttle` middleware per API client/token) — **not** `ResilientHttp`, which is for *outbound* third-party calls.
@@ -304,30 +308,30 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 #### WO-110 — Anonymous NZ-SME + entrepreneur benchmarking community
 **Spec refs:** §11 (Anonymous Benchmarking — Phase 4); Privacy Act 2020
 **Goal:** Opt-in anonymous benchmarking community; aggregate percentile bands only; min cohort enforced; SME and entrepreneur domains separate.
-**Depends on:** WO-108, `consents`, `CohortGuard`.
-**Key files:** `benchmark_aggregates` table, `peer_network_members` (membership), `app/Services/Intelligence/BenchmarkCommunity.php`.
-**Acceptance:** opt-in consent required; aggregate-only; suppressed below `privacy.min_cohort`; no per-entity values; privacy-counsel sign-off recorded.
-**Tests:** consent gate; aggregate-only; cohort suppression; no-reidentification.
+**Depends on:** WO-105 (`CohortGuard`); the `consents` ledger. **This WO adds the new consent types** — `Consent` today only supports `insurance_referral` / `coach_referral` (`Consent::supportedTypes()`); WO-110 adds e.g. `benchmark_community` (and WO-111 adds `peer_network`) constants to `Consent`, extends `supportedTypes()`, and implements opt-in / revocation semantics for them.
+**Key files:** `benchmark_aggregates` table, `peer_network_members` (membership), `App\Models\Consent` (new community consent type + `supportedTypes()`), `app/Services/Intelligence/BenchmarkCommunity.php`.
+**Acceptance:** new `benchmark_community` consent type exists and is opt-in + revocable; membership requires it; aggregate-only; suppressed below `privacy.min_cohort` via `CohortGuard`; no per-entity values; privacy-counsel sign-off recorded.
+**Tests:** new consent type opt-in + **revocation** (revoking removes the member from future aggregates); aggregate-only; cohort suppression; no-reidentification.
 **Out of scope:** peer posting (WO-111).
 
 #### WO-111 — Anonymous peer network (moderated)
 **Spec refs:** §11/§26 (Anonymous peer network — Phase 4)
 **Goal:** Separate, moderated SME and entrepreneur peer communities; pseudonymous; posts moderated before visibility.
-**Depends on:** WO-110.
-**Key files:** `peer_posts` / `peer_post_moderation` tables, `app/Services/Intelligence/PeerNetwork.php`, moderation UI.
-**Acceptance:** opt-in; pseudonymous; **every post moderated before visible**; separate communities; report/suspend flow.
-**Tests:** moderation gate; pseudonymity; community separation; suspend.
+**Depends on:** WO-110. **Adds the `peer_network` consent type** to `Consent` (+ `supportedTypes()`), opt-in + revocable.
+**Key files:** `peer_posts` / `peer_post_moderation` tables, `App\Models\Consent` (`peer_network` type), `app/Services/Intelligence/PeerNetwork.php`, moderation UI.
+**Acceptance:** `peer_network` consent opt-in + revocable; pseudonymous; **every post moderated before visible**; separate communities; report/suspend flow.
+**Tests:** consent opt-in/revocation; moderation gate; pseudonymity; community separation; suspend.
 **Out of scope:** none.
 
 ### Platform Reach track
 
 #### WO-112 — Advisor API layer
 **Spec refs:** §25 (Advisor API Layer — Phase 4)
-**Goal:** Read-only API + limited writes (meeting notes, actions only); per-integration super-admin approval; scoped hashed tokens; RLS-scoped; rate-limited; fully audited.
-**Depends on:** WO-07 (RBAC), WO-02 (RLS), WO-05 (resilience/rate-limit).
-**Key files:** `advisor_api_clients` table, API controllers, token issuance, scope middleware.
-**Acceptance:** super-admin approves each client; reads scoped to the advisor's clients; only the two write types allowed; every call audited; tokens hashed.
-**Tests:** approval gate; scope enforcement; write-allowlist; audit; token hashing.
+**Goal:** Read-only API + limited writes (meeting notes, actions only); per-integration super-admin approval; scoped hashed tokens; RLS-scoped; **inbound rate-limited via Laravel `RateLimiter` / `throttle` middleware** (per API client/token); fully audited.
+**Depends on:** WO-07 (RBAC), WO-02 (RLS). (Inbound throttling is Laravel's `RateLimiter`/`throttle` — **not** WO-05's `ResilientHttp`, which is for *outbound* third-party calls.)
+**Key files:** `advisor_api_clients` table, API controllers, token issuance, scope middleware, **a named `RateLimiter` for the advisor API + `throttle` middleware on the routes**.
+**Acceptance:** super-admin approves each client; reads scoped to the advisor's clients; only the two write types allowed; **requests over the per-token rate limit get HTTP 429**; every call audited; tokens hashed.
+**Tests:** approval gate; scope enforcement; write-allowlist; **rate-limit 429 (Laravel throttle)**; audit; token hashing.
 **Out of scope:** public/partner API (not in V2.4).
 
 #### WO-113 — NZ business-tool integrations
@@ -341,12 +345,16 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 
 #### WO-114 — Voice capture (in-app) + OS launch shortcuts
 **Spec refs:** §21 (Voice Assistant — Phase 4)
-**Goal:** Hands-free advisor use — notes, action capture, client-status queries — with **all voice capture and transcription happening inside the FSA app** (reusing the WO-98 Whisper layer + `AiClient`). OS assistant integration is **launch-only**: iOS **App Intents / Siri Shortcuts** and Android **App Actions / Shortcuts** that deep-link into the in-app voice screen for a fixed intent (e.g. "new meeting note"). **No client content and no free dictation is ever handed to Siri or Google** — the OS payload is only a static intent name, so there is nothing to redact at the OS boundary. (Google's *Conversational Actions* were sunset 2023-06-13; this plan uses App Actions/Shortcuts, the current Android path — **not** Conversational Actions. Targeting an OS assistant beyond launch shortcuts is out of scope; if App Actions prove infeasible, Android falls back to an in-app voice button with no assistant integration.)
-**Depends on:** Phase 3 WO-98 (in-app voice notes + Whisper), `AiClient`; Phase 4 WO-115 (mobile shell hosts the capture screen).
-**Key files:** `voice_assistant_sessions` table, `app/Services/Voice/Assistant.php` (in-app intent handling), iOS App Intents + Android App Actions definitions (launch shortcuts only).
-**Acceptance:** the three intents (note, action, status) are handled **in-app**; the OS shortcut payload contains only a fixed intent identifier (asserted — no client data, no transcript leaves the app to the OS assistant); capture/transcription run in-app via Whisper; sessions audited.
-**Tests:** in-app intent handling; **OS-shortcut payload is intent-only (no client content / no PII)**; transcription stays in-app; audit. (The "no PII to third party" guarantee is now structurally testable because nothing client-specific crosses the OS boundary.)
-**Out of scope:** Conversational Actions / any assistant that would receive spoken client content (sunset / privacy-incompatible); full conversational voice UI (the three intents only).
+**Goal:** Hands-free advisor use — notes, action capture, client-status queries. **Audio is captured in the FSA app** (not by Siri/Google); OS assistant integration is **launch-only**: iOS **App Intents / Siri Shortcuts** and Android **App Actions / Shortcuts** that deep-link into the in-app voice screen for a fixed intent (e.g. "new meeting note"). (Google's *Conversational Actions* were sunset 2023-06-13; this uses App Actions/Shortcuts — **not** Conversational Actions. If App Actions prove infeasible, Android falls back to an in-app voice button.)
+
+**Precise privacy boundaries (two distinct third parties — do not conflate):**
+1. **OS assistants (Siri/Google): receive NO client content.** The OS shortcut payload is a static intent name only; the app does the listening. This is the structurally-testable guarantee.
+2. **Transcription (OpenAI Whisper) DOES egress audio.** The live `LiveWhisperClient` sends audio bytes to OpenAI (`app/Services/Voice/LiveWhisperClient.php`). So transcription is **not** "in-app" — it is a consented third-party processing path, exactly like the Anthropic AI egress. WO-114 must: (a) gate Whisper egress behind explicit **advisor + client consent** — a new `whisper_transcription` consent type added to `Consent` in **this** WO (`Consent` today supports only `insurance_referral`/`coach_referral`) — and a feature flag; (b) record the egress in `audit_events`; (c) offer an on-device/no-egress fallback (or disable voice transcription) when consent is absent. The product copy must **not** claim transcription is in-app.
+**Depends on:** Phase 3 WO-98 (voice notes + `LiveWhisperClient`/`FakeWhisperClient`), `AiClient`; Phase 4 WO-115 (mobile shell hosts the capture screen). **Execution order: after WO-115** (see §0/§6 — Platform Reach order is 112, 113, 115, 114, 116).
+**Key files:** `voice_assistant_sessions` table, `app/Services/Voice/Assistant.php`, iOS App Intents + Android App Actions (launch shortcuts only), Whisper-egress consent + flag + audit.
+**Acceptance:** three intents handled; **OS-shortcut payload is intent-only (no client content to Siri/Google — asserted)**; Whisper transcription egress is consent-gated + flagged + audited, with a no-egress fallback when consent is absent; sessions audited.
+**Tests:** intent handling; **OS-shortcut payload is intent-only**; **Whisper egress blocked without consent** (and audited when present); fallback path.
+**Out of scope:** Conversational Actions / any assistant that would receive spoken client content (sunset / privacy-incompatible); full conversational voice UI.
 
 #### WO-115 — Mobile app foundation (iOS + Android) + first-party mobile API
 **Spec refs:** §26 (Mobile app foundation — Phase 4)
@@ -370,20 +378,20 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 
 #### WO-117 — PQC envelope swap-in (ML-KEM / ML-DSA) — closes SD-01
 **Spec refs:** §4; §27; Appendix B (NIST PQC — FIPS 203 ML-KEM, FIPS 204 ML-DSA); `docs/architecture/key-envelope.md`
-**Goal:** Add the `v2` PQC path to `KeyEnvelope` (**ML-KEM-1024** KEM + AES-256-GCM; **ML-DSA** signatures — FIPS 203/204, derived from Kyber/Dilithium), the dual-version read, the `envelopes:rewrap` command (`crypto_rotations`), and the `FEATURE_PQC` write switch. **NZ-qualified crypto review before production.**
+**Goal:** First **harden `KeyEnvelope` to validate the `{v, alg}` pair** (today it dispatches on `v` only and ignores `alg`): each version maps to an allowed `alg`, and a v/alg mismatch is rejected with `UnsupportedEnvelopeVersionException`. Then add the `v2` PQC path (**ML-KEM-1024** KEM + AES-256-GCM; **ML-DSA** signatures — FIPS 203/204, derived from Kyber/Dilithium), the dual-version read, the `envelopes:rewrap` command (`crypto_rotations`), and the `FEATURE_PQC` write switch. **NZ-qualified crypto review before production.**
 **Depends on:** WO-02 (`KeyEnvelope` seam).
-**Key files:** `KeyEnvelope` v2 path, `app/Services/Storage/Pqc/*`, `crypto_rotations` table, `envelopes:rewrap` command, updated `docs/architecture/key-envelope.md` + `security-decisions.md` (SD-01 closing).
-**Acceptance:** v2 envelopes round-trip; v1 still decrypts; rewrap is idempotent + audited; `CURRENT_VERSION` flips at cutover; no call sites changed.
-**Tests:** v2 round-trip; v1 back-compat; rewrap idempotency; version dispatch.
+**Key files:** `KeyEnvelope` `{v,alg}` validation + v2 path, `app/Services/Storage/Pqc/*`, `crypto_rotations` table, `envelopes:rewrap` command, updated `docs/architecture/key-envelope.md` + `security-decisions.md` (SD-01 closing).
+**Acceptance:** v/alg pair validated (mismatch rejected); v2 envelopes round-trip; v1 still decrypts; rewrap is idempotent + audited; `CURRENT_VERSION` flips at cutover; no call sites changed.
+**Tests:** **v/alg mismatch rejected** (e.g. v1+kyber, v2+aes-256-laravel); v2 round-trip; v1 back-compat; rewrap idempotency; version dispatch.
 **Out of scope:** HSM backing (WO-118).
 
 #### WO-118 — HSM key management — closes SD-02
 **Spec refs:** §4; §27
-**Goal:** Move key wrap/unwrap to an HSM (CloudHSM / Azure Dedicated HSM); key material never in app memory; scheduled rotation. Dev keeps software keys.
+**Goal:** Envelope encryption with an HSM-held master key (CloudHSM / Azure Dedicated HSM) per §7.4. **The KEK is generated in and never leaves the HSM** (the invariant). Small secrets use HSM direct encrypt/decrypt (no plaintext DEK in app); bulk payloads use HSM-unwrapped DEKs held transiently and zeroed after the AES-GCM op. Scheduled KEK rotation. Dev keeps software keys.
 **Depends on:** WO-117.
-**Key files:** `app/Services/Storage/Hsm/*`, `KeyEnvelope` HSM hook, rotation schedule, `security-decisions.md` (SD-02 closing).
-**Acceptance:** with `HSM_DRIVER` set, wrap/unwrap go through the HSM; keys never materialise in app memory; rotation works; dev fallback intact.
-**Tests:** HSM wrap/unwrap (mock HSM); rotation; no-key-in-memory assertion; dev fallback.
+**Key files:** `app/Services/Storage/Hsm/*`, `KeyEnvelope` HSM hook (KEK wrap/unwrap + direct encrypt/decrypt for small secrets), rotation schedule, `security-decisions.md` (SD-02 closing).
+**Acceptance:** with `HSM_DRIVER` set, KEK wrap/unwrap (and small-secret encrypt/decrypt) go through the HSM; **the KEK is never exported from the HSM**; bulk DEKs are unwrapped only transiently and zeroed after use; rotation works; dev software fallback intact.
+**Tests:** HSM wrap/unwrap + direct encrypt/decrypt (mock HSM); **KEK-never-exported assertion**; DEK zeroed-after-use; rotation; dev fallback. (Note: do not assert "no key material ever in memory" — assert the KEK never leaves the HSM and DEKs are transient.)
 **Out of scope:** none.
 
 #### WO-119 — Annual third-party security & legal audit framework
