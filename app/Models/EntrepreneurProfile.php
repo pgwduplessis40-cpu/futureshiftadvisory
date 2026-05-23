@@ -51,4 +51,12 @@ final class EntrepreneurProfile extends Model
     {
         return $this->hasMany(ReadinessAssessment::class);
     }
+
+    /**
+     * @return HasMany<IdeaValidation>
+     */
+    public function ideaValidations(): HasMany
+    {
+        return $this->hasMany(IdeaValidation::class);
+    }
 }

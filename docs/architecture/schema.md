@@ -1608,6 +1608,35 @@ The published version 1 questionnaire contains 16 readiness questions covering
 concept, customer, demand, founder capacity, resilience, runway, feedback
 readiness, support, and launch concerns.
 
+## WO-83 - Entrepreneur idea validation
+
+### `idea_validations`
+
+Stores the validated concept capture before the plan builder opens.
+
+Key columns:
+
+- `id` UUID primary key
+- `entrepreneur_profile_id`
+- `problem`
+- `target_customer`
+- `solution`
+- `value_proposition`
+- `demand_signal`
+- `revenue_model`
+- `ai_evaluation`
+- `viability_alerts`
+- `evaluated_at`
+- `evaluated_by_user_id`
+- `advisor_gate_passed_at`
+- `advisor_gate_passed_by_user_id`
+- `advisor_gate_note`
+
+`ai_evaluation` stores the AI model, prompt hash, uncertainty, attributions, and
+aggregate past-plan pattern context. Viability alerts are informational and do
+not unlock the plan builder. The advisor gate unlocks the builder only when an
+advisor records a note. RLS joins through `entrepreneur_profiles`.
+
 ## WO-57 - Report engine
 
 ### `reports`

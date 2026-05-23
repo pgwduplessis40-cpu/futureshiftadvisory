@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-82 complete; next: WO-83).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-83 complete; next: WO-84).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **82 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (18/37, WO-65...WO-82) |
+| Work orders complete | **83 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (19/37, WO-65...WO-83) |
 | Work orders in progress | none |
-| Next work order | **WO-83** - Entrepreneur idea validation (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-84** - Entrepreneur plan builder (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-82 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-83 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -102,7 +102,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-79 | `cd1267f` | DD business plan builder | Shared five-phase plan engine, DD findings auto-population, acquisition-proceeding completeness gate, founding advisory payload, owner XOR, and RLS coverage. |
 | WO-80 | `19711f1` | DD report generation | DD report composer path, PV-ranked risk register, price-adjustment schedule, 100-day integration plan, recommendation logic, disclaimer, PDF/PPTX, and RLS coverage. |
 | WO-81 | `639bad4` | Post-acquisition advisory pipeline | Acquisition-proceeding conversion, advisory client creation, DD document migration labels, gap questionnaire prefill, DD-baseline proposal, and RLS coverage. |
-| WO-82 | this commit | Entrepreneur readiness assessment | Readiness questionnaire seed, profile-scoped RLS retrofit, readiness outcomes, personal-barrier capture, raw coaching signal, and RLS coverage. |
+| WO-82 | `8c0ae80` | Entrepreneur readiness assessment | Readiness questionnaire seed, profile-scoped RLS retrofit, readiness outcomes, personal-barrier capture, raw coaching signal, and RLS coverage. |
+| WO-83 | this commit | Entrepreneur idea validation | Concept capture, AI evaluation metadata with past-plan pattern citation, informational viability alerts, advisor gate, and RLS coverage. |
 
 ## Completed WO Details
 
@@ -843,9 +844,20 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover outcome computation, barrier capture, coaching-signal write, and profile/assessment RLS isolation.
 - Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
 
+### WO-83 - Entrepreneur Idea Validation
+
+- Added `idea_validations` with entrepreneur-profile-scoped RLS.
+- Added `IdeaValidation` model and `App\Services\Entrepreneurs\IdeaValidationService`.
+- Idea validation captures problem, target customer, solution, value proposition, demand signal, and revenue model.
+- AI evaluation metadata stores model, prompt hash, uncertainty, attributions, and aggregate past-plan pattern context without fabricating a cohort.
+- Viability alerts are informational and non-blocking.
+- The plan builder remains locked until an advisor passes the gate with a note; the gate advances the profile to `building_phase1`.
+- Tests cover FakeAiClient evaluation, viability alerts, advisor-note gate, builder locking/unlocking, and RLS isolation.
+- Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-82 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-83 targeted checks:
 
 ```pwsh
 composer test
@@ -869,6 +881,7 @@ php artisan test tests\Feature\Dd\DdPlanBuilderTest.php tests\Feature\Dd\DdWorks
 php artisan test tests\Feature\Dd\DdReportTest.php tests\Feature\Reports\ReportComposerTest.php tests\Feature\Dd\DdValuationTest.php tests\Feature\Dd\DdWorkstreamRunnerTest.php
 php artisan test tests\Feature\Dd\PostAcquisitionTest.php tests\Feature\Dd\DdReportTest.php tests\Feature\Dd\DdPlanBuilderTest.php tests\Feature\Proposals\ProposalBuilderTest.php
 php artisan test tests\Feature\Entrepreneurs\ReadinessTest.php tests\Feature\Advisor\AddEntrepreneurTest.php
+php artisan test tests\Feature\Entrepreneurs\IdeaValidationTest.php tests\Feature\Entrepreneurs\ReadinessTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -1047,11 +1060,20 @@ Results after WO-82:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 82 distinct WO commits (WO-01...WO-82) on `featureApp`.
 
+Results after WO-83:
+
+- `php artisan test tests\Feature\Entrepreneurs\IdeaValidationTest.php tests\Feature\Entrepreneurs\ReadinessTest.php` (PostgreSQL `futureshift_test`): passed - 8 tests, 35 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 83 distinct WO commits (WO-01...WO-83) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-82 complete; next is WO-83.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-83 complete; next is WO-84.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
