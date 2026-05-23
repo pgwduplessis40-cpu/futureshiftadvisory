@@ -55,3 +55,33 @@ advisor can discuss risk without pretending the system has rejected the idea.
 The plan builder is locked until an advisor passes the gate with a note. Passing
 the gate timestamps the validation, records the advisor, audits the decision,
 and moves the entrepreneur to `building_phase1`.
+
+## WO-84 - Five-Phase Plan Builder
+
+WO-84 reuses the shared `business_plans`, `plan_phases`, and `plan_sections`
+engine introduced for DD plan building, adding the entrepreneur adapter
+`App\Services\Entrepreneurs\PlanBuilder`.
+
+The entrepreneur builder starts only after a passed idea-validation advisor gate.
+It creates an entrepreneur-owned `business_plans` row with five ordered phases:
+
+1. Foundation
+2. Market
+3. Strategy
+4. Legal & Operations
+5. Financial
+
+The phase dependency graph is stored in `plan_phases.depends_on`:
+
+- Market depends on Foundation
+- Strategy depends on Foundation and Market
+- Legal & Operations depends on Foundation
+- Financial depends on Foundation and Strategy
+
+Jumping ahead is allowed so founders can draft thoughts when they have them, but
+the section metadata records a `dependency_warning` listing incomplete
+dependencies. Advisors can therefore see when a later section is premature
+without losing the founder's work.
+
+WO-84 also adds `attached_document_ids` and `predictive_score` JSON columns to
+`plan_sections` for WO-85/86.

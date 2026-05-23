@@ -7,6 +7,7 @@ namespace App\Services\Plans;
 use App\Models\AnalysisFinding;
 use App\Models\BusinessPlan;
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\PlanPhase;
 use App\Models\PlanSection;
 use App\Models\User;
@@ -69,6 +70,32 @@ final class PlanBuilder
     }
 
     /**
+     * @param  array<string, mixed>  $attributes
+     */
+    public function createOrUpdateForEntrepreneur(EntrepreneurProfile $profile, array $attributes, ?User $actor = null): BusinessPlan
+    {
+        $plan = BusinessPlan::query()->firstOrNew([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+        ]);
+        $plan->title = (string) ($attributes['title'] ?? 'Entrepreneur business plan');
+
+        if (! $plan->exists) {
+            $plan->status = (string) ($attributes['status'] ?? BusinessPlan::STATUS_BUILDING);
+            $plan->created_by_user_id = $actor?->getKey();
+        } elseif (array_key_exists('status', $attributes)) {
+            $plan->status = (string) $attributes['status'];
+        }
+
+        $plan->current_phase = (int) ($attributes['current_phase'] ?? $plan->current_phase ?: 1);
+        $plan->save();
+
+        $this->ensurePhases($plan);
+
+        return $plan->refresh()->load('phases.sections');
+    }
+
+    /**
      * @param  array<string, mixed>  $metadata
      */
     public function upsertSection(
@@ -80,6 +107,8 @@ final class PlanBuilder
         string $sourceType,
         ?AnalysisFinding $finding = null,
         array $metadata = [],
+        array $attachedDocumentIds = [],
+        ?array $predictiveScore = null,
     ): PlanSection {
         $phase = $this->phase($plan, $phaseKey);
         $section = PlanSection::query()->updateOrCreate(
@@ -91,10 +120,12 @@ final class PlanBuilder
                 'plan_phase_id' => $phase->getKey(),
                 'title' => $title,
                 'body' => $body,
+                'attached_document_ids' => $attachedDocumentIds,
                 'source_type' => $sourceType,
                 'source_analysis_finding_id' => $finding?->getKey(),
                 'completeness_status' => trim($body) === '' ? PlanSection::STATUS_DRAFT : PlanSection::STATUS_COMPLETE,
                 'metadata' => $metadata,
+                'predictive_score' => $predictiveScore,
             ],
         );
 
@@ -128,6 +159,28 @@ final class PlanBuilder
             'complete' => $missing === [],
             'missing_phases' => $missing,
             'completed_phases' => $completed,
+        ];
+    }
+
+    /**
+     * @return array{blocked:bool, missing_dependencies:array<int, string>}
+     */
+    public function dependencyWarning(BusinessPlan $plan, string $phaseKey): array
+    {
+        if (! array_key_exists($phaseKey, self::PHASES)) {
+            throw new InvalidArgumentException("Unknown business plan phase [{$phaseKey}].");
+        }
+
+        $plan->loadMissing('phases');
+        $phaseStatuses = $plan->phases->pluck('status', 'key');
+        $missing = collect(self::PHASES[$phaseKey]['depends_on'])
+            ->reject(fn (string $dependency): bool => $phaseStatuses->get($dependency) === PlanPhase::STATUS_COMPLETE)
+            ->values()
+            ->all();
+
+        return [
+            'blocked' => $missing !== [],
+            'missing_dependencies' => $missing,
         ];
     }
 

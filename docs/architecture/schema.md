@@ -1637,6 +1637,40 @@ aggregate past-plan pattern context. Viability alerts are informational and do
 not unlock the plan builder. The advisor gate unlocks the builder only when an
 advisor records a note. RLS joins through `entrepreneur_profiles`.
 
+## WO-84 - Entrepreneur five-phase plan builder
+
+### `business_plans`
+
+WO-84 uses the existing owner-XOR plan table for entrepreneur-owned plans:
+
+- `entrepreneur_profile_id` is set
+- `dd_engagement_id` is null
+- `source_type = entrepreneur`
+- `status = building`
+
+The existing entrepreneur-profile RLS path scopes entrepreneur-owned plans to the
+assigned advisor, linked entrepreneur user, or super-admin/system context.
+
+### `plan_phases`
+
+The shared five-phase dependency graph is persisted per plan:
+
+- `foundation` has no dependencies
+- `market` depends on `foundation`
+- `strategy` depends on `foundation` and `market`
+- `legal_operations` depends on `foundation`
+- `financial` depends on `foundation` and `strategy`
+
+### `plan_sections`
+
+WO-84 adds:
+
+- `attached_document_ids`
+- `predictive_score`
+
+The entrepreneur plan adapter stores `metadata.dependency_warning` when a
+founder drafts a later phase before its dependencies are complete.
+
 ## WO-57 - Report engine
 
 ### `reports`

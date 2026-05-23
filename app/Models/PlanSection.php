@@ -19,7 +19,9 @@ final class PlanSection extends Model
     protected $guarded = [];
 
     protected $casts = [
+        'attached_document_ids' => 'array',
         'metadata' => 'array',
+        'predictive_score' => 'array',
     ];
 
     /**

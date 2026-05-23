@@ -19,7 +19,19 @@ final class BusinessPlan extends Model
 
     public const STATUS_DRAFT = 'draft';
 
+    public const STATUS_BUILDING = 'building';
+
     public const STATUS_READY = 'ready';
+
+    public const STATUS_SUBMITTED = 'submitted';
+
+    public const STATUS_ASSESSING = 'assessing';
+
+    public const STATUS_REVISING = 'revising';
+
+    public const STATUS_FINALISED = 'finalised';
+
+    public const STATUS_LAUNCHED = 'launched';
 
     public const STATUS_FOUNDING = 'founding';
 
