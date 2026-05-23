@@ -2,7 +2,7 @@
 
 **Source spec:** `docs/spec/Future_Shift_Advisory_App_Specification_v2.4.docx` (definitive, May 2026)
 **Plan scope:** Phase 4 (Months 9–12) — the final phase. Brings the platform to the complete V2.4 vision.
-**Predecessors:** Phase 1 (WO-01…30), Phase 2 (WO-31…64), Phase 3 (WO-65…101) — **all complete and verified** on `featureApp` (see §3.0).
+**Predecessors:** Phase 1 (WO-01…30) and Phase 2 (WO-31…64) — **complete and full-suite-verified**; Phase 3 (WO-65…101) — **complete and structurally verified** (all WOs committed, services present, static checks green, zero forbidden markers); the full-suite pass count is being recorded (see §3.0). On `featureApp`.
 **Work orders:** WO-102 … WO-120 (continues the single global sequence).
 **Plan version:** 1.0
 
@@ -29,7 +29,7 @@ Everything in `CLAUDE.md`, `PLAN.md` §1, `PLAN-PHASE2.md` §1, and `PLAN-PHASE3
 
 - **No silent learning (spec §3, §23).** The 32-layer engine goes "active" — it detects patterns and proposes changes continuously across all layers. But **every** proposal is a governed `learning_updates` candidate routed through the WO-93 approval flow (Approve / Approve-modified-date / Defer / Reject) with the 7-day pre-implementation notice, 30-day review, and WO-94 rollback. Detected bias still **enters the queue, never auto-corrects** (spec §3.2). Score/rating/weight/prompt changes never self-apply. A test suite asserts no Phase 4 layer can mutate behaviour without an approved, implemented `learning_update`.
 - **AI Integrity Principle (spec §3) at population scale.** Cross-client and benchmarking outputs are evidence-based and source-attributed ("Based on [N] anonymised plans/clients…"), honest, and never fabricated when cohorts are too small (suppressed instead). Heightened entrepreneur integrity (spec §3.3) still holds for industry benchmarks and conversion-outcome signals.
-- **Security baseline → completed (spec §4, §27).** Phase 4 closes the Phase 1 deferrals: PQC envelope (CRYSTALS-Kyber FIPS 203 + CRYSTALS-Dilithium FIPS 204 via liboqs) and HSM-backed keys. TLS 1.3 / AES-256 / RLS / immutable audit / invite-only / MFA all remain. All external calls through `ResilientHttp`; all AI through `AiClient`; all audit through `AuditWriter`; all encryption through `KeyEnvelope` (now PQC-capable).
+- **Security baseline → completed (spec §4, §27).** Phase 4 closes the Phase 1 deferrals: PQC envelope (**ML-KEM** / FIPS 203 + **ML-DSA** / FIPS 204 — the standardised names for CRYSTALS-Kyber / CRYSTALS-Dilithium — via liboqs) and HSM-backed keys. TLS 1.3 / AES-256 / RLS / immutable audit / invite-only / MFA all remain. All external calls through `ResilientHttp`; all AI through `AiClient`; all audit through `AuditWriter`; all encryption through `KeyEnvelope` (now PQC-capable).
 - **Privacy (Privacy Act 2020; spec §11).** Anonymous community/peer/benchmarking features enforce k-anonymity (minimum cohort), aggregation-only outputs, opt-in consent, and human moderation. No feature can reverse-identify a client, entrepreneur, or plan.
 
 ---
@@ -50,16 +50,16 @@ By end of Phase 4 the platform is the complete spec-V2.4 product.
 
 ---
 
-## 3.0 Phase 3 verified baseline
+## 3.0 Phase 3 baseline
 
-Phase 3 was reviewed and confirmed complete before Phase 4 began. Starting baseline; do not regress:
+Phase 3 was reviewed and confirmed **structurally complete** before Phase 4 planning. The full-suite pass count is being recorded from an in-progress run and will be filled here before Phase 4 *implementation* starts (the starting gate is not "green" until this row is filled). Baseline; do not regress:
 
 | Gate | Result at handoff |
 |---|---|
-| PHPUnit suite (against PostgreSQL `futureshift_test`) | **PENDING — fill on completion of the current run** (Phase 2 baseline was 293/2190; Phase 3 adds substantially) |
-| Pint · ESLint · `tsc --noEmit` · Prettier | to confirm at handoff |
-| WO commits on `featureApp` | **101 / 101** (WO-01 … WO-101, incl. WO-87a/87b) |
-| Forbidden markers (`TODO`/`FIXME` in `app/`+`routes/`, `dd()`/`dump()`, `console.log`) | **0** |
+| WO commits on `featureApp` | **101 / 101** (WO-01 … WO-101, incl. WO-87a/87b) ✅ |
+| Forbidden markers (`TODO`/`FIXME` in `app/`+`routes/`, `dd()`/`dump()`, `console.log`) | **0** ✅ |
+| Pint · ESLint · `tsc --noEmit` · Prettier | green at Phase 2 handoff; re-confirm at Phase 3 full-suite run ⏳ |
+| PHPUnit suite (against PostgreSQL `futureshift_test`) | **⏳ recording — run in progress** (Phase 2 baseline was 293/2190; Phase 3 adds substantially). **Fill the exact count here before starting WO-102.** |
 
 Inventory at handoff: 84 migrations · 103 models · 119 feature-test files · 53 controllers · `app/Services/{…,Dd,Goals,Learning,Panels,Payments,Plans,Testimonials,Voice}`.
 
@@ -90,7 +90,7 @@ Reuse directly — do not re-create.
 | Immutable `audit_events` + `AuditWriter` | WO-03 | Every API call, learning approval, crypto rotation, community post audited |
 | Consent ledger (`consents`) | model | Community/peer/benchmarking opt-in consent (WO-110/111) |
 
-**Stack additions for Phase 4** (via their WO): liboqs PHP binding/FFI (PQC); HSM SDK (CloudHSM/Azure); a mobile framework (React Native or PWA-to-native — decide in WO-115); Siri Shortcuts / Google Assistant Actions (voice); API gateway + token issuance for the advisor API.
+**Stack additions for Phase 4** (via their WO): liboqs PHP binding/FFI (PQC); HSM SDK (CloudHSM/Azure); a mobile framework (React Native or PWA-to-native — decide in WO-115); iOS App Intents / Siri Shortcuts + Android App Actions (voice — **launch shortcuts only**, not the sunset Conversational Actions); Laravel Sanctum for the first-party mobile API + token issuance/throttling for the external advisor API.
 
 ---
 
@@ -105,7 +105,7 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 - `rating_validity_tests` — `rating_framework_id`, `period`, `correlation` (jsonb — predicted score vs realised outcome), `tested_at` — semi-annual predictive-validity (WO-107).
 
 ### 4.2 Population intelligence (WO-108…111) — anonymised, k-anonymity enforced
-- `industry_intelligence_signals` — `industry_code`, `signal_type`, `aggregate` (jsonb), `cohort_size`, `generated_at`, `suppressed` (bool) — cross-client patterns surfaced as **one advisor alert** (WO-108); suppressed when `cohort_size < MIN_COHORT`.
+- `industry_intelligence_signals` — `industry_code`, `signal_type`, `aggregate` (jsonb), `cohort_size`, `generated_at`, `suppressed` (bool) — cross-client patterns surfaced as **one advisor alert** (WO-108); suppressed when `cohort_size < config('privacy.min_cohort')`.
 - `benchmark_aggregates` — `domain` (sme | entrepreneur), `industry_code`, `metric`, `distribution` (jsonb — percentile bands only), `cohort_size`, `quarter`, `suppressed` — the anonymous NZ-SME + entrepreneur benchmarking community (WO-110); **no per-entity values**.
 - `peer_network_members` — `user_id`, `community` (sme | entrepreneur), `joined_at`, `consent_id` (→ `consents`), `status` (active, suspended) — opt-in, separate communities.
 - `peer_posts` / `peer_post_moderation` — `peer_network_member_id` (pseudonymous handle), `body`, `posted_at`; moderation row: `status` (pending, approved, rejected), `moderated_by_user_id`, `reason` — **moderated** before visibility.
@@ -115,9 +115,9 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 - `advisor_api_clients` — `advisor_user_id`, `name`, `scopes` (jsonb — read-only + the limited writes: meeting notes, actions only), `token_hash`, `approved_by_user_id` (super-admin), `status`, `last_used_at` — per-integration super-admin approval (spec §25).
 - `advisor_api_audit` — (or reuse `audit_events`) every API call logged with scope + outcome.
 - `nz_tool_connections` — `client_id`, `provider` (employment_hero, cin7, tradify, …), `status`, `token_envelope` (KeyEnvelope), `connected_by_user_id`, `last_synced_at` — WO-113 (mirrors `accounting_connections`).
-- `voice_assistant_sessions` — `advisor_user_id`, `assistant` (siri, google), `intent`, `redacted_transcript`, `occurred_at` — **no client PII sent to third-party assistants**; transcripts redacted via the `Redactor`.
+- `voice_assistant_sessions` — `advisor_user_id`, `launch_source` (in_app, ios_app_intent, android_app_action), `intent` (note, action, status), `transcript` (captured + stored **in-app**), `occurred_at` — capture/transcription are in-app (WO-98 Whisper); the OS shortcut only deep-links a fixed intent, so no client content crosses the OS boundary (WO-114).
 - `industry_wacc_data` — `industry_code`, `wacc`, `components` (jsonb), `source` (nzx, …), `quarter`, `fetched_at`, `superseded_at` — WO-116; feeds the `DiscountMethod::IndustryWacc` resolver (full automation of the Phase 2 manual feed).
-- Mobile (WO-115): no new tables — reuses the existing API; device/push registration is `device_registrations` (`user_id`, `platform`, `push_token_envelope`, `last_seen_at`).
+- `device_registrations` (WO-115) — `user_id`, `platform` (ios, android), `push_token_envelope` (KeyEnvelope), `last_seen_at` — push/device registration for the mobile app. (Correction: the mobile app does **add** this table; it does **not** simply reuse existing tables — and it consumes a **first-party mobile API** built in WO-115, distinct from the WO-112 external advisor-integration API.)
 
 ### 4.4 Security hardening (WO-117…119)
 - `key_envelopes_registry` (optional) — tracks `kid` → key metadata + `alg` version for rewrap/rotation; or rely on the envelope `kid` field.
@@ -127,7 +127,7 @@ Same conventions: `uuid` PKs via `gen_random_uuid()`, `jsonb`, `client_id` + RLS
 ### 4.5 Scaling (WO-120)
 - `advisor_teams` — `name`, `lead_advisor_user_id`, `created_at`.
 - `advisor_team_members` — `advisor_team_id`, `user_id`, `role` (lead, member), `joined_at`.
-- `client_assignments` extension — allow team-scoped access (RLS extended so a team lead sees the team's clients) — extends the WO-02/WO-14 scope resolution, not a rewrite.
+- **`client_team` extension** (the existing access model — `App\Models\ClientTeamMember`, table `client_team` from WO-14; there is **no** `client_assignments` table) — extend it so a team lead inherits access to the team's clients. This means extending the `RequestContext`/`EnforceClientScope` scope resolution (WO-02) and the `client_team` RLS policy to include team-derived membership — **not** a rewrite and **not** a new assignments table.
 
 ---
 
@@ -139,7 +139,10 @@ FEATURE_ACTIVE_LEARNING=false           # master switch; individual layers gated
 LEARNING_REQUIRE_APPROVAL=true          # MUST stay true — no autonomous application (asserted by test)
 
 # Population intelligence (privacy)
-MIN_COHORT=5                            # k-anonymity floor for all aggregate/community/benchmark output
+# Single central privacy floor. The Phase 3 BENCHMARK_MIN_COHORT (config/entrepreneurs.php)
+# is aliased to this so the two cannot drift: config('privacy.min_cohort') is the one source,
+# defaulting from BENCHMARK_MIN_COHORT for back-compat.
+BENCHMARK_MIN_COHORT=5                   # existing Phase 3 env; now also the platform-wide privacy floor
 FEATURE_CROSS_CLIENT_INTELLIGENCE=false
 FEATURE_BENCHMARK_COMMUNITY=false
 FEATURE_PEER_NETWORK=false
@@ -155,11 +158,11 @@ FEATURE_TRADIFY_LIVE=false
 FEATURE_INDUSTRY_WACC_LIVE=false
 
 # Security (PQC/HSM)
-FEATURE_PQC=false                       # KeyEnvelope writes v2 (Kyber+AES-GCM) when true; reads both always
+FEATURE_PQC=false                       # KeyEnvelope writes v2 (ML-KEM-1024 + AES-256-GCM) when true; reads both always
 HSM_DRIVER=                             # cloudhsm | azure_dedicated_hsm (empty = software keys, dev only)
 ```
 
-`LEARNING_REQUIRE_APPROVAL=true` is a hard invariant. `MIN_COHORT` governs every anonymised output. PQC reads are always dual-version (v1 + v2) so historical envelopes stay decryptable; `FEATURE_PQC` only controls which version *new* writes use.
+`LEARNING_REQUIRE_APPROVAL=true` is a hard invariant. `privacy.min_cohort` governs every anonymised output. PQC reads are always dual-version (v1 + v2) so historical envelopes stay decryptable; `FEATURE_PQC` only controls which version *new* writes use.
 
 ---
 
@@ -169,20 +172,21 @@ HSM_DRIVER=                             # cloudhsm | azure_dedicated_hsm (empty 
 Active Learning track (governed — feeds the WO-93 queue):
   WO-102 Activate 32 layers ─┬─ WO-103 Bias auto-calibration
                              ├─ WO-104 DD pattern + valuation-accuracy learning
-                             ├─ WO-105 Industry plan-quality benchmarks
+                             ├─ WO-105 CohortGuard + industry plan-quality benchmarks
                              ├─ WO-106 Conversion-outcome learning
                              └─ WO-107 Rating predictive-validity testing
 
 Population Intelligence track (privacy-critical, k-anonymity + moderation):
-  WO-108 Cross-client competitive intelligence
-  WO-109 Shared intelligence layer (entrepreneur <-> advisory)
-  WO-110 Anonymous NZ-SME + entrepreneur benchmarking community
-  WO-111 Anonymous peer network (separate, moderated)
+  WO-105(!) ─> WO-108 Cross-client competitive intelligence   [!] reuses CohortGuard built in WO-105
+  WO-108 ─> WO-109 Shared intelligence layer (entrepreneur <-> advisory)
+  WO-108 ─> WO-110 Anonymous NZ-SME + entrepreneur benchmarking community ─> WO-111 Anonymous peer network (moderated)
+  ⚠️ CROSS-TRACK: WO-108–111 reuse CohortGuard (App\Services\Privacy\CohortGuard) built in WO-105.
+     Implement WO-105 before WO-108.
 
 Platform Reach track:
-  WO-112 Advisor API (read-only + limited write, super-admin approval)
+  WO-112 External advisor-integration API (read-only + limited write, super-admin approval)  [NOT the mobile API]
   WO-113 NZ business-tool integrations (Employment Hero/Cin7/Tradify)
-  WO-114 Voice assistant (Siri/Google) ; WO-115 Mobile app foundation
+  WO-115 Mobile app foundation + first-party mobile API (Sanctum, MFA/T&C/RLS) ─> WO-114 in-app voice + OS launch shortcuts
   WO-116 Industry-WACC full automation ─> feeds Phase 2 DiscountMethod::IndustryWacc
 
 Security Hardening track (needs NZ-qualified review):
@@ -201,17 +205,17 @@ Tracks are largely independent and parallelisable. **WO-102 must precede 103–1
 ### 7.1 Governed active learning (WO-102)
 "Activate all 32 layers" means flip `learning_layer_state.active` per layer and let each layer run on its spec §23 cadence, **producing `learning_updates` candidates**. It does **not** mean any layer applies changes. The WO-93 `ApprovalFlow` remains the only path to a behaviour change; WO-94 `Rollback` remains the undo. A guard test asserts: with `FEATURE_ACTIVE_LEARNING=true` and every layer active, no scoring weight, prompt, rating descriptor, or framework value changes without an approved+implemented `learning_update`. Detected bias (WO-103) enters the queue; it is never auto-corrected (spec §3.2).
 
-### 7.2 k-anonymity + moderation (WO-108…111)
-Every population-scale output passes a single `CohortGuard`: aggregate only, suppress when `cohort_size < MIN_COHORT`, never emit min/max or any value that could reverse-identify a member. Peer/community membership is opt-in (`consents`), pseudonymous, and **moderated** (`PEER_NETWORK_MODERATION=manual`) before any post is visible. The shared-intelligence layer (WO-109) shares only anonymised patterns, never records. Privacy counsel signs off before go-live (P4-R-privacy).
+### 7.2 k-anonymity + moderation (`CohortGuard` built in WO-105; reused by WO-108…111)
+Every population-scale output passes a single `CohortGuard` (`App\Services\Privacy\CohortGuard`, **built in WO-105** by generalising the Phase 3 `Benchmarking` min-cohort logic; WO-108–111 reuse it and depend on WO-105): aggregate only, suppress when `cohort_size < min_cohort`, never emit min/max or any value that could reverse-identify a member. The privacy floor is the **single central config `privacy.min_cohort`** (see §5) — the Phase 3 `benchmark_min_cohort` is aliased to it so floors cannot drift. Peer/community membership is opt-in (`consents`), pseudonymous, and **moderated** (`PEER_NETWORK_MODERATION=manual`) before any post is visible. The shared-intelligence layer (WO-109) shares only anonymised patterns, never records. Privacy counsel signs off before go-live (P4-R2).
 
 ### 7.3 PQC envelope swap-in (WO-117) — the SD-01 closure
-`KeyEnvelope` already dispatches by `{v, alg}`. WO-117 adds the `v2` path: CRYSTALS-Kyber-1024 KEM wrapping an AES-256-GCM content key, with Dilithium signatures where envelopes are signed. `decrypt()` gains a `v2` branch (v1 AES envelopes stay readable forever); `encrypt()` writes v2 when `FEATURE_PQC=true`. A `php artisan envelopes:rewrap` command (idempotent, audited, recorded in `crypto_rotations`) streams existing v1 envelopes → v2. `KeyEnvelope::CURRENT_VERSION` flips to 2 at cutover. **NZ-qualified crypto review required before production** (spec §27).
+`KeyEnvelope` already dispatches by `{v, alg}`. WO-117 adds the `v2` path: **ML-KEM-1024 (FIPS 203, derived from CRYSTALS-Kyber)** KEM wrapping an AES-256-GCM content key, with **ML-DSA (FIPS 204, derived from CRYSTALS-Dilithium)** signatures where envelopes are signed. (Spec V2.4 names Kyber/Dilithium; use the standardised FIPS names ML-KEM / ML-DSA in code and docs, noting the derivation.) `decrypt()` gains a `v2` branch (v1 AES envelopes stay readable forever); `encrypt()` writes v2 when `FEATURE_PQC=true`. A `php artisan envelopes:rewrap` command (idempotent, audited, recorded in `crypto_rotations`) streams existing v1 envelopes → v2. `KeyEnvelope::CURRENT_VERSION` flips to 2 at cutover. **NZ-qualified crypto review required before production** (spec §27).
 
 ### 7.4 HSM key management (WO-118) — the SD-02 closure
 Keys move from env/software to an HSM (CloudHSM or Azure Dedicated HSM); the key material never enters application memory (spec §4). `KeyEnvelope` calls the HSM for wrap/unwrap of content keys. Scheduled rotation via `crypto_rotations`. Dev keeps software keys (`HSM_DRIVER=` empty); production must set a driver. Update `docs/architecture/security-decisions.md` to mark SD-01/SD-02 **closed**.
 
 ### 7.5 Advisor API security (WO-112)
-Read-only by default; the only writes permitted are meeting notes + actions (spec §25). Each integration is a per-advisor `advisor_api_clients` row requiring **super-admin approval**, with explicit scopes and a hashed token. Every call is RLS-scoped to the advisor's clients and audited. No bulk export; rate-limited via the resilience layer.
+Read-only by default; the only writes permitted are meeting notes + actions (spec §25). Each integration is a per-advisor `advisor_api_clients` row requiring **super-admin approval**, with explicit scopes and a hashed token. Every call is RLS-scoped to the advisor's clients and audited. No bulk export. **Inbound rate-limiting uses Laravel's API throttling** (`RateLimiter` / `throttle` middleware per API client/token) — **not** `ResilientHttp`, which is for *outbound* third-party calls.
 
 ---
 
@@ -248,14 +252,16 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 **Tests:** outcome capture; candidate emission; governed-only.
 **Out of scope:** none.
 
-#### WO-105 — Industry-specific plan-quality benchmarks
-**Spec refs:** §17.7; §23
-**Goal:** Per-industry entrepreneur plan-quality benchmarks (min industry cohort enforced); feed the entrepreneur guidance/benchmarking.
-**Depends on:** WO-102, Phase 3 WO-87/88/91; `CohortGuard` (§7.2).
-**Key files:** `app/Services/Learning/Layers/PlanQualityBenchmarks.php`.
-**Acceptance:** industry benchmarks computed only at/above `MIN_COHORT`; suppressed otherwise; aggregate-only.
-**Tests:** cohort suppression; aggregate-only; per-industry computation.
-**Out of scope:** none.
+#### WO-105 — `CohortGuard` privacy primitive + industry-specific plan-quality benchmarks
+**Spec refs:** §17.7; §23; §11
+**Goal:** **Build the reusable `CohortGuard` here** (generalising the Phase 3 `Benchmarking` min-cohort logic into a shared service) — it is the privacy primitive that WO-108–111 reuse. Then add per-industry entrepreneur plan-quality benchmarks (min industry cohort enforced via `CohortGuard`); feed entrepreneur guidance/benchmarking. **`CohortGuard` is created in this WO** (first consumer) and owned as a §7.2 cross-cutting foundation.
+**Depends on:** WO-102, Phase 3 WO-87/88/91 (and the Phase 3 `Benchmarking` min-cohort it generalises).
+**Key files:** **`app/Services/Privacy/CohortGuard.php`** (new — the shared primitive), `app/Services/Learning/Layers/PlanQualityBenchmarks.php`.
+**Acceptance:** `CohortGuard` suppresses below `privacy.min_cohort`, returns aggregate-only, and cannot reverse-identify; industry benchmarks computed only at/above `privacy.min_cohort`, suppressed otherwise, aggregate-only.
+**Tests:** `CohortGuard` suppression at floor−1 vs floor + no-reidentification; per-industry computation; aggregate-only.
+**Out of scope:** the population-track consumers (WO-108–111 reuse `CohortGuard`).
+
+> ⚠️ **Cross-track note:** `CohortGuard` is built here (WO-105, Active-Learning track) because it is the first consumer; the Population-Intelligence track (WO-108–111) **reuses** it and therefore depends on WO-105 for it. Implement WO-105 before WO-108–111.
 
 #### WO-106 — Conversion-outcome learning
 **Spec refs:** §23 (conversion outcome — long-term signal)
@@ -279,10 +285,10 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 
 #### WO-108 — Cross-client competitive intelligence
 **Spec refs:** §11 (Cross-Client Intelligence — Phase 4)
-**Goal:** Detect patterns affecting multiple clients in the same industry; surface as **one** advisor alert. Anonymised aggregates only; `CohortGuard` suppression.
-**Depends on:** Phase 2 analysis findings; `CohortGuard` (§7.2).
-**Key files:** `industry_intelligence_signals` table, `app/Services/Intelligence/CrossClient.php`, `CohortGuard`.
-**Acceptance:** multi-client industry pattern → single advisor alert; suppressed below `MIN_COHORT`; no client identifiable.
+**Goal:** Detect patterns affecting multiple clients in the same industry; surface as **one** advisor alert. Anonymised aggregates only; reuses the `CohortGuard` built in WO-105 for suppression.
+**Depends on:** **WO-105 (for `CohortGuard`)**; Phase 2 analysis findings.
+**Key files:** `industry_intelligence_signals` table, `app/Services/Intelligence/CrossClient.php` (consumes `App\Services\Privacy\CohortGuard`).
+**Acceptance:** multi-client industry pattern → single advisor alert; suppressed below `privacy.min_cohort`; no client identifiable.
 **Tests:** pattern detection; single-alert dedupe; cohort suppression; no-reidentification.
 **Out of scope:** community/peer (WO-110/111).
 
@@ -300,7 +306,7 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 **Goal:** Opt-in anonymous benchmarking community; aggregate percentile bands only; min cohort enforced; SME and entrepreneur domains separate.
 **Depends on:** WO-108, `consents`, `CohortGuard`.
 **Key files:** `benchmark_aggregates` table, `peer_network_members` (membership), `app/Services/Intelligence/BenchmarkCommunity.php`.
-**Acceptance:** opt-in consent required; aggregate-only; suppressed below `MIN_COHORT`; no per-entity values; privacy-counsel sign-off recorded.
+**Acceptance:** opt-in consent required; aggregate-only; suppressed below `privacy.min_cohort`; no per-entity values; privacy-counsel sign-off recorded.
 **Tests:** consent gate; aggregate-only; cohort suppression; no-reidentification.
 **Out of scope:** peer posting (WO-111).
 
@@ -333,23 +339,23 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 **Tests:** contract tests (live + stub); connection + token encryption; resilience fallback.
 **Out of scope:** the analysis that consumes the data (incremental on existing modules).
 
-#### WO-114 — Voice assistant (Siri + Google Assistant)
+#### WO-114 — Voice capture (in-app) + OS launch shortcuts
 **Spec refs:** §21 (Voice Assistant — Phase 4)
-**Goal:** Hands-free advisor use — notes, action capture, client-status queries — via Siri Shortcuts + Google Assistant Actions. **No client PII sent to third-party assistants**; transcripts redacted via `Redactor`; all AI through `AiClient`.
-**Depends on:** Phase 3 WO-98 (voice notes), `Redactor`, `AiClient`.
-**Key files:** `voice_assistant_sessions` table, `app/Services/Voice/Assistant.php`, Siri/Google intent handlers.
-**Acceptance:** intents handled (note, action, status); transcripts redacted before any third-party call; sessions audited; no PII leakage.
-**Tests:** intent handling; redaction-before-egress; audit.
-**Out of scope:** full voice UI (status/note/action only).
+**Goal:** Hands-free advisor use — notes, action capture, client-status queries — with **all voice capture and transcription happening inside the FSA app** (reusing the WO-98 Whisper layer + `AiClient`). OS assistant integration is **launch-only**: iOS **App Intents / Siri Shortcuts** and Android **App Actions / Shortcuts** that deep-link into the in-app voice screen for a fixed intent (e.g. "new meeting note"). **No client content and no free dictation is ever handed to Siri or Google** — the OS payload is only a static intent name, so there is nothing to redact at the OS boundary. (Google's *Conversational Actions* were sunset 2023-06-13; this plan uses App Actions/Shortcuts, the current Android path — **not** Conversational Actions. Targeting an OS assistant beyond launch shortcuts is out of scope; if App Actions prove infeasible, Android falls back to an in-app voice button with no assistant integration.)
+**Depends on:** Phase 3 WO-98 (in-app voice notes + Whisper), `AiClient`; Phase 4 WO-115 (mobile shell hosts the capture screen).
+**Key files:** `voice_assistant_sessions` table, `app/Services/Voice/Assistant.php` (in-app intent handling), iOS App Intents + Android App Actions definitions (launch shortcuts only).
+**Acceptance:** the three intents (note, action, status) are handled **in-app**; the OS shortcut payload contains only a fixed intent identifier (asserted — no client data, no transcript leaves the app to the OS assistant); capture/transcription run in-app via Whisper; sessions audited.
+**Tests:** in-app intent handling; **OS-shortcut payload is intent-only (no client content / no PII)**; transcription stays in-app; audit. (The "no PII to third party" guarantee is now structurally testable because nothing client-specific crosses the OS boundary.)
+**Out of scope:** Conversational Actions / any assistant that would receive spoken client content (sunset / privacy-incompatible); full conversational voice UI (the three intents only).
 
-#### WO-115 — Mobile app foundation (iOS + Android)
+#### WO-115 — Mobile app foundation (iOS + Android) + first-party mobile API
 **Spec refs:** §26 (Mobile app foundation — Phase 4)
-**Goal:** Mobile foundation reusing the existing API (advisor + client); secure device storage; push registration; MFA + T&C gates honoured. (Framework decision — React Native vs PWA-to-native — recorded in an ADR.)
-**Depends on:** WO-112 (API), auth/MFA/T&C (Phase 1).
-**Key files:** mobile app skeleton, `device_registrations` table, push integration, `docs/architecture/mobile.md` (framework ADR).
-**Acceptance:** advisor + client can authenticate (MFA + T&C) and view core data on device; encrypted local storage; push registration works.
-**Tests:** auth/MFA/T&C on device (where testable); device-registration; encrypted storage.
-**Out of scope:** full feature parity with web (foundation only).
+**Goal:** Mobile foundation for advisor + client. **There is no first-party mobile API today** — `routes/api.php` currently holds only the DD guest-upload + webhook endpoints, and the WO-112 advisor API is an *external integration* API (super-admin-approved client tokens, read-only + two writes). So this WO **builds a first-party mobile API**: a versioned `routes/api.php` namespace authenticated with **Laravel Sanctum** device tokens (or first-party OAuth), honouring the **MFA + T&C gates** and **RLS client scope**, exposing the advisor/client portal data the app needs. Secure device storage; push registration; framework decision (React Native vs PWA-to-native) in an ADR.
+**Depends on:** Phase 1 auth/MFA/T&C + WO-02 RLS scope; **not** WO-112 (that API is for external integrations, not the first-party app).
+**Key files:** first-party mobile API routes + controllers + Sanctum auth, mobile app skeleton, `device_registrations` table/model, push integration, `docs/architecture/mobile.md` (framework + first-party-API ADR).
+**Acceptance:** advisor + client authenticate over the first-party mobile API with MFA + T&C enforced; reads are RLS-scoped; core data viewable on device; encrypted local storage; push registration works.
+**Tests:** mobile-API auth with MFA + T&C gates; RLS scope on mobile-API reads; device-registration; encrypted storage.
+**Out of scope:** full feature parity with web (foundation only); the external advisor-integration API (WO-112).
 
 #### WO-116 — Industry-WACC full automation
 **Spec refs:** §24 (Industry WACC); §12 (Method 2)
@@ -362,9 +368,9 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 
 ### Security Hardening track
 
-#### WO-117 — PQC envelope swap-in (CRYSTALS-Kyber/Dilithium) — closes SD-01
-**Spec refs:** §4; §27; Appendix B (NIST PQC); `docs/architecture/key-envelope.md`
-**Goal:** Add the `v2` PQC path to `KeyEnvelope` (Kyber-1024 KEM + AES-256-GCM; Dilithium signatures), the dual-version read, the `envelopes:rewrap` command (`crypto_rotations`), and the `FEATURE_PQC` write switch. **NZ-qualified crypto review before production.**
+#### WO-117 — PQC envelope swap-in (ML-KEM / ML-DSA) — closes SD-01
+**Spec refs:** §4; §27; Appendix B (NIST PQC — FIPS 203 ML-KEM, FIPS 204 ML-DSA); `docs/architecture/key-envelope.md`
+**Goal:** Add the `v2` PQC path to `KeyEnvelope` (**ML-KEM-1024** KEM + AES-256-GCM; **ML-DSA** signatures — FIPS 203/204, derived from Kyber/Dilithium), the dual-version read, the `envelopes:rewrap` command (`crypto_rotations`), and the `FEATURE_PQC` write switch. **NZ-qualified crypto review before production.**
 **Depends on:** WO-02 (`KeyEnvelope` seam).
 **Key files:** `KeyEnvelope` v2 path, `app/Services/Storage/Pqc/*`, `crypto_rotations` table, `envelopes:rewrap` command, updated `docs/architecture/key-envelope.md` + `security-decisions.md` (SD-01 closing).
 **Acceptance:** v2 envelopes round-trip; v1 still decrypts; rewrap is idempotent + audited; `CURRENT_VERSION` flips at cutover; no call sites changed.
@@ -393,9 +399,9 @@ Read-only by default; the only writes permitted are meeting notes + actions (spe
 
 #### WO-120 — Multi-advisor scaling + team management
 **Spec refs:** §26 (Multi-advisor scaling — Phase 4)
-**Goal:** Teams (`advisor_teams`), team membership, team-lead visibility across the team's clients (extends RBAC + RLS scope — not a rewrite); capacity/load views across the team.
-**Depends on:** WO-07 (RBAC), WO-02/WO-14 (client scope).
-**Key files:** `advisor_teams` / `advisor_team_members` tables, scope-resolver extension, team management UI.
+**Goal:** Teams (`advisor_teams`), team membership, team-lead visibility across the team's clients by **extending the existing `client_team` access model** (`ClientTeamMember` + the `client_team` RLS policy + `RequestContext`/`EnforceClientScope`) — not a rewrite, not a new assignments table; capacity/load views across the team.
+**Depends on:** WO-07 (RBAC), WO-02 (`RequestContext`/RLS), WO-14 (`client_team`/`ClientTeamMember`).
+**Key files:** `advisor_teams` / `advisor_team_members` tables, `client_team` RLS-policy + scope-resolver extension (team-derived membership), team management UI.
 **Acceptance:** a team lead sees the team's clients (RLS-enforced); members see their own; reassignment audited; capacity view aggregates the team.
 **Tests:** team RLS scope; lead-vs-member visibility; reassignment audit.
 **Out of scope:** cross-practice/white-label (not in V2.4).
@@ -410,7 +416,7 @@ Same bar as Phases 1–3, plus:
 2. `composer test`, Pint, ESLint, Prettier, `tsc --noEmit` all pass.
 3. No Phase-beyond-V2.4 feature.
 4. **No learning layer applies a change without an approved+implemented `learning_update`** (the §7.1 guard test).
-5. **Every anonymised output passes `CohortGuard`** (suppress below `MIN_COHORT`; aggregate-only; no reidentification).
+5. **Every anonymised output passes `CohortGuard`** (suppress below `privacy.min_cohort`; aggregate-only; no reidentification).
 6. **PQC: v1 envelopes remain decryptable forever; no call site changed; rewrap idempotent + audited.**
 7. **HSM: key material never enters app memory in production.**
 8. **Advisor API: read-only + the two permitted writes only; per-integration super-admin approval; RLS-scoped; audited.**
@@ -419,7 +425,7 @@ Same bar as Phases 1–3, plus:
 ## 10. Test strategy (Phase 4 additions)
 
 - **No-autonomous-learning guard** — with all layers active, assert no weight/prompt/descriptor/framework value changes without an approved+implemented `learning_update`.
-- **CohortGuard tests** — every population-scale feature suppresses below `MIN_COHORT`, emits aggregate-only, and cannot reverse-identify (test with cohort = floor−1 and floor).
+- **CohortGuard tests** — every population-scale feature suppresses below `privacy.min_cohort`, emits aggregate-only, and cannot reverse-identify (test with cohort = floor−1 and floor).
 - **Bias-calibration governance test** — detected bias queues a candidate, never auto-corrects.
 - **PQC tests** — v2 round-trip; v1 back-compat; rewrap idempotency; dual-version dispatch.
 - **HSM tests** — wrap/unwrap via mock HSM; no-key-in-memory assertion; dev software fallback.
@@ -465,7 +471,7 @@ Phase 4 completes spec V2.4. Anything further (V2.5+) — new markets, white-lab
 | Voice assistant integration | WO-114 |
 | Mobile app foundation | WO-115 |
 | Industry WACC data feed full automation | WO-116 |
-| PQC cryptography (Kyber/Dilithium) | WO-117 |
+| PQC cryptography (ML-KEM / ML-DSA, ex-Kyber/Dilithium) | WO-117 |
 | HSM key management | WO-118 |
 | Annual third-party security & legal audit framework | WO-119 |
 | Multi-advisor scaling + team management | WO-120 |
