@@ -1,0 +1,23 @@
+{
+    "name": "Future Shift Advisory Portal",
+    "short_name": "FSA Portal",
+    "description": "Secure client portal for Future Shift Advisory.",
+    "start_url": "/portal",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#ffffff",
+    "theme_color": "#2f6f68",
+    "icons": [
+        {
+            "src": "/favicon.svg",
+            "sizes": "any",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        },
+        {
+            "src": "/apple-touch-icon.png",
+            "sizes": "180x180",
+            "type": "image/png"
+        }
+    ]
+}

@@ -1,11 +1,13 @@
 import { Upload, X } from 'lucide-react';
 import { useState } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { queueDocumentUpload } from '@/lib/portal-offline';
 import { evaluateVisibleQuestionIds } from '@/lib/questionnaires/conditional-logic';
 import type {
     QuestionnaireAnswer,
@@ -382,12 +384,44 @@ function DocumentAttachmentControl({
         setUploading(true);
         setError(null);
 
+        const fields = {
+            category: 'plan_attachment',
+            question_id: question.id,
+            question_prompt: question.prompt,
+            claim_value: claimValue(question, answer),
+        };
+
+        if (!navigator.onLine) {
+            try {
+                const document = await queueDocumentUpload({
+                    url: uploadUrl,
+                    file,
+                    fields,
+                });
+
+                onDocumentUploaded(document);
+                onChange({
+                    attached_document_ids: unique([
+                        ...answer.attached_document_ids,
+                        document.id,
+                    ]),
+                });
+                setFile(null);
+                toast.success('Document queued for sync.');
+            } catch {
+                setError('Offline upload queue failed.');
+            } finally {
+                setUploading(false);
+            }
+
+            return;
+        }
+
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('category', 'plan_attachment');
-        formData.append('question_id', question.id);
-        formData.append('question_prompt', question.prompt);
-        formData.append('claim_value', claimValue(question, answer));
+        Object.entries(fields).forEach(([key, value]) => {
+            formData.append(key, value);
+        });
 
         const response = await fetch(uploadUrl, {
             method: 'POST',

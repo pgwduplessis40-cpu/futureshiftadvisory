@@ -226,6 +226,13 @@ runs daily in system context and routes `DocumentExpiryReminderNotification`
 through `ChannelResolver`, preserving each user's mail/platform frequency
 preference.
 
+## WO-101 - Portal offline PWA
+
+No database tables are added. WO-101 uses encrypted browser IndexedDB storage
+for the temporary offline queue and replays queued questionnaire/document-upload
+requests against the existing authenticated portal endpoints when connectivity
+returns.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

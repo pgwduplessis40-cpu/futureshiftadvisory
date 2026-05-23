@@ -11,6 +11,7 @@ import {
     UserRoundCheck,
 } from 'lucide-react';
 import type { ComponentType, FormEvent, ReactNode } from 'react';
+import { toast } from 'sonner';
 import InputError from '@/components/input-error';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
 import { Badge } from '@/components/ui/badge';
@@ -18,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { queueQuestionnaireSubmission } from '@/lib/portal-offline';
 import { cn } from '@/lib/utils';
 import type { QuestionnaireAnswers } from '@/types/questionnaire';
 import type {
@@ -93,6 +95,19 @@ export default function OnboardingStep({
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+
+        if (step.slug === 'questionnaire' && !navigator.onLine) {
+            void queueQuestionnaireSubmission(submitUrl, form.data)
+                .then(() => {
+                    toast.success('Questionnaire saved offline.');
+                })
+                .catch(() => {
+                    toast.error('Offline save failed.');
+                });
+
+            return;
+        }
+
         form.post(submitUrl, {
             preserveScroll: true,
         });
