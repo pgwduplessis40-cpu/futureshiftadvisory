@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
+use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Auth\InviteAcceptController;
@@ -62,5 +63,16 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->group(function (): void {
             Route::get('integration-health', IntegrationHealthController::class)
                 ->name('integration-health.index');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::LEARNING_UPDATES_VIEW->value])
+        ->group(function (): void {
+            Route::get('learning-updates', [LearningUpdateController::class, 'index'])
+                ->name('learning-updates.index');
+            Route::patch('learning-updates/{learningUpdate}/decision', [LearningUpdateController::class, 'decide'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-updates.decide');
         });
 });

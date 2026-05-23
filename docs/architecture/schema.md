@@ -38,6 +38,27 @@ Key columns:
 - `review_outcome`
 - `rolled_back_at`
 
+## WO-93 - Learning update approval queue
+
+### `learning_update_decisions`
+
+Immutable decision ledger for the governed learning-update queue. Each admin action records the update, decision, optional effective date/reason, actor, and timestamp. Approval updates the candidate with a seven-day pre-implementation notice timestamp and a 30-day post-effective review date; it does not create an implementation row.
+
+Key columns:
+
+- `id` UUID primary key
+- `learning_update_id`
+- `decision` (`approve`, `approve_modified_date`, `defer`, `reject`)
+- `effective_date`
+- `reason`
+- `decided_by_user_id`
+- `decided_at`
+
+Additional `learning_updates` columns:
+
+- `pre_implementation_notice_at`
+- `review_due_at`
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

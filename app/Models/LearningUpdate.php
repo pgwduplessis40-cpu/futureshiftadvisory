@@ -36,8 +36,18 @@ final class LearningUpdate extends Model
         'confidence' => 'float',
         'clients_affected' => 'integer',
         'effective_date' => 'datetime',
+        'pre_implementation_notice_at' => 'datetime',
+        'review_due_at' => 'datetime',
         'decided_at' => 'datetime',
     ];
+
+    /**
+     * @return HasMany<LearningUpdateDecision, $this>
+     */
+    public function decisions(): HasMany
+    {
+        return $this->hasMany(LearningUpdateDecision::class);
+    }
 
     /**
      * @return HasMany<LearningUpdateImplementation, $this>
