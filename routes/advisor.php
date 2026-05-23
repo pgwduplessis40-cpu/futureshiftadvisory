@@ -22,6 +22,7 @@ use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
 use App\Http\Controllers\Advisor\TestimonialController;
+use App\Http\Controllers\Advisor\VoiceNoteController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -100,6 +101,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/testimonials/nps', [TestimonialController::class, 'requestFromNps'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.testimonials.nps');
+        Route::post('clients/{client}/voice-notes', [VoiceNoteController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.voice-notes.store');
+        Route::post('clients/{client}/call-logs', [VoiceNoteController::class, 'storeCallLog'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.call-logs.store');
 
         Route::patch('proposals/{proposal}/release', [ProposalController::class, 'release'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)

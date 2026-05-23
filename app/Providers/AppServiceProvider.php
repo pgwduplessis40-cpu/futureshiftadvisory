@@ -15,6 +15,9 @@ use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pptx\OpenXmlPptxGenerator;
 use App\Services\Storage\KeyEnvelope;
 use App\Services\Storage\WriteWrappedAdapter;
+use App\Services\Voice\Contracts\WhisperClient;
+use App\Services\Voice\FakeWhisperClient;
+use App\Services\Voice\LiveWhisperClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Filesystem\FilesystemAdapter as LaravelFilesystemAdapter;
 use Illuminate\Support\Arr;
@@ -42,6 +45,9 @@ class AppServiceProvider extends ServiceProvider
             : $this->app->make(NoopScanner::class));
         $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
         $this->app->singleton(PptxGenerator::class, OpenXmlPptxGenerator::class);
+        $this->app->singleton(WhisperClient::class, fn (): WhisperClient => (bool) config('services.whisper.live', false)
+            ? $this->app->make(LiveWhisperClient::class)
+            : $this->app->make(FakeWhisperClient::class));
     }
 
     /**

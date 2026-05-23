@@ -10,6 +10,7 @@ import ClientEmailController from './ClientEmailController'
 import ClientMessageController from './ClientMessageController'
 import AccountingConnectionController from './AccountingConnectionController'
 import TestimonialController from './TestimonialController'
+import VoiceNoteController from './VoiceNoteController'
 import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
 import KnowledgeController from './KnowledgeController'
@@ -30,6 +31,7 @@ ClientEmailController: Object.assign(ClientEmailController, ClientEmailControlle
 ClientMessageController: Object.assign(ClientMessageController, ClientMessageController),
 AccountingConnectionController: Object.assign(AccountingConnectionController, AccountingConnectionController),
 TestimonialController: Object.assign(TestimonialController, TestimonialController),
+VoiceNoteController: Object.assign(VoiceNoteController, VoiceNoteController),
 BriefingController: Object.assign(BriefingController, BriefingController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
 KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),

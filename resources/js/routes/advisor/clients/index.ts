@@ -10,6 +10,8 @@ import email from './email'
 import messages from './messages'
 import accounting from './accounting'
 import testimonials from './testimonials'
+import voiceNotes from './voice-notes'
+import callLogs from './call-logs'
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::index
  * @see app/Http/Controllers/Advisor/ClientController.php:55
@@ -498,6 +500,8 @@ messages: Object.assign(messages, messages),
 accounting: Object.assign(accounting, accounting),
 show: Object.assign(show, show),
 testimonials: Object.assign(testimonials, testimonials),
+voiceNotes: Object.assign(voiceNotes, voiceNotes),
+callLogs: Object.assign(callLogs, callLogs),
 }
 
 export default clients

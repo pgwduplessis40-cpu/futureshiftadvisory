@@ -115,6 +115,45 @@ Key columns:
 - `requested_by_user_id`, `submitted_by_user_id`
 - `requested_at`, `consented_at`, `declined_at`
 
+## WO-98 - Voice notes and call logs
+
+### `voice_notes`
+
+Secure voice-note processing ledger. Uploaded audio is first stored as a scanned `documents` row on the secure disk, then transcribed through the Whisper client and summarised through the shared AI client.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `document_id`
+- `uploaded_by_user_id`
+- `original_filename`, `mime_type`, `duration_seconds`
+- `transcription_text`, `transcription_metadata`
+- `summary_text`, `summary_payload`
+- `status` (`uploaded`, `transcribed`, `summarized`)
+- `transcribed_at`, `summarized_at`
+
+### `call_logs`
+
+Structured meeting and phone-call notes, optionally generated from a voice note. Action items are stored as JSON and linked to concrete `milestone_actions` when a milestone id is present.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `voice_note_id`
+- `advisor_user_id`
+- `title`
+- `channel` (`voice_note`, `phone_call`)
+- `occurred_at`
+- `transcript`
+- `summary`
+- `action_items` JSONB
+
+Additional `milestone_actions` columns:
+
+- `call_log_id`
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

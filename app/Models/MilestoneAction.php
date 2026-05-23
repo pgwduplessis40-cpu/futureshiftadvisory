@@ -43,6 +43,14 @@ final class MilestoneAction extends Model
     }
 
     /**
+     * @return BelongsTo<CallLog, MilestoneAction>
+     */
+    public function callLog(): BelongsTo
+    {
+        return $this->belongsTo(CallLog::class);
+    }
+
+    /**
      * @return BelongsTo<User, MilestoneAction>
      */
     public function owner(): BelongsTo

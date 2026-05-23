@@ -247,6 +247,22 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<VoiceNote>
+     */
+    public function voiceNotes(): HasMany
+    {
+        return $this->hasMany(VoiceNote::class);
+    }
+
+    /**
+     * @return HasMany<CallLog>
+     */
+    public function callLogs(): HasMany
+    {
+        return $this->hasMany(CallLog::class);
+    }
+
+    /**
      * @return HasMany<Meeting>
      */
     public function meetings(): HasMany
