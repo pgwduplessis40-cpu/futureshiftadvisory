@@ -16,5 +16,6 @@ export type TermsVersion = {
     published_at: string | null;
     published_by_user_id: number | null;
     clauses_count?: number;
+    material_clauses_count?: number;
     clauses: TermsClause[];
 };

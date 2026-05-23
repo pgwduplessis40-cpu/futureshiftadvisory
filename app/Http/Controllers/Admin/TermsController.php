@@ -26,7 +26,10 @@ final class TermsController extends Controller
 
         return Inertia::render('admin/terms/Index', [
             'versions' => TermsVersion::query()
-                ->withCount('clauses')
+                ->withCount([
+                    'clauses',
+                    'clauses as material_clauses_count' => fn ($query) => $query->where('material', true),
+                ])
                 ->latest('created_at')
                 ->get()
                 ->map(fn (TermsVersion $version): array => $this->versionPayload($version)),
@@ -217,6 +220,9 @@ final class TermsController extends Controller
             'published_at' => $version->published_at?->toIso8601String(),
             'published_by_user_id' => $version->published_by_user_id,
             'clauses_count' => $version->clauses_count,
+            'material_clauses_count' => $version->relationLoaded('clauses')
+                ? $version->clauses->where('material', true)->count()
+                : $version->material_clauses_count,
             'clauses' => $version->relationLoaded('clauses')
                 ? $version->clauses->map(fn ($clause): array => [
                     'id' => $clause->id,

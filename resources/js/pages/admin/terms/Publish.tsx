@@ -38,6 +38,10 @@ export default function TermsPublish({ version }: Props) {
                         <Badge variant="secondary">
                             {version.clauses.length} clauses
                         </Badge>
+                        <Badge variant="outline">
+                            {version.material_clauses_count ?? 0} material
+                            clauses
+                        </Badge>
                     </div>
                     <Button asChild size="sm" variant="outline">
                         <Link href={`/admin/terms/${version.id}/preview`}>

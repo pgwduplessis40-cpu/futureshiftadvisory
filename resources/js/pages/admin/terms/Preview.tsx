@@ -33,6 +33,10 @@ export default function TermsPreview({ version }: Props) {
                                 {version.published_at ? 'published' : 'draft'}
                             </Badge>
                             {version.material && <Badge>material</Badge>}
+                            <Badge variant="outline">
+                                {version.material_clauses_count ?? 0} material
+                                clauses
+                            </Badge>
                         </div>
                     </div>
 

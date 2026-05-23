@@ -92,6 +92,10 @@ Operational notes:
 - Cadence-only rows write `window.governed_candidates_only = true` and `window.automatic_application = false`.
 - The admin learning queue payload now includes monitoring summary, layer latest-run state, queue counts, and recent run history.
 
+## WO-96 - Terms version-manager polish
+
+No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

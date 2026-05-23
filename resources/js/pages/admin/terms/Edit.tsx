@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Eye, Save } from 'lucide-react';
+import { Eye, FileText, Save } from 'lucide-react';
 import InputError from '@/components/input-error';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
@@ -29,6 +30,9 @@ export default function TermsEdit({ version }: Props) {
         reviewer_reference: version.reviewer_reference ?? '',
         clauses: version.clauses,
     });
+    const materialClauses = form.data.clauses.filter(
+        (clause) => clause.material,
+    ).length;
 
     const updateClause = <K extends keyof TermsClause>(
         index: number,
@@ -74,6 +78,44 @@ export default function TermsEdit({ version }: Props) {
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-2">
+                    <div className="grid gap-3 rounded-md border p-4 md:col-span-2">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Classification
+                            </div>
+                            <div className="flex flex-wrap gap-2">
+                                <Badge
+                                    variant={
+                                        form.data.material
+                                            ? 'default'
+                                            : 'secondary'
+                                    }
+                                >
+                                    {form.data.material
+                                        ? 'material document'
+                                        : 'non-material document'}
+                                </Badge>
+                                <Badge variant="outline">
+                                    {materialClauses} material clauses
+                                </Badge>
+                            </div>
+                        </div>
+
+                        <label className="flex items-center gap-2 text-sm">
+                            <Checkbox
+                                checked={form.data.material}
+                                onCheckedChange={(checked) =>
+                                    form.setData('material', checked === true)
+                                }
+                            />
+                            Material version
+                        </label>
+                    </div>
+
                     <div className="grid gap-2">
                         <Label htmlFor="version">Version</Label>
                         <Input
@@ -135,16 +177,6 @@ export default function TermsEdit({ version }: Props) {
                         />
                         <InputError message={form.errors.reviewer_reference} />
                     </div>
-
-                    <label className="flex items-center gap-2 text-sm md:col-span-2">
-                        <Checkbox
-                            checked={form.data.material}
-                            onCheckedChange={(checked) =>
-                                form.setData('material', checked === true)
-                            }
-                        />
-                        Material version
-                    </label>
                 </div>
 
                 <div className="space-y-4">

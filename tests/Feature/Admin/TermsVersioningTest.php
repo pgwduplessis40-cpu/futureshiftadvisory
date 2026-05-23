@@ -78,6 +78,51 @@ final class TermsVersioningTest extends TestCase
         $this->assertTrue((bool) $draft->clauses()->where('clause_number', 2)->firstOrFail()->material);
     }
 
+    public function test_terms_history_surfaces_document_and_clause_classification(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $published = $this->termsVersion('1', published: true);
+        $draft = $this->termsVersion('2');
+        $this->acceptTerms($admin, $published);
+        $draft->forceFill(['material' => true])->save();
+        $draft->clauses()->whereIn('clause_number', [2, 3])->update(['material' => true]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/terms/Index')
+                ->has('versions', 2)
+                ->where('versions', function ($versions) use ($draft, $published): bool {
+                    $draftPayload = $versions->firstWhere('id', $draft->id);
+                    $publishedPayload = $versions->firstWhere('id', $published->id);
+
+                    return $draftPayload['material'] === true
+                        && $draftPayload['material_clauses_count'] === 7
+                        && $publishedPayload['material_clauses_count'] === 5;
+                }),
+            );
+    }
+
+    public function test_terms_edit_payload_supports_whole_document_and_per_clause_classification(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $draft = $this->termsVersion('3');
+        $draft->clauses()->where('clause_number', 4)->update(['material' => true]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.edit', $draft))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('admin/terms/Edit')
+                ->where('version.material', false)
+                ->where('version.material_clauses_count', 6)
+                ->where('version.clauses.3.material', true),
+            );
+    }
+
     public function test_material_publish_sets_prior_active_acceptances_to_expire_and_queues_reacceptance(): void
     {
         $this->seed(RoleSeeder::class);
