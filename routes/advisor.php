@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Http\Controllers\Advisor\AccountingConnectionController;
 use App\Http\Controllers\Advisor\AnalysisFeedbackController;
 use App\Http\Controllers\Advisor\BriefingController;
+use App\Http\Controllers\Advisor\BulkCommunicationController;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
@@ -199,4 +200,11 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('testimonials/{testimonial}/consent', [TestimonialController::class, 'capture'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('testimonials.capture');
+
+        Route::get('bulk-communications', [BulkCommunicationController::class, 'index'])
+            ->middleware('permission:'.Permission::NOTIFICATIONS_MANAGE->value)
+            ->name('bulk-communications.index');
+        Route::post('bulk-communications', [BulkCommunicationController::class, 'store'])
+            ->middleware('permission:'.Permission::NOTIFICATIONS_MANAGE->value)
+            ->name('bulk-communications.store');
     });

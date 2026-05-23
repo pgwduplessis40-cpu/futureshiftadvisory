@@ -12,6 +12,7 @@ import documentVerifications from './document-verifications'
 import redFlags from './red-flags'
 import analysisFindings from './analysis-findings'
 import testimonials from './testimonials'
+import bulkCommunications from './bulk-communications'
 const advisor = {
     clients: Object.assign(clients, clients),
 proposals: Object.assign(proposals, proposals),
@@ -27,6 +28,7 @@ documentVerifications: Object.assign(documentVerifications, documentVerification
 redFlags: Object.assign(redFlags, redFlags),
 analysisFindings: Object.assign(analysisFindings, analysisFindings),
 testimonials: Object.assign(testimonials, testimonials),
+bulkCommunications: Object.assign(bulkCommunications, bulkCommunications),
 }
 
 export default advisor

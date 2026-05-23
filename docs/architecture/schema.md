@@ -154,6 +154,53 @@ Additional `milestone_actions` columns:
 
 - `call_log_id`
 
+## WO-99 - Bulk communications
+
+### `bulk_communications`
+
+Advisor-created communication batches for branded client updates. A batch stores
+the selected template, subject/body, audience rule, schedule, sender, status,
+and aggregate delivery/open metrics.
+
+Key columns:
+
+- `id` UUID primary key
+- `title`, `template_key`
+- `subject`, `body`
+- `audience_type` (`selected_clients`, `all_clients`)
+- `selected_client_ids` JSONB
+- `status` (`scheduled`, `sent`)
+- `scheduled_at`, `sent_at`
+- `created_by_user_id`
+- `metrics` JSONB
+
+Rows are RLS-scoped to system/super-admin users or the creating advisor.
+
+### `bulk_communication_recipients`
+
+Per-client recipient ledger for delivery and open tracking. Recipients resolve
+from the client's primary contact and client-team users, then delivery honours
+the existing `communication_preferences.channel` value: email-only gets mail,
+in-platform-only gets a portal message, and both gets both.
+
+Key columns:
+
+- `id` UUID primary key
+- `bulk_communication_id`
+- `client_id`
+- `user_id`
+- `message_id` nullable in-platform message link
+- `channel`
+- `preference_channel`, `preference_frequency`
+- `status` (`pending`, `sent`, `skipped`, `failed`)
+- `open_token`
+- `sent_at`, `opened_at`
+- `delivery_metadata` JSONB
+
+Recipient rows use the standard client-scoped RLS policy. The public open-pixel
+route applies system context before resolving a token, so anonymous access never
+receives direct table visibility.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

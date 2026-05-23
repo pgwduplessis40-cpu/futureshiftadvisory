@@ -18,6 +18,7 @@ import ProspectInboxController from './ProspectInboxController'
 import DocumentVerificationController from './DocumentVerificationController'
 import RedFlagController from './RedFlagController'
 import AnalysisFeedbackController from './AnalysisFeedbackController'
+import BulkCommunicationController from './BulkCommunicationController'
 const Advisor = {
     ClientController: Object.assign(ClientController, ClientController),
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
@@ -39,6 +40,7 @@ ProspectInboxController: Object.assign(ProspectInboxController, ProspectInboxCon
 DocumentVerificationController: Object.assign(DocumentVerificationController, DocumentVerificationController),
 RedFlagController: Object.assign(RedFlagController, RedFlagController),
 AnalysisFeedbackController: Object.assign(AnalysisFeedbackController, AnalysisFeedbackController),
+BulkCommunicationController: Object.assign(BulkCommunicationController, BulkCommunicationController),
 }
 
 export default Advisor

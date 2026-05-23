@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\BulkCommunicationOpenController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
@@ -14,6 +15,10 @@ require __DIR__.'/public.php';
 require __DIR__.'/auth.php';
 require __DIR__.'/advisor.php';
 require __DIR__.'/portal.php';
+
+Route::get('communications/open/{token}.gif', BulkCommunicationOpenController::class)
+    ->where('token', '[A-Za-z0-9]+')
+    ->name('communications.open');
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
