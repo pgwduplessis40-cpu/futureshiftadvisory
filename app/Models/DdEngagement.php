@@ -89,6 +89,22 @@ final class DdEngagement extends Model
     }
 
     /**
+     * @return HasMany<DdRiskRegisterItem>
+     */
+    public function riskRegisterItems(): HasMany
+    {
+        return $this->hasMany(DdRiskRegisterItem::class);
+    }
+
+    /**
+     * @return HasMany<DdIntegrationPlanItem>
+     */
+    public function integrationPlanItems(): HasMany
+    {
+        return $this->hasMany(DdIntegrationPlanItem::class);
+    }
+
+    /**
      * @return HasMany<BusinessPlan>
      */
     public function businessPlans(): HasMany

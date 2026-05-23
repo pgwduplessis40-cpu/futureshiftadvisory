@@ -4,7 +4,8 @@ WO-75 starts the DD track with onboarding, target isolation, the DD-specific
 questionnaire, and the standard liability disclaimer. WO-76 adds the DD virtual
 data room and tokenised guest upload. WO-77 runs the eight DD workstreams on the
 analysis spine. WO-78 adds DD valuation and FX normalisation. WO-79 adds the DD
-business-plan builder. Later WOs add the report and post-acquisition conversion.
+business-plan builder. WO-80 adds the DD report. Later WOs add post-acquisition
+conversion.
 
 ## Onboarding
 
@@ -138,3 +139,34 @@ as drafts for advisor completion. Complete plans are marked `founding`, store a
 `founding_advisory_payload`, and move the DD engagement to
 `acquisition_proceeding`; WO-81 consumes that payload for the new advisory
 profile.
+
+## Report
+
+`ReportComposer::composeDueDiligence()` generates a dedicated
+`ReportType::DueDiligence` report for a specific `DdEngagement`. It uses the
+existing report storage, PDF renderer, and PowerPoint generator, but takes the DD
+engagement as input so multiple DD engagements for one buyer are not conflated.
+
+The report creates these sections:
+
+- executive summary
+- valuation, including SDE, EBITDA, DCF/PV, FX, and buyer position
+- workstream findings
+- PV-ranked risk register
+- price-adjustment schedule
+- 100-day integration plan
+- buyer readiness
+- Proceed / Renegotiate / Abandon recommendation
+- liability disclaimer
+
+WO-80 adds `dd_risk_register` and `dd_integration_plans`. The risk register is
+rebuilt from completed DD workstream findings and uses the shared risk-cost PV
+engine to rank risks by present value of cost. Severity maps to
+`deal_killer`, `major`, `minor`, or `informational`; deal-killer risks drive an
+`abandon` recommendation, while major risks or a valuation walk-away signal drive
+`renegotiate`. The price-adjustment schedule is indicative only and stays inside
+the DD report with the standard legal/accounting review disclaimer.
+
+The 100-day integration plan is rebuilt from the ranked risk register and always
+includes a day-100 review action. Both new DD report tables are buyer-client
+scoped by RLS.

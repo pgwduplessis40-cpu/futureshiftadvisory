@@ -1472,6 +1472,56 @@ Rows are unique by `business_plan_id + key` and scope through the parent plan.
 DD sections can link directly back to `analysis_findings` so the founding plan
 retains source attribution from the workstream spine.
 
+## WO-80 - DD report generation
+
+### `dd_risk_register`
+
+Buyer-client-scoped risk register rebuilt when the DD report is generated.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `analysis_finding_id`
+- `risk_cost_id`
+- `risk_level` (`deal_killer`, `major`, `minor`, `informational`)
+- `category` workstream key
+- `title`, `body`
+- `financial_impact`
+- `probability`
+- `pv_of_cost`
+- `price_adjustment_nzd`
+- `rank`
+- `status`
+- `source_attributions`
+
+Rows are ranked by `pv_of_cost` from the shared risk-cost PV engine. The DD
+report uses the ranked rows for the risk register, price-adjustment schedule,
+recommendation path, and 100-day integration actions. Client-scoped RLS applies.
+
+### `dd_integration_plans`
+
+100-day acquisition integration action ledger generated from the DD risk
+register.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `dd_risk_register_id`
+- `day`
+- `phase`
+- `action`
+- `owner`
+- `priority`
+- `status`
+- `metadata`
+
+Rows are ordered by day and always include a day-100 review action. Client-scoped
+RLS applies.
+
 ## WO-57 - Report engine
 
 ### `reports`
