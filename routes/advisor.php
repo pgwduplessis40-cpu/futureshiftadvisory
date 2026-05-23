@@ -21,6 +21,7 @@ use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
+use App\Http\Controllers\Advisor\TestimonialController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -96,6 +97,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients/{client}', [ClientController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.show');
+        Route::post('clients/{client}/testimonials/nps', [TestimonialController::class, 'requestFromNps'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.testimonials.nps');
 
         Route::patch('proposals/{proposal}/release', [ProposalController::class, 'release'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
@@ -181,4 +185,11 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('analysis-findings/{analysisFinding}/feedback', [AnalysisFeedbackController::class, 'store'])
             ->middleware('permission:'.Permission::LEARNING_UPDATES_VIEW->value)
             ->name('analysis-findings.feedback.store');
+
+        Route::get('testimonials', [TestimonialController::class, 'index'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('testimonials.index');
+        Route::patch('testimonials/{testimonial}/consent', [TestimonialController::class, 'capture'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('testimonials.capture');
     });

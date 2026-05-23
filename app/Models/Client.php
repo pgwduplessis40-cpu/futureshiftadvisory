@@ -239,6 +239,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<Testimonial>
+     */
+    public function testimonials(): HasMany
+    {
+        return $this->hasMany(Testimonial::class);
+    }
+
+    /**
      * @return HasMany<Meeting>
      */
     public function meetings(): HasMany

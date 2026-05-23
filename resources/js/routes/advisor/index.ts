@@ -11,6 +11,7 @@ import prospects from './prospects'
 import documentVerifications from './document-verifications'
 import redFlags from './red-flags'
 import analysisFindings from './analysis-findings'
+import testimonials from './testimonials'
 const advisor = {
     clients: Object.assign(clients, clients),
 proposals: Object.assign(proposals, proposals),
@@ -25,6 +26,7 @@ prospects: Object.assign(prospects, prospects),
 documentVerifications: Object.assign(documentVerifications, documentVerifications),
 redFlags: Object.assign(redFlags, redFlags),
 analysisFindings: Object.assign(analysisFindings, analysisFindings),
+testimonials: Object.assign(testimonials, testimonials),
 }
 
 export default advisor

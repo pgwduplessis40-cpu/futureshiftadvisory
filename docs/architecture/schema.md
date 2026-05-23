@@ -96,6 +96,25 @@ Operational notes:
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.
 
+## WO-97 - Testimonial capture
+
+### `testimonials`
+
+Consent-aware testimonial capture. NPS scores of 8 or higher create a requested testimonial row; marketing-library visibility requires explicit FSA marketing consent and either named or anonymous display mode.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `source_type`, `source_score`
+- `quote`
+- `marketing_consent`
+- `display_mode` (`named`, `anonymous`)
+- `display_name`
+- `status` (`requested`, `consented`, `declined`)
+- `requested_by_user_id`, `submitted_by_user_id`
+- `requested_at`, `consented_at`, `declined_at`
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`
