@@ -74,5 +74,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('learning-updates/{learningUpdate}/decision', [LearningUpdateController::class, 'decide'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-updates.decide');
+            Route::patch('learning-update-implementations/{learningUpdateImplementation}/rollback', [LearningUpdateController::class, 'rollback'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-update-implementations.rollback');
         });
 });

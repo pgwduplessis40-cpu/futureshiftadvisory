@@ -27,6 +27,12 @@ type LearningUpdateCard = {
     effective_date: string | null;
     pre_implementation_notice_at: string | null;
     review_due_at: string | null;
+    implementations: {
+        id: string;
+        implemented_at: string | null;
+        review_due: string | null;
+        rolled_back_at: string | null;
+    }[];
     latest_decision: {
         decision: string;
         reason: string | null;
@@ -99,6 +105,7 @@ function UpdateCard({
         card.effective_date?.slice(0, 16) ?? '',
     );
     const [reason, setReason] = useState('');
+    const [rollbackReason, setRollbackReason] = useState('');
 
     function submit(decision: Decision) {
         router.patch(`/admin/learning-updates/${card.id}/decision`, {
@@ -109,6 +116,15 @@ function UpdateCard({
                     : null,
             reason: reason || null,
         });
+    }
+
+    function rollback(implementationId: string) {
+        router.patch(
+            `/admin/learning-update-implementations/${implementationId}/rollback`,
+            {
+                reason: rollbackReason || 'Admin rollback requested',
+            },
+        );
     }
 
     return (
@@ -178,20 +194,87 @@ function UpdateCard({
                 <JsonPanel title="Evidence" value={card.evidence} />
             </div>
 
-            <div className="mt-4 flex flex-wrap gap-2">
-                {decisions.map((decision) => (
-                    <Button
-                        key={decision}
-                        type="button"
-                        size="sm"
-                        variant={buttonVariant(decision)}
-                        onClick={() => submit(decision)}
-                    >
-                        <DecisionIcon decision={decision} />
-                        {decisionCopy[decision]}
-                    </Button>
-                ))}
-            </div>
+            {card.implementations.length > 0 && (
+                <section className="mt-4 space-y-2 rounded-md border p-3">
+                    <h3 className="text-xs font-medium text-muted-foreground">
+                        Implementations
+                    </h3>
+                    <div className="grid gap-2">
+                        {card.implementations.map((implementation) => (
+                            <div
+                                key={implementation.id}
+                                className="flex flex-col gap-2 rounded-md border px-3 py-2 text-sm sm:flex-row sm:items-center sm:justify-between"
+                            >
+                                <div>
+                                    <div className="font-medium">
+                                        {formatDate(
+                                            implementation.implemented_at,
+                                        )}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Review{' '}
+                                        {formatDate(implementation.review_due)}
+                                    </div>
+                                </div>
+                                {implementation.rolled_back_at ? (
+                                    <Badge variant="outline">
+                                        Rolled back{' '}
+                                        {formatDate(
+                                            implementation.rolled_back_at,
+                                        )}
+                                    </Badge>
+                                ) : (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            rollback(implementation.id)
+                                        }
+                                    >
+                                        <XCircle
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Roll back
+                                    </Button>
+                                )}
+                            </div>
+                        ))}
+                    </div>
+                    <label className="grid gap-1 text-sm">
+                        <span className="text-xs text-muted-foreground">
+                            Rollback reason
+                        </span>
+                        <textarea
+                            className="min-h-16 rounded-md border bg-background px-3 py-2"
+                            value={rollbackReason}
+                            onChange={(event) =>
+                                setRollbackReason(event.target.value)
+                            }
+                        />
+                    </label>
+                </section>
+            )}
+
+            {!['rejected', 'implemented', 'rolled_back'].includes(
+                card.status,
+            ) && (
+                <div className="mt-4 flex flex-wrap gap-2">
+                    {decisions.map((decision) => (
+                        <Button
+                            key={decision}
+                            type="button"
+                            size="sm"
+                            variant={buttonVariant(decision)}
+                            onClick={() => submit(decision)}
+                        >
+                            <DecisionIcon decision={decision} />
+                            {decisionCopy[decision]}
+                        </Button>
+                    ))}
+                </div>
+            )}
         </article>
     );
 }
@@ -247,7 +330,7 @@ function statusVariant(
         return 'default';
     }
 
-    if (status === 'rejected') {
+    if (status === 'rejected' || status === 'rolled_back') {
         return 'destructive';
     }
 

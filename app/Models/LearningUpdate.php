@@ -50,6 +50,14 @@ final class LearningUpdate extends Model
     }
 
     /**
+     * @return HasMany<LearningRollback, $this>
+     */
+    public function rollbacks(): HasMany
+    {
+        return $this->hasMany(LearningRollback::class);
+    }
+
+    /**
      * @return HasMany<LearningUpdateImplementation, $this>
      */
     public function implementations(): HasMany

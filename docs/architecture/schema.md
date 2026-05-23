@@ -59,6 +59,28 @@ Additional `learning_updates` columns:
 - `pre_implementation_notice_at`
 - `review_due_at`
 
+## WO-94 - Learning rollback audit
+
+### `learning_rollbacks`
+
+Rollback ledger for implemented learning updates. One rollback row is allowed per implementation so retries are idempotent. The rollback service restores the prior target state from the implementation snapshot, marks the implementation and update as rolled back, and writes an immutable audit event.
+
+Key columns:
+
+- `id` UUID primary key
+- `learning_update_id`
+- `learning_update_implementation_id`
+- `reason`
+- `rolled_back_by_user_id`
+- `rolled_back_at`
+- `restored_state` JSONB
+
+Additional `learning_update_implementations` columns:
+
+- `target_type`, `target_id`
+- `before_state` JSONB
+- `after_state` JSONB
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

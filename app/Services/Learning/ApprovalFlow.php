@@ -6,6 +6,7 @@ namespace App\Services\Learning;
 
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateDecision;
+use App\Models\LearningUpdateImplementation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use Carbon\CarbonInterface;
@@ -25,12 +26,16 @@ final class ApprovalFlow
     public function cards(): Collection
     {
         return LearningUpdate::query()
-            ->with(['decisions' => fn ($query) => $query->latest('decided_at')])
+            ->with([
+                'decisions' => fn ($query) => $query->latest('decided_at'),
+                'implementations' => fn ($query) => $query->latest('implemented_at'),
+            ])
             ->whereIn('status', [
                 LearningUpdate::STATUS_DETECTED,
                 LearningUpdate::STATUS_STAGED,
                 LearningUpdate::STATUS_DEFERRED,
                 LearningUpdate::STATUS_APPROVED,
+                LearningUpdate::STATUS_ROLLED_BACK,
             ])
             ->orderByRaw("case status when 'detected' then 0 when 'staged' then 1 when 'deferred' then 2 else 3 end")
             ->latest('created_at')
@@ -142,6 +147,15 @@ final class ApprovalFlow
             'effective_date' => $update->effective_date?->toIso8601String(),
             'pre_implementation_notice_at' => $update->pre_implementation_notice_at?->toIso8601String(),
             'review_due_at' => $update->review_due_at?->toIso8601String(),
+            'implementations' => $update->implementations
+                ->map(fn (LearningUpdateImplementation $implementation): array => [
+                    'id' => $implementation->id,
+                    'implemented_at' => $implementation->implemented_at?->toIso8601String(),
+                    'review_due' => $implementation->review_due?->toIso8601String(),
+                    'rolled_back_at' => $implementation->rolled_back_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
             'latest_decision' => $decisions->first() instanceof LearningUpdateDecision
                 ? [
                     'decision' => $decisions->first()->decision,

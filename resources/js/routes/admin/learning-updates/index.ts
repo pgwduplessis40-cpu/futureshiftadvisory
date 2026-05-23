@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::index
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:21
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:23
  * @route '/admin/learning-updates'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:29
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:31
  * @route '/admin/learning-updates/{learningUpdate}/decision'
  */
 export const decide = (args: { learningUpdate: string | { id: string } } | [learningUpdate: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ decide.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:29
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:31
  * @route '/admin/learning-updates/{learningUpdate}/decision'
  */
 decide.url = (args: { learningUpdate: string | { id: string } } | [learningUpdate: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -127,7 +127,7 @@ decide.url = (args: { learningUpdate: string | { id: string } } | [learningUpdat
 
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:29
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:31
  * @route '/admin/learning-updates/{learningUpdate}/decision'
  */
 decide.patch = (args: { learningUpdate: string | { id: string } } | [learningUpdate: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -137,7 +137,7 @@ decide.patch = (args: { learningUpdate: string | { id: string } } | [learningUpd
 
     /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:29
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:31
  * @route '/admin/learning-updates/{learningUpdate}/decision'
  */
     const decideForm = (args: { learningUpdate: string | { id: string } } | [learningUpdate: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -152,7 +152,7 @@ decide.patch = (args: { learningUpdate: string | { id: string } } | [learningUpd
 
             /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
- * @see app/Http/Controllers/Admin/LearningUpdateController.php:29
+ * @see app/Http/Controllers/Admin/LearningUpdateController.php:31
  * @route '/admin/learning-updates/{learningUpdate}/decision'
  */
         decideForm.patch = (args: { learningUpdate: string | { id: string } } | [learningUpdate: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\LearningUpdate;
+use App\Models\LearningUpdateImplementation;
 use App\Services\Learning\ApprovalFlow;
+use App\Services\Learning\Rollback as RollbackService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -45,5 +47,23 @@ final class LearningUpdateController extends Controller
         );
 
         return to_route('admin.learning-updates.index')->with('status', 'learning-update-decided');
+    }
+
+    public function rollback(
+        Request $request,
+        LearningUpdateImplementation $learningUpdateImplementation,
+        RollbackService $rollbacks,
+    ): RedirectResponse {
+        $validated = $request->validate([
+            'reason' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $rollbacks->rollback(
+            implementation: $learningUpdateImplementation,
+            reason: $validated['reason'],
+            actor: $request->user(),
+        );
+
+        return to_route('admin.learning-updates.index')->with('status', 'learning-update-rolled-back');
     }
 }

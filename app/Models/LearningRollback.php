@@ -7,20 +7,16 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
-final class LearningUpdateImplementation extends Model
+final class LearningRollback extends Model
 {
     use HasUuids;
 
     protected $guarded = [];
 
     protected $casts = [
-        'implemented_at' => 'datetime',
-        'review_due' => 'datetime',
-        'before_state' => 'array',
-        'after_state' => 'array',
         'rolled_back_at' => 'datetime',
+        'restored_state' => 'array',
     ];
 
     /**
@@ -32,10 +28,18 @@ final class LearningUpdateImplementation extends Model
     }
 
     /**
-     * @return HasOne<LearningRollback, $this>
+     * @return BelongsTo<LearningUpdateImplementation, $this>
      */
-    public function rollback(): HasOne
+    public function implementation(): BelongsTo
     {
-        return $this->hasOne(LearningRollback::class);
+        return $this->belongsTo(LearningUpdateImplementation::class, 'learning_update_implementation_id');
+    }
+
+    /**
+     * @return BelongsTo<User, $this>
+     */
+    public function rolledBackBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'rolled_back_by_user_id');
     }
 }
