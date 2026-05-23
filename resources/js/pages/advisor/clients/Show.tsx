@@ -183,6 +183,17 @@ type DueDiligenceSummary = {
     liability_disclaimer: string;
     disclaimer_acknowledged_at: string | null;
     acquisition_target_tab: boolean;
+    data_room: {
+        artifact_category: string;
+        guest_upload_only: boolean;
+        workstreams: Array<{
+            key: string;
+            label: string;
+            item_count: number;
+            active_guest_links: number;
+            latest_item_at: string | null;
+        }>;
+    };
 };
 
 type FinancialSnapshotSummary = {
@@ -1153,6 +1164,36 @@ function DueDiligenceTargetPanel({
                 </dl>
                 <div className="rounded-md border bg-muted/20 p-3 text-xs leading-5 text-muted-foreground">
                     {payload.liability_disclaimer}
+                </div>
+            </div>
+
+            <div className="space-y-3 border-t pt-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                        <ListChecks className="size-4" aria-hidden="true" />
+                        <h3 className="text-sm font-medium">Data room</h3>
+                    </div>
+                    <Badge variant="outline">
+                        {formatLabel(payload.data_room.artifact_category)}
+                    </Badge>
+                </div>
+                <div className="divide-y text-sm">
+                    {payload.data_room.workstreams.map((workstream) => (
+                        <div
+                            key={workstream.key}
+                            className="grid gap-2 py-2 sm:grid-cols-[minmax(0,1fr)_auto_auto]"
+                        >
+                            <span>{workstream.label}</span>
+                            <span className="text-muted-foreground">
+                                {workstream.item_count} item
+                                {workstream.item_count === 1 ? '' : 's'}
+                            </span>
+                            <span className="text-muted-foreground">
+                                {workstream.active_guest_links} active link
+                                {workstream.active_guest_links === 1 ? '' : 's'}
+                            </span>
+                        </div>
+                    ))}
                 </div>
             </div>
         </section>

@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class DdEngagement extends Model
 {
@@ -53,5 +54,21 @@ final class DdEngagement extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * @return HasMany<DdDataRoomItem>
+     */
+    public function dataRoomItems(): HasMany
+    {
+        return $this->hasMany(DdDataRoomItem::class);
+    }
+
+    /**
+     * @return HasMany<DdGuestLink>
+     */
+    public function guestLinks(): HasMany
+    {
+        return $this->hasMany(DdGuestLink::class);
     }
 }

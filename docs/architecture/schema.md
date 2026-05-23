@@ -1304,6 +1304,53 @@ Client-scoped RLS applies. DD onboarding requires a fresh
 questionnaire. The standard advisory questionnaire is deferred until the
 post-acquisition gap flow.
 
+## WO-76 - DD data room and guest upload
+
+### `dd_guest_links`
+
+Token-only upload grants for third parties. The plain token is returned only at
+issue time; the database stores a SHA-256 hash.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `workstream`
+- `folder`
+- `token_hash`
+- `guest_email`
+- `max_uploads`, `upload_count`
+- `created_by_user_id`
+- `revoked_by_user_id`
+- `expires_at`, `revoked_at`, `last_used_at`
+
+Client-scoped RLS applies for advisors and system jobs. Guest uploads resolve
+the hash through the `DataRoom` service and never receive a read/list route.
+
+### `dd_data_room_items`
+
+Workstream-scoped DD artifact ledger. Each row points to a secure `documents`
+row with `category = dd_artifact`.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `document_id`
+- `workstream`
+- `folder`
+- `artifact_type = dd_artifact`
+- `source` (`guest_upload`, `advisor_upload`)
+- `dd_guest_link_id`
+- `guest_name`, `guest_email`
+- `metadata`
+
+Client-scoped RLS applies. Guest uploads create rows only after the token is
+active, the file scan succeeds, and `SecureFileWriter` has persisted the
+document metadata.
+
 ## WO-57 - Report engine
 
 ### `reports`

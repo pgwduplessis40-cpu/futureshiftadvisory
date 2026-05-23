@@ -29,6 +29,7 @@ use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Goals\GoalTracker;
 use Illuminate\Http\RedirectResponse;
@@ -48,6 +49,7 @@ final class ClientController extends Controller
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
         private readonly DdOnboarding $ddOnboarding,
+        private readonly DataRoom $dataRoom,
     ) {}
 
     public function index(): Response
@@ -208,9 +210,13 @@ final class ClientController extends Controller
             ->latest()
             ->first();
 
-        return $engagement instanceof DdEngagement
-            ? $this->ddOnboarding->targetPanel($engagement)
-            : null;
+        if (! $engagement instanceof DdEngagement) {
+            return null;
+        }
+
+        return array_merge($this->ddOnboarding->targetPanel($engagement), [
+            'data_room' => $this->dataRoom->summary($engagement),
+        ]);
     }
 
     /**

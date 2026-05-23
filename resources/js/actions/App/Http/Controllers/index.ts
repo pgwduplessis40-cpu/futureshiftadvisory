@@ -1,3 +1,4 @@
+import DdGuestUploadController from './DdGuestUploadController'
 import Webhook from './Webhook'
 import Public from './Public'
 import Auth from './Auth'
@@ -9,7 +10,8 @@ import DashboardController from './DashboardController'
 import NotificationController from './NotificationController'
 import Settings from './Settings'
 const Controllers = {
-    Webhook: Object.assign(Webhook, Webhook),
+    DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
+Webhook: Object.assign(Webhook, Webhook),
 Public: Object.assign(Public, Public),
 Auth: Object.assign(Auth, Auth),
 Admin: Object.assign(Admin, Admin),
