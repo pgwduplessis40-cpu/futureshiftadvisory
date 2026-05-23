@@ -1379,6 +1379,36 @@ when unresolved accuracy discrepancies appear in that workstream's data-room
 documents. Completed workstreams create `analysis_runs.module = dd_workstream`
 findings with attribution and double-weighted verified document support.
 
+## WO-78 - DD valuation and FX normalisation
+
+### `dd_valuations`
+
+DD-specific valuation wrapper over the Phase 2 `business_valuations` and
+`pv_calculations` rows.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `business_valuation_id`
+- `pv_calculation_id`
+- `source_currency`
+- `normalised_currency = NZD`
+- `exchange_rate_id`
+- `source_to_nzd_rate`
+- `rate_timestamp`
+- `normalised_values`
+- `sensitivity`
+- `buyer_position`
+- `source_attributions`
+- `as_at`
+
+Client-scoped RLS applies. DD valuation forces target financial inputs so buyer
+accounting snapshots cannot contaminate acquisition-target valuation. Non-NZD
+valuations require the latest RBNZ `exchange_rates` row and store +/-10% FX
+sensitivity around the source-to-NZD rate.
+
 ## WO-57 - Report engine
 
 ### `reports`

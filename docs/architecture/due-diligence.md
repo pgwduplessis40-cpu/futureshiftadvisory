@@ -3,8 +3,8 @@
 WO-75 starts the DD track with onboarding, target isolation, the DD-specific
 questionnaire, and the standard liability disclaimer. WO-76 adds the DD virtual
 data room and tokenised guest upload. WO-77 runs the eight DD workstreams on the
-analysis spine. Later WOs add valuation, plan builder, report, and
-post-acquisition conversion.
+analysis spine. WO-78 adds DD valuation and FX normalisation. Later WOs add the
+plan builder, report, and post-acquisition conversion.
 
 ## Onboarding
 
@@ -90,3 +90,23 @@ NZ-specific checks are attached to relevant workstreams:
 - Tax / NZ Regulatory: IRD GST status
 - HR / People / NZ Regulatory: Holidays Act liability scaffold
 - Commercial / Market, Operational, NZ Regulatory: owner-dependency score
+
+## Valuation
+
+`App\Services\Dd\Valuation` is a thin DD adapter over the Phase 2
+`BusinessValuation`/`PvEngine` stack. It forces target financial inputs from the
+DD engagement or explicit data-room evidence so buyer accounting snapshots do not
+leak into the acquisition target valuation.
+
+The adapter stores a `dd_valuations` row linking:
+
+- the DD engagement
+- the underlying `business_valuations` row
+- the reused `pv_calculations` DCF/PV row
+- FX normalisation metadata
+- buyer negotiating position
+
+`FxNormaliser` converts source-currency valuations to NZD using the latest RBNZ
+`exchange_rates` row (`NZD/{currency}`), records the fetched timestamp, and
+stores +/-10% sensitivity around the source-to-NZD rate. Native NZD valuations
+do not require an exchange-rate row.

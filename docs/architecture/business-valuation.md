@@ -43,4 +43,6 @@ Every valuation records source attributions for:
 - active EBITDA multiple row
 - DCF discount-rate source attribution
 
-WO-41 does not create due-diligence valuation workflows; Phase 3 can reuse this engine.
+WO-78 reuses this engine for due-diligence valuation through
+`App\Services\Dd\Valuation`. That adapter forces target financial inputs and
+adds FX normalisation, but the SDE, EBITDA, DCF, and PV maths stay here.

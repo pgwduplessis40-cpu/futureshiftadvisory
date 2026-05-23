@@ -79,4 +79,12 @@ final class DdEngagement extends Model
     {
         return $this->hasMany(DdWorkstream::class);
     }
+
+    /**
+     * @return HasMany<DdValuation>
+     */
+    public function valuations(): HasMany
+    {
+        return $this->hasMany(DdValuation::class);
+    }
 }

@@ -84,11 +84,13 @@ final class BusinessValuation
      */
     private function financialInputs(Client $client, array $options): array
     {
-        $snapshot = FinancialSnapshot::query()
-            ->where('client_id', $client->getKey())
-            ->latest('period_end')
-            ->latest('pulled_at')
-            ->first();
+        $snapshot = (bool) ($options['force_questionnaire_financials'] ?? false)
+            ? null
+            : FinancialSnapshot::query()
+                ->where('client_id', $client->getKey())
+                ->latest('period_end')
+                ->latest('pulled_at')
+                ->first();
 
         if ($snapshot instanceof FinancialSnapshot) {
             $netProfit = (float) data_get($snapshot->profit_and_loss, 'net_profit', 0);
