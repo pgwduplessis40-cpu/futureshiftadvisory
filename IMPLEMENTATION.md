@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-69 complete; next: WO-70).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-70 complete; next: WO-71).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **69 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (5/37, WO-65...WO-69) |
+| Work orders complete | **70 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (6/37, WO-65...WO-70) |
 | Work orders in progress | none |
-| Next work order | **WO-70** - Panel portal foundation (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-71** - Insurance Broker portal (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-69 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-70 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -89,7 +89,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-66 | `195bd78` | Digital proposal sign-off flow | Seven-step portal sign-off, tokenised payment-authority capture, signed evidence, sign-off-only proposal status transitions, and RLS coverage. |
 | WO-67 | `c86fef1` | Payment schedules | Signed-proposal payment schedules, one-off/monthly cadence, authority revocation cascade, audit events, and RLS coverage. |
 | WO-68 | `67eeda8` | Stripe + Windcave live integration | Live/fallback gateway clients, fixture charge contract, primary-to-secondary failover, double-failure notification, PAN rejection, and signed webhooks. |
-| WO-69 | this commit | Monthly payment processing + receipts | Due-schedule processing, payment attempt ledger, retry/failover handling, receipt PDFs, failed-payment notifications, and signed-status invariance. |
+| WO-69 | `db7d18b` | Monthly payment processing + receipts | Due-schedule processing, payment attempt ledger, retry/failover handling, receipt PDFs, failed-payment notifications, and signed-status invariance. |
+| WO-70 | this commit | Panel portal foundation | Shared broker/coach panel onboarding, signed agreement gate, referral lifecycle, per-referral messages, reverse referrals, portal layout, and RLS isolation. |
 
 ## Completed WO Details
 
@@ -691,9 +692,19 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover the console processing path, receipt generation, failed first charge notifications, retry/failover success, signed-status invariance, and RLS isolation.
 - Architecture docs: `docs/architecture/payments.md` and `docs/architecture/schema.md`.
 
+### WO-70 - Panel Portal Foundation
+
+- Added shared `panel_members`, `panel_agreements`, `referrals`, `referral_messages`, and `reverse_referrals` tables with panel-aware RLS policies.
+- Added panel models and relationships from `User` and `Client`.
+- `PanelOnboarding` handles broker/coach applications, advisor/super-admin approval, no-fee mutual-referral agreement generation, signed-PDF evidence, and active-portal access gating.
+- `ReferralLifecycle` creates referrals, enforces forward-only stage transitions, stores per-referral messages, and creates reverse-referral prospect or entrepreneur records without granting platform access.
+- Added an external panel layout for broker/coach portal surfaces and documented the panel architecture.
+- Tests cover invite/application/approval/signature access gating, referral stage transitions, messaging, reverse referrals, audit writes, and RLS isolation between panel users.
+- Architecture docs: `docs/architecture/panels.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-69 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-70 targeted checks:
 
 ```pwsh
 composer test
@@ -703,6 +714,7 @@ php artisan test tests\Feature\Reports\PracticeHealthReportTest.php tests\Featur
 php artisan test tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
 php artisan test tests\Feature\Payments\PaymentGatewayTest.php tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
 php artisan test tests\Feature\Payments\PaymentProcessingTest.php tests\Feature\Payments\PaymentGatewayTest.php tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
+php artisan test tests\Feature\Panels\PanelFoundationTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -764,11 +776,20 @@ Results after WO-69:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 69 distinct WO commits (WO-01...WO-69) on `featureApp`.
 
+Results after WO-70:
+
+- `php artisan test tests\Feature\Panels\PanelFoundationTest.php` (PostgreSQL `futureshift_test`): passed - 3 tests, 19 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 70 distinct WO commits (WO-01...WO-70) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-69 complete; next is WO-70.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-70 complete; next is WO-71.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
@@ -800,7 +821,7 @@ Note: the local test DB required using the actual local Postgres connection valu
 - Stay on `featureApp`.
 - Implement WOs in numeric order.
 - Commit each completed WO directly on `featureApp` with `WO-<id>: <slug summary>`.
-- For WO-65 through WO-69, the owner instructed proceeding in sequence without approval pauses; still commit each WO before starting the next.
+- For WO-65 through WO-79, the owner instructed proceeding in sequence without approval pauses; still commit each WO before starting the next.
 - WO-08 was completed before WO-07 by explicit owner request; the RBAC dependency is now closed before further role-sensitive surfaces.
 - Do not invent Phase 2+ features.
 - No raw secrets, unowned placeholder comments, or debug calls in shipped code.

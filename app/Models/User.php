@@ -109,6 +109,14 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasOne<PanelMember>
+     */
+    public function panelMember(): HasOne
+    {
+        return $this->hasOne(PanelMember::class);
+    }
+
+    /**
      * @return HasMany<MessageThreadParticipant>
      */
     public function messageThreadParticipants(): HasMany

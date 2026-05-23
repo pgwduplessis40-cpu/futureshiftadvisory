@@ -199,6 +199,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<Referral>
+     */
+    public function referrals(): HasMany
+    {
+        return $this->hasMany(Referral::class);
+    }
+
+    /**
      * @return HasMany<Report>
      */
     public function reports(): HasMany

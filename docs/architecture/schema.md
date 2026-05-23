@@ -1112,6 +1112,64 @@ Key columns:
 Receipt PDFs are stored on `secure_local`; hashes are wrapped with
 `KeyEnvelope`. Client-scoped RLS applies.
 
+## WO-70 - Panel portal foundation
+
+### `panel_members`
+
+Shared broker/coach panel member record.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `invite_token_id`
+- `panel_type` (`broker`, `coach`)
+- `status` (`invited`, `application_pending`, `approved_pending_agreement`, `active`, `suspended`)
+- `application` JSONB
+- `approved_by_user_id`, `applied_at`, `approved_at`, `suspended_at`
+
+Panel members are visible to admins/advisors and to the owning panel user
+through RLS.
+
+### `panel_agreements`
+
+Generated and signed panel agreement records.
+
+Key columns:
+
+- `id` UUID primary key
+- `panel_member_id`
+- `status` (`pending_signature`, `signed`)
+- `terms` JSONB including no-fee mutual-referral terms
+- `pdf_path`, `pdf_sha256_envelope`, `pdf_envelope_meta`, `pdf_byte_size`
+- `signed_by_user_id`, `generated_at`, `signed_at`
+
+Signed agreement artifacts are stored on `secure_local`; hashes are wrapped with
+`KeyEnvelope`.
+
+### `referrals`, `referral_messages`, `reverse_referrals`
+
+Shared referral lifecycle and panel messaging primitives.
+
+`referrals` key columns:
+
+- `client_id`
+- `panel_member_id`
+- `panel_type`
+- `referral_type`
+- `stage` (`draft`, `sent`, `accepted`, `in_progress`, `completed`, `withdrawn`)
+- `payload`, `created_by_user_id`, `sent_at`, `closed_at`
+
+`referral_messages` store per-referral messages with `client_id`,
+`sender_user_id`, `body`, and `sent_at`.
+
+`reverse_referrals` store panel-originated prospect/entrepreneur referrals and
+link to either `prospect_lead_id` or `entrepreneur_profile_id`. They never create
+an invite token or platform access automatically.
+
+Client/panel-user RLS applies to referrals and messages; panel-user RLS applies
+to reverse referrals.
+
 ## WO-57 - Report engine
 
 ### `reports`
