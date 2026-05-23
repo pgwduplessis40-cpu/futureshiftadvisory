@@ -1758,6 +1758,19 @@ production-ready. Admin edits create new framework versions. Suggested
 learning-driven changes are queued in `learning_updates` with
 `automatic_application = false`.
 
+## WO-87b - Founding rating values
+
+WO-87b publishes version 2 of the default rating framework with owner-confirmed
+weights and descriptors. Version 1 remains as the placeholder seed.
+
+The production-ready framework has:
+
+- all 11 criteria present
+- weights totalling 100
+- descriptors for Exceptional, Strong, Developing, and Needs Work
+- `rating_criteria.is_placeholder = false`
+- `rating_frameworks.production_ready = true`
+
 ## WO-57 - Report engine
 
 ### `reports`

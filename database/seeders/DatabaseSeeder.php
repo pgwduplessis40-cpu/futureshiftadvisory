@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             EntrepreneurReadinessQuestionnaireSeeder::class,
             NzResourceSeeder::class,
             RatingFrameworkSeeder::class,
+            FoundingRatingFrameworkValuesSeeder::class,
             UserSeeder::class,
         ]);
     }

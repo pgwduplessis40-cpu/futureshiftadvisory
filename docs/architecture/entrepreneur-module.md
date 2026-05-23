@@ -158,3 +158,16 @@ Grade bands are fixed from the spec:
 - Strong: 75-89
 - Developing: 60-74
 - Needs Work: below 60
+
+## WO-87b - Founding Weights and Descriptors
+
+WO-87b records the founding admin-managed values as a new published framework
+version. Version 1 remains the WO-87a placeholder seed; version 2 clears
+`is_placeholder`, sets criterion weights that total 100, fills descriptors for
+all grade bands, and marks `production_ready = true`.
+
+The values are kept in `FoundingRatingFrameworkValuesSeeder` so a fresh
+environment can reproduce the owner-confirmed baseline after the placeholder
+framework seed. The service path `RatingFrameworkManager::confirmFoundingValues`
+validates that all 11 criteria are present, weights total 100, and each grade
+band has a descriptor before publishing.
