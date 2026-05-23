@@ -57,6 +57,21 @@ enum EntrepreneurStage: string
      */
     public static function activeCapacityValues(): array
     {
-        return self::phaseOneValues();
+        return [
+            self::INVITED->value,
+            self::ONBOARDING->value,
+            self::READINESS->value,
+            self::IDEA_VALIDATION->value,
+            self::BUILDING_PHASE_1->value,
+            self::BUILDING_PHASE_2->value,
+            self::BUILDING_PHASE_3->value,
+            self::BUILDING_PHASE_4->value,
+            self::BUILDING_PHASE_5->value,
+            self::SUBMITTED->value,
+            self::ASSESSMENT->value,
+            self::REVISING->value,
+            self::LAUNCHED->value,
+            self::ADVISORY_READY->value,
+        ];
     }
 }

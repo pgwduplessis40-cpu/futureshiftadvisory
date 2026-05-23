@@ -45,7 +45,7 @@ final class AdvisorEntrepreneurCapacity
         }
 
         throw ValidationException::withMessages([
-            'capacity' => "This advisor has reached the Phase 1 capacity of {$summary['limit']} active entrepreneurs.",
+            'capacity' => "This advisor has reached the capacity of {$summary['limit']} active entrepreneurs.",
         ]);
     }
 }

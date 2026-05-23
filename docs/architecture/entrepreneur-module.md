@@ -261,3 +261,21 @@ update, and re-evaluates advisory readiness.
 
 The entrepreneur portal dashboard now receives latest plan progress, advisory
 readiness score, next living-plan update, and divergence flags.
+
+## WO-92 - Advisory Conversion and DD Plan Handoff
+
+`AdvisoryConversion` converts an advisory-ready entrepreneur profile into a
+standard advisory client. The created client is pre-populated from the
+entrepreneur profile, concept summary, latest business plan, founding advisory
+payload, and readiness signal. The assigned advisor is added as lead advisor,
+the entrepreneur user is added as primary contact when present, and the source
+business plan is linked to the new advisory client.
+
+`AdvisorEntrepreneurCapacity` now counts the full active entrepreneur lifecycle
+from invite through advisory-ready, preserving the warn-at-24 and hard-block-at-30
+gates for advisor workload management.
+
+DD-built founding plans can be handed off through
+`AdvisoryConversion::handoffDdPlan()`. The new advisory client is sourced from
+the DD target details and founding payload, the original DD plan is linked to
+the advisory client, and audit events record the conversion path.
