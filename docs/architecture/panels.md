@@ -102,6 +102,27 @@ Key-staff referrals require an active `coach_referral_authorisations` row for
 the client. Entrepreneur referrals link directly to `entrepreneur_profiles` and
 do not require a client row.
 
+## Coach Signal Suggestions
+
+WO-73 consumes raw `coaching_signals` rows and converts them into
+`coach_referral_suggestions` for advisor review. Suggestions map to the five
+fixed coach specialisations:
+
+- low personal coping streak -> `mental_health_wellbeing`
+- leadership capability gap -> `business_executive`
+- owner-readiness primary constraint -> `life`
+- financial stress -> `financial_wellness`
+- career transition -> `career`
+
+The advisor dashboard receives a scoped `coachSignals` payload. Suggestions
+never create referrals automatically; the payload and persisted evidence both
+record `auto_referral = false`.
+
+`panels:coach-signal-calibration` runs the governed calibration layer
+(`layer_id = 17`). It can queue `learning_updates` candidates for owner review,
+but it does not apply behaviour changes and does not create
+`learning_update_implementations`.
+
 ## Reverse Referrals
 
 Active panel members can create reverse referrals into either:

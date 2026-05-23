@@ -1236,6 +1236,28 @@ entrepreneur coach referral can exist without a client row. Coach referral
 stages are `draft`, `referral_sent`, `coach_accepted`, `coaching_underway`,
 `concluded`, `declined`, and `withdrawn`; terminal coach stages set `closed_at`.
 
+## WO-73 - Coaching referral signal detection
+
+`coach_referral_suggestions` stores advisor-review suggestions derived from raw
+`coaching_signals`. No suggestion creates a referral automatically.
+
+Key columns:
+
+- `id` UUID primary key
+- `coaching_signal_id` unique link to the raw signal
+- `client_id`
+- `suggested_specialisation`
+- `threshold_ref`
+- `rationale`
+- `evidence` JSONB, including `advisor_final_decision_required = true` and
+  `auto_referral = false`
+- `status` (`suggested`, `reviewed`, `dismissed`)
+- `surfaced_at`, `reviewed_by_user_id`, `reviewed_at`
+
+The table uses advisor/client-team RLS. WO-73 also reserves learning
+`layer_id = 17` for coach-referral signal calibration candidates in
+`learning_updates`; candidates are `detected` only and never auto-implemented.
+
 ## WO-57 - Report engine
 
 ### `reports`

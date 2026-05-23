@@ -11,6 +11,7 @@ use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\ReverifyBrokerFspRegistrations;
 use App\Console\Commands\RunBiasMonitor;
+use App\Console\Commands\RunCoachSignalCalibrationLayer;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
@@ -180,6 +181,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ReverifyBrokerFspRegistrations::class)
             ->dailyAt('05:00')
             ->name('fsa-broker-fsp-reverify')
+            ->withoutOverlapping();
+
+        $schedule->command(RunCoachSignalCalibrationLayer::class)
+            ->monthlyOn(1, '05:30')
+            ->name('fsa-coach-signal-calibration-layer')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

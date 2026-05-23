@@ -18,6 +18,10 @@ final class CoachingSignal extends Model
 
     public const TYPE_OWNER_READINESS_PRIMARY_CONSTRAINT = 'owner_readiness_primary_constraint';
 
+    public const TYPE_FINANCIAL_STRESS = 'financial_stress';
+
+    public const TYPE_CAREER_TRANSITION = 'career_transition';
+
     protected $guarded = [];
 
     protected $casts = [

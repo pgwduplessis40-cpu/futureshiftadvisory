@@ -15,8 +15,10 @@ live signals with the proposal and questionnaire-learning layers.
 - Questionnaire optimisation: displays detected governed candidates from the
   questionnaire optimisation learning layer.
 
-Phase 3-only panels remain placeholders: payments, broker referrals, coach
-referrals, and the full learning queue UI.
+WO-73 adds the first Phase 3 coach signal panel: scoped coach-referral
+suggestions derived from `coaching_signals`, with `auto_referrals = 0`.
+Remaining Phase 3-only panels stay placeholders: payments, broker referrals,
+full coach referral work queues, and the full learning queue UI.
 
 ## Questionnaire Optimisation Layer
 

@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     Clock,
     FileText,
+    HeartHandshake,
     HeartPulse,
     Inbox,
     PieChart,
@@ -318,6 +319,23 @@ type WellbeingAnalyticsPayload = {
     }>;
 };
 
+type CoachSignalsPayload = {
+    summary: {
+        total: number;
+        auto_referrals: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        signal_type: string | null;
+        suggested_specialisation: string;
+        threshold_ref: string;
+        rationale: string;
+        surfaced_at: string | null;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -331,6 +349,7 @@ type Props = {
     proposalStatus: ProposalStatusPayload;
     questionnaireOptimisation: QuestionnaireOptimisationPayload;
     wellbeingAnalytics: WellbeingAnalyticsPayload;
+    coachSignals: CoachSignalsPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
 };
@@ -348,6 +367,7 @@ export default function AdvisorDashboard({
     proposalStatus,
     questionnaireOptimisation,
     wellbeingAnalytics,
+    coachSignals,
     scenarioPlanning,
     funnelAnalytics,
 }: Props) {
@@ -427,6 +447,7 @@ export default function AdvisorDashboard({
 
                 <div className="grid gap-4 xl:grid-cols-3">
                     <WellbeingAnalytics payload={wellbeingAnalytics} />
+                    <CoachSignals payload={coachSignals} />
                 </div>
 
                 <UpcomingPanels />
@@ -723,6 +744,55 @@ function WellbeingAnalytics({
                                 <div>
                                     Coping {month.average_personal_coping}/5
                                 </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function CoachSignals({ payload }: { payload: CoachSignalsPayload }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <HeartHandshake className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Coach signals</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.total} suggested
+                    </Badge>
+                    <Badge variant="outline">
+                        {payload.summary.auto_referrals} auto
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No coach signal suggestions surfaced.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.slice(0, 5).map((item) => (
+                        <div key={item.id} className="space-y-2 p-3">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <Badge variant="outline">
+                                    {formatLabel(item.suggested_specialisation)}
+                                </Badge>
+                                <span className="text-sm font-medium">
+                                    {item.client_name ?? 'Client'}
+                                </span>
+                            </div>
+                            <p className="text-xs leading-5 text-muted-foreground">
+                                {item.rationale}
+                            </p>
+                            <div className="text-xs text-muted-foreground">
+                                {formatLabel(item.signal_type ?? 'signal')} -{' '}
+                                {item.threshold_ref}
                             </div>
                         </div>
                     ))}
