@@ -1771,6 +1771,31 @@ The production-ready framework has:
 - `rating_criteria.is_placeholder = false`
 - `rating_frameworks.production_ready = true`
 
+## WO-88 - Plan assessments
+
+### `plan_assessments`
+
+Stores entrepreneur plan assessment rounds.
+
+Key columns:
+
+- `id` UUID primary key
+- `business_plan_id`
+- `round`
+- `rating_framework_id`
+- `ai_scores`
+- `advisor_scores`
+- `mentor_notes`
+- `document_support`
+- `overall_grade`
+- `concept_pv_calculation_id`
+- `finalised_at`
+- `finalised_by_user_id`
+
+RLS joins through the entrepreneur-owned `business_plans` row and its
+`entrepreneur_profiles` owner. Advisor score adjustments feed governed
+`learning_updates` candidates and never auto-apply scoring changes.
+
 ## WO-57 - Report engine
 
 ### `reports`

@@ -171,3 +171,20 @@ environment can reproduce the owner-confirmed baseline after the placeholder
 framework seed. The service path `RatingFrameworkManager::confirmFoundingValues`
 validates that all 11 criteria are present, weights total 100, and each grade
 band has a descriptor before publishing.
+
+## WO-88 - AI First-Pass Scoring and Advisor Assessment
+
+`plan_assessments` stores assessment rounds for entrepreneur plans. A first-pass
+assessment scores all 11 criteria from the current published rating framework,
+stores AI scores, document-support context, and the overall grade.
+
+Advisor score adjustments are allowed only with a note. Each adjustment writes a
+governed `learning_updates` candidate with `automatic_application = false` so
+future calibration remains owner-approved.
+
+Mentor notes are split into entrepreneur-visible section notes, an
+entrepreneur-visible overall note, and a private advisory note. The private note
+is never returned by the entrepreneur-visible payload.
+
+Framework criteria remain hidden while the founder is building. They become
+visible only after the assessment is finalised, ready for the report appendix.

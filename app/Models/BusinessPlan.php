@@ -90,4 +90,12 @@ final class BusinessPlan extends Model
     {
         return $this->hasMany(PlanSection::class);
     }
+
+    /**
+     * @return HasMany<PlanAssessment>
+     */
+    public function assessments(): HasMany
+    {
+        return $this->hasMany(PlanAssessment::class);
+    }
 }
