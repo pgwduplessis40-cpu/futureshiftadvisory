@@ -201,6 +201,31 @@ Recipient rows use the standard client-scoped RLS policy. The public open-pixel
 route applies system context before resolving a token, so anonymous access never
 receives direct table visibility.
 
+## WO-100 - Document expiry reminders
+
+### `document_expiry_reminders`
+
+Idempotent reminder ledger for clean client documents with `documents.expires_at`
+inside the configured lookahead window. The scheduler writes one row per
+document, user, and reminder type before sending the channel-aware notification,
+so repeated runs do not send duplicate reminders.
+
+Key columns:
+
+- `id` UUID primary key
+- `document_id`
+- `client_id`
+- `user_id`
+- `reminder_type` (`expires_soon`)
+- `expires_at_snapshot`
+- `triggered_at`
+- `metadata` JSONB
+
+Rows use the standard client-scoped RLS policy. `documents:expiry-reminders`
+runs daily in system context and routes `DocumentExpiryReminderNotification`
+through `ChannelResolver`, preserving each user's mail/platform frequency
+preference.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

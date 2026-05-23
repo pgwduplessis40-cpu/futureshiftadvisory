@@ -10,3 +10,4 @@ Artisan::command('inspire', function () {
 
 Schedule::command('learning:cadence')->hourly()->withoutOverlapping();
 Schedule::command('communications:bulk-send')->everyFiveMinutes()->withoutOverlapping();
+Schedule::command('documents:expiry-reminders')->dailyAt('08:00')->withoutOverlapping();
