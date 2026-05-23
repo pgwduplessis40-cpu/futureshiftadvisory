@@ -67,7 +67,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `payments.md` | WO-67...WO-69 | Payment schedules, gateway failover, processing, receipts, and failure boundaries |
 | `panels.md` | WO-70-74 | Shared broker/coach panel onboarding, broker FSP validation, coach vetting, coach signal suggestions, conflict/consent send gates, referrals, and reverse referrals |
 | `due-diligence.md` | WO-75/76/77/78/79/80/81 | DD onboarding, acquisition-target isolation, DD questionnaire, liability disclaimer, data room, guest upload, DD workstreams, DD valuation, DD plan builder, DD report, and post-acquisition conversion |
-| `entrepreneur-module.md` | WO-82/83/84 | Entrepreneur readiness assessment, profile-scoped RLS, raw personal-barrier coaching signals, idea validation, viability alerts, advisor gate, and five-phase plan builder |
+| `entrepreneur-module.md` | WO-82/83/84/85 | Entrepreneur readiness assessment, profile-scoped RLS, raw personal-barrier coaching signals, idea validation, viability alerts, advisor gate, five-phase plan builder, AI guidance, predictive score, and NZ resources |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

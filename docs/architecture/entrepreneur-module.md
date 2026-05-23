@@ -85,3 +85,25 @@ without losing the founder's work.
 
 WO-84 also adds `attached_document_ids` and `predictive_score` JSON columns to
 `plan_sections` for WO-85/86.
+
+## WO-85 - AI Guidance, Predictive Score, and NZ Resources
+
+`nz_resources` is an admin-managed catalogue of New Zealand resources keyed by
+industry, business type, and gap tags. WO-85 seeds a small starting set from
+business.govt.nz, Retail NZ, and Inland Revenue.
+
+`App\Services\Entrepreneurs\Guidance` generates section-specific guidance using
+the AI contract plus:
+
+- the current section draft
+- detected gap tags
+- NZ resource matches
+- aggregate past-plan pattern context
+
+Guidance is persisted into `plan_sections.metadata.ai_guidance`, and the live
+predictive score is persisted into `plan_sections.predictive_score`.
+
+The predictive score is deliberately conservative. Thin draft sections are
+capped below 60, gap tags reduce the score, and the stored payload includes
+`no_flattery = true`. Guidance copy must describe weak sections as not ready
+rather than praising them.

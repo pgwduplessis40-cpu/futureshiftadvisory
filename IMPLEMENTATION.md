@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-84 complete; next: WO-85).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-85 complete; next: WO-86).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **84 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (20/37, WO-65...WO-84) |
+| Work orders complete | **85 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (21/37, WO-65...WO-85) |
 | Work orders in progress | none |
-| Next work order | **WO-85** - AI-guided entrepreneur building (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-86** - Entrepreneur plan document verification (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-84 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-85 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -104,7 +104,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-81 | `639bad4` | Post-acquisition advisory pipeline | Acquisition-proceeding conversion, advisory client creation, DD document migration labels, gap questionnaire prefill, DD-baseline proposal, and RLS coverage. |
 | WO-82 | `8c0ae80` | Entrepreneur readiness assessment | Readiness questionnaire seed, profile-scoped RLS retrofit, readiness outcomes, personal-barrier capture, raw coaching signal, and RLS coverage. |
 | WO-83 | `21e45ab` | Entrepreneur idea validation | Concept capture, AI evaluation metadata with past-plan pattern citation, informational viability alerts, advisor gate, and RLS coverage. |
-| WO-84 | this commit | Entrepreneur five-phase plan builder | Shared plan engine entrepreneur adapter, idea-gate lock, ordered phases, dependency warnings, section persistence, and RLS coverage. |
+| WO-84 | `7723623` | Entrepreneur five-phase plan builder | Shared plan engine entrepreneur adapter, idea-gate lock, ordered phases, dependency warnings, section persistence, and RLS coverage. |
+| WO-85 | this commit | Entrepreneur AI guidance | Section guidance with evidence citations, conservative predictive score, gap detection, NZ resource catalogue, and no-flattery coverage. |
 
 ## Completed WO Details
 
@@ -867,9 +868,19 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover lock enforcement, ordered phase dependencies, jump-ahead warnings, section persistence, and RLS isolation.
 - Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
 
+### WO-85 - Entrepreneur AI Guidance, Predictive Score, and NZ Resources
+
+- Added `nz_resources` and `NzResourceSeeder`.
+- Added `NzResource` model and `App\Services\Entrepreneurs\Guidance`.
+- Section guidance uses the AI contract plus gap tags, aggregate past-plan pattern context, and matched NZ resources.
+- Guidance is persisted under `plan_sections.metadata.ai_guidance`.
+- Live predictive scores persist to `plan_sections.predictive_score`, cap thin drafts below 60, and include `no_flattery=true`.
+- Tests cover evidence citations, conservative scoring/no-flattery, and resource recommendation by industry/gap.
+- Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-84 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-85 targeted checks:
 
 ```pwsh
 composer test
@@ -895,6 +906,7 @@ php artisan test tests\Feature\Dd\PostAcquisitionTest.php tests\Feature\Dd\DdRep
 php artisan test tests\Feature\Entrepreneurs\ReadinessTest.php tests\Feature\Advisor\AddEntrepreneurTest.php
 php artisan test tests\Feature\Entrepreneurs\IdeaValidationTest.php tests\Feature\Entrepreneurs\ReadinessTest.php
 php artisan test tests\Feature\Entrepreneurs\PlanBuilderTest.php tests\Feature\Entrepreneurs\IdeaValidationTest.php tests\Feature\Dd\DdPlanBuilderTest.php
+php artisan test tests\Feature\Entrepreneurs\GuidanceTest.php tests\Feature\Entrepreneurs\PlanBuilderTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -1091,11 +1103,20 @@ Results after WO-84:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 84 distinct WO commits (WO-01...WO-84) on `featureApp`.
 
+Results after WO-85:
+
+- `php artisan test tests\Feature\Entrepreneurs\GuidanceTest.php tests\Feature\Entrepreneurs\PlanBuilderTest.php` (PostgreSQL `futureshift_test`): passed - 7 tests, 31 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 85 distinct WO commits (WO-01...WO-85) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-84 complete; next is WO-85.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-85 complete; next is WO-86.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

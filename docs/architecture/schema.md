@@ -1671,6 +1671,30 @@ WO-84 adds:
 The entrepreneur plan adapter stores `metadata.dependency_warning` when a
 founder drafts a later phase before its dependencies are complete.
 
+## WO-85 - Entrepreneur guidance and NZ resources
+
+### `nz_resources`
+
+Admin-managed catalogue of New Zealand resources recommended by industry,
+business type, and gap tag.
+
+Key columns:
+
+- `id` UUID primary key
+- `industry`
+- `business_type`
+- `title`
+- `url`
+- `gap_tags`
+- `metadata`
+- `active`
+
+### `plan_sections`
+
+WO-85 uses the WO-84 `predictive_score` column and stores full guidance payloads
+under `metadata.ai_guidance`. The predictive payload includes the numeric score,
+band, gap tags, reasons, and `no_flattery = true`.
+
 ## WO-57 - Report engine
 
 ### `reports`

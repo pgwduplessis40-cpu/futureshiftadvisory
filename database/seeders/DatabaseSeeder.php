@@ -19,6 +19,7 @@ class DatabaseSeeder extends Seeder
             DdSpecificQuestionnaireSeeder::class,
             PostAcquisitionGapQuestionnaireSeeder::class,
             EntrepreneurReadinessQuestionnaireSeeder::class,
+            NzResourceSeeder::class,
             UserSeeder::class,
         ]);
     }
