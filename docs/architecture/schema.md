@@ -1695,6 +1695,30 @@ WO-85 uses the WO-84 `predictive_score` column and stores full guidance payloads
 under `metadata.ai_guidance`. The predictive payload includes the numeric score,
 band, gap tags, reasons, and `no_flattery = true`.
 
+## WO-86 - Entrepreneur plan document verification
+
+### `document_verifications`
+
+WO-86 adds:
+
+- `entrepreneur_profile_id`
+- `plan_section_id`
+
+This lets plan-section document verifications exist without a client row while
+still using the shared verification ledger, outcomes, and blocking semantics.
+
+### `documents` / `document_verifications` RLS
+
+Both policies now include entrepreneur-profile visibility in addition to the
+existing client scope. Super-admin/system can see all rows; assigned advisors
+and linked entrepreneur users can see rows for their profile.
+
+### `plan_sections`
+
+`attached_document_ids` stores the verified section attachment ids. Outstanding
+advisory flags or accuracy discrepancies on those documents block scoring until
+resolved.
+
 ## WO-57 - Report engine
 
 ### `reports`

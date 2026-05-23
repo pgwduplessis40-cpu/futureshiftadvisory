@@ -107,3 +107,19 @@ The predictive score is deliberately conservative. Thin draft sections are
 capped below 60, gap tags reduce the score, and the stored payload includes
 `no_flattery = true`. Guidance copy must describe weak sections as not ready
 rather than praising them.
+
+## WO-86 - Section-Attached Document Verification
+
+Entrepreneur plan sections can attach `plan_attachment` documents owned by the
+same entrepreneur profile. `App\Services\Entrepreneurs\PlanDocuments` verifies
+each attachment with the existing AI document verifier and stores the document
+ids on `plan_sections.attached_document_ids`.
+
+Document verifications now support `entrepreneur_profile_id` and
+`plan_section_id`, and document/document-verification RLS includes the same
+profile-scoped advisor/entrepreneur visibility used by the rest of the
+entrepreneur module.
+
+Verified attachments raise the criterion score used by assessment services.
+Outstanding advisory flags or accuracy discrepancies block scoring through the
+existing `DocumentVerificationBlockedException` path until resolved.

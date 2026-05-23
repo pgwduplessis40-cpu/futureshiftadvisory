@@ -50,6 +50,22 @@ final class DocumentVerification extends Model
     }
 
     /**
+     * @return BelongsTo<EntrepreneurProfile, DocumentVerification>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<PlanSection, DocumentVerification>
+     */
+    public function planSection(): BelongsTo
+    {
+        return $this->belongsTo(PlanSection::class);
+    }
+
+    /**
      * @return BelongsTo<QuestionnaireResponse, DocumentVerification>
      */
     public function questionnaireResponse(): BelongsTo

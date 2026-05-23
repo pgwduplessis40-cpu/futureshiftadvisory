@@ -43,9 +43,11 @@ final class DocumentVerifier
             ],
             [
                 'client_id' => $document->client_id,
+                'entrepreneur_profile_id' => $document->entrepreneur_profile_id,
                 'questionnaire_response_id' => $claim['questionnaire_response_id'] ?? null,
                 'questionnaire_answer_id' => $claim['questionnaire_answer_id'] ?? null,
                 'questionnaire_question_id' => $claim['questionnaire_question_id'] ?? ($claim['question_id'] ?? null),
+                'plan_section_id' => $claim['plan_section_id'] ?? null,
                 'claim_source' => (string) ($claim['source'] ?? 'upload_context'),
                 'question_prompt' => $this->nullableString($claim['question_prompt'] ?? null),
                 'claim_text' => $claimText,
