@@ -24,6 +24,7 @@ store.url = (args: { token: string | number } | [token: string | number ] | stri
         args = { token: args }
     }
 
+
     if (Array.isArray(args)) {
         args = {
                     token: args[0],

@@ -24,6 +24,7 @@ DdGuestUploadController.url = (args: { token: string | number } | [token: string
         args = { token: args }
     }
 
+
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
