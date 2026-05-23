@@ -3,8 +3,8 @@
 WO-75 starts the DD track with onboarding, target isolation, the DD-specific
 questionnaire, and the standard liability disclaimer. WO-76 adds the DD virtual
 data room and tokenised guest upload. WO-77 runs the eight DD workstreams on the
-analysis spine. WO-78 adds DD valuation and FX normalisation. Later WOs add the
-plan builder, report, and post-acquisition conversion.
+analysis spine. WO-78 adds DD valuation and FX normalisation. WO-79 adds the DD
+business-plan builder. Later WOs add the report and post-acquisition conversion.
 
 ## Onboarding
 
@@ -110,3 +110,31 @@ The adapter stores a `dd_valuations` row linking:
 `exchange_rates` row (`NZD/{currency}`), records the fetched timestamp, and
 stores +/-10% sensitivity around the source-to-NZD rate. Native NZD valuations
 do not require an exchange-rate row.
+
+## Plan Builder
+
+WO-79 pulls the shared five-phase business-plan engine forward so DD can use it
+before the entrepreneur builder UI lands. The shared engine owns
+`business_plans`, `plan_phases`, and `plan_sections`; the DD adapter stays thin
+and only maps DD evidence into that engine.
+
+`App\Services\Dd\PlanBuilder` creates or updates one DD-owned plan per
+engagement, linked by `business_plans.dd_engagement_id` and the buyer
+`client_id`. The plan tables also carry nullable `entrepreneur_profile_id` and a
+database owner XOR check so a future entrepreneur plan and a DD plan use the same
+storage contract without ambiguous ownership.
+
+The DD adapter auto-populates sections from:
+
+- the acquisition target and target details into Foundation
+- completed workstream findings into Market, Strategy, Legal & Operations, or
+  Financial according to the workstream type
+- the latest DD valuation into Financial when present
+- a strategy-integration summary once any workstreams are complete
+
+Marking an engagement as `acquisition_proceeding` first rebuilds the plan, then
+checks that every phase has at least one complete section. Incomplete plans stay
+as drafts for advisor completion. Complete plans are marked `founding`, store a
+`founding_advisory_payload`, and move the DD engagement to
+`acquisition_proceeding`; WO-81 consumes that payload for the new advisory
+profile.

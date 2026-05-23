@@ -87,4 +87,12 @@ final class DdEngagement extends Model
     {
         return $this->hasMany(DdValuation::class);
     }
+
+    /**
+     * @return HasMany<BusinessPlan>
+     */
+    public function businessPlans(): HasMany
+    {
+        return $this->hasMany(BusinessPlan::class);
+    }
 }

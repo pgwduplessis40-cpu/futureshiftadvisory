@@ -1,0 +1,81 @@
+<?php
+
+declare(strict_types=1);
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Concerns\HasUuids;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+final class BusinessPlan extends Model
+{
+    use HasUuids;
+
+    public const SOURCE_DUE_DILIGENCE = 'due_diligence';
+
+    public const SOURCE_ENTREPRENEUR = 'entrepreneur';
+
+    public const STATUS_DRAFT = 'draft';
+
+    public const STATUS_READY = 'ready';
+
+    public const STATUS_FOUNDING = 'founding';
+
+    protected $guarded = [];
+
+    protected $casts = [
+        'current_phase' => 'integer',
+        'founding_advisory_payload' => 'array',
+        'completed_at' => 'datetime',
+    ];
+
+    /**
+     * @return BelongsTo<Client, BusinessPlan>
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<EntrepreneurProfile, BusinessPlan>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<DdEngagement, BusinessPlan>
+     */
+    public function ddEngagement(): BelongsTo
+    {
+        return $this->belongsTo(DdEngagement::class);
+    }
+
+    /**
+     * @return BelongsTo<User, BusinessPlan>
+     */
+    public function createdBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * @return HasMany<PlanPhase>
+     */
+    public function phases(): HasMany
+    {
+        return $this->hasMany(PlanPhase::class);
+    }
+
+    /**
+     * @return HasMany<PlanSection>
+     */
+    public function sections(): HasMany
+    {
+        return $this->hasMany(PlanSection::class);
+    }
+}

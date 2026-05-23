@@ -1409,6 +1409,69 @@ accounting snapshots cannot contaminate acquisition-target valuation. Non-NZD
 valuations require the latest RBNZ `exchange_rates` row and store +/-10% FX
 sensitivity around the source-to-NZD rate.
 
+## WO-79 - DD business plan builder
+
+### `business_plans`
+
+Shared business-plan header for DD-built founding plans and future entrepreneur
+plans.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id` nullable buyer client for DD-owned plans
+- `entrepreneur_profile_id` nullable owner for entrepreneur-owned plans
+- `dd_engagement_id` nullable owner for DD-built plans
+- `title`
+- `source_type` (`due_diligence` or `entrepreneur`)
+- `status` (`draft`, `ready`, `founding` for the DD path)
+- `current_phase`
+- `founding_advisory_payload`
+- `created_by_user_id`
+- `completed_at`
+
+PostgreSQL enforces `business_plans_owner_xor`, so exactly one of
+`entrepreneur_profile_id` or `dd_engagement_id` is set. DD-owned plans are
+buyer-client scoped through `client_id`; entrepreneur-owned plans scope through
+the assigned advisor or linked entrepreneur user.
+
+### `plan_phases`
+
+Ordered five-phase structure for each business plan.
+
+Key columns:
+
+- `id` UUID primary key
+- `business_plan_id`
+- `key` (`foundation`, `market`, `strategy`, `legal_operations`, `financial`)
+- `title`
+- `position`
+- `depends_on`
+- `status` (`pending`, `complete`)
+
+Rows are unique by `business_plan_id + key` and scope through the parent plan.
+
+### `plan_sections`
+
+Persisted plan content sections, including DD auto-populated sections.
+
+Key columns:
+
+- `id` UUID primary key
+- `business_plan_id`
+- `plan_phase_id`
+- `key`
+- `title`
+- `body`
+- `source_type`
+- `source_analysis_finding_id`
+- `completeness_status` (`draft`, `complete`)
+- `metadata`
+
+Rows are unique by `business_plan_id + key` and scope through the parent plan.
+DD sections can link directly back to `analysis_findings` so the founding plan
+retains source attribution from the workstream spine.
+
 ## WO-57 - Report engine
 
 ### `reports`
