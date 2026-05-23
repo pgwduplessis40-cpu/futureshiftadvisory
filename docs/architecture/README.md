@@ -64,7 +64,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `practice-health-report.md` | WO-62 | Active-client PV portfolio, revenue under management, and monthly practice-health snapshots |
 | `dashboard-phase2.md` | WO-63 | Phase 2 dashboard panels, proposal status, and questionnaire optimisation candidates |
 | `wellbeing-analytics.md` | WO-64 | Monthly wellbeing pulse analytics and raw low-coping observation boundary |
-| `payments.md` | WO-67 | Payment schedules, authority revocation cascade, and later charge boundary |
+| `payments.md` | WO-67...WO-69 | Payment schedules, gateway failover, processing, receipts, and failure boundaries |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

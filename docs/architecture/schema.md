@@ -1068,6 +1068,50 @@ Client-scoped RLS applies. `ScheduleBuilder` only creates schedules from signed
 proposals with active authorities. Revoking an authority through the builder
 marks active/paused schedules as revoked and audits the cascade.
 
+## WO-69 - Payment processing and receipts
+
+### `payments`
+
+Client-scoped payment attempt ledger for due schedules.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `payment_schedule_id`
+- `payment_authority_id`
+- `amount`
+- `currency` (`NZD`)
+- `gateway`
+- `gateway_ref`
+- `status` (`pending`, `succeeded`, `failed`, `retrying`)
+- `attempt`
+- `failover_from`
+- `failed_reason`
+- `processed_at`
+
+Rows are unique by `payment_schedule_id + attempt`. Client-scoped RLS applies.
+Failed attempts never mutate proposal signature state.
+
+### `receipts`
+
+Receipt artifacts generated for successful payments.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `payment_id`
+- `receipt_path`
+- `receipt_sha256_envelope`
+- `receipt_envelope_meta`
+- `receipt_byte_size`
+- `generated_at`
+
+`payment_id` is unique so each succeeded payment receives at most one receipt.
+Receipt PDFs are stored on `secure_local`; hashes are wrapped with
+`KeyEnvelope`. Client-scoped RLS applies.
+
 ## WO-57 - Report engine
 
 ### `reports`

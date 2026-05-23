@@ -6,6 +6,7 @@ use App\Console\Commands\CreatePracticeHealthSnapshots;
 use App\Console\Commands\ExpireProposals;
 use App\Console\Commands\GenerateMonthlyIndustryBriefings;
 use App\Console\Commands\GeneratePreMeetingBriefs;
+use App\Console\Commands\ProcessScheduledPayments;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\RunBiasMonitor;
@@ -168,6 +169,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunQuestionnaireOptimisationLayer::class)
             ->cron('30 4 1 1,4,7,10 *')
             ->name('fsa-questionnaire-optimisation-learning-layer')
+            ->withoutOverlapping();
+
+        $schedule->command(ProcessScheduledPayments::class)
+            ->everyFiveMinutes()
+            ->name('fsa-payments-process-scheduled')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {

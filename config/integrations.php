@@ -101,6 +101,8 @@ return [
 
     'payments' => [
         'primary_gateway' => env('PAYMENT_PRIMARY_GATEWAY', 'stripe'),
+        'max_attempts' => (int) env('PAYMENT_MAX_ATTEMPTS', 2),
+        'retry_delay_minutes' => (int) env('PAYMENT_RETRY_DELAY_MINUTES', 60),
         'webhook_tolerance_seconds' => (int) env('PAYMENT_WEBHOOK_TOLERANCE_SECONDS', 300),
         'stripe' => [
             'live' => (bool) env('FEATURE_STRIPE_LIVE', false),
