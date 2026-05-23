@@ -1719,6 +1719,45 @@ and linked entrepreneur users can see rows for their profile.
 advisory flags or accuracy discrepancies on those documents block scoring until
 resolved.
 
+## WO-87a - Rating framework engine
+
+### `rating_frameworks`
+
+Global admin-managed entrepreneur assessment framework versions.
+
+Key columns:
+
+- `id` UUID primary key
+- `version`
+- `status` (`draft`, `published`)
+- `industry_variant`
+- `production_ready`
+- `grade_bands`
+- `supersedes_framework_id`
+- `published_at`
+- `published_by_user_id`
+- `created_by_user_id`
+
+### `rating_criteria`
+
+Criteria attached to a framework version.
+
+Key columns:
+
+- `id` UUID primary key
+- `rating_framework_id`
+- `number`
+- `name`
+- `weight`
+- `descriptors`
+- `industry_variants`
+- `is_placeholder`
+
+WO-87a seeds the 11 spec criteria as placeholders and leaves the framework not
+production-ready. Admin edits create new framework versions. Suggested
+learning-driven changes are queued in `learning_updates` with
+`automatic_application = false`.
+
 ## WO-57 - Report engine
 
 ### `reports`

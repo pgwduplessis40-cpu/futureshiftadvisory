@@ -20,6 +20,7 @@ class DatabaseSeeder extends Seeder
             PostAcquisitionGapQuestionnaireSeeder::class,
             EntrepreneurReadinessQuestionnaireSeeder::class,
             NzResourceSeeder::class,
+            RatingFrameworkSeeder::class,
             UserSeeder::class,
         ]);
     }

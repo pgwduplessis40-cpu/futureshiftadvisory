@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-86 complete; next: WO-87a).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-87a complete; next: WO-87b).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **86 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (22/37, WO-65...WO-86) |
+| Work orders complete | **87 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (23/37, WO-65...WO-87a) |
 | Work orders in progress | none |
-| Next work order | **WO-87a** - Admin-managed rating framework engine (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-87b** - Founding rating weights/descriptors (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-86 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-87a targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -106,7 +106,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-83 | `21e45ab` | Entrepreneur idea validation | Concept capture, AI evaluation metadata with past-plan pattern citation, informational viability alerts, advisor gate, and RLS coverage. |
 | WO-84 | `7723623` | Entrepreneur five-phase plan builder | Shared plan engine entrepreneur adapter, idea-gate lock, ordered phases, dependency warnings, section persistence, and RLS coverage. |
 | WO-85 | `6bdc631` | Entrepreneur AI guidance | Section guidance with evidence citations, conservative predictive score, gap detection, NZ resource catalogue, and no-flattery coverage. |
-| WO-86 | this commit | Entrepreneur plan document verification | Section attachments, entrepreneur document-verification RLS, verified-evidence score lift, discrepancy blocking, and verification coverage. |
+| WO-86 | `cb889ed` | Entrepreneur plan document verification | Section attachments, entrepreneur document-verification RLS, verified-evidence score lift, discrepancy blocking, and verification coverage. |
+| WO-87a | this commit | Entrepreneur rating framework engine | Versioned rating framework, 11 placeholder criteria, grade bands, admin revisions, governed change queue, and production-ready status. |
 
 ## Completed WO Details
 
@@ -890,9 +891,20 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover attachment verification, score uplift from verified evidence, and discrepancy blocking.
 - Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
 
+### WO-87a - Entrepreneur Rating Framework Engine
+
+- Added global `rating_frameworks` and `rating_criteria` tables.
+- Added `RatingFramework`, `RatingCriterion`, `RatingFrameworkSeeder`, and `App\Services\Entrepreneurs\RatingFrameworkManager`.
+- Seeded the 11 spec-defined founding criteria with placeholder weights/descriptors and `production_ready=false`.
+- Grade bands are Exceptional 90+, Strong 75-89, Developing 60-74, Needs Work below 60.
+- Admin edits create new framework versions rather than mutating the prior version.
+- Learning-driven rating changes queue `learning_updates` candidates with `automatic_application=false`.
+- Tests cover 11-criteria seed, versioned admin edit, grade thresholds, governed queue path, and production-ready status.
+- Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-86 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-87a targeted checks:
 
 ```pwsh
 composer test
@@ -920,6 +932,7 @@ php artisan test tests\Feature\Entrepreneurs\IdeaValidationTest.php tests\Featur
 php artisan test tests\Feature\Entrepreneurs\PlanBuilderTest.php tests\Feature\Entrepreneurs\IdeaValidationTest.php tests\Feature\Dd\DdPlanBuilderTest.php
 php artisan test tests\Feature\Entrepreneurs\GuidanceTest.php tests\Feature\Entrepreneurs\PlanBuilderTest.php
 php artisan test tests\Feature\Entrepreneurs\PlanDocumentsTest.php tests\Feature\Entrepreneurs\GuidanceTest.php tests\Feature\Documents\VerificationOutcomesTest.php
+php artisan test tests\Feature\Entrepreneurs\RatingFrameworkTest.php tests\Feature\Entrepreneurs\PlanDocumentsTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -1134,11 +1147,20 @@ Results after WO-86:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 86 distinct WO commits (WO-01...WO-86) on `featureApp`.
 
+Results after WO-87a:
+
+- `php artisan test tests\Feature\Entrepreneurs\RatingFrameworkTest.php tests\Feature\Entrepreneurs\PlanDocumentsTest.php` (PostgreSQL `futureshift_test`): passed - 7 tests, 31 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 87 distinct WO commits (WO-01...WO-87a) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-86 complete; next is WO-87a.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-87a complete; next is WO-87b.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

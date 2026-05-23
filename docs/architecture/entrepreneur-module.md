@@ -123,3 +123,38 @@ entrepreneur module.
 Verified attachments raise the criterion score used by assessment services.
 Outstanding advisory flags or accuracy discrepancies block scoring through the
 existing `DocumentVerificationBlockedException` path until resolved.
+
+## WO-87a - Rating Framework Engine
+
+`rating_frameworks` and `rating_criteria` are global admin-managed reference
+tables, not entrepreneur-profile scoped tables. Authorisation is handled by
+admin permissions rather than RLS.
+
+WO-87a seeds the 11 spec-defined founding criteria:
+
+1. Type of business
+2. Location
+3. Means of doing business
+4. Discuss the industry
+5. What sets the business apart
+6. Describe unique success factors
+7. Mission and Vision statement
+8. Intellectual property
+9. Goals and objectives
+10. Culture
+11. Legal Environment
+
+Seeded weights and descriptors are placeholders (`is_placeholder = true`) and
+the framework is explicitly `production_ready = false` until WO-87b records
+owner-entered values.
+
+Admin edits create a new framework version rather than mutating the prior
+version. Learning-driven suggestions are written to `learning_updates` with
+`automatic_application = false`, preserving the no-silent-learning rule.
+
+Grade bands are fixed from the spec:
+
+- Exceptional: 90+
+- Strong: 75-89
+- Developing: 60-74
+- Needs Work: below 60
