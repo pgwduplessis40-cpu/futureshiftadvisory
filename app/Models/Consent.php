@@ -27,6 +27,7 @@ final class Consent extends Model
     protected $casts = [
         'evidence' => 'array',
         'captured_at' => 'datetime',
+        'revoked_at' => 'datetime',
     ];
 
     /**
@@ -59,5 +60,10 @@ final class Consent extends Model
     public function proposal(): BelongsTo
     {
         return $this->belongsTo(Proposal::class);
+    }
+
+    public function isActiveOptIn(): bool
+    {
+        return $this->election === self::ELECTION_OPT_IN && $this->revoked_at === null;
     }
 }

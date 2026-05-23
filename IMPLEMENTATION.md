@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-73 complete; next: WO-74).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-74 complete; next: WO-75).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **73 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (9/37, WO-65...WO-73) |
+| Work orders complete | **74 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (10/37, WO-65...WO-74) |
 | Work orders in progress | none |
-| Next work order | **WO-74** - Referral conflict + consent wiring (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-75** - DD onboarding + acquisition target tab + DD questionnaire (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-73 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-74 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -93,7 +93,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-70 | `5102104` | Panel portal foundation | Shared broker/coach panel onboarding, signed agreement gate, referral lifecycle, per-referral messages, reverse referrals, portal layout, and RLS isolation. |
 | WO-71 | `f446ab5` | Insurance Broker portal | FSP fixture/live/fallback validation, approval-time FSP gate, periodic lapse suspension, advisor alerts, and broker referral stages. |
 | WO-72 | `164ce7f` | Coach portal | Five coach specialisations, admin-managed vetting, wellbeing scope-boundary clauses, coach referral stages, key-staff authorisations, and entrepreneur coach referrals. |
-| WO-73 | this commit | Coaching referral signal detection | Raw coaching signals mapped to advisor suggestions, dashboard panel, no auto-referrals, and governed calibration candidates only. |
+| WO-73 | `bdd0548` | Coaching referral signal detection | Raw coaching signals mapped to advisor suggestions, dashboard panel, no auto-referrals, and governed calibration candidates only. |
+| WO-74 | this commit | Referral conflict + consent wiring | Fresh conflict and active-consent send gate, referral consent grants/revokes, and consent-revocation withdrawal cascade. |
 
 ## Completed WO Details
 
@@ -737,9 +738,20 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover all signal mappings, dashboard scoping, no automatic referrals, governed candidate creation, and no learning implementation rows.
 - Architecture docs: `docs/architecture/panels.md`, `docs/architecture/dashboard-phase2.md`, and `docs/architecture/schema.md`.
 
+### WO-74 - Referral Conflict + Consent Wiring
+
+- Extended `referrals` with `conflict_declaration_id` and `consent_id`.
+- Extended `consents` with nullable referral-only usage (`proposal_id` nullable), `revoked_by_user_id`, and `revoked_at`.
+- Added `ReferralConsentManager` to grant referral-specific opt-in consent, link a fresh conflict and active consent to a referral, and revoke consent.
+- `ReferralLifecycle::transition()` now blocks broker/coach client-referral send stages unless the linked conflict declaration is fresh and the linked consent is active.
+- Consent revocation flips the consent to opt-out and withdraws linked non-terminal referrals.
+- Existing proposal sign-off and proposal-builder consent coverage still passes against the shared table.
+- Tests cover missing/stale conflict gates, missing/revoked consent gates, successful send after both gates, and revoke-to-withdraw behavior.
+- Architecture docs: `docs/architecture/panels.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-73 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-74 targeted checks:
 
 ```pwsh
 composer test
@@ -753,6 +765,8 @@ php artisan test tests\Feature\Panels\PanelFoundationTest.php
 php artisan test tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\PanelFoundationTest.php tests\Feature\Integration\NzbnLookupTest.php
 php artisan test tests\Feature\Panels\CoachPortalTest.php tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\PanelFoundationTest.php
 php artisan test tests\Feature\Panels\CoachSignalDetectorTest.php tests\Feature\Panels\CoachPortalTest.php tests\Feature\Advisor\DashboardPhaseTwoPanelsTest.php
+php artisan test tests\Feature\Panels\ReferralComplianceTest.php tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\CoachPortalTest.php tests\Feature\Panels\PanelFoundationTest.php
+php artisan test tests\Feature\Proposals\ProposalSignoffFlowTest.php tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -850,11 +864,20 @@ Results after WO-73:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 73 distinct WO commits (WO-01...WO-73) on `featureApp`.
 
+Results after WO-74:
+
+- `php artisan test tests\Feature\Panels\ReferralComplianceTest.php tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\CoachPortalTest.php tests\Feature\Panels\PanelFoundationTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php` (PostgreSQL `futureshift_test`): passed - 26 tests, 188 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 74 distinct WO commits (WO-01...WO-74) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-73 complete; next is WO-74.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-74 complete; next is WO-75.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

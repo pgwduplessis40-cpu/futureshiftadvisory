@@ -1258,6 +1258,28 @@ The table uses advisor/client-team RLS. WO-73 also reserves learning
 `layer_id = 17` for coach-referral signal calibration candidates in
 `learning_updates`; candidates are `detected` only and never auto-implemented.
 
+## WO-74 - Referral conflict and consent wiring
+
+WO-74 extends existing tables:
+
+`consents` additions:
+
+- `proposal_id` is nullable so a referral-specific consent can exist outside a
+  proposal sign-off flow
+- `revoked_by_user_id`
+- `revoked_at`
+
+`referrals` additions:
+
+- `conflict_declaration_id`
+- `consent_id`
+
+Broker and coach send transitions require both linked rows. The conflict must be
+fresh, client-matched, advisor-matched, and typed as `broker_referral` or
+`coach_referral`. The consent must be an active opt-in row of
+`insurance_referral` or `coach_referral` for the same client. Revoking a consent
+withdraws linked non-terminal referrals.
+
 ## WO-57 - Report engine
 
 ### `reports`

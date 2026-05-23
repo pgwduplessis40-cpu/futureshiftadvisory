@@ -7,14 +7,17 @@ namespace Tests\Feature\Panels;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\Consent;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\ProspectLead;
 use App\Models\Referral;
 use App\Models\ReverseReferral;
 use App\Models\User;
+use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Panels\PanelAccessException;
 use App\Services\Panels\PanelOnboarding;
+use App\Services\Panels\ReferralConsentManager;
 use App\Services\Panels\ReferralLifecycle;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Security\InviteIssuer;
@@ -129,6 +132,7 @@ final class PanelFoundationTest extends TestCase
         $referral = $lifecycle->create($client, $coach, $advisor, [
             'need' => 'Owner readiness support',
         ]);
+        $referral = $this->prepareToSend($referral, $advisor, $client, Consent::TYPE_COACH_REFERRAL, ConflictDeclarer::COACH_REFERRAL);
         $referral = $lifecycle->transition($referral, Referral::STAGE_COACH_REFERRAL_SENT, $advisor);
         $referral = $lifecycle->transition($referral, Referral::STAGE_COACH_ACCEPTED, $coach->user);
         $message = $lifecycle->message($referral, $coach->user, 'We can help with this case.');
@@ -239,6 +243,19 @@ final class PanelFoundationTest extends TestCase
         $advisor->assignRole(User::TYPE_ADVISOR);
 
         return $advisor;
+    }
+
+    private function prepareToSend(Referral $referral, User $advisor, Client $client, string $consentType, string $conflictType): Referral
+    {
+        $conflict = app(ConflictDeclarer::class)->declare(
+            advisor: $advisor,
+            client: $client,
+            referralType: $conflictType,
+            existingRelationship: false,
+        );
+        $consent = app(ReferralConsentManager::class)->grant($client, $advisor, $consentType);
+
+        return app(ReferralConsentManager::class)->prepareForSending($referral, $advisor, $conflict, $consent);
     }
 
     private function currentRoleBypassesRls(): bool

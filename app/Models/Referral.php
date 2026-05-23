@@ -142,6 +142,22 @@ final class Referral extends Model
     }
 
     /**
+     * @return BelongsTo<ConflictDeclaration, Referral>
+     */
+    public function conflictDeclaration(): BelongsTo
+    {
+        return $this->belongsTo(ConflictDeclaration::class);
+    }
+
+    /**
+     * @return BelongsTo<Consent, Referral>
+     */
+    public function consent(): BelongsTo
+    {
+        return $this->belongsTo(Consent::class);
+    }
+
+    /**
      * @return HasMany<ReferralMessage>
      */
     public function messages(): HasMany

@@ -59,7 +59,10 @@ final class ReferralLifecycle
         Referral::STAGE_WITHDRAWN => [],
     ];
 
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly ReferralConsentManager $sendGate,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $payload
@@ -139,6 +142,10 @@ final class ReferralLifecycle
 
         if (! in_array($stage, $this->allowedNextFor($referral)[$referral->stage] ?? [], true)) {
             throw new InvalidArgumentException('Referral stage transition is not allowed.');
+        }
+
+        if ($this->isSendStage($stage)) {
+            $this->sendGate->assertReadyToSend($referral->loadMissing(['conflictDeclaration', 'consent']), $actor);
         }
 
         $before = ['stage' => $referral->stage];
@@ -286,5 +293,10 @@ final class ReferralLifecycle
             Referral::STAGE_COACH_CONCLUDED,
             Referral::STAGE_COACH_DECLINED,
         ];
+    }
+
+    private function isSendStage(string $stage): bool
+    {
+        return in_array($stage, [Referral::STAGE_SENT, Referral::STAGE_BROKER_REFERRAL_SENT, Referral::STAGE_COACH_REFERRAL_SENT], true);
     }
 }

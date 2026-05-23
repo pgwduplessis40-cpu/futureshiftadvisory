@@ -7,13 +7,16 @@ namespace Tests\Feature\Panels;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\Consent;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\Referral;
 use App\Models\User;
 use App\Notifications\BrokerFspLapsedNotification;
+use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Integration\Fsp\Contracts\FspClient;
 use App\Services\Panels\PanelOnboarding;
+use App\Services\Panels\ReferralConsentManager;
 use App\Services\Panels\ReferralLifecycle;
 use App\Services\Pdf\PdfRenderer;
 use App\Support\RequestContext;
@@ -127,6 +130,7 @@ final class BrokerPortalTest extends TestCase
         $referral = $lifecycle->create($client, $brokerMember, $advisor, [
             'need' => 'Commercial cover review',
         ]);
+        $referral = $this->prepareToSend($referral, $advisor, $client);
 
         try {
             $lifecycle->transition($referral, Referral::STAGE_ACCEPTED, $advisor);
@@ -206,5 +210,18 @@ final class BrokerPortalTest extends TestCase
         ]);
 
         return [$advisor, $client];
+    }
+
+    private function prepareToSend(Referral $referral, User $advisor, Client $client): Referral
+    {
+        $conflict = app(ConflictDeclarer::class)->declare(
+            advisor: $advisor,
+            client: $client,
+            referralType: ConflictDeclarer::BROKER_REFERRAL,
+            existingRelationship: false,
+        );
+        $consent = app(ReferralConsentManager::class)->grant($client, $advisor, Consent::TYPE_INSURANCE_REFERRAL);
+
+        return app(ReferralConsentManager::class)->prepareForSending($referral, $advisor, $conflict, $consent);
     }
 }

@@ -65,7 +65,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `dashboard-phase2.md` | WO-63 | Phase 2 dashboard panels, proposal status, and questionnaire optimisation candidates |
 | `wellbeing-analytics.md` | WO-64 | Monthly wellbeing pulse analytics and raw low-coping observation boundary |
 | `payments.md` | WO-67...WO-69 | Payment schedules, gateway failover, processing, receipts, and failure boundaries |
-| `panels.md` | WO-70-73 | Shared broker/coach panel onboarding, broker FSP validation, coach vetting, coach signal suggestions, agreement gate, referrals, and reverse referrals |
+| `panels.md` | WO-70-74 | Shared broker/coach panel onboarding, broker FSP validation, coach vetting, coach signal suggestions, conflict/consent send gates, referrals, and reverse referrals |
 | `security-decisions.md` | this WO | Phase 1 security deviations from spec §4 (PQC deferral, etc.) |
 
 A skeleton `security-decisions.md` lives in this folder as part of WO-01 so the PQC deferral is recorded from day one.

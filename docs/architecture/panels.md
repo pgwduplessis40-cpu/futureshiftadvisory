@@ -123,6 +123,25 @@ record `auto_referral = false`.
 but it does not apply behaviour changes and does not create
 `learning_update_implementations`.
 
+## Referral Send Gate
+
+WO-74 moves conflict and consent checks into the shared send transition. Draft
+broker/coach referrals can be prepared, but transitioning to `referral_sent`
+requires:
+
+- a fresh `conflict_declarations` row for the same client/advisor and referral
+  type (`broker_referral` or `coach_referral`)
+- an active opt-in `consents` row for the matching referral type
+
+`ReferralConsentManager::prepareForSending()` links the conflict and consent to
+the referral. `ReferralLifecycle::transition()` re-checks both at send time, so
+stale conflicts or revoked/opt-out consents fail closed.
+
+Revoking a referral consent marks the consent `opt_out`, records `revoked_at`,
+and withdraws any linked non-terminal referrals with
+`referral.withdrawn_consent_revoked`. This keeps client consent revocation
+effective after a referral has already been sent.
+
 ## Reverse Referrals
 
 Active panel members can create reverse referrals into either:
