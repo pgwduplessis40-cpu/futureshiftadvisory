@@ -184,6 +184,16 @@ final class PanelOnboarding
             ];
         }
 
+        if ($member->panel_type === PanelMember::TYPE_COACH) {
+            $baseTerms['coach_clauses'] = [
+                'specialisations' => $member->coach_specialisations ?? [],
+                'professional_memberships_displayed_where_held' => true,
+                'wellbeing_scope_boundary' => 'Coaching support only; no clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.',
+                'client_authorisation_required_for_key_staff' => true,
+                'entrepreneur_referrals_require_profile_link' => true,
+            ];
+        }
+
         return [
             ...$baseTerms,
             ...$terms,

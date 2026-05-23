@@ -129,8 +129,8 @@ final class PanelFoundationTest extends TestCase
         $referral = $lifecycle->create($client, $coach, $advisor, [
             'need' => 'Owner readiness support',
         ]);
-        $referral = $lifecycle->transition($referral, Referral::STAGE_SENT, $advisor);
-        $referral = $lifecycle->transition($referral, Referral::STAGE_ACCEPTED, $coach->user);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_COACH_REFERRAL_SENT, $advisor);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_COACH_ACCEPTED, $coach->user);
         $message = $lifecycle->message($referral, $coach->user, 'We can help with this case.');
         $reverse = $lifecycle->reverseReferral(
             member: $coach,
@@ -141,7 +141,7 @@ final class PanelFoundationTest extends TestCase
             payload: ['message' => 'Needs advisory support.'],
         );
 
-        $this->assertSame(Referral::STAGE_ACCEPTED, $referral->stage);
+        $this->assertSame(Referral::STAGE_COACH_ACCEPTED, $referral->stage);
         $this->assertSame($client->id, $message->client_id);
         $this->assertSame(ReverseReferral::TARGET_PROSPECT, $reverse->target_type);
         $lead = ProspectLead::query()->firstOrFail();

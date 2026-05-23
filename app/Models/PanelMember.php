@@ -37,9 +37,14 @@ final class PanelMember extends Model
 
     protected $casts = [
         'application' => 'array',
+        'coach_profile' => 'array',
+        'coach_specialisations' => 'array',
+        'coach_vetting' => 'array',
         'applied_at' => 'datetime',
         'approved_at' => 'datetime',
+        'coach_vetted_at' => 'datetime',
         'fsp_last_checked_at' => 'datetime',
+        'professional_memberships' => 'array',
         'suspended_at' => 'datetime',
     ];
 

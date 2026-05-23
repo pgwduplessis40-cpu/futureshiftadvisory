@@ -41,6 +41,16 @@ final class Referral extends Model
 
     public const STAGE_BROKER_NO_RESPONSE = 'no_response';
 
+    public const STAGE_COACH_REFERRAL_SENT = 'referral_sent';
+
+    public const STAGE_COACH_ACCEPTED = 'coach_accepted';
+
+    public const STAGE_COACHING_UNDERWAY = 'coaching_underway';
+
+    public const STAGE_COACH_CONCLUDED = 'concluded';
+
+    public const STAGE_COACH_DECLINED = 'declined';
+
     protected $guarded = [];
 
     protected $casts = [
@@ -62,6 +72,7 @@ final class Referral extends Model
             self::STAGE_COMPLETED,
             self::STAGE_WITHDRAWN,
             ...self::brokerStages(),
+            ...self::coachStages(),
         ]));
     }
 
@@ -83,11 +94,43 @@ final class Referral extends Model
     }
 
     /**
+     * @return array<int, string>
+     */
+    public static function coachStages(): array
+    {
+        return [
+            self::STAGE_DRAFT,
+            self::STAGE_COACH_REFERRAL_SENT,
+            self::STAGE_COACH_ACCEPTED,
+            self::STAGE_COACHING_UNDERWAY,
+            self::STAGE_COACH_CONCLUDED,
+            self::STAGE_COACH_DECLINED,
+            self::STAGE_WITHDRAWN,
+        ];
+    }
+
+    /**
      * @return BelongsTo<Client, Referral>
      */
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<EntrepreneurProfile, Referral>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<CoachReferralAuthorisation, Referral>
+     */
+    public function coachReferralAuthorisation(): BelongsTo
+    {
+        return $this->belongsTo(CoachReferralAuthorisation::class);
     }
 
     /**

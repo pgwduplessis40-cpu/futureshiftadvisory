@@ -207,6 +207,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<CoachReferralAuthorisation>
+     */
+    public function coachReferralAuthorisations(): HasMany
+    {
+        return $this->hasMany(CoachReferralAuthorisation::class);
+    }
+
+    /**
      * @return HasMany<Report>
      */
     public function reports(): HasMany

@@ -46,6 +46,19 @@ final class ReferralLifecycle
         Referral::STAGE_WITHDRAWN => [],
     ];
 
+    /**
+     * @var array<string, array<int, string>>
+     */
+    private array $coachAllowedNext = [
+        Referral::STAGE_DRAFT => [Referral::STAGE_COACH_REFERRAL_SENT, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_COACH_REFERRAL_SENT => [Referral::STAGE_COACH_ACCEPTED, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_COACH_ACCEPTED => [Referral::STAGE_COACHING_UNDERWAY, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_COACHING_UNDERWAY => [Referral::STAGE_COACH_CONCLUDED, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_COACH_CONCLUDED => [],
+        Referral::STAGE_COACH_DECLINED => [],
+        Referral::STAGE_WITHDRAWN => [],
+    ];
+
     public function __construct(private readonly AuditWriter $audit) {}
 
     /**
@@ -81,6 +94,41 @@ final class ReferralLifecycle
         return $referral->refresh();
     }
 
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    public function createForEntrepreneur(EntrepreneurProfile $entrepreneur, PanelMember $member, User $advisor, array $payload = []): Referral
+    {
+        $member = $member->refresh();
+
+        if ($member->status !== PanelMember::STATUS_ACTIVE) {
+            throw new PanelAccessException('Referral requires an active panel member.');
+        }
+
+        $referralType = $member->panel_type === PanelMember::TYPE_BROKER
+            ? Referral::TYPE_BROKER
+            : Referral::TYPE_COACH;
+
+        $referral = Referral::query()->create([
+            'client_id' => null,
+            'entrepreneur_profile_id' => $entrepreneur->getKey(),
+            'panel_member_id' => $member->getKey(),
+            'panel_type' => $member->panel_type,
+            'referral_type' => $referralType,
+            'stage' => Referral::STAGE_DRAFT,
+            'payload' => $payload,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->audit->record('referral.created', subject: $referral, actor: $advisor, after: [
+            'panel_type' => $member->panel_type,
+            'stage' => Referral::STAGE_DRAFT,
+            'entrepreneur_profile_id' => $entrepreneur->getKey(),
+        ]);
+
+        return $referral->refresh();
+    }
+
     public function transition(Referral $referral, string $stage, User $actor): Referral
     {
         $referral = $referral->refresh();
@@ -96,7 +144,7 @@ final class ReferralLifecycle
         $before = ['stage' => $referral->stage];
         $referral->forceFill([
             'stage' => $stage,
-            'sent_at' => in_array($stage, [Referral::STAGE_SENT, Referral::STAGE_BROKER_REFERRAL_SENT], true) ? now() : $referral->sent_at,
+            'sent_at' => in_array($stage, [Referral::STAGE_SENT, Referral::STAGE_BROKER_REFERRAL_SENT, Referral::STAGE_COACH_REFERRAL_SENT], true) ? now() : $referral->sent_at,
             'closed_at' => in_array($stage, $this->terminalStages(), true) ? now() : $referral->closed_at,
         ])->save();
 
@@ -213,9 +261,15 @@ final class ReferralLifecycle
      */
     private function allowedNextFor(Referral $referral): array
     {
-        return $referral->referral_type === Referral::TYPE_BROKER
-            ? $this->brokerAllowedNext
-            : $this->sharedAllowedNext;
+        if ($referral->referral_type === Referral::TYPE_BROKER) {
+            return $this->brokerAllowedNext;
+        }
+
+        if ($referral->referral_type === Referral::TYPE_COACH) {
+            return $this->coachAllowedNext;
+        }
+
+        return $this->sharedAllowedNext;
     }
 
     /**
@@ -229,6 +283,8 @@ final class ReferralLifecycle
             Referral::STAGE_BROKER_COVER_PLACED,
             Referral::STAGE_BROKER_DECLINED,
             Referral::STAGE_BROKER_NO_RESPONSE,
+            Referral::STAGE_COACH_CONCLUDED,
+            Referral::STAGE_COACH_DECLINED,
         ];
     }
 }

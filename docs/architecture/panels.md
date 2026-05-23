@@ -2,7 +2,8 @@
 
 WO-70 creates the shared broker/coach panel foundation. WO-71 layers the
 insurance-broker FSP validation and referral-stage specialisation onto that
-foundation. Coach-specific specialisations land in WO-72.
+foundation. WO-72 adds coach vetting, the five fixed specialisations, coach
+stage handling, and key-staff authorisation.
 
 ## Onboarding Gate
 
@@ -51,6 +52,18 @@ Broker referrals use the insurance lifecycle added in WO-71:
 Generic `accepted`/`in_progress` stages are not valid for broker referrals.
 `cover_placed`, `declined`, `no_response`, and `withdrawn` close the referral.
 
+Coach referrals use the coach lifecycle added in WO-72:
+
+- `draft`
+- `referral_sent`
+- `coach_accepted`
+- `coaching_underway`
+- `concluded`
+- `declined`
+- `withdrawn`
+
+`concluded`, `declined`, and `withdrawn` close the referral.
+
 ## Broker FSP Gate
 
 Broker applications must include an FSP number. `PanelOnboarding::approve()`
@@ -66,6 +79,28 @@ current, making lapse an automatic portal suspension event.
 record is stale. A lapsed, inactive, cancelled, suspended, or unknown FSP status
 suspends the panel member, audits `panel.broker_fsp_lapsed`, and sends urgent
 advisor/super-admin notifications.
+
+## Coach Vetting
+
+Coach vetting is admin-managed; there is no mandatory register lookup. The fixed
+specialisations are:
+
+- `life`
+- `business_executive`
+- `mental_health_wellbeing`
+- `financial_wellness`
+- `career`
+
+`CoachPanel::vet()` records selected specialisations, profile details,
+professional memberships where held, and the admin vetting payload on
+`panel_members`. Coach agreements include the wellbeing scope boundary:
+coaching only, not clinical mental-health diagnosis, treatment, crisis support,
+or regulated health advice.
+
+Coach referrals may be for a business owner, key staff member, or entrepreneur.
+Key-staff referrals require an active `coach_referral_authorisations` row for
+the client. Entrepreneur referrals link directly to `entrepreneur_profiles` and
+do not require a client row.
 
 ## Reverse Referrals
 

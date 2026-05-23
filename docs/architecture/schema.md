@@ -1197,6 +1197,45 @@ Broker referrals keep using `referrals` but use the broker-stage vocabulary:
 `cover_placed`, `declined`, `no_response`, and `withdrawn`. The terminal broker
 stages set `closed_at`.
 
+## WO-72 - Coach portal
+
+WO-72 extends the shared panel/referral tables and adds a client-scoped
+authorisation ledger for key-staff coaching referrals.
+
+`panel_members` additions:
+
+- `coach_specialisations` JSONB containing one or more of `life`,
+  `business_executive`, `mental_health_wellbeing`, `financial_wellness`, and
+  `career`
+- `coach_profile` JSONB
+- `professional_memberships` JSONB, displayed where held
+- `coach_vetting` JSONB
+- `coach_vetted_by_user_id`, `coach_vetted_at`
+
+`coach_referral_authorisations`:
+
+- `id` UUID primary key
+- `client_id`
+- `authorised_by_user_id`
+- `staff_name`, `staff_email`
+- `purpose`, `payload`
+- `granted_at`, `revoked_at`
+
+The authorisation table uses standard client-scoped RLS. Key-staff coach
+referrals require an active authorisation row for the same client.
+
+`referrals` additions:
+
+- `entrepreneur_profile_id` nullable for entrepreneur coach referrals
+- `coach_specialisation`
+- `referred_subject_type` (`owner`, `key_staff`, `entrepreneur`)
+- `coach_referral_authorisation_id`
+
+`referrals.client_id` and `referral_messages.client_id` are nullable so an
+entrepreneur coach referral can exist without a client row. Coach referral
+stages are `draft`, `referral_sent`, `coach_accepted`, `coaching_underway`,
+`concluded`, `declined`, and `withdrawn`; terminal coach stages set `closed_at`.
+
 ## WO-57 - Report engine
 
 ### `reports`
