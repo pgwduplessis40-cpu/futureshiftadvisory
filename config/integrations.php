@@ -67,6 +67,12 @@ return [
         'api_key' => env('MBIE_API_KEY'),
     ],
 
+    'fsp' => [
+        'live' => (bool) env('FEATURE_FSP_LIVE', false),
+        'base_url' => env('FSP_BASE_URL', 'https://api.fsp-register.govt.nz'),
+        'api_key' => env('FSP_API_KEY'),
+    ],
+
     'accounting' => [
         'xero' => [
             'live' => (bool) env('FEATURE_XERO_LIVE', false),

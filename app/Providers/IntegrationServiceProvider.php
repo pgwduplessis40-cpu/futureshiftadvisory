@@ -10,6 +10,8 @@ use App\Services\Integration\CompaniesOffice\FallbackCompaniesOfficeClient;
 use App\Services\Integration\CompaniesOffice\LiveCompaniesOfficeClient;
 use App\Services\Integration\Fsp\Contracts\FspClient;
 use App\Services\Integration\Fsp\FakeFspClient;
+use App\Services\Integration\Fsp\FallbackFspClient;
+use App\Services\Integration\Fsp\LiveFspClient;
 use App\Services\Integration\GoogleCalendar\Contracts\GoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\FakeGoogleCalendarClient;
 use App\Services\Integration\Iponz\Contracts\IponzClient;
@@ -76,7 +78,6 @@ final class IntegrationServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     private array $scaffolds = [
-        FspClient::class => FakeFspClient::class,
         PpsrClient::class => FakePpsrClient::class,
         LinzClient::class => FakeLinzClient::class,
         IponzClient::class => FakeIponzClient::class,
@@ -125,6 +126,11 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveMbieClient::class);
         $this->app->singleton(FallbackMbieClient::class);
         $this->app->singleton(MbieClient::class, FallbackMbieClient::class);
+
+        $this->app->singleton(FakeFspClient::class);
+        $this->app->singleton(LiveFspClient::class);
+        $this->app->singleton(FallbackFspClient::class);
+        $this->app->singleton(FspClient::class, FallbackFspClient::class);
 
         $this->app->singleton(FakeXeroClient::class);
         $this->app->singleton(LiveXeroClient::class);

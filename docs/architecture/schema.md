@@ -1170,6 +1170,33 @@ an invite token or platform access automatically.
 Client/panel-user RLS applies to referrals and messages; panel-user RLS applies
 to reverse referrals.
 
+## WO-71 - Insurance Broker portal
+
+WO-71 extends the shared panel tables instead of creating a separate broker
+schema.
+
+`panel_members` additions:
+
+- `fsp_number`
+- `fsp_status` (`current`, `lapsed`, `unknown`)
+- `fsp_last_checked_at`
+
+Broker approval now requires an FSP lookup through `FspClient`; non-current
+registrations are rejected before a panel agreement can be issued. Active broker
+members are rechecked by `panels:broker-fsp-reverify`; a lapsed/unknown registry
+result sets `panel_members.status = suspended`, writes
+`panel.broker_fsp_lapsed`, and notifies advisors/super admins.
+
+`panel_agreements.terms` now includes broker-specific clauses when
+`panel_type = broker`, including the FSP number/status at approval,
+FSP-current obligation, automatic suspension on lapse, client-consent
+requirements, and broker responsibility for regulated insurance advice.
+
+Broker referrals keep using `referrals` but use the broker-stage vocabulary:
+`draft`, `referral_sent`, `broker_acknowledged`, `quote_requested`,
+`cover_placed`, `declined`, `no_response`, and `withdrawn`. The terminal broker
+stages set `closed_at`.
+
 ## WO-57 - Report engine
 
 ### `reports`

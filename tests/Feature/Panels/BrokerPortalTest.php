@@ -1,0 +1,210 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Feature\Panels;
+
+use App\Enums\EngagementType;
+use App\Models\Client;
+use App\Models\ClientTeamMember;
+use App\Models\PanelAgreement;
+use App\Models\PanelMember;
+use App\Models\Referral;
+use App\Models\User;
+use App\Notifications\BrokerFspLapsedNotification;
+use App\Services\Integration\Fsp\Contracts\FspClient;
+use App\Services\Panels\PanelOnboarding;
+use App\Services\Panels\ReferralLifecycle;
+use App\Services\Pdf\PdfRenderer;
+use App\Support\RequestContext;
+use Database\Seeders\RoleSeeder;
+use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
+use Tests\TestCase;
+
+final class BrokerPortalTest extends TestCase
+{
+    use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->seed(RoleSeeder::class);
+        app(RequestContext::class)->apply('system', []);
+        Storage::fake('secure_local');
+
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        });
+    }
+
+    public function test_fsp_is_validated_at_broker_approval_and_stamped_on_agreement(): void
+    {
+        $advisor = $this->advisor();
+        $broker = $this->broker('valid-broker@example.test');
+        $onboarding = app(PanelOnboarding::class);
+
+        $member = $onboarding->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'trading_name' => 'Valid Broker',
+            'fsp_number' => 'FSP100001',
+        ]);
+
+        $agreement = $onboarding->approve($member, $advisor);
+
+        $this->assertSame(PanelMember::FSP_STATUS_CURRENT, $member->refresh()->fsp_status);
+        $this->assertSame('FSP100001', $member->fsp_number);
+        $this->assertNotNull($member->fsp_last_checked_at);
+        $this->assertSame(PanelAgreement::STATUS_PENDING_SIGNATURE, $agreement->status);
+        $this->assertSame('FSP100001', $agreement->terms['broker_clauses']['fsp_number']);
+        $this->assertTrue($agreement->terms['broker_clauses']['lapse_auto_suspends_portal_access']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.broker_fsp_checked',
+            'subject_id' => $member->id,
+        ]);
+
+        $lapsed = $onboarding->submitApplication($this->broker('lapsed-broker@example.test'), PanelMember::TYPE_BROKER, [
+            'trading_name' => 'Lapsed Broker',
+            'fsp_number' => 'FSP999999',
+        ]);
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->expectExceptionMessage('Broker FSP registration must be current before approval.');
+
+        $onboarding->approve($lapsed, $advisor);
+    }
+
+    public function test_periodic_fsp_reverification_suspends_lapsed_broker_and_alerts_advisors(): void
+    {
+        Notification::fake();
+
+        $advisor = $this->advisor('fsp-alert-advisor@example.test');
+        $brokerMember = $this->activeBroker('fsp-lapse-broker@example.test');
+        $brokerMember->forceFill([
+            'fsp_last_checked_at' => now()->subDays(31),
+        ])->save();
+
+        $this->app->instance(FspClient::class, new class implements FspClient
+        {
+            public function lookup(string $fspNumber): array
+            {
+                return [
+                    'fsp_number' => $fspNumber,
+                    'status' => 'lapsed',
+                    'authorised_for_insurance' => false,
+                    'source_badge' => 'test_lapse',
+                ];
+            }
+        });
+
+        $this
+            ->artisan('panels:broker-fsp-reverify', ['--days' => 30])
+            ->expectsOutput('Checked 1 broker FSP registrations: 0 current, 1 suspended.')
+            ->assertSuccessful();
+
+        $brokerMember->refresh();
+        $this->assertSame(PanelMember::STATUS_SUSPENDED, $brokerMember->status);
+        $this->assertSame(PanelMember::FSP_STATUS_LAPSED, $brokerMember->fsp_status);
+        $this->assertNotNull($brokerMember->suspended_at);
+        Notification::assertSentTo($advisor, BrokerFspLapsedNotification::class);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.broker_fsp_lapsed',
+            'subject_id' => $brokerMember->id,
+        ]);
+    }
+
+    public function test_broker_referral_stages_follow_insurance_lifecycle(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor();
+        $brokerMember = $this->activeBroker('stage-broker@example.test');
+        $lifecycle = app(ReferralLifecycle::class);
+        $referral = $lifecycle->create($client, $brokerMember, $advisor, [
+            'need' => 'Commercial cover review',
+        ]);
+
+        try {
+            $lifecycle->transition($referral, Referral::STAGE_ACCEPTED, $advisor);
+            $this->fail('Broker referrals should not allow the shared accepted stage.');
+        } catch (InvalidArgumentException $e) {
+            $this->assertSame('Referral stage transition is not allowed.', $e->getMessage());
+        }
+
+        $referral = $lifecycle->transition($referral, Referral::STAGE_BROKER_REFERRAL_SENT, $advisor);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_BROKER_ACKNOWLEDGED, $brokerMember->user);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_BROKER_QUOTE_REQUESTED, $brokerMember->user);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_BROKER_COVER_PLACED, $brokerMember->user);
+
+        $this->assertSame(Referral::STAGE_BROKER_COVER_PLACED, $referral->stage);
+        $this->assertNotNull($referral->sent_at);
+        $this->assertNotNull($referral->closed_at);
+        $this->assertContains(Referral::STAGE_BROKER_DECLINED, Referral::brokerStages());
+        $this->assertContains(Referral::STAGE_BROKER_NO_RESPONSE, Referral::brokerStages());
+    }
+
+    private function activeBroker(string $email): PanelMember
+    {
+        $broker = $this->broker($email);
+        $onboarding = app(PanelOnboarding::class);
+        $member = $onboarding->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'trading_name' => 'Active Broker',
+            'fsp_number' => 'FSP100001',
+        ]);
+        $agreement = $onboarding->approve($member, $this->advisor('approver-'.$email));
+        $onboarding->signAgreement($agreement, $broker);
+
+        return $member->refresh()->load('user');
+    }
+
+    private function broker(string $email): User
+    {
+        $broker = User::factory()->withTwoFactor()->create([
+            'email' => $email,
+            'user_type' => User::TYPE_BROKER,
+            'primary_role' => User::TYPE_BROKER,
+        ]);
+        $broker->assignRole(User::TYPE_BROKER);
+
+        return $broker;
+    }
+
+    private function advisor(string $email = 'broker-portal-advisor@example.test'): User
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'email' => $email,
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        return $advisor;
+    }
+
+    /**
+     * @return array{0: User, 1: Client}
+     */
+    private function clientWithAdvisor(): array
+    {
+        $advisor = $this->advisor('broker-stage-advisor@example.test');
+        $client = Client::query()->create([
+            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'nzbn' => fake()->unique()->numerify('9429#########'),
+            'legal_name' => 'Broker Stage Client Limited',
+            'data_quality' => Client::DATA_QUALITY_LOW,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->id,
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+            'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+        ]);
+
+        return [$advisor, $client];
+    }
+}

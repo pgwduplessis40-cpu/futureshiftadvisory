@@ -23,12 +23,26 @@ final class ReferralLifecycle
     /**
      * @var array<string, array<int, string>>
      */
-    private array $allowedNext = [
+    private array $sharedAllowedNext = [
         Referral::STAGE_DRAFT => [Referral::STAGE_SENT, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_SENT => [Referral::STAGE_ACCEPTED, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_ACCEPTED => [Referral::STAGE_IN_PROGRESS, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_IN_PROGRESS => [Referral::STAGE_COMPLETED, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_COMPLETED => [],
+        Referral::STAGE_WITHDRAWN => [],
+    ];
+
+    /**
+     * @var array<string, array<int, string>>
+     */
+    private array $brokerAllowedNext = [
+        Referral::STAGE_DRAFT => [Referral::STAGE_BROKER_REFERRAL_SENT, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_BROKER_REFERRAL_SENT => [Referral::STAGE_BROKER_ACKNOWLEDGED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_BROKER_ACKNOWLEDGED => [Referral::STAGE_BROKER_QUOTE_REQUESTED, Referral::STAGE_BROKER_DECLINED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_BROKER_QUOTE_REQUESTED => [Referral::STAGE_BROKER_COVER_PLACED, Referral::STAGE_BROKER_DECLINED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_BROKER_COVER_PLACED => [],
+        Referral::STAGE_BROKER_DECLINED => [],
+        Referral::STAGE_BROKER_NO_RESPONSE => [],
         Referral::STAGE_WITHDRAWN => [],
     ];
 
@@ -75,15 +89,15 @@ final class ReferralLifecycle
             throw new InvalidArgumentException('Unsupported referral stage.');
         }
 
-        if (! in_array($stage, $this->allowedNext[$referral->stage] ?? [], true)) {
+        if (! in_array($stage, $this->allowedNextFor($referral)[$referral->stage] ?? [], true)) {
             throw new InvalidArgumentException('Referral stage transition is not allowed.');
         }
 
         $before = ['stage' => $referral->stage];
         $referral->forceFill([
             'stage' => $stage,
-            'sent_at' => $stage === Referral::STAGE_SENT ? now() : $referral->sent_at,
-            'closed_at' => in_array($stage, [Referral::STAGE_COMPLETED, Referral::STAGE_WITHDRAWN], true) ? now() : $referral->closed_at,
+            'sent_at' => in_array($stage, [Referral::STAGE_SENT, Referral::STAGE_BROKER_REFERRAL_SENT], true) ? now() : $referral->sent_at,
+            'closed_at' => in_array($stage, $this->terminalStages(), true) ? now() : $referral->closed_at,
         ])->save();
 
         $this->audit->record('referral.stage_changed', subject: $referral, actor: $actor, before: $before, after: [
@@ -192,5 +206,29 @@ final class ReferralLifecycle
             ->first();
 
         return $advisor?->getKey() ?? $member->user_id;
+    }
+
+    /**
+     * @return array<string, array<int, string>>
+     */
+    private function allowedNextFor(Referral $referral): array
+    {
+        return $referral->referral_type === Referral::TYPE_BROKER
+            ? $this->brokerAllowedNext
+            : $this->sharedAllowedNext;
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function terminalStages(): array
+    {
+        return [
+            Referral::STAGE_COMPLETED,
+            Referral::STAGE_WITHDRAWN,
+            Referral::STAGE_BROKER_COVER_PLACED,
+            Referral::STAGE_BROKER_DECLINED,
+            Referral::STAGE_BROKER_NO_RESPONSE,
+        ];
     }
 }

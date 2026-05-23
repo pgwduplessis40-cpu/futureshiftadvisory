@@ -8,6 +8,7 @@ use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Panels\Broker\BrokerFspVerifier;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
 use Illuminate\Support\Facades\DB;
@@ -21,6 +22,7 @@ final class PanelOnboarding
         private readonly PdfRenderer $renderer,
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
+        private readonly BrokerFspVerifier $brokerFspVerifier,
     ) {}
 
     /**
@@ -64,6 +66,11 @@ final class PanelOnboarding
 
         return DB::transaction(function () use ($member, $admin, $terms): PanelAgreement {
             $member = $member->refresh();
+
+            if ($member->panel_type === PanelMember::TYPE_BROKER) {
+                $member = $this->brokerFspVerifier->validateForApproval($member, $admin);
+            }
+
             $member->forceFill([
                 'status' => PanelMember::STATUS_APPROVED_PENDING_AGREEMENT,
                 'approved_by_user_id' => $admin->getKey(),
@@ -158,12 +165,27 @@ final class PanelOnboarding
      */
     private function terms(PanelMember $member, array $terms): array
     {
-        return [
+        $baseTerms = [
             'panel_type' => $member->panel_type,
             'mutual_referral_terms' => 'No referral fees are payable by either party.',
             'confidentiality' => true,
             'client_consent_required' => true,
             'reverse_referrals_no_auto_access' => true,
+        ];
+
+        if ($member->panel_type === PanelMember::TYPE_BROKER) {
+            $baseTerms['broker_clauses'] = [
+                'fsp_number' => $member->fsp_number,
+                'fsp_status_at_approval' => $member->fsp_status,
+                'fsp_must_remain_current' => true,
+                'lapse_auto_suspends_portal_access' => true,
+                'broker_responsible_for_regulated_advice' => true,
+                'client_consent_required_before_broker_referral' => true,
+            ];
+        }
+
+        return [
+            ...$baseTerms,
             ...$terms,
         ];
     }

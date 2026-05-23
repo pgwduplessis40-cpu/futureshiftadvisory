@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-70 complete; next: WO-71).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-71 complete; next: WO-72).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **70 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (6/37, WO-65...WO-70) |
+| Work orders complete | **71 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (7/37, WO-65...WO-71) |
 | Work orders in progress | none |
-| Next work order | **WO-71** - Insurance Broker portal (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-72** - Coach portal (5 specialisations) (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-70 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-71 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -90,7 +90,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-67 | `c86fef1` | Payment schedules | Signed-proposal payment schedules, one-off/monthly cadence, authority revocation cascade, audit events, and RLS coverage. |
 | WO-68 | `67eeda8` | Stripe + Windcave live integration | Live/fallback gateway clients, fixture charge contract, primary-to-secondary failover, double-failure notification, PAN rejection, and signed webhooks. |
 | WO-69 | `db7d18b` | Monthly payment processing + receipts | Due-schedule processing, payment attempt ledger, retry/failover handling, receipt PDFs, failed-payment notifications, and signed-status invariance. |
-| WO-70 | this commit | Panel portal foundation | Shared broker/coach panel onboarding, signed agreement gate, referral lifecycle, per-referral messages, reverse referrals, portal layout, and RLS isolation. |
+| WO-70 | `5102104` | Panel portal foundation | Shared broker/coach panel onboarding, signed agreement gate, referral lifecycle, per-referral messages, reverse referrals, portal layout, and RLS isolation. |
+| WO-71 | this commit | Insurance Broker portal | FSP fixture/live/fallback validation, approval-time FSP gate, periodic lapse suspension, advisor alerts, and broker referral stages. |
 
 ## Completed WO Details
 
@@ -702,9 +703,20 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover invite/application/approval/signature access gating, referral stage transitions, messaging, reverse referrals, audit writes, and RLS isolation between panel users.
 - Architecture docs: `docs/architecture/panels.md` and `docs/architecture/schema.md`.
 
+### WO-71 - Insurance Broker Portal
+
+- Added broker FSP fields to `panel_members` (`fsp_number`, `fsp_status`, `fsp_last_checked_at`).
+- Filled the FSP integration contract with fixture, live, and fallback clients using the WO-05 resilience pattern; `FEATURE_FSP_LIVE` defaults off.
+- `PanelOnboarding::approve()` now validates broker applications against the FSP register and blocks approval unless the registration is current.
+- Broker panel agreements include FSP-current, lapse-suspension, client-consent, and regulated-advice responsibility clauses.
+- Added `panels:broker-fsp-reverify`, scheduled daily, which suspends lapsed brokers and sends urgent advisor/super-admin alerts.
+- Broker referrals now use insurance-specific stages (`referral_sent`, `broker_acknowledged`, `quote_requested`, `cover_placed`, `declined`, `no_response`) rather than the shared coach/general stages.
+- Tests cover approval-time FSP validation, lapsed-FSP rejection, periodic suspension and alerting, and broker referral-stage enforcement.
+- Architecture docs: `docs/architecture/panels.md`, `docs/architecture/nz-integrations.md`, and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-70 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-71 targeted checks:
 
 ```pwsh
 composer test
@@ -715,6 +727,7 @@ php artisan test tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Fea
 php artisan test tests\Feature\Payments\PaymentGatewayTest.php tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
 php artisan test tests\Feature\Payments\PaymentProcessingTest.php tests\Feature\Payments\PaymentGatewayTest.php tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
 php artisan test tests\Feature\Panels\PanelFoundationTest.php
+php artisan test tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\PanelFoundationTest.php tests\Feature\Integration\NzbnLookupTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -785,11 +798,20 @@ Results after WO-70:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 70 distinct WO commits (WO-01...WO-70) on `featureApp`.
 
+Results after WO-71:
+
+- `php artisan test tests\Feature\Panels\BrokerPortalTest.php tests\Feature\Panels\PanelFoundationTest.php tests\Feature\Integration\NzbnLookupTest.php` (PostgreSQL `futureshift_test`): passed - 10 tests, 106 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 71 distinct WO commits (WO-01...WO-71) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-70 complete; next is WO-71.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-71 complete; next is WO-72.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

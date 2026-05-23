@@ -90,6 +90,7 @@ final class PanelFoundationTest extends TestCase
 
         $member = $onboarding->submitApplication($broker, PanelMember::TYPE_BROKER, [
             'trading_name' => 'Panel Broker',
+            'fsp_number' => 'FSP100001',
             'regions' => ['Auckland'],
         ]);
 
@@ -122,17 +123,17 @@ final class PanelFoundationTest extends TestCase
     public function test_referral_stage_transitions_messages_and_reverse_referral_are_audited(): void
     {
         [$advisor, $client] = $this->clientWithAdvisor();
-        $broker = $this->activePanelMember(User::TYPE_BROKER, 'broker-lifecycle@example.test');
+        $coach = $this->activePanelMember(User::TYPE_COACH, 'coach-lifecycle@example.test');
         $lifecycle = app(ReferralLifecycle::class);
 
-        $referral = $lifecycle->create($client, $broker, $advisor, [
-            'need' => 'Insurance review',
+        $referral = $lifecycle->create($client, $coach, $advisor, [
+            'need' => 'Owner readiness support',
         ]);
         $referral = $lifecycle->transition($referral, Referral::STAGE_SENT, $advisor);
-        $referral = $lifecycle->transition($referral, Referral::STAGE_ACCEPTED, $broker->user);
-        $message = $lifecycle->message($referral, $broker->user, 'We can help with this case.');
+        $referral = $lifecycle->transition($referral, Referral::STAGE_ACCEPTED, $coach->user);
+        $message = $lifecycle->message($referral, $coach->user, 'We can help with this case.');
         $reverse = $lifecycle->reverseReferral(
-            member: $broker,
+            member: $coach,
             targetType: ReverseReferral::TARGET_PROSPECT,
             name: 'Reverse Lead',
             email: 'reverse@example.test',
@@ -183,7 +184,10 @@ final class PanelFoundationTest extends TestCase
     {
         $user = $this->panelUser($email, $type);
         $onboarding = app(PanelOnboarding::class);
-        $member = $onboarding->submitApplication($user, $type, ['fixture' => true]);
+        $member = $onboarding->submitApplication($user, $type, array_filter([
+            'fixture' => true,
+            'fsp_number' => $type === User::TYPE_BROKER ? 'FSP100001' : null,
+        ]));
         $agreement = $onboarding->approve($member, $this->advisor('approver-'.$email));
         $onboarding->signAgreement($agreement, $user);
 

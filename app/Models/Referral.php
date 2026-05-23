@@ -29,6 +29,18 @@ final class Referral extends Model
 
     public const STAGE_WITHDRAWN = 'withdrawn';
 
+    public const STAGE_BROKER_REFERRAL_SENT = 'referral_sent';
+
+    public const STAGE_BROKER_ACKNOWLEDGED = 'broker_acknowledged';
+
+    public const STAGE_BROKER_QUOTE_REQUESTED = 'quote_requested';
+
+    public const STAGE_BROKER_COVER_PLACED = 'cover_placed';
+
+    public const STAGE_BROKER_DECLINED = 'declined';
+
+    public const STAGE_BROKER_NO_RESPONSE = 'no_response';
+
     protected $guarded = [];
 
     protected $casts = [
@@ -42,12 +54,30 @@ final class Referral extends Model
      */
     public static function stages(): array
     {
-        return [
+        return array_values(array_unique([
             self::STAGE_DRAFT,
             self::STAGE_SENT,
             self::STAGE_ACCEPTED,
             self::STAGE_IN_PROGRESS,
             self::STAGE_COMPLETED,
+            self::STAGE_WITHDRAWN,
+            ...self::brokerStages(),
+        ]));
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    public static function brokerStages(): array
+    {
+        return [
+            self::STAGE_DRAFT,
+            self::STAGE_BROKER_REFERRAL_SENT,
+            self::STAGE_BROKER_ACKNOWLEDGED,
+            self::STAGE_BROKER_QUOTE_REQUESTED,
+            self::STAGE_BROKER_COVER_PLACED,
+            self::STAGE_BROKER_DECLINED,
+            self::STAGE_BROKER_NO_RESPONSE,
             self::STAGE_WITHDRAWN,
         ];
     }

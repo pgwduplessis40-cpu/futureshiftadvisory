@@ -1,0 +1,18 @@
+{
+    "FSP100001": {
+        "fsp_number": "FSP100001",
+        "legal_name": "Harbour Risk Brokers Limited",
+        "status": "current",
+        "authorised_for_insurance": true,
+        "services": ["fire_and_general_insurance", "life_and_health_insurance"],
+        "checked_at": "2026-05-23T00:00:00+12:00"
+    },
+    "FSP999999": {
+        "fsp_number": "FSP999999",
+        "legal_name": "Lapsed Cover Advice Limited",
+        "status": "lapsed",
+        "authorised_for_insurance": false,
+        "services": [],
+        "checked_at": "2026-05-23T00:00:00+12:00"
+    }
+}

@@ -27,12 +27,19 @@ final class PanelMember extends Model
 
     public const STATUS_SUSPENDED = 'suspended';
 
+    public const FSP_STATUS_CURRENT = 'current';
+
+    public const FSP_STATUS_LAPSED = 'lapsed';
+
+    public const FSP_STATUS_UNKNOWN = 'unknown';
+
     protected $guarded = [];
 
     protected $casts = [
         'application' => 'array',
         'applied_at' => 'datetime',
         'approved_at' => 'datetime',
+        'fsp_last_checked_at' => 'datetime',
         'suspended_at' => 'datetime',
     ];
 

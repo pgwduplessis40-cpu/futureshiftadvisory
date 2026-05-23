@@ -9,6 +9,7 @@ use App\Console\Commands\GeneratePreMeetingBriefs;
 use App\Console\Commands\ProcessScheduledPayments;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
+use App\Console\Commands\ReverifyBrokerFspRegistrations;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
@@ -174,6 +175,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ProcessScheduledPayments::class)
             ->everyFiveMinutes()
             ->name('fsa-payments-process-scheduled')
+            ->withoutOverlapping();
+
+        $schedule->command(ReverifyBrokerFspRegistrations::class)
+            ->dailyAt('05:00')
+            ->name('fsa-broker-fsp-reverify')
             ->withoutOverlapping();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
