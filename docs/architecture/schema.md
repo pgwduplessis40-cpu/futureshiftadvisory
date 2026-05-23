@@ -1840,6 +1840,30 @@ projections. These rows use advisor-configured conservative discount rates,
 persist the projected cash-flow assumptions in `inputs`, store discounted rows
 in `result`, and are linked from `plan_assessments.concept_pv_calculation_id`.
 
+## WO-90 - Plan revisions
+
+### `plan_revisions`
+
+Stores unlimited entrepreneur plan resubmission rounds and the round-by-round
+progress comparison.
+
+Key columns:
+
+- `id` UUID primary key
+- `business_plan_id`
+- `round`
+- `submitted_at`
+- `progress_comparison`
+- `submitted_by_user_id`
+
+`progress_comparison` contains previous/current rounds, previous/current
+weighted scores, previous/current grade, overall delta, trajectory percent,
+per-criterion deltas, biggest improvements, and remaining gaps.
+
+RLS joins through `business_plans` and the owning `entrepreneur_profiles` row.
+System and super-admin roles can read/write all rows; assigned advisors and the
+linked entrepreneur user can read their own revision rows.
+
 ## WO-57 - Report engine
 
 ### `reports`

@@ -6,7 +6,9 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
+use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
+use App\Models\PlanRevision;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
@@ -111,7 +113,16 @@ final class EntrepreneurController extends Controller
     {
         Gate::authorize('view', $entrepreneurProfile);
 
-        $entrepreneurProfile->loadMissing(['assignedAdvisor', 'inviteToken', 'user']);
+        $entrepreneurProfile->loadMissing([
+            'assignedAdvisor',
+            'inviteToken',
+            'user',
+            'businessPlans.assessments',
+            'businessPlans.revisions',
+        ]);
+        $latestPlan = $entrepreneurProfile->businessPlans
+            ->sortByDesc('updated_at')
+            ->first();
 
         return Inertia::render('advisor/entrepreneurs/Show', [
             'entrepreneur' => [
@@ -120,6 +131,7 @@ final class EntrepreneurController extends Controller
                 'user_id' => $entrepreneurProfile->user_id,
                 'invite_accepted_at' => $entrepreneurProfile->inviteToken?->accepted_at?->toIso8601String(),
                 'created_at' => $entrepreneurProfile->created_at?->toIso8601String(),
+                'latest_plan' => $latestPlan instanceof BusinessPlan ? $this->planProgressSummary($latestPlan) : null,
             ],
         ]);
     }
@@ -167,6 +179,33 @@ final class EntrepreneurController extends Controller
             'stage' => $stage->value,
             'stage_label' => $stage->label(),
             'assigned_advisor_name' => $profile->assignedAdvisor?->name,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function planProgressSummary(BusinessPlan $plan): array
+    {
+        $latestAssessment = $plan->assessments->sortByDesc('round')->first();
+        $latestRevision = $plan->revisions->sortByDesc('round')->first();
+
+        return [
+            'id' => $plan->id,
+            'title' => $plan->title,
+            'status' => $plan->status,
+            'assessment_count' => $plan->assessments->count(),
+            'latest_round' => $latestAssessment?->round,
+            'latest_grade' => $latestAssessment?->overall_grade,
+            'latest_revision' => $latestRevision instanceof PlanRevision ? [
+                'id' => $latestRevision->id,
+                'round' => $latestRevision->round,
+                'submitted_at' => $latestRevision->submitted_at?->toIso8601String(),
+                'trajectory_percent' => data_get($latestRevision->progress_comparison, 'trajectory_percent'),
+                'overall_delta' => data_get($latestRevision->progress_comparison, 'overall_delta'),
+                'biggest_improvements' => data_get($latestRevision->progress_comparison, 'biggest_improvements', []),
+                'remaining_gaps' => data_get($latestRevision->progress_comparison, 'remaining_gaps', []),
+            ] : null,
         ];
     }
 }

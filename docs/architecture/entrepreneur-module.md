@@ -212,3 +212,26 @@ entrepreneur_concept_projection` and linked back from
 `plan_assessments.concept_pv_calculation_id`. It is deliberately labelled as an
 indicative projection from draft-plan maturity, not a valuation or investment
 recommendation.
+
+## WO-90 - Iterative Resubmission and Progress
+
+`plan_revisions` records every resubmission round for a business plan. There is
+no maximum round count. `App\Services\Entrepreneurs\Revision` opens a plan for
+revision, submits the revised draft, re-runs the first-pass assessment, and
+stores a `progress_comparison` payload for the new round.
+
+The comparison payload includes:
+
+- previous and current assessment rounds
+- previous and current weighted scores
+- previous and current grade
+- overall score delta
+- trajectory percentage, calculated against the prior remaining opportunity to
+  reach 100
+- per-criterion deltas with improved / regressed / unchanged direction
+- biggest improvements
+- remaining criteria below 60
+
+Advisor entrepreneur detail now receives the latest plan progress summary and
+renders round count, latest grade, trajectory percentage, biggest improvements,
+and remaining gaps.
