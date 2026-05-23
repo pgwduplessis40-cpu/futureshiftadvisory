@@ -2,7 +2,8 @@
 
 WO-56 turns the WO-55 fee calculation into a branded, release-controlled
 proposal artifact. WO-66 adds the client portal sign-off flow, tokenised
-payment-authority capture, and signed proposal evidence.
+payment-authority capture, and signed proposal evidence. WO-67 adds payment
+schedules for signed proposals; actual charging and receipts remain separate.
 
 ## Lifecycle
 
@@ -39,6 +40,18 @@ before persistence.
 The `signature` step renders signed evidence to the encrypted `secure_local`
 disk and stores a `KeyEnvelope`-wrapped SHA-256 hash on the proposal. Signing
 does not require a successful charge; charges and receipts begin in WO-69.
+
+## Payment Schedules
+
+`ScheduleBuilder` creates `payment_schedules` only when the proposal is already
+`signed` and the selected `payment_authority` is active, belongs to the same
+proposal, and has not been revoked. Schedules are NZD only for WO-67 and support
+`one_off` and `monthly_retainer` cadence values.
+
+Authority revocation is routed through the same builder so active or paused
+schedules are marked `revoked` with `revoked_at` set, and both the authority and
+schedule changes are audited. WO-67 does not process charges; WO-69 consumes due
+schedules.
 
 ## Artifact Generation
 

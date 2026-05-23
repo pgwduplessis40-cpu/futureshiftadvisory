@@ -175,6 +175,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<PaymentSchedule>
+     */
+    public function paymentSchedules(): HasMany
+    {
+        return $this->hasMany(PaymentSchedule::class);
+    }
+
+    /**
      * @return HasMany<Report>
      */
     public function reports(): HasMany

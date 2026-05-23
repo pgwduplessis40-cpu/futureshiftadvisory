@@ -1040,8 +1040,33 @@ Key columns:
 - `authorised_by_user_id`, `authorised_at`
 - `revoked_at`
 
-Client-scoped RLS applies. WO-66 only captures the authority; schedules,
-charges, failover charging, and receipts are later WOs.
+Client-scoped RLS applies. WO-66 only captures the authority; schedules begin in
+WO-67, while charges, failover charging, and receipts are later WOs.
+
+## WO-67 - Payment schedules
+
+### `payment_schedules`
+
+Client-scoped schedule rows that turn a signed proposal and active tokenised
+authority into a future one-off or monthly retainer charge.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `proposal_id`
+- `payment_authority_id`
+- `cadence` (`one_off`, `monthly_retainer`)
+- `amount`
+- `currency` (`NZD`)
+- `next_run_at`
+- `status` (`active`, `paused`, `revoked`, `completed`)
+- `revoked_at`
+- `created_by_user_id`
+
+Client-scoped RLS applies. `ScheduleBuilder` only creates schedules from signed
+proposals with active authorities. Revoking an authority through the builder
+marks active/paused schedules as revoked and audits the cascade.
 
 ## WO-57 - Report engine
 

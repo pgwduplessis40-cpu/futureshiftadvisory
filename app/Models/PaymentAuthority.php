@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class PaymentAuthority extends Model
 {
@@ -71,5 +72,13 @@ final class PaymentAuthority extends Model
     public function authorisedBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'authorised_by_user_id');
+    }
+
+    /**
+     * @return HasMany<PaymentSchedule>
+     */
+    public function paymentSchedules(): HasMany
+    {
+        return $this->hasMany(PaymentSchedule::class);
     }
 }

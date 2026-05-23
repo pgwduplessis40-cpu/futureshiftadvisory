@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-66 complete; next: WO-67).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-67 complete; next: WO-68).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **66 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (2/37, WO-65...WO-66) |
+| Work orders complete | **67 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (3/37, WO-65...WO-67) |
 | Work orders in progress | none |
-| Next work order | **WO-67** - Payment schedules (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-68** - Stripe + Windcave live integration (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65/WO-66 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-67 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -86,7 +86,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-63 | `72fcd95` | Advisor dashboard Phase 2 panels | Proposal status/expiry panel, questionnaire optimisation candidates, and completed Phase 2 dashboard composition. |
 | WO-64 | `979c6d0` | Wellbeing monthly pulse analytics | Advisor wellbeing analytics, duplicate-safe raw low-coping observation, and Phase 2 coaching-boundary documentation. |
 | WO-65 | `5c0b1ee` | Goals & milestones tracker | Client-scoped goals, milestones, actions, proof-of-completion verification, PV-realised dashboard payloads/UI, and RLS coverage. |
-| WO-66 | this commit | Digital proposal sign-off flow | Seven-step portal sign-off, tokenised payment-authority capture, signed evidence, sign-off-only proposal status transitions, and RLS coverage. |
+| WO-66 | `195bd78` | Digital proposal sign-off flow | Seven-step portal sign-off, tokenised payment-authority capture, signed evidence, sign-off-only proposal status transitions, and RLS coverage. |
+| WO-67 | this commit | Payment schedules | Signed-proposal payment schedules, one-off/monthly cadence, authority revocation cascade, audit events, and RLS coverage. |
 
 ## Completed WO Details
 
@@ -659,15 +660,25 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover ordering, consent capture/revoke, gateway failure, no raw PAN persistence, portal payloads, replaced signature-state guard, and RLS isolation.
 - Architecture docs: `docs/architecture/proposals.md` and `docs/architecture/schema.md`.
 
+### WO-67 - Payment Schedules
+
+- Added client-scoped `payment_schedules` with cadence, amount, currency, next-run, status, revoke metadata, and RLS.
+- `PaymentSchedule` relates schedules to clients, proposals, and tokenised payment authorities.
+- `ScheduleBuilder` creates schedules only from signed proposals with active matching authorities, supports `one_off` and `monthly_retainer`, and defaults omitted amounts from proposal fee summary.
+- Authority revocation through `ScheduleBuilder::revokeAuthority()` marks the authority and its active/paused schedules revoked in one audited transaction.
+- Tests cover schedule creation, monthly cadence defaults, signed-proposal/authority guards, revoke cascade, audit writes, and RLS isolation.
+- Architecture docs: `docs/architecture/payments.md`, `docs/architecture/proposals.md`, and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65 and WO-66 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-67 targeted checks:
 
 ```pwsh
 composer test
 php artisan test tests\Feature\Goals\GoalTrackerTest.php
 php artisan test tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
 php artisan test tests\Feature\Reports\PracticeHealthReportTest.php tests\Feature\Advisor\DashboardPhaseTwoPanelsTest.php
+php artisan test tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -702,11 +713,20 @@ Results after WO-66:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 66 distinct WO commits (WO-01...WO-66) on `featureApp`.
 
+Results after WO-67:
+
+- `php artisan test tests\Feature\Payments\PaymentScheduleBuilderTest.php tests\Feature\Proposals\ProposalSignoffFlowTest.php` (PostgreSQL `futureshift_test`): passed - 11 tests, 77 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 67 distinct WO commits (WO-01...WO-67) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-66 complete; next is WO-67.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-67 complete; next is WO-68.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

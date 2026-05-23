@@ -126,6 +126,14 @@ final class Proposal extends Model
     }
 
     /**
+     * @return HasMany<PaymentSchedule>
+     */
+    public function paymentSchedules(): HasMany
+    {
+        return $this->hasMany(PaymentSchedule::class);
+    }
+
+    /**
      * @return BelongsTo<User, Proposal>
      */
     public function createdBy(): BelongsTo
