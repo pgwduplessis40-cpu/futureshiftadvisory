@@ -65,7 +65,10 @@ final class RatingFramework extends Model
 
     public function gradeFor(float $percentage): string
     {
-        foreach ($this->grade_bands ?: self::DEFAULT_GRADE_BANDS as $key => $band) {
+        $bands = collect($this->grade_bands ?: self::DEFAULT_GRADE_BANDS)
+            ->sortByDesc(fn (array $band): float => (float) ($band['min'] ?? 0));
+
+        foreach ($bands as $key => $band) {
             if ($percentage >= (float) ($band['min'] ?? 0)) {
                 return (string) $key;
             }

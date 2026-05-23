@@ -188,3 +188,27 @@ is never returned by the entrepreneur-visible payload.
 
 Framework criteria remain hidden while the founder is building. They become
 visible only after the assessment is finalised, ready for the report appendix.
+
+## WO-89 - Assessment Report and Concept PV
+
+`ReportComposer::composeEntrepreneurAssessment()` builds the founder assessment
+report through the shared `reports` and `report_sections` pipeline. WO-89 adds
+`entrepreneur_profile_id` to reports, report sections, and PV calculations, and
+relaxes `client_id` so entrepreneur-only reports do not need a synthetic client.
+RLS includes the same assigned-advisor / entrepreneur-user visibility used by
+the rest of the entrepreneur module.
+
+The report has four parts:
+
+1. Criterion scores with AI first-pass scores, advisor-adjusted scores where
+   present, document-support notation, and a data-quality indicator.
+2. Written feedback for each of the 11 criteria.
+3. Overall grade with an explicit rationale and concept PV projection.
+4. Prioritised improvement actions linked to NZ resources where active matches
+   exist.
+
+Concept PV is stored as `pv_calculations.type =
+entrepreneur_concept_projection` and linked back from
+`plan_assessments.concept_pv_calculation_id`. It is deliberately labelled as an
+indicative projection from draft-plan maturity, not a valuation or investment
+recommendation.

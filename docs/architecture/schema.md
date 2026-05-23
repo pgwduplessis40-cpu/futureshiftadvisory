@@ -735,7 +735,7 @@ Key columns:
 
 - `id` UUID primary key
 - `client_id`
-- `type` (`business_valuation`, `improvement_opportunity`, `risk_cost`)
+- `type` (`business_valuation`, `improvement_opportunity`, `risk_cost`, `entrepreneur_concept_projection`)
 - `discount_method` (`ocr_linked`, `industry_wacc`, `advisor_configured`, `client_inputted`)
 - `discount_rate`
 - `discount_rate_rationale`
@@ -1795,6 +1795,50 @@ Key columns:
 RLS joins through the entrepreneur-owned `business_plans` row and its
 `entrepreneur_profiles` owner. Advisor score adjustments feed governed
 `learning_updates` candidates and never auto-apply scoring changes.
+
+## WO-89 - Entrepreneur assessment reports
+
+WO-89 extends the shared report and PV tables for entrepreneur-owned assessment
+outputs.
+
+### `reports` / `report_sections`
+
+New nullable owner column:
+
+- `entrepreneur_profile_id`
+
+For entrepreneur reports, `client_id` may be null and
+`entrepreneur_profile_id` scopes the row. PostgreSQL constraints require at
+least one subject owner (`client_id` or `entrepreneur_profile_id`) to be
+present. RLS allows system/super-admin access, client-team access for
+client-scoped reports, and assigned-advisor / entrepreneur-user access for
+entrepreneur-scoped reports.
+
+`reports.type = entrepreneur_assessment` stores the assessment report metadata:
+
+- `business_plan_id`
+- `plan_assessment_id`
+- `assessment_round`
+- `rating_framework_id`
+- `overall_grade`
+- `weighted_score`
+- `concept_pv_calculation_id`
+- `concept_pv_present_value`
+
+`report_sections` stores four ordered sections: criterion score notation,
+criterion feedback, overall grade plus concept PV, and prioritised improvement
+actions.
+
+### `pv_calculations`
+
+New nullable owner column:
+
+- `entrepreneur_profile_id`
+
+WO-89 adds `type = entrepreneur_concept_projection` for draft-stage concept PV
+projections. These rows use advisor-configured conservative discount rates,
+persist the projected cash-flow assumptions in `inputs`, store discounted rows
+in `result`, and are linked from `plan_assessments.concept_pv_calculation_id`.
 
 ## WO-57 - Report engine
 

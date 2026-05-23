@@ -101,7 +101,7 @@ final class ReportComposerTest extends TestCase
             DB::statement('RESET ROLE');
 
             if ($this->connectionBypassesRls) {
-                DB::statement('REVOKE SELECT ON reports, report_sections FROM '.self::RLS_APP_ROLE);
+                DB::statement('REVOKE SELECT ON reports, report_sections, entrepreneur_profiles FROM '.self::RLS_APP_ROLE);
                 DB::statement('REVOKE USAGE ON SCHEMA public FROM '.self::RLS_APP_ROLE);
                 DB::statement('DROP ROLE IF EXISTS '.self::RLS_APP_ROLE);
             }
@@ -555,7 +555,7 @@ final class ReportComposerTest extends TestCase
             $$;
 
             GRANT USAGE ON SCHEMA public TO %1$s;
-            GRANT SELECT ON reports, report_sections TO %1$s;
+            GRANT SELECT ON reports, report_sections, entrepreneur_profiles TO %1$s;
         SQL, self::RLS_APP_ROLE));
     }
 

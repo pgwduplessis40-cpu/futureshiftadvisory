@@ -35,4 +35,12 @@ final class ReportSection extends Model
     {
         return $this->belongsTo(Client::class);
     }
+
+    /**
+     * @return BelongsTo<EntrepreneurProfile, ReportSection>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
 }

@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Reports;
 
 use App\Enums\AnalysisLens;
+use App\Enums\DiscountMethod;
 use App\Enums\FindingSeverity;
+use App\Enums\PvType;
 use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
 use App\Models\BusinessValuation;
@@ -16,7 +18,11 @@ use App\Models\DdRiskRegisterItem;
 use App\Models\DdValuation;
 use App\Models\DdWorkstream;
 use App\Models\FinancialSnapshot;
+use App\Models\NzResource;
+use App\Models\PlanAssessment;
 use App\Models\Proposal;
+use App\Models\PvCalculation;
+use App\Models\RatingFramework;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\RiskCost;
@@ -159,6 +165,90 @@ final class ReportComposer
             ]);
 
             return $report->refresh()->load('sections');
+        });
+    }
+
+    public function composeEntrepreneurAssessment(PlanAssessment $assessment, ?User $actor = null): Report
+    {
+        $assessment->loadMissing([
+            'businessPlan.entrepreneurProfile',
+            'businessPlan.sections',
+            'conceptPvCalculation',
+            'ratingFramework.criteria',
+        ]);
+
+        return DB::transaction(function () use ($assessment, $actor): Report {
+            $assessment = $assessment->refresh()->load([
+                'businessPlan.entrepreneurProfile',
+                'businessPlan.sections',
+                'conceptPvCalculation',
+                'ratingFramework.criteria',
+            ]);
+            $plan = $assessment->businessPlan;
+            $profile = $plan?->entrepreneurProfile;
+
+            if ($plan === null || $profile === null || $assessment->ratingFramework === null) {
+                throw new InvalidArgumentException('Entrepreneur assessment reports require a plan, profile, and rating framework.');
+            }
+
+            $criteria = $this->entrepreneurCriteriaRows($assessment);
+            $weightedScore = $this->weightedEntrepreneurScore($assessment->ratingFramework, $criteria);
+            $overallGrade = $assessment->ratingFramework->gradeFor($weightedScore);
+            $conceptPv = $assessment->conceptPvCalculation
+                ?: $this->createEntrepreneurConceptPv($assessment, $weightedScore, $overallGrade, $actor);
+
+            if ($assessment->overall_grade !== $overallGrade || $assessment->concept_pv_calculation_id !== $conceptPv->getKey()) {
+                $assessment->forceFill([
+                    'overall_grade' => $overallGrade,
+                    'concept_pv_calculation_id' => $conceptPv->getKey(),
+                ])->save();
+            }
+
+            $report = Report::query()->create([
+                'client_id' => $plan->client_id,
+                'entrepreneur_profile_id' => $profile->getKey(),
+                'type' => ReportType::EntrepreneurAssessment,
+                'title' => ReportType::EntrepreneurAssessment->label().' - '.$profile->name,
+                'generated_by_user_id' => $actor?->getKey(),
+                'generated_at' => now(),
+                'metadata' => [
+                    'phase' => 'phase_3',
+                    'business_plan_id' => $plan->getKey(),
+                    'plan_assessment_id' => $assessment->getKey(),
+                    'assessment_round' => $assessment->round,
+                    'rating_framework_id' => $assessment->rating_framework_id,
+                    'overall_grade' => $overallGrade,
+                    'weighted_score' => $weightedScore,
+                    'concept_pv_calculation_id' => $conceptPv->getKey(),
+                    'concept_pv_present_value' => data_get($conceptPv->result, 'present_value'),
+                    'redactions' => [],
+                ],
+                'review_status' => 'not_required',
+            ]);
+
+            foreach ($this->entrepreneurAssessmentSections($assessment->refresh(), $criteria, $weightedScore, $overallGrade, $conceptPv) as $position => $section) {
+                ReportSection::query()->create([
+                    ...$section,
+                    'report_id' => $report->getKey(),
+                    'client_id' => $plan->client_id,
+                    'entrepreneur_profile_id' => $profile->getKey(),
+                    'position' => $position + 1,
+                ]);
+            }
+
+            $this->renderAndStorePdf($report->refresh()->load(['client', 'entrepreneurProfile', 'sections']));
+
+            $this->audit->record('entrepreneur.assessment_report_generated', subject: $report, actor: $actor, after: [
+                'business_plan_id' => $plan->getKey(),
+                'plan_assessment_id' => $assessment->getKey(),
+                'overall_grade' => $overallGrade,
+                'weighted_score' => $weightedScore,
+                'concept_pv_calculation_id' => $conceptPv->getKey(),
+                'sections' => $report->sections()->count(),
+                'pdf_path' => $report->pdf_path,
+            ]);
+
+            return $report->refresh()->load(['entrepreneurProfile', 'sections']);
         });
     }
 
@@ -343,6 +433,404 @@ final class ReportComposer
             $this->ddRecommendationSection($engagement, $recommendation),
             $this->ddLiabilityDisclaimerSection($engagement),
         ];
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $criteria
+     * @return array<int, array<string, mixed>>
+     */
+    private function entrepreneurAssessmentSections(
+        PlanAssessment $assessment,
+        Collection $criteria,
+        float $weightedScore,
+        string $overallGrade,
+        PvCalculation $conceptPv,
+    ): array {
+        return [
+            $this->entrepreneurScoreSection($assessment, $criteria),
+            $this->entrepreneurFeedbackSection($assessment, $criteria),
+            $this->entrepreneurGradeSection($assessment, $weightedScore, $overallGrade, $conceptPv),
+            $this->entrepreneurActionsSection($assessment, $criteria),
+        ];
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function entrepreneurCriteriaRows(PlanAssessment $assessment): Collection
+    {
+        $framework = $assessment->ratingFramework;
+        $aiScores = collect($assessment->ai_scores ?? [])->keyBy(fn (array $score): int => (int) ($score['criterion_number'] ?? 0));
+        $advisorScores = collect($assessment->advisor_scores ?? [])->keyBy(fn (array $score): int => (int) ($score['criterion_number'] ?? 0));
+        $documentSupport = $this->entrepreneurDocumentSupport($assessment);
+
+        return $framework->criteria
+            ->map(function ($criterion) use ($aiScores, $advisorScores, $framework, $documentSupport): array {
+                $ai = $aiScores->get($criterion->number, []);
+                $advisor = $advisorScores->get($criterion->number);
+                $hasAdvisorScore = is_array($advisor) && is_numeric($advisor['score'] ?? null);
+                $score = $hasAdvisorScore ? (int) $advisor['score'] : (int) ($ai['score'] ?? 0);
+                $score = max(0, min(100, $score));
+
+                return [
+                    'criterion_id' => (string) $criterion->getKey(),
+                    'criterion_number' => $criterion->number,
+                    'criterion_name' => $criterion->name,
+                    'weight' => (float) $criterion->weight,
+                    'ai_score' => is_numeric($ai['score'] ?? null) ? (int) $ai['score'] : null,
+                    'advisor_score' => $hasAdvisorScore ? (int) $advisor['score'] : null,
+                    'score' => $score,
+                    'grade' => $framework instanceof RatingFramework ? $framework->gradeFor($score) : 'needs_work',
+                    'rationale' => $hasAdvisorScore
+                        ? 'Advisor adjustment: '.(string) ($advisor['note'] ?? 'No note recorded.')
+                        : (string) ($ai['rationale'] ?? 'First-pass assessment did not provide a rationale.'),
+                    'attributions' => $this->normalisedEntrepreneurAttributions((array) ($ai['attributions'] ?? []), (string) $criterion->getKey()),
+                    'document_support' => $documentSupport['support'],
+                    'document_support_note' => $documentSupport['note'],
+                    'data_quality_indicator' => $documentSupport['data_quality_indicator'],
+                ];
+            })
+            ->values();
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $criteria
+     */
+    private function entrepreneurScoreSection(PlanAssessment $assessment, Collection $criteria): array
+    {
+        $documentSupport = $this->entrepreneurDocumentSupport($assessment);
+        $body = $criteria
+            ->map(function (array $row): string {
+                $advisorNotation = $row['advisor_score'] === null
+                    ? 'advisor adjustment: none'
+                    : 'advisor adjustment: '.$row['advisor_score'].'/100';
+
+                return sprintf(
+                    '%02d. %s - final %d/100 (%s); AI first-pass %s; %s; document support: %s; data quality: %s.',
+                    $row['criterion_number'],
+                    $row['criterion_name'],
+                    $row['score'],
+                    $this->gradeLabel((string) $row['grade']),
+                    $row['ai_score'] === null ? 'n/a' : $row['ai_score'].'/100',
+                    $advisorNotation,
+                    $row['document_support_note'],
+                    $row['data_quality_indicator'],
+                );
+            })
+            ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'entrepreneur_criterion_scores',
+            title: 'Criterion scores and evidence notation',
+            body: $body,
+            sourceReference: 'plan_assessment:'.$assessment->getKey(),
+            documentSupport: $documentSupport['support'],
+            dataQualityNote: 'Data quality note: scores combine AI first-pass scoring, advisor adjustments where present, section document-support notation, and current draft-plan evidence.',
+            metadata: [
+                'criteria' => $criteria->values()->all(),
+                'assessment_round' => $assessment->round,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $criteria
+     */
+    private function entrepreneurFeedbackSection(PlanAssessment $assessment, Collection $criteria): array
+    {
+        $body = $criteria
+            ->map(fn (array $row): string => sprintf(
+                '%02d. %s: %s',
+                $row['criterion_number'],
+                $row['criterion_name'],
+                $row['rationale'],
+            ))
+            ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'entrepreneur_criterion_feedback',
+            title: 'Written feedback by criterion',
+            body: $body,
+            sourceReference: 'plan_assessment_feedback:'.$assessment->getKey(),
+            documentSupport: $this->entrepreneurDocumentSupport($assessment)['support'],
+            dataQualityNote: 'Data quality note: criterion feedback is intentionally direct and may identify gaps even where the draft is promising.',
+            metadata: [
+                'feedback_count' => $criteria->count(),
+            ],
+        );
+    }
+
+    private function entrepreneurGradeSection(
+        PlanAssessment $assessment,
+        float $weightedScore,
+        string $overallGrade,
+        PvCalculation $conceptPv,
+    ): array {
+        $gradeLabel = $this->gradeLabel($overallGrade);
+        $presentValue = (float) data_get($conceptPv->result, 'present_value', 0);
+        $readiness = match ($overallGrade) {
+            'exceptional' => 'The plan is ready for focused advisor-supported execution, subject to normal commercial validation.',
+            'strong' => 'The plan is close to ready; resolve the listed evidence gaps before relying on it for launch decisions.',
+            'developing' => 'The plan is directionally useful but not ready for launch without material revision and evidence.',
+            default => 'This plan is not ready for launch or advisory conversion yet; it needs clearer proof before commitment.',
+        };
+        $body = sprintf(
+            "Overall grade: %s (%0.2f/100 weighted).\nRationale: %s\nConcept PV projection: NZD %s present value using draft-stage cash-flow assumptions and a risk-adjusted discount rate of %0.1f%%.",
+            $gradeLabel,
+            $weightedScore,
+            $readiness,
+            number_format($presentValue, 0),
+            ((float) $conceptPv->discount_rate) * 100,
+        );
+
+        return $this->generatedSection(
+            key: 'entrepreneur_overall_grade',
+            title: 'Overall grade and concept PV',
+            body: $body,
+            sourceReference: 'plan_assessment_grade:'.$assessment->getKey(),
+            documentSupport: $this->entrepreneurDocumentSupport($assessment)['support'],
+            dataQualityNote: 'Data quality note: concept PV is a projection from plan maturity, not a valuation or investment recommendation.',
+            metadata: [
+                'overall_grade' => $overallGrade,
+                'overall_grade_label' => $gradeLabel,
+                'weighted_score' => $weightedScore,
+                'concept_pv_calculation_id' => $conceptPv->getKey(),
+                'concept_pv_present_value' => $presentValue,
+                'discount_rate' => $conceptPv->discount_rate,
+                'discount_method' => $conceptPv->discount_method?->value,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $criteria
+     */
+    private function entrepreneurActionsSection(PlanAssessment $assessment, Collection $criteria): array
+    {
+        $priorityRows = $criteria
+            ->sortBy('score')
+            ->take(4)
+            ->values();
+        $gapTags = $priorityRows
+            ->flatMap(fn (array $row): array => $this->criterionGapTags((string) $row['criterion_name']))
+            ->unique()
+            ->values()
+            ->all();
+        $resources = $this->entrepreneurResources($gapTags);
+        $resourceLines = $resources->isEmpty()
+            ? ['NZ resources: no matching active resources found for these gaps.']
+            : $resources
+                ->map(fn (NzResource $resource): string => sprintf('NZ resource: %s (%s)', $resource->title, $resource->url))
+                ->all();
+        $actions = $priorityRows
+            ->map(function (array $row, int $index) use ($resources): string {
+                $resource = $resources->get($index % max(1, $resources->count()));
+                $resourceText = $resource instanceof NzResource ? ' Use '.$resource->title.'.' : '';
+
+                return sprintf(
+                    '%d. Strengthen %s (current %d/100): add specific evidence, owner actions, dates, and decision criteria before treating this as launch-ready.%s',
+                    $index + 1,
+                    $row['criterion_name'],
+                    $row['score'],
+                    $resourceText,
+                );
+            })
+            ->all();
+
+        return $this->generatedSection(
+            key: 'entrepreneur_improvement_actions',
+            title: 'Prioritised improvement actions',
+            body: implode("\n", [...$actions, ...$resourceLines]),
+            sourceReference: 'plan_assessment_actions:'.$assessment->getKey(),
+            documentSupport: $this->entrepreneurDocumentSupport($assessment)['support'],
+            dataQualityNote: 'Data quality note: actions prioritise the lowest scoring criteria and cite NZ resource matches where available.',
+            metadata: [
+                'prioritised_criteria' => $priorityRows->pluck('criterion_number')->all(),
+                'gap_tags' => $gapTags,
+                'resources' => $resources->map(fn (NzResource $resource): array => [
+                    'id' => $resource->getKey(),
+                    'title' => $resource->title,
+                    'url' => $resource->url,
+                    'gap_tags' => $resource->gap_tags,
+                ])->values()->all(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, array<string, mixed>>  $criteria
+     */
+    private function weightedEntrepreneurScore(RatingFramework $framework, Collection $criteria): float
+    {
+        return round($criteria->sum(fn (array $row): float => ((float) $row['score']) * (((float) $row['weight']) / 100)), 2);
+    }
+
+    private function createEntrepreneurConceptPv(
+        PlanAssessment $assessment,
+        float $weightedScore,
+        string $overallGrade,
+        ?User $actor,
+    ): PvCalculation {
+        $assessment->loadMissing('businessPlan.entrepreneurProfile');
+        $plan = $assessment->businessPlan;
+        $discountRate = match ($overallGrade) {
+            'exceptional' => 0.14,
+            'strong' => 0.16,
+            'developing' => 0.21,
+            default => 0.28,
+        };
+        $annualOpportunity = round(max(0.0, ($weightedScore - 45.0) * 2400.0), 2);
+        $cashFlows = [
+            1 => round($annualOpportunity * 0.45, 2),
+            2 => round($annualOpportunity * 0.75, 2),
+            3 => round($annualOpportunity, 2),
+            4 => round($annualOpportunity * 1.12, 2),
+            5 => round($annualOpportunity * 1.22, 2),
+        ];
+        $discounted = $this->discountedRows($cashFlows, $discountRate);
+        $presentValue = round(collect($discounted)->sum('present_value'), 2);
+
+        return PvCalculation::query()->create([
+            'client_id' => $plan?->client_id,
+            'entrepreneur_profile_id' => $plan?->entrepreneur_profile_id,
+            'type' => PvType::EntrepreneurConceptProjection,
+            'discount_method' => DiscountMethod::AdvisorConfigured,
+            'discount_rate' => $discountRate,
+            'discount_rate_rationale' => 'Draft-stage concept PV uses a conservative risk-adjusted rate based on the assessment grade.',
+            'inputs' => [
+                'assessment_weighted_score' => $weightedScore,
+                'overall_grade' => $overallGrade,
+                'cash_flows' => collect($cashFlows)->map(fn (float $amount, int $period): array => [
+                    'period' => $period,
+                    'amount' => $amount,
+                ])->values()->all(),
+                'method_note' => 'Indicative concept projection from plan maturity; not a valuation.',
+            ],
+            'result' => [
+                'present_value' => $presentValue,
+                'discounted_cash_flows' => $discounted,
+                'data_quality_indicator' => 'draft_projection',
+            ],
+            'as_at' => now(),
+            'created_by_user_id' => $actor?->getKey(),
+            'source_attributions' => [
+                [
+                    'claim' => 'Concept PV derived from entrepreneur assessment weighted score.',
+                    'source_reference' => 'plan_assessment:'.$assessment->getKey(),
+                ],
+                [
+                    'claim' => 'Concept PV derived from current business plan draft.',
+                    'source_reference' => 'business_plan:'.$assessment->business_plan_id,
+                ],
+            ],
+        ]);
+    }
+
+    /**
+     * @param  array<int, float>  $cashFlows
+     * @return array<int, array{period:int,amount:float,present_value:float}>
+     */
+    private function discountedRows(array $cashFlows, float $discountRate): array
+    {
+        return collect($cashFlows)
+            ->map(fn (float $amount, int $period): array => [
+                'period' => $period,
+                'amount' => $amount,
+                'present_value' => round($amount / ((1 + $discountRate) ** $period), 2),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{support:string,note:string,data_quality_indicator:string}
+     */
+    private function entrepreneurDocumentSupport(PlanAssessment $assessment): array
+    {
+        $count = (int) data_get($assessment->document_support, 'attached_document_count', 0);
+        $support = $count > 0
+            ? AnalysisFinding::DOCUMENT_SUPPORT_VERIFIED
+            : AnalysisFinding::DOCUMENT_SUPPORT_NONE;
+
+        return [
+            'support' => $support,
+            'note' => $count > 0
+                ? "verified document evidence is linked ({$count} attachment(s))."
+                : 'no verified document support recorded for the scored sections.',
+            'data_quality_indicator' => $count > 0 ? 'document-supported draft' : 'draft-only evidence',
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $attributions
+     * @return array<int, array{claim:string,source_reference:string}>
+     */
+    private function normalisedEntrepreneurAttributions(array $attributions, string $criterionId): array
+    {
+        $normalised = collect($attributions)
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $item): array => [
+                'claim' => (string) ($item['claim'] ?? 'Criterion assessment source.'),
+                'source_reference' => (string) ($item['source_reference'] ?? ''),
+            ])
+            ->filter(fn (array $item): bool => $item['source_reference'] !== '')
+            ->values()
+            ->all();
+
+        if ($normalised !== []) {
+            return $normalised;
+        }
+
+        return [[
+            'claim' => 'Criterion assessment source.',
+            'source_reference' => 'rating_criterion:'.$criterionId,
+        ]];
+    }
+
+    /**
+     * @param  array<int, string>  $gapTags
+     * @return Collection<int, NzResource>
+     */
+    private function entrepreneurResources(array $gapTags): Collection
+    {
+        return NzResource::query()
+            ->where('active', true)
+            ->get()
+            ->filter(fn (NzResource $resource): bool => array_intersect($resource->gap_tags ?? [], $gapTags) !== [])
+            ->take(4)
+            ->values();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function criterionGapTags(string $criterionName): array
+    {
+        $name = strtolower($criterionName);
+
+        if (str_contains($name, 'legal') || str_contains($name, 'intellectual') || str_contains($name, 'means')) {
+            return ['legal'];
+        }
+
+        if (str_contains($name, 'industry') || str_contains($name, 'location') || str_contains($name, 'apart')) {
+            return ['market', 'demand'];
+        }
+
+        if (str_contains($name, 'goal') || str_contains($name, 'mission') || str_contains($name, 'vision') || str_contains($name, 'culture')) {
+            return ['strategy', 'foundation'];
+        }
+
+        return ['foundation'];
+    }
+
+    private function gradeLabel(string $grade): string
+    {
+        return match ($grade) {
+            'exceptional' => 'Exceptional',
+            'strong' => 'Strong',
+            'developing' => 'Developing',
+            default => 'Needs Work',
+        };
     }
 
     /**
@@ -1281,7 +1769,7 @@ final class ReportComposer
         $pdf = $this->renderer->render($this->html($report));
         $path = sprintf(
             'reports/%s/%s/%s-%s.pdf',
-            $report->client_id,
+            $this->reportSubjectKey($report),
             now()->format('Y/m'),
             Str::uuid(),
             $report->type->value,
@@ -1304,7 +1792,7 @@ final class ReportComposer
         $pptx = $this->pptx->render($report);
         $path = sprintf(
             'reports/%s/%s/%s-%s.pptx',
-            $report->client_id,
+            $this->reportSubjectKey($report),
             now()->format('Y/m'),
             Str::uuid(),
             $report->type->value,
@@ -1324,7 +1812,7 @@ final class ReportComposer
 
     private function html(Report $report): string
     {
-        $report->loadMissing(['client', 'sections']);
+        $report->loadMissing(['client', 'entrepreneurProfile', 'sections']);
         $sections = $report->sections
             ->sortBy('position')
             ->map(fn (ReportSection $section): string => $this->sectionHtml($section))
@@ -1361,9 +1849,18 @@ body { color: #17211b; font-family: Arial, sans-serif; font-size: 12px; line-hei
 HTML,
             $this->escape($report->title),
             $this->escape($report->type->label()),
-            $this->escape($report->client?->legal_name ?? 'Client'),
+            $this->escape($report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client'),
             $sections,
         );
+    }
+
+    private function reportSubjectKey(Report $report): string
+    {
+        if (is_string($report->client_id) && $report->client_id !== '') {
+            return $report->client_id;
+        }
+
+        return 'entrepreneur-'.$report->entrepreneur_profile_id;
     }
 
     private function sectionHtml(ReportSection $section): string

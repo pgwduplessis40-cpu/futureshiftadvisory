@@ -39,6 +39,14 @@ final class Report extends Model
     }
 
     /**
+     * @return BelongsTo<EntrepreneurProfile, Report>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
      * @return BelongsTo<User, Report>
      */
     public function generatedBy(): BelongsTo

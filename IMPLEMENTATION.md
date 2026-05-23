@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-88 complete; next: WO-89).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-89 complete; next: WO-90).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **89 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (25/37, WO-65...WO-88) |
+| Work orders complete | **90 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (26/37, WO-65...WO-89) |
 | Work orders in progress | none |
-| Next work order | **WO-89** - Entrepreneur assessment report (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-90** - Plan revision cycle (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-88 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-89 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -109,7 +109,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-86 | `cb889ed` | Entrepreneur plan document verification | Section attachments, entrepreneur document-verification RLS, verified-evidence score lift, discrepancy blocking, and verification coverage. |
 | WO-87a | `0185c9c` | Entrepreneur rating framework engine | Versioned rating framework, 11 placeholder criteria, grade bands, admin revisions, governed change queue, and production-ready status. |
 | WO-87b | `df268e6` | Entrepreneur founding rating values | Owner-value seed, complete descriptors, weights totalling 100, placeholders cleared, production-ready gate, and idempotency coverage. |
-| WO-88 | this commit | Entrepreneur plan assessment | First-pass scoring across 11 criteria, advisor adjustment notes, governed calibration candidates, mentor note visibility, and finalisation gate. |
+| WO-88 | `3568450` | Entrepreneur plan assessment | First-pass scoring across 11 criteria, advisor adjustment notes, governed calibration candidates, mentor note visibility, and finalisation gate. |
+| WO-89 | this commit | Entrepreneur assessment report | Four-part assessment report, advisor-adjusted score notation, grade thresholds, concept PV projection, NZ resource actions, and honest weak-plan tone. |
 
 ## Completed WO Details
 
@@ -925,9 +926,20 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover first-pass scoring, mandatory adjustment notes, governed learning candidate creation, private-note redaction, and criteria visibility.
 - Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
 
+### WO-89 - Entrepreneur Assessment Report
+
+- Extended `reports`, `report_sections`, and `pv_calculations` with nullable `entrepreneur_profile_id` ownership and RLS for entrepreneur/advisor visibility.
+- Added `ReportComposer::composeEntrepreneurAssessment()` using the shared report/PDF pipeline.
+- Assessment reports contain four ordered parts: criterion score notation, criterion feedback, overall grade plus concept PV, and prioritised improvement actions.
+- Criterion score notation includes AI first-pass scores, advisor-adjusted scores where present, document-support notes, and data-quality indicators.
+- Concept PV projections persist as `pv_calculations.type=entrepreneur_concept_projection` and link back through `plan_assessments.concept_pv_calculation_id`.
+- `RatingFramework::gradeFor()` now sorts grade bands by minimum threshold so PostgreSQL `jsonb` key ordering cannot change report grade outcomes.
+- Tests cover four-part composition, grade thresholds, concept PV persistence, notation presence, and honest weak-plan tone.
+- Architecture docs: `docs/architecture/entrepreneur-module.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-88 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-89 targeted checks:
 
 ```pwsh
 composer test
@@ -958,6 +970,7 @@ php artisan test tests\Feature\Entrepreneurs\PlanDocumentsTest.php tests\Feature
 php artisan test tests\Feature\Entrepreneurs\RatingFrameworkTest.php tests\Feature\Entrepreneurs\PlanDocumentsTest.php
 php artisan test tests\Feature\Entrepreneurs\FoundingRatingValuesTest.php tests\Feature\Entrepreneurs\RatingFrameworkTest.php
 php artisan test tests\Feature\Entrepreneurs\AssessmentTest.php tests\Feature\Entrepreneurs\FoundingRatingValuesTest.php tests\Feature\Entrepreneurs\PlanDocumentsTest.php
+php artisan test tests\Feature\Entrepreneurs\AssessmentReportTest.php tests\Feature\Entrepreneurs\AssessmentTest.php tests\Feature\Reports\ReportComposerTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -1199,11 +1212,20 @@ Results after WO-88:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 89 distinct WO commits (WO-01...WO-88) on `featureApp`.
 
+Results after WO-89:
+
+- `php artisan test tests\Feature\Entrepreneurs\AssessmentReportTest.php tests\Feature\Entrepreneurs\AssessmentTest.php tests\Feature\Reports\ReportComposerTest.php` (PostgreSQL `futureshift_test`): passed - 14 tests, 128 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 90 distinct WO commits (WO-01...WO-89) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-88 complete; next is WO-89.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-89 complete; next is WO-90.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

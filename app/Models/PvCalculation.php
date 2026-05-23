@@ -35,6 +35,14 @@ final class PvCalculation extends Model
     }
 
     /**
+     * @return BelongsTo<EntrepreneurProfile, PvCalculation>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
      * @return BelongsTo<User, PvCalculation>
      */
     public function createdBy(): BelongsTo
