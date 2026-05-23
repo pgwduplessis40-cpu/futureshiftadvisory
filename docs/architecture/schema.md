@@ -1522,6 +1522,54 @@ Key columns:
 Rows are ordered by day and always include a day-100 review action. Client-scoped
 RLS applies.
 
+## WO-81 - Post-acquisition advisory pipeline
+
+### `post_acquisition_migrations`
+
+Handoff ledger for converting a proceeding DD acquisition into its own advisory
+client.
+
+Key columns:
+
+- `id` UUID primary key
+- `dd_engagement_id`
+- `buyer_client_id`
+- `advisory_client_id`
+- `business_plan_id`
+- `dd_report_id`
+- `gap_questionnaire_response_id`
+- `proposal_id`
+- `migrated_document_ids`
+- `dd_pv_baseline`
+- `status`
+- `metadata`
+- `migrated_by_user_id`
+- `migrated_at`
+
+`dd_engagement_id` is unique so conversion is idempotent. RLS allows access
+through either the buyer client or the new advisory client.
+
+### `post_acquisition_gap` questionnaire
+
+WO-81 seeds version 1 of the `post_acquisition_gap` questionnaire. Conversion
+creates an unsubmitted `questionnaire_responses` row for the new advisory client,
+prefills DD-known answers, and records remaining question IDs on
+`post_acquisition_migrations.metadata.gap_questions_remaining`.
+
+### `documents`
+
+Migrated DD documents are copied into new advisory-client `documents` rows. The
+new rows use a `Sourced from DD - ...` filename prefix and keep the source DD
+document id, source stored path, DD engagement id, and workstream in
+`scanner_payload`.
+
+### `fee_calculations` / `proposals`
+
+The auto-generated draft proposal uses an outcome-based `fee_calculations` row
+with `inputs.source = due_diligence`, the DD report id, the latest DD valuation
+midpoint as `dd_pv_baseline`, and the DD risk-register PV total. `ProposalBuilder`
+then renders the normal proposal PDF for the new advisory client.
+
 ## WO-57 - Report engine
 
 ### `reports`

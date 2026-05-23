@@ -111,4 +111,12 @@ final class DdEngagement extends Model
     {
         return $this->hasMany(BusinessPlan::class);
     }
+
+    /**
+     * @return HasMany<PostAcquisitionMigration>
+     */
+    public function postAcquisitionMigrations(): HasMany
+    {
+        return $this->hasMany(PostAcquisitionMigration::class);
+    }
 }

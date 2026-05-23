@@ -4,7 +4,7 @@ WO-75 starts the DD track with onboarding, target isolation, the DD-specific
 questionnaire, and the standard liability disclaimer. WO-76 adds the DD virtual
 data room and tokenised guest upload. WO-77 runs the eight DD workstreams on the
 analysis spine. WO-78 adds DD valuation and FX normalisation. WO-79 adds the DD
-business-plan builder. WO-80 adds the DD report. Later WOs add post-acquisition
+business-plan builder. WO-80 adds the DD report. WO-81 adds post-acquisition
 conversion.
 
 ## Onboarding
@@ -170,3 +170,40 @@ the DD report with the standard legal/accounting review disclaimer.
 The 100-day integration plan is rebuilt from the ranked risk register and always
 includes a day-100 review action. Both new DD report tables are buyer-client
 scoped by RLS.
+
+## Post-Acquisition Conversion
+
+`App\Services\Dd\PostAcquisition` converts a DD engagement only after it has
+been marked `acquisition_proceeding`. The service is idempotent for a DD
+engagement and writes a `post_acquisition_migrations` handoff row linking:
+
+- the DD engagement
+- the buyer client
+- the new post-acquisition advisory client
+- the founding DD business plan, when present
+- the DD report
+- the post-acquisition gap questionnaire response
+- the generated proposal
+- migrated DD document IDs
+- the DD PV baseline
+
+The acquired business becomes its own `post_acquisition_advisory` client. Buyer
+team membership is copied with post-acquisition module access, and the acquired
+client stores `registry_sources.source_label = Sourced from DD`.
+
+DD data-room documents are copied into new `documents` rows for the advisory
+client. The migrated rows use a visible filename prefix (`Sourced from DD - ...`)
+and retain the source DD document id, source stored path, DD engagement id, and
+workstream in `scanner_payload`.
+
+WO-81 seeds a `post_acquisition_gap` questionnaire. Conversion creates an
+unsubmitted response for the new advisory client and pre-fills only DD-known
+questions: acquired-business details, inherited DD risks, and migrated document
+set. Remaining question ids are stored on the handoff metadata so the client
+only completes the gaps.
+
+The auto-generated proposal is a draft proposal for the new advisory client. Its
+outcome-based fee calculation stores `source = due_diligence`, the DD report id,
+the DD PV baseline from the latest DD valuation midpoint, and the PV-ranked DD
+risk total. This keeps the proposal unusually precise without treating FSA as a
+legal, tax, accounting, lending, or investment adviser.

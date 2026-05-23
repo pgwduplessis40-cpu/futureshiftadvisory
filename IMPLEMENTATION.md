@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-80 complete; next: WO-81).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-81 complete; next: WO-82).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **80 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (16/37, WO-65...WO-80) |
+| Work orders complete | **81 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (17/37, WO-65...WO-81) |
 | Work orders in progress | none |
-| Next work order | **WO-81** - Post-acquisition advisory pipeline (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-82** - Entrepreneur readiness assessment (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-80 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-81 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -100,7 +100,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-77 | `36f5c5a` | DD eight workstreams | Eight DD workstreams run on the analysis spine with scoped evidence gates, double-weighted verified documents, NZ register/statute checks, and per-workstream pause handling. |
 | WO-78 | `e64a553` | DD valuation + FX normalisation | DD wrapper over Phase 2 business valuation/PV, target-financial isolation, RBNZ FX normalisation to NZD, +/-10% sensitivity, and buyer negotiating position. |
 | WO-79 | `cd1267f` | DD business plan builder | Shared five-phase plan engine, DD findings auto-population, acquisition-proceeding completeness gate, founding advisory payload, owner XOR, and RLS coverage. |
-| WO-80 | this commit | DD report generation | DD report composer path, PV-ranked risk register, price-adjustment schedule, 100-day integration plan, recommendation logic, disclaimer, PDF/PPTX, and RLS coverage. |
+| WO-80 | `19711f1` | DD report generation | DD report composer path, PV-ranked risk register, price-adjustment schedule, 100-day integration plan, recommendation logic, disclaimer, PDF/PPTX, and RLS coverage. |
+| WO-81 | this commit | Post-acquisition advisory pipeline | Acquisition-proceeding conversion, advisory client creation, DD document migration labels, gap questionnaire prefill, DD-baseline proposal, and RLS coverage. |
 
 ## Completed WO Details
 
@@ -818,9 +819,21 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover report composition, disclaimer/PDF/PPTX output, PV ranking, price-adjustment metadata, recommendation paths, and RLS isolation.
 - Architecture docs: `docs/architecture/due-diligence.md` and `docs/architecture/schema.md`.
 
+### WO-81 - Post-Acquisition Advisory Pipeline
+
+- Added `post_acquisition_migrations` with buyer/advisory client RLS and idempotent `dd_engagement_id` uniqueness.
+- Added `PostAcquisitionMigration` model and `App\Services\Dd\PostAcquisition`.
+- Added `PostAcquisitionGapQuestionnaireSeeder` and seeded the `post_acquisition_gap` questionnaire in `DatabaseSeeder`.
+- Conversion requires `dd_engagements.status = acquisition_proceeding`, creates a new `post_acquisition_advisory` client, and links the founding DD business plan when present.
+- DD data-room documents are copied into new advisory-client document rows with `Sourced from DD` filename and scanner-payload labels.
+- The gap questionnaire response is prefilled from DD target details, ranked risks, and migrated document counts, leaving only gap questions unanswered.
+- The auto-generated draft proposal carries an outcome-based fee calculation with the DD valuation midpoint as the PV baseline and the DD risk-register PV total.
+- Tests cover profile migration, document labelling, gap prefill, proposal PV baseline, and RLS isolation.
+- Architecture docs: `docs/architecture/due-diligence.md` and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-80 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-81 targeted checks:
 
 ```pwsh
 composer test
@@ -842,6 +855,7 @@ php artisan test tests\Feature\Dd\DdWorkstreamRunnerTest.php tests\Feature\Dd\Dd
 php artisan test tests\Feature\Dd\DdValuationTest.php tests\Feature\Pv\BusinessValuationTest.php tests\Feature\Integration\EconomicIndicatorsTest.php
 php artisan test tests\Feature\Dd\DdPlanBuilderTest.php tests\Feature\Dd\DdWorkstreamRunnerTest.php tests\Feature\Dd\DdValuationTest.php
 php artisan test tests\Feature\Dd\DdReportTest.php tests\Feature\Reports\ReportComposerTest.php tests\Feature\Dd\DdValuationTest.php tests\Feature\Dd\DdWorkstreamRunnerTest.php
+php artisan test tests\Feature\Dd\PostAcquisitionTest.php tests\Feature\Dd\DdReportTest.php tests\Feature\Dd\DdPlanBuilderTest.php tests\Feature\Proposals\ProposalBuilderTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -1002,11 +1016,20 @@ Results after WO-80:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 80 distinct WO commits (WO-01...WO-80) on `featureApp`.
 
+Results after WO-81:
+
+- `php artisan test tests\Feature\Dd\PostAcquisitionTest.php tests\Feature\Dd\DdReportTest.php tests\Feature\Dd\DdPlanBuilderTest.php tests\Feature\Proposals\ProposalBuilderTest.php` (PostgreSQL `futureshift_test`): passed - 17 tests, 146 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 81 distinct WO commits (WO-01...WO-81) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-80 complete; next is WO-81.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-81 complete; next is WO-82.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
