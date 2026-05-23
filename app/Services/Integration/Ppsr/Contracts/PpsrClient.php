@@ -4,4 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Integration\Ppsr\Contracts;
 
-interface PpsrClient {}
+interface PpsrClient
+{
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function securityInterests(string $nzbn): array;
+}

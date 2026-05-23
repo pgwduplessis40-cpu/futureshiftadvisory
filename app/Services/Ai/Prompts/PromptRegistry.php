@@ -92,6 +92,13 @@ final class PromptRegistry
             body: 'Detect insurance coverage gaps from client evidence and uploaded certificates. Verify coverage type, amount, and expiry evidence. Return evidence-based insurance risk flags only.',
             task: 'analyse',
         );
+
+        $this->register(
+            id: 'analysis.dd_workstream',
+            version: '2026-05-wo77',
+            body: 'Analyse one due diligence workstream using the DD data-room evidence, double-weight verified document support, and New Zealand register/compliance checks. Return evidence-based findings only and cite every factual claim.',
+            task: 'analyse',
+        );
     }
 
     public function register(string $id, string $version, string $body, string $task = 'analyse'): void

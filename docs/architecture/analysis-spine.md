@@ -1,5 +1,12 @@
 # Analysis spine
 
+WO-77 adds a scoped DD adapter over the same spine. `AnalysisRunner` still
+enforces the document and data-quality gates by default, but it now accepts
+explicit skip options for callers that have already applied a narrower domain
+gate. The DD workstream runner uses those options only after checking the
+current workstream's data-room evidence, which lets one workstream pause for an
+accuracy discrepancy without blocking unrelated DD workstreams.
+
 WO-31 introduces the shared Phase 2 analysis pipeline. Every analysis module is an adapter into this spine instead of owning its own AI, data-quality, document-verification, or attribution rules.
 
 ## Storage contract

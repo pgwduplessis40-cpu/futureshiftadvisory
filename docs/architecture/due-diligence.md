@@ -2,8 +2,9 @@
 
 WO-75 starts the DD track with onboarding, target isolation, the DD-specific
 questionnaire, and the standard liability disclaimer. WO-76 adds the DD virtual
-data room and tokenised guest upload. Later WOs add workstreams, valuation, plan
-builder, report, and post-acquisition conversion.
+data room and tokenised guest upload. WO-77 runs the eight DD workstreams on the
+analysis spine. Later WOs add valuation, plan builder, report, and
+post-acquisition conversion.
 
 ## Onboarding
 
@@ -61,3 +62,31 @@ before scanning, runs virus scanning before persistence, and writes
 `dd.guest_upload_received` or `dd.guest_upload_rejected` audit events. Revoking a
 link sets `revoked_at` immediately, so later uploads fail before the scanner is
 called.
+
+## Workstreams
+
+`DdWorkstreamRunner` runs the eight DD workstreams through `AnalysisRunner` using
+the `dd_workstream` module value:
+
+- Financial
+- Valuation
+- Legal
+- Tax
+- Commercial / Market
+- Operational
+- HR / People
+- NZ Regulatory
+
+Each workstream reads only its own `dd_data_room_items` evidence. Verified
+documents are double-weighted (`2`) while clean, unverified documents count as
+`1`. An unresolved accuracy discrepancy in a workstream pauses that workstream
+before an analysis run is created. The DD runner intentionally uses a scoped
+document/data-quality gate so a discrepancy in Legal, for example, does not
+block Financial.
+
+NZ-specific checks are attached to relevant workstreams:
+
+- Legal / NZ Regulatory: PPSR, LINZ, and IPONZ fixtures/contracts
+- Tax / NZ Regulatory: IRD GST status
+- HR / People / NZ Regulatory: Holidays Act liability scaffold
+- Commercial / Market, Operational, NZ Regulatory: owner-dependency score

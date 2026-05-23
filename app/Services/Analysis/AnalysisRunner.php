@@ -41,27 +41,33 @@ final class AnalysisRunner
     ) {}
 
     /**
-     * @param  array{created_by_user_id?: int|string|null, actor?: Authenticatable|null}  $options
+     * @param  array{created_by_user_id?: int|string|null, actor?: Authenticatable|null, skip_document_gate?: bool, skip_data_quality_gate?: bool}  $options
      */
     public function run(Client $client, AnalysisModule $module, array $options = []): AnalysisRun
     {
         $score = $this->dataQuality->score($client);
         $run = $this->createRun($client, $module, $score, $options['created_by_user_id'] ?? null);
+        $skipDocumentGate = (bool) ($options['skip_document_gate'] ?? false);
+        $skipDataQualityGate = (bool) ($options['skip_data_quality_gate'] ?? false);
 
-        if ($score->level === Client::DATA_QUALITY_INSUFFICIENT) {
-            try {
-                $this->documents->ensureClear($client);
-            } catch (DocumentVerificationBlockedException $e) {
-                return $this->blockForDocuments($run, $e, $options['actor'] ?? null);
+        if ($score->level === Client::DATA_QUALITY_INSUFFICIENT && ! $skipDataQualityGate) {
+            if (! $skipDocumentGate) {
+                try {
+                    $this->documents->ensureClear($client);
+                } catch (DocumentVerificationBlockedException $e) {
+                    return $this->blockForDocuments($run, $e, $options['actor'] ?? null);
+                }
             }
 
             return $this->blockForDataQuality($run, $score, $options['actor'] ?? null);
         }
 
-        try {
-            $this->documents->ensureClear($client);
-        } catch (DocumentVerificationBlockedException $e) {
-            return $this->blockForDocuments($run, $e, $options['actor'] ?? null);
+        if (! $skipDocumentGate) {
+            try {
+                $this->documents->ensureClear($client);
+            } catch (DocumentVerificationBlockedException $e) {
+                return $this->blockForDocuments($run, $e, $options['actor'] ?? null);
+            }
         }
 
         try {

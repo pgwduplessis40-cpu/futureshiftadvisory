@@ -71,4 +71,12 @@ final class DdEngagement extends Model
     {
         return $this->hasMany(DdGuestLink::class);
     }
+
+    /**
+     * @return HasMany<DdWorkstream>
+     */
+    public function workstreams(): HasMany
+    {
+        return $this->hasMany(DdWorkstream::class);
+    }
 }

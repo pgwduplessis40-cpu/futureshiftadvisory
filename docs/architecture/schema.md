@@ -1351,6 +1351,34 @@ Client-scoped RLS applies. Guest uploads create rows only after the token is
 active, the file scan succeeds, and `SecureFileWriter` has persisted the
 document metadata.
 
+## WO-77 - DD workstreams
+
+### `dd_workstreams`
+
+Per-workstream DD analysis ledger. Each row links an acquisition workstream to
+its analysis-spine run and stores the scoped DD evidence/check summary used for
+that run.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `workstream` (`financial`, `valuation`, `legal`, `tax`, `commercial_market`, `operational`, `hr_people`, `nz_regulatory`)
+- `status` (`pending`, `running`, `completed`, `paused`, `failed`)
+- `analysis_run_id`
+- `data_room_item_ids`
+- `verification_weight`
+- `nz_checks`
+- `paused_reason`
+- `ran_by_user_id`
+- `ran_at`
+
+Client-scoped RLS applies. The DD runner pauses only the affected workstream
+when unresolved accuracy discrepancies appear in that workstream's data-room
+documents. Completed workstreams create `analysis_runs.module = dd_workstream`
+findings with attribution and double-weighted verified document support.
+
 ## WO-57 - Report engine
 
 ### `reports`

@@ -3,19 +3,19 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-76 complete; next: WO-77).
+**Phase:** 1 — Foundation **COMPLETE & VERIFIED** (30/30). Phase 2 — Intelligence **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach: **IN PROGRESS** (WO-65...WO-77 complete; next: WO-78).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **76 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (12/37, WO-65...WO-76) |
+| Work orders complete | **77 total** - Phase 1 (30/30) + Phase 2 (34/34, WO-31...WO-64) + Phase 3 (13/37, WO-65...WO-77) |
 | Work orders in progress | none |
-| Next work order | **WO-77** - DD eight workstreams (spine analysis + verification) (Phase 3; see `PLAN-PHASE3.md`) |
+| Next work order | **WO-78** - DD business valuation + FX normalisation (Phase 3; see `PLAN-PHASE3.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-76 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
+| Verification status | **Phase 2 reviewed & confirmed complete (2026-05-23).** WO-65...WO-77 targeted verification passed against PostgreSQL `futureshift_test`; Pint dirty check, ESLint, `tsc --noEmit`, and Prettier are green. |
 
 ## Commit Log
 
@@ -96,7 +96,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-73 | `bdd0548` | Coaching referral signal detection | Raw coaching signals mapped to advisor suggestions, dashboard panel, no auto-referrals, and governed calibration candidates only. |
 | WO-74 | `48d5256` | Referral conflict + consent wiring | Fresh conflict and active-consent send gate, referral consent grants/revokes, and consent-revocation withdrawal cascade. |
 | WO-75 | `88e330c` | DD onboarding + acquisition target | DD engagement onboarding, acquisition-target isolation, DD-specific questionnaire seed, conflict gate, advisor target panel, and liability disclaimer. |
-| WO-76 | this commit | DD virtual data room + guest upload | Workstream-scoped DD artifact ledger, token-only guest links, upload-only public endpoint, secure scan-before-store persistence, instant revocation, and audit coverage. |
+| WO-76 | `b28f32f` | DD virtual data room + guest upload | Workstream-scoped DD artifact ledger, token-only guest links, upload-only public endpoint, secure scan-before-store persistence, instant revocation, and audit coverage. |
+| WO-77 | this commit | DD eight workstreams | Eight DD workstreams run on the analysis spine with scoped evidence gates, double-weighted verified documents, NZ register/statute checks, and per-workstream pause handling. |
 
 ## Completed WO Details
 
@@ -771,9 +772,20 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 - Tests cover workstream/folder scoping, upload-only/no-view enforcement, scanner invocation, infected rejection, instant revoke, and DD audit events.
 - Architecture docs: `docs/architecture/due-diligence.md` and `docs/architecture/schema.md`.
 
+### WO-77 - DD Eight Workstreams
+
+- Added `dd_workstreams` with client-scoped RLS, workstream status, analysis-run link, evidence item IDs, verification weight, NZ checks, pause reason, and run metadata.
+- Added `DdWorkstreamRunner`, `DdWorkstreamModule`, `DdEvidenceAssembler`, and `DdNzCheckProvider`.
+- Added `AnalysisModule::DdWorkstream` and the `analysis.dd_workstream` prompt registration.
+- DD workstreams run through `AnalysisRunner` while using a scoped DD evidence gate so unresolved accuracy discrepancies pause only the affected workstream.
+- Verified DD documents are double-weighted; clean unverified documents count as single-weight evidence; findings cite DD engagement, data room item, document, and verification sources.
+- Filled PPSR, LINZ, and IPONZ contracts/fakes for DD legal checks; NZ checks also include IRD GST status, Holidays Act scaffold, and owner-dependency scoring.
+- Tests cover all eight workstreams, double-weighted document support, NZ-specific checks, filled register contracts, and per-workstream pause-on-discrepancy.
+- Architecture docs: `docs/architecture/due-diligence.md`, `docs/architecture/analysis-spine.md`, and `docs/architecture/schema.md`.
+
 ## Verification
 
-Latest local checks include the full WO-64 suite plus WO-65...WO-76 targeted checks:
+Latest local checks include the full WO-64 suite plus WO-65...WO-77 targeted checks:
 
 ```pwsh
 composer test
@@ -791,6 +803,7 @@ php artisan test tests\Feature\Panels\ReferralComplianceTest.php tests\Feature\P
 php artisan test tests\Feature\Proposals\ProposalSignoffFlowTest.php tests\Feature\Proposals\ProposalBuilderTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php
 php artisan test tests\Feature\Dd\DdOnboardingTest.php tests\Feature\Conflicts\ConflictDeclarerTest.php
 php artisan test tests\Feature\Dd\DdDataRoomTest.php tests\Feature\Dd\DdOnboardingTest.php tests\Unit\Storage\SecureFileWriterTest.php
+php artisan test tests\Feature\Dd\DdWorkstreamRunnerTest.php tests\Feature\Dd\DdDataRoomTest.php tests\Feature\Analysis\AnalysisRunnerTest.php tests\Feature\Integration\NzbnLookupTest.php
 vendor\bin\pint --dirty
 npm run lint:check
 npm run types:check
@@ -915,11 +928,20 @@ Results after WO-76:
 - `npm run format:check` (Prettier): passed.
 - Git history after this commit: 76 distinct WO commits (WO-01...WO-76) on `featureApp`.
 
+Results after WO-77:
+
+- `php artisan test tests\Feature\Dd\DdWorkstreamRunnerTest.php tests\Feature\Dd\DdDataRoomTest.php tests\Feature\Analysis\AnalysisRunnerTest.php tests\Feature\Integration\NzbnLookupTest.php` (PostgreSQL `futureshift_test`): passed - 17 tests, 205 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run lint:check` (ESLint): passed.
+- `npm run types:check` (`tsc --noEmit`): passed.
+- `npm run format:check` (Prettier): passed.
+- Git history after this commit: 77 distinct WO commits (WO-01...WO-77) on `featureApp`.
+
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-76 complete; next is WO-77.**
+**Phase 1 (WO-01...WO-30) and Phase 2 (WO-31...WO-64) are complete and verified. Phase 3 is in progress with WO-65...WO-77 complete; next is WO-78.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

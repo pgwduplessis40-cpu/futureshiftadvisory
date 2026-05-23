@@ -19,6 +19,7 @@ enum AnalysisModule: string
     case KnowledgeAssessment = 'knowledge_assessment';
     case Scenario = 'scenario';
     case Succession = 'succession';
+    case DdWorkstream = 'dd_workstream';
 
     /**
      * @return array<int, string>
