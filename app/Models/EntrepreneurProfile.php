@@ -8,6 +8,7 @@ use App\Enums\EntrepreneurStage;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class EntrepreneurProfile extends Model
 {
@@ -41,5 +42,13 @@ final class EntrepreneurProfile extends Model
     public function inviteToken(): BelongsTo
     {
         return $this->belongsTo(InviteToken::class);
+    }
+
+    /**
+     * @return HasMany<ReadinessAssessment>
+     */
+    public function readinessAssessments(): HasMany
+    {
+        return $this->hasMany(ReadinessAssessment::class);
     }
 }

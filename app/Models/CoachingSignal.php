@@ -22,6 +22,8 @@ final class CoachingSignal extends Model
 
     public const TYPE_CAREER_TRANSITION = 'career_transition';
 
+    public const TYPE_ENTREPRENEUR_PERSONAL_BARRIER = 'entrepreneur_personal_barrier';
+
     protected $guarded = [];
 
     protected $casts = [
@@ -35,6 +37,14 @@ final class CoachingSignal extends Model
     public function client(): BelongsTo
     {
         return $this->belongsTo(Client::class);
+    }
+
+    /**
+     * @return BelongsTo<EntrepreneurProfile, CoachingSignal>
+     */
+    public function entrepreneurProfile(): BelongsTo
+    {
+        return $this->belongsTo(EntrepreneurProfile::class);
     }
 
     /**

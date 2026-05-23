@@ -18,6 +18,7 @@ class DatabaseSeeder extends Seeder
             StandardAdvisoryQuestionnaireSeeder::class,
             DdSpecificQuestionnaireSeeder::class,
             PostAcquisitionGapQuestionnaireSeeder::class,
+            EntrepreneurReadinessQuestionnaireSeeder::class,
             UserSeeder::class,
         ]);
     }

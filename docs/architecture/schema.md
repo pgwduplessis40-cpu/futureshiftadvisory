@@ -1570,6 +1570,44 @@ with `inputs.source = due_diligence`, the DD report id, the latest DD valuation
 midpoint as `dd_pv_baseline`, and the DD risk-register PV total. `ProposalBuilder`
 then renders the normal proposal PDF for the new advisory client.
 
+## WO-82 - Entrepreneur readiness assessment
+
+### `entrepreneur_profiles`
+
+WO-82 retrofits row-level security onto the Phase 1 entrepreneur profile table.
+Visibility is granted to `super_admin`/`system`, the assigned advisor, or the
+linked entrepreneur user through `fsa_current_user_id()`.
+
+### `readiness_assessments`
+
+Stores a readiness assessment for an entrepreneur profile.
+
+Key columns:
+
+- `id` UUID primary key
+- `entrepreneur_profile_id`
+- `responses`
+- `score`
+- `outcome` (`ready`, `develop_first`, `not_yet`)
+- `personal_barriers`
+- `assessed_by_user_id`
+- `assessed_at`
+
+RLS joins through `entrepreneur_profiles`, so an unassigned advisor and a
+different entrepreneur user cannot read the row.
+
+### `coaching_signals`
+
+WO-82 adds nullable `entrepreneur_profile_id` support so Develop First readiness
+outcomes with personal barriers can store a raw coaching observation without
+creating a client-scoped signal. These rows retain `auto_referral = false`.
+
+### `entrepreneur_readiness` questionnaire
+
+The published version 1 questionnaire contains 16 readiness questions covering
+concept, customer, demand, founder capacity, resilience, runway, feedback
+readiness, support, and launch concerns.
+
 ## WO-57 - Report engine
 
 ### `reports`
