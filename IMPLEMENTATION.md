@@ -3,7 +3,7 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-23
-**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **not started** (next: WO-102).
+**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **not started** (next: WO-102).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
 ## Snapshot
@@ -15,7 +15,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | Next work order | **WO-102** — Activate the 32-layer learning engine (Phase 4; see `PLAN-PHASE4.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
-| Verification status | **Phase 3 structurally confirmed complete (2026-05-23):** 101/101 WO commits present; 84 migrations, 103 models, 119 feature-test files; Pint/ESLint/`tsc`/Prettier green; **0** `TODO`/`FIXME`/`dd()`/`dump()`/`console.log`. Full PHPUnit suite re-running against PostgreSQL `futureshift_test` to record the exact pass count (Phase 2 baseline was 293/2190; Phase 3 adds substantially). |
+| Verification status | **Phase 3 COMPLETE & VERIFIED — full green baseline (2026-05-23).** PHPUnit against PostgreSQL `futureshift_test`: **439 tests / 439 passed / 3370 assertions, 0 failures, 0 errors.** Pint, ESLint, `tsc --noEmit`, Prettier all green. 101/101 WO commits; 0 `TODO`/`FIXME`/`dd()`/`dump()`/`console.log`. Defects found during the first full run were fixed in `d56834c` (migration `down()` RLS-policy dependency, missing `document_expiry_reminders` table, missing `business_plans.living_plan_*` columns, two over-broad guard tests). |
 
 ## Commit Log
 

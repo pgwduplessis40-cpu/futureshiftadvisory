@@ -2,7 +2,7 @@
 
 **Source spec:** `docs/spec/Future_Shift_Advisory_App_Specification_v2.4.docx` (definitive, May 2026)
 **Plan scope:** Phase 4 (Months 9–12) — the final phase. Brings the platform to the complete V2.4 vision.
-**Predecessors:** Phase 1 (WO-01…30) and Phase 2 (WO-31…64) — **complete and full-suite-verified**; Phase 3 (WO-65…101) — **complete and structurally verified** (all WOs committed, services present, zero forbidden markers); the full PHPUnit run **and** the static-check re-confirmation are being recorded (see §3.0) and must be filled before WO-102. On `featureApp`.
+**Predecessors:** Phase 1 (WO-01…30), Phase 2 (WO-31…64), and Phase 3 (WO-65…101) — **all complete and full-suite-verified** on `featureApp` (Phase 3 green baseline: 439 tests / 3370 assertions, all static checks green — see §3.0).
 **Work orders:** WO-102 … WO-120 (continues the single global sequence).
 **Plan version:** 1.0
 
@@ -50,20 +50,25 @@ By end of Phase 4 the platform is the complete spec-V2.4 product.
 
 ---
 
-## 3.0 Phase 3 baseline
+## 3.0 Phase 3 verified baseline ✅ GREEN
 
-Phase 3 was reviewed and confirmed **structurally complete** before Phase 4 planning. The full-suite pass count is being recorded from an in-progress run and will be filled here before Phase 4 *implementation* starts (the starting gate is not "green" until this row is filled). Baseline; do not regress:
+Phase 3 is **complete and verified** — the full suite was run to a green baseline (2026-05-23). Do not regress:
 
 | Gate | Result at handoff |
 |---|---|
 | WO commits on `featureApp` | **101 / 101** (WO-01 … WO-101, incl. WO-87a/87b) ✅ |
+| PHPUnit suite (against PostgreSQL `futureshift_test`) | **439 tests / 439 passed / 3370 assertions — 0 failures, 0 errors** ✅ |
+| Pint · ESLint · `tsc --noEmit` · Prettier | all green ✅ |
 | Forbidden markers (`TODO`/`FIXME` in `app/`+`routes/`, `dd()`/`dump()`, `console.log`) | **0** ✅ |
-| Pint · ESLint · `tsc --noEmit` · Prettier | green at Phase 2 handoff; re-confirm at Phase 3 full-suite run ⏳ |
-| PHPUnit suite (against PostgreSQL `futureshift_test`) | **⏳ recording — run in progress** (Phase 2 baseline was 293/2190; Phase 3 adds substantially). **Fill the exact count here before starting WO-102.** |
 
 Inventory at handoff: 84 migrations · 103 models · 119 feature-test files · 53 controllers · `app/Services/{…,Dd,Goals,Learning,Panels,Payments,Plans,Testimonials,Voice}`.
 
-> **Running the suite locally** (unchanged): on standalone PostgreSQL, point the test connection at real credentials via the process environment (`DB_*` for `futureshift_test`) before `php artisan test`; `.env.testing` ships Herd defaults.
+The first full run surfaced 16 real defects (5 root causes) that were fixed in commit `d56834c` before declaring green: migration `down()` RLS-policy dependency on `pv_calculations`/`reports`/`report_sections`; missing `document_expiry_reminders` table (WO-100); missing `business_plans.living_plan_*` columns (WO-91); and two over-broad Phase 1 guard tests not updated for legitimate Phase 2/3 call sites (`IntegrityEnforcedTest` `->post(` scan; `UploadTest` SecureFileWriter scan).
+
+> **Running the suite locally — two gotchas learned the hard way:**
+> 1. **Use `vendor/bin/phpunit`, not `php artisan test`** — the artisan test wrapper hangs in this environment.
+> 2. **Raise PHP memory for a single full run:** `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. The default CLI `memory_limit=128M` OOMs at ~331 tests (PHPUnit accumulates memory across one process). Chunking by directory also works (each chunk is a fresh process). Set CI's `memory_limit` accordingly.
+> 3. On standalone PostgreSQL, supply real credentials via the process env (`DB_*` for `futureshift_test`); `.env.testing` ships Herd defaults. If a run is force-killed mid-migration, terminate orphaned `idle in transaction` backends on `futureshift_test` before re-running, or the next `migrate:fresh` blocks on their locks.
 
 **Carryover owner inputs that gate Phase 4 surfaces:** liboqs build toolchain + NZ-qualified crypto reviewer (PQC/HSM — WO-117/118/119); CloudHSM / Azure Dedicated HSM provisioning; Apple Developer + Google Play accounts (mobile — WO-115); Siri/Google Assistant developer setup (voice — WO-114); Employment Hero / Cin7 / Tradify API access (WO-113); NZ Exchange / industry-WACC data source (WO-116); legal + security audit firm engagement (WO-119); community/peer moderation policy + privacy counsel sign-off (WO-110/111). Tracked in §12.
 
