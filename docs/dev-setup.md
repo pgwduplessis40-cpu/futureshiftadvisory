@@ -116,6 +116,24 @@ composer dev      # starts server + queue listener + Vite concurrently
 
 Open `https://futureshiftadvisory.test`. If you see the starter page, you're ready.
 
+### PDF reports (Browsershot / Puppeteer)
+
+Report generation renders HTML to PDF with [Spatie Browsershot](https://github.com/spatie/browsershot), which drives a headless Chrome via Puppeteer. `npm install` pulls in the `puppeteer` package, but Puppeteer does **not** download a browser automatically in this repo — you must fetch both Chrome and the headless shell once:
+
+```pwsh
+npx puppeteer browsers install chrome
+npx puppeteer browsers install chrome-headless-shell
+```
+
+Without these you'll hit a `ProcessFailedException` (`Cannot find module 'puppeteer'` or `Could not find Chrome`) the first time you open a report. Verify the render path end-to-end:
+
+```pwsh
+php artisan tinker --execute="echo substr(app(App\Services\Pdf\PdfRenderer::class)->render('<h1>ok</h1>'), 0, 5);"
+# expect: %PDF-
+```
+
+If your Chrome lives in a non-default location, point at it via `config/services.php` (`services.browsershot.chrome_path`, `node_binary`, `npm_binary`).
+
 ---
 
 ## 5. Test loop
