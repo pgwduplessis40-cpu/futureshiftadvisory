@@ -267,15 +267,58 @@ final class DashboardController extends Controller
                     'severity' => $flag->severity,
                     'headline' => $flag->headline,
                     'detail' => $flag->detail,
+                    'trigger' => $this->redFlagTrigger($flag),
                     'surfaced_at' => $flag->surfaced_at?->toIso8601String(),
                     'acknowledged_at' => $flag->acknowledged_at?->toIso8601String(),
                     'acknowledge_url' => route('advisor.red-flags.acknowledge', $flag, absolute: false),
                     'resolve_url' => route('advisor.red-flags.resolve', $flag, absolute: false),
+                    'finding_url' => $this->redFlagFindingUrl($flag),
                     'client_url' => route('advisor.clients.show', $flag->client_id, absolute: false),
                 ])
                 ->values()
                 ->all(),
         ];
+    }
+
+    /**
+     * @return array{summary:string, source_reference:string}|null
+     */
+    private function redFlagTrigger(RedFlag $flag): ?array
+    {
+        $attributions = $flag->finding?->attributions ?? [];
+
+        foreach ($attributions as $attribution) {
+            if (! is_array($attribution)) {
+                continue;
+            }
+
+            $claim = trim((string) ($attribution['claim'] ?? ''));
+            $sourceReference = trim((string) ($attribution['source_reference'] ?? ''));
+
+            if ($claim !== '' && $sourceReference !== '') {
+                return [
+                    'summary' => $claim,
+                    'source_reference' => $sourceReference,
+                ];
+            }
+        }
+
+        return null;
+    }
+
+    private function redFlagFindingUrl(RedFlag $flag): ?string
+    {
+        $findingId = trim((string) ($flag->analysis_finding_id ?? ''));
+
+        if ($findingId === '') {
+            return null;
+        }
+
+        return route('advisor.clients.show', [
+            'client' => $flag->client_id,
+            'focus' => 'analysis',
+            'highlight' => $findingId,
+        ], absolute: false);
     }
 
     /**

@@ -182,10 +182,15 @@ type RedFlagsPayload = {
         severity: string;
         headline: string;
         detail: string;
+        trigger: {
+            summary: string;
+            source_reference: string;
+        } | null;
         surfaced_at: string | null;
         acknowledged_at: string | null;
         acknowledge_url: string;
         resolve_url: string;
+        finding_url: string | null;
         client_url: string;
     }>;
 };
@@ -1013,72 +1018,123 @@ function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
                 </p>
             ) : (
                 <div className="divide-y rounded-md border">
-                    {payload.items.map((flag) => (
-                        <article key={flag.id} className="space-y-3 p-3">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="min-w-0 space-y-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="destructive">
-                                            {formatLabel(flag.severity)}
-                                        </Badge>
-                                        <Badge variant="outline">
-                                            {formatLabel(flag.category)}
-                                        </Badge>
-                                        {flag.module && (
-                                            <Badge variant="secondary">
-                                                {formatLabel(flag.module)}
-                                            </Badge>
-                                        )}
-                                    </div>
-                                    <h3 className="text-sm font-medium">
-                                        {flag.headline}
-                                    </h3>
-                                    <div className="text-xs text-muted-foreground">
-                                        {flag.client_name ?? 'Client'} -{' '}
-                                        {formatDate(flag.surfaced_at)}
-                                    </div>
+                    {payload.items.map((flag) => {
+                        const openUrl = flag.finding_url ?? flag.client_url;
+
+                        return (
+                            <article key={flag.id} className="space-y-3 p-3">
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <InsightHoverCard
+                                        title={flag.headline}
+                                        rows={[
+                                            {
+                                                label: 'Risk',
+                                                value: flag.detail,
+                                                tone: 'negative',
+                                            },
+                                            {
+                                                label: 'Severity',
+                                                value: formatLabel(
+                                                    flag.severity,
+                                                ),
+                                                tone: 'negative',
+                                            },
+                                            {
+                                                label: 'Detected',
+                                                value: formatDate(
+                                                    flag.surfaced_at,
+                                                ),
+                                            },
+                                            {
+                                                label: 'Trigger',
+                                                value:
+                                                    flag.trigger?.summary ??
+                                                    'Source unavailable',
+                                                tone: flag.trigger
+                                                    ? 'default'
+                                                    : 'muted',
+                                            },
+                                        ]}
+                                        drillHref={
+                                            flag.finding_url ?? undefined
+                                        }
+                                        drillAriaLabel={`Open finding for ${flag.headline}`}
+                                        footer={
+                                            flag.trigger
+                                                ? `Source: ${flag.trigger.source_reference}`
+                                                : undefined
+                                        }
+                                    >
+                                        <button
+                                            type="button"
+                                            className="block min-w-0 space-y-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                        >
+                                            <span className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="destructive">
+                                                    {formatLabel(flag.severity)}
+                                                </Badge>
+                                                <Badge variant="outline">
+                                                    {formatLabel(flag.category)}
+                                                </Badge>
+                                                {flag.module && (
+                                                    <Badge variant="secondary">
+                                                        {formatLabel(
+                                                            flag.module,
+                                                        )}
+                                                    </Badge>
+                                                )}
+                                            </span>
+                                            <span className="block text-sm font-medium">
+                                                {flag.headline}
+                                            </span>
+                                            <span className="block text-xs text-muted-foreground">
+                                                {flag.client_name ?? 'Client'} -{' '}
+                                                {formatDate(flag.surfaced_at)}
+                                            </span>
+                                        </button>
+                                    </InsightHoverCard>
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href={openUrl}>Open</Link>
+                                    </Button>
                                 </div>
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={flag.client_url}>Open</Link>
-                                </Button>
-                            </div>
 
-                            <p className="line-clamp-3 text-sm text-muted-foreground">
-                                {flag.detail}
-                            </p>
+                                <p className="line-clamp-3 text-sm text-muted-foreground">
+                                    {flag.detail}
+                                </p>
 
-                            <div className="flex flex-wrap gap-2">
-                                {flag.acknowledged_at === null && (
+                                <div className="flex flex-wrap gap-2">
+                                    {flag.acknowledged_at === null && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={() =>
+                                                patch(flag.acknowledge_url)
+                                            }
+                                        >
+                                            <CheckCircle2
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Acknowledge
+                                        </Button>
+                                    )}
                                     <Button
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        onClick={() =>
-                                            patch(flag.acknowledge_url)
-                                        }
+                                        onClick={() => patch(flag.resolve_url)}
                                     >
                                         <CheckCircle2
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        Acknowledge
+                                        Resolve
                                     </Button>
-                                )}
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={() => patch(flag.resolve_url)}
-                                >
-                                    <CheckCircle2
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Resolve
-                                </Button>
-                            </div>
-                        </article>
-                    ))}
+                                </div>
+                            </article>
+                        );
+                    })}
                 </div>
             )}
         </section>

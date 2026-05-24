@@ -1393,6 +1393,16 @@ Results after WO-D02:
 - `npm run lint:check`: passed.
 - `npm run format:check`: passed.
 
+Results after WO-D03:
+
+- Red-flag rows now include sourced trigger context from `analysis_findings.attributions`, exact finding drill URLs, hover breakdowns, and highlighted-finding inclusion beyond the latest-20 client-page cap.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Dashboards/RedFlagDrillTest.php tests/Feature/Advisor/DashboardTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 4 tests, 106 assertions.
+- `php -l` passed for the changed PHP controller/test files.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
 ## Remaining Work
 
 **Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**
