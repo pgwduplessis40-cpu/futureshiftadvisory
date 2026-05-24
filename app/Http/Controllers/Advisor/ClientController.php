@@ -29,6 +29,7 @@ use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
+use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
@@ -185,7 +186,7 @@ final class ClientController extends Controller
         return to_route('advisor.clients.show', $client)->with('status', 'client-created');
     }
 
-    public function show(Request $request, Client $client): Response
+    public function show(Request $request, Client $client, PaymentStatusReport $payments): Response
     {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
@@ -219,6 +220,7 @@ final class ClientController extends Controller
                 'engagement_type_locked' => $client->engagementTypeIsLocked(),
                 'offboarding' => $this->offboardingSummary($client),
                 'accounting' => $this->accountingSummary($client),
+                'payments' => $payments->forClient($client),
                 'analysis_findings' => $this->analysisFindingSummaries($client, $request->query('highlight')),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),

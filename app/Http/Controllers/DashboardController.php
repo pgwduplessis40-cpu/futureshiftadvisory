@@ -26,6 +26,7 @@ use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
+use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Panels\Coach\SignalDetector;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -50,6 +51,7 @@ final class DashboardController extends Controller
         TermsAcceptanceGate $termsGate,
         ClientEngagementScorer $engagementScorer,
         EconomicExposureMapper $economicExposure,
+        PaymentStatusReport $paymentStatus,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -72,7 +74,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
         }
 
         return Inertia::render('dashboard');
@@ -86,6 +88,7 @@ final class DashboardController extends Controller
         TermsAcceptanceGate $termsGate,
         ClientEngagementScorer $engagementScorer,
         EconomicExposureMapper $economicExposure,
+        PaymentStatusReport $paymentStatus,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -103,6 +106,7 @@ final class DashboardController extends Controller
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
             'economicIndicators' => $this->economicIndicators($clientIds, $economicExposure),
+            'paymentStatus' => $paymentStatus->forClientIds($clientIds),
             'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
             'practiceHealth' => $practiceHealth->forClientIds($clientIds),
             'proposalStatus' => $this->proposalStatus($clientIds),

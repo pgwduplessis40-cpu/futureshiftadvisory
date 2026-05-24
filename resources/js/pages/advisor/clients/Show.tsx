@@ -5,6 +5,7 @@ import {
     Brain,
     CalendarClock,
     CheckCircle2,
+    CreditCard,
     Download,
     FileCheck2,
     FileText,
@@ -63,6 +64,7 @@ type ClientDetail = ClientSummary & {
     registry_sources: Record<string, string>;
     engagement_type_locked: boolean;
     accounting: AccountingPayload;
+    payments: PaymentSummary[];
     created_at: string | null;
     analysis_findings: AnalysisFindingFeedback[];
     due_diligence: DueDiligenceSummary | null;
@@ -169,6 +171,23 @@ type AccountingConnectionSummary = {
     pull_url: string;
     revoke_url: string;
     latest_snapshot: FinancialSnapshotSummary | null;
+};
+
+type PaymentSummary = {
+    id: string;
+    client_id: string;
+    client_name: string | null;
+    status: string;
+    amount: number;
+    currency: string;
+    processed_at: string | null;
+    failed_reason: string | null;
+    attempt: number;
+    automatic_next_retry_at: string | null;
+    manual_retry_available: boolean;
+    retry_url: string;
+    drill_url: string;
+    contact_url: string;
 };
 
 type DueDiligenceSummary = {
@@ -570,6 +589,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 <GoalsPanel client={client} />
 
                 <AccountingConnectionsPanel client={client} />
+
+                <PaymentsPanel client={client} />
 
                 <ProposalsPanel client={client} />
 
@@ -1376,6 +1397,131 @@ function AccountingConnectionsPanel({ client }: { client: ClientDetail }) {
                                                 {formatMetric(value)}
                                             </Badge>
                                         ))}
+                                </div>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function PaymentsPanel({ client }: { client: ClientDetail }) {
+    const retryPayment = (payment: PaymentSummary) => {
+        if (!payment.manual_retry_available) {
+            return;
+        }
+
+        router.post(payment.retry_url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section
+            id="section-payments"
+            className="space-y-4 rounded-md border p-4"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <CreditCard className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Payments</h2>
+                </div>
+                <Badge variant="outline">{client.payments.length}</Badge>
+            </div>
+
+            {client.payments.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No payments recorded yet.
+                </p>
+            ) : (
+                <div className="space-y-3">
+                    {client.payments.map((payment) => (
+                        <article
+                            key={payment.id}
+                            id={payment.id}
+                            className="space-y-3 rounded-md border p-3"
+                        >
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div className="space-y-1">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h3 className="text-sm font-medium">
+                                            {formatMoney(
+                                                payment.amount,
+                                                payment.currency,
+                                            )}
+                                        </h3>
+                                        <Badge
+                                            variant={paymentStatusVariant(
+                                                payment.status,
+                                            )}
+                                        >
+                                            {formatLabel(payment.status)}
+                                        </Badge>
+                                        <Badge variant="outline">
+                                            Attempt {payment.attempt}
+                                        </Badge>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Processed{' '}
+                                        {formatDate(payment.processed_at)}
+                                    </div>
+                                </div>
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href={payment.contact_url}>
+                                            <Mail
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Contact
+                                        </Link>
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={
+                                            !payment.manual_retry_available
+                                        }
+                                        onClick={() => retryPayment(payment)}
+                                    >
+                                        <RotateCcw
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Retry
+                                    </Button>
+                                </div>
+                            </div>
+
+                            <dl className="grid gap-2 text-sm md:grid-cols-3">
+                                <Metric
+                                    label="Amount"
+                                    value={formatMoney(
+                                        payment.amount,
+                                        payment.currency,
+                                    )}
+                                />
+                                <Metric
+                                    label="Next retry"
+                                    value={formatDate(
+                                        payment.automatic_next_retry_at,
+                                    )}
+                                />
+                                <Metric
+                                    label="Retry"
+                                    value={
+                                        payment.manual_retry_available
+                                            ? 'available'
+                                            : 'unavailable'
+                                    }
+                                />
+                            </dl>
+
+                            {payment.failed_reason && (
+                                <div className="rounded-md border bg-muted/20 p-3 text-sm text-muted-foreground">
+                                    {payment.failed_reason}
                                 </div>
                             )}
                         </article>
@@ -2523,6 +2669,15 @@ function formatCurrency(value: number) {
     }).format(value);
 }
 
+function formatMoney(value: number, currency: string) {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+    }).format(value);
+}
+
 function formatBytes(value: number | null) {
     if (!value) {
         return '-';
@@ -2615,6 +2770,20 @@ function proposalStatusVariant(
     }
 
     if (status === 'released' || status === 'renewed') {
+        return 'secondary';
+    }
+
+    return 'outline';
+}
+
+function paymentStatusVariant(
+    status: string,
+): 'secondary' | 'destructive' | 'outline' {
+    if (status === 'failed') {
+        return 'destructive';
+    }
+
+    if (status === 'retrying' || status === 'succeeded') {
         return 'secondary';
     }
 

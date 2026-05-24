@@ -1433,6 +1433,17 @@ Results after WO-D06:
 - `npm run lint:check`: passed.
 - `npm run format:check`: passed.
 
+Results after WO-D07:
+
+- The advisor dashboard now has a failed-payment panel backed by a latest-payment-per-schedule read model; client records have a payment section with Contact and guarded Retry actions.
+- Manual retry is a one-shot advisor override on the schedule, with latest-payment, status, schedule, authority, advisor-role, and client-scope guards; successful paused recurring retries reactivate the schedule.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Payments/PaymentProcessingTest.php tests/Feature/Payments/PaymentStatusSurfaceTest.php tests/Feature/Advisor/DashboardTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 12 tests, 191 assertions.
+- `php -l` passed for the changed payment service/controller/test files.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
 ## Remaining Work
 
 **Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**

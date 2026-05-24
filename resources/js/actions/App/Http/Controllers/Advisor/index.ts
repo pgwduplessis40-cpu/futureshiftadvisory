@@ -11,6 +11,7 @@ import ClientMessageController from './ClientMessageController'
 import AccountingConnectionController from './AccountingConnectionController'
 import TestimonialController from './TestimonialController'
 import VoiceNoteController from './VoiceNoteController'
+import PaymentController from './PaymentController'
 import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
 import KnowledgeController from './KnowledgeController'
@@ -33,6 +34,7 @@ ClientMessageController: Object.assign(ClientMessageController, ClientMessageCon
 AccountingConnectionController: Object.assign(AccountingConnectionController, AccountingConnectionController),
 TestimonialController: Object.assign(TestimonialController, TestimonialController),
 VoiceNoteController: Object.assign(VoiceNoteController, VoiceNoteController),
+PaymentController: Object.assign(PaymentController, PaymentController),
 BriefingController: Object.assign(BriefingController, BriefingController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
 KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),

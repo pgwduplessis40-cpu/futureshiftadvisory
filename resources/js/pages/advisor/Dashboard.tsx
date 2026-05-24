@@ -5,6 +5,7 @@ import {
     BarChart3,
     CheckCircle2,
     Clock,
+    CreditCard,
     FileText,
     HeartHandshake,
     HeartPulse,
@@ -296,6 +297,30 @@ type ProposalStatusPayload = {
     }>;
 };
 
+type PaymentStatusPayload = {
+    summary: {
+        failed: number;
+        retrying: number;
+        retryable: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        status: string;
+        amount: number;
+        currency: string;
+        processed_at: string | null;
+        failed_reason: string | null;
+        attempt: number;
+        automatic_next_retry_at: string | null;
+        manual_retry_available: boolean;
+        retry_url: string;
+        drill_url: string;
+        contact_url: string;
+    }>;
+};
+
 type ScenarioPlanningPayload = {
     summary: {
         scenarios: number;
@@ -412,6 +437,7 @@ type Props = {
     pvWaterfall: PvWaterfallPayload;
     practiceHealth: PracticeHealthPayload;
     proposalStatus: ProposalStatusPayload;
+    paymentStatus: PaymentStatusPayload;
     questionnaireOptimisation: QuestionnaireOptimisationPayload;
     wellbeingAnalytics: WellbeingAnalyticsPayload;
     coachSignals: CoachSignalsPayload;
@@ -430,6 +456,7 @@ export default function AdvisorDashboard({
     pvWaterfall,
     practiceHealth,
     proposalStatus,
+    paymentStatus,
     questionnaireOptimisation,
     wellbeingAnalytics,
     coachSignals,
@@ -498,6 +525,7 @@ export default function AdvisorDashboard({
 
                 <div className="grid gap-4 xl:grid-cols-3">
                     <ProposalStatusPanel payload={proposalStatus} />
+                    <PaymentStatusPanel payload={paymentStatus} />
                     <ProspectInbox payload={prospectInbox} />
                     <EconomicIndicators payload={economicIndicators} />
                 </div>
@@ -581,6 +609,125 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
                                 <Link href={proposal.client_url}>Open</Link>
                             </Button>
                         </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <CreditCard className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Payments</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.failed > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.failed} failed
+                    </Badge>
+                    <Badge variant="secondary">
+                        {payload.summary.retryable} retryable
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No failed or retrying payments.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((payment) => (
+                        <article
+                            key={payment.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                        >
+                            <InsightHoverCard
+                                title={payment.client_name ?? 'Client payment'}
+                                rows={[
+                                    {
+                                        label: 'Amount',
+                                        value: formatMoney(
+                                            payment.amount,
+                                            payment.currency,
+                                        ),
+                                    },
+                                    {
+                                        label: 'Processed',
+                                        value: formatDate(payment.processed_at),
+                                    },
+                                    {
+                                        label: 'Failure reason',
+                                        value:
+                                            payment.failed_reason ??
+                                            'Not recorded',
+                                        tone: payment.failed_reason
+                                            ? 'negative'
+                                            : 'muted',
+                                    },
+                                    {
+                                        label: 'Attempt',
+                                        value: `#${payment.attempt}`,
+                                    },
+                                    {
+                                        label: 'Next retry',
+                                        value: formatDate(
+                                            payment.automatic_next_retry_at,
+                                        ),
+                                        tone: payment.automatic_next_retry_at
+                                            ? 'default'
+                                            : 'muted',
+                                    },
+                                ]}
+                                drillHref={payment.drill_url}
+                                drillAriaLabel={`Open payment record for ${payment.client_name ?? 'client'}`}
+                                footer={
+                                    payment.manual_retry_available
+                                        ? 'Manual retry available'
+                                        : 'Retry unavailable'
+                                }
+                            >
+                                <button
+                                    type="button"
+                                    className="min-w-0 space-y-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                >
+                                    <span className="flex flex-wrap items-center gap-2">
+                                        <Badge
+                                            variant={paymentStatusVariant(
+                                                payment.status,
+                                            )}
+                                        >
+                                            {formatLabel(payment.status)}
+                                        </Badge>
+                                        <span className="text-sm font-medium">
+                                            {formatMoney(
+                                                payment.amount,
+                                                payment.currency,
+                                            )}
+                                        </span>
+                                    </span>
+                                    <span className="block truncate text-sm">
+                                        {payment.client_name ?? 'Client'}
+                                    </span>
+                                    <span className="block text-xs text-muted-foreground">
+                                        Attempt {payment.attempt} -{' '}
+                                        {formatDate(payment.processed_at)}
+                                    </span>
+                                </button>
+                            </InsightHoverCard>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={payment.drill_url}>Open</Link>
+                            </Button>
+                        </article>
                     ))}
                 </div>
             )}
@@ -1856,12 +2003,7 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
 }
 
 function UpcomingPanels() {
-    const panels = [
-        'Payments',
-        'Broker referrals',
-        'Coach referrals',
-        'Learning queue',
-    ];
+    const panels = ['Broker referrals', 'Coach referrals', 'Learning queue'];
 
     return (
         <section className="space-y-3 rounded-md border bg-background p-4">
@@ -1911,6 +2053,20 @@ function formatLabel(value: string): string {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function paymentStatusVariant(
+    status: string,
+): 'default' | 'secondary' | 'outline' | 'destructive' {
+    if (status === 'failed') {
+        return 'destructive';
+    }
+
+    if (status === 'retrying') {
+        return 'secondary';
+    }
+
+    return 'outline';
 }
 
 function healthVariant(
@@ -1967,6 +2123,15 @@ function formatCurrency(value: number): string {
         style: 'currency',
         currency: 'NZD',
         maximumFractionDigits: 0,
+    }).format(value);
+}
+
+function formatMoney(value: number, currency: string): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
     }).format(value);
 }
 

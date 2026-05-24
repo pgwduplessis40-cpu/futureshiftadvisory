@@ -6,6 +6,7 @@ namespace App\Services\Payments;
 
 use App\Models\ClientTeamMember;
 use App\Models\Payment;
+use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
 use App\Models\User;
 use App\Notifications\PaymentFailedNotification;
@@ -14,6 +15,7 @@ use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
+use InvalidArgumentException;
 
 final class PaymentProcessor
 {
@@ -56,13 +58,44 @@ final class PaymentProcessor
     }
 
     /**
+     * A manual retry is a single advisor-requested override attempt. It does
+     * not loop and it does not apply the automatic max-attempt cap.
+     *
      * @param  array<string, mixed>  $chargeMetadata
      * @return array{status:'succeeded'|'retrying'|'failed', receipt:bool}
      */
-    private function processSchedule(PaymentSchedule $schedule, CarbonInterface $now, array $chargeMetadata): array
-    {
-        return DB::transaction(function () use ($schedule, $now, $chargeMetadata): array {
+    public function retrySchedule(
+        PaymentSchedule $schedule,
+        ?CarbonInterface $now = null,
+        ?User $actor = null,
+        array $chargeMetadata = [],
+    ): array {
+        $now ??= now();
+        $schedule = $schedule->refresh()->loadMissing(['paymentAuthority', 'proposal', 'client']);
+
+        $this->assertManualRetryableSchedule($schedule);
+        $this->audit->record('payment.retry_requested', subject: $schedule, actor: $actor, after: [
+            'payment_schedule_id' => $schedule->getKey(),
+            'status' => $schedule->status,
+        ]);
+
+        return $this->processSchedule($schedule, $now, $chargeMetadata, $actor, reactivatePausedOnSuccess: true);
+    }
+
+    /**
+     * @param  array<string, mixed>  $chargeMetadata
+     * @return array{status:'succeeded'|'retrying'|'failed', receipt:bool}
+     */
+    private function processSchedule(
+        PaymentSchedule $schedule,
+        CarbonInterface $now,
+        array $chargeMetadata,
+        ?User $actor = null,
+        bool $reactivatePausedOnSuccess = false,
+    ): array {
+        return DB::transaction(function () use ($schedule, $now, $chargeMetadata, $actor, $reactivatePausedOnSuccess): array {
             $schedule = $schedule->refresh()->loadMissing(['paymentAuthority', 'proposal', 'client']);
+            $wasPaused = $schedule->status === PaymentSchedule::STATUS_PAUSED;
             $attempt = ((int) Payment::query()
                 ->where('payment_schedule_id', $schedule->getKey())
                 ->max('attempt')) + 1;
@@ -86,7 +119,7 @@ final class PaymentProcessor
                         'payment_schedule_id' => $schedule->getKey(),
                         ...$chargeMetadata,
                     ],
-                ]);
+                ], $actor);
 
                 $payment->forceFill([
                     'gateway' => $charge->gateway,
@@ -98,6 +131,12 @@ final class PaymentProcessor
                 ])->save();
 
                 $this->advanceSchedule($schedule, $now);
+                if ($reactivatePausedOnSuccess && $wasPaused && $schedule->cadence !== PaymentSchedule::CADENCE_ONE_OFF) {
+                    $schedule->forceFill([
+                        'status' => PaymentSchedule::STATUS_ACTIVE,
+                    ])->save();
+                }
+
                 $receipt = $this->receipts->create($payment->refresh());
                 $this->audit->record('payment.succeeded', subject: $payment, after: [
                     'payment_schedule_id' => $schedule->getKey(),
@@ -105,7 +144,7 @@ final class PaymentProcessor
                     'gateway_ref' => $charge->gatewayRef,
                     'failover_from' => $charge->failoverFrom,
                     'receipt_id' => $receipt->getKey(),
-                ]);
+                ], actor: $actor);
 
                 return ['status' => 'succeeded', 'receipt' => true];
             } catch (PaymentGatewayException $e) {
@@ -125,7 +164,7 @@ final class PaymentProcessor
                     'status' => $status,
                     'attempt' => $attempt,
                     'failed_reason' => $payment->failed_reason,
-                ]);
+                ], actor: $actor);
                 $this->notifyFailure($payment->refresh()->loadMissing('client'));
 
                 return ['status' => $status === Payment::STATUS_RETRYING ? 'retrying' : 'failed', 'receipt' => false];
@@ -209,6 +248,19 @@ final class PaymentProcessor
         }
 
         Notification::send($recipients, new PaymentFailedNotification($payment));
+    }
+
+    private function assertManualRetryableSchedule(PaymentSchedule $schedule): void
+    {
+        if (! in_array($schedule->status, [PaymentSchedule::STATUS_ACTIVE, PaymentSchedule::STATUS_PAUSED], true)) {
+            throw new InvalidArgumentException('Payment schedule is not eligible for manual retry.');
+        }
+
+        $authority = $schedule->paymentAuthority;
+
+        if (! $authority instanceof PaymentAuthority || $authority->status !== PaymentAuthority::STATUS_ACTIVE || $authority->revoked_at !== null) {
+            throw new InvalidArgumentException('Payment authority is not eligible for manual retry.');
+        }
     }
 
     private function maxAttempts(): int

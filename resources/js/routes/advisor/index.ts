@@ -1,4 +1,5 @@
 import clients from './clients'
+import payments from './payments'
 import proposals from './proposals'
 import goals from './goals'
 import milestones from './milestones'
@@ -15,6 +16,7 @@ import testimonials from './testimonials'
 import bulkCommunications from './bulk-communications'
 const advisor = {
     clients: Object.assign(clients, clients),
+payments: Object.assign(payments, payments),
 proposals: Object.assign(proposals, proposals),
 goals: Object.assign(goals, goals),
 milestones: Object.assign(milestones, milestones),

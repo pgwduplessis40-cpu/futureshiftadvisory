@@ -18,6 +18,7 @@ use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
 use App\Http\Controllers\Advisor\OffboardingController;
+use App\Http\Controllers\Advisor\PaymentController;
 use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
@@ -108,6 +109,10 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/call-logs', [VoiceNoteController::class, 'storeCallLog'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.call-logs.store');
+
+        Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('payments.retry');
 
         Route::patch('proposals/{proposal}/release', [ProposalController::class, 'release'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
