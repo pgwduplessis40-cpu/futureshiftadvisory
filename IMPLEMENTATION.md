@@ -1423,6 +1423,16 @@ Results after WO-D05:
 - `npm run lint:check`: passed.
 - `npm run format:check`: passed.
 
+Results after WO-D06:
+
+- Funnel step summaries now include dropped counts, bounded dropped-client details, last dropped timestamps, and same-step returned counts; the advisor panel exposes the details inline with hover context.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Analytics/FunnelTrackerTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 5 tests, 38 assertions.
+- `php -l` passed for the changed funnel service/test files.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
 ## Remaining Work
 
 **Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**

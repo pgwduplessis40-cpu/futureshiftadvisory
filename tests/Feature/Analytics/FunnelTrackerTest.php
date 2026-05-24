@@ -96,7 +96,44 @@ final class FunnelTrackerTest extends TestCase
                 ->component('advisor/Dashboard')
                 ->where('funnelAnalytics.summary.events', 2)
                 ->where('funnelAnalytics.summary.abandoned', 1)
-                ->where('funnelAnalytics.steps.0.flow', FunnelEvent::FLOW_ONBOARDING));
+                ->where('funnelAnalytics.steps.0.flow', FunnelEvent::FLOW_ONBOARDING)
+                ->where('funnelAnalytics.steps.0.dropped_count', 1)
+                ->where('funnelAnalytics.steps.0.returned_count', 0)
+                ->where('funnelAnalytics.steps.0.dropped_clients.0.id', $client->id));
+    }
+
+    public function test_step_summary_includes_dropped_clients_and_same_step_returns(): void
+    {
+        [$advisor, $returnedClient] = $this->clientWithAdvisor('returned-funnel@example.test', 'Returned Funnel Limited');
+        [, $stillDroppedClient] = $this->clientWithAdvisor('still-dropped-funnel@example.test', 'Still Dropped Limited');
+        [, $differentStepClient] = $this->clientWithAdvisor('different-step-funnel@example.test', 'Different Step Limited');
+        $tracker = app(FunnelTracker::class);
+        $base = now()->subDays(3);
+
+        $tracker->enter(FunnelEvent::FLOW_ONBOARDING, 'goals', $returnedClient, $advisor, $base);
+        $tracker->enter(FunnelEvent::FLOW_ONBOARDING, 'goals', $stillDroppedClient, $advisor, $base->copy()->addHour());
+        $tracker->enter(FunnelEvent::FLOW_ONBOARDING, 'goals', $differentStepClient, $advisor, $base->copy()->addHours(2));
+        $tracker->abandonStaleEntries($base->copy()->addDay());
+        $tracker->complete(FunnelEvent::FLOW_ONBOARDING, 'goals', $returnedClient, $advisor, $base->copy()->addDays(2));
+        $tracker->complete(FunnelEvent::FLOW_ONBOARDING, 'welcome', $differentStepClient, $advisor, $base->copy()->addDays(2));
+
+        $summary = $tracker->summary([
+            (string) $returnedClient->getKey(),
+            (string) $stillDroppedClient->getKey(),
+            (string) $differentStepClient->getKey(),
+        ]);
+        $step = collect($summary['steps'])
+            ->first(fn (array $row): bool => $row['flow'] === FunnelEvent::FLOW_ONBOARDING && $row['step'] === 'goals');
+
+        $this->assertIsArray($step);
+        $this->assertSame(3, $step['dropped_count']);
+        $this->assertSame(1, $step['returned_count']);
+        $this->assertNotNull($step['last_dropped_at']);
+        $this->assertCount(3, $step['dropped_clients']);
+        $this->assertTrue(collect($step['dropped_clients'])->contains(
+            fn (array $client): bool => $client['id'] === $returnedClient->id
+                && $client['show_url'] === route('advisor.clients.show', $returnedClient, absolute: false),
+        ));
     }
 
     public function test_monthly_suggestion_candidate_is_queued_without_auto_implementation(): void

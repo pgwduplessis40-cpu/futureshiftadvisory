@@ -326,6 +326,15 @@ type FunnelAnalyticsPayload = {
         entered: number;
         completed: number;
         abandoned: number;
+        dropped_count: number;
+        dropped_clients: Array<{
+            id: string;
+            name: string;
+            last_dropped_at: string | null;
+            show_url: string;
+        }>;
+        last_dropped_at: string | null;
+        returned_count: number;
         drop_off_rate: number;
     }>;
 };
@@ -889,23 +898,80 @@ function FunnelAnalytics({ payload }: { payload: FunnelAnalyticsPayload }) {
             ) : (
                 <div className="divide-y rounded-md border">
                     {payload.steps.slice(0, 6).map((step) => (
-                        <div
+                        <InsightHoverCard
                             key={`${step.flow}-${step.step}`}
-                            className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
+                            title={`${formatLabel(step.flow)} / ${formatLabel(step.step)}`}
+                            rows={[
+                                {
+                                    label: 'Entered',
+                                    value: String(step.entered),
+                                },
+                                {
+                                    label: 'Dropped',
+                                    value: String(step.dropped_count),
+                                    tone:
+                                        step.dropped_count > 0
+                                            ? 'negative'
+                                            : 'default',
+                                },
+                                {
+                                    label: 'Last dropped',
+                                    value: formatDate(step.last_dropped_at),
+                                    tone: step.last_dropped_at
+                                        ? 'default'
+                                        : 'muted',
+                                },
+                                {
+                                    label: 'Returned',
+                                    value: String(step.returned_count),
+                                    tone:
+                                        step.returned_count > 0
+                                            ? 'positive'
+                                            : 'default',
+                                },
+                            ]}
                         >
-                            <div className="min-w-0">
-                                <div className="text-sm font-medium">
-                                    {formatLabel(step.flow)} /{' '}
-                                    {formatLabel(step.step)}
+                            <div
+                                tabIndex={0}
+                                className="grid gap-2 p-3 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:grid-cols-[1fr_auto]"
+                            >
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        {formatLabel(step.flow)} /{' '}
+                                        {formatLabel(step.step)}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        {step.completed} of {step.entered}{' '}
+                                        completed
+                                    </div>
+                                    {step.dropped_clients.length > 0 && (
+                                        <details className="mt-2 text-xs">
+                                            <summary className="cursor-pointer font-medium text-primary outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2">
+                                                Open
+                                            </summary>
+                                            <div className="mt-2 flex flex-wrap gap-2">
+                                                {step.dropped_clients.map(
+                                                    (client) => (
+                                                        <Link
+                                                            key={client.id}
+                                                            href={
+                                                                client.show_url
+                                                            }
+                                                            className="rounded-md border px-2 py-1 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                                        >
+                                                            {client.name}
+                                                        </Link>
+                                                    ),
+                                                )}
+                                            </div>
+                                        </details>
+                                    )}
                                 </div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    {step.completed} of {step.entered} completed
+                                <div className="text-sm font-medium sm:text-right">
+                                    {formatPercent(step.drop_off_rate)} drop-off
                                 </div>
                             </div>
-                            <div className="text-sm font-medium sm:text-right">
-                                {formatPercent(step.drop_off_rate)} drop-off
-                            </div>
-                        </div>
+                        </InsightHoverCard>
                     ))}
                 </div>
             )}

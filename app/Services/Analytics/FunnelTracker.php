@@ -161,6 +161,7 @@ final class FunnelTracker
     private function events(?array $clientIds, ?CarbonInterface $since)
     {
         return FunnelEvent::query()
+            ->with('client')
             ->when(is_array($clientIds), fn ($query) => $query->whereIn('client_id', $clientIds))
             ->when($since instanceof CarbonInterface, fn ($query) => $query->where('entered_at', '>=', $since))
             ->orderBy('flow')
@@ -180,8 +181,10 @@ final class FunnelTracker
                 $first = $group->first();
                 $entered = $group->count();
                 $completed = $group->filter(fn (FunnelEvent $event): bool => $event->completed_at !== null)->count();
-                $abandoned = $group->where('abandoned', true)->count();
+                $dropped = $group->where('abandoned', true);
+                $abandoned = $dropped->count();
                 $dropOff = $entered === 0 ? 0.0 : round(($entered - $completed) / $entered, 4);
+                $droppedClients = $this->droppedClients($dropped);
 
                 return [
                     'flow' => $first->flow,
@@ -189,11 +192,92 @@ final class FunnelTracker
                     'entered' => $entered,
                     'completed' => $completed,
                     'abandoned' => $abandoned,
+                    'dropped_count' => $abandoned,
+                    'dropped_clients' => $droppedClients,
+                    'last_dropped_at' => $this->lastDroppedAt($dropped),
+                    'returned_count' => $this->returnedCount($group, $dropped),
                     'drop_off_rate' => $dropOff,
                 ];
             })
             ->sortBy(fn (array $row): string => $row['flow'].'|'.$row['step'])
             ->values();
+    }
+
+    /**
+     * @param  Collection<int, FunnelEvent>  $dropped
+     * @return array<int, array{id:string, name:string, last_dropped_at:string|null, show_url:string}>
+     */
+    private function droppedClients(Collection $dropped): array
+    {
+        return $dropped
+            ->filter(fn (FunnelEvent $event): bool => $event->client instanceof Client)
+            ->groupBy(fn (FunnelEvent $event): string => (string) $event->client_id)
+            ->map(function (Collection $events): array {
+                /** @var FunnelEvent $event */
+                $event = $events
+                    ->sortByDesc(fn (FunnelEvent $candidate): int => $this->dropTimestamp($candidate))
+                    ->first();
+                /** @var Client $client */
+                $client = $event->client;
+
+                return [
+                    'id' => (string) $client->getKey(),
+                    'name' => $client->legal_name,
+                    'last_dropped_at' => $this->dropDate($event),
+                    'show_url' => route('advisor.clients.show', $client, absolute: false),
+                ];
+            })
+            ->sortBy('name')
+            ->take(10)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  Collection<int, FunnelEvent>  $dropped
+     */
+    private function lastDroppedAt(Collection $dropped): ?string
+    {
+        $event = $dropped
+            ->sortByDesc(fn (FunnelEvent $candidate): int => $this->dropTimestamp($candidate))
+            ->first();
+
+        return $event instanceof FunnelEvent ? $this->dropDate($event) : null;
+    }
+
+    /**
+     * @param  Collection<int, FunnelEvent>  $group
+     * @param  Collection<int, FunnelEvent>  $dropped
+     */
+    private function returnedCount(Collection $group, Collection $dropped): int
+    {
+        $completedByClient = $group
+            ->filter(fn (FunnelEvent $event): bool => $event->client_id !== null && $event->completed_at !== null)
+            ->groupBy(fn (FunnelEvent $event): string => (string) $event->client_id);
+
+        return $dropped
+            ->filter(fn (FunnelEvent $event): bool => $event->client_id !== null)
+            ->groupBy(fn (FunnelEvent $event): string => (string) $event->client_id)
+            ->filter(function (Collection $droppedEvents, string $clientId) use ($completedByClient): bool {
+                $lastDrop = $droppedEvents->max(fn (FunnelEvent $event): int => $this->dropTimestamp($event));
+                $completed = $completedByClient->get($clientId, collect());
+
+                return $completed->contains(
+                    fn (FunnelEvent $event): bool => $event->completed_at !== null
+                        && $event->completed_at->getTimestamp() > $lastDrop,
+                );
+            })
+            ->count();
+    }
+
+    private function dropTimestamp(FunnelEvent $event): int
+    {
+        return $event->entered_at->getTimestamp();
+    }
+
+    private function dropDate(FunnelEvent $event): ?string
+    {
+        return $event->entered_at?->toIso8601String();
     }
 
     /**
