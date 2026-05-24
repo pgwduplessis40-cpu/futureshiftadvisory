@@ -28,6 +28,7 @@ use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
+use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
@@ -52,17 +53,46 @@ final class ClientController extends Controller
         private readonly DataRoom $dataRoom,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request, EconomicExposureMapper $economicExposure): Response
     {
         Gate::authorize('viewAny', Client::class);
 
+        $exposedTo = $request->query('exposed_to');
+        $exposedTo = is_string($exposedTo) ? trim($exposedTo) : null;
+        $filter = null;
+        $user = $request->user();
+        $clientIds = $user instanceof User && $user->user_type === User::TYPE_ADVISOR
+            ? $user->accessibleClientIds()
+            : null;
+        $query = Client::query()->latest();
+
+        if (is_array($clientIds)) {
+            $clientIds === []
+                ? $query->whereRaw('1 = 0')
+                : $query->whereIn('id', $clientIds);
+        }
+
+        if ($exposedTo !== null && $exposedTo !== '') {
+            abort_unless(in_array($exposedTo, $economicExposure->supportedFilterKeys(), true), 404);
+
+            $exposure = $economicExposure->forKey($exposedTo, $clientIds);
+            $query->whereIn('id', $exposure['client_ids']);
+            $filter = [
+                'key' => $exposure['key'],
+                'label' => $exposure['label'],
+                'exposed_count' => $exposure['exposed_count'],
+                'unknown_count' => $exposure['unknown_count'],
+                'clear_url' => route('advisor.clients.index', absolute: false),
+            ];
+        }
+
         return Inertia::render('advisor/clients/Index', [
-            'clients' => Client::query()
-                ->latest()
+            'clients' => $query
                 ->limit(100)
                 ->get()
                 ->map(fn (Client $client): array => $this->clientSummary($client))
                 ->values(),
+            'exposureFilter' => $filter,
         ]);
     }
 

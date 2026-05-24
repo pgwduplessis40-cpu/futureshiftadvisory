@@ -1413,6 +1413,16 @@ Results after WO-D04:
 - `npm run lint:check`: passed.
 - `npm run format:check`: passed.
 
+Results after WO-D05:
+
+- Economic indicator and exchange-rate rows now include previous readings, change direction, hover context, conservative exposure status, and supported client-list drills for CPI/OCR only.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Dashboards/EconomicExposureMapperTest.php tests/Feature/Integration/EconomicIndicatorsTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 7 tests, 108 assertions.
+- `php -l` passed for the changed dashboard/client controllers, mapper, and economic tests.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
 ## Remaining Work
 
 **Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**

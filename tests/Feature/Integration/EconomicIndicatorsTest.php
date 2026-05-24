@@ -4,8 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Integration;
 
+use App\Models\AccountingConnection;
+use App\Models\Client;
+use App\Models\ClientTeamMember;
 use App\Models\EconomicIndicator;
 use App\Models\ExchangeRate;
+use App\Models\FinancialSnapshot;
 use App\Models\IntegrationCall;
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateImplementation;
@@ -168,6 +172,8 @@ final class EconomicIndicatorsTest extends TestCase
             'primary_role' => User::TYPE_ADVISOR,
         ]);
         $advisor->assignRole(User::TYPE_ADVISOR);
+        $client = $this->clientFor($advisor, 'Economic Exposure Limited');
+        $this->snapshot($client, ['metrics' => ['interest_bearing_debt' => 120000]]);
 
         app(EconomicIndicatorRefresher::class)->refresh(now()->subDay());
         $this->app->instance(RbnzClient::class, new ChangedOcrRbnzClient);
@@ -183,8 +189,74 @@ final class EconomicIndicatorsTest extends TestCase
                 ->where('economicIndicators.summary.change_alerts', 1)
                 ->where('economicIndicators.indicators.0.indicator', EconomicIndicator::OCR)
                 ->where('economicIndicators.indicators.0.value', 6)
+                ->where('economicIndicators.indicators.0.previous_value', 5.5)
+                ->where('economicIndicators.indicators.0.change_pct', 9.09)
+                ->where('economicIndicators.indicators.0.direction', 'up')
+                ->where('economicIndicators.indicators.0.exposure.exposed_count', 1)
+                ->where('economicIndicators.indicators.0.exposure.unknown_count', 0)
+                ->where('economicIndicators.indicators.0.exposure.drill_url', route('advisor.clients.index', ['exposed_to' => 'ocr'], absolute: false))
                 ->where('economicIndicators.exchange_rates.0.base_currency', 'NZD')
+                ->where('economicIndicators.exchange_rates', function ($rates): bool {
+                    $usd = $rates->firstWhere('quote_currency', 'USD');
+
+                    return $usd !== null
+                        && $usd['previous_rate'] === 0.6123
+                        && $usd['direction'] === 'down'
+                        && $usd['exposure']['supported'] === false
+                        && $usd['exposure']['drill_url'] === null;
+                })
                 ->where('economicIndicators.alerts.0.summary', 'OCR changed from 5.50% to 6.00%; review PV discount-rate assumptions.'));
+    }
+
+    private function clientFor(User $advisor, string $name): Client
+    {
+        $client = Client::query()->create([
+            'engagement_type' => 'standard_advisory',
+            'nzbn' => '9429000000800',
+            'legal_name' => $name,
+            'data_quality' => Client::DATA_QUALITY_MEDIUM,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        ClientTeamMember::query()->create([
+            'client_id' => $client->getKey(),
+            'user_id' => $advisor->getKey(),
+            'role' => 'lead_advisor',
+            'granted_modules' => ['standard_advisory'],
+        ]);
+
+        return $client;
+    }
+
+    /**
+     * @param  array{balance_sheet?:array<string, mixed>, cash_flow?:array<string, mixed>, metrics?:array<string, mixed>}  $payload
+     */
+    private function snapshot(Client $client, array $payload): FinancialSnapshot
+    {
+        $connection = AccountingConnection::query()->create([
+            'client_id' => $client->getKey(),
+            'provider' => AccountingConnection::PROVIDER_XERO,
+            'external_tenant_id' => 'economic-exposure-test',
+            'status' => AccountingConnection::STATUS_CONNECTED,
+            'token_envelope' => 'encrypted-token',
+            'connected_at' => now(),
+        ]);
+
+        return FinancialSnapshot::query()->create([
+            'client_id' => $client->getKey(),
+            'accounting_connection_id' => $connection->getKey(),
+            'provider' => AccountingConnection::PROVIDER_XERO,
+            'period_start' => now()->subMonth()->startOfMonth(),
+            'period_end' => now()->subMonth()->endOfMonth(),
+            'source' => 'xero',
+            'source_badge' => 'fixture',
+            'degraded' => false,
+            'profit_and_loss' => [],
+            'balance_sheet' => $payload['balance_sheet'] ?? [],
+            'cash_flow' => $payload['cash_flow'] ?? [],
+            'metrics' => $payload['metrics'] ?? [],
+            'pulled_at' => now(),
+        ]);
     }
 
     private function forgetEconomicClients(): void

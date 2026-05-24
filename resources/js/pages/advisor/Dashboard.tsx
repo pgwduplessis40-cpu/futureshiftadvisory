@@ -148,6 +148,11 @@ type EconomicIndicatorsPayload = {
         source_badge: string;
         degraded: boolean;
         fetched_at: string | null;
+        previous_value: number | null;
+        change_abs: number | null;
+        change_pct: number | null;
+        direction: TrendDirection;
+        exposure: EconomicExposure;
     }>;
     exchange_rates: Array<{
         id: string;
@@ -159,6 +164,11 @@ type EconomicIndicatorsPayload = {
         source_badge: string;
         degraded: boolean;
         fetched_at: string | null;
+        previous_rate: number | null;
+        change_abs: number | null;
+        change_pct: number | null;
+        direction: TrendDirection;
+        exposure: EconomicExposure;
     }>;
     alerts: Array<{
         id: string;
@@ -166,6 +176,23 @@ type EconomicIndicatorsPayload = {
         created_at: string | null;
     }>;
 };
+
+type TrendDirection = 'up' | 'down' | 'flat' | 'none';
+
+type EconomicExposure = {
+    key: string;
+    label: string;
+    supported: boolean;
+    status: 'supported' | 'unavailable';
+    reason: string | null;
+    exposed_count: number | null;
+    unknown_count: number | null;
+    not_exposed_count: number | null;
+    drill_url: string | null;
+};
+
+type EconomicIndicatorItem = EconomicIndicatorsPayload['indicators'][number];
+type ExchangeRateItem = EconomicIndicatorsPayload['exchange_rates'][number];
 
 type RedFlagsPayload = {
     summary: {
@@ -1448,36 +1475,54 @@ function EconomicIndicators({
             ) : (
                 <div className="divide-y rounded-md border">
                     {payload.indicators.map((indicator) => (
-                        <div
+                        <InsightHoverCard
                             key={indicator.id}
-                            className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
+                            title={indicator.label}
+                            rows={economicIndicatorRows(indicator)}
+                            drillHref={
+                                indicator.exposure.drill_url ?? undefined
+                            }
+                            drillAriaLabel={`Open clients exposed to ${indicator.label}`}
+                            footer={exposureFooter(indicator.exposure)}
                         >
-                            <div className="min-w-0">
-                                <div className="text-sm font-medium">
-                                    {indicator.label}
-                                </div>
-                                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
-                                    <span>
-                                        {formatDateOnly(indicator.period_date)}
+                            <button
+                                type="button"
+                                className="grid w-full gap-2 p-3 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none sm:grid-cols-[1fr_auto]"
+                            >
+                                <span className="min-w-0">
+                                    <span className="block text-sm font-medium">
+                                        {indicator.label}
                                     </span>
-                                    <Badge
-                                        variant={
-                                            indicator.degraded
-                                                ? 'outline'
-                                                : 'secondary'
-                                        }
-                                    >
-                                        {formatLabel(indicator.source_badge)}
-                                    </Badge>
-                                </div>
-                            </div>
-                            <div className="text-sm font-medium sm:text-right">
-                                {formatIndicatorValue(
-                                    indicator.value,
-                                    indicator.unit,
-                                )}
-                            </div>
-                        </div>
+                                    <span className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                        <span>
+                                            {formatDateOnly(
+                                                indicator.period_date,
+                                            )}
+                                        </span>
+                                        <Badge
+                                            variant={
+                                                indicator.degraded
+                                                    ? 'outline'
+                                                    : 'secondary'
+                                            }
+                                        >
+                                            {formatLabel(
+                                                indicator.source_badge,
+                                            )}
+                                        </Badge>
+                                        <ExposureBadge
+                                            exposure={indicator.exposure}
+                                        />
+                                    </span>
+                                </span>
+                                <span className="text-sm font-medium sm:text-right">
+                                    {formatIndicatorValue(
+                                        indicator.value,
+                                        indicator.unit,
+                                    )}
+                                </span>
+                            </button>
+                        </InsightHoverCard>
                     ))}
                 </div>
             )}
@@ -1485,14 +1530,27 @@ function EconomicIndicators({
             {payload.exchange_rates.length > 0 && (
                 <div className="grid gap-2 sm:grid-cols-2">
                     {payload.exchange_rates.map((rate) => (
-                        <div key={rate.id} className="rounded-md border p-3">
-                            <div className="text-xs text-muted-foreground">
-                                {rate.base_currency}/{rate.quote_currency}
-                            </div>
-                            <div className="mt-1 text-sm font-medium">
-                                {rate.rate.toFixed(4)}
-                            </div>
-                        </div>
+                        <InsightHoverCard
+                            key={rate.id}
+                            title={`${rate.base_currency}/${rate.quote_currency}`}
+                            rows={exchangeRateRows(rate)}
+                            footer={exposureFooter(rate.exposure)}
+                        >
+                            <button
+                                type="button"
+                                className="w-full rounded-md border p-3 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                            >
+                                <span className="text-xs text-muted-foreground">
+                                    {rate.base_currency}/{rate.quote_currency}
+                                </span>
+                                <span className="mt-1 block text-sm font-medium">
+                                    {rate.rate.toFixed(4)}
+                                </span>
+                                <span className="mt-2 block">
+                                    <ExposureBadge exposure={rate.exposure} />
+                                </span>
+                            </button>
+                        </InsightHoverCard>
                     ))}
                 </div>
             )}
@@ -1515,6 +1573,145 @@ function EconomicIndicators({
             )}
         </section>
     );
+}
+
+function ExposureBadge({ exposure }: { exposure: EconomicExposure }) {
+    if (!exposure.supported) {
+        return <Badge variant="outline">Exposure unavailable</Badge>;
+    }
+
+    return (
+        <Badge variant="secondary">{exposure.exposed_count ?? 0} exposed</Badge>
+    );
+}
+
+function economicIndicatorRows(indicator: EconomicIndicatorItem): Array<{
+    label: string;
+    value: string;
+    tone?: 'default' | 'muted' | 'positive' | 'negative';
+}> {
+    return [
+        {
+            label: 'Current',
+            value: formatIndicatorValue(indicator.value, indicator.unit),
+        },
+        {
+            label: 'Previous',
+            value:
+                indicator.previous_value === null
+                    ? 'No prior reading'
+                    : formatIndicatorValue(
+                          indicator.previous_value,
+                          indicator.unit,
+                      ),
+            tone: indicator.previous_value === null ? 'muted' : 'default',
+        },
+        {
+            label: 'Change',
+            value: formatTrend(indicator.change_pct, indicator.direction),
+            tone: trendTone(indicator.direction),
+        },
+        {
+            label: 'Exposure',
+            value: exposureSummary(indicator.exposure),
+            tone: indicator.exposure.supported ? 'default' : 'muted',
+        },
+    ];
+}
+
+function exchangeRateRows(rate: ExchangeRateItem): Array<{
+    label: string;
+    value: string;
+    tone?: 'default' | 'muted' | 'positive' | 'negative';
+}> {
+    return [
+        {
+            label: 'Current',
+            value: rate.rate.toFixed(4),
+        },
+        {
+            label: 'Previous',
+            value:
+                rate.previous_rate === null
+                    ? 'No prior reading'
+                    : rate.previous_rate.toFixed(4),
+            tone: rate.previous_rate === null ? 'muted' : 'default',
+        },
+        {
+            label: 'Change',
+            value: formatTrend(rate.change_pct, rate.direction),
+            tone: trendTone(rate.direction),
+        },
+        {
+            label: 'Exposure',
+            value: exposureSummary(rate.exposure),
+            tone: 'muted',
+        },
+    ];
+}
+
+function exposureSummary(exposure: EconomicExposure): string {
+    if (!exposure.supported) {
+        return exposure.reason === 'classification_not_captured'
+            ? 'Classification not captured'
+            : 'Unavailable';
+    }
+
+    const exposed = exposure.exposed_count ?? 0;
+    const unknown = exposure.unknown_count ?? 0;
+
+    return unknown > 0
+        ? `${exposed} exposed / ${unknown} unknown`
+        : `${exposed} exposed`;
+}
+
+function exposureFooter(exposure: EconomicExposure): string | undefined {
+    if (exposure.supported) {
+        return exposure.unknown_count && exposure.unknown_count > 0
+            ? 'Some clients lack enough financial data'
+            : undefined;
+    }
+
+    return exposure.reason === 'classification_not_captured'
+        ? 'Classification not captured'
+        : 'Exposure unavailable';
+}
+
+function formatTrend(
+    changePct: number | null,
+    direction: TrendDirection,
+): string {
+    if (direction === 'none' || changePct === null) {
+        return 'No prior reading';
+    }
+
+    return `${formatSignedPercent(changePct)} ${directionLabel(direction)}`;
+}
+
+function directionLabel(direction: TrendDirection): string {
+    if (direction === 'up') {
+        return 'up';
+    }
+
+    if (direction === 'down') {
+        return 'down';
+    }
+
+    if (direction === 'flat') {
+        return 'flat';
+    }
+
+    return 'no prior';
+}
+
+function trendTone(
+    direction: TrendDirection,
+): 'default' | 'muted' | 'positive' | 'negative' {
+    if (direction === 'none' || direction === 'flat') {
+        return 'muted';
+    }
+
+    return direction === 'up' ? 'positive' : 'negative';
 }
 
 function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
@@ -1691,6 +1888,12 @@ function formatDateOnly(value: string | null): string {
 
 function formatPercent(value: number): string {
     return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatSignedPercent(value: number): string {
+    const prefix = value > 0 ? '+' : '';
+
+    return `${prefix}${value.toFixed(2)}%`;
 }
 
 function formatCurrency(value: number): string {

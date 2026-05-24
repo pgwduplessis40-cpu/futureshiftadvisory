@@ -25,6 +25,7 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Dashboards\ClientEngagementScorer;
+use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Panels\Coach\SignalDetector;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -48,6 +49,7 @@ final class DashboardController extends Controller
         Request $request,
         TermsAcceptanceGate $termsGate,
         ClientEngagementScorer $engagementScorer,
+        EconomicExposureMapper $economicExposure,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -70,7 +72,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
         }
 
         return Inertia::render('dashboard');
@@ -83,6 +85,7 @@ final class DashboardController extends Controller
         User $user,
         TermsAcceptanceGate $termsGate,
         ClientEngagementScorer $engagementScorer,
+        EconomicExposureMapper $economicExposure,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -99,7 +102,7 @@ final class DashboardController extends Controller
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
-            'economicIndicators' => $this->economicIndicators(),
+            'economicIndicators' => $this->economicIndicators($clientIds, $economicExposure),
             'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
             'practiceHealth' => $practiceHealth->forClientIds($clientIds),
             'proposalStatus' => $this->proposalStatus($clientIds),
@@ -731,7 +734,7 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function economicIndicators(): array
+    private function economicIndicators(?array $clientIds, EconomicExposureMapper $economicExposure): array
     {
         if (! Schema::hasTable('economic_indicators') || ! Schema::hasTable('exchange_rates')) {
             return $this->emptyEconomicIndicators();
@@ -793,31 +796,43 @@ final class DashboardController extends Controller
                 'latest_fetched_at' => $latestFetchedAt instanceof Carbon ? $latestFetchedAt->toIso8601String() : null,
             ],
             'indicators' => $indicators
-                ->map(fn (EconomicIndicator $indicator): array => [
-                    'id' => $indicator->id,
-                    'indicator' => $indicator->indicator,
-                    'label' => $indicator->label,
-                    'value' => $indicator->value,
-                    'unit' => $indicator->unit,
-                    'period_date' => $indicator->period_date?->toDateString(),
-                    'source' => $indicator->source,
-                    'source_badge' => $indicator->source_badge,
-                    'degraded' => $indicator->degraded,
-                    'fetched_at' => $indicator->fetched_at?->toIso8601String(),
-                ])
+                ->map(function (EconomicIndicator $indicator) use ($clientIds, $economicExposure): array {
+                    $previous = $this->previousIndicator($indicator);
+
+                    return [
+                        'id' => $indicator->id,
+                        'indicator' => $indicator->indicator,
+                        'label' => $indicator->label,
+                        'value' => $indicator->value,
+                        'unit' => $indicator->unit,
+                        'period_date' => $indicator->period_date?->toDateString(),
+                        'source' => $indicator->source,
+                        'source_badge' => $indicator->source_badge,
+                        'degraded' => $indicator->degraded,
+                        'fetched_at' => $indicator->fetched_at?->toIso8601String(),
+                        ...$this->indicatorTrend($indicator, $previous),
+                        'exposure' => $economicExposure->forIndicator($indicator->indicator, $clientIds),
+                    ];
+                })
                 ->all(),
             'exchange_rates' => $exchangeRates
-                ->map(fn (ExchangeRate $rate): array => [
-                    'id' => $rate->id,
-                    'base_currency' => $rate->base_currency,
-                    'quote_currency' => $rate->quote_currency,
-                    'rate' => $rate->rate,
-                    'rate_date' => $rate->rate_date?->toDateString(),
-                    'source' => $rate->source,
-                    'source_badge' => $rate->source_badge,
-                    'degraded' => $rate->degraded,
-                    'fetched_at' => $rate->fetched_at?->toIso8601String(),
-                ])
+                ->map(function (ExchangeRate $rate) use ($clientIds, $economicExposure): array {
+                    $previous = $this->previousExchangeRate($rate);
+
+                    return [
+                        'id' => $rate->id,
+                        'base_currency' => $rate->base_currency,
+                        'quote_currency' => $rate->quote_currency,
+                        'rate' => $rate->rate,
+                        'rate_date' => $rate->rate_date?->toDateString(),
+                        'source' => $rate->source,
+                        'source_badge' => $rate->source_badge,
+                        'degraded' => $rate->degraded,
+                        'fetched_at' => $rate->fetched_at?->toIso8601String(),
+                        ...$this->exchangeRateTrend($rate, $previous),
+                        'exposure' => $economicExposure->forExchangeRate($rate->base_currency, $rate->quote_currency, $clientIds),
+                    ];
+                })
                 ->all(),
             'alerts' => $alerts
                 ->map(fn (LearningUpdate $update): array => [
@@ -827,6 +842,95 @@ final class DashboardController extends Controller
                 ])
                 ->all(),
         ];
+    }
+
+    private function previousIndicator(EconomicIndicator $indicator): ?EconomicIndicator
+    {
+        return EconomicIndicator::query()
+            ->where('indicator', $indicator->indicator)
+            ->where('source', $indicator->source)
+            ->where('period_date', '<', $indicator->period_date)
+            ->orderByDesc('period_date')
+            ->latest('fetched_at')
+            ->first();
+    }
+
+    /**
+     * @return array{previous_value:float|null, change_abs:float|null, change_pct:float|null, direction:string}
+     */
+    private function indicatorTrend(EconomicIndicator $current, ?EconomicIndicator $previous): array
+    {
+        if (! $previous instanceof EconomicIndicator) {
+            return [
+                'previous_value' => null,
+                'change_abs' => null,
+                'change_pct' => null,
+                'direction' => 'none',
+            ];
+        }
+
+        $change = round((float) $current->value - (float) $previous->value, 4);
+
+        return [
+            'previous_value' => $previous->value,
+            'change_abs' => $change,
+            'change_pct' => $this->percentChange((float) $previous->value, $change),
+            'direction' => $this->directionFor($change),
+        ];
+    }
+
+    private function previousExchangeRate(ExchangeRate $rate): ?ExchangeRate
+    {
+        return ExchangeRate::query()
+            ->where('base_currency', $rate->base_currency)
+            ->where('quote_currency', $rate->quote_currency)
+            ->where('source', $rate->source)
+            ->where('rate_date', '<', $rate->rate_date)
+            ->orderByDesc('rate_date')
+            ->latest('fetched_at')
+            ->first();
+    }
+
+    /**
+     * @return array{previous_rate:float|null, change_abs:float|null, change_pct:float|null, direction:string}
+     */
+    private function exchangeRateTrend(ExchangeRate $current, ?ExchangeRate $previous): array
+    {
+        if (! $previous instanceof ExchangeRate) {
+            return [
+                'previous_rate' => null,
+                'change_abs' => null,
+                'change_pct' => null,
+                'direction' => 'none',
+            ];
+        }
+
+        $change = round((float) $current->rate - (float) $previous->rate, 8);
+
+        return [
+            'previous_rate' => $previous->rate,
+            'change_abs' => $change,
+            'change_pct' => $this->percentChange((float) $previous->rate, $change),
+            'direction' => $this->directionFor($change),
+        ];
+    }
+
+    private function percentChange(float $previous, float $change): ?float
+    {
+        if (abs($previous) < 0.00000001) {
+            return null;
+        }
+
+        return round(($change / abs($previous)) * 100, 2);
+    }
+
+    private function directionFor(float $change): string
+    {
+        return match (true) {
+            $change > 0.00000001 => 'up',
+            $change < -0.00000001 => 'down',
+            default => 'flat',
+        };
     }
 
     /**

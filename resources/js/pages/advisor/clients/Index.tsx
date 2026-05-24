@@ -6,9 +6,16 @@ import type { ClientSummary } from './types';
 
 type Props = {
     clients: ClientSummary[];
+    exposureFilter: {
+        key: string;
+        label: string;
+        exposed_count: number;
+        unknown_count: number;
+        clear_url: string;
+    } | null;
 };
 
-export default function ClientsIndex({ clients }: Props) {
+export default function ClientsIndex({ clients, exposureFilter }: Props) {
     return (
         <>
             <Head title="Clients" />
@@ -23,6 +30,23 @@ export default function ClientsIndex({ clients }: Props) {
                         </Link>
                     </Button>
                 </div>
+
+                {exposureFilter && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                        <Badge variant="secondary">
+                            {exposureFilter.label}
+                        </Badge>
+                        <span>
+                            {exposureFilter.exposed_count} exposed
+                            {exposureFilter.unknown_count > 0
+                                ? ` / ${exposureFilter.unknown_count} unknown`
+                                : ''}
+                        </span>
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={exposureFilter.clear_url}>Clear</Link>
+                        </Button>
+                    </div>
+                )}
 
                 <div className="overflow-hidden rounded-md border">
                     {clients.length > 0 ? (
