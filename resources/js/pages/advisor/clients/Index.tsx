@@ -53,9 +53,12 @@ export default function ClientsIndex({ clients }: Props) {
                                 {clients.map((client) => (
                                     <tr key={client.id} className="border-t">
                                         <td className="px-3 py-2">
-                                            <div className="font-medium">
+                                            <Link
+                                                href={`/advisor/clients/${client.id}`}
+                                                className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                                            >
                                                 {client.legal_name}
-                                            </div>
+                                            </Link>
                                             {client.trading_name && (
                                                 <div className="text-xs text-muted-foreground">
                                                     {client.trading_name}
