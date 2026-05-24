@@ -1403,6 +1403,16 @@ Results after WO-D03:
 - `npm run lint:check`: passed.
 - `npm run format:check`: passed.
 
+Results after WO-D04:
+
+- PV waterfall steps now expand into top ranked improvement/risk recommendations, include discount assumptions and source finding drill URLs, and aggregate rank 9+ into non-drillable remainder bars.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Pv/PvWaterfallDashboardTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 4 tests, 50 assertions.
+- `php -l` passed for the changed PV builder/test files.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
 ## Remaining Work
 
 **Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**

@@ -1,3 +1,5 @@
+import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
+import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
 import { Badge } from '@/components/ui/badge';
 
 export type WaterfallStep = {
@@ -7,6 +9,17 @@ export type WaterfallStep = {
     value: number;
     start: number;
     end: number;
+    recommendation_type?: 'improvement' | 'risk_mitigation';
+    is_remainder?: boolean;
+    remainder_count?: number | null;
+    annual_benefit?: number | null;
+    annual_expected_cost?: number | null;
+    duration_years?: number | null;
+    discount_rate?: number | null;
+    discount_method?: string | null;
+    pv_calculation_id?: string | null;
+    source_finding_id?: string | null;
+    drill_url?: string | null;
 };
 
 type Props = {
@@ -26,20 +39,40 @@ export function WaterfallChart({ steps }: Props) {
                 const width = `${(Math.abs(step.end - step.start || step.value) / max) * 100}%`;
 
                 return (
-                    <div key={step.key} className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-3 text-xs">
-                            <span className="font-medium">{step.label}</span>
-                            <span className="tabular-nums">
-                                {formatCurrency(step.value)}
+                    <InsightHoverCard
+                        key={step.key}
+                        title={step.label}
+                        rows={waterfallRows(step)}
+                        drillHref={step.drill_url ?? undefined}
+                        drillAriaLabel={`Open source finding for ${step.label}`}
+                        footer={
+                            step.is_remainder
+                                ? 'Aggregate remainder'
+                                : step.pv_calculation_id
+                                  ? `PV: ${step.pv_calculation_id}`
+                                  : undefined
+                        }
+                    >
+                        <button
+                            type="button"
+                            className="block w-full space-y-1.5 rounded-md text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                        >
+                            <span className="flex items-center justify-between gap-3 text-xs">
+                                <span className="font-medium">
+                                    {step.label}
+                                </span>
+                                <span className="tabular-nums">
+                                    {formatCurrency(step.value)}
+                                </span>
                             </span>
-                        </div>
-                        <div className="relative h-8 overflow-hidden rounded-md bg-muted">
-                            <div
-                                className={barClass(step.kind)}
-                                style={{ left, width }}
-                            />
-                        </div>
-                    </div>
+                            <span className="relative block h-8 overflow-hidden rounded-md bg-muted">
+                                <span
+                                    className={barClass(step.kind)}
+                                    style={{ left, width }}
+                                />
+                            </span>
+                        </button>
+                    </InsightHoverCard>
                 );
             })}
         </div>
@@ -79,10 +112,79 @@ function barClass(kind: WaterfallStep['kind']): string {
     return `${base} bg-sky-500`;
 }
 
+function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
+    const rows: InsightHoverCardRow[] = [
+        {
+            label: 'Present value',
+            value: formatCurrency(step.value),
+        },
+    ];
+
+    if (step.remainder_count) {
+        rows.push({
+            label: 'Items',
+            value: step.remainder_count,
+        });
+    }
+
+    if (typeof step.annual_benefit === 'number') {
+        rows.push({
+            label: 'Annual benefit',
+            value: formatCurrency(step.annual_benefit),
+            tone: 'positive',
+        });
+    }
+
+    if (typeof step.annual_expected_cost === 'number') {
+        rows.push({
+            label: 'Annual risk value',
+            value: formatCurrency(step.annual_expected_cost),
+            tone: 'positive',
+        });
+    }
+
+    if (typeof step.duration_years === 'number') {
+        rows.push({
+            label: 'Years',
+            value: step.duration_years,
+        });
+    }
+
+    if (typeof step.discount_rate === 'number') {
+        rows.push({
+            label: 'Discount rate',
+            value: formatPercent(step.discount_rate),
+        });
+    }
+
+    if (step.discount_method) {
+        rows.push({
+            label: 'Method',
+            value: formatLabel(step.discount_method),
+        });
+    }
+
+    return rows;
+}
+
 function formatCurrency(value: number): string {
     return new Intl.NumberFormat(undefined, {
         style: 'currency',
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatPercent(value: number): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'percent',
+        maximumFractionDigits: 2,
+    }).format(value);
+}
+
+function formatLabel(value: string): string {
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }

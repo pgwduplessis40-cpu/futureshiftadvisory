@@ -8,9 +8,12 @@ use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ImprovementOpportunity;
 use App\Models\RiskCost;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 final class PvWaterfallBuilder
 {
+    private const MAX_RECOMMENDATION_STEPS = 8;
+
     /**
      * A null client id list means all clients.
      *
@@ -59,12 +62,20 @@ final class PvWaterfallBuilder
             ->first();
 
         $current = $valuation instanceof BusinessValuation ? $valuation->reconciled_mid : 0.0;
-        $improvement = (float) ImprovementOpportunity::query()
+        $improvements = ImprovementOpportunity::query()
             ->where('client_id', $client->getKey())
-            ->sum('pv_of_impact');
-        $riskMitigation = (float) RiskCost::query()
+            ->with('pvCalculation')
+            ->orderBy('rank')
+            ->orderByDesc('pv_of_impact')
+            ->get();
+        $riskCosts = RiskCost::query()
             ->where('client_id', $client->getKey())
-            ->sum('pv_of_cost');
+            ->with('pvCalculation')
+            ->orderBy('rank')
+            ->orderByDesc('pv_of_cost')
+            ->get();
+        $improvement = (float) $improvements->sum('pv_of_impact');
+        $riskMitigation = (float) $riskCosts->sum('pv_of_cost');
         $target = round($current + $improvement + $riskMitigation, 2);
 
         return [
@@ -75,7 +86,7 @@ final class PvWaterfallBuilder
             'improvement_pv' => round($improvement, 2),
             'risk_mitigation_pv' => round($riskMitigation, 2),
             'target_pv' => $target,
-            'waterfall' => $this->steps($current, $improvement, $riskMitigation, $target),
+            'waterfall' => $this->steps($client, $current, $improvements, $riskCosts, $target),
         ];
     }
 
@@ -97,45 +108,143 @@ final class PvWaterfallBuilder
     }
 
     /**
-     * @return array<int, array{key:string, label:string, kind:string, value:float, start:float, end:float}>
+     * @param  EloquentCollection<int, ImprovementOpportunity>  $improvements
+     * @param  EloquentCollection<int, RiskCost>  $riskCosts
+     * @return array<int, array<string, mixed>>
      */
-    private function steps(float $current, float $improvement, float $riskMitigation, float $target): array
-    {
-        $afterImprovement = round($current + $improvement, 2);
-
-        return [
+    private function steps(
+        Client $client,
+        float $current,
+        EloquentCollection $improvements,
+        EloquentCollection $riskCosts,
+        float $target,
+    ): array {
+        $current = round($current, 2);
+        $steps = [
             [
                 'key' => 'current',
                 'label' => 'Current PV',
                 'kind' => 'absolute',
-                'value' => round($current, 2),
+                'value' => $current,
                 'start' => 0.0,
-                'end' => round($current, 2),
-            ],
-            [
-                'key' => 'improvements',
-                'label' => 'Improvements',
-                'kind' => 'increase',
-                'value' => round($improvement, 2),
-                'start' => round($current, 2),
-                'end' => $afterImprovement,
-            ],
-            [
-                'key' => 'risk_mitigation',
-                'label' => 'Risk mitigation',
-                'kind' => 'increase',
-                'value' => round($riskMitigation, 2),
-                'start' => $afterImprovement,
-                'end' => $target,
-            ],
-            [
-                'key' => 'target',
-                'label' => 'Target PV',
-                'kind' => 'total',
-                'value' => $target,
-                'start' => 0.0,
-                'end' => $target,
+                'end' => $current,
+                'is_remainder' => false,
             ],
         ];
+
+        [$steps, $cursor] = $this->appendRecommendationSteps($steps, $client, $improvements, 'improvement', $current);
+        [$steps, $cursor] = $this->appendRecommendationSteps($steps, $client, $riskCosts, 'risk_mitigation', $cursor);
+
+        $steps[] = [
+            'key' => 'target',
+            'label' => 'Target PV',
+            'kind' => 'total',
+            'value' => $target,
+            'start' => 0.0,
+            'end' => $target,
+            'is_remainder' => false,
+        ];
+
+        return $steps;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $steps
+     * @param  EloquentCollection<int, ImprovementOpportunity|RiskCost>  $items
+     * @return array{0:array<int, array<string, mixed>>, 1:float}
+     */
+    private function appendRecommendationSteps(
+        array $steps,
+        Client $client,
+        EloquentCollection $items,
+        string $type,
+        float $cursor,
+    ): array {
+        $visible = $items->take(self::MAX_RECOMMENDATION_STEPS);
+
+        foreach ($visible as $item) {
+            $step = $this->recommendationStep($client, $item, $type, $cursor);
+            $steps[] = $step;
+            $cursor = (float) $step['end'];
+        }
+
+        $remainder = $items->slice(self::MAX_RECOMMENDATION_STEPS)->values();
+
+        if ($remainder->isNotEmpty()) {
+            $value = round((float) $remainder->sum(
+                $type === 'improvement' ? 'pv_of_impact' : 'pv_of_cost',
+            ), 2);
+            $end = round($cursor + $value, 2);
+
+            $steps[] = [
+                'key' => $type.'-remainder',
+                'label' => $type === 'improvement'
+                    ? sprintf('Other improvements (%d)', $remainder->count())
+                    : sprintf('Other risk mitigation (%d)', $remainder->count()),
+                'kind' => 'increase',
+                'value' => $value,
+                'start' => $cursor,
+                'end' => $end,
+                'recommendation_type' => $type,
+                'is_remainder' => true,
+                'remainder_count' => $remainder->count(),
+                'drill_url' => null,
+                'source_finding_id' => null,
+                'pv_calculation_id' => null,
+                'discount_rate' => null,
+                'discount_method' => null,
+                'duration_years' => null,
+                'annual_benefit' => null,
+                'annual_expected_cost' => null,
+            ];
+
+            $cursor = $end;
+        }
+
+        return [$steps, $cursor];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function recommendationStep(
+        Client $client,
+        ImprovementOpportunity|RiskCost $item,
+        string $type,
+        float $start,
+    ): array {
+        $value = round($item instanceof ImprovementOpportunity ? (float) $item->pv_of_impact : (float) $item->pv_of_cost, 2);
+        $end = round($start + $value, 2);
+        $findingId = $item->analysis_finding_id === null ? null : (string) $item->analysis_finding_id;
+        $pvCalculation = $item->pvCalculation;
+
+        return [
+            'key' => $type.'-'.$item->getKey(),
+            'label' => $item->title,
+            'kind' => 'increase',
+            'value' => $value,
+            'start' => round($start, 2),
+            'end' => $end,
+            'recommendation_type' => $type,
+            'is_remainder' => false,
+            'remainder_count' => null,
+            'drill_url' => $findingId === null ? null : $this->findingDrillUrl($client, $findingId),
+            'source_finding_id' => $findingId,
+            'pv_calculation_id' => $item->pv_calculation_id,
+            'discount_rate' => $pvCalculation?->discount_rate,
+            'discount_method' => $pvCalculation?->discount_method?->value,
+            'duration_years' => $item->duration_years,
+            'annual_benefit' => $item instanceof ImprovementOpportunity ? round((float) $item->annual_benefit, 2) : null,
+            'annual_expected_cost' => $item instanceof RiskCost ? round((float) $item->annual_expected_cost, 2) : null,
+        ];
+    }
+
+    private function findingDrillUrl(Client $client, string $findingId): string
+    {
+        return route('advisor.clients.show', [
+            'client' => $client,
+            'focus' => 'analysis',
+            'highlight' => $findingId,
+        ], absolute: false);
     }
 }
