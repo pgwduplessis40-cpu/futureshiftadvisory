@@ -3,7 +3,12 @@
 declare(strict_types=1);
 
 return [
-    'mfa_required' => env('MFA_REQUIRED', true),
+    // MFA is mandatory per CLAUDE.md / spec §4. The MFA_REQUIRED flag exists
+    // only to let local/dev/testing turn it off while building. In production
+    // it is ALWAYS true and the env var cannot disable it.
+    'mfa_required' => env('APP_ENV') === 'production'
+        ? true
+        : filter_var(env('MFA_REQUIRED', true), FILTER_VALIDATE_BOOL),
     'invite_token_ttl_hours' => (int) env('INVITE_TOKEN_TTL_HOURS', 72),
     'prospect_intake_secret' => env('PROSPECT_INTAKE_SECRET'),
     'prospect_intake_tolerance_seconds' => (int) env('PROSPECT_INTAKE_TOLERANCE_SECONDS', 300),
