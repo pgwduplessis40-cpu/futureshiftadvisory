@@ -7,6 +7,7 @@ use App\Http\Controllers\Advisor\AccountingConnectionController;
 use App\Http\Controllers\Advisor\AnalysisFeedbackController;
 use App\Http\Controllers\Advisor\BriefingController;
 use App\Http\Controllers\Advisor\BulkCommunicationController;
+use App\Http\Controllers\Advisor\BusinessHealthController;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
@@ -64,6 +65,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/reports', [ReportController::class, 'store'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('clients.reports.store');
+        Route::post('clients/{client}/health-radar/recompute', [BusinessHealthController::class, 'recompute'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.health-radar.recompute');
         Route::post('clients/{client}/meetings', [MeetingController::class, 'store'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.meetings.store');

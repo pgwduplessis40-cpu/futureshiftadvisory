@@ -208,6 +208,7 @@ final class ClientController extends Controller
                 'proposal_expiry_days' => (int) config('proposals.expiry_days', 30),
                 'fee_calculations' => $this->feeCalculationSummaries($client),
                 'proposals' => $this->proposalSummaries($client),
+                'business_health_recompute_url' => route('advisor.clients.health-radar.recompute', $client, absolute: false),
                 'report_store_url' => route('advisor.clients.reports.store', $client, absolute: false),
                 'reports' => $this->reportSummaries($client),
                 'meeting_store_url' => route('advisor.clients.meetings.store', $client, absolute: false),

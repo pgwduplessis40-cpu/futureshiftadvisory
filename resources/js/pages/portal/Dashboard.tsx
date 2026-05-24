@@ -1,5 +1,6 @@
 import { Head, Link } from '@inertiajs/react';
 import {
+    Activity,
     Bell,
     ClipboardList,
     FileText,
@@ -11,6 +12,8 @@ import {
 import type { ComponentType, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
+import { BusinessHealthRadar } from '@/components/insight/BusinessHealthRadar';
+import type { BusinessHealthRadarPayload } from '@/components/insight/BusinessHealthRadar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { VerificationBadge } from '@/components/verification/Badge';
@@ -50,6 +53,8 @@ type Props = {
         submitted_at: string | null;
         url: string;
     };
+    businessHealth: BusinessHealthRadarPayload;
+    healthFindings: HealthFindingDimension[];
     goals: GoalDashboard;
     documents: DocumentPayload[];
     scenarios: ScenarioPayload[];
@@ -137,12 +142,38 @@ type ReportPayload = {
     generated_at: string | null;
 };
 
+type HealthFindingDimension = {
+    dimension: string;
+    label: string;
+    anchor: string;
+    state: string;
+    message: string;
+    findings: HealthFinding[];
+};
+
+type HealthFinding = {
+    id: string;
+    module: string | null;
+    lens: string;
+    severity: string;
+    title: string;
+    body: string;
+    attributions: Array<{
+        claim?: string;
+        source_reference?: string;
+        [key: string]: unknown;
+    }>;
+    created_at: string | null;
+};
+
 export default function PortalDashboard({
     client,
     progress,
     onboardingUrl,
     notificationSummary,
     wellbeing,
+    businessHealth,
+    healthFindings,
     goals,
     documents,
     scenarios,
@@ -271,6 +302,11 @@ export default function PortalDashboard({
                     />
                 </div>
 
+                <BusinessHealthPanel
+                    businessHealth={businessHealth}
+                    healthFindings={healthFindings}
+                />
+
                 <GoalProgressPanel goals={goals} />
 
                 <ProposalSignoffPanel proposals={proposals} />
@@ -388,6 +424,105 @@ export default function PortalDashboard({
                 </div>
             </div>
         </>
+    );
+}
+
+function BusinessHealthPanel({
+    businessHealth,
+    healthFindings,
+}: {
+    businessHealth: BusinessHealthRadarPayload;
+    healthFindings: HealthFindingDimension[];
+}) {
+    return (
+        <section
+            id="section-health"
+            className="space-y-5 rounded-md border bg-background p-4"
+            aria-labelledby="business-health-heading"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Activity className="size-4" aria-hidden="true" />
+                    <h2
+                        id="business-health-heading"
+                        className="text-sm font-medium"
+                    >
+                        Business health
+                    </h2>
+                </div>
+                <Badge variant="outline">
+                    {businessHealth.captured_at
+                        ? formatDate(businessHealth.captured_at)
+                        : 'Pending'}
+                </Badge>
+            </div>
+
+            <BusinessHealthRadar payload={businessHealth} />
+
+            <div className="grid gap-3 lg:grid-cols-5">
+                {healthFindings.map((dimension) => (
+                    <article
+                        key={dimension.dimension}
+                        id={dimension.anchor}
+                        className="space-y-3 rounded-md border p-3"
+                    >
+                        <div className="flex items-center justify-between gap-2">
+                            <h3 className="text-sm font-medium">
+                                {dimension.label}
+                            </h3>
+                            <Badge variant="outline">
+                                {dimension.findings.length}
+                            </Badge>
+                        </div>
+
+                        {dimension.findings.length === 0 ? (
+                            <p className="text-xs text-muted-foreground">
+                                {dimension.message}
+                            </p>
+                        ) : (
+                            <div className="space-y-3">
+                                {dimension.findings.map((finding) => (
+                                    <article
+                                        key={finding.id}
+                                        className="space-y-2 rounded-md bg-muted/40 p-3"
+                                    >
+                                        <div className="space-y-1">
+                                            <div className="text-sm font-medium">
+                                                {finding.title}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1">
+                                                <Badge
+                                                    variant={severityVariant(
+                                                        finding.severity,
+                                                    )}
+                                                >
+                                                    {formatLabel(
+                                                        finding.severity,
+                                                    )}
+                                                </Badge>
+                                                {finding.module && (
+                                                    <Badge variant="secondary">
+                                                        {formatLabel(
+                                                            finding.module,
+                                                        )}
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                        </div>
+                                        <p className="text-sm text-muted-foreground">
+                                            {finding.body}
+                                        </p>
+                                        <p className="text-xs text-muted-foreground">
+                                            {attributionSummary(finding)}
+                                        </p>
+                                    </article>
+                                ))}
+                            </div>
+                        )}
+                    </article>
+                ))}
+            </div>
+        </section>
     );
 }
 
@@ -667,6 +802,43 @@ function formatCurrency(value: number): string {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function attributionSummary(finding: HealthFinding): string {
+    const first = finding.attributions[0];
+
+    if (!first) {
+        return 'Cited source retained with the analysis finding.';
+    }
+
+    if (typeof first.claim === 'string' && first.claim !== '') {
+        return first.source_reference
+            ? `${first.claim} (${first.source_reference})`
+            : first.claim;
+    }
+
+    if (
+        typeof first.source_reference === 'string' &&
+        first.source_reference !== ''
+    ) {
+        return first.source_reference;
+    }
+
+    return 'Cited source retained with the analysis finding.';
+}
+
+function severityVariant(
+    severity: string,
+): 'default' | 'secondary' | 'destructive' | 'outline' {
+    if (severity === 'critical' || severity === 'high') {
+        return 'destructive';
+    }
+
+    if (severity === 'medium') {
+        return 'secondary';
+    }
+
+    return 'outline';
 }
 
 function StatusPanel({

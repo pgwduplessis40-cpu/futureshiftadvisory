@@ -5,6 +5,7 @@ import knowledgeAssessments from './knowledge-assessments'
 import goals from './goals'
 import proposals from './proposals'
 import reports from './reports'
+import healthRadar from './health-radar'
 import meetings from './meetings'
 import email from './email'
 import messages from './messages'
@@ -493,6 +494,7 @@ knowledgeAssessments: Object.assign(knowledgeAssessments, knowledgeAssessments),
 goals: Object.assign(goals, goals),
 proposals: Object.assign(proposals, proposals),
 reports: Object.assign(reports, reports),
+healthRadar: Object.assign(healthRadar, healthRadar),
 meetings: Object.assign(meetings, meetings),
 compose: Object.assign(compose, compose),
 email: Object.assign(email, email),

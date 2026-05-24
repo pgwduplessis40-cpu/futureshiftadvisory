@@ -53,6 +53,7 @@ type ClientDetail = ClientSummary & {
     proposal_expiry_days: number;
     fee_calculations: FeeCalculationSummary[];
     proposals: ProposalSummary[];
+    business_health_recompute_url: string;
     report_store_url: string;
     reports: ReportSummary[];
     meeting_store_url: string;
@@ -421,6 +422,14 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         });
     };
 
+    const recomputeHealthRadar = () => {
+        router.post(
+            client.business_health_recompute_url,
+            {},
+            { preserveScroll: true },
+        );
+    };
+
     return (
         <>
             <Head title={client.legal_name} />
@@ -674,6 +683,15 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         <Badge variant="outline">
                             {client.analysis_findings.length}
                         </Badge>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={recomputeHealthRadar}
+                        >
+                            <RotateCcw className="size-4" aria-hidden="true" />
+                            Recompute health
+                        </Button>
                     </div>
 
                     {client.analysis_findings.length === 0 ? (

@@ -199,6 +199,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<BusinessHealthSnapshot>
+     */
+    public function businessHealthSnapshots(): HasMany
+    {
+        return $this->hasMany(BusinessHealthSnapshot::class);
+    }
+
+    /**
      * @return HasMany<Receipt>
      */
     public function receipts(): HasMany

@@ -5,6 +5,7 @@ import KnowledgeAssessmentController from './KnowledgeAssessmentController'
 import GoalController from './GoalController'
 import ProposalController from './ProposalController'
 import ReportController from './ReportController'
+import BusinessHealthController from './BusinessHealthController'
 import MeetingController from './MeetingController'
 import ClientEmailController from './ClientEmailController'
 import ClientMessageController from './ClientMessageController'
@@ -28,6 +29,7 @@ KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, Know
 GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
 ReportController: Object.assign(ReportController, ReportController),
+BusinessHealthController: Object.assign(BusinessHealthController, BusinessHealthController),
 MeetingController: Object.assign(MeetingController, MeetingController),
 ClientEmailController: Object.assign(ClientEmailController, ClientEmailController),
 ClientMessageController: Object.assign(ClientMessageController, ClientMessageController),

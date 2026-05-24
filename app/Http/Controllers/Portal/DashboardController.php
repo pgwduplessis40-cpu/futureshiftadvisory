@@ -14,6 +14,7 @@ use App\Models\Report;
 use App\Models\Scenario;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Goals\GoalTracker;
 use App\Services\Notifications\NotificationCenter;
@@ -31,6 +32,7 @@ final class DashboardController extends Controller
         private readonly DataQualityScorer $dataQuality,
         private readonly NotificationCenter $notifications,
         private readonly GoalTracker $goals,
+        private readonly BusinessHealthRadarBuilder $businessHealth,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -48,6 +50,8 @@ final class DashboardController extends Controller
                 ? $this->notifications->counts($request->user())
                 : ['unread' => 0, 'urgent' => 0],
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
+            'businessHealth' => $this->businessHealth->portalPayload($client),
+            'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
             'goals' => $this->goals->dashboard($client),
             'documents' => $this->documentPayload($client),
             'scenarios' => $this->scenarioPayload($client),
