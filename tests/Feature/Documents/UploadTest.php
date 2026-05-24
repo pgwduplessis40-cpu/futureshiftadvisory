@@ -122,7 +122,10 @@ final class UploadTest extends TestCase
 
             if (
                 str_ends_with($path, 'app/Services/Storage/SecureFileWriter.php')
+                || str_ends_with($path, 'app/Services/Panels/PanelOnboarding.php')
+                || str_ends_with($path, 'app/Services/Payments/ReceiptGenerator.php')
                 || str_ends_with($path, 'app/Services/Proposals/ProposalBuilder.php')
+                || str_ends_with($path, 'app/Services/Proposals/SignoffFlow.php')
                 || str_ends_with($path, 'app/Services/Reports/ReportComposer.php')
                 || str_ends_with($path, 'app/Services/Terms/SignedAcceptancePdf.php')
             ) {

@@ -84,10 +84,13 @@ final class DdPlanBuilderTest extends TestCase
         $this->assertGreaterThan(8, $plan->sections()->count());
         $this->assertGreaterThan(0, $plan->sections()->whereNotNull('source_analysis_finding_id')->count());
 
-        $section = $plan->sections()->whereNotNull('source_analysis_finding_id')->firstOrFail();
-        $this->assertInstanceOf(PlanSection::class, $section);
-        $this->assertSame(PlanSection::STATUS_COMPLETE, $section->completeness_status);
-        $this->assertStringContainsString('double-weighted', $section->body);
+        $sections = $plan->sections()->whereNotNull('source_analysis_finding_id')->get();
+        $this->assertInstanceOf(PlanSection::class, $sections->first());
+        $this->assertTrue($sections->every(fn (PlanSection $section): bool => $section->completeness_status === PlanSection::STATUS_COMPLETE));
+        $this->assertTrue(
+            $sections->contains(fn (PlanSection $section): bool => str_contains($section->body, 'double-weighted')),
+            'Expected at least one finding-sourced plan section to preserve verified-document weighting evidence.',
+        );
     }
 
     public function test_completeness_gate_blocks_acquisition_proceeding_until_required_phases_are_present(): void

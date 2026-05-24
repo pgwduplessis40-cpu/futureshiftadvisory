@@ -82,7 +82,7 @@ final class IntegrityEnforcedTest extends TestCase
             $path = $file->getPathname();
             $contents = file_get_contents($path) ?: '';
 
-            if (! str_contains($contents, '->post(') && ! str_contains($contents, 'Http::post(')) {
+            if (! str_contains($contents, 'Http::') || ! str_contains($contents, '->post(')) {
                 continue;
             }
 

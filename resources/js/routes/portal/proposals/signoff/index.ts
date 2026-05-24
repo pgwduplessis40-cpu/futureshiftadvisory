@@ -27,7 +27,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -99,7 +99,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
@@ -173,7 +173,7 @@ step.post = (args: { proposal: string | { id: string }, step: string | number } 
             action: step.url(args, options),
             method: 'post',
         })
-
+    
     step.form = stepForm
 const signoff = {
     show: Object.assign(show, show),

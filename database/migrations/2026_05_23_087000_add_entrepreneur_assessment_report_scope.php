@@ -66,9 +66,14 @@ return new class extends Migration
     public function down(): void
     {
         if (DB::connection()->getDriverName() === 'pgsql') {
+            $this->installLegacyRlsPolicies();
+
             DB::statement('ALTER TABLE pv_calculations DROP CONSTRAINT IF EXISTS pv_calculations_subject_present');
             DB::statement('ALTER TABLE report_sections DROP CONSTRAINT IF EXISTS report_sections_subject_present');
             DB::statement('ALTER TABLE reports DROP CONSTRAINT IF EXISTS reports_subject_present');
+            DB::statement('DELETE FROM pv_calculations WHERE client_id IS NULL');
+            DB::statement('DELETE FROM report_sections WHERE client_id IS NULL');
+            DB::statement('DELETE FROM reports WHERE client_id IS NULL');
             DB::statement('ALTER TABLE pv_calculations ALTER COLUMN client_id SET NOT NULL');
             DB::statement('ALTER TABLE report_sections ALTER COLUMN client_id SET NOT NULL');
             DB::statement('ALTER TABLE reports ALTER COLUMN client_id SET NOT NULL');
@@ -89,7 +94,6 @@ return new class extends Migration
             $table->dropConstrainedForeignId('entrepreneur_profile_id');
         });
 
-        $this->installLegacyRlsPolicies();
     }
 
     private function installRlsPolicies(): void

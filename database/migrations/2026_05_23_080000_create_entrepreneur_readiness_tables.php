@@ -52,7 +52,10 @@ return new class extends Migration
         Schema::dropIfExists('readiness_assessments');
 
         if (DB::connection()->getDriverName() === 'pgsql') {
+            $this->installLegacyCoachingSignalsPolicy();
+
             DB::statement('ALTER TABLE coaching_signals DROP CONSTRAINT IF EXISTS coaching_signals_subject_present');
+            DB::statement('DELETE FROM coaching_signals WHERE client_id IS NULL');
             DB::statement('ALTER TABLE coaching_signals ALTER COLUMN client_id SET NOT NULL');
         }
 
@@ -137,6 +140,31 @@ return new class extends Migration
                         FROM entrepreneur_profiles
                         WHERE entrepreneur_profiles.id = coaching_signals.entrepreneur_profile_id
                         AND entrepreneur_profiles.assigned_advisor_id::text = fsa_current_user_id()
+                    )
+                )
+                WITH CHECK (
+                    fsa_current_role() IN ('super_admin', 'system')
+                );
+        SQL);
+    }
+
+    private function installLegacyCoachingSignalsPolicy(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        DB::unprepared(<<<'SQL'
+            DROP POLICY IF EXISTS coaching_signals_scope ON coaching_signals;
+            CREATE POLICY coaching_signals_scope ON coaching_signals
+                USING (
+                    fsa_current_role() IN ('super_admin', 'system')
+                    OR EXISTS (
+                        SELECT 1
+                        FROM client_team
+                        WHERE client_team.client_id = coaching_signals.client_id
+                        AND client_team.user_id::text = fsa_current_user_id()
+                        AND client_team.role = 'lead_advisor'
                     )
                 )
                 WITH CHECK (
