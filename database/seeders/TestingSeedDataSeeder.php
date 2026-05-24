@@ -721,7 +721,7 @@ final class TestingSeedDataSeeder extends Seeder
 
         $this->ids['analysis_run'] = $this->upsert('analysis_runs', [
             'client_id' => $this->clients['advisory']->getKey(),
-            'module' => 'strategic_diagnostic',
+            'module' => 'swot',
             'prompt_version' => 'testing-v1',
         ], [
             'status' => 'completed',
@@ -741,7 +741,7 @@ final class TestingSeedDataSeeder extends Seeder
             'title' => 'Working-capital drag is slowing growth execution',
         ], [
             'client_id' => $this->clients['advisory']->getKey(),
-            'lens' => 'financial',
+            'lens' => 'diagnostic',
             'severity' => 'medium',
             'body' => 'Receivables have increased faster than revenue, creating avoidable cash pressure.',
             'attributions' => $this->json([
@@ -760,7 +760,7 @@ final class TestingSeedDataSeeder extends Seeder
             'title' => 'Key-person dependency is concentrated in dispatch',
         ], [
             'client_id' => $this->clients['advisory']->getKey(),
-            'lens' => 'people',
+            'lens' => 'diagnostic',
             'severity' => 'high',
             'body' => 'Dispatch knowledge sits with one operator and is not documented in the operating system.',
             'attributions' => $this->json([
@@ -788,7 +788,7 @@ final class TestingSeedDataSeeder extends Seeder
             'type' => 'improvement_opportunity',
             'created_by_user_id' => $this->users['advisor']->getKey(),
         ], [
-            'discount_method' => 'risk_adjusted',
+            'discount_method' => 'advisor_configured',
             'discount_rate' => 0.115000,
             'discount_rate_rationale' => 'Seeded SME advisory hurdle rate with execution risk overlay.',
             'inputs' => $this->json(['annual_benefit' => 68000, 'duration_years' => 3]),
@@ -804,7 +804,7 @@ final class TestingSeedDataSeeder extends Seeder
             'type' => 'risk_cost',
             'created_by_user_id' => $this->users['advisor']->getKey(),
         ], [
-            'discount_method' => 'risk_adjusted',
+            'discount_method' => 'advisor_configured',
             'discount_rate' => 0.130000,
             'discount_rate_rationale' => 'Seeded key-person risk discount rate.',
             'inputs' => $this->json(['financial_impact' => 120000, 'probability' => 0.28, 'duration_years' => 2]),
@@ -820,7 +820,7 @@ final class TestingSeedDataSeeder extends Seeder
             'type' => 'business_valuation',
             'created_by_user_id' => $this->users['advisor']->getKey(),
         ], [
-            'discount_method' => 'dcf',
+            'discount_method' => 'advisor_configured',
             'discount_rate' => 0.145000,
             'discount_rate_rationale' => 'Seeded valuation scenario for advisory testing.',
             'inputs' => $this->json(['ebitda' => 456000, 'growth_rate' => 0.06, 'terminal_multiple' => 4.6]),
@@ -1144,7 +1144,7 @@ final class TestingSeedDataSeeder extends Seeder
 
         $this->ids['fee_calculation'] = $this->upsert('fee_calculations', [
             'client_id' => $this->clients['advisory']->getKey(),
-            'method' => 'pv_linked',
+            'method' => 'outcome_based',
             'created_by_user_id' => $this->users['advisor']->getKey(),
         ], [
             'inputs' => $this->json([
@@ -1720,7 +1720,7 @@ final class TestingSeedDataSeeder extends Seeder
 
         $ddAnalysisRunId = $this->upsert('analysis_runs', [
             'client_id' => $this->clients['dd']->getKey(),
-            'module' => 'due_diligence',
+            'module' => 'dd_workstream',
             'prompt_version' => 'testing-dd-v1',
         ], [
             'status' => 'completed',
@@ -1740,7 +1740,7 @@ final class TestingSeedDataSeeder extends Seeder
             'title' => 'Revenue concentration requires purchase price protection',
         ], [
             'client_id' => $this->clients['dd']->getKey(),
-            'lens' => 'commercial',
+            'lens' => 'diagnostic',
             'severity' => 'high',
             'body' => 'Two customers represent 46 percent of trailing revenue in the seeded data room.',
             'attributions' => $this->json([
@@ -1778,10 +1778,10 @@ final class TestingSeedDataSeeder extends Seeder
 
         $ddPvId = $this->upsert('pv_calculations', [
             'client_id' => $this->clients['dd']->getKey(),
-            'type' => 'dd_valuation',
+            'type' => 'business_valuation',
             'created_by_user_id' => $this->users['advisor']->getKey(),
         ], [
-            'discount_method' => 'dcf',
+            'discount_method' => 'advisor_configured',
             'discount_rate' => 0.160000,
             'discount_rate_rationale' => 'Seeded DD valuation risk rate.',
             'inputs' => $this->json(['normalised_ebitda' => 520000, 'target_multiple' => 4.2]),
@@ -1876,7 +1876,7 @@ final class TestingSeedDataSeeder extends Seeder
 
         $reportId = $this->upsert('reports', [
             'client_id' => $this->clients['dd']->getKey(),
-            'type' => 'dd_report',
+            'type' => 'due_diligence',
             'title' => 'Kauri Kitchens Due Diligence Report',
         ], [
             'pdf_path' => 'seed/reports/kauri-kitchens-dd-report.pdf',

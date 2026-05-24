@@ -4,10 +4,21 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Database;
 
+use App\Models\AnalysisFinding;
+use App\Models\AnalysisRun;
+use App\Models\Client;
+use App\Models\EntrepreneurProfile;
+use App\Models\FeeCalculation;
+use App\Models\Proposal;
+use App\Models\PvCalculation;
+use App\Models\QuestionnaireQuestion;
+use App\Models\Report;
 use App\Models\User;
 use Database\Seeders\TestingSeedDataSeeder;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class TestingSeedDataSeederTest extends TestCase
@@ -142,6 +153,50 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'offboarding_records');
         $this->assertAtLeast(1, 'bulk_communications');
         $this->assertAtLeast(3, 'bulk_communication_recipients');
+    }
+
+    /**
+     * Guards against seeded values that are not valid enum backing values.
+     * The raw count assertions above use DB::table() and never cast, so an
+     * out-of-range enum (e.g. analysis_runs.module = 'strategic_diagnostic')
+     * slips through and only blows up when the app hydrates the model (a 500
+     * on /dashboard). This test hydrates every enum-cast seeded model through
+     * Eloquent — toArray() forces each cast — so an invalid backing value
+     * throws a ValueError here instead of in production.
+     *
+     * @return array<int, class-string<Model>>
+     */
+    public static function enumCastModels(): array
+    {
+        return [
+            [AnalysisRun::class],
+            [AnalysisFinding::class],
+            [Client::class],
+            [EntrepreneurProfile::class],
+            [FeeCalculation::class],
+            [Proposal::class],
+            [PvCalculation::class],
+            [QuestionnaireQuestion::class],
+            [Report::class],
+        ];
+    }
+
+    /**
+     * @param  class-string<Model>  $model
+     */
+    #[DataProvider('enumCastModels')]
+    public function test_seeded_records_hydrate_through_their_enum_casts(string $model): void
+    {
+        $this->seed(TestingSeedDataSeeder::class);
+
+        $records = $model::query()->get();
+        $this->assertGreaterThan(0, $records->count(), "Expected seeded [{$model}] records to hydrate.");
+
+        foreach ($records as $record) {
+            // Throws ValueError if any enum-cast column holds a value that is
+            // not a valid backing value for its enum (mirrors app hydration).
+            $this->assertIsArray($record->toArray());
+        }
     }
 
     private function assertAtLeast(int $minimum, string $table): void
