@@ -63,6 +63,21 @@ final class DashboardTest extends TestCase
                 ->where('clientsHealth.summary.total', 1)
                 ->where('clientsHealth.summary.needs_attention', 1)
                 ->where('clientsHealth.clients.0.legal_name', 'Scoped Health Limited')
+                ->where('clientsHealth.clients.0.engagement.level', 'red')
+                ->where('clientsHealth.clients.0.engagement.score', 25)
+                ->where('clientsHealth.clients.0.engagement.scores.questionnaire_pct', 0)
+                ->where('clientsHealth.clients.0.engagement.scores.documents_pct', 0)
+                ->where('clientsHealth.clients.0.engagement.scores.milestones_on_track_pct', 100)
+                ->where('clientsHealth.clients.0.engagement.scores.comms_recency_pct', 0)
+                ->where('clientsHealth.clients.0.engagement.display.overdue_count', 0)
+                ->where('clientsHealth.clients.0.engagement.display.blocked_count', 0)
+                ->where('clientsHealth.clients.0.engagement.display.last_comms_days', null)
+                ->where('clientsHealth.clients.0.engagement.weakest_component', 'questionnaire_pct')
+                ->where('clientsHealth.clients.0.engagement.focus_section', 'questionnaire')
+                ->where(
+                    'clientsHealth.clients.0.engagement.drill_url',
+                    route('advisor.clients.show', ['client' => $client, 'focus' => 'questionnaire'], absolute: false),
+                )
                 ->where('clientsHealth.clients.0.open_document_flags_count', 1)
                 ->has('clientsHealth.clients', 1)
                 ->where('redFlags.summary.open', 1)

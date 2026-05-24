@@ -4,18 +4,14 @@ declare(strict_types=1);
 
 namespace App\Services\DataQuality;
 
-use App\Enums\QuestionnaireQuestionType;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
-use App\Services\Questionnaires\QuestionnaireRuleEngine;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
-use Illuminate\Support\Arr;
-use Illuminate\Support\Collection;
 
 final class DataQualityScorer
 {
@@ -27,7 +23,7 @@ final class DataQualityScorer
 
     private const WEIGHT_FRESHNESS = 15;
 
-    public function __construct(private readonly QuestionnaireRuleEngine $rules) {}
+    public function __construct(private readonly QuestionnaireCompletenessCalculator $questionnaires) {}
 
     public function score(Client $client): DataQualityScore
     {
@@ -78,35 +74,9 @@ final class DataQualityScorer
      */
     private function questionnaireCompletenessSignal(EloquentCollection $responses): DataQualitySignal
     {
-        $expected = 0;
-        $answered = 0;
+        $result = $this->questionnaires->calculate($responses);
 
-        foreach ($responses as $response) {
-            $questionnaire = $response->questionnaire;
-            if ($questionnaire === null) {
-                continue;
-            }
-
-            $visibleQuestionIds = $this->visibleQuestionIds($response);
-            $visibleMap = array_fill_keys($visibleQuestionIds, true);
-            $answers = $response->answers->keyBy('question_id');
-
-            $questions = $questionnaire->sections
-                ->flatMap(fn ($section): Collection => $section->questions)
-                ->filter(fn (QuestionnaireQuestion $question): bool => isset($visibleMap[(string) $question->getKey()]));
-
-            $expected += $questions->count();
-
-            foreach ($questions as $question) {
-                $answer = $answers->get((string) $question->getKey());
-
-                if ($answer instanceof QuestionnaireAnswer && $this->answerHasValue($question, $answer)) {
-                    $answered++;
-                }
-            }
-        }
-
-        if ($expected === 0) {
+        if ($result->expected === 0) {
             return new DataQualitySignal(
                 key: 'questionnaire_completeness',
                 label: 'Questionnaire completeness',
@@ -117,14 +87,12 @@ final class DataQualityScorer
             );
         }
 
-        $score = $this->percent($answered, $expected);
-
         return new DataQualitySignal(
             key: 'questionnaire_completeness',
             label: 'Questionnaire completeness',
-            score: $score,
+            score: $result->score,
             weight: self::WEIGHT_QUESTIONNAIRE_COMPLETENESS,
-            summary: sprintf('%d of %d visible questions answered.', $answered, $expected),
+            summary: sprintf('%d of %d visible questions answered.', $result->answered, $result->expected),
             detail: 'Conditional questions are counted only when the saved answers make them visible.',
         );
     }
@@ -143,13 +111,13 @@ final class DataQualityScorer
                     continue;
                 }
 
-                if (! $this->answerHasValue($answer->question, $answer)) {
+                if (! $this->questionnaires->answerHasValue($answer->question, $answer)) {
                     continue;
                 }
 
                 $answered++;
 
-                if ($this->attachedDocumentIds($answer) !== []) {
+                if ($this->questionnaires->attachedDocumentIds($answer) !== []) {
                     $supported++;
                 }
             }
@@ -268,72 +236,6 @@ final class DataQualityScorer
             summary: $days === 0 ? 'Client data was updated today.' : sprintf('Last data update was %d days ago.', $days),
             detail: 'Updates within 30 days are fresh; updates older than 90 days lower analysis confidence.',
         );
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function visibleQuestionIds(QuestionnaireResponse $response): array
-    {
-        $questionnaire = $response->questionnaire;
-        if ($questionnaire === null) {
-            return [];
-        }
-
-        $answers = $response->answers
-            ->mapWithKeys(fn (QuestionnaireAnswer $answer): array => [
-                (string) $answer->question_id => [
-                    'value' => $answer->value,
-                    'attached_document_ids' => $this->attachedDocumentIds($answer),
-                ],
-            ])
-            ->all();
-
-        return $this->rules->visibleQuestionIds($questionnaire, $answers);
-    }
-
-    private function answerHasValue(QuestionnaireQuestion $question, QuestionnaireAnswer $answer): bool
-    {
-        if ($question->type === QuestionnaireQuestionType::FILE_ATTACH) {
-            return $this->attachedDocumentIds($answer) !== [];
-        }
-
-        return ! $this->emptyValue($answer->value);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function attachedDocumentIds(QuestionnaireAnswer $answer): array
-    {
-        $documentIds = $answer->attached_document_ids;
-        if (! is_array($documentIds)) {
-            return [];
-        }
-
-        return array_values(array_filter(
-            array_map(static fn (mixed $documentId): string => trim((string) $documentId), $documentIds),
-            static fn (string $documentId): bool => $documentId !== '',
-        ));
-    }
-
-    private function emptyValue(mixed $value): bool
-    {
-        if ($value === null) {
-            return true;
-        }
-
-        if (is_string($value)) {
-            return trim($value) === '';
-        }
-
-        if (is_array($value)) {
-            $flat = Arr::flatten($value);
-
-            return $flat === [] || collect($flat)->every(fn (mixed $item): bool => $this->emptyValue($item));
-        }
-
-        return false;
     }
 
     /**

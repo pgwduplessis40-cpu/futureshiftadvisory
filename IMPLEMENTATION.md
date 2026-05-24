@@ -1370,6 +1370,29 @@ Results after WO-101:
 
 Note: the local test DB required using the actual local Postgres connection values via the process environment, because `.env.testing` ships Herd defaults (`herd` role / empty password) that do not authenticate against a standalone PostgreSQL install. The test database must be separate from the dev database (`RefreshDatabase` wipes it). Do not commit local DB credentials.
 
+## Dashboard Interactivity (Tier 1)
+
+This D-track runs on `featureApp` after Phase 3 and before Phase 4, with one commit per work order.
+
+Results after WO-D01:
+
+- Foundations shipped: dashboard config, shared `InsightHoverCard`, hover/popover primitives, coarse-pointer detection, and `useDrillFocus` anchors on advisor/client dashboard targets.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+- `vendor\bin\pint --dirty`: passed.
+- Targeted PHPUnit was initially blocked by `.env.testing` Postgres auth using the default `herd` role without a password.
+
+Results after WO-D02:
+
+- Client engagement scoring shipped for advisor dashboard health rows: questionnaire completeness, verified documents, milestones on-track, comms recency, G/A/R banding, hover breakdown, and weak-component drill URLs.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Dashboards/ClientEngagementScorerTest.php tests/Feature/Advisor/DashboardTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 5 tests, 86 assertions.
+- `php -l` passed for the changed PHP service/controller/test files.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
 ## Remaining Work
 
 **Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**

@@ -16,6 +16,7 @@ import {
     TrendingUp,
     UsersRound,
 } from 'lucide-react';
+import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import {
     PvSummaryBadges,
     WaterfallChart,
@@ -27,8 +28,31 @@ import { DocumentVerificationFlagPanel } from '@/components/verification/Documen
 import type { DocumentVerificationFlag } from '@/components/verification/DocumentVerificationFlagPanel';
 import { dashboard } from '@/routes';
 
-type QualityLevel = 'high' | 'medium' | 'low' | 'insufficient';
 type HealthLevel = 'green' | 'amber' | 'red';
+type EngagementScoreKey =
+    | 'questionnaire_pct'
+    | 'documents_pct'
+    | 'milestones_on_track_pct'
+    | 'comms_recency_pct';
+
+type EngagementScore = {
+    level: HealthLevel;
+    score: number;
+    scores: {
+        questionnaire_pct: number;
+        documents_pct: number;
+        milestones_on_track_pct: number;
+        comms_recency_pct: number;
+    };
+    display: {
+        overdue_count: number;
+        blocked_count: number;
+        last_comms_days: number | null;
+    };
+    weakest_component: EngagementScoreKey;
+    focus_section: string;
+    drill_url: string;
+};
 
 type ClientHealth = {
     id: string;
@@ -37,7 +61,7 @@ type ClientHealth = {
     engagement_type_label: string;
     status: string;
     status_label: string;
-    data_quality: QualityLevel;
+    engagement: EngagementScore;
     open_document_flags_count: number;
     last_activity_at: string | null;
     show_url: string;
@@ -1089,10 +1113,10 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Badge variant="secondary">
-                        {payload.summary.high} high
+                        {payload.summary.high} green
                     </Badge>
                     <Badge variant="outline">
-                        {payload.summary.medium} medium
+                        {payload.summary.medium} amber
                     </Badge>
                     <Badge variant="destructive">
                         {payload.summary.needs_attention} attention
@@ -1113,7 +1137,7 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                                     Client
                                 </th>
                                 <th className="px-3 py-2 font-medium">
-                                    Quality
+                                    Engagement
                                 </th>
                                 <th className="px-3 py-2 font-medium">Flags</th>
                                 <th className="px-3 py-2 font-medium">
@@ -1140,13 +1164,9 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                                         </div>
                                     </td>
                                     <td className="px-3 py-2">
-                                        <Badge
-                                            variant={qualityVariant(
-                                                client.data_quality,
-                                            )}
-                                        >
-                                            {qualityLabel(client.data_quality)}
-                                        </Badge>
+                                        <EngagementBadge
+                                            engagement={client.engagement}
+                                        />
                                     </td>
                                     <td className="px-3 py-2">
                                         <Badge
@@ -1181,6 +1201,51 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function EngagementBadge({ engagement }: { engagement: EngagementScore }) {
+    return (
+        <InsightHoverCard
+            title={`${engagement.score}% engagement`}
+            rows={[
+                {
+                    label: 'Questionnaire',
+                    value: `${engagement.scores.questionnaire_pct}%`,
+                },
+                {
+                    label: 'Documents',
+                    value: `${engagement.scores.documents_pct}%`,
+                },
+                {
+                    label: 'Milestones',
+                    value: `${engagement.scores.milestones_on_track_pct}% (${engagement.display.overdue_count} overdue / ${engagement.display.blocked_count} blocked)`,
+                    tone:
+                        engagement.display.overdue_count > 0 ||
+                        engagement.display.blocked_count > 0
+                            ? 'negative'
+                            : 'default',
+                },
+                {
+                    label: 'Last comms',
+                    value:
+                        engagement.display.last_comms_days === null
+                            ? 'Never'
+                            : `${engagement.display.last_comms_days} days`,
+                },
+            ]}
+            drillHref={engagement.drill_url}
+            drillAriaLabel={`Open ${engagementLabel(engagement.level)} engagement section`}
+        >
+            <button
+                type="button"
+                className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+                <Badge variant={healthVariant(engagement.level)}>
+                    {engagementLabel(engagement.level)} / {engagement.score}
+                </Badge>
+            </button>
+        </InsightHoverCard>
     );
 }
 
@@ -1518,8 +1583,8 @@ function HealthIcon({ health }: { health: HealthLevel }) {
     );
 }
 
-function qualityLabel(level: QualityLevel): string {
-    return level.replace('_', ' ');
+function engagementLabel(level: HealthLevel): string {
+    return level.charAt(0).toUpperCase() + level.slice(1);
 }
 
 function formatLabel(value: string): string {
@@ -1527,24 +1592,6 @@ function formatLabel(value: string): string {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
-}
-
-function qualityVariant(
-    level: QualityLevel,
-): 'default' | 'secondary' | 'outline' | 'destructive' {
-    if (level === 'high') {
-        return 'default';
-    }
-
-    if (level === 'medium') {
-        return 'secondary';
-    }
-
-    if (level === 'low') {
-        return 'outline';
-    }
-
-    return 'destructive';
 }
 
 function healthVariant(

@@ -24,6 +24,7 @@ use App\Models\Scenario;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
+use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Panels\Coach\SignalDetector;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -46,6 +47,7 @@ final class DashboardController extends Controller
     public function __invoke(
         Request $request,
         TermsAcceptanceGate $termsGate,
+        ClientEngagementScorer $engagementScorer,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -68,7 +70,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
         }
 
         return Inertia::render('dashboard');
@@ -80,6 +82,7 @@ final class DashboardController extends Controller
     private function advisorDashboardPayload(
         User $user,
         TermsAcceptanceGate $termsGate,
+        ClientEngagementScorer $engagementScorer,
         PvWaterfallBuilder $pvWaterfalls,
         FunnelTracker $funnels,
         PracticeHealthReport $practiceHealth,
@@ -90,7 +93,7 @@ final class DashboardController extends Controller
         $clientIds = $this->visibleClientIds($user);
 
         return [
-            'clientsHealth' => $this->clientsHealth($clientIds),
+            'clientsHealth' => $this->clientsHealth($clientIds, $engagementScorer),
             'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
@@ -279,14 +282,8 @@ final class DashboardController extends Controller
      * @param  array<int, string>|null  $clientIds
      * @return array<string, mixed>
      */
-    private function clientsHealth(?array $clientIds): array
+    private function clientsHealth(?array $clientIds, ClientEngagementScorer $engagementScorer): array
     {
-        $qualityCounts = $this->scopedClientQuery($clientIds)
-            ->select('data_quality', DB::raw('count(*) as aggregate'))
-            ->groupBy('data_quality')
-            ->pluck('aggregate', 'data_quality')
-            ->map(fn ($count): int => (int) $count);
-
         $clients = $this->scopedClientQuery($clientIds)
             ->orderBy('legal_name')
             ->limit(20)
@@ -301,27 +298,29 @@ final class DashboardController extends Controller
         $flagCounts = $this->openDocumentFlagCounts($idsForActivity);
         $latestDocumentActivity = $this->latestDocumentActivity($idsForActivity);
         $latestMessageActivity = $this->latestMessageActivity($idsForActivity);
+        $engagementScores = $engagementScorer->scoreMany($clients);
+        $engagementCounts = collect($engagementScores)->countBy('level');
 
-        $high = (int) ($qualityCounts[Client::DATA_QUALITY_HIGH] ?? 0);
-        $medium = (int) ($qualityCounts[Client::DATA_QUALITY_MEDIUM] ?? 0);
-        $low = (int) ($qualityCounts[Client::DATA_QUALITY_LOW] ?? 0);
-        $insufficient = (int) ($qualityCounts[Client::DATA_QUALITY_INSUFFICIENT] ?? 0);
+        $green = (int) ($engagementCounts['green'] ?? 0);
+        $amber = (int) ($engagementCounts['amber'] ?? 0);
+        $red = (int) ($engagementCounts['red'] ?? 0);
 
         return [
             'summary' => [
-                'total' => $qualityCounts->sum(),
-                'high' => $high,
-                'medium' => $medium,
-                'low' => $low,
-                'insufficient' => $insufficient,
-                'needs_attention' => $low + $insufficient,
+                'total' => $clients->count(),
+                'high' => $green,
+                'medium' => $amber,
+                'low' => $red,
+                'insufficient' => 0,
+                'needs_attention' => $red,
             ],
             'clients' => $clients
-                ->map(function (Client $client) use ($flagCounts, $latestDocumentActivity, $latestMessageActivity): array {
+                ->map(function (Client $client) use ($engagementScores, $flagCounts, $latestDocumentActivity, $latestMessageActivity): array {
                     $clientId = (string) $client->getKey();
 
                     return $this->clientSummary(
                         $client,
+                        $engagementScores[$clientId],
                         (int) ($flagCounts[$clientId] ?? 0),
                         $this->latestActivityFor(
                             $client,
@@ -452,7 +451,7 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function clientSummary(Client $client, int $openDocumentFlags, ?Carbon $latestActivity): array
+    private function clientSummary(Client $client, array $engagement, int $openDocumentFlags, ?Carbon $latestActivity): array
     {
         $engagementType = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type
@@ -470,6 +469,13 @@ final class DashboardController extends Controller
             'status' => $status->value,
             'status_label' => $status->label(),
             'data_quality' => $client->data_quality,
+            'engagement' => [
+                ...$engagement,
+                'drill_url' => route('advisor.clients.show', [
+                    'client' => $client,
+                    'focus' => $engagement['focus_section'],
+                ], absolute: false),
+            ],
             'open_document_flags_count' => $openDocumentFlags,
             'last_activity_at' => $latestActivity?->toIso8601String(),
             'show_url' => route('advisor.clients.show', $client, absolute: false),
