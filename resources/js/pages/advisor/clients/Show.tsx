@@ -35,6 +35,7 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import { useDrillFocus } from '@/hooks/use-drill-focus';
 import type { ClientSummary } from './types';
 
 type ClientDetail = ClientSummary & {
@@ -379,6 +380,8 @@ type MeetingForm = {
 };
 
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
+    useDrillFocus();
+
     const lifecycleForm = useForm<LifecycleForm>({
         status: client.status,
         reason: '',
@@ -414,7 +417,12 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
-                        <Button asChild size="sm" variant="outline">
+                        <Button
+                            asChild
+                            id="section-messages"
+                            size="sm"
+                            variant="outline"
+                        >
                             <Link
                                 href={`/advisor/clients/${client.id}/messages`}
                             >
@@ -456,7 +464,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                     </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
+                <div
+                    id="section-overview"
+                    className="grid gap-4 md:grid-cols-3"
+                >
                     <Metric label="NZBN" value={client.nzbn ?? '-'} />
                     <Metric label="Lifecycle">
                         <Badge variant={statusVariant(client.status)}>
@@ -464,9 +475,13 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         </Badge>
                     </Metric>
                     <Metric label="Data quality">
-                        <DataQualityBadge
-                            summary={client.data_quality_summary}
-                        />
+                        <div id="section-questionnaire">
+                            <div id="section-documents">
+                                <DataQualityBadge
+                                    summary={client.data_quality_summary}
+                                />
+                            </div>
+                        </div>
                     </Metric>
                 </div>
 
@@ -621,7 +636,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                     <InputError message={lifecycleForm.errors.status} />
                 </section>
 
-                <section className="space-y-4 rounded-md border p-4">
+                <section
+                    id="section-analysis"
+                    className="space-y-4 rounded-md border p-4"
+                >
                     <div className="flex flex-wrap items-center justify-between gap-3">
                         <div className="flex items-center gap-2">
                             <MessageSquarePlus
@@ -685,7 +703,7 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section id="section-goals" className="space-y-4 rounded-md border p-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Target className="size-4" aria-hidden="true" />

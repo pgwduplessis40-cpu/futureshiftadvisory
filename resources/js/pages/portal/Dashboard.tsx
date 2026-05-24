@@ -16,6 +16,7 @@ import { Button } from '@/components/ui/button';
 import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
+import { useDrillFocus } from '@/hooks/use-drill-focus';
 
 type ClientPayload = {
     id: string;
@@ -149,6 +150,8 @@ export default function PortalDashboard({
     reports,
     messagesUrl,
 }: Props) {
+    useDrillFocus();
+
     return (
         <>
             <Head title="Client portal" />
