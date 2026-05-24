@@ -127,6 +127,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('milestones/{milestone}/proof', [GoalController::class, 'proof'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('milestones.proof.store');
+        Route::get('reports/{report}/download', [ReportController::class, 'download'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('reports.download');
+        Route::get('reports/{report}/pptx', [ReportController::class, 'downloadPptx'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('reports.pptx');
         Route::patch('reports/{report}/review', [ReportController::class, 'review'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.review');

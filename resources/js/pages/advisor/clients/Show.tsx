@@ -5,6 +5,7 @@ import {
     Brain,
     CalendarClock,
     CheckCircle2,
+    Download,
     FileCheck2,
     FileText,
     HeartPulse,
@@ -242,6 +243,8 @@ type ReportSummary = {
     generated_at: string | null;
     pdf_byte_size: number | null;
     pptx_byte_size: number | null;
+    download_url: string | null;
+    pptx_url: string | null;
     review_status: string;
     reviewed_at: string | null;
     review_url: string;
@@ -1690,6 +1693,32 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                                         ? ` / PPTX ${formatBytes(report.pptx_byte_size)}`
                                         : ''}
                                 </span>
+                                {report.download_url && (
+                                    <Button asChild size="sm" variant="outline">
+                                        <a
+                                            href={report.download_url}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                        >
+                                            <FileText
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            View PDF
+                                        </a>
+                                    </Button>
+                                )}
+                                {report.pptx_url && (
+                                    <Button asChild size="sm" variant="outline">
+                                        <a href={report.pptx_url}>
+                                            <Download
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            PPTX
+                                        </a>
+                                    </Button>
+                                )}
                                 {report.review_status === 'pending_review' && (
                                     <Badge variant="secondary">Review</Badge>
                                 )}

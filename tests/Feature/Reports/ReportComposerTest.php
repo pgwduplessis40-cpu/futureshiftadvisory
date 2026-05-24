@@ -235,6 +235,40 @@ final class ReportComposerTest extends TestCase
         ]);
     }
 
+    public function test_advisor_can_download_generated_report_pdf(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-download@example.test');
+        $this->businessValuation($client, 480000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $this->assertNotNull($report->pdf_path);
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
+        $this->assertStringContainsString('inline;', (string) $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'report.downloaded',
+            'subject_id' => $report->id,
+        ]);
+    }
+
+    public function test_advisor_report_download_returns_404_when_pdf_missing(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-missing@example.test');
+        $report = $this->storedReport($client); // no pdf_path set
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report))
+            ->assertNotFound();
+    }
+
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithTeamAndClientUser();
