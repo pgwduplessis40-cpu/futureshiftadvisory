@@ -97,6 +97,10 @@ final class DashboardController extends Controller
         SignalDetector $coachSignals,
     ): array {
         $clientIds = $this->visibleClientIds($user);
+        $pvWaterfall = $pvWaterfalls->forClients($clientIds);
+        $wellbeingAnalytics = $wellbeing->forClientIds($clientIds);
+        $coachSignalsPayload = $coachSignals->advisorPanel($user);
+        $funnelAnalytics = $funnels->summary($clientIds);
 
         return [
             'clientsHealth' => $this->clientsHealth($clientIds, $engagementScorer),
@@ -107,14 +111,26 @@ final class DashboardController extends Controller
             'integrationHealth' => $this->integrationHealth($user),
             'economicIndicators' => $this->economicIndicators($clientIds, $economicExposure),
             'paymentStatus' => $paymentStatus->forClientIds($clientIds),
-            'pvWaterfall' => $pvWaterfalls->forClients($clientIds),
+            'pvWaterfall' => [
+                ...$pvWaterfall,
+                'methodology_id' => 'pv.waterfall',
+            ],
             'practiceHealth' => $practiceHealth->forClientIds($clientIds),
             'proposalStatus' => $this->proposalStatus($clientIds),
             'questionnaireOptimisation' => $questionnaireOptimisation->summary(),
-            'wellbeingAnalytics' => $wellbeing->forClientIds($clientIds),
-            'coachSignals' => $coachSignals->advisorPanel($user),
+            'wellbeingAnalytics' => [
+                ...$wellbeingAnalytics,
+                'methodology_id' => 'wellbeing.trend',
+            ],
+            'coachSignals' => [
+                ...$coachSignalsPayload,
+                'methodology_id' => 'coach.signal_mapping',
+            ],
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
-            'funnelAnalytics' => $funnels->summary($clientIds),
+            'funnelAnalytics' => [
+                ...$funnelAnalytics,
+                'methodology_id' => 'funnel.drop_off',
+            ],
         ];
     }
 
@@ -356,6 +372,7 @@ final class DashboardController extends Controller
         $red = (int) ($engagementCounts['red'] ?? 0);
 
         return [
+            'methodology_id' => 'engagement.score',
             'summary' => [
                 'total' => $clients->count(),
                 'high' => $green,
@@ -521,6 +538,7 @@ final class DashboardController extends Controller
             'data_quality' => $client->data_quality,
             'engagement' => [
                 ...$engagement,
+                'methodology_id' => 'engagement.score',
                 'drill_url' => route('advisor.clients.show', [
                     'client' => $client,
                     'focus' => $engagement['focus_section'],
@@ -698,6 +716,7 @@ final class DashboardController extends Controller
             ->values();
 
         return [
+            'methodology_id' => 'integration.health.banding',
             'summary' => [
                 'total' => $samples->count(),
                 'green' => $samples->where('health', IntegrationHealthSample::HEALTH_GREEN)->count(),
@@ -724,6 +743,7 @@ final class DashboardController extends Controller
     private function emptyIntegrationHealth(): array
     {
         return [
+            'methodology_id' => 'integration.health.banding',
             'summary' => [
                 'total' => 0,
                 'green' => 0,
@@ -793,6 +813,7 @@ final class DashboardController extends Controller
             ->first();
 
         return [
+            'methodology_id' => 'economic.exposure',
             'summary' => [
                 'indicators' => $indicators->count(),
                 'exchange_rates' => $exchangeRates->count(),
@@ -943,6 +964,7 @@ final class DashboardController extends Controller
     private function emptyEconomicIndicators(): array
     {
         return [
+            'methodology_id' => 'economic.exposure',
             'summary' => [
                 'indicators' => 0,
                 'exchange_rates' => 0,
