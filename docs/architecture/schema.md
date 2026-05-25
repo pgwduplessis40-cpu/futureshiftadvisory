@@ -130,6 +130,24 @@ No new tables are required. WO-105 centralises minimum-cohort suppression in
 `CohortGuard` and writes aggregate-only plan-quality benchmark candidates to
 `learning_updates` with `layer_id = 20`.
 
+## WO-106 - Conversion outcome learning
+
+### `conversion_outcomes`
+
+Client/profile-scoped realised-outcome records that connect entrepreneur plan
+quality to later business-success signals. The learning layer reads only
+aggregate cohorts through `CohortGuard` and writes candidate-only
+`learning_updates`.
+
+Key columns:
+
+- `id` UUID primary key
+- `entrepreneur_profile_id`
+- `client_id`
+- `plan_assessment_id`
+- `outcome_signal` JSONB
+- `observed_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

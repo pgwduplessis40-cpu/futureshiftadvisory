@@ -252,6 +252,12 @@ WO-105 adds `learning:plan-quality-benchmarks`, which uses the same
 industry plan-quality benchmark review. Candidate evidence is aggregate-only and
 never changes guidance, rating weights, or descriptors automatically.
 
+WO-106 adds `conversion_outcomes` and `learning:conversion-outcomes` for
+long-running realised-success signals. The layer correlates aggregate plan
+scores with outcome scores only when `CohortGuard` allows the cohort, then queues
+a governed learning candidate for guidance review. It never emits row-level
+entrepreneur, client, or plan identifiers.
+
 `advisory_readiness_signals` stores the systematic advisory-readiness signal
 for a profile. `AdvisoryReadiness::evaluate()` creates or updates the signal
 when the latest assessed plan reaches the readiness threshold, moves the

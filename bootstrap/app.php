@@ -14,6 +14,7 @@ use App\Console\Commands\RunActiveLayerEngine;
 use App\Console\Commands\RunBiasCalibration;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunCoachSignalCalibrationLayer;
+use App\Console\Commands\RunConversionOutcomeLearning;
 use App\Console\Commands\RunDdLearning;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
@@ -205,6 +206,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunPlanQualityBenchmarks::class)
             ->weeklyOn(1, '06:00')
             ->name('fsa-plan-quality-benchmarks')
+            ->withoutOverlapping();
+
+        $schedule->command(RunConversionOutcomeLearning::class)
+            ->monthlyOn(1, '06:15')
+            ->name('fsa-conversion-outcome-learning')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {
