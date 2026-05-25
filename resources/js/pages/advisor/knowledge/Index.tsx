@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { BookOpen, Plus, Search } from 'lucide-react';
+import { BookOpen, LibraryBig, Plus, Search } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -15,6 +15,7 @@ type Props = {
     canCreate: boolean;
     indexUrl: string;
     createUrl: string;
+    methodologiesUrl: string;
 };
 
 export default function KnowledgeIndex({
@@ -23,6 +24,7 @@ export default function KnowledgeIndex({
     canCreate,
     indexUrl,
     createUrl,
+    methodologiesUrl,
 }: Props) {
     const [query, setQuery] = useState(filters.q ?? '');
 
@@ -49,14 +51,28 @@ export default function KnowledgeIndex({
                             Knowledge
                         </h1>
                     </div>
-                    {canCreate && (
-                        <Button asChild size="sm">
-                            <Link href={createUrl}>
-                                <Plus className="size-4" aria-hidden="true" />
-                                New
+                    <div className="flex flex-wrap gap-2">
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={methodologiesUrl}>
+                                <LibraryBig
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Platform
                             </Link>
                         </Button>
-                    )}
+                        {canCreate && (
+                            <Button asChild size="sm">
+                                <Link href={createUrl}>
+                                    <Plus
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    New
+                                </Link>
+                            </Button>
+                        )}
+                    </div>
                 </div>
 
                 <form

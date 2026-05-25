@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
+import methodologies from './methodologies'
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::index
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:26
@@ -75,11 +76,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +95,7 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
 create.url = (options?: RouteQueryOptions) => {
@@ -103,7 +104,7 @@ create.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -112,7 +113,7 @@ create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -122,7 +123,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
     const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -132,7 +133,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
         createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -141,7 +142,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:56
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:57
  * @route '/advisor/knowledge/create'
  */
         createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -153,11 +154,11 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:69
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:70
  * @route '/advisor/knowledge'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -172,7 +173,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:69
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:70
  * @route '/advisor/knowledge'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -181,7 +182,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:69
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:70
  * @route '/advisor/knowledge'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -191,7 +192,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:69
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:70
  * @route '/advisor/knowledge'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -201,18 +202,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:69
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:70
  * @route '/advisor/knowledge'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 export const show = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -227,7 +228,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 show.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -238,7 +239,7 @@ show.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -260,7 +261,7 @@ show.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 show.get = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -269,7 +270,7 @@ show.get = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
 })
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -279,7 +280,7 @@ show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
 
     /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
     const showForm = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -289,7 +290,7 @@ show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
 
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
         showForm.get = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -298,7 +299,7 @@ show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
         })
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:89
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:90
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
         showForm.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -310,11 +311,11 @@ show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
 export const edit = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -329,7 +330,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
 edit.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -340,7 +341,7 @@ edit.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -362,7 +363,7 @@ edit.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
 edit.get = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -371,7 +372,7 @@ edit.get = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
 })
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
 edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -381,7 +382,7 @@ edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
 
     /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
     const editForm = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -391,7 +392,7 @@ edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
 
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
         editForm.get = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -400,7 +401,7 @@ edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
         })
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:100
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:101
  * @route '/advisor/knowledge/{knowledgeEntry}/edit'
  */
         editForm.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -412,11 +413,11 @@ edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
                     }),
             method: 'get',
         })
-    
+
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:117
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:118
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 export const update = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -431,7 +432,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:117
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:118
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 update.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -442,7 +443,7 @@ update.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -464,7 +465,7 @@ update.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntr
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:117
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:118
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 update.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -474,7 +475,7 @@ update.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEn
 
     /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:117
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:118
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
     const updateForm = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -489,7 +490,7 @@ update.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEn
 
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:117
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:118
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
         updateForm.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -501,11 +502,11 @@ update.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEn
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:136
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:137
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 export const destroy = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -520,7 +521,7 @@ destroy.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:136
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:137
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 destroy.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -531,7 +532,7 @@ destroy.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEnt
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -553,7 +554,7 @@ destroy.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEnt
 
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:136
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:137
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
 destroy.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -563,7 +564,7 @@ destroy.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledge
 
     /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:136
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:137
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
     const destroyForm = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -578,7 +579,7 @@ destroy.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledge
 
             /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
- * @see app/Http/Controllers/Advisor/KnowledgeController.php:136
+ * @see app/Http/Controllers/Advisor/KnowledgeController.php:137
  * @route '/advisor/knowledge/{knowledgeEntry}'
  */
         destroyForm.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -590,12 +591,13 @@ destroy.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledge
                     }),
             method: 'post',
         })
-    
+
     destroy.form = destroyForm
 const knowledge = {
     index: Object.assign(index, index),
 create: Object.assign(create, create),
 store: Object.assign(store, store),
+methodologies: Object.assign(methodologies, methodologies),
 show: Object.assign(show, show),
 edit: Object.assign(edit, edit),
 update: Object.assign(update, update),

@@ -24,6 +24,7 @@ retry.url = (args: { payment: string | number } | [payment: string | number ] | 
         args = { payment: args }
     }
 
+
     if (Array.isArray(args)) {
         args = {
                     payment: args[0],

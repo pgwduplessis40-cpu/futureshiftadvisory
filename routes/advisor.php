@@ -18,6 +18,7 @@ use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
+use App\Http\Controllers\Advisor\MethodologyController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\PaymentController;
 use App\Http\Controllers\Advisor\ProposalController;
@@ -174,17 +175,28 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('knowledge', [KnowledgeController::class, 'store'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
             ->name('knowledge.store');
+        Route::get('knowledge/methodologies', [MethodologyController::class, 'index'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
+            ->name('knowledge.methodologies.index');
+        Route::get('knowledge/methodologies/{methodology}', [MethodologyController::class, 'show'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
+            ->where('methodology', '[a-z][a-z0-9_]*(\.[a-z][a-z0-9_]*)*')
+            ->name('knowledge.methodologies.show');
         Route::get('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'show'])
             ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
+            ->whereUuid('knowledgeEntry')
             ->name('knowledge.show');
         Route::get('knowledge/{knowledgeEntry}/edit', [KnowledgeController::class, 'edit'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->whereUuid('knowledgeEntry')
             ->name('knowledge.edit');
         Route::patch('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'update'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->whereUuid('knowledgeEntry')
             ->name('knowledge.update');
         Route::delete('knowledge/{knowledgeEntry}', [KnowledgeController::class, 'destroy'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->whereUuid('knowledgeEntry')
             ->name('knowledge.destroy');
 
         Route::get('prospects', [ProspectInboxController::class, 'index'])

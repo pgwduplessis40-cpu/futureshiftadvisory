@@ -50,6 +50,7 @@ final class KnowledgeController extends Controller
             'canCreate' => Gate::allows('create', KnowledgeEntry::class),
             'indexUrl' => route('advisor.knowledge.index', absolute: false),
             'createUrl' => route('advisor.knowledge.create', absolute: false),
+            'methodologiesUrl' => route('advisor.knowledge.methodologies.index', absolute: false),
         ]);
     }
 

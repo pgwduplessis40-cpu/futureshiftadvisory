@@ -24,6 +24,7 @@ recompute.url = (args: { client: string | number } | [client: string | number ] 
         args = { client: args }
     }
 
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
