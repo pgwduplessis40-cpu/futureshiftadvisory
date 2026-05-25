@@ -10,6 +10,7 @@ use App\Console\Commands\ProcessScheduledPayments;
 use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\ReverifyBrokerFspRegistrations;
+use App\Console\Commands\RunActiveLayerEngine;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunCoachSignalCalibrationLayer;
 use App\Console\Commands\RunFeedbackLearningLayer;
@@ -187,6 +188,13 @@ return Application::configure(basePath: dirname(__DIR__))
             ->monthlyOn(1, '05:30')
             ->name('fsa-coach-signal-calibration-layer')
             ->withoutOverlapping();
+
+        if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {
+            $schedule->command(RunActiveLayerEngine::class)
+                ->hourly()
+                ->name('fsa-active-learning-layer-engine')
+                ->withoutOverlapping();
+        }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //

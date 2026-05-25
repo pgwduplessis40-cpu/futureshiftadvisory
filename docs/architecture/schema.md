@@ -92,6 +92,23 @@ Operational notes:
 - Cadence-only rows write `window.governed_candidates_only = true` and `window.automatic_application = false`.
 - The admin learning queue payload now includes monitoring summary, layer latest-run state, queue counts, and recent run history.
 
+## WO-102 - Active learning engine
+
+### `learning_layer_state`
+
+Per-layer activation and cadence state for the 32 governed learning layers. Active runs create `learning_updates` candidates only and record `learning_layer_runs`; they never write implementation rows or mutate prompts, scoring weights, rating descriptors, or framework values.
+
+Key columns:
+
+- `layer_id` small integer primary key matching `LayerCadenceRegistry`
+- `name`
+- `cadence`
+- `active`
+- `min_sample`
+- `last_run_at`
+- `next_due_at`
+- `config` JSONB
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.
