@@ -46,3 +46,19 @@ These files intentionally contain no behavior. Future WOs should fill in methods
 FSP is no longer an empty scaffold after WO-71. It has fixture, live, and
 fallback clients and is used by the broker portal approval and re-verification
 flow.
+
+## NZ business tools
+
+WO-113 adds active clients for Employment Hero, Cin7, and Tradify. These follow
+the same fake/live/fallback structure, but their OAuth connection state and
+encrypted token storage live in `NzToolConnector` and `nz_tool_connections`.
+
+Live flags are disabled by default:
+
+- `FEATURE_EMPLOYMENT_HERO_LIVE`
+- `FEATURE_CIN7_LIVE`
+- `FEATURE_TRADIFY_LIVE`
+
+Operational snapshots preserve `source_badge`, `degraded`, and
+`correlation_id` fields so advisor-facing workflows can distinguish live,
+cached, and fixture-backed data.

@@ -105,6 +105,33 @@ return [
         ],
     ],
 
+    'business_tools' => [
+        'employment_hero' => [
+            'live' => (bool) env('FEATURE_EMPLOYMENT_HERO_LIVE', false),
+            'base_url' => env('EMPLOYMENT_HERO_BASE_URL', 'https://api.employmenthero.com'),
+            'authorize_url' => env('EMPLOYMENT_HERO_AUTHORIZE_URL', 'https://oauth.employmenthero.com/oauth2/authorize'),
+            'redirect_uri' => env('EMPLOYMENT_HERO_REDIRECT_URI'),
+            'client_id' => env('EMPLOYMENT_HERO_CLIENT_ID'),
+            'client_secret' => env('EMPLOYMENT_HERO_CLIENT_SECRET'),
+        ],
+        'cin7' => [
+            'live' => (bool) env('FEATURE_CIN7_LIVE', false),
+            'base_url' => env('CIN7_BASE_URL', 'https://api.cin7.com'),
+            'authorize_url' => env('CIN7_AUTHORIZE_URL', 'https://connect.cin7.com/oauth/authorize'),
+            'redirect_uri' => env('CIN7_REDIRECT_URI'),
+            'client_id' => env('CIN7_CLIENT_ID'),
+            'client_secret' => env('CIN7_CLIENT_SECRET'),
+        ],
+        'tradify' => [
+            'live' => (bool) env('FEATURE_TRADIFY_LIVE', false),
+            'base_url' => env('TRADIFY_BASE_URL', 'https://api.tradifyhq.com'),
+            'authorize_url' => env('TRADIFY_AUTHORIZE_URL', 'https://app.tradifyhq.com/oauth/authorize'),
+            'redirect_uri' => env('TRADIFY_REDIRECT_URI'),
+            'client_id' => env('TRADIFY_CLIENT_ID'),
+            'client_secret' => env('TRADIFY_CLIENT_SECRET'),
+        ],
+    ],
+
     'payments' => [
         'primary_gateway' => env('PAYMENT_PRIMARY_GATEWAY', 'stripe'),
         'max_attempts' => (int) env('PAYMENT_MAX_ATTEMPTS', 2),

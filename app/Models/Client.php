@@ -271,6 +271,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<NzToolConnection>
+     */
+    public function nzToolConnections(): HasMany
+    {
+        return $this->hasMany(NzToolConnection::class);
+    }
+
+    /**
      * @return HasMany<Meeting>
      */
     public function meetings(): HasMany

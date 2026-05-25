@@ -294,6 +294,31 @@ Key columns:
 - `approved_at`
 - `last_used_at`
 
+## WO-113 - NZ business tool integrations
+
+### `nz_tool_connections`
+
+Encrypted OAuth connection records for Employment Hero, Cin7, and Tradify.
+One active connection is allowed per client/provider, and the latest snapshot
+payload preserves provider source metadata for advisory evidence.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `provider`
+- `external_tenant_id`
+- `status`
+- `token_envelope`
+- `token_envelope_meta` JSONB
+- `scopes` JSONB
+- `last_sync_payload` JSONB
+- `connected_by_user_id`
+- `connected_at`
+- `revoked_by_user_id`
+- `revoked_at`
+- `last_synced_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

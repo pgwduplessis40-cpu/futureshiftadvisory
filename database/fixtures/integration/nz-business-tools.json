@@ -1,0 +1,47 @@
+{
+  "employment_hero": {
+    "token": {
+      "access_token": "employment-hero-access-token-fixture",
+      "refresh_token": "employment-hero-refresh-token-fixture",
+      "external_tenant_id": "eh-tenant-fixture",
+      "scopes": ["employees.read", "leave.read", "payroll.read"]
+    },
+    "snapshot": {
+      "employee_count": 24,
+      "payroll_frequency": "fortnightly",
+      "leave_liability_hours": 112,
+      "open_compliance_items": 1,
+      "as_at": "2026-05-25"
+    }
+  },
+  "cin7": {
+    "token": {
+      "access_token": "cin7-access-token-fixture",
+      "refresh_token": "cin7-refresh-token-fixture",
+      "external_tenant_id": "cin7-tenant-fixture",
+      "scopes": ["inventory.read", "sales.read", "purchasing.read"]
+    },
+    "snapshot": {
+      "stock_on_hand_value": 183500,
+      "open_sales_orders": 17,
+      "backordered_skus": 3,
+      "inventory_turnover": 4.2,
+      "as_at": "2026-05-25"
+    }
+  },
+  "tradify": {
+    "token": {
+      "access_token": "tradify-access-token-fixture",
+      "refresh_token": "tradify-refresh-token-fixture",
+      "external_tenant_id": "tradify-tenant-fixture",
+      "scopes": ["jobs.read", "invoices.read", "timesheets.read"]
+    },
+    "snapshot": {
+      "open_jobs": 14,
+      "unbilled_hours": 38.5,
+      "overdue_invoices": 2,
+      "average_job_margin": 0.31,
+      "as_at": "2026-05-25"
+    }
+  }
+}

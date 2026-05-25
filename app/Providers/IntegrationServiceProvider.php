@@ -4,10 +4,18 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Integration\Cin7\Contracts\Cin7Client;
+use App\Services\Integration\Cin7\FakeCin7Client;
+use App\Services\Integration\Cin7\FallbackCin7Client;
+use App\Services\Integration\Cin7\LiveCin7Client;
 use App\Services\Integration\CompaniesOffice\Contracts\CompaniesOfficeClient;
 use App\Services\Integration\CompaniesOffice\FakeCompaniesOfficeClient;
 use App\Services\Integration\CompaniesOffice\FallbackCompaniesOfficeClient;
 use App\Services\Integration\CompaniesOffice\LiveCompaniesOfficeClient;
+use App\Services\Integration\EmploymentHero\Contracts\EmploymentHeroClient;
+use App\Services\Integration\EmploymentHero\FakeEmploymentHeroClient;
+use App\Services\Integration\EmploymentHero\FallbackEmploymentHeroClient;
+use App\Services\Integration\EmploymentHero\LiveEmploymentHeroClient;
 use App\Services\Integration\Fsp\Contracts\FspClient;
 use App\Services\Integration\Fsp\FakeFspClient;
 use App\Services\Integration\Fsp\FallbackFspClient;
@@ -58,6 +66,10 @@ use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Integration\Stripe\FakeStripeClient;
 use App\Services\Integration\Stripe\FallbackStripeClient;
 use App\Services\Integration\Stripe\LiveStripeClient;
+use App\Services\Integration\Tradify\Contracts\TradifyClient;
+use App\Services\Integration\Tradify\FakeTradifyClient;
+use App\Services\Integration\Tradify\FallbackTradifyClient;
+use App\Services\Integration\Tradify\LiveTradifyClient;
 use App\Services\Integration\Whisper\Contracts\WhisperClient;
 use App\Services\Integration\Whisper\FakeWhisperClient;
 use App\Services\Integration\Windcave\Contracts\WindcaveClient;
@@ -156,6 +168,21 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveWindcaveClient::class);
         $this->app->singleton(FallbackWindcaveClient::class);
         $this->app->singleton(WindcaveClient::class, FallbackWindcaveClient::class);
+
+        $this->app->singleton(FakeEmploymentHeroClient::class);
+        $this->app->singleton(LiveEmploymentHeroClient::class);
+        $this->app->singleton(FallbackEmploymentHeroClient::class);
+        $this->app->singleton(EmploymentHeroClient::class, FallbackEmploymentHeroClient::class);
+
+        $this->app->singleton(FakeCin7Client::class);
+        $this->app->singleton(LiveCin7Client::class);
+        $this->app->singleton(FallbackCin7Client::class);
+        $this->app->singleton(Cin7Client::class, FallbackCin7Client::class);
+
+        $this->app->singleton(FakeTradifyClient::class);
+        $this->app->singleton(LiveTradifyClient::class);
+        $this->app->singleton(FallbackTradifyClient::class);
+        $this->app->singleton(TradifyClient::class, FallbackTradifyClient::class);
     }
 
     private function registerScaffolds(): void
