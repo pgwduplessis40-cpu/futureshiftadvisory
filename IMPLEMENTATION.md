@@ -1,9 +1,10 @@
 # Future Shift Advisory - Implementation Status & Handoff
 
-Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), and [`CLAUDE.md`](./CLAUDE.md).
+Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), [`PLAN-METHODOLOGY-REGISTRY.md`](./PLAN-METHODOLOGY-REGISTRY.md), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-25
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
+**Methodology Registry:** **IN PROGRESS** (1/5, WO-M01 complete in working tree; next WO-M02 catalogue).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -12,13 +13,24 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | | |
 |---|---|
 | Work orders complete | **120 total** — Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102…WO-120) + Dashboard Interactivity (9, WO-D01…WO-D09) |
-| Work orders in progress | none |
-| Next work order | **none in the V2.4 plan** — V2.4 build complete. Optional next tracks: Methodology Registry (`PLAN-METHODOLOGY-REGISTRY.md`, ready) |
+| Methodology Registry | **1/5 complete** - WO-M01 foundation implemented; WO-M02 catalogue is next. |
+| Work orders in progress | Methodology Registry track |
+| Next work order | **WO-M02: Catalogue the platform's methods** (`PLAN-METHODOLOGY-REGISTRY.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
 | Verification status | **Phase 4 COMPLETE & VERIFIED — full green baseline (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **513 tests / 513 passed / 4080 assertions, 0 failures, 0 errors** (`php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`); Pint green. The Phase 4 review surfaced **2 suite-blockers** (MbieClient test double missing `industryWaccRates()`; WO-113/114/115 RLS migrations using `DB::statement()` for multi-statement blocks → `migrate:fresh` aborted, 471 errors) and **4 defects** (WO-117 rewrap fixture invalid `EngagementType` + `recordRotation()` `Carbon` vs `CarbonImmutable`; WO-112 advisor-API rate limiter defeated by middleware priority; WO-56 proposal builder over-creating consents after Phase 4 added consent types) — all fixed before declaring green. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
+
+## Methodology Registry Track
+
+| WO | Status | Notes |
+|---|---|---|
+| WO-M01 | Complete in working tree | Registry foundation: `config/methodologies.php`, typed `MethodologyEntry`, `MethodologyRegistry`, `ProvidesMethodology`, config-ref allowlist/secret guard, and focused unit coverage. |
+| WO-M02 | Next | Catalogue all current computational methods and add markers to owning calculator classes. |
+| WO-M03 | Pending | Drift guard and internal advisor hover linkage. |
+| WO-M04 | Pending | Internal Platform methodologies Knowledge surface. |
+| WO-M05 | Pending | Full QA, docs, and baseline. |
 
 ## Commit Log
 
