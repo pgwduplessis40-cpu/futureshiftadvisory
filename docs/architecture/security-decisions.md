@@ -5,7 +5,7 @@ This file records security architecture decisions that deviate from spec V2.4 se
 | # | Decision | Status | Trigger to revisit |
 |---|---|---|---|
 | SD-01 | Post-quantum envelope support implemented behind `FEATURE_PQC`; v2 uses `ml-kem-1024+aes-256-gcm` metadata, AES-256-GCM content encryption, wrapped DEK material, and `ml-dsa-87` signature metadata. | Closed at the application seam in WO-117; production still requires NZ-qualified crypto review and provider validation. | Before production cutover with real client data. |
-| SD-02 | Hardware Security Module (CloudHSM / Azure Dedicated HSM) deferred from Phase 1 to Phase 4. Phase 1 used Laravel `Crypt`; WO-118 wires the v2 wrapping boundary to an HSM. | Active until WO-118. | Before production cutover. |
+| SD-02 | Hardware Security Module key-management boundary added for v2 envelopes; the HSM client can wrap/unwrap DEKs and directly encrypt small secrets, while dev keeps a software fallback. | Closed at the application seam in WO-118; production still requires real HSM provisioning and reviewer sign-off. | Before production cutover. |
 | SD-03 | ClamAV daemon not provisioned in Phase 1. Interface (`FileScanner`) and a `NoopScanner` implementation built so the upload path enforces "scanned before persistence" architecturally; a `ClamAvScanner` skeleton is in place but not deployed. | Pending Phase 2/3. | Before any production upload. |
 | SD-04 | Row-level security in Postgres is enforced by per-table policies that read session-scoped variables (`fsa.role`, `fsa.client_ids`) set by the `EnforceClientScope` middleware. Bypass requires `super_admin` session context. | Active design. | If middleware bypass bugs are found, escalate immediately. |
 | SD-05 | All AI calls go through the `AiClient` interface, bound to `FakeAiClient` in tests. The live `AnthropicClaudeClient` is the only sanctioned exit point to the Anthropic API. | Active design. | If any team member adds a direct `Http::post('https://api.anthropic.com/...')`, treat as defect. |
@@ -25,4 +25,11 @@ The local v2 provider is software-backed for development and deterministic tests
 
 ## SD-02 - HSM Status
 
-SD-02 remains open until WO-118. The intended invariant is narrow and testable: the HSM-held KEK is generated in the HSM and never exported. Per-item DEKs may exist in app memory only transiently for bulk AES-GCM work and must be zeroed immediately after use.
+WO-118 closes the application HSM boundary:
+
+- `HsmClient` has wrap/unwrap and direct small-secret methods, but no KEK export method.
+- `PqcEnvelopeCipher` uses HSM direct encrypt/decrypt for small secrets and HSM-wrapped DEKs for bulk payloads.
+- `HsmKeyManager::zero()` clears transient DEKs after bulk AES-GCM operations.
+- `hsm:rotate-kek` records HSM key-reference rotations in `crypto_rotations`.
+
+The software driver remains a development fallback. Production must bind the real CloudHSM/Azure adapter before client-data cutover.

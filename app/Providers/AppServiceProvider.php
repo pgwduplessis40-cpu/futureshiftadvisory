@@ -13,7 +13,12 @@ use App\Services\Pdf\BrowsershotRenderer;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pptx\OpenXmlPptxGenerator;
+use App\Services\Storage\Hsm\HsmClient;
+use App\Services\Storage\Hsm\HsmKeyManager;
+use App\Services\Storage\Hsm\SoftwareHsmClient;
+use App\Services\Storage\Hsm\UnsupportedHsmClient;
 use App\Services\Storage\KeyEnvelope;
+use App\Services\Storage\Pqc\PqcEnvelopeCipher;
 use App\Services\Storage\WriteWrappedAdapter;
 use App\Services\Voice\Contracts\WhisperClient;
 use App\Services\Voice\FakeWhisperClient;
@@ -48,6 +53,17 @@ class AppServiceProvider extends ServiceProvider
             : $this->app->make(NoopScanner::class));
         $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
         $this->app->singleton(PptxGenerator::class, OpenXmlPptxGenerator::class);
+        $this->app->singleton(HsmClient::class, function (): HsmClient {
+            $driver = (string) config('hsm.driver', 'software');
+
+            return match ($driver) {
+                '', 'software' => new SoftwareHsmClient,
+                default => new UnsupportedHsmClient($driver),
+            };
+        });
+        $this->app->singleton(HsmKeyManager::class);
+        $this->app->singleton(PqcEnvelopeCipher::class);
+        $this->app->singleton(KeyEnvelope::class);
         $this->app->singleton(WhisperClient::class, fn (): WhisperClient => (bool) config('services.whisper.live', false)
             ? $this->app->make(LiveWhisperClient::class)
             : $this->app->make(FakeWhisperClient::class));

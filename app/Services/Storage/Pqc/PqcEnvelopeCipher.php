@@ -5,6 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Storage\Pqc;
 
 use App\Services\Storage\Exceptions\InvalidEnvelopeException;
+use App\Services\Storage\Hsm\HsmCiphertext;
+use App\Services\Storage\Hsm\HsmKeyManager;
+use App\Services\Storage\Hsm\SoftwareHsmClient;
+use App\Services\Storage\Hsm\WrappedDataKey;
 use Illuminate\Support\Facades\Config;
 use JsonException;
 use RuntimeException;
@@ -17,37 +21,29 @@ final class PqcEnvelopeCipher
 
     private const CIPHER = 'aes-256-gcm';
 
+    private const MODE_HSM_DIRECT = 'hsm-direct';
+
+    private const MODE_WRAPPED_DEK = 'wrapped-dek';
+
+    private readonly HsmKeyManager $hsm;
+
+    public function __construct(?HsmKeyManager $hsm = null)
+    {
+        $this->hsm = $hsm ?? new HsmKeyManager(new SoftwareHsmClient);
+    }
+
     /**
      * @return array<string, mixed>
      */
     public function encrypt(string $plaintext, int $version, string $alg, string $kid): array
     {
-        $dek = random_bytes(32);
-        $nonce = random_bytes(12);
-        $tag = '';
         $aad = $this->aad($version, $alg, $kid);
-        $ciphertext = openssl_encrypt($plaintext, self::CIPHER, $dek, OPENSSL_RAW_DATA, $nonce, $tag, $aad, 16);
-
-        if ($ciphertext === false) {
-            $this->zero($dek);
-
-            throw new RuntimeException('Failed to encrypt v2 envelope body.');
-        }
-
-        $wrapped = $this->wrapDek($dek, $aad);
-        $this->zero($dek);
-
-        $body = [
-            'provider' => (string) Config::get('crypto.pqc.provider', 'software'),
-            'kem_alg' => self::KEM_ALG,
-            'sig_alg' => self::SIGNATURE_ALG,
-            'encapsulated_key' => $wrapped['ciphertext'],
-            'wrap_nonce' => $wrapped['nonce'],
-            'wrap_tag' => $wrapped['tag'],
-            'nonce' => base64_encode($nonce),
-            'tag' => base64_encode($tag),
-            'ciphertext' => base64_encode($ciphertext),
-        ];
+        $body = $this->shouldUseHsmDirect($plaintext)
+            ? $this->encryptDirect($plaintext, $aad)
+            : $this->encryptWithWrappedDek($plaintext, $aad);
+        $body['provider'] = $this->hsm->driver();
+        $body['kem_alg'] = self::KEM_ALG;
+        $body['sig_alg'] = self::SIGNATURE_ALG;
         $body['signature'] = $this->sign($version, $alg, $kid, $body);
 
         return $body;
@@ -63,17 +59,7 @@ final class PqcEnvelopeCipher
             throw new InvalidEnvelopeException('V2 envelope body must be an object.');
         }
 
-        foreach ([
-            'kem_alg',
-            'sig_alg',
-            'encapsulated_key',
-            'wrap_nonce',
-            'wrap_tag',
-            'nonce',
-            'tag',
-            'ciphertext',
-            'signature',
-        ] as $required) {
+        foreach (['mode', 'provider', 'kem_alg', 'sig_alg', 'signature'] as $required) {
             if (! array_key_exists($required, $body)) {
                 throw new InvalidEnvelopeException("V2 envelope missing required body field: {$required}");
             }
@@ -99,12 +85,65 @@ final class PqcEnvelopeCipher
         }
 
         $aad = $this->aad((int) $envelope['v'], (string) $envelope['alg'], (string) $envelope['kid']);
-        $dek = $this->unwrapDek(
-            ciphertext: $this->decodeBase64((string) $body['encapsulated_key'], 'encapsulated_key'),
-            nonce: $this->decodeBase64((string) $body['wrap_nonce'], 'wrap_nonce'),
-            tag: $this->decodeBase64((string) $body['wrap_tag'], 'wrap_tag'),
-            aad: $aad,
-        );
+
+        return match ($body['mode']) {
+            self::MODE_HSM_DIRECT => $this->hsm->decryptSmallSecret(HsmCiphertext::fromEnvelope($body), $aad),
+            self::MODE_WRAPPED_DEK => $this->decryptWithWrappedDek($body, $aad),
+            default => throw new InvalidEnvelopeException('V2 envelope uses an unsupported HSM mode.'),
+        };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function encryptDirect(string $plaintext, string $aad): array
+    {
+        return [
+            'mode' => self::MODE_HSM_DIRECT,
+            ...$this->hsm->encryptSmallSecret($plaintext, $aad)->toEnvelope(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function encryptWithWrappedDek(string $plaintext, string $aad): array
+    {
+        $dek = random_bytes(32);
+        $nonce = random_bytes(12);
+        $tag = '';
+        $ciphertext = openssl_encrypt($plaintext, self::CIPHER, $dek, OPENSSL_RAW_DATA, $nonce, $tag, $aad, 16);
+
+        if ($ciphertext === false) {
+            $this->hsm->zero($dek);
+
+            throw new RuntimeException('Failed to encrypt v2 envelope body.');
+        }
+
+        $wrapped = $this->hsm->wrapDataKey($dek, $aad);
+        $this->hsm->zero($dek);
+
+        return [
+            'mode' => self::MODE_WRAPPED_DEK,
+            ...$wrapped->toEnvelope(),
+            'nonce' => base64_encode($nonce),
+            'tag' => base64_encode($tag),
+            'ciphertext' => base64_encode($ciphertext),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $body
+     */
+    private function decryptWithWrappedDek(array $body, string $aad): string
+    {
+        foreach (['ciphertext', 'nonce', 'tag'] as $field) {
+            if (! isset($body[$field]) || ! is_string($body[$field]) || $body[$field] === '') {
+                throw new InvalidEnvelopeException("V2 envelope missing required wrapped-DEK body field: {$field}");
+            }
+        }
+
+        $dek = $this->hsm->unwrapDataKey(WrappedDataKey::fromEnvelope($body), $aad);
 
         $plaintext = openssl_decrypt(
             $this->decodeBase64((string) $body['ciphertext'], 'ciphertext'),
@@ -115,7 +154,7 @@ final class PqcEnvelopeCipher
             $this->decodeBase64((string) $body['tag'], 'tag'),
             $aad,
         );
-        $this->zero($dek);
+        $this->hsm->zero($dek);
 
         if ($plaintext === false) {
             throw new InvalidEnvelopeException('Failed to decrypt v2 envelope body.');
@@ -124,43 +163,12 @@ final class PqcEnvelopeCipher
         return $plaintext;
     }
 
-    /**
-     * @return array{ciphertext: string, nonce: string, tag: string}
-     */
-    private function wrapDek(string $dek, string $aad): array
+    private function shouldUseHsmDirect(string $plaintext): bool
     {
-        $nonce = random_bytes(12);
-        $tag = '';
-        $ciphertext = openssl_encrypt($dek, self::CIPHER, $this->softwareWrappingKey(), OPENSSL_RAW_DATA, $nonce, $tag, $aad, 16);
+        $threshold = max(0, (int) Config::get('hsm.direct_secret_max_bytes', 4096));
 
-        if ($ciphertext === false) {
-            throw new RuntimeException('Failed to wrap v2 envelope data key.');
-        }
-
-        return [
-            'ciphertext' => base64_encode($ciphertext),
-            'nonce' => base64_encode($nonce),
-            'tag' => base64_encode($tag),
-        ];
-    }
-
-    private function unwrapDek(string $ciphertext, string $nonce, string $tag, string $aad): string
-    {
-        $dek = openssl_decrypt(
-            $ciphertext,
-            self::CIPHER,
-            $this->softwareWrappingKey(),
-            OPENSSL_RAW_DATA,
-            $nonce,
-            $tag,
-            $aad,
-        );
-
-        if ($dek === false || strlen($dek) !== 32) {
-            throw new InvalidEnvelopeException('Failed to unwrap v2 envelope data key.');
-        }
-
-        return $dek;
+        return $this->hsm->supportsDirectSecretEncryption()
+            && strlen($plaintext) <= $threshold;
     }
 
     /**
@@ -222,11 +230,6 @@ final class PqcEnvelopeCipher
         return $value;
     }
 
-    private function softwareWrappingKey(): string
-    {
-        return hash_hmac('sha256', 'fsa:pqc-envelope:wrap', $this->appKeyMaterial(), true);
-    }
-
     private function softwareSigningKey(): string
     {
         return hash_hmac('sha256', 'fsa:pqc-envelope:sign', $this->appKeyMaterial(), true);
@@ -254,16 +257,5 @@ final class PqcEnvelopeCipher
         }
 
         return $decoded;
-    }
-
-    private function zero(string &$value): void
-    {
-        if (function_exists('sodium_memzero')) {
-            sodium_memzero($value);
-
-            return;
-        }
-
-        $value = str_repeat("\0", strlen($value));
     }
 }

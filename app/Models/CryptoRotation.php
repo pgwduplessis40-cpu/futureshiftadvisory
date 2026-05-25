@@ -17,6 +17,8 @@ final class CryptoRotation extends Model
 
     public const STATUS_FAILED = 'failed';
 
+    public const STATUS_ROTATED = 'rotated';
+
     protected $guarded = [];
 
     protected $casts = [

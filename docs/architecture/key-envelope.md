@@ -43,7 +43,12 @@ V1 uses Laravel's configured encrypter and remains readable forever.
 }
 ```
 
-V2 uses AES-256-GCM for the content body, a wrapped per-envelope data key, and a signature over canonical envelope metadata/body. The local development provider is software-backed so tests can run without HSM/liboqs provisioning; WO-118 replaces the wrapping boundary with an HSM-backed KEK for production.
+V2 has two HSM-backed modes:
+
+- `hsm-direct` for small secrets at or below `HSM_DIRECT_SECRET_MAX_BYTES`.
+- `wrapped-dek` for bulk payloads, where a per-envelope DEK encrypts the body and the HSM wraps/unwraps that DEK.
+
+Both modes sign canonical envelope metadata/body. The local development provider is software-backed so tests can run without HSM provisioning; production must bind a real HSM client.
 
 ## Usage
 
@@ -59,6 +64,8 @@ $plaintext = app(KeyEnvelope::class)->decrypt($ciphertext);
 ## Rewrap
 
 `php artisan envelopes:rewrap --target=2` streams known stored database envelopes through `decrypt()` and `encryptForVersion(..., 2)`. It records each row in `crypto_rotations` with from/to metadata, status, idempotency key, and an audit event. Rows already at the target version are skipped and recorded as such.
+
+`php artisan hsm:rotate-kek` rotates the active HSM key reference and records the event in `crypto_rotations`; run envelope rewrap after rotation to move stored envelopes to the new key reference.
 
 ## Current Envelope Sources
 
