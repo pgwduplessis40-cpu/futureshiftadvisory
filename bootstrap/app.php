@@ -15,6 +15,7 @@ use App\Console\Commands\RunBiasCalibration;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunCoachSignalCalibrationLayer;
 use App\Console\Commands\RunConversionOutcomeLearning;
+use App\Console\Commands\RunCrossClientIntelligence;
 use App\Console\Commands\RunDdLearning;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
@@ -217,6 +218,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunRatingPredictiveValidity::class)
             ->cron('30 6 1 1,7 *')
             ->name('fsa-rating-predictive-validity')
+            ->withoutOverlapping();
+
+        $schedule->command(RunCrossClientIntelligence::class)
+            ->dailyAt('06:45')
+            ->name('fsa-cross-client-intelligence')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {

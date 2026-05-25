@@ -164,6 +164,26 @@ Key columns:
 - `correlation` JSONB
 - `tested_at`
 
+## WO-108 - Cross-client competitive intelligence
+
+### `industry_intelligence_signals`
+
+Aggregate-only industry pattern signals generated from cross-client analysis
+findings. Signals are suppressed below `privacy.min_cohort` through
+`CohortGuard`; advisor alerts are deduped by `signal_key`.
+
+Key columns:
+
+- `id` UUID primary key
+- `industry_code`
+- `signal_type`
+- `signal_key`
+- `aggregate` JSONB
+- `cohort_size`
+- `generated_at`
+- `suppressed`
+- `alerted_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.
