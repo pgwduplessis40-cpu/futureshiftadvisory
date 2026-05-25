@@ -18,6 +18,8 @@ final class Consent extends Model
 
     public const TYPE_BENCHMARK_COMMUNITY = 'benchmark_community';
 
+    public const TYPE_PEER_NETWORK = 'peer_network';
+
     public const ELECTION_OPT_IN = 'opt_in';
 
     public const ELECTION_OPT_OUT = 'opt_out';
@@ -41,6 +43,7 @@ final class Consent extends Model
             self::TYPE_INSURANCE_REFERRAL,
             self::TYPE_COACH_REFERRAL,
             self::TYPE_BENCHMARK_COMMUNITY,
+            self::TYPE_PEER_NETWORK,
         ];
     }
 

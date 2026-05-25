@@ -16,6 +16,10 @@ final class PeerNetworkMember extends Model
 
     public const COMMUNITY_ENTREPRENEUR = 'entrepreneur';
 
+    public const TYPE_BENCHMARK_COMMUNITY = 'benchmark_community';
+
+    public const TYPE_PEER_NETWORK = 'peer_network';
+
     public const STATUS_ACTIVE = 'active';
 
     public const STATUS_SUSPENDED = 'suspended';

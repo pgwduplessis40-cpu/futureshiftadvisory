@@ -51,6 +51,7 @@ final class BenchmarkCommunity
                 [
                     'user_id' => $user->id,
                     'community' => $community,
+                    'membership_type' => PeerNetworkMember::TYPE_BENCHMARK_COMMUNITY,
                 ],
                 [
                     'pseudonym' => $this->pseudonym($community, (string) $user->id),
@@ -166,6 +167,7 @@ final class BenchmarkCommunity
         return PeerNetworkMember::query()
             ->with('consent')
             ->where('community', $community)
+            ->where('membership_type', PeerNetworkMember::TYPE_BENCHMARK_COMMUNITY)
             ->where('status', PeerNetworkMember::STATUS_ACTIVE)
             ->get()
             ->filter(fn (PeerNetworkMember $member): bool => $member->consent?->isActiveOptIn() === true)

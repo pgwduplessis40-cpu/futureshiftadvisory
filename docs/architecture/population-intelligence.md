@@ -33,3 +33,10 @@ future aggregates.
 the `sme` and `entrepreneur` domains. Aggregates expose percentile bands only,
 are suppressed below `privacy.min_cohort`, and record privacy-counsel sign-off
 on the aggregate row before production use.
+
+WO-111 adds the moderated peer network. `peer_network` is a separate consent
+type from `benchmark_community`; a peer member can post only while that consent
+is active and unrevoked. Every post creates a pending moderation row and remains
+invisible until approved. Visible feeds return pseudonyms only, separated by
+`sme` and `entrepreneur` communities, and moderation can report posts or suspend
+members.

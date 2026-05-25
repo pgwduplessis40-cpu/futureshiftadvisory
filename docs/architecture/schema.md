@@ -225,20 +225,53 @@ Key columns:
 
 ### `peer_network_members`
 
-Opt-in community membership shared with the later peer network. Membership
-requires an active `benchmark_community` consent and is pseudonymous.
+Opt-in community membership shared by benchmark and peer features. Membership
+requires an active consent for its `membership_type` and is pseudonymous.
 
 Key columns:
 
 - `id` UUID primary key
 - `user_id`
 - `community`
+- `membership_type`
 - `pseudonym`
 - `joined_at`
 - `consent_id`
 - `status`
 - `suspended_at`
 - `revoked_at`
+
+## WO-111 - Anonymous peer network
+
+### `peer_posts`
+
+Pseudonymous community posts. Posts are hidden until a moderation row approves
+them.
+
+Key columns:
+
+- `id` UUID primary key
+- `peer_network_member_id`
+- `community`
+- `body`
+- `posted_at`
+- `visible_at`
+- `reported_by_user_id`
+- `reported_at`
+- `report_reason`
+
+### `peer_post_moderation`
+
+One moderation decision per post.
+
+Key columns:
+
+- `id` UUID primary key
+- `peer_post_id`
+- `status` (`pending`, `approved`, `rejected`)
+- `moderated_by_user_id`
+- `reason`
+- `moderated_at`
 
 ## WO-96 - Terms version-manager polish
 
