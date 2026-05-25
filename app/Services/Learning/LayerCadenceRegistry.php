@@ -26,7 +26,7 @@ final class LayerCadenceRegistry
         return collect([
             $this->layer(1, 'AI output quality review', self::CADENCE_DAILY, 30),
             $this->layer(2, 'Data quality pattern review', self::CADENCE_DAILY, 30),
-            $this->layer(3, 'Bias monitoring', self::CADENCE_DAILY, 30, 'ai:bias-monitor'),
+            $this->layer(3, 'Bias monitoring', self::CADENCE_DAILY, 30, 'analysis:bias-calibration'),
             $this->layer(4, 'Analysis calibration review', self::CADENCE_WEEKLY, 60),
             $this->layer(5, 'Document verification calibration', self::CADENCE_WEEKLY, 60),
             $this->layer(6, 'Client lifecycle signal review', self::CADENCE_DAILY, 30),

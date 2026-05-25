@@ -26,6 +26,18 @@ The monitor scans recent `analysis_findings` by module and compares high/critica
 
 When one cohort and its baseline both meet the minimum finding count, and the cohort's high-severity rate exceeds the baseline by the configured threshold, the monitor creates one governed `learning_updates` candidate in `detected` status. The candidate proposes human review of module bias or calibration and sets `automatic_application` to `false`.
 
+## Calibration layer
+
+WO-103 adds `BiasCalibration`, exposed through:
+
+```pwsh
+php artisan analysis:bias-calibration
+```
+
+The command can run the monitor first for on-demand use, then converts open systematic-skew evidence into a dedicated `bias_calibration` learning candidate. The scheduler runs calibration at 03:20 with `--skip-monitor`, consuming candidates produced by the 03:15 monitor run.
+
+Calibration candidates propose human-reviewed prompt, threshold, or mapping changes only. They set `automatic_application=false`, require approval, write no `learning_update_implementations`, and send the same urgent review notification to super-admins and affected advisors.
+
 ## Alerts and idempotency
 
 Each new systematic signal sends an urgent channel-aware notification to super-admins and advisors on the affected client team. The notification is intentionally alert-only: no finding is edited, hidden, downgraded, or corrected.

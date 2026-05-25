@@ -11,6 +11,7 @@ use App\Console\Commands\RefreshEconomicIndicators;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\ReverifyBrokerFspRegistrations;
 use App\Console\Commands\RunActiveLayerEngine;
+use App\Console\Commands\RunBiasCalibration;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunCoachSignalCalibrationLayer;
 use App\Console\Commands\RunFeedbackLearningLayer;
@@ -100,6 +101,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunBiasMonitor::class)
             ->dailyAt('03:15')
             ->name('fsa-analysis-bias-monitor')
+            ->withoutOverlapping();
+
+        $schedule->command(RunBiasCalibration::class, ['--skip-monitor' => true])
+            ->dailyAt('03:20')
+            ->name('fsa-analysis-bias-calibration')
             ->withoutOverlapping();
 
         $schedule->command(RefreshEconomicIndicators::class)
