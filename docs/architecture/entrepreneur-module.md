@@ -238,14 +238,19 @@ and remaining gaps.
 
 ## WO-91 - Benchmarking, Advisory Readiness, and Living Plan
 
-`config/entrepreneurs.php` defines `benchmark_min_cohort` from
-`BENCHMARK_MIN_COHORT`, defaulting to 5. `Benchmarking::forPlan()` compares an
-entrepreneur plan only against prior finalised same-industry plans. If the
-cohort is below the configured threshold, the benchmark is suppressed and no
-figures, distributions, or cohort size are returned. When the cohort is large
-enough, output remains aggregate-only: cohort size, average score,
-percentile band, grade distribution, and privacy flags. It never returns
+`config/privacy.php` defines the shared `privacy.min_cohort` from
+`PRIVACY_MIN_COHORT`, defaulting to 5. `Benchmarking::forPlan()` compares an
+entrepreneur plan only against prior finalised same-industry plans through
+`CohortGuard`. If the cohort is below the configured threshold, the benchmark is
+suppressed and no figures, distributions, or cohort size are returned. When the
+cohort is large enough, output remains aggregate-only: cohort size, average
+score, percentile band, grade distribution, and privacy flags. It never returns
 per-plan values, plan ids, min, or max.
+
+WO-105 adds `learning:plan-quality-benchmarks`, which uses the same
+`CohortGuard` release path to create governed `learning_updates` candidates for
+industry plan-quality benchmark review. Candidate evidence is aggregate-only and
+never changes guidance, rating weights, or descriptors automatically.
 
 `advisory_readiness_signals` stores the systematic advisory-readiness signal
 for a profile. `AdvisoryReadiness::evaluate()` creates or updates the signal

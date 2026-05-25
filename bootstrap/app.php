@@ -18,6 +18,7 @@ use App\Console\Commands\RunDdLearning;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
+use App\Console\Commands\RunPlanQualityBenchmarks;
 use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
@@ -199,6 +200,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunDdLearning::class)
             ->weeklyOn(1, '05:45')
             ->name('fsa-dd-learning-layer')
+            ->withoutOverlapping();
+
+        $schedule->command(RunPlanQualityBenchmarks::class)
+            ->weeklyOn(1, '06:00')
+            ->name('fsa-plan-quality-benchmarks')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {

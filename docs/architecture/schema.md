@@ -124,6 +124,12 @@ Key columns:
 - `actual_outcome` JSONB
 - `recorded_at`
 
+## WO-105 - Cohort privacy and plan-quality benchmarks
+
+No new tables are required. WO-105 centralises minimum-cohort suppression in
+`CohortGuard` and writes aggregate-only plan-quality benchmark candidates to
+`learning_updates` with `layer_id = 20`.
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

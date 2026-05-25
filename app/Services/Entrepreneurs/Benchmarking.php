@@ -6,48 +6,46 @@ namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
 use App\Models\PlanAssessment;
+use App\Services\Privacy\CohortGuard;
 use Illuminate\Support\Collection;
 
 final class Benchmarking
 {
+    public function __construct(private readonly CohortGuard $cohortGuard) {}
+
     /**
      * @return array<string, mixed>
      */
     public function forPlan(BusinessPlan $plan): array
     {
-        $minCohort = max(5, (int) config('entrepreneurs.benchmark_min_cohort', 5));
+        $minCohort = $this->cohortGuard->minCohort();
         $plan->loadMissing('entrepreneurProfile', 'assessments.ratingFramework.criteria');
         $currentAssessment = $this->latestAssessment($plan);
 
         if (! $currentAssessment instanceof PlanAssessment) {
-            return $this->suppressed($minCohort, 'No current assessment is available for benchmarking yet.');
+            return $this->cohortGuard->suppress('No current assessment is available for benchmarking yet.');
         }
 
         $industry = $this->industry($plan);
         $cohortScores = $this->cohortScores($plan, $industry);
 
         if ($cohortScores->count() < $minCohort) {
-            return $this->suppressed($minCohort, 'Not enough comparable finalised plans yet.');
+            return $this->cohortGuard->suppress('Not enough comparable finalised plans yet.');
         }
 
         $currentScore = $this->score($currentAssessment);
         $belowOrEqual = $cohortScores->filter(fn (float $score): bool => $score <= $currentScore)->count();
         $percentile = round(($belowOrEqual / max(1, $cohortScores->count())) * 100, 2);
 
-        return [
-            'suppressed' => false,
-            'minimum_cohort' => $minCohort,
-            'cohort_size' => $cohortScores->count(),
-            'industry' => $industry,
-            'cohort_average_score' => round($cohortScores->avg(), 2),
-            'percentile_band' => $this->percentileBand($percentile),
-            'distribution' => $this->distribution($cohortScores),
-            'privacy' => [
-                'aggregate_only' => true,
-                'min_max_suppressed' => true,
-                'per_plan_values_suppressed' => true,
+        return $this->cohortGuard->releaseAggregate(
+            cohortSize: $cohortScores->count(),
+            aggregate: [
+                'cohort_average_score' => round($cohortScores->avg(), 2),
+                'percentile_band' => $this->percentileBand($percentile),
+                'distribution' => $this->distribution($cohortScores),
             ],
-        ];
+            metadata: ['industry' => $industry],
+        );
     }
 
     /**
@@ -120,18 +118,6 @@ final class Benchmarking
             $percentile >= 25 => 'below_median',
             default => 'bottom_quartile',
         };
-    }
-
-    /**
-     * @return array<string, mixed>
-     */
-    private function suppressed(int $minCohort, string $message): array
-    {
-        return [
-            'suppressed' => true,
-            'minimum_cohort' => $minCohort,
-            'message' => $message,
-        ];
     }
 
     private function industry(BusinessPlan $plan): string

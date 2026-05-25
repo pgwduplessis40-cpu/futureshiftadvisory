@@ -43,7 +43,7 @@ final class LayerCadenceRegistry
             $this->layer(17, 'Coach referral calibration', self::CADENCE_WEEKLY, 90, 'coach:signal-calibration-learning'),
             $this->layer(18, 'Entrepreneur rating framework review', self::CADENCE_MONTHLY, 120),
             $this->layer(19, 'Entrepreneur assessment feedback', self::CADENCE_WEEKLY, 90),
-            $this->layer(20, 'Entrepreneur guidance quality', self::CADENCE_WEEKLY, 90),
+            $this->layer(20, 'Entrepreneur guidance quality', self::CADENCE_WEEKLY, 90, 'learning:plan-quality-benchmarks'),
             $this->layer(21, 'DD risk pattern review', self::CADENCE_WEEKLY, 90, 'learning:dd-learning'),
             $this->layer(22, 'Post-acquisition migration review', self::CADENCE_WEEKLY, 90),
             $this->layer(23, 'Payment failure pattern review', self::CADENCE_DAILY, 30),
