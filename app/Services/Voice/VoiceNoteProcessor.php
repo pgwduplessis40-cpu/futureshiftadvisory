@@ -6,6 +6,7 @@ namespace App\Services\Voice;
 
 use App\Models\CallLog;
 use App\Models\Client;
+use App\Models\Consent;
 use App\Models\Document;
 use App\Models\Milestone;
 use App\Models\MilestoneAction;
@@ -17,6 +18,7 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use App\Services\Voice\Contracts\WhisperClient;
 use Illuminate\Support\Arr;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -33,6 +35,8 @@ final class VoiceNoteProcessor
         if ((string) $document->client_id !== (string) $client->getKey()) {
             throw new InvalidArgumentException('Voice-note document must belong to the client.');
         }
+
+        $this->assertLiveWhisperConsent($client);
 
         return DB::transaction(function () use ($client, $document, $actor, $milestone): VoiceNote {
             /** @var VoiceNote $voiceNote */
@@ -252,5 +256,23 @@ final class VoiceNoteProcessor
         }
 
         return $value;
+    }
+
+    private function assertLiveWhisperConsent(Client $client): void
+    {
+        if (! (bool) Config::get('services.whisper.live', false)) {
+            return;
+        }
+
+        $hasConsent = Consent::query()
+            ->where('client_id', $client->getKey())
+            ->where('type', Consent::TYPE_WHISPER_TRANSCRIPTION)
+            ->where('election', Consent::ELECTION_OPT_IN)
+            ->whereNull('revoked_at')
+            ->exists();
+
+        if (! $hasConsent) {
+            throw new InvalidArgumentException('Live Whisper transcription requires active client consent.');
+        }
     }
 }

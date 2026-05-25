@@ -41,6 +41,11 @@ return [
         'endpoint' => env('ANTHROPIC_ENDPOINT', 'https://api.anthropic.com/v1/messages'),
     ],
 
+    'whisper' => [
+        'live' => (bool) env('FEATURE_WHISPER_LIVE', false),
+        'endpoint' => env('WHISPER_ENDPOINT', 'https://api.openai.com/v1/audio/transcriptions'),
+    ],
+
     'browsershot' => [
         'node_binary' => env('BROWSERSHOT_NODE_BINARY'),
         'npm_binary' => env('BROWSERSHOT_NPM_BINARY'),

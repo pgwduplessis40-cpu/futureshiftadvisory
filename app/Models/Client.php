@@ -263,6 +263,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<VoiceAssistantSession>
+     */
+    public function voiceAssistantSessions(): HasMany
+    {
+        return $this->hasMany(VoiceAssistantSession::class);
+    }
+
+    /**
      * @return HasMany<CallLog>
      */
     public function callLogs(): HasMany

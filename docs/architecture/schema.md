@@ -319,6 +319,31 @@ Key columns:
 - `revoked_at`
 - `last_synced_at`
 
+## WO-114 - Voice assistant companion
+
+### `voice_assistant_sessions`
+
+Client-scoped shortcut launch and completion records for the advisor voice
+assistant. Payloads are static allowlisted intents, and completed sessions link
+to the resulting `call_logs` row.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `advisor_user_id`
+- `call_log_id`
+- `status` (`started`, `completed`, `cancelled`)
+- `shortcut_intent`
+- `shortcut_payload` JSONB
+- `transcript`
+- `started_at`
+- `completed_at`
+
+WO-114 also adds `whisper_transcription` to the consent type registry. Live
+Whisper transcription requires both `FEATURE_WHISPER_LIVE=true` and active
+client opt-in consent.
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

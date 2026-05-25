@@ -20,6 +20,8 @@ final class Consent extends Model
 
     public const TYPE_PEER_NETWORK = 'peer_network';
 
+    public const TYPE_WHISPER_TRANSCRIPTION = 'whisper_transcription';
+
     public const ELECTION_OPT_IN = 'opt_in';
 
     public const ELECTION_OPT_OUT = 'opt_out';
@@ -44,6 +46,7 @@ final class Consent extends Model
             self::TYPE_COACH_REFERRAL,
             self::TYPE_BENCHMARK_COMMUNITY,
             self::TYPE_PEER_NETWORK,
+            self::TYPE_WHISPER_TRANSCRIPTION,
         ];
     }
 
