@@ -344,6 +344,32 @@ WO-114 also adds `whisper_transcription` to the consent type registry. Live
 Whisper transcription requires both `FEATURE_WHISPER_LIVE=true` and active
 client opt-in consent.
 
+## WO-115 - Mobile API foundation
+
+### `device_registrations`
+
+First-party mobile device tokens. Plaintext tokens are returned once by
+`MobileTokenIssuer`; only SHA-256 hashes are stored. Active devices require MFA
+and current terms acceptance at registration and on each API request.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `device_id`
+- `platform`
+- `device_name`
+- `app_version`
+- `token_hash`
+- `status` (`active`, `revoked`)
+- `capabilities` JSONB
+- `mfa_confirmed_at`
+- `terms_confirmed_at`
+- `last_used_at`
+- `expires_at`
+- `revoked_at`
+- `revoked_by_user_id`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

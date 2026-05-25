@@ -29,6 +29,7 @@ use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
 use App\Http\Middleware\AuthenticateAdvisorApiToken;
+use App\Http\Middleware\AuthenticateMobileDeviceToken;
 use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\EnforceSessionSecurity;
 use App\Http\Middleware\EnsurePermission;
@@ -79,6 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'advisor.api' => AuthenticateAdvisorApiToken::class,
             'audit.read' => LogAuditEvent::class,
             'mfa' => RequireMfa::class,
+            'mobile.api' => AuthenticateMobileDeviceToken::class,
             'permission' => EnsurePermission::class,
             'role' => EnsureRole::class,
         ]);

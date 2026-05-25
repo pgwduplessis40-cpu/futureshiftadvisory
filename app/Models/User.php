@@ -85,6 +85,14 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasMany<DeviceRegistration>
+     */
+    public function deviceRegistrations(): HasMany
+    {
+        return $this->hasMany(DeviceRegistration::class);
+    }
+
+    /**
      * @return HasOne<CommunicationPreference>
      */
     public function communicationPreference(): HasOne

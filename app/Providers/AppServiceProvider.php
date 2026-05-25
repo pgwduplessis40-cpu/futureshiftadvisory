@@ -105,6 +105,15 @@ class AppServiceProvider extends ServiceProvider
 
             return Limit::perMinute(max(1, $limit))->by($key ?: $request->ip());
         });
+
+        RateLimiter::for('mobile-api', function (Request $request): Limit {
+            $device = $request->attributes->get('mobile_device');
+            $key = is_object($device) && isset($device->id)
+                ? (string) $device->id
+                : hash('sha256', (string) $request->bearerToken());
+
+            return Limit::perMinute(120)->by($key ?: $request->ip());
+        });
     }
 
     /**
