@@ -3,8 +3,8 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-25
-**Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6). Phase 4 resumes at WO-102.
-**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **not started** (next: WO-102).
+**Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6). Phase 4 is in progress.
+**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **WO-102...WO-117 complete** (next: WO-118).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
 ## Snapshot
@@ -13,7 +13,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 |---|---|
 | Work orders complete | **101 total** — Phase 1 (30) + Phase 2 (34) + Phase 3 (37, WO-65…WO-101 incl. WO-87a/87b) |
 | Work orders in progress | none |
-| Next work order | **WO-102** — Activate the 32-layer learning engine (Phase 4; see `PLAN-PHASE4.md`) |
+| Next work order | **WO-118** — HSM key management (Phase 4; see `PLAN-PHASE4.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
@@ -1467,9 +1467,19 @@ Results after WO-D09:
 - `npm run format:check`: passed.
 - Forbidden-marker scan (`TODO`/`FIXME` in `app/` + `routes/`, `dd()`/`dump()`/`console.log` in shipped code paths): passed.
 
+## Phase 4 Results
+
+Results after WO-117:
+
+- PQC envelope swap-in shipped: `KeyEnvelope` now validates `{v, alg}` pairs, reads v1/v2, writes v2 behind `FEATURE_PQC`, and exposes `encryptForVersion()` for controlled rewraps.
+- Added v2 envelope body support with AES-256-GCM content encryption, wrapped data-key material, ML-KEM/ML-DSA metadata, and signature verification.
+- Added `crypto_rotations` and `php artisan envelopes:rewrap --target=2` to rewrap known database envelopes with idempotent row-level tracking and an audit event.
+- Updated key-envelope/security decision docs to record SD-01 closure at the application seam; HSM remains WO-118.
+- Verification: targeted unit coverage added for v/alg mismatch rejection, v2 round-trip, feature-flag v2 writes, and v1 back-compat. Feature rewrap coverage is present but local DB execution may require explicit PostgreSQL test credentials because `.env.testing` uses blank Herd defaults.
+
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), Phase 3 (WO-65...WO-101), and Dashboard Interactivity Tier 1 (WO-D01...WO-D09) are complete locally on `featureApp`. Phase 4 starts next at WO-102.**
+**Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), Phase 3 (WO-65...WO-101), Dashboard Interactivity Tier 1 (WO-D01...WO-D09), and Phase 4 WO-102...WO-117 are complete locally on `featureApp`. Phase 4 continues next at WO-118.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

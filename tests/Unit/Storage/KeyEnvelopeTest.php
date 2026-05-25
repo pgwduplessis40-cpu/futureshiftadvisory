@@ -30,7 +30,7 @@ final class KeyEnvelopeTest extends TestCase
         $ciphertext = $envelope->encrypt('payload');
         $meta = $envelope->inspect($ciphertext);
 
-        $this->assertSame(KeyEnvelope::CURRENT_VERSION, $meta['v']);
+        $this->assertSame(KeyEnvelope::VERSION_V1, $meta['v']);
         $this->assertSame(KeyEnvelope::ALG_V1, $meta['alg']);
         $this->assertNotEmpty($meta['kid']);
     }
@@ -78,6 +78,45 @@ final class KeyEnvelopeTest extends TestCase
 
         $this->expectException(UnsupportedEnvelopeVersionException::class);
         $envelope->decrypt($futureEnvelope);
+    }
+
+    public function test_decrypting_a_version_algorithm_mismatch_raises(): void
+    {
+        $envelope = app(KeyEnvelope::class);
+        $ciphertext = $envelope->encrypt('payload');
+        /** @var array<string, mixed> $decoded */
+        $decoded = json_decode($ciphertext, true, flags: JSON_THROW_ON_ERROR);
+        $decoded['alg'] = KeyEnvelope::ALG_V2;
+
+        $this->expectException(UnsupportedEnvelopeVersionException::class);
+        $envelope->decrypt(json_encode($decoded, JSON_THROW_ON_ERROR));
+    }
+
+    public function test_pqc_feature_flag_writes_v2_and_v1_still_decrypts(): void
+    {
+        $envelope = app(KeyEnvelope::class);
+        $v1 = $envelope->encrypt('historical');
+
+        Config::set('crypto.pqc.enabled', true);
+        $v2 = $envelope->encrypt('modern');
+        $meta = $envelope->inspect($v2);
+
+        $this->assertSame(KeyEnvelope::VERSION_V2, $meta['v']);
+        $this->assertSame(KeyEnvelope::ALG_V2, $meta['alg']);
+        $this->assertSame('modern', $envelope->decrypt($v2));
+        $this->assertSame('historical', $envelope->decrypt($v1));
+    }
+
+    public function test_explicit_v2_round_trip_without_changing_call_sites(): void
+    {
+        $envelope = app(KeyEnvelope::class);
+
+        $ciphertext = $envelope->encryptForVersion('post quantum payload', KeyEnvelope::VERSION_V2);
+        $meta = $envelope->inspect($ciphertext);
+
+        $this->assertSame(KeyEnvelope::VERSION_V2, $meta['v']);
+        $this->assertStringStartsWith(KeyEnvelope::ALG_V2.':', $meta['kid']);
+        $this->assertSame('post quantum payload', $envelope->decrypt($ciphertext));
     }
 
     public function test_key_id_changes_when_app_key_changes(): void
