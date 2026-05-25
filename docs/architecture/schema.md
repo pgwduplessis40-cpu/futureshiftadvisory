@@ -202,6 +202,44 @@ Key columns:
 - `cohort_size`
 - `generated_at`
 
+## WO-110 - Anonymous benchmarking community
+
+### `benchmark_aggregates`
+
+Domain-separated anonymous benchmark distributions. Rows store percentile-band
+aggregates only and can record privacy-counsel sign-off.
+
+Key columns:
+
+- `id` UUID primary key
+- `domain`
+- `industry_code`
+- `metric`
+- `distribution` JSONB
+- `cohort_size`
+- `quarter`
+- `suppressed`
+- `generated_at`
+- `privacy_counsel_signed_off_at`
+- `privacy_counsel_user_id`
+
+### `peer_network_members`
+
+Opt-in community membership shared with the later peer network. Membership
+requires an active `benchmark_community` consent and is pseudonymous.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `community`
+- `pseudonym`
+- `joined_at`
+- `consent_id`
+- `status`
+- `suspended_at`
+- `revoked_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

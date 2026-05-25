@@ -16,6 +16,8 @@ final class Consent extends Model
 
     public const TYPE_COACH_REFERRAL = 'coach_referral';
 
+    public const TYPE_BENCHMARK_COMMUNITY = 'benchmark_community';
+
     public const ELECTION_OPT_IN = 'opt_in';
 
     public const ELECTION_OPT_OUT = 'opt_out';
@@ -35,7 +37,11 @@ final class Consent extends Model
      */
     public static function types(): array
     {
-        return [self::TYPE_INSURANCE_REFERRAL, self::TYPE_COACH_REFERRAL];
+        return [
+            self::TYPE_INSURANCE_REFERRAL,
+            self::TYPE_COACH_REFERRAL,
+            self::TYPE_BENCHMARK_COMMUNITY,
+        ];
     }
 
     /**
@@ -60,6 +66,14 @@ final class Consent extends Model
     public function proposal(): BelongsTo
     {
         return $this->belongsTo(Proposal::class);
+    }
+
+    /**
+     * @return BelongsTo<User, Consent>
+     */
+    public function subjectUser(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'subject_user_id');
     }
 
     public function isActiveOptIn(): bool

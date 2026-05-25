@@ -23,3 +23,13 @@ domains:
 The bridge never reads or persists record-level source data. Patterns are
 created only at or above `privacy.min_cohort` and carry aggregate-only privacy
 metadata.
+
+WO-110 adds the anonymous benchmarking community. `benchmark_community`
+consent is an explicit opt-in consent type and can be revoked. Active community
+membership requires an unrevoked consent; revocation removes the member from
+future aggregates.
+
+`intelligence:benchmark-community` writes `benchmark_aggregates` separately for
+the `sme` and `entrepreneur` domains. Aggregates expose percentile bands only,
+are suppressed below `privacy.min_cohort`, and record privacy-counsel sign-off
+on the aggregate row before production use.

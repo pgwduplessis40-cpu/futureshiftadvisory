@@ -4,6 +4,7 @@ use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\CreatePracticeHealthSnapshots;
 use App\Console\Commands\ExpireProposals;
+use App\Console\Commands\GenerateBenchmarkCommunityAggregate;
 use App\Console\Commands\GenerateMonthlyIndustryBriefings;
 use App\Console\Commands\GeneratePreMeetingBriefs;
 use App\Console\Commands\ProcessScheduledPayments;
@@ -229,6 +230,16 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunSharedIntelligenceLayer::class)
             ->dailyAt('07:00')
             ->name('fsa-shared-intelligence-layer')
+            ->withoutOverlapping();
+
+        $schedule->command(GenerateBenchmarkCommunityAggregate::class, ['domain' => 'sme', 'industry' => 'general'])
+            ->monthlyOn(1, '07:15')
+            ->name('fsa-benchmark-community-sme')
+            ->withoutOverlapping();
+
+        $schedule->command(GenerateBenchmarkCommunityAggregate::class, ['domain' => 'entrepreneur', 'industry' => 'general'])
+            ->monthlyOn(1, '07:20')
+            ->name('fsa-benchmark-community-entrepreneur')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {
