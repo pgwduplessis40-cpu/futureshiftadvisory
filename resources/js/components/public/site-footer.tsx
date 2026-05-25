@@ -1,13 +1,20 @@
 import { Link } from '@inertiajs/react';
+import { Linkedin } from 'lucide-react';
 
 import { BrandMark } from '@/components/public/brand-mark';
 import { login } from '@/routes';
+
+// TODO: replace with the real Future Shift Advisory LinkedIn company-page URL.
+const LINKEDIN_URL = 'https://www.linkedin.com/company/future-shift-advisory';
 
 export function SiteFooter() {
     const year = new Date().getFullYear();
 
     return (
-        <footer className="mt-24 bg-[var(--fs-admiralty)] text-[var(--fs-parchment)]">
+        <footer
+            data-surface="dark"
+            className="mt-24 bg-[var(--fs-admiralty)] text-[var(--fs-parchment)]"
+        >
             <div className="mx-auto max-w-6xl px-6 py-16 lg:px-8">
                 <div className="grid gap-12 md:grid-cols-12">
                     <div className="md:col-span-5">
@@ -22,6 +29,18 @@ export function SiteFooter() {
                         >
                             Book a discovery call &rarr;
                         </Link>
+
+                        <div className="mt-6 flex items-center gap-3">
+                            <a
+                                href={LINKEDIN_URL}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                aria-label="Future Shift Advisory on LinkedIn"
+                                className="inline-flex h-9 w-9 items-center justify-center rounded-md border border-[#2A3B5C] text-[#E0D8CC] transition-colors hover:border-[var(--fs-warm-gold)] hover:text-[var(--fs-warm-gold)]"
+                            >
+                                <Linkedin className="h-4 w-4" />
+                            </a>
+                        </div>
                     </div>
 
                     <div className="md:col-span-3">

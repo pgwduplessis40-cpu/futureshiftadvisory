@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 
+import { BackToTop } from '@/components/public/back-to-top';
 import {
     GoldRule,
     Section,
@@ -131,6 +132,20 @@ export default function About() {
                             easiest to hear.
                         </p>
 
+                        <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
+                            Pieter is a member of the{' '}
+                            <a
+                                href="https://instituteadvisors.com/"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="font-medium text-[var(--fs-admiralty)] underline underline-offset-2 hover:text-[var(--fs-pacific)]"
+                            >
+                                Institute of Advisors (IOA)
+                            </a>
+                            , an international organisation of professional
+                            advisors.
+                        </p>
+
                         <blockquote className="font-accent mt-8 border-l-2 border-[var(--fs-warm-gold)] pl-5 text-2xl leading-snug text-[var(--fs-admiralty)] italic">
                             &ldquo;The truth before the comfortable.&rdquo;
                         </blockquote>
@@ -186,7 +201,10 @@ export default function About() {
                 </Section>
             </div>
 
-            <div className="bg-[var(--fs-admiralty)] py-16 text-[var(--fs-parchment)]">
+            <div
+                data-surface="dark"
+                className="bg-[var(--fs-admiralty)] py-16 text-[var(--fs-parchment)]"
+            >
                 <Section>
                     <div className="grid items-center gap-8 md:grid-cols-12">
                         <div className="md:col-span-8">
@@ -209,6 +227,8 @@ export default function About() {
                     </div>
                 </Section>
             </div>
+
+            <BackToTop />
         </>
     );
 }
