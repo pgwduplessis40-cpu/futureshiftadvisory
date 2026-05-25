@@ -23,7 +23,7 @@ final class EnvelopeRewrapCommandTest extends TestCase
         app(RequestContext::class)->apply('system', []);
 
         $client = Client::query()->create([
-            'engagement_type' => 'advisory',
+            'engagement_type' => 'standard_advisory',
             'legal_name' => 'Harbour Hive Limited',
             'created_by_user_id' => User::factory()->create()->id,
         ]);

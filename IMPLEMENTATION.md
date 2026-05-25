@@ -3,21 +3,22 @@
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), and [`CLAUDE.md`](./CLAUDE.md).
 
 **Last updated:** 2026-05-25
-**Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6). Phase 4 is in progress.
-**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **WO-102...WO-120 complete locally**.
+**Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
+**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
 ## Snapshot
 
 | | |
 |---|---|
-| Work orders complete | **101 total** — Phase 1 (30) + Phase 2 (34) + Phase 3 (37, WO-65…WO-101 incl. WO-87a/87b) |
+| Work orders complete | **120 total** — Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102…WO-120) + Dashboard Interactivity (9, WO-D01…WO-D09) |
 | Work orders in progress | none |
-| Next work order | **Phase 4 boundary verification / push** |
+| Next work order | **none in the V2.4 plan** — V2.4 build complete. Optional next tracks: Methodology Registry (`PLAN-METHODOLOGY-REGISTRY.md`, ready) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **Phase 3 COMPLETE & VERIFIED — full green baseline (2026-05-23).** PHPUnit against PostgreSQL `futureshift_test`: **439 tests / 439 passed / 3370 assertions, 0 failures, 0 errors.** Pint, ESLint, `tsc --noEmit`, Prettier all green. 101/101 WO commits; 0 `TODO`/`FIXME`/`dd()`/`dump()`/`console.log`. Defects found during the first full run were fixed in `d56834c` (migration `down()` RLS-policy dependency, missing `document_expiry_reminders` table, missing `business_plans.living_plan_*` columns, two over-broad guard tests). |
+| Verification status | **Phase 4 COMPLETE & VERIFIED — full green baseline (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **513 tests / 513 passed / 4080 assertions, 0 failures, 0 errors** (`php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`); Pint green. The Phase 4 review surfaced **2 suite-blockers** (MbieClient test double missing `industryWaccRates()`; WO-113/114/115 RLS migrations using `DB::statement()` for multi-statement blocks → `migrate:fresh` aborted, 471 errors) and **4 defects** (WO-117 rewrap fixture invalid `EngagementType` + `recordRotation()` `Carbon` vs `CarbonImmutable`; WO-112 advisor-API rate limiter defeated by middleware priority; WO-56 proposal builder over-creating consents after Phase 4 added consent types) — all fixed before declaring green. |
+| Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Commit Log
 

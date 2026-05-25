@@ -164,4 +164,12 @@ final class ChangedValuationMultipleMbieClient implements MbieClient
     {
         return $this->multiples;
     }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function industryWaccRates(): array
+    {
+        return [];
+    }
 }

@@ -269,7 +269,7 @@ final class ProposalBuilder
     {
         $elections = is_array($elections) ? $elections : [];
 
-        foreach (Consent::types() as $type) {
+        foreach (Consent::proposalTypes() as $type) {
             $election = (string) ($elections[$type] ?? Consent::ELECTION_UNDECIDED);
 
             if (! in_array($election, Consent::elections(), true)) {

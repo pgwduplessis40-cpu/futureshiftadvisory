@@ -7,8 +7,8 @@ namespace App\Console\Commands;
 use App\Models\CryptoRotation;
 use App\Services\Audit\AuditWriter;
 use App\Services\Storage\KeyEnvelope;
+use Carbon\CarbonInterface;
 use Illuminate\Console\Command;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
@@ -162,7 +162,7 @@ final class RewrapEnvelopes extends Command
         string $toAlg,
         string $status,
         ?string $error,
-        Carbon $startedAt,
+        CarbonInterface $startedAt,
     ): void {
         $idempotencyKey = hash('sha256', implode('|', [
             $source['table'],

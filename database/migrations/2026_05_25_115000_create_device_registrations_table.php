@@ -34,7 +34,7 @@ return new class extends Migration
             $table->index('expires_at');
         });
 
-        DB::statement(<<<'SQL'
+        DB::unprepared(<<<'SQL'
             ALTER TABLE device_registrations ENABLE ROW LEVEL SECURITY;
             ALTER TABLE device_registrations FORCE ROW LEVEL SECURITY;
             CREATE POLICY device_registrations_user_scope ON device_registrations

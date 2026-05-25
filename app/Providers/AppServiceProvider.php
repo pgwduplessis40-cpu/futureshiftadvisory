@@ -2,6 +2,7 @@
 
 namespace App\Providers;
 
+use App\Models\AdvisorApiClient;
 use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
 use App\Observers\ClientLifecycleObserver;
@@ -112,14 +113,25 @@ class AppServiceProvider extends ServiceProvider
     protected function registerRateLimiters(): void
     {
         RateLimiter::for('advisor-api', function (Request $request): Limit {
+            $tokenHash = (string) ($request->attributes->get('advisor_api_token_hash')
+                ?: hash('sha256', (string) $request->bearerToken()));
+
+            // Resolve the API client for the per-client limit. Do NOT rely on the
+            // auth middleware having set the request attribute first: Laravel's
+            // middleware priority can run ThrottleRequests before the custom
+            // `advisor.api` middleware, leaving the attribute unset and the limit
+            // silently defaulting to 60. Resolve by token hash as a fallback so
+            // the client's configured rate_limit_per_minute is always honoured.
             $client = $request->attributes->get('advisor_api_client');
+            if (! is_object($client) && $request->bearerToken() !== null) {
+                $client = AdvisorApiClient::query()->where('token_hash', $tokenHash)->first();
+            }
+
             $limit = is_object($client) && isset($client->rate_limit_per_minute)
                 ? (int) $client->rate_limit_per_minute
                 : 60;
-            $key = (string) ($request->attributes->get('advisor_api_token_hash')
-                ?: hash('sha256', (string) $request->bearerToken()));
 
-            return Limit::perMinute(max(1, $limit))->by($key ?: $request->ip());
+            return Limit::perMinute(max(1, $limit))->by($tokenHash ?: $request->ip());
         });
 
         RateLimiter::for('mobile-api', function (Request $request): Limit {

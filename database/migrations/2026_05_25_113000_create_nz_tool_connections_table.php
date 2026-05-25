@@ -38,7 +38,7 @@ return new class extends Migration
                 WHERE status = 'connected'
             SQL);
 
-        DB::statement(<<<'SQL'
+        DB::unprepared(<<<'SQL'
             ALTER TABLE nz_tool_connections ENABLE ROW LEVEL SECURITY;
             ALTER TABLE nz_tool_connections FORCE ROW LEVEL SECURITY;
             CREATE POLICY nz_tool_connections_client_scope ON nz_tool_connections

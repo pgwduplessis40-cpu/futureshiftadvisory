@@ -28,7 +28,7 @@ return new class extends Migration
             $table->index('call_log_id');
         });
 
-        DB::statement(<<<'SQL'
+        DB::unprepared(<<<'SQL'
             ALTER TABLE voice_assistant_sessions ENABLE ROW LEVEL SECURITY;
             ALTER TABLE voice_assistant_sessions FORCE ROW LEVEL SECURITY;
             CREATE POLICY voice_assistant_sessions_client_scope ON voice_assistant_sessions

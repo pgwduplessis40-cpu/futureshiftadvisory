@@ -51,6 +51,23 @@ final class Consent extends Model
     }
 
     /**
+     * Consent types captured at proposal time (engagement referrals only).
+     * The Phase 4 community/peer/voice consents (benchmark_community,
+     * peer_network, whisper_transcription) are opt-ins captured on their own
+     * surfaces, NOT on a fee proposal — so the proposal builder must not
+     * create consent rows for them.
+     *
+     * @return array<int, string>
+     */
+    public static function proposalTypes(): array
+    {
+        return [
+            self::TYPE_INSURANCE_REFERRAL,
+            self::TYPE_COACH_REFERRAL,
+        ];
+    }
+
+    /**
      * @return array<int, string>
      */
     public static function elections(): array
