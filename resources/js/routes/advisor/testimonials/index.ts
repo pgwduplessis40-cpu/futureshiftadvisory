@@ -75,14 +75,14 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::capture
  * @see app/Http/Controllers/Advisor/TestimonialController.php:41
  * @route '/advisor/testimonials/{testimonial}/consent'
  */
-export const capture = (args: { testimonial: string | number | { id: string | number } } | [testimonial: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+export const capture = (args: { testimonial: string | { id: string } } | [testimonial: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: capture.url(args, options),
     method: 'patch',
 })
@@ -97,7 +97,7 @@ capture.definition = {
  * @see app/Http/Controllers/Advisor/TestimonialController.php:41
  * @route '/advisor/testimonials/{testimonial}/consent'
  */
-capture.url = (args: { testimonial: string | number | { id: string | number } } | [testimonial: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+capture.url = (args: { testimonial: string | { id: string } } | [testimonial: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { testimonial: args }
     }
@@ -105,7 +105,7 @@ capture.url = (args: { testimonial: string | number | { id: string | number } } 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { testimonial: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     testimonial: args[0],
@@ -130,7 +130,7 @@ capture.url = (args: { testimonial: string | number | { id: string | number } } 
  * @see app/Http/Controllers/Advisor/TestimonialController.php:41
  * @route '/advisor/testimonials/{testimonial}/consent'
  */
-capture.patch = (args: { testimonial: string | number | { id: string | number } } | [testimonial: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+capture.patch = (args: { testimonial: string | { id: string } } | [testimonial: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: capture.url(args, options),
     method: 'patch',
 })
@@ -140,7 +140,7 @@ capture.patch = (args: { testimonial: string | number | { id: string | number } 
  * @see app/Http/Controllers/Advisor/TestimonialController.php:41
  * @route '/advisor/testimonials/{testimonial}/consent'
  */
-    const captureForm = (args: { testimonial: string | number | { id: string | number } } | [testimonial: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const captureForm = (args: { testimonial: string | { id: string } } | [testimonial: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: capture.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PATCH',
@@ -155,7 +155,7 @@ capture.patch = (args: { testimonial: string | number | { id: string | number } 
  * @see app/Http/Controllers/Advisor/TestimonialController.php:41
  * @route '/advisor/testimonials/{testimonial}/consent'
  */
-        captureForm.patch = (args: { testimonial: string | number | { id: string | number } } | [testimonial: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        captureForm.patch = (args: { testimonial: string | { id: string } } | [testimonial: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: capture.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PATCH',
@@ -164,7 +164,7 @@ capture.patch = (args: { testimonial: string | number | { id: string | number } 
                     }),
             method: 'post',
         })
-    
+
     capture.form = captureForm
 const testimonials = {
     index: Object.assign(index, index),

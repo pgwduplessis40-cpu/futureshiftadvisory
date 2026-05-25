@@ -4,7 +4,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
  * @see app/Http/Controllers/Advisor/GoalController.php:41
  * @route '/advisor/goals/{goal}/milestones'
  */
-export const store = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const store = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
@@ -19,7 +19,7 @@ store.definition = {
  * @see app/Http/Controllers/Advisor/GoalController.php:41
  * @route '/advisor/goals/{goal}/milestones'
  */
-store.url = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+store.url = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { goal: args }
     }
@@ -27,7 +27,7 @@ store.url = (args: { goal: string | number | { id: string | number } } | [goal: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { goal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     goal: args[0],
@@ -52,7 +52,7 @@ store.url = (args: { goal: string | number | { id: string | number } } | [goal: 
  * @see app/Http/Controllers/Advisor/GoalController.php:41
  * @route '/advisor/goals/{goal}/milestones'
  */
-store.post = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+store.post = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
@@ -62,7 +62,7 @@ store.post = (args: { goal: string | number | { id: string | number } } | [goal:
  * @see app/Http/Controllers/Advisor/GoalController.php:41
  * @route '/advisor/goals/{goal}/milestones'
  */
-    const storeForm = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const storeForm = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: store.url(args, options),
         method: 'post',
     })
@@ -72,11 +72,11 @@ store.post = (args: { goal: string | number | { id: string | number } } | [goal:
  * @see app/Http/Controllers/Advisor/GoalController.php:41
  * @route '/advisor/goals/{goal}/milestones'
  */
-        storeForm.post = (args: { goal: string | number | { id: string | number } } | [goal: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        storeForm.post = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const milestones = {
     store: Object.assign(store, store),

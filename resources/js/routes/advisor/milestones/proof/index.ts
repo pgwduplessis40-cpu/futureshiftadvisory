@@ -4,7 +4,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
  * @see app/Http/Controllers/Advisor/GoalController.php:83
  * @route '/advisor/milestones/{milestone}/proof'
  */
-export const store = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const store = (args: { milestone: string | { id: string } } | [milestone: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
@@ -19,7 +19,7 @@ store.definition = {
  * @see app/Http/Controllers/Advisor/GoalController.php:83
  * @route '/advisor/milestones/{milestone}/proof'
  */
-store.url = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+store.url = (args: { milestone: string | { id: string } } | [milestone: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { milestone: args }
     }
@@ -27,7 +27,7 @@ store.url = (args: { milestone: string | number | { id: string | number } } | [m
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { milestone: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     milestone: args[0],
@@ -52,7 +52,7 @@ store.url = (args: { milestone: string | number | { id: string | number } } | [m
  * @see app/Http/Controllers/Advisor/GoalController.php:83
  * @route '/advisor/milestones/{milestone}/proof'
  */
-store.post = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+store.post = (args: { milestone: string | { id: string } } | [milestone: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(args, options),
     method: 'post',
 })
@@ -62,7 +62,7 @@ store.post = (args: { milestone: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Advisor/GoalController.php:83
  * @route '/advisor/milestones/{milestone}/proof'
  */
-    const storeForm = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const storeForm = (args: { milestone: string | { id: string } } | [milestone: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: store.url(args, options),
         method: 'post',
     })
@@ -72,11 +72,11 @@ store.post = (args: { milestone: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Advisor/GoalController.php:83
  * @route '/advisor/milestones/{milestone}/proof'
  */
-        storeForm.post = (args: { milestone: string | number | { id: string | number } } | [milestone: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        storeForm.post = (args: { milestone: string | { id: string } } | [milestone: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const proof = {
     store: Object.assign(store, store),

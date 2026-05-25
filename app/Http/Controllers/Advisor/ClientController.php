@@ -39,6 +39,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -599,7 +600,7 @@ final class ClientController extends Controller
 
         $highlightId = is_string($highlight) ? trim($highlight) : '';
 
-        if ($highlightId !== '' && ! $findings->contains(fn (AnalysisFinding $finding): bool => (string) $finding->getKey() === $highlightId)) {
+        if (Str::isUuid($highlightId) && ! $findings->contains(fn (AnalysisFinding $finding): bool => (string) $finding->getKey() === $highlightId)) {
             $highlighted = AnalysisFinding::query()
                 ->with(['run', 'feedback.advisor'])
                 ->where('client_id', $client->getKey())

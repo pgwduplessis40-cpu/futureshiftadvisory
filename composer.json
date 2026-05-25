@@ -69,7 +69,7 @@
         "test": [
             "@php artisan config:clear --ansi",
             "@lint:check",
-            "@php artisan test"
+            "@php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage"
         ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",

@@ -2,7 +2,8 @@
 
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), and [`CLAUDE.md`](./CLAUDE.md).
 
-**Last updated:** 2026-05-23
+**Last updated:** 2026-05-25
+**Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6). Phase 4 resumes at WO-102.
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **not started** (next: WO-102).
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -15,6 +16,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | Next work order | **WO-102** — Activate the 32-layer learning engine (Phase 4; see `PLAN-PHASE4.md`) |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
+| Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
 | Verification status | **Phase 3 COMPLETE & VERIFIED — full green baseline (2026-05-23).** PHPUnit against PostgreSQL `futureshift_test`: **439 tests / 439 passed / 3370 assertions, 0 failures, 0 errors.** Pint, ESLint, `tsc --noEmit`, Prettier all green. 101/101 WO commits; 0 `TODO`/`FIXME`/`dd()`/`dump()`/`console.log`. Defects found during the first full run were fixed in `d56834c` (migration `down()` RLS-policy dependency, missing `document_expiry_reminders` table, missing `business_plans.living_plan_*` columns, two over-broad guard tests). |
 
 ## Commit Log
@@ -1444,9 +1446,30 @@ Results after WO-D07:
 - `npm run lint:check`: passed.
 - `npm run format:check`: passed.
 
+Results after WO-D08:
+
+- Client portal Business Health Radar shipped: persisted five-dimension snapshot batches, explicit advisor/artisan recompute, client-safe scoring over non-Prescriptive findings, stale/run-state provenance, in-page health finding drill anchors, and a hand-rolled SVG radar.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Dashboards/BusinessHealthRadarTest.php tests/Feature/Portal/OnboardingWizardTest.php` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 11 tests, 133 assertions.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+
+Results after WO-D09:
+
+- Track baseline closed: `composer test` now points at the direct PHPUnit binary with `memory_limit=1024M`; Wayfinder was regenerated with `--with-form`; `docs/dashboards.md` documents config knobs and drill contracts; non-UUID analysis highlights now fail closed instead of 500ing.
+- `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage` passed with local Postgres credentials supplied via process environment against `futureshift_test`: 471 tests, 3779 assertions.
+- `composer test` passed with the repointed direct PHPUnit gate: 471 tests, 3779 assertions.
+- `php artisan wayfinder:generate --with-form`: passed; generated drift committed.
+- `vendor\bin\pint --dirty`: passed.
+- `npm run types:check`: passed.
+- `npm run lint:check`: passed.
+- `npm run format:check`: passed.
+- Forbidden-marker scan (`TODO`/`FIXME` in `app/` + `routes/`, `dd()`/`dump()`/`console.log` in shipped code paths): passed.
+
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), and Phase 3 (WO-65...WO-101) are complete locally on `featureApp`.**
+**Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), Phase 3 (WO-65...WO-101), and Dashboard Interactivity Tier 1 (WO-D01...WO-D09) are complete locally on `featureApp`. Phase 4 starts next at WO-102.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 
