@@ -23,6 +23,7 @@ use App\Console\Commands\RunFunnelAnalyticsLayer;
 use App\Console\Commands\RunPlanQualityBenchmarks;
 use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\RunRatingPredictiveValidity;
+use App\Console\Commands\RunSharedIntelligenceLayer;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -223,6 +224,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunCrossClientIntelligence::class)
             ->dailyAt('06:45')
             ->name('fsa-cross-client-intelligence')
+            ->withoutOverlapping();
+
+        $schedule->command(RunSharedIntelligenceLayer::class)
+            ->dailyAt('07:00')
+            ->name('fsa-shared-intelligence-layer')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {

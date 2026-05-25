@@ -184,6 +184,24 @@ Key columns:
 - `suppressed`
 - `alerted_at`
 
+## WO-109 - Shared intelligence layer
+
+### `shared_intelligence_patterns`
+
+Aggregate-only patterns bridged between advisory and entrepreneur domains.
+Rows are created only from already-governed aggregate sources and only at or
+above `privacy.min_cohort`.
+
+Key columns:
+
+- `id` UUID primary key
+- `source_domain`
+- `target_domain`
+- `signal_key`
+- `pattern` JSONB
+- `cohort_size`
+- `generated_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

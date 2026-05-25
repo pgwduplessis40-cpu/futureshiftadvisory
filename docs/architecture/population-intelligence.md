@@ -12,3 +12,14 @@ aggregate counts, severity/module distributions, and privacy metadata.
 
 No client names, client ids, finding ids, record-level values, or raw examples
 are persisted in the signal aggregate.
+
+WO-109 adds `intelligence:shared-layer` and `shared_intelligence_patterns`.
+The shared layer moves aggregate patterns between the advisory and entrepreneur
+domains:
+
+- advisory to entrepreneur from `industry_intelligence_signals`
+- entrepreneur to advisory from governed plan-quality benchmark candidates
+
+The bridge never reads or persists record-level source data. Patterns are
+created only at or above `privacy.min_cohort` and carry aggregate-only privacy
+metadata.
