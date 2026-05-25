@@ -75,9 +75,12 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                                         className="border-t"
                                     >
                                         <td className="px-3 py-2">
-                                            <div className="font-medium">
+                                            <Link
+                                                href={`/advisor/entrepreneurs/${entrepreneur.id}`}
+                                                className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                                            >
                                                 {entrepreneur.name}
-                                            </div>
+                                            </Link>
                                             <div className="text-xs text-muted-foreground">
                                                 {entrepreneur.email}
                                             </div>

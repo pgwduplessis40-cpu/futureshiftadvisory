@@ -59,9 +59,12 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                             {questionnaires.map((questionnaire) => (
                                 <tr key={questionnaire.id} className="border-t">
                                     <td className="px-3 py-2">
-                                        <div className="font-medium">
+                                        <Link
+                                            href={`/admin/questionnaires/${questionnaire.id}/preview`}
+                                            className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
+                                        >
                                             {questionnaire.title}
-                                        </div>
+                                        </Link>
                                         <div className="text-muted-foreground">
                                             {questionnaire.set}
                                         </div>
