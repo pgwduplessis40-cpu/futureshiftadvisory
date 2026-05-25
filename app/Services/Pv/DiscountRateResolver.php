@@ -7,6 +7,7 @@ namespace App\Services\Pv;
 use App\Enums\DiscountMethod;
 use App\Models\Client;
 use App\Models\EconomicIndicator;
+use App\Models\IndustryWaccData;
 use InvalidArgumentException;
 
 final class DiscountRateResolver
@@ -70,17 +71,61 @@ final class DiscountRateResolver
      */
     private function industryWacc(Client $client, array $options): DiscountRateResult
     {
-        $rate = $this->rate($options['rate'] ?? $options['industry_wacc'] ?? self::DEFAULT_INDUSTRY_WACC);
-        $source = (string) ($options['source_reference'] ?? 'advisor:industry_wacc_assumption');
+        if (array_key_exists('rate', $options) || array_key_exists('industry_wacc', $options)) {
+            $rate = $this->rate($options['rate'] ?? $options['industry_wacc']);
+            $source = (string) ($options['source_reference'] ?? 'advisor:industry_wacc_assumption');
+
+            return new DiscountRateResult(
+                method: DiscountMethod::IndustryWacc,
+                rate: $rate,
+                rationale: (string) ($options['rationale'] ?? "Industry WACC assumption selected for {$client->legal_name}."),
+                sourceAttributions: [
+                    [
+                        'claim' => 'Industry WACC discount rate supplied as an advisor-reviewed assumption.',
+                        'source_reference' => $source,
+                    ],
+                ],
+            );
+        }
+
+        $industryCode = $this->industryCode($client, $options);
+        $wacc = IndustryWaccData::query()
+            ->where('industry_code', $industryCode)
+            ->whereNull('superseded_at')
+            ->latest('quarter')
+            ->latest('fetched_at')
+            ->first();
+
+        if (! $wacc instanceof IndustryWaccData) {
+            $rate = self::DEFAULT_INDUSTRY_WACC;
+
+            return new DiscountRateResult(
+                method: DiscountMethod::IndustryWacc,
+                rate: $rate,
+                rationale: (string) ($options['rationale'] ?? "Default industry WACC assumption selected for {$client->legal_name}."),
+                sourceAttributions: [
+                    [
+                        'claim' => 'Industry WACC default was used because no active industry WACC reference row was available.',
+                        'source_reference' => 'industry_wacc:default',
+                    ],
+                ],
+            );
+        }
 
         return new DiscountRateResult(
             method: DiscountMethod::IndustryWacc,
-            rate: $rate,
-            rationale: (string) ($options['rationale'] ?? "Industry WACC assumption selected for {$client->legal_name}."),
+            rate: round($wacc->wacc_rate, 6),
+            rationale: (string) ($options['rationale'] ?? sprintf(
+                'Industry WACC for %s uses %s %.2f%% from %s.',
+                $client->legal_name,
+                $wacc->industry_code,
+                $wacc->wacc_rate * 100,
+                strtoupper($wacc->source),
+            )),
             sourceAttributions: [
                 [
-                    'claim' => 'Industry WACC discount rate supplied as an advisor-reviewed assumption.',
-                    'source_reference' => $source,
+                    'claim' => 'Industry WACC discount rate uses the active industry WACC reference feed.',
+                    'source_reference' => "industry_wacc_data:{$wacc->id}",
                 ],
             ],
         );
@@ -128,5 +173,27 @@ final class DiscountRateResolver
         }
 
         return round($rate, 6);
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    private function industryCode(Client $client, array $options): string
+    {
+        $candidate = $options['industry_code'] ?? null;
+        if (is_string($candidate) && trim($candidate) !== '') {
+            return strtoupper(trim($candidate));
+        }
+
+        $sources = is_array($client->registry_sources) ? $client->registry_sources : [];
+
+        foreach (['industry_code', 'industry', 'sector'] as $key) {
+            $value = $sources[$key] ?? null;
+            if (is_string($value) && trim($value) !== '') {
+                return strtoupper(trim($value));
+            }
+        }
+
+        return 'M6962';
     }
 }

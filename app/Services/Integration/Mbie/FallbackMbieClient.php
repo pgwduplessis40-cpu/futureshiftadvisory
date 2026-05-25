@@ -31,4 +31,13 @@ final class FallbackMbieClient implements MbieClient
             return $this->fake->valuationMultiples();
         }
     }
+
+    public function industryWaccRates(): array
+    {
+        try {
+            return $this->live->industryWaccRates();
+        } catch (IntegrationDisabledException) {
+            return $this->fake->industryWaccRates();
+        }
+    }
 }

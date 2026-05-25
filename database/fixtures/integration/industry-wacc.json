@@ -1,0 +1,34 @@
+{
+  "current": {
+    "industry_wacc_rates": [
+      {
+        "industry_code": "M6962",
+        "industry_label": "Management advice and related consulting services",
+        "wacc_rate": 0.1125,
+        "cost_of_equity": 0.132,
+        "cost_of_debt": 0.071,
+        "equity_weight": 0.68,
+        "debt_weight": 0.32,
+        "source": "mbie",
+        "quarter": "2026Q2",
+        "payload": {
+          "fixture_reference": "mbie-industry-wacc-2026q2"
+        }
+      },
+      {
+        "industry_code": "H4511",
+        "industry_label": "Cafes and restaurants",
+        "wacc_rate": 0.145,
+        "cost_of_equity": 0.171,
+        "cost_of_debt": 0.082,
+        "equity_weight": 0.71,
+        "debt_weight": 0.29,
+        "source": "mbie",
+        "quarter": "2026Q2",
+        "payload": {
+          "fixture_reference": "mbie-industry-wacc-2026q2"
+        }
+      }
+    ]
+  }
+}

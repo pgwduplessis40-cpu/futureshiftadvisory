@@ -24,6 +24,8 @@ WO-40 does not implement the three PV product types. Business valuation lands in
 
 Every resolved rate returns a rationale and source attributions. OCR-linked rates cite the exact `economic_indicators` row, so the rate automatically changes when the latest OCR indicator changes.
 
+WO-116 wires `industry_wacc` to the active `industry_wacc_data` feed when no explicit rate override is supplied. Explicit advisor-reviewed rates still win and retain their own source attribution.
+
 ## Calculation Ledger
 
 `pv_calculations` stores:

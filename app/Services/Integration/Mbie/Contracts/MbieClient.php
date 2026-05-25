@@ -15,4 +15,9 @@ interface MbieClient
      * @return array<int, array<string, mixed>>
      */
     public function valuationMultiples(): array;
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function industryWaccRates(): array;
 }

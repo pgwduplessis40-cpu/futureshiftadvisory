@@ -46,6 +46,22 @@ final class FakeMbieClient implements MbieClient
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function industryWaccRates(): array
+    {
+        return $this->waccRecords('stub');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function fallbackIndustryWaccRates(): array
+    {
+        return $this->waccRecords('stub_live_fallback', degraded: true);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function records(string $badge, bool $degraded = false): array
     {
         $record = $this->fixtures->find('mbie-economic', 'current');
@@ -86,6 +102,29 @@ final class FakeMbieClient implements MbieClient
                 'degraded' => $degraded || (bool) ($multiple['degraded'] ?? false),
             ],
             array_filter($multiples, 'is_array'),
+        ));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function waccRecords(string $badge, bool $degraded = false): array
+    {
+        $record = $this->fixtures->find('industry-wacc', 'current');
+        $rates = $record['industry_wacc_rates'] ?? [];
+
+        if (! is_array($rates)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $rate): array => [
+                ...$rate,
+                'source' => (string) ($rate['source'] ?? 'mbie'),
+                'source_badge' => $badge,
+                'degraded' => $degraded || (bool) ($rate['degraded'] ?? false),
+            ],
+            array_filter($rates, 'is_array'),
         ));
     }
 }

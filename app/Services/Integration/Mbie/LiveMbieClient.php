@@ -63,6 +63,29 @@ final class LiveMbieClient implements MbieClient
         ));
     }
 
+    public function industryWaccRates(): array
+    {
+        if (! (bool) Config::get('integrations.mbie.live', false)) {
+            throw IntegrationDisabledException::forService('mbie');
+        }
+
+        $result = $this->http->get(
+            service: 'mbie',
+            endpoint: $this->endpoint('industry-wacc'),
+            query: $this->query(),
+            cacheKey: 'integration:mbie:industry-wacc',
+            fallback: fn (): array => $this->fake->fallbackIndustryWaccRates(),
+        );
+
+        $payload = is_array($result->data) ? $result->data : $this->fake->fallbackIndustryWaccRates();
+        $rates = array_is_list($payload) ? $payload : (array) ($payload['industry_wacc_rates'] ?? []);
+
+        return array_values(array_map(
+            fn (array $rate): array => $this->withTransportMeta($result, $rate),
+            array_filter($rates, 'is_array'),
+        ));
+    }
+
     /**
      * @param  array<string, mixed>  $record
      * @return array<string, mixed>

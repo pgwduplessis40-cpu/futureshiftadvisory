@@ -370,6 +370,34 @@ Key columns:
 - `revoked_at`
 - `revoked_by_user_id`
 
+## WO-116 - Industry WACC automation
+
+### `industry_wacc_data`
+
+Global industry-level weighted-average-cost-of-capital reference data consumed
+by `DiscountRateResolver` when `DiscountMethod::IndustryWacc` is requested
+without an explicit rate override.
+
+Key columns:
+
+- `id` UUID primary key
+- `industry_code`
+- `industry_label`
+- `wacc_rate`
+- `cost_of_equity`
+- `cost_of_debt`
+- `equity_weight`
+- `debt_weight`
+- `source`
+- `source_badge`
+- `degraded`
+- `correlation_id`
+- `quarter`
+- `fetched_at`
+- `superseded_at`
+- `record_hash`
+- `payload` JSONB
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

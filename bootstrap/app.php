@@ -9,6 +9,7 @@ use App\Console\Commands\GenerateMonthlyIndustryBriefings;
 use App\Console\Commands\GeneratePreMeetingBriefs;
 use App\Console\Commands\ProcessScheduledPayments;
 use App\Console\Commands\RefreshEconomicIndicators;
+use App\Console\Commands\RefreshIndustryWacc;
 use App\Console\Commands\RefreshValuationMultiples;
 use App\Console\Commands\ReverifyBrokerFspRegistrations;
 use App\Console\Commands\RunActiveLayerEngine;
@@ -127,6 +128,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RefreshValuationMultiples::class)
             ->cron('0 4 1 1,4,7,10 *')
             ->name('fsa-valuation-multiples-refresh')
+            ->withoutOverlapping();
+
+        $schedule->command(RefreshIndustryWacc::class)
+            ->cron('15 4 1 1,4,7,10 *')
+            ->name('fsa-industry-wacc-refresh')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_CONTINUOUS_MONITORING', false)) {
