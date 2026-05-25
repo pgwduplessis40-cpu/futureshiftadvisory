@@ -4,7 +4,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 **Last updated:** 2026-05-25
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6). Phase 4 is in progress.
-**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **WO-102...WO-119 complete** (next: WO-120).
+**Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 — Engagement/Commerce/DD/Entrepreneur/Broker/Coach **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion: **WO-102...WO-120 complete locally**.
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
 ## Snapshot
@@ -13,7 +13,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 |---|---|
 | Work orders complete | **101 total** — Phase 1 (30) + Phase 2 (34) + Phase 3 (37, WO-65…WO-101 incl. WO-87a/87b) |
 | Work orders in progress | none |
-| Next work order | **WO-120** — Multi-advisor scaling and team management (Phase 4; see `PLAN-PHASE4.md`) |
+| Next work order | **Phase 4 boundary verification / push** |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
@@ -1490,9 +1490,16 @@ Results after WO-119:
 - Added RLS for internal-only audit records plus architecture/checklist docs under `docs/architecture/security-audit.md` and `docs/security/audit-checklist.md`.
 - Verification: PHP syntax checks and command registration passed; `vendor\bin\pint --dirty` passed. `php artisan test tests/Feature/Security/SecurityAuditFrameworkTest.php` is blocked locally by `.env.testing` PostgreSQL auth (`fe_sendauth: no password supplied`).
 
+Results after WO-120:
+
+- Multi-advisor team management shipped: `advisor_teams`, `advisor_team_members`, `client_team.advisor_team_id`, team models, `AdvisorTeamManager`, team capacity summaries, and reassignment audit events.
+- `User::accessibleClientIds()` now adds team-assigned clients for team leads while ordinary members keep only direct `client_team` access; the `client_team` RLS policy was extended for team-lead visibility.
+- Added `docs/architecture/advisor-teams.md` and feature coverage for lead/member visibility, capacity, and reassignment auditing.
+- Verification: PHP syntax checks and `vendor\bin\pint --dirty` passed. `php artisan test tests/Feature/Advisor/AdvisorTeamScalingTest.php` is blocked locally by `.env.testing` PostgreSQL auth (`fe_sendauth: no password supplied`).
+
 ## Remaining Work
 
-**Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), Phase 3 (WO-65...WO-101), Dashboard Interactivity Tier 1 (WO-D01...WO-D09), and Phase 4 WO-102...WO-119 are complete locally on `featureApp`. Phase 4 continues next at WO-120.**
+**Phase 1 (WO-01...WO-30), Phase 2 (WO-31...WO-64), Phase 3 (WO-65...WO-101), Dashboard Interactivity Tier 1 (WO-D01...WO-D09), and Phase 4 WO-102...WO-120 are complete locally on `featureApp`. Boundary verification/push is next.**
 
 > Per-WO detail above covers WO-01...WO-18 and WO-31...WO-64; WO-19...WO-30 are summarised in the commit-log table with their commit hashes, and each shipped with its own architecture doc under `docs/architecture/` and tests. The git log and architecture docs are the authoritative per-WO record for WO-19...WO-30.
 

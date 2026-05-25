@@ -109,6 +109,22 @@ class User extends Authenticatable
     }
 
     /**
+     * @return HasMany<AdvisorTeam>
+     */
+    public function ledAdvisorTeams(): HasMany
+    {
+        return $this->hasMany(AdvisorTeam::class, 'lead_advisor_user_id');
+    }
+
+    /**
+     * @return HasMany<AdvisorTeamMember>
+     */
+    public function advisorTeamMemberships(): HasMany
+    {
+        return $this->hasMany(AdvisorTeamMember::class);
+    }
+
+    /**
      * @return HasOne<EntrepreneurProfile>
      */
     public function entrepreneurProfile(): HasOne
@@ -189,6 +205,35 @@ class User extends Authenticatable
         $ids = $query
             ->pluck('client_team.client_id')
             ->all();
+
+        if (
+            Schema::hasTable('advisor_teams')
+            && Schema::hasTable('advisor_team_members')
+            && Schema::hasColumn('client_team', 'advisor_team_id')
+        ) {
+            $leadTeamIds = DB::table('advisor_teams')
+                ->where('lead_advisor_user_id', $this->getKey())
+                ->pluck('id')
+                ->all();
+
+            $membershipLeadTeamIds = DB::table('advisor_team_members')
+                ->where('user_id', $this->getKey())
+                ->where('role', AdvisorTeamMember::ROLE_LEAD)
+                ->whereNull('left_at')
+                ->pluck('advisor_team_id')
+                ->all();
+
+            $teamIds = array_values(array_unique(array_map('strval', array_merge($leadTeamIds, $membershipLeadTeamIds))));
+
+            if ($teamIds !== []) {
+                $teamClientIds = DB::table('client_team')
+                    ->whereIn('advisor_team_id', $teamIds)
+                    ->pluck('client_id')
+                    ->all();
+
+                $ids = array_merge($ids, $teamClientIds);
+            }
+        }
 
         return array_values(array_unique(array_map('strval', $ids)));
     }

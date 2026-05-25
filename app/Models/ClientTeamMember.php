@@ -35,4 +35,12 @@ final class ClientTeamMember extends Model
     {
         return $this->belongsTo(User::class);
     }
+
+    /**
+     * @return BelongsTo<AdvisorTeam, ClientTeamMember>
+     */
+    public function advisorTeam(): BelongsTo
+    {
+        return $this->belongsTo(AdvisorTeam::class);
+    }
 }
