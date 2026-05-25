@@ -1,5 +1,6 @@
 import DdGuestUploadController from './DdGuestUploadController'
 import Webhook from './Webhook'
+import AdvisorApi from './AdvisorApi'
 import Public from './Public'
 import Auth from './Auth'
 import Admin from './Admin'
@@ -13,6 +14,7 @@ import Settings from './Settings'
 const Controllers = {
     DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
 Webhook: Object.assign(Webhook, Webhook),
+AdvisorApi: Object.assign(AdvisorApi, AdvisorApi),
 Public: Object.assign(Public, Public),
 Auth: Object.assign(Auth, Auth),
 Admin: Object.assign(Admin, Admin),

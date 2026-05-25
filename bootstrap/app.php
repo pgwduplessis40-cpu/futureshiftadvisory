@@ -28,6 +28,7 @@ use App\Console\Commands\RunSharedIntelligenceLayer;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
+use App\Http\Middleware\AuthenticateAdvisorApiToken;
 use App\Http\Middleware\EnforceClientScope;
 use App\Http\Middleware\EnforceSessionSecurity;
 use App\Http\Middleware\EnsurePermission;
@@ -75,6 +76,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // (e.g. ->middleware('audit.read:document.downloaded') on a
         // sensitive endpoint). See PLAN.md section 7.3.
         $middleware->alias([
+            'advisor.api' => AuthenticateAdvisorApiToken::class,
             'audit.read' => LogAuditEvent::class,
             'mfa' => RequireMfa::class,
             'permission' => EnsurePermission::class,

@@ -19,11 +19,14 @@ use App\Services\Voice\Contracts\WhisperClient;
 use App\Services\Voice\FakeWhisperClient;
 use App\Services\Voice\LiveWhisperClient;
 use Carbon\CarbonImmutable;
+use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Filesystem\FilesystemAdapter as LaravelFilesystemAdapter;
+use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Validation\Rules\Password;
@@ -58,6 +61,7 @@ class AppServiceProvider extends ServiceProvider
         Client::observe(ClientLifecycleObserver::class);
         $this->registerSecureLocalDisk();
         Notification::extend('fsa_database', fn ($app): FsaDatabaseChannel => $app->make(FsaDatabaseChannel::class));
+        $this->registerRateLimiters();
         $this->configureDefaults();
     }
 
@@ -86,6 +90,20 @@ class AppServiceProvider extends ServiceProvider
             ]));
 
             return new LaravelFilesystemAdapter($filesystem, $adapter, $config);
+        });
+    }
+
+    protected function registerRateLimiters(): void
+    {
+        RateLimiter::for('advisor-api', function (Request $request): Limit {
+            $client = $request->attributes->get('advisor_api_client');
+            $limit = is_object($client) && isset($client->rate_limit_per_minute)
+                ? (int) $client->rate_limit_per_minute
+                : 60;
+            $key = (string) ($request->attributes->get('advisor_api_token_hash')
+                ?: hash('sha256', (string) $request->bearerToken()));
+
+            return Limit::perMinute(max(1, $limit))->by($key ?: $request->ip());
         });
     }
 

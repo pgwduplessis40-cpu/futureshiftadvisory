@@ -273,6 +273,27 @@ Key columns:
 - `reason`
 - `moderated_at`
 
+## WO-112 - Advisor API layer
+
+### `advisor_api_clients`
+
+Approved external integration clients for the advisor API. Tokens are stored as
+hashes only; route middleware applies advisor client scope, rate limiting, and
+call auditing.
+
+Key columns:
+
+- `id` UUID primary key
+- `name`
+- `advisor_user_id`
+- `token_hash`
+- `scopes` JSONB
+- `status`
+- `rate_limit_per_minute`
+- `approved_by_user_id`
+- `approved_at`
+- `last_used_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.
