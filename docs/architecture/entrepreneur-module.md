@@ -258,6 +258,12 @@ scores with outcome scores only when `CohortGuard` allows the cohort, then queue
 a governed learning candidate for guidance review. It never emits row-level
 entrepreneur, client, or plan identifiers.
 
+WO-107 adds semiannual `learning:rating-validity-tests`. It stores
+`rating_validity_tests` rows per rating framework and period, comparing aggregate
+predicted plan scores with aggregate realised outcomes. Sufficient cohorts queue
+a governed framework-review candidate; no framework weight, descriptor, or grade
+band changes automatically.
+
 `advisory_readiness_signals` stores the systematic advisory-readiness signal
 for a profile. `AdvisoryReadiness::evaluate()` creates or updates the signal
 when the latest assessed plan reaches the readiness threshold, moves the

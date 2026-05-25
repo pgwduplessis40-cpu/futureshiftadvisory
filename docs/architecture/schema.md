@@ -148,6 +148,22 @@ Key columns:
 - `outcome_signal` JSONB
 - `observed_at`
 
+## WO-107 - Rating predictive-validity tests
+
+### `rating_validity_tests`
+
+Semiannual aggregate test results comparing rating-framework plan scores with
+realised conversion outcomes. Rows are aggregate-only and feed governed
+`learning_updates` candidates with `layer_id = 18`.
+
+Key columns:
+
+- `id` UUID primary key
+- `rating_framework_id`
+- `period`
+- `correlation` JSONB
+- `tested_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

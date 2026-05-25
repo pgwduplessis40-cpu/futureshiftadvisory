@@ -21,6 +21,7 @@ use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
 use App\Console\Commands\RunPlanQualityBenchmarks;
 use App\Console\Commands\RunQuestionnaireOptimisationLayer;
+use App\Console\Commands\RunRatingPredictiveValidity;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -211,6 +212,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunConversionOutcomeLearning::class)
             ->monthlyOn(1, '06:15')
             ->name('fsa-conversion-outcome-learning')
+            ->withoutOverlapping();
+
+        $schedule->command(RunRatingPredictiveValidity::class)
+            ->cron('30 6 1 1,7 *')
+            ->name('fsa-rating-predictive-validity')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {

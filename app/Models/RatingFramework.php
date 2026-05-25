@@ -56,6 +56,14 @@ final class RatingFramework extends Model
     }
 
     /**
+     * @return HasMany<RatingValidityTest>
+     */
+    public function validityTests(): HasMany
+    {
+        return $this->hasMany(RatingValidityTest::class);
+    }
+
+    /**
      * @return BelongsTo<RatingFramework, RatingFramework>
      */
     public function supersedes(): BelongsTo
