@@ -109,6 +109,21 @@ Key columns:
 - `next_due_at`
 - `config` JSONB
 
+## WO-104 - DD outcome and valuation learning
+
+### `dd_outcome_records`
+
+Client-scoped DD outcome capture used to compare eventual acquisition outcomes with earlier DD valuations. The DD learning layer reads these rows and repeated DD findings to create governed candidates only.
+
+Key columns:
+
+- `id` UUID primary key
+- `client_id`
+- `dd_engagement_id`
+- `recorded_price`
+- `actual_outcome` JSONB
+- `recorded_at`
+
 ## WO-96 - Terms version-manager polish
 
 No new tables are required. WO-96 adds material-clause counts to admin terms payloads so the version history, editor, preview, and publish screens expose whole-document classification and per-clause classification state from the existing `terms_versions` and `terms_clauses` tables.

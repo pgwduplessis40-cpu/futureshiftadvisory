@@ -207,3 +207,13 @@ outcome-based fee calculation stores `source = due_diligence`, the DD report id,
 the DD PV baseline from the latest DD valuation midpoint, and the PV-ranked DD
 risk total. This keeps the proposal unusually precise without treating FSA as a
 legal, tax, accounting, lending, or investment adviser.
+
+## Outcome Learning
+
+WO-104 adds `dd_outcome_records` for acquisition outcome capture after a DD
+engagement. `learning:dd-learning` compares recorded prices with the latest DD
+valuation midpoint and scans repeated DD workstream findings. Material valuation
+variance or repeated finding patterns create governed `learning_updates`
+candidates for checklist or valuation review only. No DD checklist, valuation
+method, or report behaviour changes without the standard learning approval and
+implementation flow.

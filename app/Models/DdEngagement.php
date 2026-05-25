@@ -89,6 +89,14 @@ final class DdEngagement extends Model
     }
 
     /**
+     * @return HasMany<DdOutcomeRecord>
+     */
+    public function outcomeRecords(): HasMany
+    {
+        return $this->hasMany(DdOutcomeRecord::class);
+    }
+
+    /**
      * @return HasMany<DdRiskRegisterItem>
      */
     public function riskRegisterItems(): HasMany

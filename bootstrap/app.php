@@ -14,6 +14,7 @@ use App\Console\Commands\RunActiveLayerEngine;
 use App\Console\Commands\RunBiasCalibration;
 use App\Console\Commands\RunBiasMonitor;
 use App\Console\Commands\RunCoachSignalCalibrationLayer;
+use App\Console\Commands\RunDdLearning;
 use App\Console\Commands\RunFeedbackLearningLayer;
 use App\Console\Commands\RunFinancialMonitoring;
 use App\Console\Commands\RunFunnelAnalyticsLayer;
@@ -193,6 +194,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(RunCoachSignalCalibrationLayer::class)
             ->monthlyOn(1, '05:30')
             ->name('fsa-coach-signal-calibration-layer')
+            ->withoutOverlapping();
+
+        $schedule->command(RunDdLearning::class)
+            ->weeklyOn(1, '05:45')
+            ->name('fsa-dd-learning-layer')
             ->withoutOverlapping();
 
         if ((bool) env('FEATURE_ACTIVE_LEARNING', false)) {
