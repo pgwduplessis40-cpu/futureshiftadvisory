@@ -10,10 +10,11 @@ use App\Models\DocumentVerification;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
+use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
-final class DataQualityScorer
+final class DataQualityScorer implements ProvidesMethodology
 {
     private const WEIGHT_QUESTIONNAIRE_COMPLETENESS = 35;
 
@@ -22,6 +23,11 @@ final class DataQualityScorer
     private const WEIGHT_VERIFIED_DOCUMENTS = 25;
 
     private const WEIGHT_FRESHNESS = 15;
+
+    public static function methodologyIds(): array
+    {
+        return ['data_quality.score'];
+    }
 
     public function __construct(private readonly QuestionnaireCompletenessCalculator $questionnaires) {}
 

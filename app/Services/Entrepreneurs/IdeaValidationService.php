@@ -12,11 +12,17 @@ use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-final class IdeaValidationService
+final class IdeaValidationService implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.idea_validation'];
+    }
+
     public function __construct(
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,

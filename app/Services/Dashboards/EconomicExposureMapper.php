@@ -7,11 +7,17 @@ namespace App\Services\Dashboards;
 use App\Enums\ClientStatus;
 use App\Models\Client;
 use App\Models\FinancialSnapshot;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Arr;
 
-final class EconomicExposureMapper
+final class EconomicExposureMapper implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['economic.exposure'];
+    }
+
     /**
      * @param  array<int, string>|null  $clientIds
      * @return array<string, mixed>

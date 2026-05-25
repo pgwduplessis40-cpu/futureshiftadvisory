@@ -6,10 +6,10 @@ namespace App\Console\Commands;
 
 use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthSample;
+use App\Services\Integration\IntegrationHealthBander;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
-use Illuminate\Support\Facades\Config;
 
 final class AggregateIntegrationHealth extends Command
 {
@@ -19,7 +19,7 @@ final class AggregateIntegrationHealth extends Command
 
     protected $description = 'Aggregate integration call rows into Green/Amber/Red health samples.';
 
-    public function handle(): int
+    public function handle(IntegrationHealthBander $bander): int
     {
         $minutes = max(1, (int) $this->option('minutes'));
         $windowEndInput = $this->option('window-end');
@@ -59,7 +59,7 @@ final class AggregateIntegrationHealth extends Command
                 [
                     'success_rate' => round($successRate, 4),
                     'p95_latency_ms' => $p95Latency,
-                    'health' => $this->healthFor($successRate, $p95Latency),
+                    'health' => $bander->band($successRate, $p95Latency),
                 ],
             );
 
@@ -90,23 +90,5 @@ final class AggregateIntegrationHealth extends Command
         $index = (int) max(0, ceil($latencies->count() * 0.95) - 1);
 
         return $latencies[$index];
-    }
-
-    private function healthFor(float $successRate, ?int $p95Latency): string
-    {
-        $greenSuccessRate = (float) Config::get('integrations.health.green.min_success_rate', 0.99);
-        $greenP95 = (int) Config::get('integrations.health.green.max_p95_latency_ms', 1000);
-        $amberSuccessRate = (float) Config::get('integrations.health.amber.min_success_rate', 0.95);
-        $amberP95 = (int) Config::get('integrations.health.amber.max_p95_latency_ms', 3000);
-
-        if ($successRate >= $greenSuccessRate && ($p95Latency === null || $p95Latency <= $greenP95)) {
-            return IntegrationHealthSample::HEALTH_GREEN;
-        }
-
-        if ($successRate >= $amberSuccessRate && ($p95Latency === null || $p95Latency <= $amberP95)) {
-            return IntegrationHealthSample::HEALTH_AMBER;
-        }
-
-        return IntegrationHealthSample::HEALTH_RED;
     }
 }

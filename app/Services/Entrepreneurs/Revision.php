@@ -10,12 +10,18 @@ use App\Models\PlanRevision;
 use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
-final class Revision
+final class Revision implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.revision_progress'];
+    }
+
     public function __construct(
         private readonly Assessment $assessments,
         private readonly AuditWriter $audit,

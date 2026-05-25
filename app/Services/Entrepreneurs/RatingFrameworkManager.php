@@ -9,12 +9,18 @@ use App\Models\RatingCriterion;
 use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
-final class RatingFrameworkManager
+final class RatingFrameworkManager implements ProvidesMethodology
 {
     public const LEARNING_LAYER_ID = 18;
+
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.rating_framework'];
+    }
 
     public function __construct(
         private readonly AuditWriter $audit,

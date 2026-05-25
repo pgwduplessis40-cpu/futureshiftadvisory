@@ -8,11 +8,17 @@ use App\Models\ClientTeamMember;
 use App\Models\CoachingSignal;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 
-final class WellbeingTrendAnalytics
+final class WellbeingTrendAnalytics implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['wellbeing.trend'];
+    }
+
     /**
      * A null client id list means all clients.
      *

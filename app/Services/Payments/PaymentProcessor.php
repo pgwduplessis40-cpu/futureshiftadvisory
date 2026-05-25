@@ -11,14 +11,20 @@ use App\Models\PaymentSchedule;
 use App\Models\User;
 use App\Notifications\PaymentFailedNotification;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
-final class PaymentProcessor
+final class PaymentProcessor implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['payments.retry_policy'];
+    }
+
     public function __construct(
         private readonly Gateway $gateway,
         private readonly ReceiptGenerator $receipts,

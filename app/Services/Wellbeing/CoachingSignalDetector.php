@@ -7,10 +7,16 @@ namespace App\Services\Wellbeing;
 use App\Models\CoachingSignal;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use App\Support\RequestContext;
 
-final class CoachingSignalDetector
+final class CoachingSignalDetector implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['wellbeing.low_coping_signal'];
+    }
+
     public function __construct(
         private readonly AuditWriter $auditWriter,
         private readonly RequestContext $context,

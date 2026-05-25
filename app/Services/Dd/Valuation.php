@@ -11,10 +11,16 @@ use App\Models\DdValuation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Pv\BusinessValuation;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 
-final class Valuation
+final class Valuation implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['dd.valuation'];
+    }
+
     public function __construct(
         private readonly BusinessValuation $businessValuation,
         private readonly FxNormaliser $fx,

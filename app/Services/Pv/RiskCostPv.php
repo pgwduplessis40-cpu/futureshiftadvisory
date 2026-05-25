@@ -8,9 +8,15 @@ use App\Enums\DiscountMethod;
 use App\Enums\PvType;
 use App\Models\Client;
 use App\Models\RiskCost;
+use App\Support\Methodology\ProvidesMethodology;
 
-final class RiskCostPv
+final class RiskCostPv implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['pv.risk_cost'];
+    }
+
     public function __construct(private readonly PvEngine $pv) {}
 
     /**

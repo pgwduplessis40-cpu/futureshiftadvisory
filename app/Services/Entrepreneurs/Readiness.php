@@ -10,10 +10,16 @@ use App\Models\EntrepreneurProfile;
 use App\Models\ReadinessAssessment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 
-final class Readiness
+final class Readiness implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.readiness'];
+    }
+
     public function __construct(
         private readonly AuditWriter $audit,
     ) {}

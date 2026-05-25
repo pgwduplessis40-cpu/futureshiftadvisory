@@ -12,15 +12,21 @@ use App\Models\LearningLayerRun;
 use App\Models\LearningUpdate;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
-final class SignalDetector
+final class SignalDetector implements ProvidesMethodology
 {
     public const LAYER_ID = 17;
+
+    public static function methodologyIds(): array
+    {
+        return ['coach.signal_mapping'];
+    }
 
     public function __construct(
         private readonly AuditWriter $audit,

@@ -35,6 +35,7 @@ use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -42,8 +43,13 @@ use Illuminate\Support\Str;
 use InvalidArgumentException;
 use RuntimeException;
 
-final class ReportComposer
+final class ReportComposer implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['dd.risk_register', 'dd.price_adjustment'];
+    }
+
     public function __construct(
         private readonly PdfRenderer $renderer,
         private readonly PptxGenerator $pptx,

@@ -6,10 +6,16 @@ namespace App\Services\Dd;
 
 use App\Models\BusinessValuation;
 use App\Models\ExchangeRate;
+use App\Support\Methodology\ProvidesMethodology;
 use InvalidArgumentException;
 
-final class FxNormaliser
+final class FxNormaliser implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['dd.fx_normalisation'];
+    }
+
     /**
      * @return array{
      *     source_currency:string,

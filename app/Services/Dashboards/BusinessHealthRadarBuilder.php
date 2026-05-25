@@ -11,13 +11,19 @@ use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\BusinessHealthSnapshot;
 use App\Models\Client;
+use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-final class BusinessHealthRadarBuilder
+final class BusinessHealthRadarBuilder implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['radar.dimension_score'];
+    }
+
     /**
      * @return array<int, array<string, mixed>>
      */

@@ -11,11 +11,17 @@ use App\Models\FinancialSnapshot;
 use App\Models\ImprovementOpportunity;
 use App\Models\RiskCost;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
-final class FeeCalculator
+final class FeeCalculator implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur'];
+    }
+
     public function __construct(private readonly AuditWriter $audit) {}
 
     /**

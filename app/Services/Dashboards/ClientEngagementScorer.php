@@ -11,13 +11,14 @@ use App\Models\MessageThread;
 use App\Models\Milestone;
 use App\Models\QuestionnaireResponse;
 use App\Services\DataQuality\QuestionnaireCompletenessCalculator;
+use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-final class ClientEngagementScorer
+final class ClientEngagementScorer implements ProvidesMethodology
 {
     private const SCORE_KEYS = [
         'questionnaire_pct',
@@ -32,6 +33,11 @@ final class ClientEngagementScorer
         'milestones_on_track_pct' => 'goals',
         'comms_recency_pct' => 'messages',
     ];
+
+    public static function methodologyIds(): array
+    {
+        return ['engagement.score'];
+    }
 
     public function __construct(private readonly QuestionnaireCompletenessCalculator $questionnaires) {}
 

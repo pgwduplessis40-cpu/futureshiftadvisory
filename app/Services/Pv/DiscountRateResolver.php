@@ -8,13 +8,19 @@ use App\Enums\DiscountMethod;
 use App\Models\Client;
 use App\Models\EconomicIndicator;
 use App\Models\IndustryWaccData;
+use App\Support\Methodology\ProvidesMethodology;
 use InvalidArgumentException;
 
-final class DiscountRateResolver
+final class DiscountRateResolver implements ProvidesMethodology
 {
     private const DEFAULT_RISK_PREMIUM = 0.06;
 
     private const DEFAULT_INDUSTRY_WACC = 0.12;
+
+    public static function methodologyIds(): array
+    {
+        return ['pv.discount_rate'];
+    }
 
     /**
      * @param  array<string, mixed>  $options

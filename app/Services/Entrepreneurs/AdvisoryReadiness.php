@@ -11,12 +11,18 @@ use App\Models\PlanAssessment;
 use App\Models\User;
 use App\Notifications\AdvisoryReadinessNotification;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 
-final class AdvisoryReadiness
+final class AdvisoryReadiness implements ProvidesMethodology
 {
     public const THRESHOLD = 75.0;
+
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.advisory_readiness'];
+    }
 
     public function __construct(
         private readonly AuditWriter $audit,

@@ -10,14 +10,20 @@ use App\Models\LearningLayerRun;
 use App\Models\LearningUpdate;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 
-final class FunnelTracker
+final class FunnelTracker implements ProvidesMethodology
 {
     public const LAYER_ID = 15;
+
+    public static function methodologyIds(): array
+    {
+        return ['funnel.drop_off'];
+    }
 
     public function __construct(
         private readonly AuditWriter $audit,

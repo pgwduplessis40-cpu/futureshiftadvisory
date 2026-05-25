@@ -8,11 +8,17 @@ use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ImprovementOpportunity;
 use App\Models\RiskCost;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
-final class PvWaterfallBuilder
+final class PvWaterfallBuilder implements ProvidesMethodology
 {
     private const MAX_RECOMMENDATION_STEPS = 8;
+
+    public static function methodologyIds(): array
+    {
+        return ['pv.waterfall'];
+    }
 
     /**
      * A null client id list means all clients.

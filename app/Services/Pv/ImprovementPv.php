@@ -8,9 +8,15 @@ use App\Enums\DiscountMethod;
 use App\Enums\PvType;
 use App\Models\Client;
 use App\Models\ImprovementOpportunity;
+use App\Support\Methodology\ProvidesMethodology;
 
-final class ImprovementPv
+final class ImprovementPv implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['pv.improvement'];
+    }
+
     public function __construct(private readonly PvEngine $pv) {}
 
     /**

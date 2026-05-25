@@ -12,10 +12,16 @@ use App\Models\FinancialSnapshot;
 use App\Models\PvCalculation;
 use App\Models\ValuationMultiple;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use InvalidArgumentException;
 
-final class BusinessValuation
+final class BusinessValuation implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['valuation.business'];
+    }
+
     public function __construct(
         private readonly ValuationMultipleProvider $multiples,
         private readonly PvEngine $pv,

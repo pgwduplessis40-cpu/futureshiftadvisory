@@ -9,12 +9,18 @@ use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Services\Questionnaires\QuestionnaireRuleEngine;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Collection;
 
-final class QuestionnaireCompletenessCalculator
+final class QuestionnaireCompletenessCalculator implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['data_quality.questionnaire_completeness'];
+    }
+
     public function __construct(private readonly QuestionnaireRuleEngine $rules) {}
 
     /**

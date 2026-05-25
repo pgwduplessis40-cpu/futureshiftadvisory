@@ -21,12 +21,18 @@ use App\Services\DataQuality\DataQualityScore;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Documents\DocumentVerificationBlockedException;
 use App\Services\Documents\DocumentVerificationGate;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\Auth;
 use Throwable;
 
-final class AnalysisRunner
+final class AnalysisRunner implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['analysis.lens_model', 'analysis.finding_severity'];
+    }
+
     public function __construct(
         private readonly DataQualityScorer $dataQuality,
         private readonly DocumentVerificationGate $documents,

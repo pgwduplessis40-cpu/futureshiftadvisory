@@ -9,12 +9,18 @@ use App\Enums\PvType;
 use App\Models\Client;
 use App\Models\PvCalculation;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
 
-final class PvEngine
+final class PvEngine implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['pv.dcf', 'pv.terminal_value'];
+    }
+
     public function __construct(
         private readonly DiscountRateResolver $discountRates,
         private readonly AuditWriter $audit,

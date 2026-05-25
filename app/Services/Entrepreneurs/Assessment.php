@@ -14,12 +14,18 @@ use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
 
-final class Assessment
+final class Assessment implements ProvidesMethodology
 {
     public const LEARNING_LAYER_ID = 19;
+
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.plan_assessment'];
+    }
 
     public function __construct(
         private readonly RatingFrameworkManager $frameworks,
