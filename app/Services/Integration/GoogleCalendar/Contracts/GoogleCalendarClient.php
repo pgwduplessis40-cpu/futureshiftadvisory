@@ -4,4 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Integration\GoogleCalendar\Contracts;
 
-interface GoogleCalendarClient {}
+use App\Services\Integration\Contracts\CalendarClient;
+
+interface GoogleCalendarClient extends CalendarClient {}

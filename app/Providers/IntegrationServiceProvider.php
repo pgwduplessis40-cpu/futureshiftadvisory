@@ -22,6 +22,8 @@ use App\Services\Integration\Fsp\FallbackFspClient;
 use App\Services\Integration\Fsp\LiveFspClient;
 use App\Services\Integration\GoogleCalendar\Contracts\GoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\FakeGoogleCalendarClient;
+use App\Services\Integration\GoogleCalendar\FallbackGoogleCalendarClient;
+use App\Services\Integration\GoogleCalendar\LiveGoogleCalendarClient;
 use App\Services\Integration\Iponz\Contracts\IponzClient;
 use App\Services\Integration\Iponz\FakeIponzClient;
 use App\Services\Integration\Ird\Contracts\IrdClient;
@@ -36,6 +38,8 @@ use App\Services\Integration\Mbie\FallbackMbieClient;
 use App\Services\Integration\Mbie\LiveMbieClient;
 use App\Services\Integration\MicrosoftGraph\Contracts\MicrosoftGraphClient;
 use App\Services\Integration\MicrosoftGraph\FakeMicrosoftGraphClient;
+use App\Services\Integration\MicrosoftGraph\FallbackMicrosoftGraphClient;
+use App\Services\Integration\MicrosoftGraph\LiveMicrosoftGraphClient;
 use App\Services\Integration\Myob\Contracts\MyobClient;
 use App\Services\Integration\Myob\FakeMyobClient;
 use App\Services\Integration\Myob\FallbackMyobClient;
@@ -97,8 +101,6 @@ final class IntegrationServiceProvider extends ServiceProvider
         WorkSafeClient::class => FakeWorkSafeClient::class,
         SesSendGridClient::class => FakeSesSendGridClient::class,
         WhisperClient::class => FakeWhisperClient::class,
-        GoogleCalendarClient::class => FakeGoogleCalendarClient::class,
-        MicrosoftGraphClient::class => FakeMicrosoftGraphClient::class,
     ];
 
     public function register(): void
@@ -183,6 +185,16 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveTradifyClient::class);
         $this->app->singleton(FallbackTradifyClient::class);
         $this->app->singleton(TradifyClient::class, FallbackTradifyClient::class);
+
+        $this->app->singleton(FakeGoogleCalendarClient::class);
+        $this->app->singleton(LiveGoogleCalendarClient::class);
+        $this->app->singleton(FallbackGoogleCalendarClient::class);
+        $this->app->singleton(GoogleCalendarClient::class, FallbackGoogleCalendarClient::class);
+
+        $this->app->singleton(FakeMicrosoftGraphClient::class);
+        $this->app->singleton(LiveMicrosoftGraphClient::class);
+        $this->app->singleton(FallbackMicrosoftGraphClient::class);
+        $this->app->singleton(MicrosoftGraphClient::class, FallbackMicrosoftGraphClient::class);
     }
 
     private function registerScaffolds(): void

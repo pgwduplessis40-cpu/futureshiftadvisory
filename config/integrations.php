@@ -105,6 +105,23 @@ return [
         ],
     ],
 
+    'calendar' => [
+        'google' => [
+            'live' => (bool) env('FEATURE_CALENDAR_LIVE', false) && (bool) env('FEATURE_GOOGLE_CALENDAR_LIVE', false),
+            'base_url' => env('GOOGLE_CALENDAR_BASE_URL', 'https://www.googleapis.com/calendar/v3'),
+            'authorize_url' => env('GOOGLE_CALENDAR_AUTHORIZE_URL', 'https://accounts.google.com/o/oauth2/v2/auth'),
+            'client_id' => env('GOOGLE_CALENDAR_CLIENT_ID'),
+            'client_secret' => env('GOOGLE_CALENDAR_CLIENT_SECRET'),
+        ],
+        'microsoft' => [
+            'live' => (bool) env('FEATURE_CALENDAR_LIVE', false) && (bool) env('FEATURE_MICROSOFT_GRAPH_LIVE', false),
+            'base_url' => env('MICROSOFT_GRAPH_BASE_URL', 'https://graph.microsoft.com/v1.0/me'),
+            'authorize_url' => env('MICROSOFT_GRAPH_AUTHORIZE_URL', 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'),
+            'client_id' => env('MICROSOFT_GRAPH_CLIENT_ID'),
+            'client_secret' => env('MICROSOFT_GRAPH_CLIENT_SECRET'),
+        ],
+    ],
+
     'business_tools' => [
         'employment_hero' => [
             'live' => (bool) env('FEATURE_EMPLOYMENT_HERO_LIVE', false),

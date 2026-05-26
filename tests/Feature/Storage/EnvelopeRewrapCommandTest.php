@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Storage;
 
 use App\Models\AccountingConnection;
+use App\Models\CalendarConnection;
 use App\Models\Client;
 use App\Models\User;
 use App\Services\Storage\KeyEnvelope;
@@ -41,6 +42,19 @@ final class EnvelopeRewrapCommandTest extends TestCase
             'connected_by_user_id' => $advisor->id,
             'connected_at' => now(),
         ]);
+        $calendarAccessV1 = $envelope->encrypt('calendar-access-token');
+        $calendarRefreshV1 = $envelope->encrypt('calendar-refresh-token');
+        $calendarConnection = CalendarConnection::query()->create([
+            'user_id' => $advisor->id,
+            'provider' => CalendarConnection::PROVIDER_GOOGLE,
+            'external_account_id' => 'google-rewrap-fixture',
+            'external_account_email' => 'rewrap-calendar@example.test',
+            'access_token_envelope' => $calendarAccessV1,
+            'access_token_envelope_meta' => $envelope->inspect($calendarAccessV1),
+            'refresh_token_envelope' => $calendarRefreshV1,
+            'refresh_token_envelope_meta' => $envelope->inspect($calendarRefreshV1),
+            'status' => CalendarConnection::STATUS_CONNECTED,
+        ]);
 
         Config::set('crypto.pqc.enabled', true);
 
@@ -59,17 +73,46 @@ final class EnvelopeRewrapCommandTest extends TestCase
             'source_id' => $connection->id,
             'status' => 'rewrapped',
         ]);
+        $calendarConnection->refresh();
+        $this->assertSame(KeyEnvelope::VERSION_V2, $envelope->inspect($calendarConnection->access_token_envelope)['v']);
+        $this->assertSame(KeyEnvelope::VERSION_V2, $envelope->inspect((string) $calendarConnection->refresh_token_envelope)['v']);
+        $this->assertSame('calendar-access-token', $envelope->decrypt($calendarConnection->access_token_envelope));
+        $this->assertSame('calendar-refresh-token', $envelope->decrypt((string) $calendarConnection->refresh_token_envelope));
+        $this->assertDatabaseHas('crypto_rotations', [
+            'source_table' => 'calendar_connections',
+            'source_column' => 'access_token_envelope',
+            'source_id' => $calendarConnection->id,
+            'status' => 'rewrapped',
+        ]);
+        $this->assertDatabaseHas('crypto_rotations', [
+            'source_table' => 'calendar_connections',
+            'source_column' => 'refresh_token_envelope',
+            'source_id' => $calendarConnection->id,
+            'status' => 'rewrapped',
+        ]);
 
         $firstCount = DB::table('crypto_rotations')->count();
 
         $this->artisan('envelopes:rewrap', ['--target' => KeyEnvelope::VERSION_V2])
             ->assertSuccessful();
 
-        $this->assertSame($firstCount + 1, DB::table('crypto_rotations')->count());
+        $this->assertSame($firstCount + 3, DB::table('crypto_rotations')->count());
         $this->assertDatabaseHas('crypto_rotations', [
             'source_table' => 'accounting_connections',
             'source_column' => 'token_envelope',
             'source_id' => $connection->id,
+            'status' => 'skipped',
+        ]);
+        $this->assertDatabaseHas('crypto_rotations', [
+            'source_table' => 'calendar_connections',
+            'source_column' => 'access_token_envelope',
+            'source_id' => $calendarConnection->id,
+            'status' => 'skipped',
+        ]);
+        $this->assertDatabaseHas('crypto_rotations', [
+            'source_table' => 'calendar_connections',
+            'source_column' => 'refresh_token_envelope',
+            'source_id' => $calendarConnection->id,
             'status' => 'skipped',
         ]);
     }

@@ -280,6 +280,7 @@ type MeetingSummary = {
     location: string | null;
     link: string | null;
     attendees: string[];
+    calendar_synced: boolean;
     brief_status: string;
 };
 
@@ -2079,6 +2080,9 @@ function MeetingsBriefingsPanel({ client }: { client: ClientDetail }) {
                         detail: [
                             formatDate(meeting.scheduled_at),
                             meeting.location,
+                            meeting.calendar_synced
+                                ? 'Calendar synced'
+                                : undefined,
                             formatLabel(meeting.brief_status),
                         ]
                             .filter(Boolean)

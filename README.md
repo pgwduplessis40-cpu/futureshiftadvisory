@@ -8,6 +8,7 @@ New Zealand SME advisory practice platform. Confidential — Future Shift Adviso
 2. [`CLAUDE.md`](./CLAUDE.md) — Critical rules and project orientation for AI coding agents. Read this before every session.
 3. [`docs/dev-setup.md`](./docs/dev-setup.md) — First-boot environment setup (PostgreSQL via Herd, `.env`, test loop).
 4. [`docs/spec/Future_Shift_Advisory_App_Specification_v2.4.docx`](./docs/spec) — Definitive product specification (V2.4, May 2026).
+5. [`docs/architecture/calendar-sync.md`](./docs/architecture/calendar-sync.md) — Google/Outlook calendar sync architecture and token-handling notes.
 
 ## What this is
 

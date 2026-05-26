@@ -379,6 +379,7 @@ final class ClientController extends Controller
     {
         return Meeting::query()
             ->with('preMeetingBrief')
+            ->withCount('calendarEventMappings')
             ->where('client_id', $client->getKey())
             ->where('scheduled_at', '>=', now()->subDay())
             ->orderBy('scheduled_at')
@@ -391,6 +392,7 @@ final class ClientController extends Controller
                 'location' => $meeting->location,
                 'link' => $meeting->link,
                 'attendees' => $meeting->attendees ?? [],
+                'calendar_synced' => $meeting->calendar_event_mappings_count > 0,
                 'brief_status' => $meeting->preMeetingBrief?->sent_at !== null
                     ? 'sent'
                     : ($meeting->preMeetingBrief instanceof PreMeetingBrief ? 'draft' : 'pending'),

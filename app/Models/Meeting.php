@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class Meeting extends Model
@@ -42,5 +43,13 @@ final class Meeting extends Model
     public function preMeetingBrief(): HasOne
     {
         return $this->hasOne(PreMeetingBrief::class);
+    }
+
+    /**
+     * @return HasMany<CalendarEventMapping>
+     */
+    public function calendarEventMappings(): HasMany
+    {
+        return $this->hasMany(CalendarEventMapping::class);
     }
 }

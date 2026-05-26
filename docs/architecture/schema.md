@@ -2716,3 +2716,55 @@ All four tables use the standard client-scoped RLS policy. Completed milestones
 are the source of the dashboard PV-realised total; verification outcomes that
 block analysis keep the milestone in `blocked` status and exclude its PV from
 realised totals.
+
+## WO-124 - Calendar two-way sync
+
+### `calendar_connections`
+
+Per-advisor OAuth connection ledger for Google Calendar and Microsoft Outlook.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id` advisor/user who owns the connection
+- `provider` (`google`, `microsoft`)
+- `external_account_id`, `external_account_email`
+- `access_token_envelope`, `access_token_envelope_meta`
+- `refresh_token_envelope`, `refresh_token_envelope_meta`
+- `token_expires_at`
+- `sync_token`, `delta_link`
+- `status` (`connected`, `revoked`, `error`)
+- `last_synced_at`
+
+Access and refresh tokens are stored only as `KeyEnvelope` ciphertext and are
+included in `RewrapEnvelopes::sources()` for future key/PQC rotation. The
+unique `(user_id, provider, external_account_id)` index prevents duplicate
+calendar account connections for one advisor.
+
+### `calendar_event_mappings`
+
+Provider event mapping table for pushed FSA meetings and pulled external-only
+calendar events.
+
+Key columns:
+
+- `id` UUID primary key
+- `calendar_connection_id`
+- `meeting_id` nullable, because pulled provider-only events are not FSA
+  meetings
+- `external_event_id`
+- `etag`, `provider_updated_at`
+- `direction` (`push`, `pull`, `two_way`)
+- `origin` (`fsa`, `external`)
+- `title`, `starts_at`, `ends_at`, `location`, `attendees`
+- `is_external_only`
+- `last_synced_at`
+
+The unique `(calendar_connection_id, external_event_id)` index makes repeat
+syncs idempotent. Pull sync preserves any existing `meeting_id` when a provider
+returns an event originally pushed from FSA, so external updates do not turn an
+FSA meeting into an external-only mapping.
+
+Postgres RLS scopes `calendar_connections` by `user_id::text =
+fsa_current_user_id()` and scopes `calendar_event_mappings` through the owning
+connection. System and super-admin roles can see all rows.
