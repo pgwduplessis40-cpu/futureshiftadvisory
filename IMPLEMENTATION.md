@@ -6,7 +6,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
 **V2.4 Gap Closure:** **COMPLETE** (5/5, WO-121...WO-125 committed on `featureApp`).
-**NPO Module:** Phase 5a started; **WO-N01 complete** on `featureApp` (NPO engagement scaffold, report constants, shared engagement identity columns).
+**NPO Module:** Phase 5a started; **WO-N01-WO-N02 complete** on `featureApp` (NPO engagement scaffold, Governance Review questionnaire set, scoped questionnaire responses).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -14,14 +14,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **140 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (1, WO-N01) |
+| Work orders complete | **141 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (2, WO-N01...WO-N02) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | WO-N02 - Governance Review questionnaire set |
+| Next work order | WO-N03 - Charities Services / DIA + Incorporated Societies Register integration |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **WO-N01 baseline (2026-05-27):** focused PHPUnit **10 tests / 73 assertions**, full PHPUnit **575 tests / 5559 assertions**, `npm run types:check`, `npm run lint:check`, `npm run build`, and Pint are green. `npm run format:check` is blocked by a pre-existing formatting issue in `resources/js/components/request-deactivation.tsx`; touched N01 client pages pass Prettier. |
+| Verification status | **WO-N02 baseline (2026-05-27):** focused PHPUnit **18 tests / 147 assertions**, full PHPUnit **581 tests / 5636 assertions**, `npm run types:check`, `npm run lint:check`, `npm run format:check`, `npm run build`, Wayfinder regeneration, and Pint are green. Build retains the existing CSS `@import` ordering and chunk-size warnings. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Methodology Registry Track
@@ -48,7 +48,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | WO | Status | Notes |
 |---|---|---|
-| WO-N01 | This commit | Adds `EngagementType::NPO`, NPO sub-type/legal-structure enums, six NPO `ReportType` constants, `npo_engagements` with client-scoped RLS, shared `npo_engagement_id` identity columns/composite FKs for reports/questionnaire responses/proposals/fee calculations, engagement-aware questionnaire response uniqueness, advisor create-form NPO legal-structure capture, NPO badges, and focused coverage. |
+| WO-N01 | `14066b6` Complete | Adds `EngagementType::NPO`, NPO sub-type/legal-structure enums, six NPO `ReportType` constants, `npo_engagements` with client-scoped RLS, shared `npo_engagement_id` identity columns/composite FKs for reports/questionnaire responses/proposals/fee calculations, engagement-aware questionnaire response uniqueness, advisor create-form NPO legal-structure capture, NPO badges, and focused coverage. |
+| WO-N02 | This commit | Adds the admin-managed `governance_review` questionnaire set, required Governance Review evidence uploads, NPO portal availability, response stamping to the current governance-review `npo_engagement_id`, upload scan/verification coverage, and regenerated onboarding Wayfinder references. |
 
 ## Commit Log
 

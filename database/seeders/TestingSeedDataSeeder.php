@@ -52,6 +52,7 @@ final class TestingSeedDataSeeder extends Seeder
             DdSpecificQuestionnaireSeeder::class,
             PostAcquisitionGapQuestionnaireSeeder::class,
             EntrepreneurReadinessQuestionnaireSeeder::class,
+            GovernanceReviewQuestionnaireSeeder::class,
             NzResourceSeeder::class,
             RatingFrameworkSeeder::class,
             FoundingRatingFrameworkValuesSeeder::class,

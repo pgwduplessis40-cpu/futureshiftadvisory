@@ -11,6 +11,7 @@ enum QuestionnaireSet: string
     case POST_ACQUISITION_GAP = 'post_acquisition_gap';
     case ENTREPRENEUR_READINESS = 'entrepreneur_readiness';
     case ENTREPRENEUR_IDEA_VALIDATION = 'entrepreneur_idea_validation';
+    case GOVERNANCE_REVIEW = 'governance_review';
 
     /**
      * @return array<int, string>

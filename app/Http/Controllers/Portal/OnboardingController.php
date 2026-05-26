@@ -5,9 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Enums\EngagementType;
+use App\Enums\NpoEngagementSubType;
+use App\Enums\QuestionnaireSet;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\FunnelEvent;
+use App\Models\NpoEngagement;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
@@ -219,12 +222,14 @@ final class OnboardingController extends Controller
         if ($questionnaire['available'] === true && $active instanceof Questionnaire) {
             /** @var User $user */
             $user = $request->user();
-            $response = $this->responses->record($client, $user, $active, $request->all());
+            $responseOptions = $this->responseOptions($client, (string) $questionnaire['set'], required: true);
+            $response = $this->responses->record($client, $user, $active, $request->all(), $responseOptions);
 
             return [
                 'questionnaire_set' => $questionnaire['set'],
                 'questionnaire_available' => true,
                 'questionnaire_id' => $active->getKey(),
+                'npo_engagement_id' => $responseOptions['npo_engagement_id'] ?? null,
                 'response_id' => $response->getKey(),
             ];
         }
@@ -258,14 +263,18 @@ final class OnboardingController extends Controller
             ];
         }
 
+        $responseOptions = $this->responseOptions($client, (string) $meta['set'], required: false);
+
         $response = QuestionnaireResponse::query()
             ->where('client_id', $client->getKey())
+            ->where('npo_engagement_id', $responseOptions['npo_engagement_id'] ?? null)
             ->where('questionnaire_id', $active->getKey())
             ->with('answers')
             ->first();
 
         return [
             ...$meta,
+            'npo_engagement_id' => $responseOptions['npo_engagement_id'] ?? null,
             'schema' => $this->questionnairePayload->schema($active),
             'answers' => $this->questionnairePayload->answers($response),
         ];
@@ -284,6 +293,44 @@ final class OnboardingController extends Controller
             ->with('sections.questions')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
+            ->first();
+    }
+
+    /**
+     * @return array{npo_engagement_id?: string|null}
+     */
+    private function responseOptions(Client $client, string $set, bool $required): array
+    {
+        if ($set !== QuestionnaireSet::GOVERNANCE_REVIEW->value) {
+            return ['npo_engagement_id' => null];
+        }
+
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::from((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::NPO) {
+            return ['npo_engagement_id' => null];
+        }
+
+        $engagement = $this->governanceReviewEngagement($client);
+        abort_if(
+            $required && ! $engagement instanceof NpoEngagement,
+            422,
+            'A governance review engagement is required before submitting this questionnaire.',
+        );
+
+        return [
+            'npo_engagement_id' => $engagement?->getKey(),
+        ];
+    }
+
+    private function governanceReviewEngagement(Client $client): ?NpoEngagement
+    {
+        return NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
+            ->latest()
             ->first();
     }
 }

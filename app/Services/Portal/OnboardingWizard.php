@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Portal;
 
 use App\Enums\EngagementType;
+use App\Enums\QuestionnaireSet;
 use App\Models\Client;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -182,11 +183,11 @@ final class OnboardingWizard
                 'description' => 'Entrepreneur readiness and idea validation questionnaires are part of the Phase 3 entrepreneur module.',
             ],
             EngagementType::NPO => [
-                'set' => 'governance_review',
+                'set' => QuestionnaireSet::GOVERNANCE_REVIEW->value,
                 'title' => 'Governance Review Questionnaire',
-                'available' => false,
+                'available' => true,
                 'phase' => 'Phase 5a',
-                'description' => 'The NPO governance questionnaire is enabled in the Phase 5a questionnaire work order.',
+                'description' => 'Complete the Governance Review questionnaire for the current NPO engagement.',
             ],
         };
     }
