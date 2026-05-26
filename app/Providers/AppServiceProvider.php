@@ -2,6 +2,8 @@
 
 namespace App\Providers;
 
+use App\Events\NpoEngagementWeightingChanged;
+use App\Listeners\RecomputeNpoScoresForWeightingChange;
 use App\Models\AdvisorApiClient;
 use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
@@ -31,6 +33,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
@@ -78,6 +81,7 @@ class AppServiceProvider extends ServiceProvider
         Client::observe(ClientLifecycleObserver::class);
         $this->registerSecureLocalDisk();
         Notification::extend('fsa_database', fn ($app): FsaDatabaseChannel => $app->make(FsaDatabaseChannel::class));
+        Event::listen(NpoEngagementWeightingChanged::class, RecomputeNpoScoresForWeightingChange::class);
         $this->registerRateLimiters();
         $this->configureDefaults();
     }

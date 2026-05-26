@@ -18,6 +18,8 @@ import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { BusinessHealthRadar } from '@/components/insight/BusinessHealthRadar';
 import type { BusinessHealthRadarPayload } from '@/components/insight/BusinessHealthRadar';
+import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
+import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -64,6 +66,7 @@ type Props = {
     };
     businessHealth: BusinessHealthRadarPayload;
     healthFindings: HealthFindingDimension[];
+    npoHealth: NpoHealthPayload | null;
     goals: GoalDashboard;
     documents: DocumentPayload[];
     documentUploadUrl: string;
@@ -185,6 +188,7 @@ export default function PortalDashboard({
     wellbeing,
     businessHealth,
     healthFindings,
+    npoHealth,
     goals,
     documents: initialDocuments,
     documentUploadUrl,
@@ -392,6 +396,10 @@ export default function PortalDashboard({
                     businessHealth={businessHealth}
                     healthFindings={healthFindings}
                 />
+
+                {npoHealth && (
+                    <NpoHealthPanel payload={npoHealth} title="NPO health" />
+                )}
 
                 <GoalProgressPanel goals={goals} />
 

@@ -122,4 +122,12 @@ final class NpoEngagement extends Model
     {
         return $this->hasMany(GovernanceReviewFinding::class);
     }
+
+    /**
+     * @return HasMany<NpoDimensionScore>
+     */
+    public function dimensionScores(): HasMany
+    {
+        return $this->hasMany(NpoDimensionScore::class);
+    }
 }

@@ -39,6 +39,7 @@ use App\Services\Goals\GoalTracker;
 use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Npo\NpoEngagementConfiguration;
 use App\Services\Npo\NpoEngagementSetup;
+use App\Services\Npo\NpoHealthScorer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -210,6 +211,7 @@ final class ClientController extends Controller
         PaymentStatusReport $payments,
         GovernanceReviewConversion $npoConversion,
         NpoEngagementConfiguration $npoConfiguration,
+        NpoHealthScorer $npoHealth,
     ): Response {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
@@ -250,6 +252,7 @@ final class ClientController extends Controller
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $npoConversion->clientSummary($client),
                 'npo_configuration' => $npoConfiguration->clientSummary($client),
+                'npo_health' => $npoHealth->clientSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
             'conflictDeclaration' => $client->conflictDeclarations()

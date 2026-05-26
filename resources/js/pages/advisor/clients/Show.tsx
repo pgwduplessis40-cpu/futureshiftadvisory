@@ -36,6 +36,8 @@ import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
+import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
+import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -84,6 +86,7 @@ type ClientDetail = ClientSummary & {
     due_diligence: DueDiligenceSummary | null;
     npo_conversion: NpoConversionSummary | null;
     npo_configuration: NpoConfigurationSummary | null;
+    npo_health: NpoHealthPayload | null;
 };
 
 type ConflictDeclaration = {
@@ -701,6 +704,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                     <NpoConfigurationPanel
                         configuration={client.npo_configuration}
                     />
+                )}
+
+                {client.npo_health && (
+                    <NpoHealthPanel payload={client.npo_health} />
                 )}
 
                 <KnowledgeAssessmentPanel client={client} />

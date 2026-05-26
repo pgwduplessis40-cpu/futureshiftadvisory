@@ -18,6 +18,7 @@ use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Goals\GoalTracker;
 use App\Services\Notifications\NotificationCenter;
+use App\Services\Npo\NpoHealthScorer;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use Illuminate\Http\Request;
@@ -33,6 +34,7 @@ final class DashboardController extends Controller
         private readonly NotificationCenter $notifications,
         private readonly GoalTracker $goals,
         private readonly BusinessHealthRadarBuilder $businessHealth,
+        private readonly NpoHealthScorer $npoHealth,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -52,6 +54,7 @@ final class DashboardController extends Controller
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'businessHealth' => $this->businessHealth->portalPayload($client),
             'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
+            'npoHealth' => $this->npoHealth->clientSummary($client),
             'goals' => $this->goals->dashboard($client),
             'documents' => $this->documentPayload($client),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),

@@ -26,7 +26,10 @@ final class GovernanceReviewConversion
 
     public const NUDGE_90_DAYS = 90;
 
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly NpoHealthScorer $npoHealth,
+    ) {}
 
     public function markReportDelivered(NpoEngagement $engagement, User $actor, ?CarbonInterface $deliveredAt = null): NpoEngagement
     {
@@ -98,6 +101,8 @@ final class GovernanceReviewConversion
                     'updated_by_user_id' => $actor->getKey(),
                 ])->save();
 
+                $this->npoHealth->prepopulateGovernanceDimension($existing->refresh(), $actor);
+
                 return $existing->refresh();
             }
 
@@ -122,10 +127,12 @@ final class GovernanceReviewConversion
                 'updated_by_user_id' => $actor->getKey(),
             ])->save();
 
+            $prepopulated = $this->npoHealth->prepopulateGovernanceDimension($converted->refresh(), $actor);
+
             $this->audit->record('npo.governance_review_converted', subject: $engagement, actor: $actor, before: $before, after: [
                 ...$this->conversionSnapshot($engagement->refresh()),
                 'converted_npo_engagement_id' => $converted->getKey(),
-                'dimension_3_prepopulation_deferred_to' => 'WO-N09',
+                'dimension_3_prepopulated_score_id' => $prepopulated?->getKey(),
             ]);
 
             return $converted->refresh();
