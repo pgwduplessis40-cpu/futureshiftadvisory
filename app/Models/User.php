@@ -29,6 +29,8 @@ use Spatie\Permission\Traits\HasRoles;
     'session_timeout_minutes',
     'suspended_at',
     'suspended_reason',
+    'deactivation_requested_at',
+    'deactivation_requested_reason',
 ])]
 #[Hidden(['password', 'two_factor_secret', 'two_factor_recovery_codes', 'remember_token'])]
 class User extends Authenticatable
@@ -73,6 +75,7 @@ class User extends Authenticatable
             'last_password_set_at' => 'datetime',
             'session_timeout_minutes' => 'integer',
             'suspended_at' => 'datetime',
+            'deactivation_requested_at' => 'datetime',
         ];
     }
 
