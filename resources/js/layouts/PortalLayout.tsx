@@ -95,7 +95,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     };
 
     return (
-        <div className="min-h-screen bg-[var(--fs-parchment)] text-[var(--fs-graphite)] md:flex">
+        <div className="public min-h-screen bg-[var(--fs-parchment)] text-[var(--fs-graphite)] md:flex">
             <a
                 href="#portal-main"
                 className="sr-only rounded-md bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
@@ -103,8 +103,8 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 Skip to portal content
             </a>
 
-            <aside className="hidden w-64 shrink-0 border-r border-[var(--fs-sand)] bg-[var(--fs-parchment)] md:sticky md:top-0 md:flex md:h-screen md:flex-col">
-                <div className="border-b border-[var(--fs-sand)] px-5 py-5">
+            <aside className="hidden w-64 shrink-0 bg-[var(--fs-parchment)] md:sticky md:top-0 md:flex md:h-screen md:flex-col">
+                <div className="px-5 py-5">
                     <Link href={dashboardHref} aria-label="Portal dashboard">
                         <BrandMark width={168} />
                     </Link>
@@ -123,7 +123,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                     ))}
                 </nav>
 
-                <div className="mt-auto border-t border-[var(--fs-sand)] p-3">
+                <div className="mt-auto p-3">
                     <div className="mb-3 flex items-center justify-between gap-3 px-2">
                         <div className="min-w-0">
                             <div className="truncate text-sm font-medium">
@@ -162,7 +162,10 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             <div className="flex min-w-0 flex-1 flex-col">
                 <header className="sticky top-0 z-40 border-b border-[var(--fs-sand)] bg-[var(--fs-parchment)]/95 backdrop-blur md:hidden">
                     <div className="flex h-16 items-center justify-between px-4">
-                        <Link href={dashboardHref} aria-label="Portal dashboard">
+                        <Link
+                            href={dashboardHref}
+                            aria-label="Portal dashboard"
+                        >
                             <BrandMark width={148} />
                         </Link>
 
@@ -219,10 +222,7 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                                 className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--fs-graphite)] transition-colors outline-none hover:bg-[var(--fs-linen)] hover:text-[var(--fs-admiralty)] focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                 data-test="portal-mobile-logout-button"
                             >
-                                <LogOut
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
+                                <LogOut className="size-4" aria-hidden="true" />
                                 Log out
                             </Link>
                         </nav>
