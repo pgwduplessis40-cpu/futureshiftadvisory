@@ -15,8 +15,10 @@ use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\Portal\PortalOfflineSync;
 use App\Services\Questionnaires\QuestionnairePayload;
 use App\Services\Questionnaires\QuestionnaireResponseRecorder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -32,6 +34,7 @@ final class OnboardingController extends Controller
         private readonly QuestionnairePayload $questionnairePayload,
         private readonly QuestionnaireResponseRecorder $responses,
         private readonly FunnelTracker $funnels,
+        private readonly PortalOfflineSync $offlineSync,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -65,12 +68,35 @@ final class OnboardingController extends Controller
         return Inertia::render('portal/onboarding/Step', $this->payload($request, $client, $stepMeta));
     }
 
-    public function store(Request $request, string $step): RedirectResponse
+    public function store(Request $request, string $step): RedirectResponse|JsonResponse
     {
+        if ($this->offlineSync->isSync($request)) {
+            return $this->offlineSync->handle(
+                $request,
+                "portal.onboarding.store:{$step}",
+                fn (Client $client): JsonResponse => $this->storeForClient($request, $step, $client, true),
+            );
+        }
+
         $client = $this->clients->resolveFor($request);
+
+        return $this->storeForClient($request, $step, $client, false);
+    }
+
+    private function storeForClient(Request $request, string $step, Client $client, bool $sync): RedirectResponse|JsonResponse
+    {
         $stepMeta = $this->wizard->step($step);
 
         if (! $this->wizard->canAccess($client, $step)) {
+            if ($sync) {
+                return response()->json([
+                    'ok' => false,
+                    'operation' => 'portal.onboarding.store',
+                    'status_slug' => 'onboarding-step-locked',
+                    'step' => $step,
+                ], 409);
+            }
+
             return to_route('portal.onboarding.step', [
                 'step' => $this->wizard->currentStepSlug($client),
             ])->with('status', 'onboarding-step-locked');
@@ -86,6 +112,21 @@ final class OnboardingController extends Controller
             'step' => $step,
             'step_number' => $stepMeta['number'],
         ]);
+
+        if ($sync) {
+            $statusSlug = $step === OnboardingWizard::STEP_REVIEW
+                ? 'onboarding-submitted'
+                : 'onboarding-step-saved';
+
+            return response()->json([
+                'ok' => true,
+                'operation' => 'portal.onboarding.store',
+                'client_id' => $client->getKey(),
+                'step' => $step,
+                'status_slug' => $statusSlug,
+                'next_step' => $this->wizard->currentStepSlug($client->refresh()),
+            ]);
+        }
 
         if ($step === OnboardingWizard::STEP_REVIEW) {
             return to_route('portal.dashboard')->with('status', 'onboarding-submitted');

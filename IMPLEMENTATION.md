@@ -2,9 +2,10 @@
 
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), [`PLAN-METHODOLOGY-REGISTRY.md`](./PLAN-METHODOLOGY-REGISTRY.md), and [`CLAUDE.md`](./CLAUDE.md).
 
-**Last updated:** 2026-05-25
+**Last updated:** 2026-05-26
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
+**V2.4 Gap Closure:** **IN PROGRESS** (2/5, WO-121...WO-122 committed on `featureApp`; WO-123 next).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -12,10 +13,10 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **134 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) |
+| Work orders complete | **136 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (2, WO-121...WO-122) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | None scheduled |
+| Next work order | WO-123 - Advisor Knowledge Base AI-assisted capture |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
@@ -31,6 +32,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-M03 | `ed08d28` Complete | Bidirectional marker/registry drift guard, namespace completeness scan, and internal-only `methodology_id` payload linkage. |
 | WO-M04 | `dc2817e` Complete | Internal Platform methodologies Knowledge surface, route-order/UUID guard, confidentiality coverage, and Wayfinder regeneration. |
 | WO-M05 | This commit | Maintainer docs, handoff updates, lint cleanup, and focused QA baseline. |
+
+## V2.4 Gap Closure Track
+
+| WO | Status | Notes |
+|---|---|---|
+| WO-121 | `90cb645` Complete | Internal template library, governed AI suggestions, approval implementer, rollback to dormant draft, permissions, and advisor read-only UI. |
+| WO-122 | This commit | Existing portal offline PWA hardened with queued-client replay headers, DB idempotency ledger, request fingerprints, scanned upload replay, auth-flow JSON normalization, and explicit logout queue clearing. |
+| WO-123 | Next | Advisor knowledge-base AI-assisted capture via advisor-owned drafts, not the admin learning queue. |
 
 ## Commit Log
 

@@ -47,6 +47,15 @@ final class OfflinePwaTest extends TestCase
         $this->assertStringContainsString('queueQuestionnaireSubmission', $offline);
         $this->assertStringContainsString('queueDocumentUpload', $offline);
         $this->assertStringContainsString('flushPortalOfflineQueue', $offline);
+        $this->assertStringContainsString('clientId?: string', $offline);
+        $this->assertStringContainsString('X-Idempotency-Key', $offline);
+        $this->assertStringContainsString('X-Portal-Client-Id', $offline);
+        $this->assertStringContainsString('!record.clientId', $offline);
+        $this->assertStringContainsString('portal-offline-legacy-record', $offline);
+        $this->assertStringContainsString('syncResponseSucceeded', $offline);
+        $this->assertStringContainsString('application/json', $offline);
+        $this->assertStringContainsString('clearPortalOfflineQueue', $offline);
+        $this->assertStringContainsString('indexedDB.deleteDatabase', $offline);
     }
 
     public function test_portal_forms_queue_questionnaires_and_uploads_when_offline(): void
@@ -58,8 +67,10 @@ final class OfflinePwaTest extends TestCase
         $this->assertIsString($renderer);
         $this->assertStringContainsString('!navigator.onLine', $step);
         $this->assertStringContainsString('queueQuestionnaireSubmission', $step);
+        $this->assertStringContainsString('client.id', $step);
         $this->assertStringContainsString('!navigator.onLine', $renderer);
         $this->assertStringContainsString('queueDocumentUpload', $renderer);
+        $this->assertStringContainsString('clientId', $renderer);
     }
 
     /**

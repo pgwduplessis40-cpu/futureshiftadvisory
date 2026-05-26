@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Jobs\VerifyDocumentJob;
+use App\Models\Client;
 use App\Models\Document;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Portal\PortalOfflineSync;
 use App\Services\Storage\SecureFileWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -18,13 +20,28 @@ final class DocumentController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly SecureFileWriter $writer,
+        private readonly PortalOfflineSync $offlineSync,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
     {
         Gate::authorize('create', Document::class);
 
+        if ($this->offlineSync->isSync($request)) {
+            return $this->offlineSync->handle(
+                $request,
+                'portal.documents.store',
+                fn (Client $client): JsonResponse => $this->storeForClient($request, $client),
+            );
+        }
+
         $client = $this->clients->resolveFor($request);
+
+        return $this->storeForClient($request, $client);
+    }
+
+    private function storeForClient(Request $request, Client $client): JsonResponse
+    {
         $validated = $request->validate([
             'file' => ['required', 'file', 'max:20480'],
             'category' => ['nullable', 'string', 'max:80'],

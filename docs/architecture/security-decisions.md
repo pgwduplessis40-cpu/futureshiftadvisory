@@ -11,6 +11,7 @@ This file records security architecture decisions that deviate from spec V2.4 se
 | SD-05 | All AI calls go through the `AiClient` interface, bound to `FakeAiClient` in tests. The live `AnthropicClaudeClient` is the only sanctioned exit point to the Anthropic API. | Active design. | If any team member adds a direct `Http::post('https://api.anthropic.com/...')`, treat as defect. |
 | SD-06 | Invite-only registration: Fortify's default register route returns 404. All accounts created via `InviteIssuer`. | Active design. | n/a |
 | SD-07 | MFA enforcement is global (`RequireMfa` middleware on all authenticated routes). No per-user-type opt-out. Session-level step-up MFA triggers on configurable risk signals (IP/UA change, super-admin route from new device). | Active design. | If business need arises to relax for any user type, raise an owner decision; do not implement silently. |
+| SD-08 | Portal offline queue data is retained on session expiry but cleared on explicit logout. Expiry returns JSON keep-and-retry responses for sync requests; logout deletes IndexedDB `fsa-portal-offline-v1` and the local AES-GCM key. | Active design from WO-122. | Revisit only if product changes the offline-save promise or adds account switching. |
 
 ## SD-01 - PQC Envelope Status
 

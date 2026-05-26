@@ -38,10 +38,12 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
+use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
 use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireMfa;
 use App\Jobs\DispatchDailyDigest;
 use App\Jobs\DispatchWeeklyDigest;
+use App\Services\Portal\PortalOfflineSync;
 use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -62,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // Postgres session variables driving row-level security policies
         // are always set. See PLAN.md section 6.2 and 7.4.
         $middleware->web(append: [
+            NormalizePortalOfflineSyncResponse::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
@@ -260,5 +263,8 @@ return Application::configure(basePath: dirname(__DIR__))
         }
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->shouldRenderJsonWhen(
+            fn ($request, $e): bool => $request->headers->has(PortalOfflineSync::SYNC_HEADER)
+                || $request->expectsJson(),
+        );
     })->create();

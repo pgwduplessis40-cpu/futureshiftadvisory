@@ -97,7 +97,7 @@ export default function OnboardingStep({
         event.preventDefault();
 
         if (step.slug === 'questionnaire' && !navigator.onLine) {
-            void queueQuestionnaireSubmission(submitUrl, form.data)
+            void queueQuestionnaireSubmission(submitUrl, form.data, client.id)
                 .then(() => {
                     toast.success('Questionnaire saved offline.');
                 })
@@ -396,6 +396,7 @@ function StepContent({
                             answers={form.data.answers}
                             errors={errors}
                             uploadUrl={documentUploadUrl}
+                            clientId={client.id}
                             onChange={(answers) =>
                                 form.setData('answers', answers)
                             }

@@ -1,3 +1,5 @@
+import { toast } from 'sonner';
+
 type QueueKind = 'questionnaire' | 'document-upload';
 
 type EncryptedPayload = {
@@ -9,6 +11,7 @@ type QueueRecord = {
     id: string;
     kind: QueueKind;
     url: string;
+    clientId?: string;
     dedupeKey: string;
     createdAt: string;
     attempts: number;
@@ -42,9 +45,11 @@ const STORE_NAME = 'queue';
 const KEY_STORAGE = 'fsa.portal.offline.key.v1';
 const SYNC_MESSAGE = 'PORTAL_OFFLINE_SYNC';
 const QUEUE_CHANGED_EVENT = 'portal-offline-queue-changed';
+const LEGACY_RECORD_EVENT = 'portal-offline-legacy-record';
 
 let registrationStarted = false;
 let flushing = false;
+const legacyRecordsNotified = new Set<string>();
 
 export function registerPortalOffline(): void {
     if (typeof window === 'undefined' || registrationStarted) {
@@ -83,15 +88,17 @@ export function registerPortalOffline(): void {
 export async function queueQuestionnaireSubmission(
     url: string,
     body: Record<string, unknown>,
+    clientId: string,
 ): Promise<string> {
     const cleanBody = stripLocalDocumentIds(body);
     const dedupeKey = await stableHash({
         kind: 'questionnaire',
+        clientId,
         url,
         body: cleanBody,
     });
 
-    return queueRecord('questionnaire', url, dedupeKey, {
+    return queueRecord('questionnaire', url, clientId, dedupeKey, {
         body: cleanBody,
     });
 }
@@ -100,14 +107,17 @@ export async function queueDocumentUpload({
     url,
     file,
     fields,
+    clientId,
 }: {
     url: string;
     file: File;
     fields: Record<string, string>;
+    clientId: string;
 }): Promise<{ id: string; original_filename: string }> {
     const data = await fileToBase64(file);
     const dedupeKey = await stableHash({
         kind: 'document-upload',
+        clientId,
         url,
         file: {
             name: file.name,
@@ -116,7 +126,7 @@ export async function queueDocumentUpload({
         },
         fields,
     });
-    const id = await queueRecord('document-upload', url, dedupeKey, {
+    const id = await queueRecord('document-upload', url, clientId, dedupeKey, {
         fields,
         file: {
             name: file.name,
@@ -154,10 +164,17 @@ export async function flushPortalOfflineQueue(): Promise<{
         );
 
         for (const record of records) {
+            if (!record.clientId) {
+                await updateAttempts(record);
+                dispatchLegacyRecord(record);
+
+                continue;
+            }
+
             const payload = await decryptPayload<QueuePayload>(record.payload);
             const response = await sendRecord(record, payload);
 
-            if (!response.ok) {
+            if (!syncResponseSucceeded(response)) {
                 await updateAttempts(record);
 
                 continue;
@@ -195,6 +212,38 @@ export function onPortalOfflineQueueChanged(listener: () => void): () => void {
     return () => window.removeEventListener(QUEUE_CHANGED_EVENT, listener);
 }
 
+export async function clearPortalOfflineQueue(): Promise<void> {
+    if (typeof window === 'undefined') {
+        return;
+    }
+
+    window.localStorage.removeItem(KEY_STORAGE);
+
+    if (!('indexedDB' in window)) {
+        dispatchQueueChanged();
+
+        return;
+    }
+
+    await new Promise<void>((resolve, reject) => {
+        const request = window.indexedDB.deleteDatabase(DB_NAME);
+        request.onsuccess = () => resolve();
+        request.onblocked = () => resolve();
+        request.onerror = () => reject(request.error);
+    });
+
+    dispatchQueueChanged();
+}
+
+export function onPortalOfflineLegacyRecord(
+    listener: (event: CustomEvent<{ id: string; kind: QueueKind }>) => void,
+): () => void {
+    const eventListener = listener as EventListener;
+    window.addEventListener(LEGACY_RECORD_EVENT, eventListener);
+
+    return () => window.removeEventListener(LEGACY_RECORD_EVENT, eventListener);
+}
+
 function offlineStorageAvailable(): boolean {
     return (
         typeof window !== 'undefined' &&
@@ -207,6 +256,7 @@ function offlineStorageAvailable(): boolean {
 async function queueRecord(
     kind: QueueKind,
     url: string,
+    clientId: string,
     dedupeKey: string,
     plainPayload: QueuePayload,
 ): Promise<string> {
@@ -224,6 +274,7 @@ async function queueRecord(
         id: crypto.randomUUID(),
         kind,
         url,
+        clientId,
         dedupeKey,
         createdAt: new Date().toISOString(),
         attempts: 0,
@@ -326,11 +377,13 @@ async function sendRecord(
         return fetch(record.url, {
             method: 'POST',
             credentials: 'same-origin',
-            redirect: 'follow',
+            redirect: 'manual',
             headers: {
                 Accept: 'text/html, application/xhtml+xml',
                 'Content-Type': 'application/json',
                 'X-CSRF-TOKEN': csrfToken(),
+                'X-Idempotency-Key': record.dedupeKey,
+                'X-Portal-Client-Id': record.clientId ?? '',
                 'X-Portal-Offline-Sync': '1',
             },
             body: JSON.stringify(body),
@@ -359,9 +412,12 @@ async function sendRecord(
     return fetch(record.url, {
         method: 'POST',
         credentials: 'same-origin',
+        redirect: 'manual',
         headers: {
             Accept: 'application/json',
             'X-CSRF-TOKEN': csrfToken(),
+            'X-Idempotency-Key': record.dedupeKey,
+            'X-Portal-Client-Id': record.clientId ?? '',
             'X-Portal-Offline-Sync': '1',
         },
         body: formData,
@@ -512,6 +568,44 @@ function bytesToArrayBuffer(bytes: Uint8Array): ArrayBuffer {
     ) as ArrayBuffer;
 }
 
+function syncResponseSucceeded(response: Response): boolean {
+    if (
+        !response.ok ||
+        response.redirected ||
+        response.type === 'opaqueredirect'
+    ) {
+        return false;
+    }
+
+    if (isAuthFlowUrl(response.url)) {
+        return false;
+    }
+
+    return (
+        response.headers
+            .get('Content-Type')
+            ?.toLowerCase()
+            .includes('application/json') === true
+    );
+}
+
+function isAuthFlowUrl(value: string): boolean {
+    if (value === '') {
+        return false;
+    }
+
+    const url = new URL(value, window.location.origin);
+
+    return (
+        url.pathname === '/login' ||
+        url.pathname.startsWith('/mfa') ||
+        url.pathname.startsWith('/terms') ||
+        url.pathname.startsWith('/email/verify') ||
+        url.pathname.startsWith('/verify-email') ||
+        url.pathname.startsWith('/verification')
+    );
+}
+
 function registerBackgroundSync(
     registration: ServiceWorkerRegistration,
 ): Promise<void> | undefined {
@@ -537,5 +631,23 @@ function csrfToken(): string {
 function dispatchQueueChanged(): void {
     if (typeof window !== 'undefined') {
         window.dispatchEvent(new Event(QUEUE_CHANGED_EVENT));
+    }
+}
+
+function dispatchLegacyRecord(record: QueueRecord): void {
+    if (typeof window !== 'undefined') {
+        window.dispatchEvent(
+            new CustomEvent(LEGACY_RECORD_EVENT, {
+                detail: {
+                    id: record.id,
+                    kind: record.kind,
+                },
+            }),
+        );
+
+        if (!legacyRecordsNotified.has(record.id)) {
+            legacyRecordsNotified.add(record.id);
+            toast.warning('Offline item needs re-submit after an update.');
+        }
     }
 }

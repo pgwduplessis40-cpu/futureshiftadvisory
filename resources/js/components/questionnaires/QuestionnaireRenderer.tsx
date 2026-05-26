@@ -23,6 +23,7 @@ type Props = {
     onChange?: (answers: QuestionnaireAnswers) => void;
     readOnly?: boolean;
     uploadUrl?: string;
+    clientId?: string;
 };
 
 type UploadedDocument = {
@@ -37,6 +38,7 @@ export function QuestionnaireRenderer({
     onChange,
     readOnly = false,
     uploadUrl,
+    clientId,
 }: Props) {
     const [uploadedDocuments, setUploadedDocuments] = useState<
         Record<string, UploadedDocument>
@@ -110,6 +112,7 @@ export function QuestionnaireRenderer({
                                     }
                                     readOnly={readOnly}
                                     uploadUrl={uploadUrl}
+                                    clientId={clientId}
                                     uploadedDocuments={uploadedDocuments}
                                     onDocumentUploaded={(document) =>
                                         setUploadedDocuments((current) => ({
@@ -136,6 +139,7 @@ function QuestionField({
     error,
     readOnly,
     uploadUrl,
+    clientId,
     uploadedDocuments,
     onDocumentUploaded,
     onChange,
@@ -145,6 +149,7 @@ function QuestionField({
     error?: string;
     readOnly: boolean;
     uploadUrl?: string;
+    clientId?: string;
     uploadedDocuments: Record<string, UploadedDocument>;
     onDocumentUploaded: (document: UploadedDocument) => void;
     onChange: (answer: Partial<QuestionnaireAnswer>) => void;
@@ -182,6 +187,7 @@ function QuestionField({
                     question={question}
                     answer={answer}
                     uploadUrl={uploadUrl}
+                    clientId={clientId}
                     uploadedDocuments={uploadedDocuments}
                     onDocumentUploaded={onDocumentUploaded}
                     onChange={onChange}
@@ -361,6 +367,7 @@ function DocumentAttachmentControl({
     question,
     answer,
     uploadUrl,
+    clientId,
     uploadedDocuments,
     onDocumentUploaded,
     onChange,
@@ -368,6 +375,7 @@ function DocumentAttachmentControl({
     question: QuestionnaireQuestion;
     answer: QuestionnaireAnswer;
     uploadUrl: string;
+    clientId?: string;
     uploadedDocuments: Record<string, UploadedDocument>;
     onDocumentUploaded: (document: UploadedDocument) => void;
     onChange: (answer: Partial<QuestionnaireAnswer>) => void;
@@ -392,11 +400,19 @@ function DocumentAttachmentControl({
         };
 
         if (!navigator.onLine) {
+            if (!clientId) {
+                setError('Client context is unavailable for offline upload.');
+                setUploading(false);
+
+                return;
+            }
+
             try {
                 const document = await queueDocumentUpload({
                     url: uploadUrl,
                     file,
                     fields,
+                    clientId,
                 });
 
                 onDocumentUploaded(document);

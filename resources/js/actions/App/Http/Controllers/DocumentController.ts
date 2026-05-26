@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:23
+ * @see app/Http/Controllers/DocumentController.php:26
  * @route '/portal/documents'
  */
 const DocumentController = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ DocumentController.definition = {
 
 /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:23
+ * @see app/Http/Controllers/DocumentController.php:26
  * @route '/portal/documents'
  */
 DocumentController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ DocumentController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:23
+ * @see app/Http/Controllers/DocumentController.php:26
  * @route '/portal/documents'
  */
 DocumentController.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ DocumentController.post = (options?: RouteQueryOptions): RouteDefinition<'post'>
 
     /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:23
+ * @see app/Http/Controllers/DocumentController.php:26
  * @route '/portal/documents'
  */
     const DocumentControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ DocumentController.post = (options?: RouteQueryOptions): RouteDefinition<'post'>
 
             /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:23
+ * @see app/Http/Controllers/DocumentController.php:26
  * @route '/portal/documents'
  */
         DocumentControllerForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

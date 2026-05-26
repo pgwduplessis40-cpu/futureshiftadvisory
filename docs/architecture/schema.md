@@ -539,6 +539,29 @@ for the temporary offline queue and replays queued questionnaire/document-upload
 requests against the existing authenticated portal endpoints when connectivity
 returns.
 
+## WO-122 - Portal offline sync hardening
+
+### `portal_offline_sync_records`
+
+Server-side idempotency ledger for replayed portal offline queue records. Rows
+store the queued client id, operation, idempotency key, request fingerprint, and
+the normalized JSON success payload returned to the browser.
+
+Key columns:
+
+- `id` UUID primary key
+- `user_id`
+- `client_id`
+- `operation`
+- `idempotency_key`
+- `request_fingerprint`
+- `response_payload` JSONB
+- `status_code`
+
+The unique key is `(user_id, client_id, operation, idempotency_key)`. RLS permits
+the owning user within their accessible client scope, plus `super_admin` and
+`system` contexts.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`
