@@ -1,6 +1,6 @@
 # Accounting API Integration
 
-WO-37 fills the Xero, MYOB, and QuickBooks accounting contracts enough for OAuth connection, token custody, manual snapshot pulls, and revocation.
+WO-37 filled the Xero, MYOB, and QuickBooks accounting contracts enough for OAuth connection, token custody, manual snapshot pulls, and revocation. WO-125 extends the same path to Sage, Figured, and WorkflowMax.
 
 ## Runtime Shape
 
@@ -9,6 +9,9 @@ Application code resolves accounting providers through `AccountingClientResolver
 - `XeroClient`
 - `MyobClient`
 - `QuickBooksClient`
+- `SageClient`
+- `FiguredClient`
+- `WorkflowmaxClient`
 
 Each provider has fake, live, and fallback implementations. The live clients use `ResilientHttp` for token exchange, financial snapshot pulls, and revoke calls. When a live flag is off, fallback returns fixture data. When a live flag is on but credentials are missing or the provider call fails, the resilience layer records failure/fallback rows and returns fixture-backed degraded data stamped with `source_badge=stub_live_fallback`.
 
@@ -17,6 +20,9 @@ Live mode is controlled by:
 - `FEATURE_XERO_LIVE`
 - `FEATURE_MYOB_LIVE`
 - `FEATURE_QUICKBOOKS_LIVE`
+- `FEATURE_SAGE_LIVE`
+- `FEATURE_FIGURED_LIVE`
+- `FEATURE_WORKFLOWMAX_LIVE`
 
 ## OAuth And Token Storage
 
@@ -48,5 +54,8 @@ Fixture data lives in:
 - `database/fixtures/integration/xero-accounting.json`
 - `database/fixtures/integration/myob-accounting.json`
 - `database/fixtures/integration/quickbooks-accounting.json`
+- `database/fixtures/integration/sage-accounting.json`
+- `database/fixtures/integration/figured-accounting.json`
+- `database/fixtures/integration/workflowmax-accounting.json`
 
 The fixtures include deterministic token payloads and April 2026 financial statements for tests and local development.

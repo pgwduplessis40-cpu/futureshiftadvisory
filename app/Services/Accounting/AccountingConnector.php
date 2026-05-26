@@ -126,6 +126,9 @@ final class AccountingConnector
             AccountingConnection::PROVIDER_XERO => ['accounting.reports.read', 'offline_access'],
             AccountingConnection::PROVIDER_MYOB => ['CompanyFile', 'offline_access'],
             AccountingConnection::PROVIDER_QUICKBOOKS => ['com.intuit.quickbooks.accounting', 'offline_access'],
+            AccountingConnection::PROVIDER_SAGE => ['accounting.read', 'offline_access'],
+            AccountingConnection::PROVIDER_FIGURED => ['financials.read', 'offline_access'],
+            AccountingConnection::PROVIDER_WORKFLOWMAX => ['workflowmax.read', 'offline_access'],
             default => [],
         };
     }

@@ -20,6 +20,12 @@ final class AccountingConnection extends Model
 
     public const PROVIDER_QUICKBOOKS = 'quickbooks';
 
+    public const PROVIDER_SAGE = 'sage';
+
+    public const PROVIDER_FIGURED = 'figured';
+
+    public const PROVIDER_WORKFLOWMAX = 'workflowmax';
+
     public const STATUS_CONNECTED = 'connected';
 
     public const STATUS_REVOKED = 'revoked';
@@ -47,6 +53,9 @@ final class AccountingConnection extends Model
             self::PROVIDER_XERO => 'Xero',
             self::PROVIDER_MYOB => 'MYOB',
             self::PROVIDER_QUICKBOOKS => 'QuickBooks',
+            self::PROVIDER_SAGE => 'Sage',
+            self::PROVIDER_FIGURED => 'Figured',
+            self::PROVIDER_WORKFLOWMAX => 'WorkflowMax',
         ];
     }
 

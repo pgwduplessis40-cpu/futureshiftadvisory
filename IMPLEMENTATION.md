@@ -5,7 +5,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 **Last updated:** 2026-05-26
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
-**V2.4 Gap Closure:** **IN PROGRESS** (4/5, WO-121...WO-124 committed on `featureApp`; WO-125 next).
+**V2.4 Gap Closure:** **COMPLETE** (5/5, WO-121...WO-125 committed on `featureApp`).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -13,14 +13,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **138 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (4, WO-121...WO-124) |
+| Work orders complete | **139 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | WO-125 - Accounting integration breadth |
+| Next work order | None - V2.4 gap closure is complete |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **V2.4 gap closure focused baseline (2026-05-26):** WO-124 PHP syntax, Pint, calendar route list, `npm run types:check`, and focused ESLint are green. DB-backed feature PHPUnit remains blocked in this local checkout by PostgreSQL `futureshift_test` authentication (`fe_sendauth: no password supplied`). Phase 4 prior full green baseline remains **513 tests / 513 passed / 4080 assertions**. |
+| Verification status | **V2.4 gap closure focused baseline (2026-05-26):** WO-125 PHP syntax, Pint, accounting/calendar route lists, `npm run types:check`, and focused ESLint are green. DB-backed feature PHPUnit remains blocked in this local checkout by PostgreSQL `futureshift_test` authentication (`fe_sendauth: no password supplied`). Phase 4 prior full green baseline remains **513 tests / 513 passed / 4080 assertions**. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Methodology Registry Track
@@ -40,7 +40,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-121 | `90cb645` Complete | Internal template library, governed AI suggestions, approval implementer, rollback to dormant draft, permissions, and advisor read-only UI. |
 | WO-122 | `43446de` Complete | Existing portal offline PWA hardened with queued-client replay headers, DB idempotency ledger, request fingerprints, scanned upload replay, auth-flow JSON normalization, and explicit logout queue clearing. |
 | WO-123 | `784d9f0` Complete | Advisor knowledge-base AI-assisted capture via advisor-owned drafts, not the admin learning queue. |
-| WO-124 | This commit | Google Calendar and Microsoft Outlook two-way sync with encrypted per-advisor tokens, fixture/live-gated clients, settings UI, RLS, resilience fallback, and rewrap coverage. |
+| WO-124 | `50c06da` Complete | Google Calendar and Microsoft Outlook two-way sync with encrypted per-advisor tokens, fixture/live-gated clients, settings UI, RLS, resilience fallback, and rewrap coverage. |
+| WO-125 | This commit | Sage, Figured, and WorkflowMax added to the encrypted, resilient accounting integration path with fixtures, resolver bindings, UI provider list, and coverage. |
 
 ## Commit Log
 
@@ -1531,7 +1532,7 @@ Results after WO-120:
 | Item | Needed for | Status |
 |---|---|---|
 | Anthropic API key | Live AI (analysis degrades to deferred without it) | Optional in P1; needed early in P2 |
-| NZBN / Companies Office / IRD + accounting (Xero/MYOB/QuickBooks) credentials | Live integration mode | Stubs/fixtures and resilience fallback until arranged |
+| NZBN / Companies Office / IRD + accounting (Xero/MYOB/QuickBooks/Sage/Figured/WorkflowMax) credentials | Live integration mode | Stubs/fixtures and resilience fallback until arranged |
 | RBNZ / Stats NZ / MBIE + NZ Business Brokers credentials or access policy | WO-36 live economic indicator mode; WO-39 live valuation multiples mode | Fixture/fallback path works; live access can be enabled later |
 | Meridian Warm brand kit | Client-facing UI + report branding | Placeholder in `docs/brand/` |
 | Lawyer-reviewed 14-clause T&C text | Anything client-facing | Placeholder in `docs/legal/terms-v1.md` |
@@ -1543,7 +1544,7 @@ Results after WO-120:
 |---|---|---|
 | Anthropic API key | Live AI testing in WO-04/WO-18 | Optional; fake/degraded path works. |
 | NZBN / Companies Office / IRD access | WO-13 live mode | Stubs until arranged. |
-| Xero / MYOB / QuickBooks access | WO-37 live accounting mode | Fixtures and resilience fallback work until arranged. |
+| Xero / MYOB / QuickBooks / Sage / Figured / WorkflowMax access | WO-37/WO-125 live accounting mode | Fixtures and resilience fallback work until arranged. |
 | RBNZ / Stats NZ / MBIE + NZ Business Brokers access | WO-36 live economic indicator mode; WO-39 live valuation multiples mode | Fixtures and resilience fallback work until arranged. |
 | Meridian Warm brand kit | Client-facing UI | Placeholder files exist. |
 | Lawyer-reviewed T&C text | WO-10/11 | Placeholder exists. |

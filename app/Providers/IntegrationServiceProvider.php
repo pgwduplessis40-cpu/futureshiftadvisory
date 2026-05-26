@@ -16,6 +16,10 @@ use App\Services\Integration\EmploymentHero\Contracts\EmploymentHeroClient;
 use App\Services\Integration\EmploymentHero\FakeEmploymentHeroClient;
 use App\Services\Integration\EmploymentHero\FallbackEmploymentHeroClient;
 use App\Services\Integration\EmploymentHero\LiveEmploymentHeroClient;
+use App\Services\Integration\Figured\Contracts\FiguredClient;
+use App\Services\Integration\Figured\FakeFiguredClient;
+use App\Services\Integration\Figured\FallbackFiguredClient;
+use App\Services\Integration\Figured\LiveFiguredClient;
 use App\Services\Integration\Fsp\Contracts\FspClient;
 use App\Services\Integration\Fsp\FakeFspClient;
 use App\Services\Integration\Fsp\FallbackFspClient;
@@ -60,6 +64,10 @@ use App\Services\Integration\Rbnz\Contracts\RbnzClient;
 use App\Services\Integration\Rbnz\FakeRbnzClient;
 use App\Services\Integration\Rbnz\FallbackRbnzClient;
 use App\Services\Integration\Rbnz\LiveRbnzClient;
+use App\Services\Integration\Sage\Contracts\SageClient;
+use App\Services\Integration\Sage\FakeSageClient;
+use App\Services\Integration\Sage\FallbackSageClient;
+use App\Services\Integration\Sage\LiveSageClient;
 use App\Services\Integration\SesSendGrid\Contracts\SesSendGridClient;
 use App\Services\Integration\SesSendGrid\FakeSesSendGridClient;
 use App\Services\Integration\StatsNz\Contracts\StatsNzClient;
@@ -80,6 +88,10 @@ use App\Services\Integration\Windcave\Contracts\WindcaveClient;
 use App\Services\Integration\Windcave\FakeWindcaveClient;
 use App\Services\Integration\Windcave\FallbackWindcaveClient;
 use App\Services\Integration\Windcave\LiveWindcaveClient;
+use App\Services\Integration\Workflowmax\Contracts\WorkflowmaxClient;
+use App\Services\Integration\Workflowmax\FakeWorkflowmaxClient;
+use App\Services\Integration\Workflowmax\FallbackWorkflowmaxClient;
+use App\Services\Integration\Workflowmax\LiveWorkflowmaxClient;
 use App\Services\Integration\WorkSafe\Contracts\WorkSafeClient;
 use App\Services\Integration\WorkSafe\FakeWorkSafeClient;
 use App\Services\Integration\Xero\Contracts\XeroClient;
@@ -160,6 +172,21 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveQuickBooksClient::class);
         $this->app->singleton(FallbackQuickBooksClient::class);
         $this->app->singleton(QuickBooksClient::class, FallbackQuickBooksClient::class);
+
+        $this->app->singleton(FakeSageClient::class);
+        $this->app->singleton(LiveSageClient::class);
+        $this->app->singleton(FallbackSageClient::class);
+        $this->app->singleton(SageClient::class, FallbackSageClient::class);
+
+        $this->app->singleton(FakeFiguredClient::class);
+        $this->app->singleton(LiveFiguredClient::class);
+        $this->app->singleton(FallbackFiguredClient::class);
+        $this->app->singleton(FiguredClient::class, FallbackFiguredClient::class);
+
+        $this->app->singleton(FakeWorkflowmaxClient::class);
+        $this->app->singleton(LiveWorkflowmaxClient::class);
+        $this->app->singleton(FallbackWorkflowmaxClient::class);
+        $this->app->singleton(WorkflowmaxClient::class, FallbackWorkflowmaxClient::class);
 
         $this->app->singleton(FakeStripeClient::class);
         $this->app->singleton(LiveStripeClient::class);

@@ -95,6 +95,27 @@ return [
             'client_id' => env('QUICKBOOKS_CLIENT_ID'),
             'client_secret' => env('QUICKBOOKS_CLIENT_SECRET'),
         ],
+        'sage' => [
+            'live' => (bool) env('FEATURE_SAGE_LIVE', false),
+            'base_url' => env('SAGE_BASE_URL', 'https://api.accounting.sage.com/v3.1'),
+            'authorize_url' => env('SAGE_AUTHORIZE_URL', 'https://www.sageone.com/oauth2/auth/central'),
+            'client_id' => env('SAGE_CLIENT_ID'),
+            'client_secret' => env('SAGE_CLIENT_SECRET'),
+        ],
+        'figured' => [
+            'live' => (bool) env('FEATURE_FIGURED_LIVE', false),
+            'base_url' => env('FIGURED_BASE_URL', 'https://api.figured.com'),
+            'authorize_url' => env('FIGURED_AUTHORIZE_URL', 'https://api.figured.com/oauth/authorize'),
+            'client_id' => env('FIGURED_CLIENT_ID'),
+            'client_secret' => env('FIGURED_CLIENT_SECRET'),
+        ],
+        'workflowmax' => [
+            'live' => (bool) env('FEATURE_WORKFLOWMAX_LIVE', false),
+            'base_url' => env('WORKFLOWMAX_BASE_URL', 'https://api.workflowmax.com'),
+            'authorize_url' => env('WORKFLOWMAX_AUTHORIZE_URL', 'https://api.workflowmax.com/oauth/authorize'),
+            'client_id' => env('WORKFLOWMAX_CLIENT_ID'),
+            'client_secret' => env('WORKFLOWMAX_CLIENT_SECRET'),
+        ],
         'monitoring' => [
             'enabled' => (bool) env('FEATURE_CONTINUOUS_MONITORING', false),
             'net_profit_drop_threshold' => (float) env('FINANCIAL_MONITOR_NET_PROFIT_DROP_THRESHOLD', 0.2),

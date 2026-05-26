@@ -36,7 +36,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `red-flags.md` | WO-34 | Critical analysis finding promotion, urgent alerts, acknowledge/resolve flow |
 | `knowledge-assessment.md` | WO-35 | Client knowledge scores, analysis prompt calibration, raw coaching-signal boundary |
 | `economic-indicators.md` | WO-36 | RBNZ/Stats NZ/MBIE economic feeds, persisted rates, OCR-change candidates |
-| `accounting-integration.md` | WO-37 | Xero/MYOB/QuickBooks OAuth, encrypted tokens, append-only financial snapshots |
+| `accounting-integration.md` | WO-37, WO-125 | Xero/MYOB/QuickBooks/Sage/Figured/WorkflowMax OAuth, encrypted tokens, append-only financial snapshots |
 | `financial-monitoring.md` | WO-38 | Scheduled accounting pulls, deterioration alerts, snapshot citations, notification routing |
 | `valuation-multiples.md` | WO-39 | NZ-benchmarked EBITDA/SDE multiple feed, supersession, governed refresh candidates |
 | `pv-foundation.md` | WO-40 | Shared PV engine, discount-rate methods, calculation ledger, attribution contract |

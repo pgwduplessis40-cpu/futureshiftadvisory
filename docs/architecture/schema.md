@@ -1178,13 +1178,15 @@ No WO-36 path applies PV discount-rate changes automatically.
 
 ### `accounting_connections`
 
-Client-scoped OAuth connection ledger for Xero, MYOB, and QuickBooks.
+Client-scoped OAuth connection ledger for Xero, MYOB, QuickBooks, Sage,
+Figured, and WorkflowMax.
 
 Key columns:
 
 - `id` UUID primary key
 - `client_id`
-- `provider` (`xero`, `myob`, `quickbooks`)
+- `provider` (`xero`, `myob`, `quickbooks`, `sage`, `figured`,
+  `workflowmax`)
 - `external_tenant_id`
 - `status` (`connected`, `revoked`)
 - `token_envelope` encrypted JSON token payload via `KeyEnvelope`

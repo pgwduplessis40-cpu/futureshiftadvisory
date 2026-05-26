@@ -14,6 +14,10 @@ use App\Models\User;
 use App\Services\Accounting\AccountingClientResolver;
 use App\Services\Accounting\AccountingConnector;
 use App\Services\Accounting\FinancialSnapshotPuller;
+use App\Services\Integration\Figured\Contracts\FiguredClient;
+use App\Services\Integration\Figured\FakeFiguredClient;
+use App\Services\Integration\Figured\FallbackFiguredClient;
+use App\Services\Integration\Figured\LiveFiguredClient;
 use App\Services\Integration\Myob\Contracts\MyobClient;
 use App\Services\Integration\Myob\FakeMyobClient;
 use App\Services\Integration\Myob\FallbackMyobClient;
@@ -24,6 +28,14 @@ use App\Services\Integration\QuickBooks\FallbackQuickBooksClient;
 use App\Services\Integration\QuickBooks\LiveQuickBooksClient;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Resilience\RetryPolicy;
+use App\Services\Integration\Sage\Contracts\SageClient;
+use App\Services\Integration\Sage\FakeSageClient;
+use App\Services\Integration\Sage\FallbackSageClient;
+use App\Services\Integration\Sage\LiveSageClient;
+use App\Services\Integration\Workflowmax\Contracts\WorkflowmaxClient;
+use App\Services\Integration\Workflowmax\FakeWorkflowmaxClient;
+use App\Services\Integration\Workflowmax\FallbackWorkflowmaxClient;
+use App\Services\Integration\Workflowmax\LiveWorkflowmaxClient;
 use App\Services\Integration\Xero\Contracts\XeroClient;
 use App\Services\Integration\Xero\FakeXeroClient;
 use App\Services\Integration\Xero\FallbackXeroClient;
@@ -51,7 +63,7 @@ final class AccountingIntegrationTest extends TestCase
         app(RequestContext::class)->apply('system', []);
         Cache::flush();
 
-        foreach ([AccountingConnection::PROVIDER_XERO, AccountingConnection::PROVIDER_MYOB, AccountingConnection::PROVIDER_QUICKBOOKS] as $provider) {
+        foreach (array_keys(AccountingConnection::providerLabels()) as $provider) {
             Config::set("integrations.accounting.{$provider}.live", false);
             Config::set("integrations.accounting.{$provider}.client_secret", null);
             Config::set("integrations.accounting.{$provider}.authorize_url", "https://{$provider}.example.test/oauth");
@@ -66,7 +78,7 @@ final class AccountingIntegrationTest extends TestCase
     public function test_oauth_callback_stores_encrypted_token_envelope(): void
     {
         [$advisor, $client] = $this->advisorAndClient();
-        $state = $this->connectState($advisor, $client);
+        $state = $this->connectState($advisor, $client, AccountingConnection::PROVIDER_XERO);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.accounting.callback', [
@@ -90,6 +102,115 @@ final class AccountingIntegrationTest extends TestCase
         $this->assertSame('xero-access-token-fixture', $token['access_token']);
         $this->assertSame(['accounting.reports.read', 'offline_access'], $connection->scopes);
         $this->assertDatabaseHas('audit_events', ['action' => 'accounting_connection.connected']);
+    }
+
+    public function test_new_accounting_providers_connect_pull_and_revoke_through_fixture_clients(): void
+    {
+        $providers = [
+            AccountingConnection::PROVIDER_SAGE => ['tenant' => 'sage-tenant-fixture', 'token' => 'sage-access-token-fixture', 'ratio' => 1.8],
+            AccountingConnection::PROVIDER_FIGURED => ['tenant' => 'figured-farm-fixture', 'token' => 'figured-access-token-fixture', 'ratio' => 1.72],
+            AccountingConnection::PROVIDER_WORKFLOWMAX => ['tenant' => 'workflowmax-account-fixture', 'token' => 'workflowmax-access-token-fixture', 'ratio' => 1.85],
+        ];
+
+        foreach ($providers as $provider => $expectations) {
+            [$advisor, $client] = $this->advisorAndClient("{$provider}-accounting@example.test");
+            $state = $this->connectState($advisor, $client, $provider);
+
+            $this->actingAsMfa($advisor)
+                ->get(route('advisor.clients.accounting.callback', [
+                    $client,
+                    $provider,
+                    'code' => 'fixture-code',
+                    'state' => $state,
+                ]))
+                ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+            /** @var AccountingConnection $connection */
+            $connection = AccountingConnection::query()
+                ->where('client_id', $client->getKey())
+                ->where('provider', $provider)
+                ->firstOrFail();
+
+            $this->assertSame($expectations['tenant'], $connection->external_tenant_id);
+            $this->assertStringNotContainsString((string) $expectations['token'], $connection->token_envelope);
+            $token = json_decode(app(KeyEnvelope::class)->decrypt($connection->token_envelope), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame($expectations['token'], $token['access_token']);
+
+            $this->actingAsMfa($advisor)
+                ->post(route('advisor.clients.accounting.pull', [$client, $connection]))
+                ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+            /** @var FinancialSnapshot $snapshot */
+            $snapshot = FinancialSnapshot::query()
+                ->where('accounting_connection_id', $connection->getKey())
+                ->firstOrFail();
+            $this->assertSame($provider, $snapshot->provider);
+            $this->assertSame($provider, $snapshot->source);
+            $this->assertSame('stub', $snapshot->source_badge);
+            $this->assertSame($expectations['ratio'], $snapshot->metrics['current_ratio']);
+
+            $this->actingAsMfa($advisor)
+                ->patch(route('advisor.clients.accounting.revoke', [$client, $connection]))
+                ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+            $this->assertSame(AccountingConnection::STATUS_REVOKED, $connection->refresh()->status);
+        }
+    }
+
+    public function test_new_accounting_providers_live_mode_without_credentials_records_resilience_fallback(): void
+    {
+        foreach ([AccountingConnection::PROVIDER_SAGE, AccountingConnection::PROVIDER_FIGURED, AccountingConnection::PROVIDER_WORKFLOWMAX] as $provider) {
+            Config::set("integrations.accounting.{$provider}.live", true);
+            Config::set("integrations.accounting.{$provider}.client_secret", null);
+            $this->forgetAccountingClients();
+
+            [$advisor, $client] = $this->advisorAndClient("{$provider}-live-accounting@example.test");
+            $state = $this->connectState($advisor, $client, $provider);
+            Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
+
+            $this->actingAsMfa($advisor)
+                ->get(route('advisor.clients.accounting.callback', [
+                    $client,
+                    $provider,
+                    'code' => 'fixture-code',
+                    'state' => $state,
+                ]))
+                ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+            $this->assertDatabaseHas('integration_calls', [
+                'service' => $provider,
+                'status' => IntegrationCall::STATUS_FAILURE,
+                'attempt' => 1,
+            ]);
+            $this->assertDatabaseHas('integration_calls', [
+                'service' => $provider,
+                'status' => IntegrationCall::STATUS_FALLBACK,
+                'attempt' => 1,
+            ]);
+
+            /** @var AccountingConnection $connection */
+            $connection = AccountingConnection::query()
+                ->where('client_id', $client->getKey())
+                ->where('provider', $provider)
+                ->firstOrFail();
+            $token = json_decode(app(KeyEnvelope::class)->decrypt($connection->token_envelope), true, flags: JSON_THROW_ON_ERROR);
+            $this->assertSame('stub_live_fallback', $token['source_badge']);
+            $this->assertTrue($token['degraded']);
+
+            Config::set("integrations.accounting.{$provider}.live", false);
+        }
+    }
+
+    public function test_accounting_resolver_accepts_all_spec_named_providers(): void
+    {
+        $resolver = app(AccountingClientResolver::class);
+
+        $this->assertTrue(AccountingConnection::validProvider(AccountingConnection::PROVIDER_SAGE));
+        $this->assertTrue(AccountingConnection::validProvider(AccountingConnection::PROVIDER_FIGURED));
+        $this->assertTrue(AccountingConnection::validProvider(AccountingConnection::PROVIDER_WORKFLOWMAX));
+        $this->assertInstanceOf(FallbackSageClient::class, $resolver->client(AccountingConnection::PROVIDER_SAGE));
+        $this->assertInstanceOf(FallbackFiguredClient::class, $resolver->client(AccountingConnection::PROVIDER_FIGURED));
+        $this->assertInstanceOf(FallbackWorkflowmaxClient::class, $resolver->client(AccountingConnection::PROVIDER_WORKFLOWMAX));
     }
 
     public function test_snapshot_pull_persists_append_only_fixture_payload(): void
@@ -123,7 +244,7 @@ final class AccountingIntegrationTest extends TestCase
         $this->forgetAccountingClients();
 
         [$advisor, $client] = $this->advisorAndClient();
-        $state = $this->connectState($advisor, $client);
+        $state = $this->connectState($advisor, $client, AccountingConnection::PROVIDER_XERO);
         Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
 
         $this->actingAsMfa($advisor)
@@ -228,7 +349,7 @@ final class AccountingIntegrationTest extends TestCase
 
     private function connectedXero(User $advisor, Client $client): AccountingConnection
     {
-        $state = $this->connectState($advisor, $client);
+        $state = $this->connectState($advisor, $client, AccountingConnection::PROVIDER_XERO);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.accounting.callback', [
@@ -245,10 +366,10 @@ final class AccountingIntegrationTest extends TestCase
         return $connection;
     }
 
-    private function connectState(User $advisor, Client $client): string
+    private function connectState(User $advisor, Client $client, string $provider): string
     {
         $response = $this->actingAsMfa($advisor)
-            ->get(route('advisor.clients.accounting.connect', [$client, AccountingConnection::PROVIDER_XERO]))
+            ->get(route('advisor.clients.accounting.connect', [$client, $provider]))
             ->assertRedirect();
 
         $location = $response->headers->get('Location');
@@ -256,7 +377,7 @@ final class AccountingIntegrationTest extends TestCase
 
         parse_str((string) parse_url($location, PHP_URL_QUERY), $query);
         $this->assertSame('https', parse_url($location, PHP_URL_SCHEME));
-        $this->assertSame('xero.example.test', parse_url($location, PHP_URL_HOST));
+        $this->assertSame("{$provider}.example.test", parse_url($location, PHP_URL_HOST));
         $this->assertArrayHasKey('state', $query);
 
         return (string) $query['state'];
@@ -277,6 +398,18 @@ final class AccountingIntegrationTest extends TestCase
             FakeQuickBooksClient::class,
             LiveQuickBooksClient::class,
             FallbackQuickBooksClient::class,
+            SageClient::class,
+            FakeSageClient::class,
+            LiveSageClient::class,
+            FallbackSageClient::class,
+            FiguredClient::class,
+            FakeFiguredClient::class,
+            LiveFiguredClient::class,
+            FallbackFiguredClient::class,
+            WorkflowmaxClient::class,
+            FakeWorkflowmaxClient::class,
+            LiveWorkflowmaxClient::class,
+            FallbackWorkflowmaxClient::class,
             RetryPolicy::class,
             ResilientHttp::class,
             AccountingClientResolver::class,
