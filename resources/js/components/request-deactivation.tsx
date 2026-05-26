@@ -1,4 +1,4 @@
-import { Form } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
@@ -14,20 +14,23 @@ import {
     DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
+import type { Auth } from '@/types';
 
 type Props = {
     requestedAt?: string | null;
 };
 
 export default function RequestDeactivation({ requestedAt }: Props) {
+    const { auth } = usePage<{ auth: Auth }>().props;
     const alreadyRequested = Boolean(requestedAt);
+    const accountLabel = accountTypeLabel(auth.user.user_type);
 
     return (
         <div className="space-y-6">
             <Heading
                 variant="small"
                 title="Account deactivation"
-                description="Request advisor-assisted deactivation of your entrepreneur account"
+                description={`Request assisted deactivation of your ${accountLabel} account`}
             />
             <div className="space-y-4 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-200/10 dark:bg-amber-700/10">
                 <div className="relative space-y-2 text-amber-900 dark:text-amber-100">
@@ -66,9 +69,7 @@ export default function RequestDeactivation({ requestedAt }: Props) {
                         </Button>
                     </DialogTrigger>
                     <DialogContent>
-                        <DialogTitle>
-                            Confirm deactivation request
-                        </DialogTitle>
+                        <DialogTitle>Confirm deactivation request</DialogTitle>
                         <DialogDescription>
                             Your account will not be deleted immediately. Future
                             Shift Advisory will review the request, preserve the
@@ -86,15 +87,13 @@ export default function RequestDeactivation({ requestedAt }: Props) {
                             {({ resetAndClearErrors, processing, errors }) => (
                                 <>
                                     <div className="grid gap-2">
-                                        <Label htmlFor="reason">
-                                            Reason
-                                        </Label>
+                                        <Label htmlFor="reason">Reason</Label>
                                         <textarea
                                             id="reason"
                                             name="reason"
                                             placeholder="Optional note for your advisor"
                                             rows={4}
-                                            className="border-input bg-background ring-offset-background placeholder:text-muted-foreground focus-visible:ring-ring min-h-24 rounded-md border px-3 py-2 text-sm shadow-xs outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                                            className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs ring-offset-background outline-none placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
                                         />
                                         <InputError message={errors.reason} />
                                     </div>
@@ -110,7 +109,7 @@ export default function RequestDeactivation({ requestedAt }: Props) {
                                             <span>
                                                 I confirm I want Future Shift
                                                 Advisory to review deactivation
-                                                of my entrepreneur account.
+                                                of my {accountLabel} account.
                                             </span>
                                         </label>
                                         <InputError
@@ -132,10 +131,7 @@ export default function RequestDeactivation({ requestedAt }: Props) {
                                             </Button>
                                         </DialogClose>
 
-                                        <Button
-                                            disabled={processing}
-                                            asChild
-                                        >
+                                        <Button disabled={processing} asChild>
                                             <button
                                                 type="submit"
                                                 data-test="confirm-request-deactivation-button"
@@ -152,6 +148,19 @@ export default function RequestDeactivation({ requestedAt }: Props) {
             </div>
         </div>
     );
+}
+
+function accountTypeLabel(value?: string | null): string {
+    if (!value) {
+        return 'user';
+    }
+
+    return value
+        .split('_')
+        .filter(Boolean)
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ')
+        .toLowerCase();
 }
 
 function formatDate(value: string): string {

@@ -12,6 +12,7 @@ import BulkCommunicationOpenController from './BulkCommunicationOpenController'
 import DashboardController from './DashboardController'
 import NotificationController from './NotificationController'
 import Broker from './Broker'
+import Coach from './Coach'
 import Settings from './Settings'
 const Controllers = {
     DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
@@ -28,6 +29,7 @@ BulkCommunicationOpenController: Object.assign(BulkCommunicationOpenController, 
 DashboardController: Object.assign(DashboardController, DashboardController),
 NotificationController: Object.assign(NotificationController, NotificationController),
 Broker: Object.assign(Broker, Broker),
+Coach: Object.assign(Coach, Coach),
 Settings: Object.assign(Settings, Settings),
 }
 

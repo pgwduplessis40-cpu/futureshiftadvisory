@@ -1,6 +1,5 @@
 import { Form, Head, Link, usePage } from '@inertiajs/react';
 import ProfileController from '@/actions/App/Http/Controllers/Settings/ProfileController';
-import DeleteUser from '@/components/delete-user';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import RequestDeactivation from '@/components/request-deactivation';
@@ -21,7 +20,6 @@ export default function Profile({
     deactivationRequestedAt?: string | null;
 }) {
     const { auth } = usePage<{ auth: Auth }>().props;
-    const isEntrepreneur = auth.user.user_type === 'entrepreneur';
 
     return (
         <>
@@ -122,11 +120,7 @@ export default function Profile({
                 </Form>
             </div>
 
-            {isEntrepreneur ? (
-                <RequestDeactivation requestedAt={deactivationRequestedAt} />
-            ) : (
-                <DeleteUser />
-            )}
+            <RequestDeactivation requestedAt={deactivationRequestedAt} />
         </>
     );
 }

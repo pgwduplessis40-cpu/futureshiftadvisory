@@ -8,14 +8,23 @@ import {
     MessageSquare,
     Target,
     TrendingUp,
+    Upload,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
+import FileDropzone from '@/components/file-dropzone';
+import InputError from '@/components/input-error';
 import { BusinessHealthRadar } from '@/components/insight/BusinessHealthRadar';
 import type { BusinessHealthRadarPayload } from '@/components/insight/BusinessHealthRadar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
@@ -57,6 +66,7 @@ type Props = {
     healthFindings: HealthFindingDimension[];
     goals: GoalDashboard;
     documents: DocumentPayload[];
+    documentUploadUrl: string;
     scenarios: ScenarioPayload[];
     proposals: ProposalPayload[];
     reports: ReportPayload[];
@@ -68,6 +78,7 @@ type DocumentPayload = {
     original_filename: string;
     category: string;
     uploaded_at: string | null;
+    url: string;
     verification_state: VerificationOutcome;
     client_explanation: string;
     verifications: Array<{
@@ -175,13 +186,79 @@ export default function PortalDashboard({
     businessHealth,
     healthFindings,
     goals,
-    documents,
+    documents: initialDocuments,
+    documentUploadUrl,
     scenarios,
     proposals,
     reports,
     messagesUrl,
 }: Props) {
     useDrillFocus();
+    const [documents, setDocuments] =
+        useState<DocumentPayload[]>(initialDocuments);
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [uploadKey, setUploadKey] = useState(0);
+
+    const uploadDocument = async () => {
+        if (!file) {
+            return;
+        }
+
+        setUploading(true);
+        setUploadError(null);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', 'client_portal_upload');
+        formData.append(
+            'claim_value',
+            'Document uploaded from the client dashboard.',
+        );
+        formData.append('question_prompt', 'Client dashboard document upload');
+
+        const response = await fetch(documentUploadUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: formData,
+        });
+
+        setUploading(false);
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+                message?: string;
+            } | null;
+            setUploadError(payload?.message ?? 'Upload failed.');
+
+            return;
+        }
+
+        const payload = (await response.json()) as {
+            document?: DocumentPayload;
+        };
+
+        if (!payload.document) {
+            setUploadError('Upload response was missing document details.');
+
+            return;
+        }
+
+        setDocuments((current) =>
+            [
+                payload.document as DocumentPayload,
+                ...current.filter(
+                    (document) => document.id !== payload.document?.id,
+                ),
+            ].slice(0, 12),
+        );
+        setFile(null);
+        setUploadKey((key) => key + 1);
+    };
 
     return (
         <>
@@ -289,16 +366,25 @@ export default function PortalDashboard({
                                 summary={client.data_quality_summary}
                             />
                         }
+                        explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
+                        href="#section-health"
+                        actionLabel="Review"
                     />
                     <StatusPanel
                         icon={Bell}
                         label="Notifications"
                         value={`${notificationSummary.unread} unread`}
+                        explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
+                        href="/notifications"
+                        actionLabel="Open"
                     />
                     <StatusPanel
-                        icon={FileText}
-                        label="Referral status"
-                        value="Not requested"
+                        icon={MessageSquare}
+                        label="Messages"
+                        value="Advisor thread"
+                        explanation="Messages opens your secure conversation history with the advisory team."
+                        href={messagesUrl}
+                        actionLabel="Open"
                     />
                 </div>
 
@@ -352,10 +438,11 @@ export default function PortalDashboard({
                 </section>
 
                 <section
+                    id="section-documents"
                     className="space-y-4 rounded-md border bg-background p-4"
                     aria-labelledby="documents-heading"
                 >
-                    <div className="flex items-center justify-between gap-3">
+                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                         <div className="flex items-center gap-2">
                             <FileText className="size-4" aria-hidden="true" />
                             <h2
@@ -364,8 +451,30 @@ export default function PortalDashboard({
                             >
                                 Documents
                             </h2>
+                            <Badge variant="outline">{documents.length}</Badge>
                         </div>
-                        <Badge variant="outline">{documents.length}</Badge>
+                        <div className="grid w-full gap-2 lg:max-w-sm">
+                            <FileDropzone
+                                key={uploadKey}
+                                id="client_dashboard_document"
+                                files={file ? [file] : []}
+                                label="Upload document"
+                                onFilesChange={(files) =>
+                                    setFile(files[0] ?? null)
+                                }
+                            />
+                            <InputError message={uploadError ?? undefined} />
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={!file || uploading}
+                                onClick={() => void uploadDocument()}
+                            >
+                                <Upload className="size-4" aria-hidden="true" />
+                                {uploading ? 'Uploading' : 'Upload'}
+                            </Button>
+                        </div>
                     </div>
 
                     {documents.length === 0 ? (
@@ -748,6 +857,10 @@ function DocumentTile({ document }: { document: DocumentPayload }) {
                     {document.client_explanation}
                 </p>
             )}
+
+            <Button asChild variant="outline" size="sm">
+                <a href={document.url}>View document</a>
+            </Button>
         </article>
     );
 }
@@ -845,18 +958,47 @@ function StatusPanel({
     icon: Icon,
     label,
     value,
+    explanation,
+    href,
+    actionLabel,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     label: string;
     value: ReactNode;
+    explanation: string;
+    href: string;
+    actionLabel: string;
 }) {
     return (
-        <section className="rounded-md border bg-background p-4">
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Icon className="size-4" aria-hidden={true} />
-                {label}
-            </div>
-            <div className="mt-2 text-sm font-medium">{value}</div>
-        </section>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <section className="rounded-md border bg-background p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Icon className="size-4" aria-hidden={true} />
+                        {label}
+                    </div>
+                    <div className="mt-2 text-sm font-medium">{value}</div>
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="mt-3 px-0"
+                    >
+                        <Link href={href}>{actionLabel}</Link>
+                    </Button>
+                </section>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
     );
 }

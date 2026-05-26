@@ -12,7 +12,6 @@ use App\Services\Audit\AuditWriter;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Notification;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -54,23 +53,13 @@ class ProfileController extends Controller
      */
     public function destroy(ProfileDeleteRequest $request): RedirectResponse
     {
-        $user = $request->user();
-        abort_if($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
-
-        Auth::logout();
-
-        $user->delete();
-
-        $request->session()->invalidate();
-        $request->session()->regenerateToken();
-
-        return redirect('/');
+        abort(403);
     }
 
     public function requestDeactivation(Request $request, AuditWriter $audit): RedirectResponse
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+        abort_unless($user instanceof User, 403);
 
         $validated = $request->validate([
             'confirm_deactivation' => ['accepted'],
@@ -83,9 +72,11 @@ class ProfileController extends Controller
                 'deactivation_requested_reason' => $validated['reason'] ?? null,
             ])->save();
 
-            $profile = $user->entrepreneurProfile()
-                ->with('assignedAdvisor')
-                ->first();
+            $profile = $user->user_type === User::TYPE_ENTREPRENEUR
+                ? $user->entrepreneurProfile()
+                    ->with('assignedAdvisor')
+                    ->first()
+                : null;
 
             if ($profile instanceof EntrepreneurProfile && $profile->assignedAdvisor instanceof User) {
                 Notification::send(
@@ -94,8 +85,9 @@ class ProfileController extends Controller
                 );
             }
 
-            $audit->record('entrepreneur.deactivation_requested', subject: $user, actor: $user, after: [
+            $audit->record('user.deactivation_requested', subject: $user, actor: $user, after: [
                 'user_id' => $user->getKey(),
+                'user_type' => $user->user_type,
                 'entrepreneur_profile_id' => $profile?->getKey(),
                 'requested_at' => $user->deactivation_requested_at?->toIso8601String(),
             ]);

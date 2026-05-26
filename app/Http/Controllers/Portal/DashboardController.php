@@ -54,6 +54,7 @@ final class DashboardController extends Controller
             'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
             'goals' => $this->goals->dashboard($client),
             'documents' => $this->documentPayload($client),
+            'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'scenarios' => $this->scenarioPayload($client),
             'proposals' => $this->proposalPayload($client),
             'reports' => $this->reportPayload($client),
@@ -100,6 +101,7 @@ final class DashboardController extends Controller
                 'original_filename' => $document->original_filename,
                 'category' => $document->category,
                 'uploaded_at' => $document->created_at?->toIso8601String(),
+                'url' => route('portal.documents.show', $document, absolute: false),
                 'verification_state' => $this->documentVerificationState($document),
                 'client_explanation' => $this->documentClientExplanation($document),
                 'verifications' => $document->verifications

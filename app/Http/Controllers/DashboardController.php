@@ -13,6 +13,7 @@ use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\EconomicIndicator;
+use App\Models\EntrepreneurProfile;
 use App\Models\ExchangeRate;
 use App\Models\IntegrationHealthSample;
 use App\Models\LearningUpdate;
@@ -85,6 +86,12 @@ final class DashboardController extends Controller
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
             return Inertia::render('broker/Dashboard', [
                 'dashboard' => $this->brokerDashboardPayload($user),
+            ]);
+        }
+
+        if ($user instanceof User && $user->user_type === User::TYPE_COACH) {
+            return Inertia::render('coach/Dashboard', [
+                'dashboard' => $this->coachDashboardPayload($user),
             ]);
         }
 
@@ -324,6 +331,233 @@ final class DashboardController extends Controller
                 'company' => $referral->company,
                 'email' => $referral->email,
                 'submittedAt' => $referral->submitted_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function coachDashboardPayload(User $user): array
+    {
+        $member = PanelMember::query()
+            ->where('user_id', $user->getKey())
+            ->where('panel_type', PanelMember::TYPE_COACH)
+            ->latest()
+            ->first();
+
+        if (! $member instanceof PanelMember) {
+            return [
+                'panel' => null,
+                'summary' => [
+                    'totalReferrals' => 0,
+                    'activeReferrals' => 0,
+                    'underway' => 0,
+                    'concluded' => 0,
+                ],
+                'stageCounts' => [],
+                'referrals' => [],
+                'messages' => [],
+                'agreement' => null,
+            ];
+        }
+
+        $referralBase = Referral::query()
+            ->where('panel_member_id', $member->getKey())
+            ->where('panel_type', PanelMember::TYPE_COACH);
+        $terminalStages = [
+            Referral::STAGE_COMPLETED,
+            Referral::STAGE_COACH_CONCLUDED,
+            Referral::STAGE_COACH_DECLINED,
+            Referral::STAGE_WITHDRAWN,
+        ];
+        $stageCounts = (clone $referralBase)
+            ->select('stage', DB::raw('count(*) as aggregate'))
+            ->groupBy('stage')
+            ->pluck('aggregate', 'stage')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+        $referrals = (clone $referralBase)
+            ->with(['client.primaryContact', 'entrepreneurProfile'])
+            ->latest('sent_at')
+            ->latest()
+            ->limit(8)
+            ->get();
+        $latestMessages = $this->latestBrokerMessagesForReferrals(
+            $referrals->pluck('id')->map(fn (mixed $id): string => (string) $id)->all(),
+        );
+        $agreement = $member->agreements()
+            ->latest('signed_at')
+            ->latest('generated_at')
+            ->first();
+
+        return [
+            'panel' => $this->coachPanelSummary($member, $user),
+            'summary' => [
+                'totalReferrals' => (clone $referralBase)->count(),
+                'activeReferrals' => (clone $referralBase)->whereNotIn('stage', $terminalStages)->count(),
+                'underway' => (clone $referralBase)->whereIn('stage', [
+                    Referral::STAGE_IN_PROGRESS,
+                    Referral::STAGE_COACHING_UNDERWAY,
+                ])->count(),
+                'concluded' => (clone $referralBase)->whereIn('stage', [
+                    Referral::STAGE_COMPLETED,
+                    Referral::STAGE_COACH_CONCLUDED,
+                ])->count(),
+            ],
+            'stageCounts' => $stageCounts,
+            'referrals' => $referrals
+                ->map(fn (Referral $referral): array => $this->coachReferralSummary(
+                    $referral,
+                    $latestMessages[(string) $referral->getKey()] ?? null,
+                ))
+                ->values()
+                ->all(),
+            'messages' => $this->recentCoachMessages($member),
+            'agreement' => $agreement instanceof PanelAgreement ? [
+                'status' => $agreement->status,
+                'generatedAt' => $agreement->generated_at?->toIso8601String(),
+                'signedAt' => $agreement->signed_at?->toIso8601String(),
+                'pdfByteSize' => $agreement->pdf_byte_size,
+                'hasStoredPdf' => filled($agreement->pdf_path),
+            ] : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function coachPanelSummary(PanelMember $member, User $user): array
+    {
+        $application = is_array($member->application) ? $member->application : [];
+        $profile = is_array($member->coach_profile) ? $member->coach_profile : [];
+
+        return [
+            'id' => $member->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'company' => $this->stringFromApplication($application, 'company')
+                ?? $this->stringFromApplication($application, 'trading_name')
+                ?? $user->name,
+            'status' => $member->status,
+            'bio' => $this->stringFromApplication($profile, 'bio'),
+            'specialisations' => array_values(array_filter($member->coach_specialisations ?? [])),
+            'memberships' => $this->coachMemberships($member),
+            'approvedAt' => $member->approved_at?->toIso8601String(),
+            'suspendedAt' => $member->suspended_at?->toIso8601String(),
+            'vettedAt' => $member->coach_vetted_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<int, array{body:string, level:string|null}>
+     */
+    private function coachMemberships(PanelMember $member): array
+    {
+        return collect($member->professional_memberships ?? [])
+            ->filter(fn (mixed $membership): bool => is_array($membership))
+            ->map(fn (array $membership): array => [
+                'body' => (string) ($membership['body'] ?? 'Membership'),
+                'level' => isset($membership['level']) && is_string($membership['level'])
+                    ? $membership['level']
+                    : null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function coachReferralSummary(Referral $referral, ?ReferralMessage $latestMessage): array
+    {
+        $payload = is_array($referral->payload) ? $referral->payload : [];
+        $entrepreneur = $referral->entrepreneurProfile;
+
+        return [
+            'id' => $referral->id,
+            'subjectName' => $referral->client?->legal_name
+                ?? $entrepreneur?->name
+                ?? 'Referral subject',
+            'subjectContact' => $referral->client?->primaryContact?->email
+                ?? $entrepreneur?->email
+                ?? $this->stringFromApplication($payload, 'client_contact')
+                ?? $this->stringFromApplication($payload, 'email'),
+            'subjectType' => $referral->referred_subject_type
+                ?? ($entrepreneur instanceof EntrepreneurProfile ? 'entrepreneur' : 'client'),
+            'referralType' => $referral->referral_type,
+            'specialisation' => $referral->coach_specialisation,
+            'stage' => $referral->stage,
+            'reason' => $this->stringFromApplication($payload, 'reason')
+                ?? $this->stringFromApplication($payload, 'context')
+                ?? $this->stringFromApplication($payload, 'need'),
+            'sentAt' => $referral->sent_at?->toIso8601String(),
+            'closedAt' => $referral->closed_at?->toIso8601String(),
+            'stageUpdateUrl' => route('coach.referrals.stage', $referral, absolute: false),
+            'availableActions' => $this->coachReferralActions($referral),
+            'latestMessage' => $latestMessage instanceof ReferralMessage ? [
+                'body' => $latestMessage->body,
+                'sentAt' => $latestMessage->sent_at?->toIso8601String(),
+            ] : null,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentCoachMessages(PanelMember $member): array
+    {
+        return ReferralMessage::query()
+            ->with(['client', 'referral.entrepreneurProfile'])
+            ->whereHas('referral', fn (Builder $query): Builder => $query
+                ->where('panel_member_id', $member->getKey())
+                ->where('panel_type', PanelMember::TYPE_COACH))
+            ->latest('sent_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (ReferralMessage $message): array => [
+                'id' => $message->id,
+                'body' => $message->body,
+                'subjectName' => $message->client?->legal_name
+                    ?? $message->referral?->entrepreneurProfile?->name
+                    ?? 'Referral subject',
+                'stage' => $message->referral?->stage,
+                'sentAt' => $message->sent_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{stage:string, label:string, tone:string}>
+     */
+    private function coachReferralActions(Referral $referral): array
+    {
+        $actions = match ($referral->stage) {
+            Referral::STAGE_COACH_REFERRAL_SENT, Referral::STAGE_SENT => [
+                [Referral::STAGE_COACH_ACCEPTED, 'Accept', 'default'],
+                [Referral::STAGE_COACH_DECLINED, 'Decline', 'outline'],
+                [Referral::STAGE_WITHDRAWN, 'Withdraw', 'outline'],
+            ],
+            Referral::STAGE_COACH_ACCEPTED, Referral::STAGE_ACCEPTED => [
+                [Referral::STAGE_COACHING_UNDERWAY, 'Start coaching', 'default'],
+                [Referral::STAGE_COACH_DECLINED, 'Decline', 'outline'],
+                [Referral::STAGE_WITHDRAWN, 'Withdraw', 'outline'],
+            ],
+            Referral::STAGE_COACHING_UNDERWAY, Referral::STAGE_IN_PROGRESS => [
+                [Referral::STAGE_COACH_CONCLUDED, 'Conclude', 'default'],
+                [Referral::STAGE_COACH_DECLINED, 'Decline', 'outline'],
+                [Referral::STAGE_WITHDRAWN, 'Withdraw', 'outline'],
+            ],
+            default => [],
+        };
+
+        return collect($actions)
+            ->map(fn (array $action): array => [
+                'stage' => $action[0],
+                'label' => $action[1],
+                'tone' => $action[2],
             ])
             ->values()
             ->all();

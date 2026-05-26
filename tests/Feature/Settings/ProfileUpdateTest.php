@@ -83,7 +83,7 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->refresh()->email_verified_at);
     }
 
-    public function test_user_can_delete_their_account()
+    public function test_user_cannot_delete_their_account()
     {
         $user = User::factory()->create();
 
@@ -95,10 +95,10 @@ class ProfileUpdateTest extends TestCase
 
         $response
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('home'));
+            ->assertForbidden();
 
-        $this->assertGuest();
-        $this->assertNull($user->fresh());
+        $this->assertAuthenticatedAs($user);
+        $this->assertNotNull($user->fresh());
     }
 
     public function test_correct_password_must_be_provided_to_delete_account()
@@ -173,7 +173,7 @@ class ProfileUpdateTest extends TestCase
         $this->assertNotNull($user->deactivation_requested_at);
         $this->assertSame('I am pausing the venture.', $user->deactivation_requested_reason);
         $this->assertDatabaseHas('audit_events', [
-            'action' => 'entrepreneur.deactivation_requested',
+            'action' => 'user.deactivation_requested',
             'subject_type' => User::class,
             'subject_id' => (string) $user->getKey(),
         ]);
@@ -186,6 +186,34 @@ class ProfileUpdateTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('deactivationRequestedAt', $user->deactivation_requested_at?->toIso8601String())
             );
+    }
+
+    public function test_broker_can_request_deactivation_with_confirmation()
+    {
+        $user = User::factory()->create([
+            'user_type' => User::TYPE_BROKER,
+            'primary_role' => User::TYPE_BROKER,
+        ]);
+
+        $this
+            ->actingAsMfa($user)
+            ->from(route('profile.edit'))
+            ->post(route('profile.deactivation-request'), [
+                'confirm_deactivation' => 'yes',
+                'reason' => 'Panel access no longer needed.',
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect(route('profile.edit'));
+
+        $user->refresh();
+
+        $this->assertNotNull($user->deactivation_requested_at);
+        $this->assertSame('Panel access no longer needed.', $user->deactivation_requested_reason);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'user.deactivation_requested',
+            'subject_type' => User::class,
+            'subject_id' => (string) $user->getKey(),
+        ]);
     }
 
     public function test_entrepreneur_deactivation_request_requires_confirmation()

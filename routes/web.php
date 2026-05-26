@@ -3,6 +3,7 @@
 use App\Enums\Permission;
 use App\Http\Controllers\Broker\ReferralStageController;
 use App\Http\Controllers\BulkCommunicationOpenController;
+use App\Http\Controllers\Coach\ReferralStageController as CoachReferralStageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use Illuminate\Support\Facades\Route;
@@ -35,6 +36,9 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::patch('broker/referrals/{referral}/stage', ReferralStageController::class)
         ->middleware('permission:'.Permission::BROKER_PORTAL->value)
         ->name('broker.referrals.stage');
+    Route::patch('coach/referrals/{referral}/stage', CoachReferralStageController::class)
+        ->middleware('permission:'.Permission::COACH_PORTAL->value)
+        ->name('coach.referrals.stage');
 });
 
 require __DIR__.'/settings.php';

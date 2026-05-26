@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentVerification;
 use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Services\Portal\ClientPortalResolver;
@@ -185,6 +186,10 @@ final class DocumentController extends Controller
             'scanner_result' => $document->scanner_result,
             'uploaded_at' => $document->created_at?->toIso8601String(),
             'url' => route('portal.documents.show', $document, absolute: false),
+            'verification_state' => $document->verifications->first()?->outcome
+                ?? DocumentVerification::OUTCOME_PENDING,
+            'client_explanation' => $document->verifications->first()?->clientFacingExplanation()
+                ?? 'Verification is in progress.',
             'verifications' => $document->verifications
                 ->map(fn ($verification): array => [
                     'id' => $verification->id,

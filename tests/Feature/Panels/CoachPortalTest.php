@@ -21,6 +21,7 @@ use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -159,6 +160,67 @@ final class CoachPortalTest extends TestCase
         $this->assertSame(Referral::STAGE_COACH_CONCLUDED, $referral->stage);
         $this->assertNotNull($referral->closed_at);
         $this->assertContains(Referral::STAGE_COACHING_UNDERWAY, Referral::coachStages());
+    }
+
+    public function test_coach_dashboard_surfaces_panel_and_referral_actions(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor();
+        $coach = $this->activeCoach('dashboard-coach@example.test', [CoachSpecialisation::LIFE->value]);
+        $referral = app(CoachPanel::class)->createReferral(
+            client: $client,
+            coach: $coach,
+            advisor: $advisor,
+            specialisation: CoachSpecialisation::LIFE->value,
+            subjectType: CoachPanel::SUBJECT_OWNER,
+            payload: ['reason' => 'Owner resilience support'],
+        );
+        $referral->forceFill([
+            'stage' => Referral::STAGE_ACCEPTED,
+            'sent_at' => now()->subDay(),
+        ])->save();
+
+        $this->actingAsMfa($coach->user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('coach/Dashboard')
+                ->where('dashboard.panel.status', PanelMember::STATUS_ACTIVE)
+                ->where('dashboard.referrals.0.stage', Referral::STAGE_ACCEPTED)
+                ->where('dashboard.referrals.0.availableActions.0.stage', Referral::STAGE_COACHING_UNDERWAY)
+                ->where('dashboard.referrals.0.stageUpdateUrl', route('coach.referrals.stage', $referral, absolute: false)));
+    }
+
+    public function test_coach_can_update_own_referral_stage_from_dashboard_action(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor();
+        $coach = $this->activeCoach('dashboard-action-coach@example.test', [CoachSpecialisation::LIFE->value]);
+        $referral = app(CoachPanel::class)->createReferral(
+            client: $client,
+            coach: $coach,
+            advisor: $advisor,
+            specialisation: CoachSpecialisation::LIFE->value,
+            subjectType: CoachPanel::SUBJECT_OWNER,
+            payload: ['reason' => 'Owner resilience support'],
+        );
+        $referral->forceFill([
+            'stage' => Referral::STAGE_ACCEPTED,
+            'sent_at' => now()->subDay(),
+        ])->save();
+
+        $this->actingAsMfa($coach->user)
+            ->patch(route('coach.referrals.stage', $referral), [
+                'stage' => Referral::STAGE_COACHING_UNDERWAY,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('referrals', [
+            'id' => $referral->id,
+            'stage' => Referral::STAGE_COACHING_UNDERWAY,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'referral.stage_changed',
+            'subject_id' => $referral->id,
+        ]);
     }
 
     /**

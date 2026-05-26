@@ -52,9 +52,13 @@ final class ReferralLifecycle
      */
     private array $coachAllowedNext = [
         Referral::STAGE_DRAFT => [Referral::STAGE_COACH_REFERRAL_SENT, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_SENT => [Referral::STAGE_COACH_ACCEPTED, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_COACH_REFERRAL_SENT => [Referral::STAGE_COACH_ACCEPTED, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_ACCEPTED => [Referral::STAGE_COACHING_UNDERWAY, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_COACH_ACCEPTED => [Referral::STAGE_COACHING_UNDERWAY, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_IN_PROGRESS => [Referral::STAGE_COACH_CONCLUDED, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_COACHING_UNDERWAY => [Referral::STAGE_COACH_CONCLUDED, Referral::STAGE_COACH_DECLINED, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_COMPLETED => [],
         Referral::STAGE_COACH_CONCLUDED => [],
         Referral::STAGE_COACH_DECLINED => [],
         Referral::STAGE_WITHDRAWN => [],
@@ -269,11 +273,11 @@ final class ReferralLifecycle
      */
     private function allowedNextFor(Referral $referral): array
     {
-        if ($referral->referral_type === Referral::TYPE_BROKER) {
+        if ($referral->referral_type === Referral::TYPE_BROKER || $referral->panel_type === PanelMember::TYPE_BROKER) {
             return $this->brokerAllowedNext;
         }
 
-        if ($referral->referral_type === Referral::TYPE_COACH) {
+        if ($referral->referral_type === Referral::TYPE_COACH || $referral->panel_type === PanelMember::TYPE_COACH) {
             return $this->coachAllowedNext;
         }
 

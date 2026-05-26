@@ -25,6 +25,11 @@ import {
 import type { WaterfallStep } from '@/components/pv/WaterfallChart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { DocumentVerificationFlagPanel } from '@/components/verification/DocumentVerificationFlagPanel';
 import type { DocumentVerificationFlag } from '@/components/verification/DocumentVerificationFlagPanel';
 import { dashboard } from '@/routes';
@@ -483,22 +488,32 @@ export default function AdvisorDashboard({
                         <Metric
                             label="Clients"
                             value={clientsHealth.summary.total}
+                            explanation="Clients counts the client workspaces visible to your current advisor role."
+                            href="/advisor/clients"
                         />
                         <Metric
                             label="Data flags"
                             value={clientsHealth.summary.needs_attention}
+                            explanation="Data flags count client records with low engagement signals or document verification attention."
+                            href="#advisor-clients-health"
                         />
                         <Metric
                             label="Red flags"
                             value={redFlags.summary.open}
+                            explanation="Red flags are open advisory risks that need acknowledgement, review, or resolution."
+                            href="#advisor-red-flags"
                         />
                         <Metric
                             label="Documents"
                             value={documentVerificationFlags.length}
+                            explanation="Documents counts outstanding verification flags currently surfaced on this dashboard."
+                            href="#advisor-documents"
                         />
                         <Metric
                             label="Terms"
                             value={pendingTermsReacceptance.total}
+                            explanation="Terms counts client portal users who need to accept the latest published terms."
+                            href="#advisor-terms"
                         />
                     </div>
                 </header>
@@ -508,9 +523,11 @@ export default function AdvisorDashboard({
 
                     <div className="space-y-4">
                         <RedFlagPanel payload={redFlags} />
-                        <DocumentVerificationFlagPanel
-                            flags={documentVerificationFlags}
-                        />
+                        <div id="advisor-documents">
+                            <DocumentVerificationFlagPanel
+                                flags={documentVerificationFlags}
+                            />
+                        </div>
                         <PendingTermsReacceptance
                             payload={pendingTermsReacceptance}
                         />
@@ -553,7 +570,10 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
     const statusOrder = ['draft', 'released', 'recalled', 'expired', 'renewed'];
 
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-red-flags"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <FileText className="size-4" aria-hidden="true" />
@@ -618,7 +638,10 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
 
 function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-terms"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <CreditCard className="size-4" aria-hidden="true" />
@@ -1390,18 +1413,41 @@ function PortfolioMetric({ label, value }: { label: string; value: string }) {
     );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+    label,
+    value,
+    explanation,
+    href,
+}: {
+    label: string;
+    value: number;
+    explanation: string;
+    href: string;
+}) {
     return (
-        <div className="rounded-md border bg-background px-4 py-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-1 text-lg font-semibold">{value}</div>
-        </div>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <a
+                    href={href}
+                    className="rounded-md border bg-background px-4 py-3 transition-colors outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="mt-1 text-lg font-semibold">{value}</div>
+                </a>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 
 function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-clients-health"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <UsersRound className="size-4" aria-hidden="true" />

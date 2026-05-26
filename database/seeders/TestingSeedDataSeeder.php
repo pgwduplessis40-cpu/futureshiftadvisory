@@ -18,6 +18,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
 
@@ -2109,7 +2110,14 @@ final class TestingSeedDataSeeder extends Seeder
         string $mimeType = 'application/pdf',
         ?string $entrepreneurProfileId = null,
     ): string|int|null {
-        return $this->upsert('documents', ['stored_path' => "seed/documents/{$key}"], [
+        $storedPath = "seed/documents/{$key}";
+        $disk = Storage::disk('secure_local');
+
+        if (! $disk->exists($storedPath)) {
+            $disk->put($storedPath, $this->fixtureDocumentContent($filename, $key, $mimeType));
+        }
+
+        return $this->upsert('documents', ['stored_path' => $storedPath], [
             'client_id' => $client?->getKey(),
             'entrepreneur_profile_id' => $entrepreneurProfileId,
             'category' => $category,
@@ -2126,6 +2134,45 @@ final class TestingSeedDataSeeder extends Seeder
             ]),
             'expires_at' => $expiresAt,
         ]);
+    }
+
+    private function fixtureDocumentContent(string $filename, string $key, string $mimeType): string
+    {
+        $label = "Future Shift Advisory seed document: {$filename}";
+
+        if ($mimeType !== 'application/pdf') {
+            return "{$label}\nFixture key: {$key}\n";
+        }
+
+        $stream = "BT /F1 12 Tf 72 720 Td ({$this->pdfText($label)}) Tj 0 -18 Td (Fixture key: {$this->pdfText($key)}) Tj ET";
+        $objects = [
+            '1 0 obj << /Type /Catalog /Pages 2 0 R >> endobj',
+            '2 0 obj << /Type /Pages /Kids [3 0 R] /Count 1 >> endobj',
+            '3 0 obj << /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >> endobj',
+            '4 0 obj << /Type /Font /Subtype /Type1 /BaseFont /Helvetica >> endobj',
+            '5 0 obj << /Length '.strlen($stream)." >> stream\n{$stream}\nendstream endobj",
+        ];
+
+        $pdf = "%PDF-1.4\n";
+        $offsets = [0];
+        foreach ($objects as $object) {
+            $offsets[] = strlen($pdf);
+            $pdf .= "{$object}\n";
+        }
+
+        $xref = strlen($pdf);
+        $pdf .= "xref\n0 ".(count($objects) + 1)."\n";
+        $pdf .= "0000000000 65535 f \n";
+        foreach (array_slice($offsets, 1) as $offset) {
+            $pdf .= str_pad((string) $offset, 10, '0', STR_PAD_LEFT)." 00000 n \n";
+        }
+
+        return $pdf.'trailer << /Size '.(count($objects) + 1)." /Root 1 0 R >>\nstartxref\n{$xref}\n%%EOF\n";
+    }
+
+    private function pdfText(string $value): string
+    {
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], Str::ascii($value));
     }
 
     private function verification(
