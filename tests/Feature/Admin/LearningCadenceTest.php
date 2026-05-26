@@ -20,17 +20,27 @@ final class LearningCadenceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registry_contains_thirty_three_layers_with_expected_cadences(): void
+    public function test_registry_contains_thirty_seven_layers_with_expected_cadences(): void
     {
         $registry = app(LayerCadenceRegistry::class);
         $definitions = $registry->definitions();
 
-        $this->assertCount(33, $definitions);
+        $this->assertCount(37, $definitions);
         $this->assertSame(LayerCadenceRegistry::CADENCE_DAILY, $registry->definition(3)['cadence']);
         $this->assertSame(LayerCadenceRegistry::CADENCE_DAILY, $registry->definition(12)['cadence']);
         $this->assertSame(LayerCadenceRegistry::CADENCE_MONTHLY, $registry->definition(15)['cadence']);
-        $this->assertSame(LayerCadenceRegistry::CADENCE_WEEKLY, $registry->definition(33)['cadence']);
-        $this->assertSame('templates:suggest', $registry->definition(33)['command']);
+        $this->assertSame(LayerCadenceRegistry::CADENCE_WEEKLY, $registry->definition(LayerCadenceRegistry::LAYER_TEMPLATE_SUGGESTIONS)['cadence']);
+        $this->assertSame('templates:suggest', $registry->definition(LayerCadenceRegistry::LAYER_TEMPLATE_SUGGESTIONS)['command']);
+        $this->assertSame('npo:funder-registry-learning', $registry->definition(LayerCadenceRegistry::LAYER_NPO_FUNDER_DATABASE_UPDATES)['command']);
+        $this->assertSame(
+            'layer_34_admin_approval_required',
+            $registry->definition(LayerCadenceRegistry::LAYER_NPO_FUNDER_DATABASE_UPDATES)['metadata']['governance_gate'],
+        );
+        $this->assertSame(
+            10,
+            $registry->definition(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS)['metadata']['min_sample_guard']['programmes_per_type'],
+        );
+        $this->assertTrue($registry->definition(LayerCadenceRegistry::LAYER_NPO_FUNDING_CONCENTRATION_THRESHOLDS)['metadata']['requires_full_data_justification']);
         $this->assertTrue($definitions->every(fn (array $definition): bool => $definition['governed_candidates_only'] === true));
     }
 
@@ -40,8 +50,8 @@ final class LearningCadenceTest extends TestCase
 
         $runs = app(LayerCadenceRunner::class)->recordDueRuns(now());
 
-        $this->assertCount(33, $runs);
-        $this->assertSame(33, LearningLayerRun::query()->count());
+        $this->assertCount(37, $runs);
+        $this->assertSame(37, LearningLayerRun::query()->count());
         $this->assertDatabaseHas('learning_layer_runs', [
             'layer_id' => 1,
             'status' => LearningLayerRun::STATUS_COMPLETED,
@@ -61,9 +71,9 @@ final class LearningCadenceTest extends TestCase
         $noneDue = app(LayerCadenceRunner::class)->recordDueRuns(now()->addMinutes(30));
         $forced = app(LayerCadenceRunner::class)->recordDueRuns(now()->addMinutes(30), [29]);
 
-        $this->assertCount(32, $noneDue);
+        $this->assertCount(36, $noneDue);
         $this->assertCount(1, $forced);
-        $this->assertSame(34, LearningLayerRun::query()->where('layer_id', 29)->orWhere('layer_id', '<>', 29)->count());
+        $this->assertSame(38, LearningLayerRun::query()->where('layer_id', 29)->orWhere('layer_id', '<>', 29)->count());
     }
 
     public function test_monitor_dashboard_shows_queue_and_history(): void
@@ -90,7 +100,7 @@ final class LearningCadenceTest extends TestCase
 
         $dashboard = app(LearningMonitorDashboard::class)->dashboard();
 
-        $this->assertSame(33, $dashboard['summary']['registered_layers']);
+        $this->assertSame(37, $dashboard['summary']['registered_layers']);
         $this->assertSame(1, $dashboard['summary']['queued_candidates']);
         $this->assertSame(1, $dashboard['summary']['recent_runs']);
         $this->assertSame(16, $dashboard['recent_runs'][0]['layer_id']);
@@ -115,7 +125,7 @@ final class LearningCadenceTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/learning/Index')
-                ->where('monitor.summary.registered_layers', 33)
+                ->where('monitor.summary.registered_layers', 37)
                 ->where('monitor.recent_runs.0.layer_id', 12),
             );
     }

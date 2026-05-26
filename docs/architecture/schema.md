@@ -87,7 +87,7 @@ No new tables are required. WO-95 formalises the 32-layer cadence registry over 
 
 Operational notes:
 
-- `LayerCadenceRegistry` defines 32 registered learning layers with hourly, daily, weekly, or monthly cadence.
+- `LayerCadenceRegistry` defines 37 registered learning layers with hourly, daily, weekly, or monthly cadence.
 - `learning:cadence` records due layer runs hourly through the scheduler.
 - Cadence-only rows write `window.governed_candidates_only = true` and `window.automatic_application = false`.
 - The admin learning queue payload now includes monitoring summary, layer latest-run state, queue counts, and recent run history.

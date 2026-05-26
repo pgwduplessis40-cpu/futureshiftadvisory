@@ -59,6 +59,7 @@ final class LayerCadenceRunner
                 'command' => $definition['command'],
                 'governed_candidates_only' => true,
                 'automatic_application' => false,
+                'metadata' => $definition['metadata'] ?? [],
                 'cadence_monitor_only' => true,
             ],
             'status' => LearningLayerRun::STATUS_COMPLETED,

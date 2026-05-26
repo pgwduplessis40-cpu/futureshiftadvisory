@@ -37,6 +37,7 @@ final class ActiveLayerEngine
                             'command' => $definition['command'],
                             'governed_candidates_only' => true,
                             'automatic_application' => false,
+                            'metadata' => $definition['metadata'] ?? [],
                         ],
                     ],
                 );
@@ -108,6 +109,7 @@ final class ActiveLayerEngine
                 'command' => $state->config['command'] ?? null,
                 'governed_candidates_only' => true,
                 'automatic_application' => false,
+                'metadata' => $state->config['metadata'] ?? [],
                 'active_learning' => true,
                 'candidate_id' => $candidate->id,
             ],

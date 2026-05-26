@@ -18,6 +18,16 @@ final class LayerCadenceRegistry
 
     public const CADENCE_MONTHLY = 'monthly';
 
+    public const LAYER_TEMPLATE_SUGGESTIONS = 33;
+
+    public const LAYER_NPO_FUNDER_DATABASE_UPDATES = 34;
+
+    public const LAYER_NPO_GOVERNANCE_COMPLIANCE_THRESHOLDS = 35;
+
+    public const LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS = 36;
+
+    public const LAYER_NPO_FUNDING_CONCENTRATION_THRESHOLDS = 37;
+
     /**
      * @return Collection<int, array<string, mixed>>
      */
@@ -56,7 +66,38 @@ final class LayerCadenceRegistry
             $this->layer(30, 'Document expiry pattern review', self::CADENCE_DAILY, 60),
             $this->layer(31, 'Communication preference review', self::CADENCE_WEEKLY, 90),
             $this->layer(32, 'Terms comprehension feedback', self::CADENCE_MONTHLY, 180),
-            $this->layer(33, 'Template suggestions', self::CADENCE_WEEKLY, 90, 'templates:suggest'),
+            $this->layer(self::LAYER_TEMPLATE_SUGGESTIONS, 'Template suggestions', self::CADENCE_WEEKLY, 90, 'templates:suggest'),
+            $this->layer(self::LAYER_NPO_FUNDER_DATABASE_UPDATES, 'NPO funder database updates', self::CADENCE_WEEKLY, 90, 'npo:funder-registry-learning', [
+                'module' => 'npo',
+                'surface' => 'funder_registry',
+                'governance_gate' => 'layer_34_admin_approval_required',
+                'direct_write_policy' => 'reject_or_flag_unapproved_registry_mutations',
+            ]),
+            $this->layer(self::LAYER_NPO_GOVERNANCE_COMPLIANCE_THRESHOLDS, 'NPO governance compliance thresholds', self::CADENCE_MONTHLY, 180, 'npo:governance-threshold-learning', [
+                'module' => 'npo',
+                'surface' => 'governance_compliance_thresholds',
+                'ingests' => ['governance_review_findings', 'conversion_declines'],
+                'backfill_source' => 'npo_engagements.conversion_decline_reason',
+            ]),
+            $this->layer(self::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS, 'NPO cost-per-beneficiary benchmarks', self::CADENCE_MONTHLY, 180, 'npo:cpb-benchmark-learning', [
+                'module' => 'npo',
+                'surface' => 'cost_per_beneficiary_benchmarks',
+                'min_sample_guard' => [
+                    'programmes_per_type' => 10,
+                    'engagements_per_size_band' => 5,
+                ],
+                'feeds' => ['npo_value_calculations.cost_per_beneficiary'],
+            ]),
+            $this->layer(self::LAYER_NPO_FUNDING_CONCENTRATION_THRESHOLDS, 'NPO funding concentration risk thresholds', self::CADENCE_MONTHLY, 180, 'npo:funding-risk-threshold-learning', [
+                'module' => 'npo',
+                'surface' => 'funding_concentration_thresholds',
+                'requires_full_data_justification' => true,
+                'default_thresholds' => [
+                    'high' => 40,
+                    'medium' => 25,
+                ],
+                'feeds' => ['npo_value_calculations.funding_risk'],
+            ]),
         ]);
     }
 
@@ -95,7 +136,7 @@ final class LayerCadenceRegistry
     /**
      * @return array<string, mixed>
      */
-    private function layer(int $id, string $name, string $cadence, int $windowDays, ?string $command = null): array
+    private function layer(int $id, string $name, string $cadence, int $windowDays, ?string $command = null, array $metadata = []): array
     {
         return [
             'id' => $id,
@@ -104,6 +145,7 @@ final class LayerCadenceRegistry
             'window_days' => $windowDays,
             'command' => $command,
             'governed_candidates_only' => true,
+            'metadata' => $metadata,
         ];
     }
 }

@@ -30,11 +30,11 @@ final class ActiveLayerEngineTest extends TestCase
         $states = $engine->activateAll(now());
         $runs = $engine->runDue(now());
 
-        $this->assertCount(33, $states);
-        $this->assertCount(33, $runs);
-        $this->assertSame(33, LearningLayerState::query()->where('active', true)->count());
-        $this->assertSame(33, LearningLayerRun::query()->where('candidates_created', 1)->count());
-        $this->assertSame(33, LearningUpdate::query()->where('status', LearningUpdate::STATUS_DETECTED)->count());
+        $this->assertCount(37, $states);
+        $this->assertCount(37, $runs);
+        $this->assertSame(37, LearningLayerState::query()->where('active', true)->count());
+        $this->assertSame(37, LearningLayerRun::query()->where('candidates_created', 1)->count());
+        $this->assertSame(37, LearningUpdate::query()->where('status', LearningUpdate::STATUS_DETECTED)->count());
         $this->assertSame(0, LearningUpdateImplementation::query()->count());
         $this->assertTrue(LearningUpdate::query()->get()->every(
             fn (LearningUpdate $update): bool => ($update->proposed_change['automatic_application'] ?? true) === false

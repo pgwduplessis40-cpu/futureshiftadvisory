@@ -73,6 +73,7 @@ final class LearningMonitorDashboard
                     'window_days' => $definition['window_days'],
                     'command' => $definition['command'],
                     'governed_candidates_only' => $definition['governed_candidates_only'],
+                    'metadata' => $definition['metadata'] ?? [],
                     'active' => $state instanceof LearningLayerState ? $state->active : false,
                     'next_due_at' => $state instanceof LearningLayerState ? $state->next_due_at?->toIso8601String() : null,
                     'min_sample' => $state instanceof LearningLayerState ? $state->min_sample : $definition['window_days'],
