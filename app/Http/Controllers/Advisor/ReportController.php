@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
+use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\NpoEngagement;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
@@ -29,10 +31,29 @@ final class ReportController extends Controller
         abort_unless($user instanceof User, 403);
 
         $validated = $request->validate([
-            'type' => ['required', Rule::in([ReportType::Client->value, ReportType::Advisor->value, ReportType::Stakeholder->value, ReportType::Trajectory->value])],
+            'type' => ['required', Rule::in([
+                ReportType::Client->value,
+                ReportType::Advisor->value,
+                ReportType::Stakeholder->value,
+                ReportType::Trajectory->value,
+                ReportType::GovernanceReview->value,
+            ])],
         ]);
 
-        $reports->compose($client, ReportType::from((string) $validated['type']), $user);
+        $type = ReportType::from((string) $validated['type']);
+        if ($type === ReportType::GovernanceReview) {
+            $engagement = NpoEngagement::query()
+                ->where('client_id', $client->getKey())
+                ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
+                ->latest()
+                ->first();
+
+            abort_unless($engagement instanceof NpoEngagement, 404);
+
+            $reports->composeGovernanceReview($engagement, $user);
+        } else {
+            $reports->compose($client, $type, $user);
+        }
 
         return to_route('advisor.clients.show', $client)->with('status', 'report-generated');
     }
