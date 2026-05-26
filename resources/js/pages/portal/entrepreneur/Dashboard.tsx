@@ -16,6 +16,13 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipProvider,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 type UploadedDocument = {
     id: string;
@@ -188,9 +195,11 @@ export default function EntrepreneurDashboard({
                             {profile?.name ?? 'Profile pending'}
                         </div>
                     </div>
-                    <Badge variant="secondary">
-                        {profile?.stage_label ?? 'Onboarding'}
-                    </Badge>
+                    <StatusBadge
+                        profile={profile}
+                        latestAssessment={latestAssessment}
+                        readiness={readiness}
+                    />
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">
@@ -512,6 +521,191 @@ export default function EntrepreneurDashboard({
             </div>
         </>
     );
+}
+
+function StatusBadge({
+    profile,
+    latestAssessment,
+    readiness,
+}: {
+    profile: EntrepreneurProfile;
+    latestAssessment: AssessmentLink | null;
+    readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'];
+}) {
+    const status = statusDetails(profile, latestAssessment, readiness);
+
+    return (
+        <TooltipProvider>
+            <Tooltip>
+                <TooltipTrigger asChild>
+                    <button
+                        type="button"
+                        className={cn(
+                            'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-medium shadow-xs outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                            status.className,
+                        )}
+                        aria-label={`${status.label}: ${status.summary}`}
+                    >
+                        <span
+                            className={cn(
+                                'size-2 rounded-full',
+                                status.dotClassName,
+                            )}
+                            aria-hidden="true"
+                        />
+                        {status.label}
+                    </button>
+                </TooltipTrigger>
+                <TooltipContent
+                    align="end"
+                    className="w-80 border bg-background p-3 text-left text-foreground shadow-lg"
+                    side="bottom"
+                >
+                    <div className="space-y-3">
+                        <div>
+                            <div className="text-sm font-medium">
+                                {status.summary}
+                            </div>
+                            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">
+                                {status.description}
+                            </p>
+                        </div>
+
+                        <div className="space-y-2">
+                            <div className="text-xs font-medium">
+                                Readiness scale
+                            </div>
+                            <div className="grid grid-cols-4 gap-1">
+                                {readinessScale.map((step) => (
+                                    <div key={step.label} className="space-y-1">
+                                        <div
+                                            className={cn(
+                                                'h-1.5 rounded-full',
+                                                step.barClassName,
+                                            )}
+                                        />
+                                        <div className="text-[10px] leading-tight text-muted-foreground">
+                                            {step.range}
+                                        </div>
+                                        <div className="text-[10px] leading-tight font-medium">
+                                            {step.label}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        </div>
+                    </div>
+                </TooltipContent>
+            </Tooltip>
+        </TooltipProvider>
+    );
+}
+
+const readinessScale = [
+    {
+        range: '0-59',
+        label: 'Needs work',
+        barClassName: 'bg-red-500',
+    },
+    {
+        range: '60-74',
+        label: 'Developing',
+        barClassName: 'bg-amber-500',
+    },
+    {
+        range: '75-89',
+        label: 'Ready',
+        barClassName: 'bg-emerald-500',
+    },
+    {
+        range: '90-100',
+        label: 'Exceptional',
+        barClassName: 'bg-sky-500',
+    },
+];
+
+function statusDetails(
+    profile: EntrepreneurProfile,
+    latestAssessment: AssessmentLink | null,
+    readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'],
+) {
+    const stageLabel = profile?.stage_label ?? 'Onboarding';
+    const threshold = readiness?.threshold ?? 75;
+    const score =
+        latestAssessment?.weighted_score ??
+        (typeof readiness?.score === 'number' ? readiness.score : null);
+
+    if (score !== null) {
+        if (score >= 90) {
+            return {
+                label: 'Exceptional',
+                summary: `Current readiness score: ${score.toFixed(1)}/100`,
+                description:
+                    'Your latest assessment is above the advisory-ready threshold with exceptional evidence strength. Your advisor can use this to move into advisory conversion or next-stage planning.',
+                className: 'border-sky-200 bg-sky-50 text-sky-800',
+                dotClassName: 'bg-sky-500',
+            };
+        }
+
+        if (score >= threshold) {
+            return {
+                label: 'Advisory ready',
+                summary: `Current readiness score: ${score.toFixed(1)}/100`,
+                description: `Your latest assessment is at or above the ${threshold.toFixed(0)}/100 advisory-ready threshold. This means the plan evidence is strong enough for advisor-led next steps.`,
+                className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+                dotClassName: 'bg-emerald-500',
+            };
+        }
+
+        if (score >= 60) {
+            return {
+                label: 'Developing',
+                summary: `Current readiness score: ${score.toFixed(1)}/100`,
+                description: `Your latest assessment is below the ${threshold.toFixed(0)}/100 advisory-ready threshold. The plan is progressing, but more evidence or revision is still needed.`,
+                className: 'border-amber-200 bg-amber-50 text-amber-800',
+                dotClassName: 'bg-amber-500',
+            };
+        }
+
+        return {
+            label: 'Needs work',
+            summary: `Current readiness score: ${score.toFixed(1)}/100`,
+            description: `Your latest assessment is below the ${threshold.toFixed(0)}/100 advisory-ready threshold. Focus on improving the plan evidence before this is treated as advisory ready.`,
+            className: 'border-red-200 bg-red-50 text-red-800',
+            dotClassName: 'bg-red-500',
+        };
+    }
+
+    if (profile?.stage === 'advisory_ready') {
+        return {
+            label: stageLabel,
+            summary: 'Your profile is marked advisory ready',
+            description:
+                'This status means the entrepreneur profile has been advanced to the advisor-ready stage. A score will appear here once assessment data is available.',
+            className: 'border-emerald-200 bg-emerald-50 text-emerald-800',
+            dotClassName: 'bg-emerald-500',
+        };
+    }
+
+    if (['submitted', 'assessment', 'revising'].includes(profile?.stage ?? '')) {
+        return {
+            label: stageLabel,
+            summary: 'Your plan is in review',
+            description:
+                'Your plan is being assessed or revised. The readiness colour will update when the latest score is available.',
+            className: 'border-amber-200 bg-amber-50 text-amber-800',
+            dotClassName: 'bg-amber-500',
+        };
+    }
+
+    return {
+        label: stageLabel,
+        summary: 'Your profile is in progress',
+        description:
+            'This status reflects your current entrepreneur journey stage. The readiness colour will update when assessment evidence is scored.',
+        className: 'border-slate-200 bg-slate-50 text-slate-700',
+        dotClassName: 'bg-slate-400',
+    };
 }
 
 function ActionPanel({
