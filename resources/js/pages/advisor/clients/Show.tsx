@@ -71,6 +71,7 @@ type ClientDetail = ClientSummary & {
     created_at: string | null;
     analysis_findings: AnalysisFindingFeedback[];
     due_diligence: DueDiligenceSummary | null;
+    npo_conversion: NpoConversionSummary | null;
 };
 
 type ConflictDeclaration = {
@@ -218,6 +219,21 @@ type DueDiligenceSummary = {
             latest_item_at: string | null;
         }>;
     };
+};
+
+type NpoConversionSummary = {
+    id: string;
+    client_id: string;
+    client_name: string | null;
+    status: string | null;
+    status_label: string | null;
+    decline_reason: string | null;
+    report_delivered_at: string | null;
+    reengagement_due_at: string | null;
+    next_nudge_day: number | null;
+    report_delivered_url: string;
+    decline_url: string;
+    convert_url: string;
 };
 
 type FinancialSnapshotSummary = {
@@ -625,6 +641,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 {client.due_diligence && (
                     <DueDiligenceTargetPanel payload={client.due_diligence} />
+                )}
+
+                {client.npo_conversion && (
+                    <NpoConversionPanel conversion={client.npo_conversion} />
                 )}
 
                 <KnowledgeAssessmentPanel client={client} />
@@ -1210,6 +1230,143 @@ function ProofUploadFormPanel({ milestone }: { milestone: MilestoneSummary }) {
                 </Button>
             </div>
         </form>
+    );
+}
+
+function NpoConversionPanel({
+    conversion,
+}: {
+    conversion: NpoConversionSummary;
+}) {
+    const reportDeliveredForm = useForm<Record<string, never>>({});
+    const declineForm = useForm<{ reason: string }>({
+        reason: conversion.decline_reason ?? '',
+    });
+    const convertForm = useForm<Record<string, never>>({});
+    const isConverted = conversion.status === 'converted';
+
+    const submitDecline = (event: FormEvent) => {
+        event.preventDefault();
+        declineForm.patch(conversion.decline_url, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <CalendarClock className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Governance Review conversion
+                    </h2>
+                    <Badge
+                        variant={
+                            conversion.status === 'declined'
+                                ? 'outline'
+                                : 'secondary'
+                        }
+                    >
+                        {conversion.status_label ??
+                            formatLabel(conversion.status ?? '')}
+                    </Badge>
+                    {conversion.next_nudge_day && (
+                        <Badge variant="destructive">
+                            {conversion.next_nudge_day}d nudge due
+                        </Badge>
+                    )}
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    Re-engagement {formatDate(conversion.reengagement_due_at)}
+                </div>
+            </div>
+
+            <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                <Detail
+                    label="Report delivered"
+                    value={formatDate(conversion.report_delivered_at)}
+                />
+                <Detail
+                    label="Next review"
+                    value={formatDate(conversion.reengagement_due_at)}
+                />
+                <Detail
+                    label="Follow-up"
+                    value={
+                        conversion.next_nudge_day
+                            ? `${conversion.next_nudge_day} days`
+                            : 'Current'
+                    }
+                />
+            </dl>
+
+            {conversion.decline_reason && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    {conversion.decline_reason}
+                </div>
+            )}
+
+            <div className="flex flex-wrap gap-2">
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={reportDeliveredForm.processing || isConverted}
+                    onClick={() =>
+                        reportDeliveredForm.patch(
+                            conversion.report_delivered_url,
+                            { preserveScroll: true },
+                        )
+                    }
+                >
+                    <FileText className="size-4" aria-hidden="true" />
+                    Report delivered
+                </Button>
+                <Button
+                    type="button"
+                    variant="outline"
+                    disabled={convertForm.processing || isConverted}
+                    onClick={() =>
+                        convertForm.patch(conversion.convert_url, {
+                            preserveScroll: true,
+                        })
+                    }
+                >
+                    <CheckCircle2 className="size-4" aria-hidden="true" />
+                    Convert
+                </Button>
+            </div>
+
+            {!isConverted && (
+                <form onSubmit={submitDecline} className="grid gap-3">
+                    <div className="grid gap-2">
+                        <Label htmlFor="npo_conversion_reason">
+                            Decline reason
+                        </Label>
+                        <textarea
+                            id="npo_conversion_reason"
+                            value={declineForm.data.reason}
+                            onChange={(event) =>
+                                declineForm.setData(
+                                    'reason',
+                                    event.target.value,
+                                )
+                            }
+                            rows={3}
+                            className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        />
+                        <InputError message={declineForm.errors.reason} />
+                    </div>
+                    <div>
+                        <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={declineForm.processing}
+                        >
+                            <Ban className="size-4" aria-hidden="true" />
+                            Save decline
+                        </Button>
+                    </div>
+                </form>
+            )}
+        </section>
     );
 }
 

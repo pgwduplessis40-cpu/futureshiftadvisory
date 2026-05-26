@@ -431,6 +431,27 @@ type CoachSignalsPayload = {
     }>;
 };
 
+type NpoPendingConversionsPayload = {
+    summary: {
+        total: number;
+        report_delivered: number;
+        declined: number;
+        nudge_due: number;
+    };
+    items: Array<{
+        id: string;
+        client_id: string;
+        client_name: string | null;
+        status: string | null;
+        status_label: string | null;
+        decline_reason: string | null;
+        report_delivered_at: string | null;
+        reengagement_due_at: string | null;
+        next_nudge_day: number | null;
+        client_url: string;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -446,6 +467,7 @@ type Props = {
     questionnaireOptimisation: QuestionnaireOptimisationPayload;
     wellbeingAnalytics: WellbeingAnalyticsPayload;
     coachSignals: CoachSignalsPayload;
+    npoPendingConversions: NpoPendingConversionsPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
 };
@@ -465,6 +487,7 @@ export default function AdvisorDashboard({
     questionnaireOptimisation,
     wellbeingAnalytics,
     coachSignals,
+    npoPendingConversions,
     scenarioPlanning,
     funnelAnalytics,
 }: Props) {
@@ -543,6 +566,7 @@ export default function AdvisorDashboard({
                 <div className="grid gap-4 xl:grid-cols-3">
                     <ProposalStatusPanel payload={proposalStatus} />
                     <PaymentStatusPanel payload={paymentStatus} />
+                    <NpoPendingConversions payload={npoPendingConversions} />
                     <ProspectInbox payload={prospectInbox} />
                     <EconomicIndicators payload={economicIndicators} />
                 </div>
@@ -749,6 +773,104 @@ function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
                             </InsightHoverCard>
                             <Button asChild size="sm" variant="outline">
                                 <Link href={payment.drill_url}>Open</Link>
+                            </Button>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function NpoPendingConversions({
+    payload,
+}: {
+    payload: NpoPendingConversionsPayload;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <Clock className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Pending conversion</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.total} total
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.nudge_due > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.nudge_due} nudge due
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+                <PortfolioMetric
+                    label="Delivered"
+                    value={payload.summary.report_delivered.toString()}
+                />
+                <PortfolioMetric
+                    label="Declined"
+                    value={payload.summary.declined.toString()}
+                />
+                <PortfolioMetric
+                    label="Due"
+                    value={payload.summary.nudge_due.toString()}
+                />
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No Governance Review conversions are pending.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={item.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                        >
+                            <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge
+                                        variant={
+                                            item.status === 'declined'
+                                                ? 'outline'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {item.status_label ??
+                                            formatLabel(item.status ?? '')}
+                                    </Badge>
+                                    {item.next_nudge_day && (
+                                        <Badge variant="destructive">
+                                            {item.next_nudge_day}d
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div className="truncate text-sm font-medium">
+                                    {item.client_name ?? 'Client'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    Delivered{' '}
+                                    {formatDate(item.report_delivered_at)} ·
+                                    re-engage{' '}
+                                    {formatDateOnly(item.reengagement_due_at)}
+                                </div>
+                                {item.decline_reason && (
+                                    <div className="line-clamp-2 text-xs text-muted-foreground">
+                                        {item.decline_reason}
+                                    </div>
+                                )}
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={item.client_url}>Open</Link>
                             </Button>
                         </article>
                     ))}

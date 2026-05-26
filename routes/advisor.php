@@ -19,6 +19,7 @@ use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
 use App\Http\Controllers\Advisor\MethodologyController;
+use App\Http\Controllers\Advisor\NpoConversionController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\PaymentController;
 use App\Http\Controllers\Advisor\ProposalController;
@@ -118,6 +119,16 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/call-logs', [VoiceNoteController::class, 'storeCallLog'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.call-logs.store');
+
+        Route::patch('npo-engagements/{npoEngagement}/conversion/report-delivered', [NpoConversionController::class, 'reportDelivered'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('npo-engagements.conversion.report-delivered');
+        Route::patch('npo-engagements/{npoEngagement}/conversion/decline', [NpoConversionController::class, 'decline'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('npo-engagements.conversion.decline');
+        Route::patch('npo-engagements/{npoEngagement}/conversion/convert', [NpoConversionController::class, 'convert'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('npo-engagements.conversion.convert');
 
         Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)

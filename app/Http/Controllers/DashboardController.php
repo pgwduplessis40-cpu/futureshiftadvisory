@@ -34,6 +34,7 @@ use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
+use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Panels\Coach\SignalDetector;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
@@ -64,6 +65,7 @@ final class DashboardController extends Controller
         QuestionnaireOptimisationLayer $questionnaireOptimisation,
         WellbeingTrendAnalytics $wellbeing,
         SignalDetector $coachSignals,
+        GovernanceReviewConversion $npoConversion,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -80,7 +82,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -607,6 +609,7 @@ final class DashboardController extends Controller
         QuestionnaireOptimisationLayer $questionnaireOptimisation,
         WellbeingTrendAnalytics $wellbeing,
         SignalDetector $coachSignals,
+        GovernanceReviewConversion $npoConversion,
     ): array {
         $clientIds = $this->visibleClientIds($user);
         $pvWaterfall = $pvWaterfalls->forClients($clientIds);
@@ -638,6 +641,7 @@ final class DashboardController extends Controller
                 ...$coachSignalsPayload,
                 'methodology_id' => 'coach.signal_mapping',
             ],
+            'npoPendingConversions' => $npoConversion->pendingPanel($user),
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
             'funnelAnalytics' => [
                 ...$funnelAnalytics,

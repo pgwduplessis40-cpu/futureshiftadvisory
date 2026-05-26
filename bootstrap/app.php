@@ -26,6 +26,7 @@ use App\Console\Commands\RunPlanQualityBenchmarks;
 use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\RunRatingPredictiveValidity;
 use App\Console\Commands\RunSharedIntelligenceLayer;
+use App\Console\Commands\SendGovernanceReviewConversionNudges;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -170,6 +171,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(SendReengagementReminders::class)
             ->dailyAt('09:30')
             ->name('fsa-offboarding-reengagement-reminders')
+            ->withoutOverlapping();
+
+        $schedule->command(SendGovernanceReviewConversionNudges::class)
+            ->dailyAt('09:45')
+            ->name('fsa-npo-governance-review-conversion-nudges')
             ->withoutOverlapping();
 
         $schedule->command(ExpireProposals::class)
