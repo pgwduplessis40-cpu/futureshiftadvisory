@@ -5,7 +5,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 **Last updated:** 2026-05-26
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
-**V2.4 Gap Closure:** **IN PROGRESS** (2/5, WO-121...WO-122 committed on `featureApp`; WO-123 next).
+**V2.4 Gap Closure:** **IN PROGRESS** (3/5, WO-121...WO-123 committed on `featureApp`; WO-124 next).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -13,14 +13,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **136 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (2, WO-121...WO-122) |
+| Work orders complete | **137 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (3, WO-121...WO-123) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | WO-123 - Advisor Knowledge Base AI-assisted capture |
+| Next work order | WO-124 - Calendar two-way sync |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **Methodology Registry focused baseline (2026-05-25):** Pint green on touched PHP; `MethodologyRegistryTest` 9 passed / 412 assertions; `MethodologyDriftGuardTest` 4 passed / 373 assertions; `MethodologyRouteTest` 2 passed / 24 assertions; `IntegrationHealthBanderTest` 1 passed / 5 assertions; `npm run types:check`, `npm run lint:check`, and `npm run format:check` green. DB-backed feature/full PHPUnit runs are blocked in this local checkout by PostgreSQL `futureshift_test` authentication (`fe_sendauth: no password supplied`); rerun the full suite once DB credentials are available. Phase 4 prior full green baseline remains **513 tests / 513 passed / 4080 assertions**. |
+| Verification status | **V2.4 gap closure focused baseline (2026-05-26):** WO-123 PHP syntax, Pint, advisor route list, `npm run types:check`, and focused ESLint are green. DB-backed feature PHPUnit remains blocked in this local checkout by PostgreSQL `futureshift_test` authentication (`fe_sendauth: no password supplied`); latest focused attempt was 14 tests / 14 errors before setup. Phase 4 prior full green baseline remains **513 tests / 513 passed / 4080 assertions**. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Methodology Registry Track
@@ -38,8 +38,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO | Status | Notes |
 |---|---|---|
 | WO-121 | `90cb645` Complete | Internal template library, governed AI suggestions, approval implementer, rollback to dormant draft, permissions, and advisor read-only UI. |
-| WO-122 | This commit | Existing portal offline PWA hardened with queued-client replay headers, DB idempotency ledger, request fingerprints, scanned upload replay, auth-flow JSON normalization, and explicit logout queue clearing. |
-| WO-123 | Next | Advisor knowledge-base AI-assisted capture via advisor-owned drafts, not the admin learning queue. |
+| WO-122 | `43446de` Complete | Existing portal offline PWA hardened with queued-client replay headers, DB idempotency ledger, request fingerprints, scanned upload replay, auth-flow JSON normalization, and explicit logout queue clearing. |
+| WO-123 | This commit | Advisor knowledge-base AI-assisted capture via advisor-owned drafts, not the admin learning queue. |
 
 ## Commit Log
 

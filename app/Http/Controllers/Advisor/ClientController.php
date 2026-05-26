@@ -202,6 +202,7 @@ final class ClientController extends Controller
                 'status_options' => ClientStatus::options(),
                 'lifecycle_update_url' => route('advisor.clients.lifecycle.update', $client, absolute: false),
                 'knowledge_assessment_store_url' => route('advisor.clients.knowledge-assessments.store', $client, absolute: false),
+                'knowledge_draft_store_url' => route('advisor.clients.knowledge-drafts.store', $client, absolute: false),
                 'latest_knowledge_assessment' => $this->latestKnowledgeAssessment($client),
                 'goal_store_url' => route('advisor.clients.goals.store', $client, absolute: false),
                 'goals' => $this->goals->dashboard($client, includeAdvisorActions: true),

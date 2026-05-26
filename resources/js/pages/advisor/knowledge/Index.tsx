@@ -1,14 +1,15 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { BookOpen, LibraryBig, Plus, Search } from 'lucide-react';
+import { BookOpen, LibraryBig, Plus, Search, Sparkles } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import type { KnowledgeEntrySummary } from './types';
+import type { KnowledgeDraftSummary, KnowledgeEntrySummary } from './types';
 
 type Props = {
     entries: KnowledgeEntrySummary[];
+    drafts: KnowledgeDraftSummary[];
     filters: {
         q: string;
     };
@@ -20,6 +21,7 @@ type Props = {
 
 export default function KnowledgeIndex({
     entries,
+    drafts,
     filters,
     canCreate,
     indexUrl,
@@ -74,6 +76,70 @@ export default function KnowledgeIndex({
                         )}
                     </div>
                 </div>
+
+                {drafts.length > 0 && (
+                    <section className="space-y-3">
+                        <div className="flex items-center gap-2 text-sm font-medium">
+                            <Sparkles className="size-4" aria-hidden="true" />
+                            AI drafts
+                        </div>
+                        <div className="grid gap-3">
+                            {drafts.map((draft) => (
+                                <article
+                                    key={draft.id}
+                                    className="rounded-md border bg-background p-4"
+                                >
+                                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                                        <div className="min-w-0">
+                                            <div className="flex flex-wrap items-center gap-2">
+                                                <Badge variant="secondary">
+                                                    {draft.category_label}
+                                                </Badge>
+                                                <Badge variant="outline">
+                                                    {draft.state}
+                                                </Badge>
+                                                {draft.client && (
+                                                    <Badge variant="outline">
+                                                        {
+                                                            draft.client
+                                                                .legal_name
+                                                        }
+                                                    </Badge>
+                                                )}
+                                            </div>
+                                            <h2 className="mt-3 text-base font-semibold">
+                                                <Link href={draft.review_url}>
+                                                    {draft.title}
+                                                </Link>
+                                            </h2>
+                                            <p className="mt-2 text-sm text-muted-foreground">
+                                                {draft.body_excerpt}
+                                            </p>
+                                        </div>
+                                        <Button asChild size="sm">
+                                            <Link href={draft.review_url}>
+                                                Review
+                                            </Link>
+                                        </Button>
+                                    </div>
+
+                                    {draft.tags.length > 0 && (
+                                        <div className="mt-3 flex flex-wrap gap-2">
+                                            {draft.tags.map((tag) => (
+                                                <Badge
+                                                    key={tag}
+                                                    variant="outline"
+                                                >
+                                                    {tag}
+                                                </Badge>
+                                            ))}
+                                        </div>
+                                    )}
+                                </article>
+                            ))}
+                        </div>
+                    </section>
+                )}
 
                 <form
                     onSubmit={submit}

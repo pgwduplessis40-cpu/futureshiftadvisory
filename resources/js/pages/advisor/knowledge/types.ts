@@ -34,6 +34,31 @@ export type KnowledgeEntryDetail = KnowledgeEntrySummary & {
     tags_string?: string;
 };
 
+export type KnowledgeDraftSummary = {
+    id: string;
+    title: string;
+    category: string;
+    category_label: string;
+    body_excerpt: string;
+    tags: string[];
+    client: {
+        id: string;
+        legal_name: string;
+    } | null;
+    state: string;
+    source_reference: string | null;
+    updated_at: string | null;
+    review_url: string;
+    discard_url: string;
+};
+
+export type KnowledgeDraftDetail = KnowledgeDraftSummary & {
+    client_id: string | null;
+    body: string;
+    tags_string?: string;
+    source_attribution: Record<string, unknown>;
+};
+
 export type KnowledgeFormData = {
     client_id: string;
     category: string;

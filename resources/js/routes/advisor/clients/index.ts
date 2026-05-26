@@ -2,6 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import offboarding from './offboarding'
 import lifecycle from './lifecycle'
 import knowledgeAssessments from './knowledge-assessments'
+import knowledgeDrafts from './knowledge-drafts'
 import goals from './goals'
 import proposals from './proposals'
 import reports from './reports'
@@ -491,6 +492,7 @@ store: Object.assign(store, store),
 offboarding: Object.assign(offboarding, offboarding),
 lifecycle: Object.assign(lifecycle, lifecycle),
 knowledgeAssessments: Object.assign(knowledgeAssessments, knowledgeAssessments),
+knowledgeDrafts: Object.assign(knowledgeDrafts, knowledgeDrafts),
 goals: Object.assign(goals, goals),
 proposals: Object.assign(proposals, proposals),
 reports: Object.assign(reports, reports),

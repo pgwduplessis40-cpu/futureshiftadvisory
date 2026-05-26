@@ -562,6 +562,33 @@ The unique key is `(user_id, client_id, operation, idempotency_key)`. RLS permit
 the owning user within their accessible client scope, plus `super_admin` and
 `system` contexts.
 
+## WO-123 - Advisor knowledge capture drafts
+
+### `knowledge_entry_drafts`
+
+Advisor-owned review queue for AI-assisted knowledge-base capture. Offboarding
+completion and the manual client action write pending drafts here; accepted
+drafts create a live `knowledge_entries` row and store its id. Pending and
+discarded drafts never appear in the live knowledge-entry index.
+
+Key columns:
+
+- `id` UUID primary key
+- `author_user_id`
+- `client_id` nullable
+- `source_type`, `source_id`, `source_reference`
+- `category`, `title`, `body`
+- `tags` JSONB
+- `source_attribution` JSONB
+- `state` (`pending`, `accepted`, `discarded`)
+- `accepted_entry_id` nullable link to `knowledge_entries`
+
+The unique source key is `(author_user_id, source_type, source_id)`, making
+capture idempotent per advisor/source. RLS mirrors `knowledge_entries`: advisors
+see only their own drafts, while `super_admin` and `system` contexts can see all
+rows. This is an advisor-draft governance model, not a `learning_updates`
+candidate or cadence-registry layer.
+
 ## WO-05 - Integration resilience layer
 
 ### `integration_calls`

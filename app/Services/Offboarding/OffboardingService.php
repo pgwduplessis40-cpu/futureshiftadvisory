@@ -15,6 +15,7 @@ use App\Notifications\ReengagementReminderNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Clients\AdvisorClientCapacity;
 use App\Services\Clients\LifecycleManager;
+use App\Services\Knowledge\KnowledgeCaptureService;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\SecureFileWriter;
 use Carbon\CarbonInterface;
@@ -33,6 +34,7 @@ final class OffboardingService
         private readonly PdfRenderer $renderer,
         private readonly SecureFileWriter $writer,
         private readonly LifecycleManager $lifecycle,
+        private readonly KnowledgeCaptureService $knowledgeCapture,
     ) {}
 
     /**
@@ -104,6 +106,7 @@ final class OffboardingService
             sendNotifications: false,
         );
         $this->notifyClient($record);
+        $this->knowledgeCapture->captureFromOffboarding($record, $leadAdvisor ?? $triggeredBy);
 
         return $record->refresh();
     }

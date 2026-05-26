@@ -7,8 +7,11 @@ namespace App\Http\Controllers\Advisor;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\KnowledgeEntry;
+use App\Models\KnowledgeEntryDraft;
+use App\Models\OffboardingRecord;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Knowledge\KnowledgeCaptureService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -21,7 +24,10 @@ use Inertia\Response;
 
 final class KnowledgeController extends Controller
 {
-    public function __construct(private readonly AuditWriter $auditWriter) {}
+    public function __construct(
+        private readonly AuditWriter $auditWriter,
+        private readonly KnowledgeCaptureService $capture,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -44,6 +50,16 @@ final class KnowledgeController extends Controller
                 ->limit(100)
                 ->get()
                 ->map(fn (KnowledgeEntry $entry): array => $this->entrySummary($entry))
+                ->values()
+                ->all(),
+            'drafts' => KnowledgeEntryDraft::query()
+                ->forAuthor($user)
+                ->pending()
+                ->with('client')
+                ->latest('updated_at')
+                ->limit(25)
+                ->get()
+                ->map(fn (KnowledgeEntryDraft $draft): array => $this->draftSummary($draft))
                 ->values()
                 ->all(),
             'filters' => ['q' => $search],
@@ -85,6 +101,61 @@ final class KnowledgeController extends Controller
         ]);
 
         return to_route('advisor.knowledge.show', $entry)->with('status', 'knowledge-entry-created');
+    }
+
+    public function draftFromClient(Request $request, Client $client): RedirectResponse
+    {
+        Gate::authorize('update', $client);
+        Gate::authorize('create', KnowledgeEntryDraft::class);
+
+        $user = $this->viewer($request);
+        $record = $client->offboardingRecords()
+            ->where('status', OffboardingRecord::STATUS_COMPLETED)
+            ->latest('triggered_at')
+            ->first();
+        abort_unless($record instanceof OffboardingRecord, 404, 'No completed offboarding record exists for this client.');
+
+        $draft = $this->capture->captureFromOffboarding($record, $user);
+        abort_unless($draft instanceof KnowledgeEntryDraft, 422, 'A knowledge draft could not be created for this engagement.');
+
+        return to_route('advisor.knowledge-drafts.review', $draft)->with('status', 'knowledge-draft-created');
+    }
+
+    public function reviewDraft(KnowledgeEntryDraft $knowledgeEntryDraft): Response
+    {
+        Gate::authorize('view', $knowledgeEntryDraft);
+
+        return Inertia::render('advisor/knowledge/DraftReview', [
+            'draft' => [
+                ...$this->draftSummary($knowledgeEntryDraft->loadMissing('client')),
+                'client_id' => $knowledgeEntryDraft->client_id,
+                'body' => $knowledgeEntryDraft->body,
+                'tags_string' => implode(', ', $knowledgeEntryDraft->tags ?? []),
+                'source_attribution' => $knowledgeEntryDraft->source_attribution ?? [],
+            ],
+            'categories' => KnowledgeEntry::categoryOptions(),
+            'clients' => $this->clientOptions(),
+            'acceptUrl' => route('advisor.knowledge-drafts.accept', $knowledgeEntryDraft, absolute: false),
+            'discardUrl' => route('advisor.knowledge-drafts.discard', $knowledgeEntryDraft, absolute: false),
+            'indexUrl' => route('advisor.knowledge.index', absolute: false),
+        ]);
+    }
+
+    public function acceptDraft(Request $request, KnowledgeEntryDraft $knowledgeEntryDraft): RedirectResponse
+    {
+        Gate::authorize('update', $knowledgeEntryDraft);
+        $user = $this->viewer($request);
+        $entry = $this->capture->accept($knowledgeEntryDraft, $user, $this->entryAttributes($this->validated($request)));
+
+        return to_route('advisor.knowledge.show', $entry)->with('status', 'knowledge-draft-accepted');
+    }
+
+    public function discardDraft(Request $request, KnowledgeEntryDraft $knowledgeEntryDraft): RedirectResponse
+    {
+        Gate::authorize('delete', $knowledgeEntryDraft);
+        $this->capture->discard($knowledgeEntryDraft, $this->viewer($request));
+
+        return to_route('advisor.knowledge.index')->with('status', 'knowledge-draft-discarded');
     }
 
     public function show(KnowledgeEntry $knowledgeEntry): Response
@@ -198,6 +269,29 @@ final class KnowledgeController extends Controller
             'updated_at' => $entry->updated_at?->toIso8601String(),
             'show_url' => route('advisor.knowledge.show', $entry, absolute: false),
             'edit_url' => route('advisor.knowledge.edit', $entry, absolute: false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function draftSummary(KnowledgeEntryDraft $draft): array
+    {
+        return [
+            'id' => $draft->id,
+            'title' => $draft->title,
+            'category' => $draft->category,
+            'category_label' => KnowledgeEntry::categoryLabel($draft->category),
+            'body_excerpt' => Str::limit(preg_replace('/\s+/', ' ', $draft->body) ?? $draft->body, 220),
+            'tags' => $draft->tags ?? [],
+            'client' => $draft->client instanceof Client
+                ? ['id' => $draft->client->id, 'legal_name' => $draft->client->legal_name]
+                : null,
+            'state' => $draft->state,
+            'source_reference' => $draft->source_reference,
+            'updated_at' => $draft->updated_at?->toIso8601String(),
+            'review_url' => route('advisor.knowledge-drafts.review', $draft, absolute: false),
+            'discard_url' => route('advisor.knowledge-drafts.discard', $draft, absolute: false),
         ];
     }
 

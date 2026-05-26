@@ -58,6 +58,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/knowledge-assessments', [KnowledgeAssessmentController::class, 'store'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.knowledge-assessments.store');
+        Route::post('clients/{client}/knowledge-drafts', [KnowledgeController::class, 'draftFromClient'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->name('clients.knowledge-drafts.store');
         Route::post('clients/{client}/goals', [GoalController::class, 'store'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.goals.store');
@@ -176,6 +179,18 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('knowledge', [KnowledgeController::class, 'store'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
             ->name('knowledge.store');
+        Route::get('knowledge-drafts/{knowledgeEntryDraft}/review', [KnowledgeController::class, 'reviewDraft'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
+            ->whereUuid('knowledgeEntryDraft')
+            ->name('knowledge-drafts.review');
+        Route::patch('knowledge-drafts/{knowledgeEntryDraft}/accept', [KnowledgeController::class, 'acceptDraft'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->whereUuid('knowledgeEntryDraft')
+            ->name('knowledge-drafts.accept');
+        Route::patch('knowledge-drafts/{knowledgeEntryDraft}/discard', [KnowledgeController::class, 'discardDraft'])
+            ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
+            ->whereUuid('knowledgeEntryDraft')
+            ->name('knowledge-drafts.discard');
         Route::get('knowledge/methodologies', [MethodologyController::class, 'index'])
             ->middleware('permission:'.Permission::KNOWLEDGE_VIEW->value)
             ->name('knowledge.methodologies.index');

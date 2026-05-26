@@ -46,6 +46,7 @@ type ClientDetail = ClientSummary & {
     status_options: StatusOption[];
     lifecycle_update_url: string;
     knowledge_assessment_store_url: string;
+    knowledge_draft_store_url: string;
     latest_knowledge_assessment: KnowledgeAssessmentSummary | null;
     goal_store_url: string;
     goals: GoalDashboard;
@@ -430,6 +431,18 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         );
     };
 
+    const createKnowledgeDraft = () => {
+        if (!client.offboarding) {
+            return;
+        }
+
+        router.post(
+            client.knowledge_draft_store_url,
+            {},
+            { preserveScroll: true },
+        );
+    };
+
     return (
         <>
             <Head title={client.legal_name} />
@@ -586,6 +599,22 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                 }
                             />
                         </dl>
+                        {client.offboarding && (
+                            <div className="flex justify-end">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={createKnowledgeDraft}
+                                >
+                                    <Brain
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Draft insight
+                                </Button>
+                            </div>
+                        )}
                     </section>
                 </div>
 
