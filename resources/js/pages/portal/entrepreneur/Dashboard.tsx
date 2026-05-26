@@ -185,7 +185,7 @@ export default function EntrepreneurDashboard({
         <>
             <Head title="Entrepreneur dashboard" />
 
-            <div className="space-y-6">
+            <div className="space-y-6 px-4 py-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
@@ -504,7 +504,9 @@ export default function EntrepreneurDashboard({
                                                     /100
                                                 </Badge>
                                                 <span className="text-xs text-muted-foreground">
-                                                    {criterion.weight.toFixed(1)}
+                                                    {criterion.weight.toFixed(
+                                                        1,
+                                                    )}
                                                     % weight,{' '}
                                                     {criterion.contribution.toFixed(
                                                         1,
@@ -541,7 +543,7 @@ function StatusBadge({
                     <button
                         type="button"
                         className={cn(
-                            'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-medium shadow-xs outline-none transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                            'inline-flex items-center gap-2 rounded-md border px-2.5 py-1 text-xs font-medium shadow-xs transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
                             status.className,
                         )}
                         aria-label={`${status.label}: ${status.summary}`}
@@ -687,7 +689,9 @@ function statusDetails(
         };
     }
 
-    if (['submitted', 'assessment', 'revising'].includes(profile?.stage ?? '')) {
+    if (
+        ['submitted', 'assessment', 'revising'].includes(profile?.stage ?? '')
+    ) {
         return {
             label: stageLabel,
             summary: 'Your plan is in review',

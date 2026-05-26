@@ -21,6 +21,10 @@ createInertiaApp({
                 return PublicLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name === 'portal/entrepreneur/Dashboard':
+                return AppLayout;
+            case name.startsWith('portal/messages/'):
+                return AppLayout;
             case name.startsWith('portal/'):
                 return PortalLayout;
             case name.startsWith('advisor/'):

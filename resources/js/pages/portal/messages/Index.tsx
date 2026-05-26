@@ -5,6 +5,7 @@ import type {
     SelectedThread,
     ThreadSummary,
 } from '@/components/messages/ThreadedMessaging';
+import { index } from '@/routes/portal/messages';
 
 type Props = {
     client: MessagingClient;
@@ -28,15 +29,26 @@ export default function PortalMessages({
     return (
         <>
             <Head title="Messages" />
-            <ThreadedMessaging
-                client={client}
-                threads={threads}
-                selectedThread={selectedThread}
-                createUrl={createUrl}
-                indexUrl={indexUrl}
-                backHref={backHref}
-                backLabel={backLabel}
-            />
+            <div className="px-4 py-6">
+                <ThreadedMessaging
+                    client={client}
+                    threads={threads}
+                    selectedThread={selectedThread}
+                    createUrl={createUrl}
+                    indexUrl={indexUrl}
+                    backHref={backHref}
+                    backLabel={backLabel}
+                />
+            </div>
         </>
     );
 }
+
+PortalMessages.layout = {
+    breadcrumbs: [
+        {
+            title: 'Messages',
+            href: index(),
+        },
+    ],
+};

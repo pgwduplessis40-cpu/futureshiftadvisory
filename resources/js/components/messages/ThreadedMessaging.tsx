@@ -356,9 +356,7 @@ function ThreadLink({
             aria-current={active ? 'page' : undefined}
             className={cn(
                 'grid gap-2 rounded-md border p-3 text-sm transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                active
-                    ? 'border-[var(--fs-admiralty)] bg-[var(--fs-linen)]'
-                    : 'hover:bg-muted/60',
+                active ? 'border-primary/30 bg-muted/60' : 'hover:bg-muted/60',
             )}
         >
             <div className="flex items-start justify-between gap-3">
@@ -380,7 +378,7 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
         <article
             className={cn(
                 'max-w-[min(42rem,88%)] rounded-md border p-3',
-                message.mine ? 'ml-auto bg-[var(--fs-linen)]' : 'bg-background',
+                message.mine ? 'ml-auto bg-muted/60' : 'bg-background',
             )}
         >
             <div className="flex flex-wrap items-center justify-between gap-2">
