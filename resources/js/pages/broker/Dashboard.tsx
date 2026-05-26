@@ -12,7 +12,7 @@ import {
     UsersRound,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { ComponentType } from 'react';
+import type { ComponentType, MouseEvent, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -36,6 +36,7 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 import { dashboard as dashboardRoute } from '@/routes';
 
 type BrokerDashboardPayload = {
@@ -125,6 +126,32 @@ export default function BrokerDashboard({ dashboard }: Props) {
     const [processingAction, setProcessingAction] = useState<string | null>(
         null,
     );
+    const [highlightedSection, setHighlightedSection] = useState<string | null>(
+        null,
+    );
+
+    const jumpToSection = (
+        sectionId: string,
+        event?: MouseEvent<HTMLAnchorElement>,
+    ) => {
+        event?.preventDefault();
+
+        const section = document.getElementById(sectionId);
+
+        if (!section) {
+            return;
+        }
+
+        section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        section.focus({ preventScroll: true });
+        window.history.replaceState(null, '', `#${sectionId}`);
+        setHighlightedSection(sectionId);
+        window.setTimeout(() => {
+            setHighlightedSection((current) =>
+                current === sectionId ? null : current,
+            );
+        }, 1800);
+    };
 
     const updateReferralStage = (
         referral: ReferralSummary,
@@ -169,18 +196,18 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 />
                             </>
                         ) : null}
-                        <Button variant="outline" size="sm" asChild>
-                            <a href="#broker-referrals">
-                                Referrals
-                                <ArrowUpRight aria-hidden="true" />
-                            </a>
-                        </Button>
-                        <Button variant="outline" size="sm" asChild>
-                            <a href="#broker-agreement">
-                                Agreement
-                                <ArrowUpRight aria-hidden="true" />
-                            </a>
-                        </Button>
+                        <SectionShortcut
+                            sectionId="broker-referrals"
+                            onJump={jumpToSection}
+                        >
+                            Referrals
+                        </SectionShortcut>
+                        <SectionShortcut
+                            sectionId="broker-agreement"
+                            onJump={jumpToSection}
+                        >
+                            Agreement
+                        </SectionShortcut>
                         <Button variant="outline" size="sm" asChild>
                             <Link href="/notifications">
                                 Notifications
@@ -211,6 +238,7 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 explanation="Active referrals are broker introductions that still need acknowledgement, quote progress, cover placement, or closure."
                                 href="#broker-referrals"
                                 actionLabel="Review"
+                                onJump={jumpToSection}
                             />
                             <MetricCard
                                 icon={ClipboardCheck}
@@ -220,6 +248,7 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 explanation="Cover placed counts broker referrals that have reached a successful insurance placement outcome."
                                 href="#broker-referrals"
                                 actionLabel="View"
+                                onJump={jumpToSection}
                             />
                             <MetricCard
                                 icon={UsersRound}
@@ -229,6 +258,7 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 explanation="Reverse referrals are prospects or opportunities you have sent back to Future Shift Advisory for follow-up."
                                 href="#broker-reverse-referrals"
                                 actionLabel="Open"
+                                onJump={jumpToSection}
                             />
                             <MetricCard
                                 icon={ShieldCheck}
@@ -242,6 +272,7 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 explanation="FSP status reflects the latest registration verification that Future Shift Advisory has recorded for your broker panel profile."
                                 href="#broker-profile"
                                 actionLabel="Details"
+                                onJump={jumpToSection}
                             />
                         </section>
 
@@ -250,21 +281,67 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 referrals={dashboard.referrals}
                                 processingAction={processingAction}
                                 onStageAction={updateReferralStage}
+                                highlighted={
+                                    highlightedSection === 'broker-referrals'
+                                }
                             />
-                            <BrokerProfile panel={panel} />
+                            <BrokerProfile
+                                panel={panel}
+                                highlighted={
+                                    highlightedSection === 'broker-profile'
+                                }
+                            />
                         </section>
 
                         <section className="grid gap-4 xl:grid-cols-3">
-                            <AgreementPanel agreement={dashboard.agreement} />
+                            <AgreementPanel
+                                agreement={dashboard.agreement}
+                                highlighted={
+                                    highlightedSection === 'broker-agreement'
+                                }
+                            />
                             <MessagePanel messages={dashboard.messages} />
                             <ReverseReferralPanel
                                 referrals={dashboard.reverseReferrals}
+                                highlighted={
+                                    highlightedSection ===
+                                    'broker-reverse-referrals'
+                                }
                             />
                         </section>
                     </>
                 )}
             </main>
         </>
+    );
+}
+
+function SectionShortcut({
+    children,
+    sectionId,
+    onJump,
+}: {
+    children: ReactNode;
+    sectionId: string;
+    onJump: (sectionId: string, event?: MouseEvent<HTMLAnchorElement>) => void;
+}) {
+    return (
+        <Button variant="outline" size="sm" asChild>
+            <a
+                href={`#${sectionId}`}
+                onClick={(event) => onJump(sectionId, event)}
+            >
+                {children}
+                <ArrowUpRight aria-hidden="true" />
+            </a>
+        </Button>
+    );
+}
+
+function sectionCardClass(highlighted: boolean) {
+    return cn(
+        'scroll-mt-6 rounded-lg transition-[box-shadow,background-color] outline-none',
+        highlighted && 'bg-primary/5 ring-2 ring-primary/40',
     );
 }
 
@@ -285,6 +362,7 @@ function MetricCard({
     explanation,
     href,
     actionLabel,
+    onJump,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     label: string;
@@ -293,6 +371,7 @@ function MetricCard({
     explanation: string;
     href?: string;
     actionLabel?: string;
+    onJump?: (sectionId: string, event?: MouseEvent<HTMLAnchorElement>) => void;
 }) {
     return (
         <Tooltip>
@@ -314,7 +393,14 @@ function MetricCard({
                         </p>
                         {href && actionLabel ? (
                             <Button variant="ghost" size="sm" asChild>
-                                <a href={href}>
+                                <a
+                                    href={href}
+                                    onClick={(event) => {
+                                        if (href.startsWith('#')) {
+                                            onJump?.(href.slice(1), event);
+                                        }
+                                    }}
+                                >
                                     {actionLabel}
                                     <ArrowUpRight aria-hidden="true" />
                                 </a>
@@ -334,13 +420,19 @@ function ReferralPipeline({
     referrals,
     processingAction,
     onStageAction,
+    highlighted,
 }: {
     referrals: ReferralSummary[];
     processingAction: string | null;
     onStageAction: (referral: ReferralSummary, action: ReferralAction) => void;
+    highlighted: boolean;
 }) {
     return (
-        <Card id="broker-referrals" className="rounded-lg">
+        <Card
+            id="broker-referrals"
+            tabIndex={-1}
+            className={sectionCardClass(highlighted)}
+        >
             <CardHeader>
                 <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                     <div>
@@ -444,9 +536,19 @@ function ReferralPipeline({
     );
 }
 
-function BrokerProfile({ panel }: { panel: PanelSummary }) {
+function BrokerProfile({
+    panel,
+    highlighted,
+}: {
+    panel: PanelSummary;
+    highlighted: boolean;
+}) {
     return (
-        <Card id="broker-profile" className="rounded-lg">
+        <Card
+            id="broker-profile"
+            tabIndex={-1}
+            className={sectionCardClass(highlighted)}
+        >
             <CardHeader>
                 <CardTitle>Broker profile</CardTitle>
                 <CardDescription>{panel.email}</CardDescription>
@@ -471,9 +573,19 @@ function BrokerProfile({ panel }: { panel: PanelSummary }) {
     );
 }
 
-function AgreementPanel({ agreement }: { agreement: AgreementSummary | null }) {
+function AgreementPanel({
+    agreement,
+    highlighted,
+}: {
+    agreement: AgreementSummary | null;
+    highlighted: boolean;
+}) {
     return (
-        <Card id="broker-agreement" className="rounded-lg">
+        <Card
+            id="broker-agreement"
+            tabIndex={-1}
+            className={sectionCardClass(highlighted)}
+        >
             <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                     <CardTitle>Panel agreement</CardTitle>
@@ -568,11 +680,17 @@ function MessagePanel({ messages }: { messages: MessageSummary[] }) {
 
 function ReverseReferralPanel({
     referrals,
+    highlighted,
 }: {
     referrals: ReverseReferralSummary[];
+    highlighted: boolean;
 }) {
     return (
-        <Card id="broker-reverse-referrals" className="rounded-lg">
+        <Card
+            id="broker-reverse-referrals"
+            tabIndex={-1}
+            className={sectionCardClass(highlighted)}
+        >
             <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                     <CardTitle>Reverse referrals</CardTitle>
