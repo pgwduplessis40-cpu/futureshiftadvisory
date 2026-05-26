@@ -23,13 +23,15 @@ final class ComplianceChecker implements AnalysisModule
 {
     public const PROMPT_ID = 'analysis.compliance';
 
+    public const HOLIDAYS_ACT = 'Holidays Act 2003';
+
     /**
      * @var array<string, string>
      */
     private array $statutes = [
         'era' => 'Employment Relations Act 2000',
         'hswa' => 'Health and Safety at Work Act 2015',
-        'holidays' => 'Holidays Act 2003',
+        'holidays' => self::HOLIDAYS_ACT,
         'privacy' => 'Privacy Act 2020',
         'companies' => 'Companies Act 1993',
     ];

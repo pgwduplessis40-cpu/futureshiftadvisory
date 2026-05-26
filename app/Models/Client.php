@@ -247,6 +247,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<GovernanceReviewFinding>
+     */
+    public function governanceReviewFindings(): HasMany
+    {
+        return $this->hasMany(GovernanceReviewFinding::class);
+    }
+
+    /**
      * @return HasMany<CoachReferralAuthorisation>
      */
     public function coachReferralAuthorisations(): HasMany

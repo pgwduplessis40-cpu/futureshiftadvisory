@@ -94,6 +94,13 @@ final class PromptRegistry
         );
 
         $this->register(
+            id: 'npo.governance_review.analysis',
+            version: '2026-05-wo-n04',
+            body: 'Assess NPO governance evidence against the legal-structure-specific criteria supplied in the input. Return source-attributed findings only, disclose uncertainty where evidence is thin, avoid score inflation, and keep all outputs pending advisor review.',
+            task: 'analyse',
+        );
+
+        $this->register(
             id: 'analysis.dd_workstream',
             version: '2026-05-wo77',
             body: 'Analyse one due diligence workstream using the DD data-room evidence, double-weight verified document support, and New Zealand register/compliance checks. Return evidence-based findings only and cite every factual claim.',
