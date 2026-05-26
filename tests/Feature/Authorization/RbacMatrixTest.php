@@ -59,6 +59,7 @@ final class RbacMatrixTest extends TestCase
             FsaPermission::PAYMENTS_MANAGE,
             FsaPermission::REFERRALS_SEND,
             FsaPermission::LEARNING_UPDATES_APPROVE,
+            FsaPermission::TEMPLATE_MANAGE,
         ];
 
         foreach ($restrictedPermissions as $permission) {

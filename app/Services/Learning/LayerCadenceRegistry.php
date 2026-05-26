@@ -56,6 +56,7 @@ final class LayerCadenceRegistry
             $this->layer(30, 'Document expiry pattern review', self::CADENCE_DAILY, 60),
             $this->layer(31, 'Communication preference review', self::CADENCE_WEEKLY, 90),
             $this->layer(32, 'Terms comprehension feedback', self::CADENCE_MONTHLY, 180),
+            $this->layer(33, 'Template suggestions', self::CADENCE_WEEKLY, 90, 'templates:suggest'),
         ]);
     }
 

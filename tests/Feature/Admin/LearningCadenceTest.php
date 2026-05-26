@@ -20,15 +20,17 @@ final class LearningCadenceTest extends TestCase
 {
     use RefreshDatabase;
 
-    public function test_registry_contains_thirty_two_layers_with_expected_cadences(): void
+    public function test_registry_contains_thirty_three_layers_with_expected_cadences(): void
     {
         $registry = app(LayerCadenceRegistry::class);
         $definitions = $registry->definitions();
 
-        $this->assertCount(32, $definitions);
+        $this->assertCount(33, $definitions);
         $this->assertSame(LayerCadenceRegistry::CADENCE_DAILY, $registry->definition(3)['cadence']);
         $this->assertSame(LayerCadenceRegistry::CADENCE_DAILY, $registry->definition(12)['cadence']);
         $this->assertSame(LayerCadenceRegistry::CADENCE_MONTHLY, $registry->definition(15)['cadence']);
+        $this->assertSame(LayerCadenceRegistry::CADENCE_WEEKLY, $registry->definition(33)['cadence']);
+        $this->assertSame('templates:suggest', $registry->definition(33)['command']);
         $this->assertTrue($definitions->every(fn (array $definition): bool => $definition['governed_candidates_only'] === true));
     }
 
@@ -38,8 +40,8 @@ final class LearningCadenceTest extends TestCase
 
         $runs = app(LayerCadenceRunner::class)->recordDueRuns(now());
 
-        $this->assertCount(32, $runs);
-        $this->assertSame(32, LearningLayerRun::query()->count());
+        $this->assertCount(33, $runs);
+        $this->assertSame(33, LearningLayerRun::query()->count());
         $this->assertDatabaseHas('learning_layer_runs', [
             'layer_id' => 1,
             'status' => LearningLayerRun::STATUS_COMPLETED,
@@ -59,9 +61,9 @@ final class LearningCadenceTest extends TestCase
         $noneDue = app(LayerCadenceRunner::class)->recordDueRuns(now()->addMinutes(30));
         $forced = app(LayerCadenceRunner::class)->recordDueRuns(now()->addMinutes(30), [29]);
 
-        $this->assertCount(31, $noneDue);
+        $this->assertCount(32, $noneDue);
         $this->assertCount(1, $forced);
-        $this->assertSame(33, LearningLayerRun::query()->where('layer_id', 29)->orWhere('layer_id', '<>', 29)->count());
+        $this->assertSame(34, LearningLayerRun::query()->where('layer_id', 29)->orWhere('layer_id', '<>', 29)->count());
     }
 
     public function test_monitor_dashboard_shows_queue_and_history(): void
@@ -88,7 +90,7 @@ final class LearningCadenceTest extends TestCase
 
         $dashboard = app(LearningMonitorDashboard::class)->dashboard();
 
-        $this->assertSame(32, $dashboard['summary']['registered_layers']);
+        $this->assertSame(33, $dashboard['summary']['registered_layers']);
         $this->assertSame(1, $dashboard['summary']['queued_candidates']);
         $this->assertSame(1, $dashboard['summary']['recent_runs']);
         $this->assertSame(16, $dashboard['recent_runs'][0]['layer_id']);
@@ -113,7 +115,7 @@ final class LearningCadenceTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/learning/Index')
-                ->where('monitor.summary.registered_layers', 32)
+                ->where('monitor.summary.registered_layers', 33)
                 ->where('monitor.recent_runs.0.layer_id', 12),
             );
     }

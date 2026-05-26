@@ -25,6 +25,7 @@ use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
+use App\Http\Controllers\Advisor\TemplateController;
 use App\Http\Controllers\Advisor\TestimonialController;
 use App\Http\Controllers\Advisor\VoiceNoteController;
 use Illuminate\Support\Facades\Route;
@@ -198,6 +199,21 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::KNOWLEDGE_MANAGE->value)
             ->whereUuid('knowledgeEntry')
             ->name('knowledge.destroy');
+
+        Route::get('templates', [TemplateController::class, 'index'])
+            ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
+            ->name('templates.index');
+        Route::post('templates', [TemplateController::class, 'store'])
+            ->middleware('permission:'.Permission::TEMPLATE_MANAGE->value)
+            ->name('templates.store');
+        Route::get('templates/{template}', [TemplateController::class, 'show'])
+            ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
+            ->whereUuid('template')
+            ->name('templates.show');
+        Route::patch('templates/{template}', [TemplateController::class, 'update'])
+            ->middleware('permission:'.Permission::TEMPLATE_MANAGE->value)
+            ->whereUuid('template')
+            ->name('templates.update');
 
         Route::get('prospects', [ProspectInboxController::class, 'index'])
             ->middleware('permission:'.Permission::PROSPECTS_VIEW->value)

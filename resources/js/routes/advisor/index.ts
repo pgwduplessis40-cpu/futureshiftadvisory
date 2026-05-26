@@ -8,6 +8,7 @@ import industryBriefings from './industry-briefings'
 import preMeetingBriefs from './pre-meeting-briefs'
 import entrepreneurs from './entrepreneurs'
 import knowledge from './knowledge'
+import templates from './templates'
 import prospects from './prospects'
 import documentVerifications from './document-verifications'
 import redFlags from './red-flags'
@@ -25,6 +26,7 @@ industryBriefings: Object.assign(industryBriefings, industryBriefings),
 preMeetingBriefs: Object.assign(preMeetingBriefs, preMeetingBriefs),
 entrepreneurs: Object.assign(entrepreneurs, entrepreneurs),
 knowledge: Object.assign(knowledge, knowledge),
+templates: Object.assign(templates, templates),
 prospects: Object.assign(prospects, prospects),
 documentVerifications: Object.assign(documentVerifications, documentVerifications),
 redFlags: Object.assign(redFlags, redFlags),

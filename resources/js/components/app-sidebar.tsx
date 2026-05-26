@@ -4,6 +4,7 @@ import {
     BookOpen,
     BriefcaseBusiness,
     ClipboardList,
+    FileText,
     FolderGit2,
     Inbox,
     LayoutGrid,
@@ -46,6 +47,11 @@ const mainNavItems: NavItem[] = [
         title: 'Knowledge',
         href: '/advisor/knowledge',
         icon: BookOpen,
+    },
+    {
+        title: 'Templates',
+        href: '/advisor/templates',
+        icon: FileText,
     },
     {
         title: 'Prospects',

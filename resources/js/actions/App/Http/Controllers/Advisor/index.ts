@@ -17,6 +17,7 @@ import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
 import KnowledgeController from './KnowledgeController'
 import MethodologyController from './MethodologyController'
+import TemplateController from './TemplateController'
 import ProspectInboxController from './ProspectInboxController'
 import DocumentVerificationController from './DocumentVerificationController'
 import RedFlagController from './RedFlagController'
@@ -42,6 +43,7 @@ BriefingController: Object.assign(BriefingController, BriefingController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
 KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 MethodologyController: Object.assign(MethodologyController, MethodologyController),
+TemplateController: Object.assign(TemplateController, TemplateController),
 ProspectInboxController: Object.assign(ProspectInboxController, ProspectInboxController),
 DocumentVerificationController: Object.assign(DocumentVerificationController, DocumentVerificationController),
 RedFlagController: Object.assign(RedFlagController, RedFlagController),

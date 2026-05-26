@@ -28,6 +28,8 @@ enum Permission: string
     case KNOWLEDGE_VIEW = 'knowledge.view';
     case KNOWLEDGE_MANAGE = 'knowledge.manage';
     case KNOWLEDGE_PUBLISH = 'knowledge.publish';
+    case TEMPLATE_VIEW = 'template.view';
+    case TEMPLATE_MANAGE = 'template.manage';
     case PROSPECTS_VIEW = 'prospects.view';
     case PROSPECTS_TRIAGE = 'prospects.triage';
     case TERMS_VIEW = 'terms.view';
@@ -83,6 +85,7 @@ enum Permission: string
                 self::KNOWLEDGE_VIEW,
                 self::KNOWLEDGE_MANAGE,
                 self::KNOWLEDGE_PUBLISH,
+                self::TEMPLATE_VIEW,
                 self::PROSPECTS_VIEW,
                 self::PROSPECTS_TRIAGE,
                 self::TERMS_VIEW,
@@ -105,6 +108,7 @@ enum Permission: string
                 self::QUESTIONNAIRES_DRAFT,
                 self::NOTIFICATIONS_VIEW,
                 self::KNOWLEDGE_VIEW,
+                self::TEMPLATE_VIEW,
                 self::PROSPECTS_VIEW,
                 self::TERMS_VIEW,
                 self::REPORTS_VIEW,
@@ -119,6 +123,7 @@ enum Permission: string
                 self::QUESTIONNAIRES_DRAFT,
                 self::NOTIFICATIONS_VIEW,
                 self::KNOWLEDGE_VIEW,
+                self::TEMPLATE_VIEW,
                 self::TERMS_VIEW,
                 self::REPORTS_VIEW,
                 self::ENTREPRENEURS_VIEW,
