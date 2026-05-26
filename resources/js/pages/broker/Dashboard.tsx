@@ -1,0 +1,561 @@
+import { Head, Link } from '@inertiajs/react';
+import {
+    ArrowUpRight,
+    BadgeCheck,
+    BriefcaseBusiness,
+    ClipboardCheck,
+    FileSignature,
+    MessageSquare,
+    ShieldCheck,
+    UsersRound,
+} from 'lucide-react';
+import type { ComponentType } from 'react';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Card,
+    CardContent,
+    CardDescription,
+    CardHeader,
+    CardTitle,
+} from '@/components/ui/card';
+import { dashboard as dashboardRoute } from '@/routes';
+
+type BrokerDashboardPayload = {
+    panel: PanelSummary | null;
+    summary: {
+        totalReferrals: number;
+        activeReferrals: number;
+        coverPlaced: number;
+        reverseReferrals: number;
+    };
+    stageCounts: Record<string, number>;
+    referrals: ReferralSummary[];
+    messages: MessageSummary[];
+    reverseReferrals: ReverseReferralSummary[];
+    agreement: AgreementSummary | null;
+};
+
+type PanelSummary = {
+    id: string;
+    name: string;
+    email: string;
+    company: string;
+    status: string;
+    fspNumber: string | null;
+    fspStatus: string | null;
+    fspLastCheckedAt: string | null;
+    regions: string[];
+    specialties: string[];
+    approvedAt: string | null;
+    suspendedAt: string | null;
+};
+
+type ReferralSummary = {
+    id: string;
+    clientName: string;
+    clientContact: string | null;
+    referralType: string;
+    stage: string;
+    reason: string | null;
+    sentAt: string | null;
+    closedAt: string | null;
+    latestMessage: {
+        body: string;
+        sentAt: string | null;
+    } | null;
+};
+
+type MessageSummary = {
+    id: string;
+    body: string;
+    clientName: string;
+    stage: string | null;
+    sentAt: string | null;
+};
+
+type ReverseReferralSummary = {
+    id: string;
+    targetType: string;
+    name: string;
+    company: string | null;
+    email: string;
+    submittedAt: string | null;
+};
+
+type AgreementSummary = {
+    status: string;
+    generatedAt: string | null;
+    signedAt: string | null;
+    pdfByteSize: number | null;
+    hasStoredPdf: boolean;
+};
+
+type Props = {
+    dashboard: BrokerDashboardPayload;
+};
+
+export default function BrokerDashboard({ dashboard }: Props) {
+    const panel = dashboard.panel;
+
+    return (
+        <>
+            <Head title="Broker dashboard" />
+            <main className="flex-1 space-y-6 p-6">
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <h1 className="text-2xl font-semibold tracking-normal">
+                            Broker dashboard
+                        </h1>
+                        <p className="text-sm text-muted-foreground">
+                            {panel?.company ?? 'Panel access'}
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        {panel ? (
+                            <>
+                                <StatusBadge status={panel.status} />
+                                <FspBadge status={panel.fspStatus} />
+                            </>
+                        ) : null}
+                        <Button variant="outline" size="sm" asChild>
+                            <Link href="/notifications">
+                                Notifications
+                                <ArrowUpRight aria-hidden="true" />
+                            </Link>
+                        </Button>
+                    </div>
+                </div>
+
+                {!panel ? (
+                    <Card className="rounded-lg">
+                        <CardHeader>
+                            <CardTitle>Panel setup pending</CardTitle>
+                            <CardDescription>
+                                No broker panel profile is linked to this
+                                account yet.
+                            </CardDescription>
+                        </CardHeader>
+                    </Card>
+                ) : (
+                    <>
+                        <section className="grid gap-4 md:grid-cols-4">
+                            <MetricCard
+                                icon={BriefcaseBusiness}
+                                label="Active referrals"
+                                value={dashboard.summary.activeReferrals}
+                                detail={`${dashboard.summary.totalReferrals} total`}
+                            />
+                            <MetricCard
+                                icon={ClipboardCheck}
+                                label="Cover placed"
+                                value={dashboard.summary.coverPlaced}
+                                detail="Completed broker outcomes"
+                            />
+                            <MetricCard
+                                icon={UsersRound}
+                                label="Reverse referrals"
+                                value={dashboard.summary.reverseReferrals}
+                                detail="Submitted to FSA"
+                            />
+                            <MetricCard
+                                icon={ShieldCheck}
+                                label="FSP status"
+                                value={labelFor(panel.fspStatus ?? 'unknown')}
+                                detail={
+                                    panel.fspLastCheckedAt
+                                        ? `Checked ${formatDate(panel.fspLastCheckedAt)}`
+                                        : 'Not checked yet'
+                                }
+                            />
+                        </section>
+
+                        <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+                            <ReferralPipeline referrals={dashboard.referrals} />
+                            <BrokerProfile panel={panel} />
+                        </section>
+
+                        <section className="grid gap-4 xl:grid-cols-3">
+                            <AgreementPanel agreement={dashboard.agreement} />
+                            <MessagePanel messages={dashboard.messages} />
+                            <ReverseReferralPanel
+                                referrals={dashboard.reverseReferrals}
+                            />
+                        </section>
+                    </>
+                )}
+            </main>
+        </>
+    );
+}
+
+BrokerDashboard.layout = {
+    breadcrumbs: [
+        {
+            title: 'Dashboard',
+            href: dashboardRoute(),
+        },
+    ],
+};
+
+function MetricCard({
+    icon: Icon,
+    label,
+    value,
+    detail,
+}: {
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+    label: string;
+    value: string | number;
+    detail: string;
+}) {
+    return (
+        <Card className="rounded-lg">
+            <CardHeader className="gap-3">
+                <div className="flex items-center justify-between gap-3">
+                    <CardDescription>{label}</CardDescription>
+                    <Icon
+                        className="size-4 text-muted-foreground"
+                        aria-hidden={true}
+                    />
+                </div>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+            <CardContent>
+                <p className="text-sm text-muted-foreground">{detail}</p>
+            </CardContent>
+        </Card>
+    );
+}
+
+function ReferralPipeline({ referrals }: { referrals: ReferralSummary[] }) {
+    return (
+        <Card className="rounded-lg">
+            <CardHeader>
+                <CardTitle>Referral pipeline</CardTitle>
+                <CardDescription>
+                    Current client referrals assigned to your broker panel.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {referrals.length === 0 ? (
+                    <EmptyState text="No broker referrals assigned yet." />
+                ) : (
+                    referrals.map((referral) => (
+                        <article
+                            key={referral.id}
+                            className="rounded-lg border p-4"
+                        >
+                            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                                <div className="min-w-0 space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h2 className="font-medium">
+                                            {referral.clientName}
+                                        </h2>
+                                        <StageBadge stage={referral.stage} />
+                                    </div>
+                                    <p className="text-sm text-muted-foreground">
+                                        {referral.reason ??
+                                            labelFor(referral.referralType)}
+                                    </p>
+                                    {referral.clientContact ? (
+                                        <p className="text-sm">
+                                            {referral.clientContact}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="text-sm text-muted-foreground">
+                                    {referral.sentAt
+                                        ? formatDate(referral.sentAt)
+                                        : 'Not sent'}
+                                </div>
+                            </div>
+                            {referral.latestMessage ? (
+                                <div className="mt-4 rounded-lg bg-muted/50 p-3 text-sm">
+                                    <p>{referral.latestMessage.body}</p>
+                                    <p className="mt-2 text-xs text-muted-foreground">
+                                        {referral.latestMessage.sentAt
+                                            ? formatDate(
+                                                  referral.latestMessage.sentAt,
+                                              )
+                                            : null}
+                                    </p>
+                                </div>
+                            ) : null}
+                        </article>
+                    ))
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function BrokerProfile({ panel }: { panel: PanelSummary }) {
+    return (
+        <Card className="rounded-lg">
+            <CardHeader>
+                <CardTitle>Broker profile</CardTitle>
+                <CardDescription>{panel.email}</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <dl className="grid gap-3 text-sm">
+                    <Detail label="Company" value={panel.company} />
+                    <Detail label="FSP number" value={panel.fspNumber ?? '-'} />
+                    <Detail
+                        label="Approved"
+                        value={
+                            panel.approvedAt
+                                ? formatDate(panel.approvedAt)
+                                : 'Pending'
+                        }
+                    />
+                </dl>
+                <TagList label="Regions" values={panel.regions} />
+                <TagList label="Specialties" values={panel.specialties} />
+            </CardContent>
+        </Card>
+    );
+}
+
+function AgreementPanel({ agreement }: { agreement: AgreementSummary | null }) {
+    return (
+        <Card className="rounded-lg">
+            <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                    <CardTitle>Panel agreement</CardTitle>
+                    <FileSignature
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </div>
+                <CardDescription>
+                    Agreement status and signature record.
+                </CardDescription>
+            </CardHeader>
+            <CardContent>
+                {!agreement ? (
+                    <EmptyState text="No panel agreement has been issued." />
+                ) : (
+                    <dl className="grid gap-3 text-sm">
+                        <Detail
+                            label="Status"
+                            value={labelFor(agreement.status)}
+                        />
+                        <Detail
+                            label="Generated"
+                            value={
+                                agreement.generatedAt
+                                    ? formatDate(agreement.generatedAt)
+                                    : '-'
+                            }
+                        />
+                        <Detail
+                            label="Signed"
+                            value={
+                                agreement.signedAt
+                                    ? formatDate(agreement.signedAt)
+                                    : 'Pending'
+                            }
+                        />
+                    </dl>
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function MessagePanel({ messages }: { messages: MessageSummary[] }) {
+    return (
+        <Card className="rounded-lg">
+            <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                    <CardTitle>Recent messages</CardTitle>
+                    <MessageSquare
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </div>
+                <CardDescription>
+                    Latest referral notes from the advisory team.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {messages.length === 0 ? (
+                    <EmptyState text="No referral messages yet." />
+                ) : (
+                    messages.map((message) => (
+                        <article key={message.id} className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium">
+                                    {message.clientName}
+                                </p>
+                                {message.stage ? (
+                                    <StageBadge stage={message.stage} />
+                                ) : null}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {message.body}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {message.sentAt
+                                    ? formatDate(message.sentAt)
+                                    : null}
+                            </p>
+                        </article>
+                    ))
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function ReverseReferralPanel({
+    referrals,
+}: {
+    referrals: ReverseReferralSummary[];
+}) {
+    return (
+        <Card className="rounded-lg">
+            <CardHeader>
+                <div className="flex items-center justify-between gap-3">
+                    <CardTitle>Reverse referrals</CardTitle>
+                    <BadgeCheck
+                        className="size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                </div>
+                <CardDescription>
+                    Prospects you have referred back to FSA.
+                </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+                {referrals.length === 0 ? (
+                    <EmptyState text="No reverse referrals submitted." />
+                ) : (
+                    referrals.map((referral) => (
+                        <article key={referral.id} className="space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="font-medium">{referral.name}</p>
+                                <Badge variant="outline">
+                                    {labelFor(referral.targetType)}
+                                </Badge>
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                                {referral.company ?? referral.email}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {referral.submittedAt
+                                    ? formatDate(referral.submittedAt)
+                                    : null}
+                            </p>
+                        </article>
+                    ))
+                )}
+            </CardContent>
+        </Card>
+    );
+}
+
+function Detail({ label, value }: { label: string; value: string | number }) {
+    return (
+        <div className="grid grid-cols-[7rem_1fr] gap-3">
+            <dt className="text-muted-foreground">{label}</dt>
+            <dd>{value}</dd>
+        </div>
+    );
+}
+
+function TagList({ label, values }: { label: string; values: string[] }) {
+    return (
+        <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">{label}</p>
+            {values.length === 0 ? (
+                <p className="text-sm">-</p>
+            ) : (
+                <div className="flex flex-wrap gap-2">
+                    {values.map((value) => (
+                        <Badge key={value} variant="secondary">
+                            {labelFor(value)}
+                        </Badge>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
+function EmptyState({ text }: { text: string }) {
+    return <p className="text-sm text-muted-foreground">{text}</p>;
+}
+
+function StatusBadge({ status }: { status: string }) {
+    const classes =
+        status === 'active'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : status === 'suspended'
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : 'border-amber-200 bg-amber-50 text-amber-700';
+
+    return (
+        <Badge variant="outline" className={classes}>
+            {labelFor(status)}
+        </Badge>
+    );
+}
+
+function FspBadge({ status }: { status: string | null }) {
+    const classes =
+        status === 'current'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
+            : status === 'lapsed'
+              ? 'border-red-200 bg-red-50 text-red-700'
+              : 'border-amber-200 bg-amber-50 text-amber-700';
+
+    return (
+        <Badge variant="outline" className={classes}>
+            FSP {labelFor(status ?? 'unknown')}
+        </Badge>
+    );
+}
+
+function StageBadge({ stage }: { stage: string }) {
+    const classes = stageClass(stage);
+
+    return (
+        <Badge variant="outline" className={classes}>
+            {labelFor(stage)}
+        </Badge>
+    );
+}
+
+function stageClass(stage: string): string {
+    if (stage === 'cover_placed') {
+        return 'border-emerald-200 bg-emerald-50 text-emerald-700';
+    }
+
+    if (stage === 'declined' || stage === 'no_response') {
+        return 'border-red-200 bg-red-50 text-red-700';
+    }
+
+    if (stage === 'withdrawn') {
+        return 'border-slate-200 bg-slate-50 text-slate-700';
+    }
+
+    return 'border-sky-200 bg-sky-50 text-sky-700';
+}
+
+function labelFor(value: string): string {
+    return value
+        .split('_')
+        .filter(Boolean)
+        .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+        .join(' ');
+}
+
+function formatDate(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        day: 'numeric',
+        month: 'short',
+        year: 'numeric',
+    }).format(new Date(value));
+}

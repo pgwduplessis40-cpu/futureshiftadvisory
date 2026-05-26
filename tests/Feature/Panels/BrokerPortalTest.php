@@ -11,6 +11,7 @@ use App\Models\Consent;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\Referral;
+use App\Models\ReverseReferral;
 use App\Models\User;
 use App\Notifications\BrokerFspLapsedNotification;
 use App\Services\Conflicts\ConflictDeclarer;
@@ -24,6 +25,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -149,6 +151,44 @@ final class BrokerPortalTest extends TestCase
         $this->assertNotNull($referral->closed_at);
         $this->assertContains(Referral::STAGE_BROKER_DECLINED, Referral::brokerStages());
         $this->assertContains(Referral::STAGE_BROKER_NO_RESPONSE, Referral::brokerStages());
+    }
+
+    public function test_broker_dashboard_surfaces_panel_and_referral_activity(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor();
+        $brokerMember = $this->activeBroker('dashboard-broker@example.test');
+        $lifecycle = app(ReferralLifecycle::class);
+        $referral = $lifecycle->create($client, $brokerMember, $advisor, [
+            'need' => 'Commercial cover review',
+        ]);
+        $referral = $this->prepareToSend($referral, $advisor, $client);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_BROKER_REFERRAL_SENT, $advisor);
+        $lifecycle->message($referral, $advisor, 'Client is ready for a broker introduction.');
+
+        ReverseReferral::query()->create([
+            'panel_member_id' => $brokerMember->getKey(),
+            'target_type' => ReverseReferral::TARGET_PROSPECT,
+            'name' => 'Reverse Lead',
+            'email' => 'reverse@example.test',
+            'company' => 'Reverse Co',
+            'submitted_at' => now(),
+        ]);
+
+        $this->actingAsMfa($brokerMember->user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('broker/Dashboard')
+                ->where('dashboard.panel.company', 'Active Broker')
+                ->where('dashboard.panel.fspStatus', PanelMember::FSP_STATUS_CURRENT)
+                ->where('dashboard.summary.totalReferrals', 1)
+                ->where('dashboard.summary.activeReferrals', 1)
+                ->where('dashboard.summary.reverseReferrals', 1)
+                ->where('dashboard.referrals.0.clientName', 'Broker Stage Client Limited')
+                ->where('dashboard.referrals.0.stage', Referral::STAGE_BROKER_REFERRAL_SENT)
+                ->where('dashboard.messages.0.body', 'Client is ready for a broker introduction.')
+                ->where('dashboard.reverseReferrals.0.company', 'Reverse Co')
+            );
     }
 
     private function activeBroker(string $email): PanelMember

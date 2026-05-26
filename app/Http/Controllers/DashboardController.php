@@ -17,9 +17,14 @@ use App\Models\ExchangeRate;
 use App\Models\IntegrationHealthSample;
 use App\Models\LearningUpdate;
 use App\Models\MessageThread;
+use App\Models\PanelAgreement;
+use App\Models\PanelMember;
 use App\Models\Proposal;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
+use App\Models\Referral;
+use App\Models\ReferralMessage;
+use App\Models\ReverseReferral;
 use App\Models\Scenario;
 use App\Models\TermsVersion;
 use App\Models\User;
@@ -77,7 +82,239 @@ final class DashboardController extends Controller
             return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals));
         }
 
+        if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
+            return Inertia::render('broker/Dashboard', [
+                'dashboard' => $this->brokerDashboardPayload($user),
+            ]);
+        }
+
         return Inertia::render('dashboard');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function brokerDashboardPayload(User $user): array
+    {
+        $member = PanelMember::query()
+            ->where('user_id', $user->getKey())
+            ->where('panel_type', PanelMember::TYPE_BROKER)
+            ->latest()
+            ->first();
+
+        if (! $member instanceof PanelMember) {
+            return [
+                'panel' => null,
+                'summary' => [
+                    'totalReferrals' => 0,
+                    'activeReferrals' => 0,
+                    'coverPlaced' => 0,
+                    'reverseReferrals' => 0,
+                ],
+                'stageCounts' => [],
+                'referrals' => [],
+                'messages' => [],
+                'reverseReferrals' => [],
+                'agreement' => null,
+            ];
+        }
+
+        $referralBase = Referral::query()
+            ->where('panel_member_id', $member->getKey())
+            ->where('panel_type', PanelMember::TYPE_BROKER);
+        $terminalStages = [
+            Referral::STAGE_BROKER_COVER_PLACED,
+            Referral::STAGE_BROKER_DECLINED,
+            Referral::STAGE_BROKER_NO_RESPONSE,
+            Referral::STAGE_WITHDRAWN,
+        ];
+        $stageCounts = (clone $referralBase)
+            ->select('stage', DB::raw('count(*) as aggregate'))
+            ->groupBy('stage')
+            ->pluck('aggregate', 'stage')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+        $referrals = (clone $referralBase)
+            ->with(['client.primaryContact'])
+            ->latest('sent_at')
+            ->latest()
+            ->limit(8)
+            ->get();
+        $latestMessages = $this->latestBrokerMessagesForReferrals(
+            $referrals->pluck('id')->map(fn (mixed $id): string => (string) $id)->all(),
+        );
+        $agreement = $member->agreements()
+            ->latest('signed_at')
+            ->latest('generated_at')
+            ->first();
+
+        return [
+            'panel' => $this->brokerPanelSummary($member, $user),
+            'summary' => [
+                'totalReferrals' => (clone $referralBase)->count(),
+                'activeReferrals' => (clone $referralBase)->whereNotIn('stage', $terminalStages)->count(),
+                'coverPlaced' => (clone $referralBase)->where('stage', Referral::STAGE_BROKER_COVER_PLACED)->count(),
+                'reverseReferrals' => $member->reverseReferrals()->count(),
+            ],
+            'stageCounts' => $stageCounts,
+            'referrals' => $referrals
+                ->map(fn (Referral $referral): array => $this->brokerReferralSummary($referral, $latestMessages[(string) $referral->getKey()] ?? null))
+                ->values()
+                ->all(),
+            'messages' => $this->recentBrokerMessages($member),
+            'reverseReferrals' => $this->recentReverseReferrals($member),
+            'agreement' => $agreement instanceof PanelAgreement ? [
+                'status' => $agreement->status,
+                'generatedAt' => $agreement->generated_at?->toIso8601String(),
+                'signedAt' => $agreement->signed_at?->toIso8601String(),
+                'pdfByteSize' => $agreement->pdf_byte_size,
+                'hasStoredPdf' => filled($agreement->pdf_path),
+            ] : null,
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $referralIds
+     * @return array<string, ReferralMessage>
+     */
+    private function latestBrokerMessagesForReferrals(array $referralIds): array
+    {
+        if ($referralIds === []) {
+            return [];
+        }
+
+        return ReferralMessage::query()
+            ->whereIn('referral_id', $referralIds)
+            ->latest('sent_at')
+            ->get()
+            ->unique('referral_id')
+            ->keyBy(fn (ReferralMessage $message): string => (string) $message->referral_id)
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function brokerPanelSummary(PanelMember $member, User $user): array
+    {
+        $application = is_array($member->application) ? $member->application : [];
+
+        return [
+            'id' => $member->id,
+            'name' => $user->name,
+            'email' => $user->email,
+            'company' => $this->stringFromApplication($application, 'company')
+                ?? $this->stringFromApplication($application, 'trading_name')
+                ?? $user->name,
+            'status' => $member->status,
+            'fspNumber' => $member->fsp_number,
+            'fspStatus' => $member->fsp_status,
+            'fspLastCheckedAt' => $member->fsp_last_checked_at?->toIso8601String(),
+            'regions' => $this->stringListFromApplication($application, 'regions'),
+            'specialties' => $this->stringListFromApplication($application, 'specialties'),
+            'approvedAt' => $member->approved_at?->toIso8601String(),
+            'suspendedAt' => $member->suspended_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function brokerReferralSummary(Referral $referral, ?ReferralMessage $latestMessage): array
+    {
+        $payload = is_array($referral->payload) ? $referral->payload : [];
+
+        return [
+            'id' => $referral->id,
+            'clientName' => $referral->client?->legal_name ?? 'Client',
+            'clientContact' => $referral->client?->primaryContact?->email
+                ?? $this->stringFromApplication($payload, 'client_contact'),
+            'referralType' => $referral->referral_type,
+            'stage' => $referral->stage,
+            'reason' => $this->stringFromApplication($payload, 'reason')
+                ?? $this->stringFromApplication($payload, 'need'),
+            'sentAt' => $referral->sent_at?->toIso8601String(),
+            'closedAt' => $referral->closed_at?->toIso8601String(),
+            'latestMessage' => $latestMessage instanceof ReferralMessage ? [
+                'body' => $latestMessage->body,
+                'sentAt' => $latestMessage->sent_at?->toIso8601String(),
+            ] : null,
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentBrokerMessages(PanelMember $member): array
+    {
+        return ReferralMessage::query()
+            ->with(['client', 'referral'])
+            ->whereHas('referral', fn (Builder $query): Builder => $query
+                ->where('panel_member_id', $member->getKey())
+                ->where('panel_type', PanelMember::TYPE_BROKER))
+            ->latest('sent_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (ReferralMessage $message): array => [
+                'id' => $message->id,
+                'body' => $message->body,
+                'clientName' => $message->client?->legal_name ?? 'Client',
+                'stage' => $message->referral?->stage,
+                'sentAt' => $message->sent_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function recentReverseReferrals(PanelMember $member): array
+    {
+        return ReverseReferral::query()
+            ->where('panel_member_id', $member->getKey())
+            ->latest('submitted_at')
+            ->limit(5)
+            ->get()
+            ->map(fn (ReverseReferral $referral): array => [
+                'id' => $referral->id,
+                'targetType' => $referral->target_type,
+                'name' => $referral->name,
+                'company' => $referral->company,
+                'email' => $referral->email,
+                'submittedAt' => $referral->submitted_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $application
+     */
+    private function stringFromApplication(array $application, string $key): ?string
+    {
+        $value = $application[$key] ?? null;
+
+        return is_string($value) && trim($value) !== '' ? $value : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $application
+     * @return array<int, string>
+     */
+    private function stringListFromApplication(array $application, string $key): array
+    {
+        $value = $application[$key] ?? [];
+
+        if (! is_array($value)) {
+            return [];
+        }
+
+        return collect($value)
+            ->filter(fn (mixed $item): bool => is_string($item) && trim($item) !== '')
+            ->map(fn (mixed $item): string => (string) $item)
+            ->values()
+            ->all();
     }
 
     /**
