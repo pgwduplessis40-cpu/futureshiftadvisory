@@ -5,8 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Enums\EntrepreneurStage;
+use App\Models\AdvisoryReadinessSignal;
+use App\Models\BusinessPlan;
+use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
+use App\Models\PlanAssessment;
+use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
@@ -131,13 +136,75 @@ final class AddEntrepreneurTest extends TestCase
         ]);
         $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
 
-        EntrepreneurProfile::query()->create([
+        $profile = EntrepreneurProfile::query()->create([
             'user_id' => $entrepreneur->id,
             'assigned_advisor_id' => $advisor->id,
             'name' => 'Portal Founder',
             'email' => $entrepreneur->email,
             'stage' => EntrepreneurStage::ONBOARDING,
             'concept_summary' => 'Portal placeholder concept.',
+        ]);
+        $framework = RatingFramework::query()->create([
+            'version' => 1,
+            'status' => RatingFramework::STATUS_PUBLISHED,
+            'production_ready' => true,
+            'grade_bands' => RatingFramework::DEFAULT_GRADE_BANDS,
+            'published_at' => now(),
+            'published_by_user_id' => $advisor->getKey(),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $criterion = $framework->criteria()->create([
+            'number' => 1,
+            'name' => 'Market proof',
+            'weight' => 100,
+            'descriptors' => ['strong' => 'Market evidence is clear.'],
+            'is_placeholder' => false,
+        ]);
+        $plan = BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'title' => 'Portal founder plan',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_FINALISED,
+            'current_phase' => 1,
+            'created_by_user_id' => $advisor->getKey(),
+            'completed_at' => now(),
+        ]);
+        $assessment = PlanAssessment::query()->create([
+            'business_plan_id' => $plan->id,
+            'round' => 1,
+            'rating_framework_id' => $framework->id,
+            'ai_scores' => [[
+                'criterion_id' => $criterion->id,
+                'criterion_number' => 1,
+                'criterion_name' => 'Market proof',
+                'score' => 86.3,
+                'rationale' => 'Evidence supports the market.',
+            ]],
+            'advisor_scores' => [],
+            'mentor_notes' => ['overall_visible' => 'Strong evidence base.'],
+            'document_support' => ['attached_document_count' => 1],
+            'overall_grade' => 'strong',
+            'finalised_at' => now(),
+            'finalised_by_user_id' => $advisor->getKey(),
+        ]);
+        AdvisoryReadinessSignal::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'business_plan_id' => $plan->id,
+            'plan_assessment_id' => $assessment->id,
+            'score' => 86.3,
+            'surfaced_at' => now(),
+            'advisor_notified_at' => now(),
+        ]);
+        $document = Document::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'category' => Document::CATEGORY_PLAN_ATTACHMENT,
+            'original_filename' => 'market-proof.pdf',
+            'stored_path' => 'documents/market-proof.pdf',
+            'byte_size' => 12,
+            'mime_type' => 'application/pdf',
+            'sha256' => hash('sha256', 'market proof'),
+            'uploaded_by_user_id' => $entrepreneur->getKey(),
+            'scanner_result' => Document::SCANNER_CLEAN,
         ]);
 
         $this->actingAsMfa($entrepreneur)
@@ -151,9 +218,25 @@ final class AddEntrepreneurTest extends TestCase
                 ->component('portal/entrepreneur/Dashboard')
                 ->where('profile.stage', EntrepreneurStage::ONBOARDING->value)
                 ->where('profile.name', 'Portal Founder')
+                ->where('profile.latest_plan.assessment_count', 1)
+                ->where('profile.latest_plan.completed_assessment_count', 1)
+                ->where('profile.latest_plan.latest_assessment.url', route('portal.entrepreneur.assessments.show', $assessment, absolute: false))
+                ->where('profile.latest_documents.0.url', route('portal.documents.show', $document, absolute: false))
+                ->where('profile.advisory_readiness_signal.criteria.0.name', 'Market proof')
+                ->where('profile.advisory_readiness_signal.explanation', fn (string $value): bool => str_contains($value, 'weighted total'))
                 ->where('profile.message_summary.threads_count', 0)
                 ->where('messagesUrl', route('portal.messages.index', absolute: false))
                 ->where('documentUploadUrl', route('portal.documents.store', absolute: false))
+            );
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.assessments.show', $assessment))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/entrepreneur/Assessment')
+                ->where('assessment.weighted_score', 86.3)
+                ->where('assessment.criteria.0.name', 'Market proof')
+                ->where('assessment.document_support.attached_document_count', 1)
             );
     }
 

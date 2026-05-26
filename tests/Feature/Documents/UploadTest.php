@@ -138,6 +138,16 @@ final class UploadTest extends TestCase
             'category' => Document::CATEGORY_PLAN_ATTACHMENT,
             'scanner_result' => Document::SCANNER_CLEAN,
         ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.documents.show', $documentId))
+            ->assertOk()
+            ->assertContent('Customer interviews and pricing evidence.');
+
+        [$otherUser] = $this->entrepreneurUserWithProfile();
+        $this->actingAsMfa($otherUser)
+            ->get(route('portal.documents.show', $documentId))
+            ->assertForbidden();
     }
 
     public function test_uploaded_file_persistence_remains_inside_secure_file_writer(): void

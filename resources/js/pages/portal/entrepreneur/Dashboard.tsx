@@ -2,6 +2,7 @@ import { Head, Link } from '@inertiajs/react';
 import {
     Bell,
     ClipboardCheck,
+    Eye,
     FileText,
     Hourglass,
     MessageSquare,
@@ -22,6 +23,26 @@ type UploadedDocument = {
     category: string;
     scanner_result: string;
     uploaded_at: string | null;
+    url: string;
+};
+
+type AssessmentLink = {
+    id: string;
+    round: number;
+    status: string;
+    overall_grade: string;
+    weighted_score: number;
+    url: string;
+};
+
+type ReadinessCriterion = {
+    number: number;
+    name: string;
+    weight: number;
+    score: number;
+    contribution: number;
+    source_label: string;
+    rationale: string;
 };
 
 type EntrepreneurProfile = {
@@ -40,7 +61,9 @@ type EntrepreneurProfile = {
         id: string;
         status: string;
         assessment_count: number;
+        completed_assessment_count: number;
         latest_grade: string | null;
+        latest_assessment: AssessmentLink | null;
         living_plan_next_update_at: string | null;
         living_plan_divergence_flags: {
             diverged?: boolean;
@@ -51,6 +74,11 @@ type EntrepreneurProfile = {
     advisory_readiness_signal: {
         score: number;
         surfaced_at: string | null;
+        threshold: number | null;
+        grade: string | null;
+        explanation: string;
+        assessment_url: string | null;
+        criteria: ReadinessCriterion[];
     } | null;
     latest_documents: UploadedDocument[];
     message_summary: {
@@ -81,6 +109,8 @@ export default function EntrepreneurDashboard({
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadKey, setUploadKey] = useState(0);
+    const latestAssessment = profile?.latest_plan?.latest_assessment ?? null;
+    const readiness = profile?.advisory_readiness_signal ?? null;
 
     const uploadDocument = async () => {
         if (!file) {
@@ -228,9 +258,22 @@ export default function EntrepreneurDashboard({
                 </div>
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex items-center gap-2">
-                        <Hourglass className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">Progress</h2>
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <Hourglass className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">Progress</h2>
+                        </div>
+                        {latestAssessment ? (
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={latestAssessment.url}>
+                                    <Eye
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    View assessment
+                                </Link>
+                            </Button>
+                        ) : null}
                     </div>
                     {profile?.latest_plan ? (
                         <dl className="grid gap-3 text-sm md:grid-cols-2">
@@ -241,18 +284,29 @@ export default function EntrepreneurDashboard({
                             <Detail
                                 label="Grade"
                                 value={
-                                    profile.latest_plan.latest_grade
+                                    latestAssessment?.overall_grade
                                         ? gradeLabel(
-                                              profile.latest_plan.latest_grade,
+                                              latestAssessment.overall_grade,
                                           )
-                                        : null
+                                        : profile.latest_plan.latest_grade
+                                          ? gradeLabel(
+                                                profile.latest_plan
+                                                    .latest_grade,
+                                            )
+                                          : null
                                 }
                             />
                             <Detail
                                 label="Assessments"
-                                value={String(
-                                    profile.latest_plan.assessment_count,
-                                )}
+                                value={`${profile.latest_plan.assessment_count} total, ${profile.latest_plan.completed_assessment_count} completed`}
+                            />
+                            <Detail
+                                label="Assessment score"
+                                value={
+                                    latestAssessment
+                                        ? `${latestAssessment.weighted_score.toFixed(1)}/100`
+                                        : null
+                                }
                             />
                             <Detail
                                 label="Next update"
@@ -321,7 +375,7 @@ export default function EntrepreneurDashboard({
                                                 {formatLabel(document.category)}
                                             </div>
                                         </div>
-                                        <div className="flex items-center gap-2">
+                                        <div className="flex flex-wrap items-center gap-2">
                                             <Badge variant="outline">
                                                 {formatLabel(
                                                     document.scanner_result,
@@ -332,6 +386,26 @@ export default function EntrepreneurDashboard({
                                                     document.uploaded_at,
                                                 )}
                                             </span>
+                                            {document.scanner_result ===
+                                            'clean' ? (
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <a
+                                                        href={document.url}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <Eye
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        View
+                                                    </a>
+                                                </Button>
+                                            ) : null}
                                         </div>
                                     </article>
                                 ))}
@@ -344,30 +418,95 @@ export default function EntrepreneurDashboard({
                     </section>
                 </div>
 
-                {profile?.advisory_readiness_signal ? (
+                {readiness ? (
                     <section className="space-y-4 rounded-md border bg-background p-4">
-                        <div className="flex items-center gap-2">
-                            <ClipboardCheck
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            <h2 className="text-sm font-medium">
-                                Advisory readiness
-                            </h2>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <ClipboardCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Advisory readiness
+                                </h2>
+                            </div>
+                            {readiness.assessment_url ? (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={readiness.assessment_url}>
+                                        <Eye
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        View score detail
+                                    </Link>
+                                </Button>
+                            ) : null}
                         </div>
                         <dl className="grid gap-3 text-sm md:grid-cols-2">
                             <Detail
                                 label="Score"
-                                value={`${profile.advisory_readiness_signal.score.toFixed(1)}/100`}
+                                value={`${readiness.score.toFixed(1)}/100`}
+                            />
+                            <Detail
+                                label="Grade"
+                                value={
+                                    readiness.grade
+                                        ? gradeLabel(readiness.grade)
+                                        : null
+                                }
+                            />
+                            <Detail
+                                label="Threshold"
+                                value={
+                                    readiness.threshold
+                                        ? `${readiness.threshold.toFixed(0)}/100`
+                                        : null
+                                }
                             />
                             <Detail
                                 label="Surfaced"
-                                value={formatDate(
-                                    profile.advisory_readiness_signal
-                                        .surfaced_at,
-                                )}
+                                value={formatDate(readiness.surfaced_at)}
                             />
                         </dl>
+                        <p className="max-w-4xl text-sm text-muted-foreground">
+                            {readiness.explanation}
+                        </p>
+                        {readiness.criteria.length > 0 ? (
+                            <div className="divide-y rounded-md border">
+                                {readiness.criteria
+                                    .slice(0, 4)
+                                    .map((criterion) => (
+                                        <div
+                                            key={criterion.number}
+                                            className="grid gap-2 p-3 text-sm md:grid-cols-[1fr_auto]"
+                                        >
+                                            <div className="min-w-0">
+                                                <div className="font-medium">
+                                                    {criterion.number}.{' '}
+                                                    {criterion.name}
+                                                </div>
+                                                <div className="text-xs text-muted-foreground">
+                                                    {criterion.source_label}
+                                                </div>
+                                            </div>
+                                            <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                                <Badge variant="outline">
+                                                    {criterion.score.toFixed(1)}
+                                                    /100
+                                                </Badge>
+                                                <span className="text-xs text-muted-foreground">
+                                                    {criterion.weight.toFixed(1)}
+                                                    % weight,{' '}
+                                                    {criterion.contribution.toFixed(
+                                                        1,
+                                                    )}{' '}
+                                                    pts
+                                                </span>
+                                            </div>
+                                        </div>
+                                    ))}
+                            </div>
+                        ) : null}
                     </section>
                 ) : null}
             </div>
@@ -412,7 +551,7 @@ function Detail({
     value: string | null | undefined;
 }) {
     return (
-        <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3">
+        <div className="grid grid-cols-[130px_minmax(0,1fr)] gap-3">
             <dt className="text-muted-foreground">{label}</dt>
             <dd>{value || '-'}</dd>
         </div>

@@ -16,6 +16,11 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
+use Throwable;
 
 final class DocumentController extends Controller
 {
@@ -45,6 +50,28 @@ final class DocumentController extends Controller
         $client = $this->clients->resolveFor($request);
 
         return $this->storeForClient($request, $client);
+    }
+
+    public function show(Request $request, Document $document): SymfonyResponse
+    {
+        Gate::authorize('view', $document);
+        abort_unless($this->canAccessDocument($request, $document), 403);
+        abort_unless($document->isVisibleToClients(), 404);
+
+        $disk = Storage::disk('secure_local');
+        abort_unless($disk->exists($document->stored_path), 404);
+
+        $disposition = (new ResponseHeaderBag)->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            $document->original_filename,
+            Str::ascii($document->original_filename) ?: 'document',
+        );
+
+        return response($disk->get($document->stored_path), 200, [
+            'Content-Disposition' => $disposition,
+            'Content-Type' => $document->mime_type ?: 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     private function storeForEntrepreneur(Request $request, EntrepreneurProfile $profile): JsonResponse
@@ -121,6 +148,31 @@ final class DocumentController extends Controller
             ->firstOrFail();
     }
 
+    private function canAccessDocument(Request $request, Document $document): bool
+    {
+        $user = $request->user();
+        if (! $user instanceof User) {
+            return false;
+        }
+
+        if ($user->user_type === User::TYPE_ENTREPRENEUR) {
+            $profile = EntrepreneurProfile::query()
+                ->where('user_id', $user->getKey())
+                ->first();
+
+            return $profile instanceof EntrepreneurProfile
+                && (string) $document->entrepreneur_profile_id === (string) $profile->getKey();
+        }
+
+        try {
+            $client = $this->clients->resolveFor($request);
+        } catch (Throwable) {
+            return false;
+        }
+
+        return (string) $document->client_id === (string) $client->getKey();
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -132,6 +184,7 @@ final class DocumentController extends Controller
             'category' => $document->category,
             'scanner_result' => $document->scanner_result,
             'uploaded_at' => $document->created_at?->toIso8601String(),
+            'url' => route('portal.documents.show', $document, absolute: false),
             'verifications' => $document->verifications
                 ->map(fn ($verification): array => [
                     'id' => $verification->id,

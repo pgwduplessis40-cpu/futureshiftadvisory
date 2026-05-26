@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardController;
+use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\MessageController;
 use App\Http\Controllers\Portal\OnboardingController;
@@ -17,7 +18,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->group(function (): void {
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
         Route::get('entrepreneur', EntrepreneurDashboardController::class)->name('entrepreneur.dashboard');
+        Route::get('entrepreneur/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])->name('entrepreneur.assessments.show');
         Route::post('documents', DocumentController::class)->name('documents.store');
+        Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
         Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
         Route::post('messages', [MessageController::class, 'store'])->name('messages.store');
         Route::get('messages/{messageThread}', [MessageController::class, 'show'])->name('messages.show');

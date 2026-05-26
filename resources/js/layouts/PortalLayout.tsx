@@ -1,10 +1,13 @@
-import { Link, usePage } from '@inertiajs/react';
+import { Link, router, usePage } from '@inertiajs/react';
 import {
+    Bell,
     ClipboardList,
     HeartPulse,
     LayoutDashboard,
+    LogOut,
     Menu,
     MessageSquare,
+    Settings,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -12,7 +15,9 @@ import type { ComponentType, ReactNode } from 'react';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
 import { BrandMark } from '@/components/public/brand-mark';
 import { Button } from '@/components/ui/button';
+import { clearPortalOfflineQueue } from '@/lib/portal-offline';
 import { cn } from '@/lib/utils';
+import { logout } from '@/routes';
 import type { Auth } from '@/types';
 
 type NavItem = {
@@ -40,6 +45,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   href: '/portal/messages',
                   icon: MessageSquare,
               },
+              {
+                  label: 'Notifications',
+                  href: '/notifications',
+                  icon: Bell,
+              },
           ]
         : [
               {
@@ -62,13 +72,30 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   href: '/portal/messages',
                   icon: MessageSquare,
               },
+              {
+                  label: 'Notifications',
+                  href: '/notifications',
+                  icon: Bell,
+              },
           ];
 
-    const isActive = (href: string) =>
-        href === '/portal' ? url === href : url.startsWith(href);
+    const isActive = (href: string) => {
+        if (href === dashboardHref) {
+            return url === href;
+        }
+
+        return url.startsWith(href);
+    };
+
+    const closeMobile = () => setOpen(false);
+    const handleLogout = () => {
+        closeMobile();
+        void clearPortalOfflineQueue();
+        router.flushAll();
+    };
 
     return (
-        <div className="min-h-screen bg-[var(--fs-parchment)] text-[var(--fs-graphite)]">
+        <div className="min-h-screen bg-[var(--fs-parchment)] text-[var(--fs-graphite)] md:flex">
             <a
                 href="#portal-main"
                 className="sr-only rounded-md bg-background px-3 py-2 text-sm font-medium focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-50"
@@ -76,72 +103,139 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 Skip to portal content
             </a>
 
-            <header className="sticky top-0 z-40 border-b border-[var(--fs-sand)] bg-[var(--fs-parchment)]/95 backdrop-blur">
-                <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-4 sm:px-6 lg:px-8">
+            <aside className="hidden w-64 shrink-0 border-r border-[var(--fs-sand)] bg-[var(--fs-parchment)] md:sticky md:top-0 md:flex md:h-screen md:flex-col">
+                <div className="border-b border-[var(--fs-sand)] px-5 py-5">
                     <Link href={dashboardHref} aria-label="Portal dashboard">
                         <BrandMark width={168} />
                     </Link>
-
-                    <nav
-                        className="hidden items-center gap-1 md:flex"
-                        aria-label="Portal navigation"
-                    >
-                        {navItems.map((item) => (
-                            <PortalNavLink
-                                key={item.href}
-                                item={item}
-                                active={isActive(item.href)}
-                            />
-                        ))}
-                    </nav>
-
-                    <div className="flex items-center gap-2">
-                        <NotificationBell />
-                        <Button
-                            type="button"
-                            variant="outline"
-                            size="icon"
-                            className="md:hidden"
-                            aria-label={open ? 'Close menu' : 'Open menu'}
-                            aria-expanded={open}
-                            aria-controls="portal-mobile-nav"
-                            onClick={() => setOpen((value) => !value)}
-                        >
-                            {open ? (
-                                <X className="size-4" aria-hidden="true" />
-                            ) : (
-                                <Menu className="size-4" aria-hidden="true" />
-                            )}
-                        </Button>
-                    </div>
                 </div>
 
-                {open && (
-                    <nav
-                        id="portal-mobile-nav"
-                        className="border-t border-[var(--fs-sand)] px-4 py-3 md:hidden"
-                        aria-label="Portal mobile navigation"
-                    >
-                        <div className="mx-auto grid max-w-6xl gap-2">
+                <nav
+                    className="grid gap-1 px-3 py-4"
+                    aria-label="Portal navigation"
+                >
+                    {navItems.map((item) => (
+                        <PortalNavLink
+                            key={item.href}
+                            item={item}
+                            active={isActive(item.href)}
+                        />
+                    ))}
+                </nav>
+
+                <div className="mt-auto border-t border-[var(--fs-sand)] p-3">
+                    <div className="mb-3 flex items-center justify-between gap-3 px-2">
+                        <div className="min-w-0">
+                            <div className="truncate text-sm font-medium">
+                                {auth.user.name}
+                            </div>
+                            <div className="truncate text-xs text-muted-foreground">
+                                {auth.user.email}
+                            </div>
+                        </div>
+                        <NotificationBell />
+                    </div>
+
+                    <div className="grid gap-1">
+                        <PortalNavLink
+                            item={{
+                                label: 'Settings',
+                                href: '/settings/profile',
+                                icon: Settings,
+                            }}
+                            active={isActive('/settings')}
+                        />
+                        <Link
+                            href={logout()}
+                            as="button"
+                            onClick={handleLogout}
+                            className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--fs-graphite)] transition-colors outline-none hover:bg-[var(--fs-linen)] hover:text-[var(--fs-admiralty)] focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            data-test="portal-logout-button"
+                        >
+                            <LogOut className="size-4" aria-hidden="true" />
+                            Log out
+                        </Link>
+                    </div>
+                </div>
+            </aside>
+
+            <div className="flex min-w-0 flex-1 flex-col">
+                <header className="sticky top-0 z-40 border-b border-[var(--fs-sand)] bg-[var(--fs-parchment)]/95 backdrop-blur md:hidden">
+                    <div className="flex h-16 items-center justify-between px-4">
+                        <Link href={dashboardHref} aria-label="Portal dashboard">
+                            <BrandMark width={148} />
+                        </Link>
+
+                        <div className="flex items-center gap-2">
+                            <NotificationBell />
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="icon"
+                                aria-label={open ? 'Close menu' : 'Open menu'}
+                                aria-expanded={open}
+                                aria-controls="portal-mobile-nav"
+                                onClick={() => setOpen((value) => !value)}
+                            >
+                                {open ? (
+                                    <X className="size-4" aria-hidden="true" />
+                                ) : (
+                                    <Menu
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                            </Button>
+                        </div>
+                    </div>
+
+                    {open && (
+                        <nav
+                            id="portal-mobile-nav"
+                            className="grid gap-2 border-t border-[var(--fs-sand)] px-4 py-3"
+                            aria-label="Portal mobile navigation"
+                        >
                             {navItems.map((item) => (
                                 <PortalNavLink
                                     key={item.href}
                                     item={item}
                                     active={isActive(item.href)}
-                                    onClick={() => setOpen(false)}
+                                    onClick={closeMobile}
                                 />
                             ))}
-                        </div>
-                    </nav>
-                )}
-            </header>
+                            <PortalNavLink
+                                item={{
+                                    label: 'Settings',
+                                    href: '/settings/profile',
+                                    icon: Settings,
+                                }}
+                                active={isActive('/settings')}
+                                onClick={closeMobile}
+                            />
+                            <Link
+                                href={logout()}
+                                as="button"
+                                onClick={handleLogout}
+                                className="inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-left text-sm font-medium text-[var(--fs-graphite)] transition-colors outline-none hover:bg-[var(--fs-linen)] hover:text-[var(--fs-admiralty)] focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                data-test="portal-mobile-logout-button"
+                            >
+                                <LogOut
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Log out
+                            </Link>
+                        </nav>
+                    )}
+                </header>
 
-            <main
-                id="portal-main"
-                className="mx-auto max-w-6xl px-4 py-6 sm:px-6 lg:px-8"
-            >
-                {children}
-            </main>
+                <main
+                    id="portal-main"
+                    className="w-full px-4 py-6 sm:px-6 lg:px-8"
+                >
+                    <div className="mx-auto max-w-6xl">{children}</div>
+                </main>
+            </div>
         </div>
     );
 }
@@ -163,7 +257,7 @@ function PortalNavLink({
             onClick={onClick}
             aria-current={active ? 'page' : undefined}
             className={cn(
-                'inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                'inline-flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
                 active
                     ? 'bg-[var(--fs-admiralty)] text-[var(--fs-parchment)]'
                     : 'text-[var(--fs-graphite)] hover:bg-[var(--fs-linen)] hover:text-[var(--fs-admiralty)]',
