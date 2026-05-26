@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import type { PropsWithChildren } from 'react';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -8,9 +8,9 @@ import { cn, toUrl } from '@/lib/utils';
 import { edit as editAppearance } from '@/routes/appearance';
 import { edit } from '@/routes/profile';
 import { edit as editSecurity } from '@/routes/security';
-import type { NavItem } from '@/types';
+import type { Auth, NavItem } from '@/types';
 
-const sidebarNavItems: NavItem[] = [
+const baseSidebarNavItems: NavItem[] = [
     {
         title: 'Profile',
         href: edit(),
@@ -27,18 +27,37 @@ const sidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
-        title: 'Calendar',
-        href: '/settings/calendar',
-        icon: null,
-    },
-    {
         title: 'Appearance',
         href: editAppearance(),
         icon: null,
     },
 ];
 
+const calendarSidebarNavItem: NavItem = {
+    title: 'Calendar',
+    href: '/settings/calendar',
+    icon: null,
+};
+
+function sidebarNavItemsFor(userType?: string | null): NavItem[] {
+    if (
+        userType !== 'advisor' &&
+        userType !== 'junior_advisor' &&
+        userType !== 'super_admin'
+    ) {
+        return baseSidebarNavItems;
+    }
+
+    return [
+        ...baseSidebarNavItems.slice(0, 3),
+        calendarSidebarNavItem,
+        ...baseSidebarNavItems.slice(3),
+    ];
+}
+
 export default function SettingsLayout({ children }: PropsWithChildren) {
+    const { auth } = usePage<{ auth: Auth }>().props;
+    const sidebarNavItems = sidebarNavItemsFor(auth.user.user_type);
     const { isCurrentOrParentUrl } = useCurrentUrl();
 
     return (

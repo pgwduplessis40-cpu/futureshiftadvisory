@@ -1,4 +1,4 @@
-import { Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import {
     Bell,
     BookOpen,
@@ -25,55 +25,110 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { NavItem } from '@/types';
+import type { Auth, NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
+const dashboardNavItem: NavItem = {
+    title: 'Dashboard',
+    href: dashboard(),
+    icon: LayoutGrid,
+};
+
+const clientsNavItem: NavItem = {
+    title: 'Clients',
+    href: '/advisor/clients',
+    icon: BriefcaseBusiness,
+};
+
+const entrepreneursNavItem: NavItem = {
+    title: 'Entrepreneurs',
+    href: '/advisor/entrepreneurs',
+    icon: UsersRound,
+};
+
+const knowledgeNavItem: NavItem = {
+    title: 'Knowledge',
+    href: '/advisor/knowledge',
+    icon: BookOpen,
+};
+
+const templatesNavItem: NavItem = {
+    title: 'Templates',
+    href: '/advisor/templates',
+    icon: FileText,
+};
+
+const prospectsNavItem: NavItem = {
+    title: 'Prospects',
+    href: '/advisor/prospects',
+    icon: Inbox,
+};
+
+const notificationsNavItem: NavItem = {
+    title: 'Notifications',
+    href: '/notifications',
+    icon: Bell,
+};
+
+const apiHealthNavItem: NavItem = {
+    title: 'API Health',
+    href: '/admin/integration-health',
+    icon: PlugZap,
+};
+
+const questionnairesNavItem: NavItem = {
+    title: 'Questionnaires',
+    href: '/admin/questionnaires',
+    icon: ClipboardList,
+};
+
+const advisorNavItems: NavItem[] = [
+    dashboardNavItem,
+    clientsNavItem,
+    entrepreneursNavItem,
+    knowledgeNavItem,
+    templatesNavItem,
+    prospectsNavItem,
+    notificationsNavItem,
+    apiHealthNavItem,
+];
+
+const juniorAdvisorNavItems: NavItem[] = [
+    dashboardNavItem,
+    clientsNavItem,
+    entrepreneursNavItem,
+    knowledgeNavItem,
+    templatesNavItem,
+    prospectsNavItem,
+    notificationsNavItem,
+];
+
+const mentorNavItems: NavItem[] = [
+    dashboardNavItem,
+    entrepreneursNavItem,
+    knowledgeNavItem,
+    templatesNavItem,
+    notificationsNavItem,
+];
+
+const entrepreneurNavItems: NavItem[] = [
     {
-        title: 'Dashboard',
-        href: dashboard(),
+        title: 'Portal',
+        href: '/portal/entrepreneur',
         icon: LayoutGrid,
     },
-    {
-        title: 'Clients',
-        href: '/advisor/clients',
-        icon: BriefcaseBusiness,
-    },
-    {
-        title: 'Entrepreneurs',
-        href: '/advisor/entrepreneurs',
-        icon: UsersRound,
-    },
-    {
-        title: 'Knowledge',
-        href: '/advisor/knowledge',
-        icon: BookOpen,
-    },
-    {
-        title: 'Templates',
-        href: '/advisor/templates',
-        icon: FileText,
-    },
-    {
-        title: 'Prospects',
-        href: '/advisor/prospects',
-        icon: Inbox,
-    },
-    {
-        title: 'Notifications',
-        href: '/notifications',
-        icon: Bell,
-    },
-    {
-        title: 'API Health',
-        href: '/admin/integration-health',
-        icon: PlugZap,
-    },
-    {
-        title: 'Questionnaires',
-        href: '/admin/questionnaires',
-        icon: ClipboardList,
-    },
+    notificationsNavItem,
 ];
+
+const clientNavItems: NavItem[] = [
+    {
+        title: 'Portal',
+        href: '/portal',
+        icon: LayoutGrid,
+    },
+    notificationsNavItem,
+];
+
+const defaultNavItems: NavItem[] = [dashboardNavItem, notificationsNavItem];
 
 const footerNavItems: NavItem[] = [
     {
@@ -88,14 +143,71 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
+function mainNavItemsFor(userType?: string | null): NavItem[] {
+    if (userType === 'entrepreneur') {
+        return entrepreneurNavItems;
+    }
+
+    if (userType === 'client_primary' || userType === 'client_team') {
+        return clientNavItems;
+    }
+
+    if (userType === 'super_admin') {
+        return [...advisorNavItems, questionnairesNavItem];
+    }
+
+    if (userType === 'advisor') {
+        return advisorNavItems;
+    }
+
+    if (userType === 'junior_advisor') {
+        return juniorAdvisorNavItems;
+    }
+
+    if (userType === 'entrepreneur_mentor') {
+        return mentorNavItems;
+    }
+
+    return defaultNavItems;
+}
+
+function homeHrefFor(userType?: string | null): NavItem['href'] {
+    if (userType === 'entrepreneur') {
+        return '/portal/entrepreneur';
+    }
+
+    if (userType === 'client_primary' || userType === 'client_team') {
+        return '/portal';
+    }
+
+    return dashboard();
+}
+
+function canViewInternalFooter(userType?: string | null): boolean {
+    return (
+        userType === 'super_admin' ||
+        userType === 'advisor' ||
+        userType === 'junior_advisor' ||
+        userType === 'entrepreneur_mentor'
+    );
+}
+
 export function AppSidebar() {
+    const { auth } = usePage<{ auth: Auth }>().props;
+    const userType = auth.user.user_type;
+    const mainNavItems = mainNavItemsFor(userType);
+    const homeHref = homeHrefFor(userType);
+    const visibleFooterItems = canViewInternalFooter(userType)
+        ? footerNavItems
+        : [];
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={homeHref} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>
@@ -108,7 +220,9 @@ export function AppSidebar() {
             </SidebarContent>
 
             <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
+                {visibleFooterItems.length > 0 && (
+                    <NavFooter items={visibleFooterItems} className="mt-auto" />
+                )}
                 <NavUser />
             </SidebarFooter>
         </Sidebar>
