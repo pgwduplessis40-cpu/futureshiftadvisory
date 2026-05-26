@@ -37,6 +37,7 @@ final class ReferralLifecycle
      */
     private array $brokerAllowedNext = [
         Referral::STAGE_DRAFT => [Referral::STAGE_BROKER_REFERRAL_SENT, Referral::STAGE_WITHDRAWN],
+        Referral::STAGE_SENT => [Referral::STAGE_BROKER_ACKNOWLEDGED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_BROKER_REFERRAL_SENT => [Referral::STAGE_BROKER_ACKNOWLEDGED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_BROKER_ACKNOWLEDGED => [Referral::STAGE_BROKER_QUOTE_REQUESTED, Referral::STAGE_BROKER_DECLINED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],
         Referral::STAGE_BROKER_QUOTE_REQUESTED => [Referral::STAGE_BROKER_COVER_PLACED, Referral::STAGE_BROKER_DECLINED, Referral::STAGE_BROKER_NO_RESPONSE, Referral::STAGE_WITHDRAWN],

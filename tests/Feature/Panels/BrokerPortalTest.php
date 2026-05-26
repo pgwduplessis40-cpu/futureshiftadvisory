@@ -188,7 +188,38 @@ final class BrokerPortalTest extends TestCase
                 ->where('dashboard.referrals.0.stage', Referral::STAGE_BROKER_REFERRAL_SENT)
                 ->where('dashboard.messages.0.body', 'Client is ready for a broker introduction.')
                 ->where('dashboard.reverseReferrals.0.company', 'Reverse Co')
+                ->where('dashboard.referrals.0.availableActions.0.stage', Referral::STAGE_BROKER_ACKNOWLEDGED)
+                ->where('dashboard.referrals.0.stageUpdateUrl', route('broker.referrals.stage', $referral, absolute: false))
             );
+    }
+
+    public function test_broker_can_update_own_referral_stage_from_dashboard_action(): void
+    {
+        [$advisor, $client] = $this->clientWithAdvisor();
+        $brokerMember = $this->activeBroker('dashboard-action-broker@example.test');
+        $lifecycle = app(ReferralLifecycle::class);
+        $referral = $lifecycle->create($client, $brokerMember, $advisor, [
+            'need' => 'Commercial cover review',
+        ]);
+        $referral = $this->prepareToSend($referral, $advisor, $client);
+        $referral = $lifecycle->transition($referral, Referral::STAGE_BROKER_REFERRAL_SENT, $advisor);
+        $referral->forceFill(['stage' => Referral::STAGE_SENT])->save();
+        $referral->refresh();
+
+        $this->actingAsMfa($brokerMember->user)
+            ->patch(route('broker.referrals.stage', $referral), [
+                'stage' => Referral::STAGE_BROKER_ACKNOWLEDGED,
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('referrals', [
+            'id' => $referral->id,
+            'stage' => Referral::STAGE_BROKER_ACKNOWLEDGED,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'referral.stage_changed',
+            'subject_id' => $referral->id,
+        ]);
     }
 
     private function activeBroker(string $email): PanelMember

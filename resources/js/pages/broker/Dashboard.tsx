@@ -1,14 +1,17 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     ArrowUpRight,
     BadgeCheck,
     BriefcaseBusiness,
     ClipboardCheck,
+    Eye,
     FileSignature,
+    Mail,
     MessageSquare,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { ComponentType } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -19,6 +22,20 @@ import {
     CardHeader,
     CardTitle,
 } from '@/components/ui/card';
+import {
+    Dialog,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+    DialogTrigger,
+} from '@/components/ui/dialog';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { dashboard as dashboardRoute } from '@/routes';
 
 type BrokerDashboardPayload = {
@@ -60,10 +77,18 @@ type ReferralSummary = {
     reason: string | null;
     sentAt: string | null;
     closedAt: string | null;
+    stageUpdateUrl: string;
+    availableActions: ReferralAction[];
     latestMessage: {
         body: string;
         sentAt: string | null;
     } | null;
+};
+
+type ReferralAction = {
+    stage: string;
+    label: string;
+    tone: 'default' | 'outline';
 };
 
 type MessageSummary = {
@@ -97,6 +122,26 @@ type Props = {
 
 export default function BrokerDashboard({ dashboard }: Props) {
     const panel = dashboard.panel;
+    const [processingAction, setProcessingAction] = useState<string | null>(
+        null,
+    );
+
+    const updateReferralStage = (
+        referral: ReferralSummary,
+        action: ReferralAction,
+    ) => {
+        const actionKey = `${referral.id}-${action.stage}`;
+
+        setProcessingAction(actionKey);
+        router.patch(
+            referral.stageUpdateUrl,
+            { stage: action.stage },
+            {
+                preserveScroll: true,
+                onFinish: () => setProcessingAction(null),
+            },
+        );
+    };
 
     return (
         <>
@@ -114,10 +159,28 @@ export default function BrokerDashboard({ dashboard }: Props) {
                     <div className="flex flex-wrap gap-2">
                         {panel ? (
                             <>
-                                <StatusBadge status={panel.status} />
-                                <FspBadge status={panel.fspStatus} />
+                                <StatusBadge
+                                    status={panel.status}
+                                    approvedAt={panel.approvedAt}
+                                />
+                                <FspBadge
+                                    status={panel.fspStatus}
+                                    lastCheckedAt={panel.fspLastCheckedAt}
+                                />
                             </>
                         ) : null}
+                        <Button variant="outline" size="sm" asChild>
+                            <a href="#broker-referrals">
+                                Referrals
+                                <ArrowUpRight aria-hidden="true" />
+                            </a>
+                        </Button>
+                        <Button variant="outline" size="sm" asChild>
+                            <a href="#broker-agreement">
+                                Agreement
+                                <ArrowUpRight aria-hidden="true" />
+                            </a>
+                        </Button>
                         <Button variant="outline" size="sm" asChild>
                             <Link href="/notifications">
                                 Notifications
@@ -145,18 +208,24 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                 label="Active referrals"
                                 value={dashboard.summary.activeReferrals}
                                 detail={`${dashboard.summary.totalReferrals} total`}
+                                href="#broker-referrals"
+                                actionLabel="Review"
                             />
                             <MetricCard
                                 icon={ClipboardCheck}
                                 label="Cover placed"
                                 value={dashboard.summary.coverPlaced}
                                 detail="Completed broker outcomes"
+                                href="#broker-referrals"
+                                actionLabel="View"
                             />
                             <MetricCard
                                 icon={UsersRound}
                                 label="Reverse referrals"
                                 value={dashboard.summary.reverseReferrals}
                                 detail="Submitted to FSA"
+                                href="#broker-reverse-referrals"
+                                actionLabel="Open"
                             />
                             <MetricCard
                                 icon={ShieldCheck}
@@ -167,11 +236,17 @@ export default function BrokerDashboard({ dashboard }: Props) {
                                         ? `Checked ${formatDate(panel.fspLastCheckedAt)}`
                                         : 'Not checked yet'
                                 }
+                                href="#broker-profile"
+                                actionLabel="Details"
                             />
                         </section>
 
                         <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-                            <ReferralPipeline referrals={dashboard.referrals} />
+                            <ReferralPipeline
+                                referrals={dashboard.referrals}
+                                processingAction={processingAction}
+                                onStageAction={updateReferralStage}
+                            />
                             <BrokerProfile panel={panel} />
                         </section>
 
@@ -203,11 +278,15 @@ function MetricCard({
     label,
     value,
     detail,
+    href,
+    actionLabel,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     label: string;
     value: string | number;
     detail: string;
+    href?: string;
+    actionLabel?: string;
 }) {
     return (
         <Card className="rounded-lg">
@@ -221,21 +300,48 @@ function MetricCard({
                 </div>
                 <CardTitle className="text-2xl">{value}</CardTitle>
             </CardHeader>
-            <CardContent>
+            <CardContent className="flex items-center justify-between gap-3">
                 <p className="text-sm text-muted-foreground">{detail}</p>
+                {href && actionLabel ? (
+                    <Button variant="ghost" size="sm" asChild>
+                        <a href={href}>
+                            {actionLabel}
+                            <ArrowUpRight aria-hidden="true" />
+                        </a>
+                    </Button>
+                ) : null}
             </CardContent>
         </Card>
     );
 }
 
-function ReferralPipeline({ referrals }: { referrals: ReferralSummary[] }) {
+function ReferralPipeline({
+    referrals,
+    processingAction,
+    onStageAction,
+}: {
+    referrals: ReferralSummary[];
+    processingAction: string | null;
+    onStageAction: (referral: ReferralSummary, action: ReferralAction) => void;
+}) {
     return (
-        <Card className="rounded-lg">
+        <Card id="broker-referrals" className="rounded-lg">
             <CardHeader>
-                <CardTitle>Referral pipeline</CardTitle>
-                <CardDescription>
-                    Current client referrals assigned to your broker panel.
-                </CardDescription>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                    <div>
+                        <CardTitle>Referral pipeline</CardTitle>
+                        <CardDescription>
+                            Current client referrals assigned to your broker
+                            panel.
+                        </CardDescription>
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                        <Link href="/notifications">
+                            Referral alerts
+                            <ArrowUpRight aria-hidden="true" />
+                        </Link>
+                    </Button>
+                </div>
             </CardHeader>
             <CardContent className="space-y-3">
                 {referrals.length === 0 ? (
@@ -282,6 +388,39 @@ function ReferralPipeline({ referrals }: { referrals: ReferralSummary[] }) {
                                     </p>
                                 </div>
                             ) : null}
+                            <div className="mt-4 flex flex-wrap gap-2">
+                                <ReferralDetailDialog referral={referral} />
+                                {referral.clientContact ? (
+                                    <Button variant="outline" size="sm" asChild>
+                                        <a
+                                            href={`mailto:${referral.clientContact}`}
+                                        >
+                                            <Mail aria-hidden="true" />
+                                            Email client
+                                        </a>
+                                    </Button>
+                                ) : null}
+                                {referral.availableActions.map((action) => {
+                                    const actionKey = `${referral.id}-${action.stage}`;
+
+                                    return (
+                                        <Button
+                                            key={action.stage}
+                                            type="button"
+                                            size="sm"
+                                            variant={action.tone}
+                                            disabled={
+                                                processingAction === actionKey
+                                            }
+                                            onClick={() =>
+                                                onStageAction(referral, action)
+                                            }
+                                        >
+                                            {action.label}
+                                        </Button>
+                                    );
+                                })}
+                            </div>
                         </article>
                     ))
                 )}
@@ -292,7 +431,7 @@ function ReferralPipeline({ referrals }: { referrals: ReferralSummary[] }) {
 
 function BrokerProfile({ panel }: { panel: PanelSummary }) {
     return (
-        <Card className="rounded-lg">
+        <Card id="broker-profile" className="rounded-lg">
             <CardHeader>
                 <CardTitle>Broker profile</CardTitle>
                 <CardDescription>{panel.email}</CardDescription>
@@ -319,7 +458,7 @@ function BrokerProfile({ panel }: { panel: PanelSummary }) {
 
 function AgreementPanel({ agreement }: { agreement: AgreementSummary | null }) {
     return (
-        <Card className="rounded-lg">
+        <Card id="broker-agreement" className="rounded-lg">
             <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                     <CardTitle>Panel agreement</CardTitle>
@@ -336,28 +475,31 @@ function AgreementPanel({ agreement }: { agreement: AgreementSummary | null }) {
                 {!agreement ? (
                     <EmptyState text="No panel agreement has been issued." />
                 ) : (
-                    <dl className="grid gap-3 text-sm">
-                        <Detail
-                            label="Status"
-                            value={labelFor(agreement.status)}
-                        />
-                        <Detail
-                            label="Generated"
-                            value={
-                                agreement.generatedAt
-                                    ? formatDate(agreement.generatedAt)
-                                    : '-'
-                            }
-                        />
-                        <Detail
-                            label="Signed"
-                            value={
-                                agreement.signedAt
-                                    ? formatDate(agreement.signedAt)
-                                    : 'Pending'
-                            }
-                        />
-                    </dl>
+                    <div className="space-y-4">
+                        <dl className="grid gap-3 text-sm">
+                            <Detail
+                                label="Status"
+                                value={labelFor(agreement.status)}
+                            />
+                            <Detail
+                                label="Generated"
+                                value={
+                                    agreement.generatedAt
+                                        ? formatDate(agreement.generatedAt)
+                                        : '-'
+                                }
+                            />
+                            <Detail
+                                label="Signed"
+                                value={
+                                    agreement.signedAt
+                                        ? formatDate(agreement.signedAt)
+                                        : 'Pending'
+                                }
+                            />
+                        </dl>
+                        <AgreementDetailDialog agreement={agreement} />
+                    </div>
                 )}
             </CardContent>
         </Card>
@@ -415,7 +557,7 @@ function ReverseReferralPanel({
     referrals: ReverseReferralSummary[];
 }) {
     return (
-        <Card className="rounded-lg">
+        <Card id="broker-reverse-referrals" className="rounded-lg">
             <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                     <CardTitle>Reverse referrals</CardTitle>
@@ -448,11 +590,190 @@ function ReverseReferralPanel({
                                     ? formatDate(referral.submittedAt)
                                     : null}
                             </p>
+                            <div className="pt-2">
+                                <ReverseReferralDetailDialog
+                                    referral={referral}
+                                />
+                            </div>
                         </article>
                     ))
                 )}
             </CardContent>
         </Card>
+    );
+}
+
+function ReferralDetailDialog({ referral }: { referral: ReferralSummary }) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <Eye aria-hidden="true" />
+                    View details
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{referral.clientName}</DialogTitle>
+                    <DialogDescription>
+                        Broker referral detail and current stage.
+                    </DialogDescription>
+                </DialogHeader>
+                <dl className="grid gap-3 text-sm">
+                    <Detail label="Stage" value={labelFor(referral.stage)} />
+                    <Detail
+                        label="Type"
+                        value={labelFor(referral.referralType)}
+                    />
+                    <Detail
+                        label="Sent"
+                        value={
+                            referral.sentAt
+                                ? formatDate(referral.sentAt)
+                                : 'Not sent'
+                        }
+                    />
+                    <Detail
+                        label="Closed"
+                        value={
+                            referral.closedAt
+                                ? formatDate(referral.closedAt)
+                                : 'Open'
+                        }
+                    />
+                    {referral.clientContact ? (
+                        <Detail
+                            label="Contact"
+                            value={referral.clientContact}
+                        />
+                    ) : null}
+                </dl>
+                {referral.reason ? (
+                    <div className="rounded-lg bg-muted/50 p-3 text-sm">
+                        {referral.reason}
+                    </div>
+                ) : null}
+                {referral.latestMessage ? (
+                    <div className="rounded-lg border p-3 text-sm">
+                        <p>{referral.latestMessage.body}</p>
+                        <p className="mt-2 text-xs text-muted-foreground">
+                            {referral.latestMessage.sentAt
+                                ? formatDate(referral.latestMessage.sentAt)
+                                : null}
+                        </p>
+                    </div>
+                ) : null}
+                <DialogFooter>
+                    {referral.clientContact ? (
+                        <Button asChild>
+                            <a href={`mailto:${referral.clientContact}`}>
+                                <Mail aria-hidden="true" />
+                                Email client
+                            </a>
+                        </Button>
+                    ) : null}
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function AgreementDetailDialog({ agreement }: { agreement: AgreementSummary }) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <Eye aria-hidden="true" />
+                    View agreement
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>Panel agreement</DialogTitle>
+                    <DialogDescription>
+                        Signature status and stored agreement metadata.
+                    </DialogDescription>
+                </DialogHeader>
+                <dl className="grid gap-3 text-sm">
+                    <Detail label="Status" value={labelFor(agreement.status)} />
+                    <Detail
+                        label="Generated"
+                        value={
+                            agreement.generatedAt
+                                ? formatDate(agreement.generatedAt)
+                                : '-'
+                        }
+                    />
+                    <Detail
+                        label="Signed"
+                        value={
+                            agreement.signedAt
+                                ? formatDate(agreement.signedAt)
+                                : 'Pending'
+                        }
+                    />
+                    <Detail
+                        label="Stored PDF"
+                        value={agreement.hasStoredPdf ? 'Available' : 'Pending'}
+                    />
+                    {agreement.pdfByteSize ? (
+                        <Detail
+                            label="File size"
+                            value={`${Math.round(agreement.pdfByteSize / 1024)} KB`}
+                        />
+                    ) : null}
+                </dl>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
+function ReverseReferralDetailDialog({
+    referral,
+}: {
+    referral: ReverseReferralSummary;
+}) {
+    return (
+        <Dialog>
+            <DialogTrigger asChild>
+                <Button variant="outline" size="sm">
+                    <Eye aria-hidden="true" />
+                    View referral
+                </Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle>{referral.name}</DialogTitle>
+                    <DialogDescription>
+                        Reverse referral submitted to Future Shift Advisory.
+                    </DialogDescription>
+                </DialogHeader>
+                <dl className="grid gap-3 text-sm">
+                    <Detail
+                        label="Target"
+                        value={labelFor(referral.targetType)}
+                    />
+                    <Detail label="Email" value={referral.email} />
+                    <Detail label="Company" value={referral.company ?? '-'} />
+                    <Detail
+                        label="Submitted"
+                        value={
+                            referral.submittedAt
+                                ? formatDate(referral.submittedAt)
+                                : '-'
+                        }
+                    />
+                </dl>
+                <DialogFooter>
+                    <Button asChild>
+                        <a href={`mailto:${referral.email}`}>
+                            <Mail aria-hidden="true" />
+                            Email contact
+                        </a>
+                    </Button>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -488,33 +809,82 @@ function EmptyState({ text }: { text: string }) {
     return <p className="text-sm text-muted-foreground">{text}</p>;
 }
 
-function StatusBadge({ status }: { status: string }) {
+function StatusBadge({
+    status,
+    approvedAt,
+}: {
+    status: string;
+    approvedAt: string | null;
+}) {
     const classes =
         status === 'active'
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
             : status === 'suspended'
               ? 'border-red-200 bg-red-50 text-red-700'
               : 'border-amber-200 bg-amber-50 text-amber-700';
+    const explanation =
+        status === 'active'
+            ? 'Your broker panel agreement is active and your broker portal access is open.'
+            : status === 'suspended'
+              ? 'Your broker panel access is suspended. Contact Future Shift Advisory before acting on referrals.'
+              : `Your broker panel application has been approved${approvedAt ? ` since ${formatDate(approvedAt)}` : ''}. You can work referrals while FSA keeps your panel record under review.`;
 
     return (
-        <Badge variant="outline" className={classes}>
+        <ExplainedBadge className={classes} explanation={explanation}>
             {labelFor(status)}
-        </Badge>
+        </ExplainedBadge>
     );
 }
 
-function FspBadge({ status }: { status: string | null }) {
+function FspBadge({
+    status,
+    lastCheckedAt,
+}: {
+    status: string | null;
+    lastCheckedAt: string | null;
+}) {
     const classes =
         status === 'current'
             ? 'border-emerald-200 bg-emerald-50 text-emerald-700'
             : status === 'lapsed'
               ? 'border-red-200 bg-red-50 text-red-700'
               : 'border-amber-200 bg-amber-50 text-amber-700';
+    const explanation =
+        status === 'current'
+            ? `FSP Current means the broker FSP registration passed the latest verification${lastCheckedAt ? ` on ${formatDate(lastCheckedAt)}` : ''}.`
+            : status === 'lapsed'
+              ? 'FSP Lapsed means the last FSP verification did not confirm a current registration.'
+              : 'FSP Unknown means Future Shift Advisory has not confirmed a current FSP status yet.';
 
     return (
-        <Badge variant="outline" className={classes}>
+        <ExplainedBadge className={classes} explanation={explanation}>
             FSP {labelFor(status ?? 'unknown')}
-        </Badge>
+        </ExplainedBadge>
+    );
+}
+
+function ExplainedBadge({
+    children,
+    className,
+    explanation,
+}: {
+    children: React.ReactNode;
+    className: string;
+    explanation: string;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span className="inline-flex" tabIndex={0}>
+                    <Badge variant="outline" className={className}>
+                        {children}
+                    </Badge>
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

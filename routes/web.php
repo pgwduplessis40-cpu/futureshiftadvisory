@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Permission;
+use App\Http\Controllers\Broker\ReferralStageController;
 use App\Http\Controllers\BulkCommunicationOpenController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
@@ -31,6 +32,9 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::patch('notifications/{notification}/read', [NotificationController::class, 'markRead'])
         ->middleware('permission:'.Permission::NOTIFICATIONS_VIEW->value)
         ->name('notifications.mark-read');
+    Route::patch('broker/referrals/{referral}/stage', ReferralStageController::class)
+        ->middleware('permission:'.Permission::BROKER_PORTAL->value)
+        ->name('broker.referrals.stage');
 });
 
 require __DIR__.'/settings.php';

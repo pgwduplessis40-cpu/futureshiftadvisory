@@ -158,7 +158,10 @@ final class DashboardController extends Controller
             ],
             'stageCounts' => $stageCounts,
             'referrals' => $referrals
-                ->map(fn (Referral $referral): array => $this->brokerReferralSummary($referral, $latestMessages[(string) $referral->getKey()] ?? null))
+                ->map(fn (Referral $referral): array => $this->brokerReferralSummary(
+                    $referral,
+                    $latestMessages[(string) $referral->getKey()] ?? null,
+                ))
                 ->values()
                 ->all(),
             'messages' => $this->recentBrokerMessages($member),
@@ -235,6 +238,8 @@ final class DashboardController extends Controller
                 ?? $this->stringFromApplication($payload, 'need'),
             'sentAt' => $referral->sent_at?->toIso8601String(),
             'closedAt' => $referral->closed_at?->toIso8601String(),
+            'stageUpdateUrl' => route('broker.referrals.stage', $referral, absolute: false),
+            'availableActions' => $this->brokerReferralActions($referral),
             'latestMessage' => $latestMessage instanceof ReferralMessage ? [
                 'body' => $latestMessage->body,
                 'sentAt' => $latestMessage->sent_at?->toIso8601String(),
@@ -261,6 +266,42 @@ final class DashboardController extends Controller
                 'clientName' => $message->client?->legal_name ?? 'Client',
                 'stage' => $message->referral?->stage,
                 'sentAt' => $message->sent_at?->toIso8601String(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{stage:string, label:string, tone:string}>
+     */
+    private function brokerReferralActions(Referral $referral): array
+    {
+        $actions = match ($referral->stage) {
+            Referral::STAGE_BROKER_REFERRAL_SENT, Referral::STAGE_SENT => [
+                [Referral::STAGE_BROKER_ACKNOWLEDGED, 'Acknowledge', 'default'],
+                [Referral::STAGE_BROKER_NO_RESPONSE, 'No response', 'outline'],
+                [Referral::STAGE_WITHDRAWN, 'Withdraw', 'outline'],
+            ],
+            Referral::STAGE_BROKER_ACKNOWLEDGED => [
+                [Referral::STAGE_BROKER_QUOTE_REQUESTED, 'Quote requested', 'default'],
+                [Referral::STAGE_BROKER_DECLINED, 'Decline', 'outline'],
+                [Referral::STAGE_BROKER_NO_RESPONSE, 'No response', 'outline'],
+                [Referral::STAGE_WITHDRAWN, 'Withdraw', 'outline'],
+            ],
+            Referral::STAGE_BROKER_QUOTE_REQUESTED => [
+                [Referral::STAGE_BROKER_COVER_PLACED, 'Cover placed', 'default'],
+                [Referral::STAGE_BROKER_DECLINED, 'Decline', 'outline'],
+                [Referral::STAGE_BROKER_NO_RESPONSE, 'No response', 'outline'],
+                [Referral::STAGE_WITHDRAWN, 'Withdraw', 'outline'],
+            ],
+            default => [],
+        };
+
+        return collect($actions)
+            ->map(fn (array $action): array => [
+                'stage' => $action[0],
+                'label' => $action[1],
+                'tone' => $action[2],
             ])
             ->values()
             ->all();
