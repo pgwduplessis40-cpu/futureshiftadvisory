@@ -52,4 +52,33 @@ final class LiveCompaniesOfficeClient implements CompaniesOfficeClient
 
         return is_array($directors) ? array_values($directors) : [];
     }
+
+    public function incorporatedSocietyProfile(string $identifier): array
+    {
+        if (! (bool) Config::get('integrations.incorporated_societies.live', false)) {
+            throw IntegrationDisabledException::forService('incorporated-societies');
+        }
+
+        $apiKey = (string) Config::get('integrations.incorporated_societies.api_key', '');
+        $endpoint = $apiKey === ''
+            ? rtrim((string) Config::get('integrations.incorporated_societies.scrape_url'), '/').'/'.urlencode($identifier)
+            : rtrim((string) Config::get('integrations.incorporated_societies.base_url'), '/').'/societies/'.urlencode($identifier);
+
+        $result = $this->http->get(
+            service: 'incorporated-societies',
+            endpoint: $endpoint,
+            query: $apiKey === '' ? [] : ['api_key' => $apiKey],
+            cacheKey: 'integration:incorporated-societies:'.strtoupper(trim($identifier)),
+            fallback: fn (): array => $this->fake->fallbackIncorporatedSocietyProfile($identifier),
+        );
+
+        return is_array($result->data)
+            ? [
+                ...$result->data,
+                'source_badge' => $result->fromFallback ? 'stub_live_fallback' : ($result->fromCache ? 'cached' : 'live'),
+                'degraded' => $result->fromFallback,
+                'correlation_id' => $result->correlationId,
+            ]
+            : $this->fake->fallbackIncorporatedSocietyProfile($identifier);
+    }
 }

@@ -43,6 +43,20 @@ return [
         'api_key' => env('COMPANIES_OFFICE_API_KEY'),
     ],
 
+    'charities_services' => [
+        'live' => (bool) env('FEATURE_CHARITIES_LIVE', false),
+        'base_url' => env('CHARITIES_SERVICES_BASE_URL', 'https://api.charities.govt.nz'),
+        'scrape_url' => env('CHARITIES_SERVICES_SCRAPE_URL', 'https://register.charities.govt.nz/Charity/CCSearch'),
+        'api_key' => env('CHARITIES_SERVICES_API_KEY'),
+    ],
+
+    'incorporated_societies' => [
+        'live' => (bool) env('FEATURE_INCORPORATED_SOCIETIES_LIVE', false),
+        'base_url' => env('INCORPORATED_SOCIETIES_BASE_URL', 'https://api.business.govt.nz/services/v1/incorporated-societies'),
+        'scrape_url' => env('INCORPORATED_SOCIETIES_SCRAPE_URL', 'https://is-register.companiesoffice.govt.nz'),
+        'api_key' => env('INCORPORATED_SOCIETIES_API_KEY'),
+    ],
+
     'ird' => [
         'live' => (bool) env('FEATURE_IRD_LIVE', false),
         'base_url' => env('IRD_BASE_URL', 'https://api.ird.govt.nz'),

@@ -1,0 +1,29 @@
+{
+  "CC10001": {
+    "registration_number": "CC10001",
+    "name": "Community Governance Trust",
+    "status": "Registered",
+    "registration_date": "2016-04-12",
+    "annual_return_due": "2026-09-30",
+    "latest_annual_return_filed": "2025-09-24",
+    "officers_current": true,
+    "governance_obligations": [
+      "Charities Act annual return",
+      "Financial reporting standard",
+      "Officer qualification confirmation"
+    ]
+  },
+  "CC20002": {
+    "registration_number": "CC20002",
+    "name": "Mission Access Social Enterprise",
+    "status": "Registered",
+    "registration_date": "2021-02-03",
+    "annual_return_due": "2026-07-31",
+    "latest_annual_return_filed": "2025-07-20",
+    "officers_current": true,
+    "governance_obligations": [
+      "Charities Act annual return",
+      "Related-party transaction disclosure"
+    ]
+  }
+}

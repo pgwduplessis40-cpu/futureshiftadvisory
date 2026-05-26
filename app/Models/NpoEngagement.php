@@ -98,4 +98,12 @@ final class NpoEngagement extends Model
     {
         return $this->hasMany(Proposal::class);
     }
+
+    /**
+     * @return HasMany<NpoComplianceAlert>
+     */
+    public function complianceAlerts(): HasMany
+    {
+        return $this->hasMany(NpoComplianceAlert::class);
+    }
 }

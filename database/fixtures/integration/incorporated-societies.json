@@ -1,0 +1,38 @@
+{
+  "500001": {
+    "society_number": "500001",
+    "name": "Community Governance Society Incorporated",
+    "status": "Registered",
+    "constitution_filed_at": "2024-10-14",
+    "officers_current": true,
+    "isa_2022": {
+      "reregistered": true,
+      "reregistered_at": "2025-02-17",
+      "deadline": "2026-04-05"
+    }
+  },
+  "500099": {
+    "society_number": "500099",
+    "name": "Legacy Community Society Incorporated",
+    "status": "Registered",
+    "constitution_filed_at": "2018-05-03",
+    "officers_current": false,
+    "isa_2022": {
+      "reregistered": false,
+      "reregistered_at": null,
+      "deadline": "2026-04-05"
+    }
+  },
+  "9429000000000": {
+    "society_number": "500001",
+    "name": "Future Shift Advisory Test Society Incorporated",
+    "status": "Registered",
+    "constitution_filed_at": "2024-10-14",
+    "officers_current": true,
+    "isa_2022": {
+      "reregistered": true,
+      "reregistered_at": "2025-02-17",
+      "deadline": "2026-04-05"
+    }
+  }
+}

@@ -4,6 +4,10 @@ declare(strict_types=1);
 
 namespace App\Providers;
 
+use App\Services\Integration\CharitiesServices\Contracts\CharitiesServicesClient;
+use App\Services\Integration\CharitiesServices\FakeCharitiesServicesClient;
+use App\Services\Integration\CharitiesServices\FallbackCharitiesServicesClient;
+use App\Services\Integration\CharitiesServices\LiveCharitiesServicesClient;
 use App\Services\Integration\Cin7\Contracts\Cin7Client;
 use App\Services\Integration\Cin7\FakeCin7Client;
 use App\Services\Integration\Cin7\FallbackCin7Client;
@@ -132,6 +136,11 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveCompaniesOfficeClient::class);
         $this->app->singleton(FallbackCompaniesOfficeClient::class);
         $this->app->singleton(CompaniesOfficeClient::class, FallbackCompaniesOfficeClient::class);
+
+        $this->app->singleton(FakeCharitiesServicesClient::class);
+        $this->app->singleton(LiveCharitiesServicesClient::class);
+        $this->app->singleton(FallbackCharitiesServicesClient::class);
+        $this->app->singleton(CharitiesServicesClient::class, FallbackCharitiesServicesClient::class);
 
         $this->app->singleton(FakeIrdClient::class);
         $this->app->singleton(LiveIrdClient::class);

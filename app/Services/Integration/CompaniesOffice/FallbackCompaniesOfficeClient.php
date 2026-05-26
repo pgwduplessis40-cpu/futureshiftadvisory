@@ -31,4 +31,13 @@ final class FallbackCompaniesOfficeClient implements CompaniesOfficeClient
             return $this->fake->directorsForCompany($nzbn);
         }
     }
+
+    public function incorporatedSocietyProfile(string $identifier): array
+    {
+        try {
+            return $this->live->incorporatedSocietyProfile($identifier);
+        } catch (IntegrationDisabledException) {
+            return $this->fake->incorporatedSocietyProfile($identifier);
+        }
+    }
 }

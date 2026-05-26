@@ -24,9 +24,30 @@ final class FakeCompaniesOfficeClient implements CompaniesOfficeClient
         return is_array($directors) ? array_values($directors) : [];
     }
 
+    public function incorporatedSocietyProfile(string $identifier): array
+    {
+        return $this->withBadge($this->fixtures->find(
+            'incorporated-societies',
+            $this->normaliseIdentifier($identifier),
+        ), 'stub');
+    }
+
+    public function fallbackIncorporatedSocietyProfile(string $identifier): array
+    {
+        return $this->withBadge($this->fixtures->find(
+            'incorporated-societies',
+            $this->normaliseIdentifier($identifier),
+        ), 'stub_live_fallback', degraded: true);
+    }
+
     public function fallbackCompanyProfile(string $nzbn): array
     {
         return $this->withBadge($this->fixtures->find('companies-office', $nzbn), 'stub_live_fallback', degraded: true);
+    }
+
+    private function normaliseIdentifier(string $identifier): string
+    {
+        return strtoupper(trim($identifier));
     }
 
     /**

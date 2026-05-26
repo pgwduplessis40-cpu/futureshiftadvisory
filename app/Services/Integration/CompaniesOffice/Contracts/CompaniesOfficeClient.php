@@ -15,4 +15,9 @@ interface CompaniesOfficeClient
      * @return array<int, array<string, mixed>>
      */
     public function directorsForCompany(string $nzbn): array;
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function incorporatedSocietyProfile(string $identifier): array;
 }

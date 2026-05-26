@@ -239,6 +239,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<NpoComplianceAlert>
+     */
+    public function npoComplianceAlerts(): HasMany
+    {
+        return $this->hasMany(NpoComplianceAlert::class);
+    }
+
+    /**
      * @return HasMany<CoachReferralAuthorisation>
      */
     public function coachReferralAuthorisations(): HasMany
