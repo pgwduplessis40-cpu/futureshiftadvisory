@@ -31,9 +31,14 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     const navItems: NavItem[] = isEntrepreneur
         ? [
               {
-                  label: 'Portal',
+                  label: 'Dashboard',
                   href: dashboardHref,
                   icon: LayoutDashboard,
+              },
+              {
+                  label: 'Messages',
+                  href: '/portal/messages',
+                  icon: MessageSquare,
               },
           ]
         : [

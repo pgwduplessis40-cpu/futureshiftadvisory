@@ -121,7 +121,7 @@ final class AddEntrepreneurTest extends TestCase
         Mail::assertNothingSent();
     }
 
-    public function test_entrepreneur_dashboard_redirects_to_phase_one_placeholder(): void
+    public function test_entrepreneur_dashboard_redirects_to_actionable_dashboard(): void
     {
         $this->seed(RoleSeeder::class);
         $advisor = $this->advisor();
@@ -151,6 +151,9 @@ final class AddEntrepreneurTest extends TestCase
                 ->component('portal/entrepreneur/Dashboard')
                 ->where('profile.stage', EntrepreneurStage::ONBOARDING->value)
                 ->where('profile.name', 'Portal Founder')
+                ->where('profile.message_summary.threads_count', 0)
+                ->where('messagesUrl', route('portal.messages.index', absolute: false))
+                ->where('documentUploadUrl', route('portal.documents.store', absolute: false))
             );
     }
 

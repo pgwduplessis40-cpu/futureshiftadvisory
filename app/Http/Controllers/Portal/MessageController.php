@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Portal;
 use App\Http\Controllers\Concerns\BuildsMessagePayloads;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\MessageThread;
 use App\Models\User;
 use App\Services\Messaging\MessageThreadService;
@@ -29,8 +30,20 @@ final class MessageController extends Controller
 
     public function index(Request $request): Response
     {
-        $client = $this->clients->resolveFor($request);
         $viewer = $this->viewer($request);
+        $profile = $this->entrepreneurProfileFor($viewer);
+        if ($profile instanceof EntrepreneurProfile) {
+            $threads = $this->entrepreneurMessageThreads($profile);
+            $selectedThread = $threads->first();
+
+            if ($selectedThread instanceof MessageThread) {
+                $this->messages->markRead($selectedThread, $viewer);
+            }
+
+            return Inertia::render('portal/messages/Index', $this->entrepreneurPagePayload($profile, $viewer, $threads, $selectedThread));
+        }
+
+        $client = $this->clients->resolveFor($request);
         $threads = $this->clientMessageThreads($client);
         $selectedThread = $threads->first();
 
@@ -43,9 +56,22 @@ final class MessageController extends Controller
 
     public function show(Request $request, MessageThread $messageThread): Response
     {
+        $viewer = $this->viewer($request);
+        $profile = $this->entrepreneurProfileFor($viewer);
+        if ($profile instanceof EntrepreneurProfile) {
+            $this->assertEntrepreneurThread($profile, $messageThread);
+            $this->messages->markRead($messageThread, $viewer);
+
+            return Inertia::render('portal/messages/Index', $this->entrepreneurPagePayload(
+                profile: $profile,
+                viewer: $viewer,
+                threads: $this->entrepreneurMessageThreads($profile),
+                selectedThread: $messageThread,
+            ));
+        }
+
         $client = $this->clients->resolveFor($request);
         $this->assertClientThread($client, $messageThread);
-        $viewer = $this->viewer($request);
         $this->messages->markRead($messageThread, $viewer);
 
         return Inertia::render('portal/messages/Index', $this->pagePayload(
@@ -58,8 +84,24 @@ final class MessageController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
         $viewer = $this->viewer($request);
+        $profile = $this->entrepreneurProfileFor($viewer);
+        if ($profile instanceof EntrepreneurProfile) {
+            $validated = $this->validatedMessage($request, requireSubject: true);
+
+            $message = $this->messages->startEntrepreneurThread(
+                profile: $profile,
+                sender: $viewer,
+                subject: (string) $validated['subject'],
+                body: (string) $validated['body'],
+                attachments: $this->uploadedAttachments($request),
+            );
+
+            return to_route('portal.messages.show', $message->thread)
+                ->with('status', 'message-sent');
+        }
+
+        $client = $this->clients->resolveFor($request);
         $validated = $this->validatedMessage($request, requireSubject: true);
 
         $message = $this->messages->startClientThread(
@@ -76,9 +118,25 @@ final class MessageController extends Controller
 
     public function reply(Request $request, MessageThread $messageThread): RedirectResponse
     {
+        $viewer = $this->viewer($request);
+        $profile = $this->entrepreneurProfileFor($viewer);
+        if ($profile instanceof EntrepreneurProfile) {
+            $this->assertEntrepreneurThread($profile, $messageThread);
+            $validated = $this->validatedMessage($request, requireSubject: false);
+
+            $message = $this->messages->sendEntrepreneurReply(
+                thread: $messageThread->loadMissing('entrepreneurProfile'),
+                sender: $viewer,
+                body: (string) $validated['body'],
+                attachments: $this->uploadedAttachments($request),
+            );
+
+            return to_route('portal.messages.show', $message->thread)
+                ->with('status', 'message-sent');
+        }
+
         $client = $this->clients->resolveFor($request);
         $this->assertClientThread($client, $messageThread);
-        $viewer = $this->viewer($request);
         $validated = $this->validatedMessage($request, requireSubject: false);
 
         $message = $this->messages->sendReply(
@@ -121,6 +179,43 @@ final class MessageController extends Controller
                 : null,
             'createUrl' => route('portal.messages.store', absolute: false),
             'indexUrl' => route('portal.messages.index', absolute: false),
+            'backHref' => route('portal.dashboard', absolute: false),
+            'backLabel' => 'Dashboard',
+        ];
+    }
+
+    /**
+     * @param  Collection<int, MessageThread>  $threads
+     * @return array<string, mixed>
+     */
+    private function entrepreneurPagePayload(EntrepreneurProfile $profile, User $viewer, $threads, ?MessageThread $selectedThread): array
+    {
+        return [
+            'client' => [
+                'id' => $profile->id,
+                'legal_name' => $profile->name,
+                'trading_name' => null,
+                'engagement_type_label' => 'Entrepreneur portal',
+            ],
+            'threads' => $threads
+                ->map(fn (MessageThread $thread): array => $this->messageThreadSummary(
+                    thread: $thread,
+                    viewer: $viewer,
+                    url: route('portal.messages.show', $thread, absolute: false),
+                ))
+                ->values()
+                ->all(),
+            'selectedThread' => $selectedThread instanceof MessageThread
+                ? $this->selectedMessageThread(
+                    thread: $selectedThread,
+                    viewer: $viewer,
+                    replyUrl: route('portal.messages.reply', $selectedThread, absolute: false),
+                )
+                : null,
+            'createUrl' => route('portal.messages.store', absolute: false),
+            'indexUrl' => route('portal.messages.index', absolute: false),
+            'backHref' => route('portal.entrepreneur.dashboard', absolute: false),
+            'backLabel' => 'Dashboard',
         ];
     }
 
@@ -162,8 +257,24 @@ final class MessageController extends Controller
         return $user;
     }
 
+    private function entrepreneurProfileFor(User $user): ?EntrepreneurProfile
+    {
+        if ($user->user_type !== User::TYPE_ENTREPRENEUR) {
+            return null;
+        }
+
+        return EntrepreneurProfile::query()
+            ->where('user_id', $user->getKey())
+            ->firstOrFail();
+    }
+
     private function assertClientThread(Client $client, MessageThread $thread): void
     {
         abort_unless((string) $thread->client_id === (string) $client->getKey(), 404);
+    }
+
+    private function assertEntrepreneurThread(EntrepreneurProfile $profile, MessageThread $thread): void
+    {
+        abort_unless((string) $thread->entrepreneur_profile_id === (string) $profile->getKey(), 404);
     }
 }

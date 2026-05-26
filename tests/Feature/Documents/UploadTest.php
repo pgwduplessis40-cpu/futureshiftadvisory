@@ -5,12 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Documents;
 
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\EntrepreneurProfile;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireQuestion;
 use App\Models\User;
@@ -99,6 +101,45 @@ final class UploadTest extends TestCase
         );
     }
 
+    public function test_entrepreneur_can_upload_plan_evidence_from_portal(): void
+    {
+        $scanner = new class implements FileScanner
+        {
+            public int $calls = 0;
+
+            public function scan(mixed $stream): ScanResult
+            {
+                $this->calls++;
+
+                return ScanResult::clean(['engine' => 'test-scanner']);
+            }
+        };
+        $this->app->instance(FileScanner::class, $scanner);
+
+        [$user, $profile] = $this->entrepreneurUserWithProfile();
+
+        $response = $this->actingAsMfa($user)
+            ->withHeader('Accept', 'application/json')
+            ->post(route('portal.documents.store'), [
+                'file' => UploadedFile::fake()->createWithContent('business-plan.txt', 'Customer interviews and pricing evidence.'),
+                'category' => Document::CATEGORY_PLAN_ATTACHMENT,
+                'claim_value' => 'Customer interviews and pricing evidence.',
+                'question_prompt' => 'Entrepreneur dashboard document upload',
+            ]);
+
+        $response->assertCreated();
+
+        $documentId = $response->json('document.id');
+        $this->assertSame(1, $scanner->calls);
+        $this->assertDatabaseHas('documents', [
+            'id' => $documentId,
+            'client_id' => null,
+            'entrepreneur_profile_id' => $profile->id,
+            'category' => Document::CATEGORY_PLAN_ATTACHMENT,
+            'scanner_result' => Document::SCANNER_CLEAN,
+        ]);
+    }
+
     public function test_uploaded_file_persistence_remains_inside_secure_file_writer(): void
     {
         $root = base_path('app');
@@ -167,6 +208,35 @@ final class UploadTest extends TestCase
         ]);
 
         return [$user, $client];
+    }
+
+    /**
+     * @return array{0: User, 1: EntrepreneurProfile}
+     */
+    private function entrepreneurUserWithProfile(): array
+    {
+        $advisor = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $user->assignRole(User::TYPE_ENTREPRENEUR);
+
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'user_id' => $user->getKey(),
+            'name' => 'Upload Founder',
+            'email' => $user->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Evidence-backed plan.',
+        ]);
+
+        return [$user, $profile];
     }
 
     private function questionnaireQuestion(): QuestionnaireQuestion

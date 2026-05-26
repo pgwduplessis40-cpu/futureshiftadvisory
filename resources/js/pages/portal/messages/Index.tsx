@@ -12,6 +12,8 @@ type Props = {
     selectedThread: SelectedThread | null;
     createUrl: string;
     indexUrl: string;
+    backHref?: string;
+    backLabel?: string;
 };
 
 export default function PortalMessages({
@@ -20,6 +22,8 @@ export default function PortalMessages({
     selectedThread,
     createUrl,
     indexUrl,
+    backHref = '/portal',
+    backLabel = 'Dashboard',
 }: Props) {
     return (
         <>
@@ -30,8 +34,8 @@ export default function PortalMessages({
                 selectedThread={selectedThread}
                 createUrl={createUrl}
                 indexUrl={indexUrl}
-                backHref="/portal"
-                backLabel="Dashboard"
+                backHref={backHref}
+                backLabel={backLabel}
             />
         </>
     );

@@ -7,6 +7,8 @@ namespace App\Http\Controllers;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\EntrepreneurProfile;
+use App\Models\User;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\PortalOfflineSync;
 use App\Services\Storage\SecureFileWriter;
@@ -27,6 +29,11 @@ final class DocumentController extends Controller
     {
         Gate::authorize('create', Document::class);
 
+        $entrepreneurProfile = $this->entrepreneurProfileFor($request);
+        if ($entrepreneurProfile instanceof EntrepreneurProfile) {
+            return $this->storeForEntrepreneur($request, $entrepreneurProfile);
+        }
+
         if ($this->offlineSync->isSync($request)) {
             return $this->offlineSync->handle(
                 $request,
@@ -40,16 +47,33 @@ final class DocumentController extends Controller
         return $this->storeForClient($request, $client);
     }
 
-    private function storeForClient(Request $request, Client $client): JsonResponse
+    private function storeForEntrepreneur(Request $request, EntrepreneurProfile $profile): JsonResponse
     {
-        $validated = $request->validate([
-            'file' => ['required', 'file', 'max:20480'],
-            'category' => ['nullable', 'string', 'max:80'],
-            'question_id' => ['nullable', 'uuid', 'exists:questionnaire_questions,id'],
-            'claim_value' => ['nullable', 'string', 'max:4000'],
-            'question_prompt' => ['nullable', 'string', 'max:4000'],
+        $validated = $this->validatedUpload($request);
+        $file = $request->file('file');
+        abort_unless($file instanceof UploadedFile, 422);
+
+        $document = $this->writer->write(
+            uploadedFile: $file,
+            owner: $request->user(),
+            category: (string) ($validated['category'] ?? Document::CATEGORY_PLAN_ATTACHMENT),
+            entrepreneurProfileId: (string) $profile->getKey(),
+        );
+
+        VerifyDocumentJob::dispatch((string) $document->getKey(), [
+            'question_id' => $validated['question_id'] ?? null,
+            'claim_value' => $validated['claim_value'] ?? null,
+            'question_prompt' => $validated['question_prompt'] ?? null,
         ]);
 
+        return response()->json([
+            'document' => $this->documentPayload($document->refresh()->load('verifications')),
+        ], 201);
+    }
+
+    private function storeForClient(Request $request, Client $client): JsonResponse
+    {
+        $validated = $this->validatedUpload($request);
         $file = $request->file('file');
         abort_unless($file instanceof UploadedFile, 422);
 
@@ -69,6 +93,32 @@ final class DocumentController extends Controller
         return response()->json([
             'document' => $this->documentPayload($document->refresh()->load('verifications')),
         ], 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatedUpload(Request $request): array
+    {
+        return $request->validate([
+            'file' => ['required', 'file', 'max:20480'],
+            'category' => ['nullable', 'string', 'max:80'],
+            'question_id' => ['nullable', 'uuid', 'exists:questionnaire_questions,id'],
+            'claim_value' => ['nullable', 'string', 'max:4000'],
+            'question_prompt' => ['nullable', 'string', 'max:4000'],
+        ]);
+    }
+
+    private function entrepreneurProfileFor(Request $request): ?EntrepreneurProfile
+    {
+        $user = $request->user();
+        if (! $user instanceof User || $user->user_type !== User::TYPE_ENTREPRENEUR) {
+            return null;
+        }
+
+        return EntrepreneurProfile::query()
+            ->where('user_id', $user->getKey())
+            ->firstOrFail();
     }
 
     /**

@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature\Messaging;
 
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\CommunicationPreference;
 use App\Models\Document;
+use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\User;
@@ -64,7 +66,7 @@ final class ThreadedMessagingTest extends TestCase
             DB::statement('RESET ROLE');
 
             if ($this->connectionBypassesRls) {
-                DB::statement('REVOKE SELECT ON message_threads, message_thread_participants, messages FROM '.self::RLS_APP_ROLE);
+                DB::statement('REVOKE SELECT ON entrepreneur_profiles, message_threads, message_thread_participants, messages FROM '.self::RLS_APP_ROLE);
                 DB::statement('REVOKE USAGE ON SCHEMA public FROM '.self::RLS_APP_ROLE);
                 DB::statement('DROP ROLE IF EXISTS '.self::RLS_APP_ROLE);
             }
@@ -155,6 +157,44 @@ final class ThreadedMessagingTest extends TestCase
                 ->has('selectedThread.messages', 2));
     }
 
+    public function test_entrepreneur_starts_thread_from_portal_and_advisor_is_notified(): void
+    {
+        $advisor = $this->advisor();
+        $entrepreneur = $this->entrepreneurUser();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'name' => 'Portal Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'A new export forecasting idea.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.messages.store'), [
+                'subject' => 'Plan evidence review',
+                'body' => 'I have uploaded a new customer interview summary.',
+            ])
+            ->assertRedirect();
+
+        $thread = MessageThread::query()->firstOrFail();
+
+        $this->assertNull($thread->client_id);
+        $this->assertSame($profile->id, $thread->entrepreneur_profile_id);
+        $this->assertSame('message.new', $advisor->notifications()->firstOrFail()->type);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.messages.show', $thread))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/messages/Index')
+                ->where('client.legal_name', 'Portal Founder')
+                ->where('client.engagement_type_label', 'Entrepreneur portal')
+                ->where('backHref', route('portal.entrepreneur.dashboard', absolute: false))
+                ->where('selectedThread.id', $thread->id)
+                ->has('selectedThread.messages', 1));
+    }
+
     public function test_message_threads_are_scoped_by_client_rls(): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
@@ -215,6 +255,18 @@ final class ThreadedMessagingTest extends TestCase
         return $user;
     }
 
+    private function entrepreneurUser(string $email = 'entrepreneur@example.com'): User
+    {
+        $user = User::factory()->withTwoFactor()->create([
+            'email' => $email,
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $user->assignRole(User::TYPE_ENTREPRENEUR);
+
+        return $user;
+    }
+
     private function clientWithUsers(User $clientUser, User $advisor, string $name = 'Messaging Test Limited'): Client
     {
         app(RequestContext::class)->apply('system', [], (string) $advisor->getKey());
@@ -265,7 +317,7 @@ final class ThreadedMessagingTest extends TestCase
             $$;
 
             GRANT USAGE ON SCHEMA public TO %1$s;
-            GRANT SELECT ON message_threads, message_thread_participants, messages TO %1$s;
+            GRANT SELECT ON entrepreneur_profiles, message_threads, message_thread_participants, messages TO %1$s;
         SQL, self::RLS_APP_ROLE));
     }
 

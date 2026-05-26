@@ -8,6 +8,7 @@ use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
+use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
@@ -66,6 +67,41 @@ final class MessageThreadService
     /**
      * @param  array<int, UploadedFile>  $attachments
      */
+    public function startEntrepreneurThread(
+        EntrepreneurProfile $profile,
+        User $sender,
+        string $subject,
+        string $body,
+        array $attachments = [],
+    ): Message {
+        $message = DB::transaction(function () use ($profile, $sender, $subject, $body, $attachments): Message {
+            $thread = MessageThread::query()->create([
+                'entrepreneur_profile_id' => $profile->getKey(),
+                'created_by_user_id' => $sender->getKey(),
+                'subject' => trim($subject),
+                'last_activity_at' => now(),
+            ]);
+
+            $this->syncEntrepreneurParticipants($thread, $profile, $sender);
+            $message = $this->persistEntrepreneurMessage($thread, $profile, $sender, $body, $attachments);
+
+            $this->auditWriter->record('entrepreneur_message_thread.created', subject: $thread, actor: $sender, after: [
+                'thread_id' => $thread->id,
+                'entrepreneur_profile_id' => $profile->id,
+                'subject' => $thread->subject,
+            ]);
+
+            return $message;
+        });
+
+        $this->notifyRecipients($message);
+
+        return $message->refresh()->loadMissing(['thread.entrepreneurProfile', 'sender']);
+    }
+
+    /**
+     * @param  array<int, UploadedFile>  $attachments
+     */
     public function sendReply(
         MessageThread $thread,
         User $sender,
@@ -86,6 +122,31 @@ final class MessageThreadService
         $this->notifyRecipients($message);
 
         return $message->refresh()->loadMissing(['thread.client', 'sender']);
+    }
+
+    /**
+     * @param  array<int, UploadedFile>  $attachments
+     */
+    public function sendEntrepreneurReply(
+        MessageThread $thread,
+        User $sender,
+        string $body,
+        array $attachments = [],
+    ): Message {
+        $profile = $thread->entrepreneurProfile;
+        if (! $profile instanceof EntrepreneurProfile) {
+            throw new LogicException('Entrepreneur message threads must have an entrepreneur profile.');
+        }
+
+        $message = DB::transaction(function () use ($thread, $profile, $sender, $body, $attachments): Message {
+            $this->syncEntrepreneurParticipants($thread, $profile, $sender);
+
+            return $this->persistEntrepreneurMessage($thread, $profile, $sender, $body, $attachments);
+        });
+
+        $this->notifyRecipients($message);
+
+        return $message->refresh()->loadMissing(['thread.entrepreneurProfile', 'sender']);
     }
 
     public function markRead(MessageThread $thread, User $user): void
@@ -139,6 +200,47 @@ final class MessageThreadService
 
     /**
      * @param  array<int, UploadedFile>  $attachments
+     */
+    private function persistEntrepreneurMessage(
+        MessageThread $thread,
+        EntrepreneurProfile $profile,
+        User $sender,
+        string $body,
+        array $attachments,
+    ): Message {
+        $sentAt = now();
+        $attachmentIds = $this->storeEntrepreneurAttachments($profile, $sender, $thread, $body, $attachments);
+
+        $message = Message::query()->create([
+            'thread_id' => $thread->getKey(),
+            'sender_user_id' => $sender->getKey(),
+            'body' => trim($body),
+            'attachments' => $attachmentIds === [] ? null : $attachmentIds,
+            'sent_at' => $sentAt,
+        ]);
+
+        $thread->forceFill(['last_activity_at' => $sentAt])->save();
+
+        MessageThreadParticipant::query()->updateOrCreate(
+            [
+                'thread_id' => $thread->getKey(),
+                'user_id' => $sender->getKey(),
+            ],
+            ['last_read_at' => $sentAt],
+        );
+
+        $this->auditWriter->record('entrepreneur_message.sent', subject: $thread, actor: $sender, after: [
+            'thread_id' => $thread->id,
+            'message_id' => $message->id,
+            'entrepreneur_profile_id' => $profile->id,
+            'attachment_document_ids' => $attachmentIds,
+        ]);
+
+        return $message;
+    }
+
+    /**
+     * @param  array<int, UploadedFile>  $attachments
      * @return array<int, string>
      */
     private function storeAttachments(
@@ -167,6 +269,45 @@ final class MessageThreadService
                     'source' => 'message_attachment',
                     'claim' => $body === '' ? 'Message attachment' : $body,
                     'question_prompt' => 'Attachment on message thread: '.$thread->subject,
+                ]],
+            ]);
+
+            $documentIds[] = (string) $document->getKey();
+        }
+
+        return $documentIds;
+    }
+
+    /**
+     * @param  array<int, UploadedFile>  $attachments
+     * @return array<int, string>
+     */
+    private function storeEntrepreneurAttachments(
+        EntrepreneurProfile $profile,
+        User $sender,
+        MessageThread $thread,
+        string $body,
+        array $attachments,
+    ): array {
+        $documentIds = [];
+
+        foreach ($attachments as $attachment) {
+            if (! $attachment instanceof UploadedFile) {
+                continue;
+            }
+
+            $document = $this->writer->write(
+                uploadedFile: $attachment,
+                owner: $sender,
+                category: Document::CATEGORY_MESSAGE_ATTACHMENT,
+                entrepreneurProfileId: (string) $profile->getKey(),
+            );
+
+            VerifyDocumentJob::dispatch((string) $document->getKey(), [
+                'claims' => [[
+                    'source' => 'entrepreneur_message_attachment',
+                    'claim' => $body === '' ? 'Message attachment' : $body,
+                    'question_prompt' => 'Attachment on entrepreneur message thread: '.$thread->subject,
                 ]],
             ]);
 
@@ -209,9 +350,40 @@ final class MessageThreadService
             ->get();
     }
 
+    private function syncEntrepreneurParticipants(MessageThread $thread, EntrepreneurProfile $profile, User $sender): void
+    {
+        $this->entrepreneurParticipants($profile, $sender)
+            ->each(function (User $user) use ($thread): void {
+                MessageThreadParticipant::query()->firstOrCreate([
+                    'thread_id' => $thread->getKey(),
+                    'user_id' => $user->getKey(),
+                ]);
+            });
+    }
+
+    /**
+     * @return Collection<int, User>
+     */
+    private function entrepreneurParticipants(EntrepreneurProfile $profile, User $sender): Collection
+    {
+        $userIds = [(int) $sender->getKey()];
+
+        if ($profile->user_id !== null) {
+            $userIds[] = (int) $profile->user_id;
+        }
+
+        if ($profile->assigned_advisor_id !== null) {
+            $userIds[] = (int) $profile->assigned_advisor_id;
+        }
+
+        return User::query()
+            ->whereKey(array_values(array_unique($userIds)))
+            ->get();
+    }
+
     private function notifyRecipients(Message $message): void
     {
-        $message = $message->loadMissing(['thread.participants.user', 'thread.client', 'sender']);
+        $message = $message->loadMissing(['thread.participants.user', 'thread.client', 'thread.entrepreneurProfile', 'sender']);
         $thread = $message->thread;
 
         if (! $thread instanceof MessageThread) {

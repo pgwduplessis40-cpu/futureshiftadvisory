@@ -1,6 +1,28 @@
-import { Head } from '@inertiajs/react';
-import { ClipboardCheck, Hourglass } from 'lucide-react';
+import { Head, Link } from '@inertiajs/react';
+import {
+    Bell,
+    ClipboardCheck,
+    FileText,
+    Hourglass,
+    MessageSquare,
+    Settings,
+    Upload,
+} from 'lucide-react';
+import { useState } from 'react';
+import type { ChangeEvent, ReactNode } from 'react';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+
+type UploadedDocument = {
+    id: string;
+    original_filename: string;
+    category: string;
+    scanner_result: string;
+    uploaded_at: string | null;
+};
 
 type EntrepreneurProfile = {
     id: string;
@@ -9,6 +31,11 @@ type EntrepreneurProfile = {
     stage: string;
     stage_label: string;
     concept_summary: string | null;
+    assigned_advisor: {
+        id: number;
+        name: string;
+        email: string;
+    } | null;
     latest_plan: {
         id: string;
         status: string;
@@ -25,22 +52,107 @@ type EntrepreneurProfile = {
         score: number;
         surfaced_at: string | null;
     } | null;
+    latest_documents: UploadedDocument[];
+    message_summary: {
+        threads_count: number;
+        unread_count: number;
+    };
 } | null;
 
 type Props = {
     profile: EntrepreneurProfile;
+    messagesUrl: string;
+    documentUploadUrl: string;
+    notificationsUrl: string;
+    settingsUrl: string;
 };
 
-export default function EntrepreneurDashboard({ profile }: Props) {
+export default function EntrepreneurDashboard({
+    profile,
+    messagesUrl,
+    documentUploadUrl,
+    notificationsUrl,
+    settingsUrl,
+}: Props) {
+    const [documents, setDocuments] = useState<UploadedDocument[]>(
+        profile?.latest_documents ?? [],
+    );
+    const [file, setFile] = useState<File | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const [uploadError, setUploadError] = useState<string | null>(null);
+    const [uploadKey, setUploadKey] = useState(0);
+
+    const uploadDocument = async () => {
+        if (!file) {
+            return;
+        }
+
+        setUploading(true);
+        setUploadError(null);
+
+        const formData = new FormData();
+        formData.append('file', file);
+        formData.append('category', 'plan_attachment');
+        formData.append(
+            'claim_value',
+            'Plan evidence uploaded from the entrepreneur dashboard.',
+        );
+        formData.append(
+            'question_prompt',
+            'Entrepreneur dashboard document upload',
+        );
+
+        const response = await fetch(documentUploadUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: formData,
+        });
+
+        setUploading(false);
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+                message?: string;
+            } | null;
+            setUploadError(payload?.message ?? 'Upload failed.');
+
+            return;
+        }
+
+        const payload = (await response.json()) as {
+            document?: UploadedDocument;
+        };
+
+        if (!payload.document) {
+            setUploadError('Upload response was missing document details.');
+
+            return;
+        }
+
+        setDocuments((current) =>
+            [
+                payload.document as UploadedDocument,
+                ...current.filter(
+                    (document) => document.id !== payload.document?.id,
+                ),
+            ].slice(0, 5),
+        );
+        setFile(null);
+        setUploadKey((key) => key + 1);
+    };
+
     return (
         <>
-            <Head title="Entrepreneur portal" />
+            <Head title="Entrepreneur dashboard" />
 
             <div className="space-y-6">
-                <div className="flex items-start justify-between gap-4">
+                <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
-                            Entrepreneur portal
+                            Entrepreneur dashboard
                         </h1>
                         <div className="text-sm text-muted-foreground">
                             {profile?.name ?? 'Profile pending'}
@@ -51,7 +163,71 @@ export default function EntrepreneurDashboard({ profile }: Props) {
                     </Badge>
                 </div>
 
-                <section className="space-y-4 rounded-md border p-4">
+                <div className="grid gap-4 md:grid-cols-3">
+                    <ActionPanel
+                        icon={MessageSquare}
+                        title="Messages"
+                        value={messageSummary(profile)}
+                    >
+                        <Button asChild size="sm">
+                            <Link href={messagesUrl}>Message advisor</Link>
+                        </Button>
+                    </ActionPanel>
+
+                    <ActionPanel
+                        icon={Upload}
+                        title="Plan evidence"
+                        value={`${documents.length} recent uploads`}
+                    >
+                        <div className="grid gap-2">
+                            <Label htmlFor="entrepreneur_document">
+                                Upload document
+                            </Label>
+                            <Input
+                                key={uploadKey}
+                                id="entrepreneur_document"
+                                type="file"
+                                onChange={(event) =>
+                                    setFileFromInput(event, setFile)
+                                }
+                            />
+                            <InputError message={uploadError ?? undefined} />
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={!file || uploading}
+                                onClick={() => void uploadDocument()}
+                            >
+                                <Upload className="size-4" aria-hidden="true" />
+                                {uploading ? 'Uploading' : 'Upload'}
+                            </Button>
+                        </div>
+                    </ActionPanel>
+
+                    <ActionPanel
+                        icon={Bell}
+                        title="Notifications"
+                        value="Alerts and updates"
+                    >
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={notificationsUrl}>Open</Link>
+                            </Button>
+                            <Button asChild size="sm" variant="ghost">
+                                <Link href={settingsUrl}>
+                                    <Settings
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Settings
+                                </Link>
+                            </Button>
+                        </div>
+                    </ActionPanel>
+                </div>
+
+                <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex items-center gap-2">
                         <Hourglass className="size-4" aria-hidden="true" />
                         <h2 className="text-sm font-medium">Progress</h2>
@@ -60,7 +236,7 @@ export default function EntrepreneurDashboard({ profile }: Props) {
                         <dl className="grid gap-3 text-sm md:grid-cols-2">
                             <Detail
                                 label="Plan"
-                                value={profile.latest_plan.status}
+                                value={formatLabel(profile.latest_plan.status)}
                             />
                             <Detail
                                 label="Grade"
@@ -94,22 +270,82 @@ export default function EntrepreneurDashboard({ profile }: Props) {
                     )}
                 </section>
 
-                <section className="space-y-4 rounded-md border p-4">
-                    <div className="flex items-center gap-2">
-                        <ClipboardCheck className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">Profile</h2>
-                    </div>
-                    <dl className="grid gap-3 text-sm">
-                        <Detail label="Email" value={profile?.email} />
-                        <Detail
-                            label="Concept"
-                            value={profile?.concept_summary}
-                        />
-                    </dl>
-                </section>
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center gap-2">
+                            <ClipboardCheck
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            <h2 className="text-sm font-medium">Profile</h2>
+                        </div>
+                        <dl className="grid gap-3 text-sm">
+                            <Detail label="Email" value={profile?.email} />
+                            <Detail
+                                label="Advisor"
+                                value={profile?.assigned_advisor?.name}
+                            />
+                            <Detail
+                                label="Concept"
+                                value={profile?.concept_summary}
+                            />
+                        </dl>
+                    </section>
+
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Recent documents
+                                </h2>
+                            </div>
+                            <Badge variant="outline">{documents.length}</Badge>
+                        </div>
+
+                        {documents.length > 0 ? (
+                            <div className="divide-y rounded-md border">
+                                {documents.map((document) => (
+                                    <article
+                                        key={document.id}
+                                        className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                    >
+                                        <div className="min-w-0">
+                                            <div className="truncate text-sm font-medium">
+                                                {document.original_filename}
+                                            </div>
+                                            <div className="mt-1 text-xs text-muted-foreground">
+                                                {formatLabel(document.category)}
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline">
+                                                {formatLabel(
+                                                    document.scanner_result,
+                                                )}
+                                            </Badge>
+                                            <span className="text-xs text-muted-foreground">
+                                                {formatDate(
+                                                    document.uploaded_at,
+                                                )}
+                                            </span>
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No plan evidence has been uploaded yet.
+                            </p>
+                        )}
+                    </section>
+                </div>
 
                 {profile?.advisory_readiness_signal ? (
-                    <section className="space-y-4 rounded-md border p-4">
+                    <section className="space-y-4 rounded-md border bg-background p-4">
                         <div className="flex items-center gap-2">
                             <ClipboardCheck
                                 className="size-4"
@@ -139,6 +375,35 @@ export default function EntrepreneurDashboard({ profile }: Props) {
     );
 }
 
+function ActionPanel({
+    icon: Icon,
+    title,
+    value,
+    children,
+}: {
+    icon: typeof MessageSquare;
+    title: string;
+    value: ReactNode;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex items-start justify-between gap-3">
+                <div>
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <Icon className="size-4" aria-hidden="true" />
+                        {title}
+                    </div>
+                    <div className="mt-2 text-sm text-muted-foreground">
+                        {value}
+                    </div>
+                </div>
+            </div>
+            {children}
+        </section>
+    );
+}
+
 function Detail({
     label,
     value,
@@ -154,6 +419,24 @@ function Detail({
     );
 }
 
+function setFileFromInput(
+    event: ChangeEvent<HTMLInputElement>,
+    setFile: (file: File | null) => void,
+) {
+    setFile(event.target.files?.[0] ?? null);
+}
+
+function messageSummary(profile: EntrepreneurProfile): string {
+    const threads = profile?.message_summary.threads_count ?? 0;
+    const unread = profile?.message_summary.unread_count ?? 0;
+
+    if (unread > 0) {
+        return `${unread} unread across ${threads} threads`;
+    }
+
+    return threads === 1 ? '1 active thread' : `${threads} active threads`;
+}
+
 function formatDate(value: string | null): string {
     if (!value) {
         return '-';
@@ -164,17 +447,29 @@ function formatDate(value: string | null): string {
     }).format(new Date(value));
 }
 
-function gradeLabel(value: string): string {
+function formatLabel(value: string): string {
     return value
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
 }
 
+function gradeLabel(value: string): string {
+    return formatLabel(value);
+}
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
+    );
+}
+
 EntrepreneurDashboard.layout = {
     breadcrumbs: [
         {
-            title: 'Entrepreneur portal',
+            title: 'Entrepreneur dashboard',
             href: '/portal/entrepreneur',
         },
     ],

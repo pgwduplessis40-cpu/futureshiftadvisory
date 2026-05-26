@@ -8,6 +8,7 @@ import {
     FolderGit2,
     Inbox,
     LayoutGrid,
+    MessageSquare,
     PlugZap,
     UsersRound,
 } from 'lucide-react';
@@ -69,6 +70,12 @@ const notificationsNavItem: NavItem = {
     icon: Bell,
 };
 
+const messagesNavItem: NavItem = {
+    title: 'Messages',
+    href: '/portal/messages',
+    icon: MessageSquare,
+};
+
 const apiHealthNavItem: NavItem = {
     title: 'API Health',
     href: '/admin/integration-health',
@@ -112,19 +119,21 @@ const mentorNavItems: NavItem[] = [
 
 const entrepreneurNavItems: NavItem[] = [
     {
-        title: 'Portal',
+        title: 'Dashboard',
         href: '/portal/entrepreneur',
         icon: LayoutGrid,
     },
+    messagesNavItem,
     notificationsNavItem,
 ];
 
 const clientNavItems: NavItem[] = [
     {
-        title: 'Portal',
+        title: 'Dashboard',
         href: '/portal',
         icon: LayoutGrid,
     },
+    messagesNavItem,
     notificationsNavItem,
 ];
 

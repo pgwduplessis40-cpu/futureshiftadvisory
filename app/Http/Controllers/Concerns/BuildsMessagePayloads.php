@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Concerns;
 
 use App\Models\Client;
+use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
@@ -20,6 +21,21 @@ trait BuildsMessagePayloads
     {
         return MessageThread::query()
             ->where('client_id', $client->getKey())
+            ->with('participants')
+            ->withCount('messages')
+            ->orderByDesc('last_activity_at')
+            ->orderByDesc('created_at')
+            ->limit(50)
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, MessageThread>
+     */
+    private function entrepreneurMessageThreads(EntrepreneurProfile $profile): Collection
+    {
+        return MessageThread::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
             ->with('participants')
             ->withCount('messages')
             ->orderByDesc('last_activity_at')
