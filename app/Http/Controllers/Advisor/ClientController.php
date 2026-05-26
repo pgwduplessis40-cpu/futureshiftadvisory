@@ -37,6 +37,7 @@ use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Goals\GoalTracker;
 use App\Services\Npo\GovernanceReviewConversion;
+use App\Services\Npo\NpoEngagementConfiguration;
 use App\Services\Npo\NpoEngagementSetup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -203,8 +204,13 @@ final class ClientController extends Controller
         return to_route('advisor.clients.show', $client)->with('status', 'client-created');
     }
 
-    public function show(Request $request, Client $client, PaymentStatusReport $payments, GovernanceReviewConversion $npoConversion): Response
-    {
+    public function show(
+        Request $request,
+        Client $client,
+        PaymentStatusReport $payments,
+        GovernanceReviewConversion $npoConversion,
+        NpoEngagementConfiguration $npoConfiguration,
+    ): Response {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
         $user = $request->user();
@@ -243,6 +249,7 @@ final class ClientController extends Controller
                 'analysis_findings' => $this->analysisFindingSummaries($client, $request->query('highlight')),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $npoConversion->clientSummary($client),
+                'npo_configuration' => $npoConfiguration->clientSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
             'conflictDeclaration' => $client->conflictDeclarations()

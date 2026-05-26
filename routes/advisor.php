@@ -19,6 +19,7 @@ use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
 use App\Http\Controllers\Advisor\MethodologyController;
+use App\Http\Controllers\Advisor\NpoConfigurationController;
 use App\Http\Controllers\Advisor\NpoConversionController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\PaymentController;
@@ -129,6 +130,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('npo-engagements/{npoEngagement}/conversion/convert', [NpoConversionController::class, 'convert'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('npo-engagements.conversion.convert');
+        Route::patch('npo-engagements/{npoEngagement}/configuration', [NpoConfigurationController::class, 'update'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('npo-engagements.configuration.update');
 
         Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)

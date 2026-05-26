@@ -21,7 +21,9 @@ import {
     PlugZap,
     RotateCcw,
     Send,
+    Settings2,
     ShieldAlert,
+    SlidersHorizontal,
     Star,
     Target,
     TrendingUp,
@@ -36,7 +38,16 @@ import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
 import type { ClientSummary } from './types';
 
@@ -72,6 +83,7 @@ type ClientDetail = ClientSummary & {
     analysis_findings: AnalysisFindingFeedback[];
     due_diligence: DueDiligenceSummary | null;
     npo_conversion: NpoConversionSummary | null;
+    npo_configuration: NpoConfigurationSummary | null;
 };
 
 type ConflictDeclaration = {
@@ -234,6 +246,44 @@ type NpoConversionSummary = {
     report_delivered_url: string;
     decline_url: string;
     convert_url: string;
+};
+
+type NpoOption = {
+    value: string;
+    label: string;
+};
+
+type NpoWeightingSuggestion = NpoOption & {
+    commercial_weight: number;
+    mission_weight: number;
+};
+
+type NpoDecisionQuestion = {
+    key: string;
+    label: string;
+};
+
+type NpoConfigurationSummary = {
+    id: string;
+    client_id: string;
+    sub_type: string;
+    sub_type_label: string;
+    legal_structure: string;
+    legal_structure_label: string;
+    legal_structure_options: NpoOption[];
+    tiriti_mode: string | null;
+    tiriti_mode_label: string | null;
+    tiriti_mode_options: NpoOption[];
+    tiriti_decision_questions: NpoDecisionQuestion[];
+    tiriti_decision_guide: Record<string, boolean>;
+    tiriti_suggested_mode: string;
+    social_enterprise: boolean;
+    social_enterprise_type: string | null;
+    social_enterprise_type_label: string | null;
+    social_enterprise_type_options: NpoWeightingSuggestion[];
+    commercial_weight: number | null;
+    mission_weight: number | null;
+    update_url: string;
 };
 
 type FinancialSnapshotSummary = {
@@ -645,6 +695,12 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 {client.npo_conversion && (
                     <NpoConversionPanel conversion={client.npo_conversion} />
+                )}
+
+                {client.npo_configuration && (
+                    <NpoConfigurationPanel
+                        configuration={client.npo_configuration}
+                    />
                 )}
 
                 <KnowledgeAssessmentPanel client={client} />
@@ -1366,6 +1422,377 @@ function NpoConversionPanel({
                     </div>
                 </form>
             )}
+        </section>
+    );
+}
+
+function NpoConfigurationPanel({
+    configuration,
+}: {
+    configuration: NpoConfigurationSummary;
+}) {
+    const defaultSocialType =
+        configuration.social_enterprise_type ??
+        configuration.social_enterprise_type_options[0]?.value ??
+        '';
+    const selectedSuggestion =
+        configuration.social_enterprise_type_options.find(
+            (option) => option.value === defaultSocialType,
+        ) ?? configuration.social_enterprise_type_options[0];
+    const form = useForm({
+        legal_structure: configuration.legal_structure,
+        tiriti_decision_guide: configuration.tiriti_decision_guide,
+        tiriti_mode:
+            configuration.tiriti_mode ?? configuration.tiriti_suggested_mode,
+        social_enterprise: configuration.social_enterprise,
+        social_enterprise_type: defaultSocialType,
+        commercial_weight:
+            configuration.commercial_weight ??
+            selectedSuggestion?.commercial_weight ??
+            50,
+        mission_weight:
+            configuration.mission_weight ??
+            selectedSuggestion?.mission_weight ??
+            50,
+    });
+    const errors = form.errors as Record<string, string | undefined>;
+    const suggestedMode = Object.values(form.data.tiriti_decision_guide).some(
+        Boolean,
+    )
+        ? 'standalone'
+        : 'woven';
+
+    const setGuideAnswer = (key: string, checked: boolean) => {
+        const nextGuide = {
+            ...form.data.tiriti_decision_guide,
+            [key]: checked,
+        };
+        const nextSuggestedMode = Object.values(nextGuide).some(Boolean)
+            ? 'standalone'
+            : 'woven';
+
+        form.setData({
+            ...form.data,
+            tiriti_decision_guide: nextGuide,
+            tiriti_mode: nextSuggestedMode,
+        });
+    };
+
+    const setSocialEnterpriseType = (value: string) => {
+        const suggestion = configuration.social_enterprise_type_options.find(
+            (option) => option.value === value,
+        );
+
+        form.setData({
+            ...form.data,
+            social_enterprise_type: value,
+            commercial_weight:
+                suggestion?.commercial_weight ?? form.data.commercial_weight,
+            mission_weight:
+                suggestion?.mission_weight ?? form.data.mission_weight,
+        });
+    };
+
+    const applyWeighting = (suggestion: NpoWeightingSuggestion) => {
+        form.setData({
+            ...form.data,
+            social_enterprise: true,
+            social_enterprise_type: suggestion.value,
+            commercial_weight: suggestion.commercial_weight,
+            mission_weight: suggestion.mission_weight,
+        });
+    };
+
+    const submit = (event: FormEvent) => {
+        event.preventDefault();
+        form.patch(configuration.update_url, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Settings2 className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">NPO configuration</h2>
+                    <Badge variant="secondary">
+                        {configuration.sub_type_label}
+                    </Badge>
+                    <Badge variant="outline">
+                        {configuration.tiriti_mode_label ??
+                            formatLabel(form.data.tiriti_mode)}
+                    </Badge>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                    Suggested {formatLabel(suggestedMode)}
+                </div>
+            </div>
+
+            <form onSubmit={submit} className="space-y-5">
+                <div className="grid gap-4 lg:grid-cols-3">
+                    <div className="space-y-3 border-l pl-3">
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">1</Badge>
+                            <h3 className="text-sm font-medium">
+                                Legal structure
+                            </h3>
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="npo_legal_structure">
+                                Structure
+                            </Label>
+                            <Select
+                                value={form.data.legal_structure}
+                                onValueChange={(value) =>
+                                    form.setData('legal_structure', value)
+                                }
+                            >
+                                <SelectTrigger id="npo_legal_structure">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {configuration.legal_structure_options.map(
+                                        (option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.legal_structure} />
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 border-l pl-3">
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">2</Badge>
+                            <h3 className="text-sm font-medium">
+                                Te Tiriti mode
+                            </h3>
+                        </div>
+                        <div className="grid gap-3">
+                            {configuration.tiriti_decision_questions.map(
+                                (question) => (
+                                    <label
+                                        key={question.key}
+                                        htmlFor={`tiriti_${question.key}`}
+                                        className="flex gap-2 text-sm leading-5"
+                                    >
+                                        <Checkbox
+                                            id={`tiriti_${question.key}`}
+                                            checked={
+                                                form.data.tiriti_decision_guide[
+                                                    question.key
+                                                ] ?? false
+                                            }
+                                            onCheckedChange={(checked) =>
+                                                setGuideAnswer(
+                                                    question.key,
+                                                    checked === true,
+                                                )
+                                            }
+                                        />
+                                        <span>{question.label}</span>
+                                    </label>
+                                ),
+                            )}
+                            <InputError
+                                message={errors.tiriti_decision_guide}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="tiriti_mode">Mode</Label>
+                            <Select
+                                value={form.data.tiriti_mode}
+                                onValueChange={(value) =>
+                                    form.setData('tiriti_mode', value)
+                                }
+                            >
+                                <SelectTrigger id="tiriti_mode">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {configuration.tiriti_mode_options.map(
+                                        (option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.tiriti_mode} />
+                        </div>
+                    </div>
+
+                    <div className="space-y-3 border-l pl-3">
+                        <div className="flex items-center gap-2">
+                            <Badge variant="outline">3</Badge>
+                            <h3 className="text-sm font-medium">
+                                Social enterprise
+                            </h3>
+                        </div>
+                        <label
+                            htmlFor="npo_social_enterprise"
+                            className="flex items-center gap-2 text-sm"
+                        >
+                            <Checkbox
+                                id="npo_social_enterprise"
+                                checked={form.data.social_enterprise}
+                                onCheckedChange={(checked) =>
+                                    form.setData(
+                                        'social_enterprise',
+                                        checked === true,
+                                    )
+                                }
+                            />
+                            <span>Dual commercial and mission scorecard</span>
+                        </label>
+                        <InputError message={form.errors.social_enterprise} />
+
+                        <div className="grid gap-2">
+                            <Label htmlFor="social_enterprise_type">Type</Label>
+                            <Select
+                                value={form.data.social_enterprise_type}
+                                onValueChange={setSocialEnterpriseType}
+                                disabled={!form.data.social_enterprise}
+                            >
+                                <SelectTrigger id="social_enterprise_type">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {configuration.social_enterprise_type_options.map(
+                                        (option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ),
+                                    )}
+                                </SelectContent>
+                            </Select>
+                            <InputError
+                                message={form.errors.social_enterprise_type}
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-2">
+                                <Label htmlFor="commercial_weight">
+                                    Commercial
+                                </Label>
+                                <Input
+                                    id="commercial_weight"
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={form.data.commercial_weight}
+                                    disabled={!form.data.social_enterprise}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'commercial_weight',
+                                            Number(event.target.value),
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={form.errors.commercial_weight}
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="mission_weight">Mission</Label>
+                                <Input
+                                    id="mission_weight"
+                                    type="number"
+                                    min={0}
+                                    max={100}
+                                    value={form.data.mission_weight}
+                                    disabled={!form.data.social_enterprise}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'mission_weight',
+                                            Number(event.target.value),
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={form.errors.mission_weight}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="overflow-hidden rounded-md border">
+                    <table className="w-full text-sm">
+                        <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                            <tr>
+                                <th className="px-3 py-2 font-medium">Type</th>
+                                <th className="px-3 py-2 font-medium">
+                                    Commercial
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Mission
+                                </th>
+                                <th className="px-3 py-2 text-right font-medium">
+                                    Apply
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {configuration.social_enterprise_type_options.map(
+                                (suggestion) => (
+                                    <tr
+                                        key={suggestion.value}
+                                        className="border-t"
+                                    >
+                                        <td className="px-3 py-2">
+                                            {suggestion.label}
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {suggestion.commercial_weight}%
+                                        </td>
+                                        <td className="px-3 py-2">
+                                            {suggestion.mission_weight}%
+                                        </td>
+                                        <td className="px-3 py-2 text-right">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    applyWeighting(suggestion)
+                                                }
+                                            >
+                                                <SlidersHorizontal
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Apply
+                                            </Button>
+                                        </td>
+                                    </tr>
+                                ),
+                            )}
+                        </tbody>
+                    </table>
+                </div>
+
+                <div className="flex justify-end">
+                    <Button type="submit" disabled={form.processing}>
+                        <CheckCircle2 className="size-4" aria-hidden="true" />
+                        Save configuration
+                    </Button>
+                </div>
+            </form>
         </section>
     );
 }

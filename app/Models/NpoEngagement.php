@@ -7,6 +7,8 @@ namespace App\Models;
 use App\Enums\NpoConversionStatus;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
+use App\Enums\NpoSocialEnterpriseType;
+use App\Enums\NpoTiritiMode;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -21,6 +23,12 @@ final class NpoEngagement extends Model
     protected $casts = [
         'sub_type' => NpoEngagementSubType::class,
         'legal_structure' => NpoLegalStructure::class,
+        'tiriti_mode' => NpoTiritiMode::class,
+        'tiriti_decision_guide' => 'array',
+        'social_enterprise' => 'boolean',
+        'social_enterprise_type' => NpoSocialEnterpriseType::class,
+        'commercial_weight' => 'integer',
+        'mission_weight' => 'integer',
         'isa_2022_reregistered' => 'boolean',
         'conversion_status' => NpoConversionStatus::class,
         'report_delivered_at' => 'datetime',

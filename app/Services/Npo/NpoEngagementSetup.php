@@ -7,6 +7,7 @@ namespace App\Services\Npo;
 use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
+use App\Enums\NpoSocialEnterpriseType;
 use App\Models\Client;
 use App\Models\NpoEngagement;
 use App\Models\User;
@@ -32,11 +33,17 @@ final class NpoEngagementSetup
 
         $subType = NpoEngagementSubType::from($input['sub_type']);
         $legalStructure = NpoLegalStructure::from($input['legal_structure']);
+        $socialEnterprise = $subType === NpoEngagementSubType::SocialEnterprise;
+        $socialEnterpriseType = $socialEnterprise ? NpoSocialEnterpriseType::FeeForService : null;
 
         $engagement = NpoEngagement::query()->create([
             'client_id' => $client->getKey(),
             'sub_type' => $subType,
             'legal_structure' => $legalStructure,
+            'social_enterprise' => $socialEnterprise,
+            'social_enterprise_type' => $socialEnterpriseType,
+            'commercial_weight' => $socialEnterpriseType?->commercialWeight(),
+            'mission_weight' => $socialEnterpriseType?->missionWeight(),
             'isa_2022_reregistered' => $input['isa_2022_reregistered'] ?? null,
             'created_by_user_id' => $actor->getKey(),
             'updated_by_user_id' => $actor->getKey(),
@@ -46,6 +53,10 @@ final class NpoEngagementSetup
             'client_id' => $client->getKey(),
             'sub_type' => $subType->value,
             'legal_structure' => $legalStructure->value,
+            'social_enterprise' => (bool) $engagement->social_enterprise,
+            'social_enterprise_type' => $engagement->social_enterprise_type?->value,
+            'commercial_weight' => $engagement->commercial_weight,
+            'mission_weight' => $engagement->mission_weight,
             'isa_2022_reregistered' => $engagement->isa_2022_reregistered,
         ]);
 
