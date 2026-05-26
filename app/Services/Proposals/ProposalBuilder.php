@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Proposals;
 
+use App\Enums\FeeMethod;
 use App\Enums\ProposalStatus;
 use App\Models\Client;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
+use App\Models\NpoEngagement;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
@@ -31,7 +33,7 @@ final class ProposalBuilder
 
     /**
      * @param  array<string, mixed>  $input
-     * @param  array{created_by_user_id?: int|string|null}  $options
+     * @param  array{created_by_user_id?: int|string|null, npo_engagement_id?: string|null}  $options
      */
     public function generate(Client $client, FeeCalculation $feeCalculation, array $input = [], array $options = []): Proposal
     {
@@ -39,17 +41,24 @@ final class ProposalBuilder
             throw new InvalidArgumentException('Fee calculation must belong to the proposal client.');
         }
 
-        return DB::transaction(function () use ($client, $feeCalculation, $input, $options): Proposal {
+        $npoEngagementId = $this->npoEngagementIdForProposal(
+            $client,
+            $feeCalculation,
+            $input['npo_engagement_id'] ?? $options['npo_engagement_id'] ?? null,
+        );
+
+        return DB::transaction(function () use ($client, $feeCalculation, $input, $options, $npoEngagementId): Proposal {
             $proposal = Proposal::query()->create([
                 'client_id' => $client->getKey(),
+                'npo_engagement_id' => $npoEngagementId,
                 'fee_calculation_id' => $feeCalculation->getKey(),
                 'status' => ProposalStatus::Draft,
                 'version' => 1,
-                'scope' => $this->scope($client, $input),
+                'scope' => $this->scope($client, $feeCalculation, $input),
                 'services' => $this->services($feeCalculation, $input),
-                'pv_summary' => $this->pvSummary($client, $feeCalculation),
+                'pv_summary' => $this->pvSummary($client, $feeCalculation, $npoEngagementId),
                 'roi_ratio' => $feeCalculation->roi_ratio,
-                'acceptance_terms' => $this->acceptanceTerms(),
+                'acceptance_terms' => $this->acceptanceTerms($feeCalculation),
                 'created_by_user_id' => $this->normaliseUserId($options['created_by_user_id'] ?? null),
             ]);
 
@@ -58,6 +67,7 @@ final class ProposalBuilder
 
             $this->audit->record('proposal.generated', subject: $proposal, after: [
                 'client_id' => $client->getKey(),
+                'npo_engagement_id' => $npoEngagementId,
                 'fee_calculation_id' => $feeCalculation->getKey(),
                 'status' => ProposalStatus::Draft->value,
             ]);
@@ -123,6 +133,7 @@ final class ProposalBuilder
         return DB::transaction(function () use ($proposal, $actor): Proposal {
             $renewed = Proposal::query()->create([
                 'client_id' => $proposal->client_id,
+                'npo_engagement_id' => $proposal->npo_engagement_id,
                 'fee_calculation_id' => $proposal->fee_calculation_id,
                 'status' => ProposalStatus::Renewed,
                 'version' => $proposal->version + 1,
@@ -195,17 +206,41 @@ final class ProposalBuilder
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>
      */
-    private function scope(Client $client, array $input): array
+    private function scope(Client $client, FeeCalculation $feeCalculation, array $input): array
     {
         $scope = is_array($input['scope'] ?? null) ? $input['scope'] : [];
-        $included = is_array($scope['included'] ?? null) ? $scope['included'] : ['Advisor review', 'Implementation roadmap', 'Progress check-in'];
-        $excluded = is_array($scope['excluded'] ?? null) ? $scope['excluded'] : ['Digital signature and payment collection are Phase 3.'];
+        $isGovernanceReview = $feeCalculation->method === FeeMethod::GovernanceReview;
+        $includedDefault = $isGovernanceReview
+            ? ['Governance evidence review', 'Board-ready Governance Review Report discussion', '12-month governance action plan']
+            : ['Advisor review', 'Implementation roadmap', 'Progress check-in'];
+        $excludedDefault = $isGovernanceReview
+            ? ['Ongoing retainer advisory work is not included in the fixed-fee Governance Review.']
+            : ['Digital signature and payment collection are Phase 3.'];
+        $included = is_array($scope['included'] ?? null) ? $scope['included'] : $includedDefault;
+        $excluded = is_array($scope['excluded'] ?? null) ? $scope['excluded'] : $excludedDefault;
+        $summary = $scope['summary'] ?? null;
 
-        return [
-            'summary' => (string) ($scope['summary'] ?? 'Advisory engagement proposal for '.$client->legal_name.'.'),
+        if (! is_string($summary) || $summary === '') {
+            $summary = $isGovernanceReview
+                ? 'Fixed-fee Governance Review proposal for '.$client->legal_name.'.'
+                : 'Advisory engagement proposal for '.$client->legal_name.'.';
+        }
+
+        $payload = [
+            'summary' => $summary,
             'included' => array_values($included),
             'excluded' => array_values($excluded),
         ];
+
+        if ($isGovernanceReview) {
+            $payload['proposal_variant'] = FeeMethod::GovernanceReview->value;
+            $payload['fixed_fee'] = true;
+            $payload['retainer_structure'] = null;
+            $payload['size_band'] = data_get($feeCalculation->justification, 'size_band');
+            $payload['conversion_credit'] = $this->conversionCredit($feeCalculation);
+        }
+
+        return $payload;
     }
 
     /**
@@ -234,11 +269,11 @@ final class ProposalBuilder
     /**
      * @return array<string, mixed>
      */
-    private function pvSummary(Client $client, FeeCalculation $feeCalculation): array
+    private function pvSummary(Client $client, FeeCalculation $feeCalculation, ?string $npoEngagementId): array
     {
         $waterfall = $this->waterfalls->forClient($client);
 
-        return [
+        $summary = [
             'current_pv' => $waterfall['current_pv'],
             'improvement_pv_total' => $feeCalculation->improvement_pv_total,
             'risk_cost_pv_total' => $feeCalculation->risk_cost_pv_total,
@@ -246,14 +281,26 @@ final class ProposalBuilder
             'roi_ratio' => $feeCalculation->roi_ratio,
             'fee_suggested_mid' => $feeCalculation->suggested_mid,
         ];
+
+        if ($npoEngagementId !== null) {
+            $summary['npo_engagement_id'] = $npoEngagementId;
+        }
+
+        if ($feeCalculation->method === FeeMethod::GovernanceReview) {
+            $summary['proposal_variant'] = FeeMethod::GovernanceReview->value;
+            $summary['fixed_fee'] = true;
+            $summary['conversion_credit'] = $this->conversionCredit($feeCalculation);
+        }
+
+        return $summary;
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function acceptanceTerms(): array
+    private function acceptanceTerms(FeeCalculation $feeCalculation): array
     {
-        return [
+        $terms = [
             'phase' => 'phase_3_signoff_enabled',
             'client_acceptance_section_present' => true,
             'payment_authority_capture_enabled' => true,
@@ -263,6 +310,15 @@ final class ProposalBuilder
                 ProposalStatus::Signed->value,
             ],
         ];
+
+        if ($feeCalculation->method === FeeMethod::GovernanceReview) {
+            $terms['proposal_variant'] = FeeMethod::GovernanceReview->value;
+            $terms['fixed_fee'] = true;
+            $terms['no_retainer_structure'] = true;
+            $terms['conversion_credit'] = $this->conversionCredit($feeCalculation);
+        }
+
+        return $terms;
     }
 
     private function writeConsents(Proposal $proposal, mixed $elections): void
@@ -323,6 +379,7 @@ final class ProposalBuilder
                 $this->escape(str_replace('_', ' ', $consent->election)),
             ))
             ->implode('');
+        $conversionCredit = $this->conversionCreditHtml($proposal);
 
         return sprintf(
             <<<'HTML'
@@ -360,6 +417,7 @@ p { margin: 0 0 6px; }
 <p>Suggested range: NZD %s - NZD %s - NZD %s</p>
 <p>ROI ratio: %s</p>
 </section>
+%s
 <section class="panel">
 <h2>PV summary</h2>
 <p>Improvement PV: NZD %s</p>
@@ -386,10 +444,42 @@ HTML,
             number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_high ?? 0, 0),
             number_format($proposal->roi_ratio, 2),
+            $conversionCredit,
             number_format((float) data_get($proposal->pv_summary, 'improvement_pv_total', 0), 0),
             number_format((float) data_get($proposal->pv_summary, 'risk_cost_pv_total', 0), 0),
             number_format((float) data_get($proposal->pv_summary, 'target_pv', 0), 0),
             $consents,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function conversionCredit(FeeCalculation $feeCalculation): array
+    {
+        $credit = data_get($feeCalculation->justification, 'conversion_credit');
+
+        return is_array($credit) ? $credit : [];
+    }
+
+    private function conversionCreditHtml(Proposal $proposal): string
+    {
+        $credit = data_get($proposal->acceptance_terms, 'conversion_credit');
+
+        if (! is_array($credit) || $credit === []) {
+            return '';
+        }
+
+        return sprintf(
+            <<<'HTML'
+<section class="panel">
+<h2>Conversion credit</h2>
+<p>%s%% creditable to the first retainer month, at advisor discretion.</p>
+<p>Indicative mid-fee credit: NZD %s</p>
+</section>
+HTML,
+            number_format((float) ($credit['percent'] ?? 0), 0),
+            number_format((float) ($credit['amount_mid'] ?? 0), 0),
         );
     }
 
@@ -411,5 +501,67 @@ HTML,
         $id = Auth::id();
 
         return is_int($id) ? $id : null;
+    }
+
+    private function npoEngagementIdForProposal(Client $client, FeeCalculation $feeCalculation, mixed $requested): ?string
+    {
+        $feeCalculationEngagementId = $feeCalculation->npo_engagement_id === null
+            ? null
+            : (string) $feeCalculation->npo_engagement_id;
+
+        if ($feeCalculation->method === FeeMethod::GovernanceReview && $feeCalculationEngagementId === null) {
+            throw new InvalidArgumentException('Governance Review proposals require the fee calculation to belong to a governance-review NPO engagement.');
+        }
+
+        if ($feeCalculationEngagementId !== null) {
+            $this->assertNpoEngagementBelongsToClient($client, $feeCalculationEngagementId);
+        }
+
+        $requestedEngagementId = $this->normaliseNpoEngagementId($client, $requested);
+
+        if ($requestedEngagementId === null) {
+            return $feeCalculationEngagementId;
+        }
+
+        if ($feeCalculationEngagementId === null || $requestedEngagementId !== $feeCalculationEngagementId) {
+            throw new InvalidArgumentException('Proposal NPO engagement must match the fee calculation NPO engagement.');
+        }
+
+        return $feeCalculationEngagementId;
+    }
+
+    private function normaliseNpoEngagementId(Client $client, mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof NpoEngagement) {
+            if ((string) $value->client_id !== (string) $client->getKey()) {
+                throw new InvalidArgumentException('NPO engagement must belong to the proposal client.');
+            }
+
+            return (string) $value->getKey();
+        }
+
+        if (! is_string($value)) {
+            throw new InvalidArgumentException('NPO engagement id must be a UUID string.');
+        }
+
+        $this->assertNpoEngagementBelongsToClient($client, $value);
+
+        return $value;
+    }
+
+    private function assertNpoEngagementBelongsToClient(Client $client, string $npoEngagementId): void
+    {
+        $exists = NpoEngagement::query()
+            ->whereKey($npoEngagementId)
+            ->where('client_id', $client->getKey())
+            ->exists();
+
+        if (! $exists) {
+            throw new InvalidArgumentException('NPO engagement must belong to the proposal client.');
+        }
     }
 }

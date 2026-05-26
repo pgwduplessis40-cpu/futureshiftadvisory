@@ -9,6 +9,7 @@ enum FeeMethod: string
     case HoursBased = 'hours_based';
     case OutcomeBased = 'outcome_based';
     case Entrepreneur = 'entrepreneur';
+    case GovernanceReview = 'governance_review';
 
     /**
      * @return array<int, string>

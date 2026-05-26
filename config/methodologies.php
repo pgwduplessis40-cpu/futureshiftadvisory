@@ -70,6 +70,7 @@ return [
         'advisor.entrepreneurs.advisory_readiness' => 'Advisor entrepreneur advisory readiness signal',
         'advisor.entrepreneurs.rating_framework' => 'Advisor entrepreneur rating framework manager',
         'advisor.fees.calculator' => 'Advisor fee calculator',
+        'advisor.npo.governance_review_proposal' => 'Advisor NPO Governance Review proposal workflow',
         'advisor.payments.retry' => 'Advisor payment retry workflow',
         'advisor.pv.calculations' => 'Advisor present-value calculations',
         'advisor.pv.waterfall' => 'Advisor PV waterfall dashboard',
@@ -322,6 +323,30 @@ return [
             ],
             'owning_service' => FeeCalculator::class,
             'version' => '2026-05-wo-m02',
+            'internal_only' => true,
+        ],
+
+        'fees.governance_review' => [
+            'id' => 'fees.governance_review',
+            'area' => 'Fees',
+            'name' => 'Governance Review Fixed Fee',
+            'summary' => 'Applies the standalone NPO Governance Review fixed-fee bands and conversion credit.',
+            'formula' => 'Small NPO = 1500; medium NPO = 1800/2000/2200; large NPO = 2200/2350/2500. Conversion credit defaults to 50% of the selected range, creditable to the first retainer month at advisor discretion.',
+            'inputs' => [
+                'NPO engagement',
+                'Size band or annual operating budget',
+                'Conversion credit percent',
+            ],
+            'config_refs' => [],
+            'where_used' => [
+                'advisor.fees.calculator',
+                'advisor.npo.governance_review_proposal',
+            ],
+            'sources' => [
+                'PLAN-NPO-MODULE.md WO-N06',
+            ],
+            'owning_service' => FeeCalculator::class,
+            'version' => '2026-05-wo-n06',
             'internal_only' => true,
         ],
 

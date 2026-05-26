@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Services\Fees;
 
 use App\Enums\FeeMethod;
+use App\Enums\NpoEngagementSubType;
 use App\Models\Client;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\ImprovementOpportunity;
+use App\Models\NpoEngagement;
 use App\Models\RiskCost;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
@@ -19,26 +21,33 @@ final class FeeCalculator implements ProvidesMethodology
 {
     public static function methodologyIds(): array
     {
-        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur'];
+        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur', 'fees.governance_review'];
     }
 
     public function __construct(private readonly AuditWriter $audit) {}
 
     /**
      * @param  array<string, mixed>  $inputs
-     * @param  array{created_by_user_id?: int|string|null}  $options
+     * @param  array{created_by_user_id?: int|string|null, npo_engagement_id?: string|null}  $options
      */
     public function calculate(Client $client, FeeMethod $method, array $inputs = [], array $options = []): FeeCalculation
     {
         $pv = $this->pvTotals($client);
+        $npoEngagement = $this->npoEngagement(
+            $client,
+            $inputs['npo_engagement_id'] ?? $options['npo_engagement_id'] ?? null,
+            $method === FeeMethod::GovernanceReview,
+        );
         $result = match ($method) {
             FeeMethod::HoursBased => $this->hoursBased($inputs),
             FeeMethod::OutcomeBased => $this->outcomeBased($client, $inputs, $pv),
             FeeMethod::Entrepreneur => $this->entrepreneur($inputs),
+            FeeMethod::GovernanceReview => $this->governanceReview($inputs),
         };
 
         $calculation = FeeCalculation::query()->create([
             'client_id' => $client->getKey(),
+            'npo_engagement_id' => $npoEngagement?->getKey(),
             'method' => $method,
             'inputs' => $inputs,
             'suggested_low' => $result['low'],
@@ -53,6 +62,7 @@ final class FeeCalculator implements ProvidesMethodology
 
         $this->audit->record('fee_calculation.created', subject: $calculation, after: [
             'method' => $method->value,
+            'npo_engagement_id' => $npoEngagement?->getKey(),
             'suggested_mid' => $calculation->suggested_mid,
             'improvement_pv_total' => $calculation->improvement_pv_total,
             'risk_cost_pv_total' => $calculation->risk_cost_pv_total,
@@ -238,6 +248,111 @@ final class FeeCalculator implements ProvidesMethodology
         ];
     }
 
+    /**
+     * @param  array<string, mixed>  $inputs
+     * @return array{low:float, mid:float, high:float, justification:array<string, mixed>}
+     */
+    private function governanceReview(array $inputs): array
+    {
+        $band = $this->governanceReviewBand($inputs);
+        $annualOperatingBudget = $this->annualOperatingBudget($inputs);
+        $schedule = $this->governanceReviewSchedule();
+        $range = $schedule[$band];
+        $conversionPercent = $this->boundedPercent($inputs['conversion_credit_percent'] ?? 50);
+
+        return [
+            'low' => $range['low'],
+            'mid' => $range['mid'],
+            'high' => $range['high'],
+            'justification' => [
+                'method' => FeeMethod::GovernanceReview->value,
+                'proposal_variant' => FeeMethod::GovernanceReview->value,
+                'basis' => 'Fixed-fee Governance Review by NPO size band, with no retainer structure.',
+                'fixed_fee' => true,
+                'retainer_structure' => null,
+                'size_band' => $band,
+                'annual_operating_budget' => $annualOperatingBudget,
+                'fixed_fee_schedule' => [
+                    'small' => ['low' => 1500.0, 'mid' => 1500.0, 'high' => 1500.0],
+                    'medium' => ['low' => 1800.0, 'mid' => 2000.0, 'high' => 2200.0],
+                    'large' => ['low' => 2200.0, 'mid' => 2350.0, 'high' => 2500.0],
+                ],
+                'selected_range' => $range,
+                'services' => [[
+                    'name' => 'Governance Review fixed-fee engagement',
+                    'fee_method' => FeeMethod::GovernanceReview->value,
+                    'size_band' => $band,
+                    'line_total' => $range['mid'],
+                ]],
+                'conversion_credit' => [
+                    'percent' => $conversionPercent,
+                    'amount_low' => round($range['low'] * ($conversionPercent / 100), 2),
+                    'amount_mid' => round($range['mid'] * ($conversionPercent / 100), 2),
+                    'amount_high' => round($range['high'] * ($conversionPercent / 100), 2),
+                    'creditable_to' => 'first_retainer_month',
+                    'advisor_discretion' => true,
+                ],
+                'payment_scope' => 'proposal_signoff_and_payment_authority',
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
+     */
+    private function governanceReviewBand(array $inputs): string
+    {
+        $band = strtolower(trim((string) ($inputs['size_band'] ?? '')));
+
+        if ($band !== '') {
+            return match ($band) {
+                'small', 'medium', 'large' => $band,
+                default => throw new InvalidArgumentException('Governance Review size band must be small, medium, or large.'),
+            };
+        }
+
+        $budget = $this->annualOperatingBudget($inputs);
+
+        if ($budget === null) {
+            throw new InvalidArgumentException('Governance Review fee requires a size band or annual operating budget.');
+        }
+
+        if ($budget <= 500000.0) {
+            return 'small';
+        }
+
+        return $budget <= 2000000.0 ? 'medium' : 'large';
+    }
+
+    /**
+     * @return array<string, array{low:float, mid:float, high:float}>
+     */
+    private function governanceReviewSchedule(): array
+    {
+        return [
+            'small' => ['low' => 1500.0, 'mid' => 1500.0, 'high' => 1500.0],
+            'medium' => ['low' => 1800.0, 'mid' => 2000.0, 'high' => 2200.0],
+            'large' => ['low' => 2200.0, 'mid' => 2350.0, 'high' => 2500.0],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
+     */
+    private function annualOperatingBudget(array $inputs): ?float
+    {
+        if (! array_key_exists('annual_operating_budget', $inputs) || $inputs['annual_operating_budget'] === null || $inputs['annual_operating_budget'] === '') {
+            return null;
+        }
+
+        return $this->nonNegativeNumber($inputs['annual_operating_budget'], 'Annual operating budget');
+    }
+
+    private function boundedPercent(mixed $value): float
+    {
+        return max(0.0, min(100.0, $this->nonNegativeNumber($value, 'Conversion credit percent')));
+    }
+
     private function roiRatio(float $improvementPv, float $fee): float
     {
         if ($fee <= 0) {
@@ -269,5 +384,44 @@ final class FeeCalculator implements ProvidesMethodology
         $id = Auth::id();
 
         return is_int($id) ? $id : null;
+    }
+
+    private function npoEngagement(Client $client, mixed $value, bool $requireGovernanceReview): ?NpoEngagement
+    {
+        $requested = $value instanceof NpoEngagement || (is_string($value) && $value !== '');
+
+        if ($value instanceof NpoEngagement) {
+            $engagement = $value;
+        } elseif (is_string($value) && $value !== '') {
+            $engagement = NpoEngagement::query()
+                ->where('client_id', $client->getKey())
+                ->find($value);
+        } elseif ($value !== null && $value !== '') {
+            throw new InvalidArgumentException('NPO engagement id must be a UUID string.');
+        } else {
+            $engagement = null;
+        }
+
+        if (! $engagement instanceof NpoEngagement) {
+            if ($requested) {
+                throw new InvalidArgumentException('NPO engagement must belong to the fee calculation client.');
+            }
+
+            if ($requireGovernanceReview) {
+                throw new InvalidArgumentException('Governance Review fee calculations require a governance-review NPO engagement.');
+            }
+
+            return null;
+        }
+
+        if ((string) $engagement->client_id !== (string) $client->getKey()) {
+            throw new InvalidArgumentException('NPO engagement must belong to the fee calculation client.');
+        }
+
+        if ($requireGovernanceReview && $engagement->sub_type !== NpoEngagementSubType::GovernanceReview) {
+            throw new InvalidArgumentException('Governance Review fee calculations require a governance-review NPO engagement.');
+        }
+
+        return $engagement;
     }
 }
