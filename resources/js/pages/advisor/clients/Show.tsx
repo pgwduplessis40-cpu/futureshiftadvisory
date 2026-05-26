@@ -32,6 +32,7 @@ import {
 import type { FormEvent, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
+import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1171,17 +1172,14 @@ function ProofUploadFormPanel({ milestone }: { milestone: MilestoneSummary }) {
     return (
         <form onSubmit={submit} className="grid gap-3 sm:grid-cols-3">
             <div className="grid gap-2 sm:col-span-3">
-                <Label htmlFor={`proof_file_${milestone.id}`}>Proof</Label>
-                <input
+                <FileDropzone
                     id={`proof_file_${milestone.id}`}
-                    type="file"
-                    onChange={(event) =>
-                        form.setData(
-                            'proof',
-                            event.target.files?.item(0) ?? null,
-                        )
+                    files={form.data.proof ? [form.data.proof] : []}
+                    label="Proof"
+                    description="Drag proof here or browse"
+                    onFilesChange={(files) =>
+                        form.setData('proof', files[0] ?? null)
                     }
-                    className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none file:mr-3 file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                 />
                 <InputError message={form.errors.proof} />
             </div>

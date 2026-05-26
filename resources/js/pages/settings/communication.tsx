@@ -20,6 +20,7 @@ type Preference = {
 
 type Props = {
     preference: Preference;
+    canChooseChannel?: boolean;
     channels: string[];
     frequencies: string[];
 };
@@ -35,6 +36,7 @@ const labels: Record<string, string> = {
 
 export default function CommunicationSettings({
     preference,
+    canChooseChannel = true,
     channels,
     frequencies,
 }: Props) {
@@ -42,6 +44,14 @@ export default function CommunicationSettings({
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
+        form.transform((data) =>
+            canChooseChannel
+                ? data
+                : {
+                      frequency: data.frequency,
+                      timezone: data.timezone,
+                  },
+        );
         form.put('/settings/communication', { preserveScroll: true });
     };
 
@@ -53,31 +63,40 @@ export default function CommunicationSettings({
                 <Heading
                     variant="small"
                     title="Communication"
-                    description="Set delivery channel and digest frequency"
+                    description={
+                        canChooseChannel
+                            ? 'Set delivery channel and digest frequency'
+                            : 'Set digest frequency'
+                    }
                 />
 
                 <form onSubmit={submit} className="space-y-6">
-                    <div className="grid gap-2">
-                        <Label htmlFor="channel">Delivery channel</Label>
-                        <Select
-                            value={form.data.channel}
-                            onValueChange={(value) =>
-                                form.setData('channel', value)
-                            }
-                        >
-                            <SelectTrigger id="channel" className="w-full">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {channels.map((channel) => (
-                                    <SelectItem key={channel} value={channel}>
-                                        {labels[channel] ?? channel}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        <InputError message={form.errors.channel} />
-                    </div>
+                    {canChooseChannel ? (
+                        <div className="grid gap-2">
+                            <Label htmlFor="channel">Delivery channel</Label>
+                            <Select
+                                value={form.data.channel}
+                                onValueChange={(value) =>
+                                    form.setData('channel', value)
+                                }
+                            >
+                                <SelectTrigger id="channel" className="w-full">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    {channels.map((channel) => (
+                                        <SelectItem
+                                            key={channel}
+                                            value={channel}
+                                        >
+                                            {labels[channel] ?? channel}
+                                        </SelectItem>
+                                    ))}
+                                </SelectContent>
+                            </Select>
+                            <InputError message={form.errors.channel} />
+                        </div>
+                    ) : null}
 
                     <div className="grid gap-2">
                         <Label htmlFor="frequency">Frequency</Label>

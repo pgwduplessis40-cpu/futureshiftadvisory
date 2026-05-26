@@ -10,12 +10,11 @@ import {
     Upload,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { ChangeEvent, ReactNode } from 'react';
+import type { ReactNode } from 'react';
+import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import {
     Tooltip,
     TooltipContent,
@@ -219,15 +218,13 @@ export default function EntrepreneurDashboard({
                         value={`${documents.length} recent uploads`}
                     >
                         <div className="grid gap-2">
-                            <Label htmlFor="entrepreneur_document">
-                                Upload document
-                            </Label>
-                            <Input
+                            <FileDropzone
                                 key={uploadKey}
                                 id="entrepreneur_document"
-                                type="file"
-                                onChange={(event) =>
-                                    setFileFromInput(event, setFile)
+                                files={file ? [file] : []}
+                                label="Upload document"
+                                onFilesChange={(files) =>
+                                    setFile(files[0] ?? null)
                                 }
                             />
                             <InputError message={uploadError ?? undefined} />
@@ -754,13 +751,6 @@ function Detail({
             <dd>{value || '-'}</dd>
         </div>
     );
-}
-
-function setFileFromInput(
-    event: ChangeEvent<HTMLInputElement>,
-    setFile: (file: File | null) => void,
-) {
-    setFile(event.target.files?.[0] ?? null);
 }
 
 function messageSummary(profile: EntrepreneurProfile): string {

@@ -30,8 +30,56 @@ class SecurityTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('settings/security')
                 ->where('canManageTwoFactor', true)
+                ->where('canDisableTwoFactor', true)
                 ->where('twoFactorEnabled', false),
             );
+    }
+
+    public function test_entrepreneur_security_page_cannot_disable_two_factor()
+    {
+        $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+
+        Features::twoFactorAuthentication([
+            'confirm' => true,
+            'confirmPassword' => true,
+        ]);
+
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+
+        $this->actingAsMfa($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->get(route('security.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('settings/security')
+                ->where('canManageTwoFactor', true)
+                ->where('canDisableTwoFactor', false)
+                ->where('twoFactorEnabled', true),
+            );
+    }
+
+    public function test_entrepreneur_cannot_disable_two_factor_via_route()
+    {
+        $this->skipUnlessFortifyHas(Features::twoFactorAuthentication());
+
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+
+        $this->actingAsMfa($user)
+            ->withSession(['auth.password_confirmed_at' => time()])
+            ->delete(route('two-factor.disable'))
+            ->assertForbidden();
+
+        $user->refresh();
+
+        $this->assertNotNull($user->two_factor_secret);
+        $this->assertNotNull($user->two_factor_confirmed_at);
+        $this->assertNotNull($user->mfa_enabled_at);
     }
 
     public function test_security_page_requires_password_confirmation_when_enabled()

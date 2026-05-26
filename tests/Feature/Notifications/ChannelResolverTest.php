@@ -15,6 +15,7 @@ use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class ChannelResolverTest extends TestCase
@@ -129,6 +130,49 @@ final class ChannelResolverTest extends TestCase
         $this->assertDatabaseHas('communication_preferences', [
             'user_id' => $user->id,
             'channel' => CommunicationPreference::CHANNEL_EMAIL_ONLY,
+            'frequency' => CommunicationPreference::FREQUENCY_WEEKLY,
+        ]);
+    }
+
+    public function test_entrepreneur_communication_settings_hide_delivery_channel(): void
+    {
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('communication.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('settings/communication')
+                ->where('canChooseChannel', false)
+            );
+    }
+
+    public function test_entrepreneur_cannot_update_delivery_channel_from_settings(): void
+    {
+        $user = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $user->communicationPreference()->create([
+            'channel' => CommunicationPreference::CHANNEL_BOTH,
+            'frequency' => CommunicationPreference::FREQUENCY_IMMEDIATE,
+            'timezone' => 'Pacific/Auckland',
+        ]);
+
+        $this->actingAsMfa($user)
+            ->put(route('communication.update'), [
+                'channel' => CommunicationPreference::CHANNEL_EMAIL_ONLY,
+                'frequency' => CommunicationPreference::FREQUENCY_WEEKLY,
+                'timezone' => 'Pacific/Auckland',
+            ])
+            ->assertRedirect(route('communication.edit', absolute: false));
+
+        $this->assertDatabaseHas('communication_preferences', [
+            'user_id' => $user->id,
+            'channel' => CommunicationPreference::CHANNEL_BOTH,
             'frequency' => CommunicationPreference::FREQUENCY_WEEKLY,
         ]);
     }

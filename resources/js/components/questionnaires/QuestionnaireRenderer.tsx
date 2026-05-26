@@ -1,6 +1,7 @@
 import { Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -483,13 +484,15 @@ function DocumentAttachmentControl({
     return (
         <div className="space-y-2 rounded-md border border-dashed p-3">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-                <Input
-                    type="file"
-                    aria-label={`Attach document for ${question.prompt}`}
-                    onChange={(event) =>
-                        setFile(event.target.files?.[0] ?? null)
-                    }
-                />
+                <div className="min-w-0 flex-1">
+                    <FileDropzone
+                        id={`document_${question.id}`}
+                        files={file ? [file] : []}
+                        label="Attach document"
+                        description="Drag a document here or browse"
+                        onFilesChange={(files) => setFile(files[0] ?? null)}
+                    />
+                </div>
                 <Button
                     type="button"
                     size="sm"

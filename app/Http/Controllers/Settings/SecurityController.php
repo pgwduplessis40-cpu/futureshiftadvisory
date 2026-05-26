@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Settings;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Settings\PasswordUpdateRequest;
 use App\Http\Requests\Settings\TwoFactorAuthenticationRequest;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Routing\Controllers\HasMiddleware;
 use Illuminate\Routing\Controllers\Middleware;
@@ -38,9 +39,12 @@ class SecurityController extends Controller implements HasMiddleware
 
         if (Features::canManageTwoFactorAuthentication()) {
             $request->ensureStateIsValid();
+            $user = $request->user();
+            abort_unless($user instanceof User, 403);
 
-            $props['twoFactorEnabled'] = $request->user()->hasEnabledTwoFactorAuthentication();
+            $props['twoFactorEnabled'] = $user->hasEnabledTwoFactorAuthentication();
             $props['requiresConfirmation'] = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
+            $props['canDisableTwoFactor'] = $user->user_type !== User::TYPE_ENTREPRENEUR;
         }
 
         return Inertia::render('settings/security', $props);

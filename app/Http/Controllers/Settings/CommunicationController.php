@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Settings;
 
 use App\Http\Controllers\Controller;
 use App\Models\CommunicationPreference;
+use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
@@ -16,7 +17,10 @@ final class CommunicationController extends Controller
 {
     public function edit(Request $request): Response
     {
-        $preference = $request->user()->communicationPreference()->firstOrCreate([], [
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+        $canChooseChannel = $user->user_type !== User::TYPE_ENTREPRENEUR;
+        $preference = $user->communicationPreference()->firstOrCreate([], [
             'channel' => CommunicationPreference::CHANNEL_BOTH,
             'frequency' => CommunicationPreference::FREQUENCY_IMMEDIATE,
             'timezone' => 'Pacific/Auckland',
@@ -28,6 +32,7 @@ final class CommunicationController extends Controller
                 'frequency' => $preference->frequency,
                 'timezone' => $preference->timezone,
             ],
+            'canChooseChannel' => $canChooseChannel,
             'channels' => CommunicationPreference::channels(),
             'frequencies' => CommunicationPreference::frequencies(),
         ]);
@@ -35,13 +40,17 @@ final class CommunicationController extends Controller
 
     public function update(Request $request): RedirectResponse
     {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+        $canChooseChannel = $user->user_type !== User::TYPE_ENTREPRENEUR;
+
         $validated = $request->validate([
-            'channel' => ['required', 'string', Rule::in(CommunicationPreference::channels())],
+            'channel' => [$canChooseChannel ? 'required' : 'exclude', 'string', Rule::in(CommunicationPreference::channels())],
             'frequency' => ['required', 'string', Rule::in(CommunicationPreference::frequencies())],
             'timezone' => ['required', 'string', 'max:64'],
         ]);
 
-        $request->user()->communicationPreference()->updateOrCreate([], $validated);
+        $user->communicationPreference()->updateOrCreate([], $validated);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Communication preferences updated.')]);
 

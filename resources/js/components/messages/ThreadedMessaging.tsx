@@ -9,7 +9,8 @@ import {
     Send,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { ChangeEvent, FormEvent } from 'react';
+import type { FormEvent } from 'react';
+import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -478,32 +479,16 @@ function AttachmentField({
     error?: string;
     onChange: (files: File[]) => void;
 }) {
-    const handleChange = (event: ChangeEvent<HTMLInputElement>) => {
-        onChange(Array.from(event.target.files ?? []));
-    };
-
     return (
         <div className="grid gap-2">
-            <Label htmlFor={id}>Attachments</Label>
-            <Input
+            <FileDropzone
                 key={inputKey}
                 id={id}
-                type="file"
+                files={files}
+                label="Attachments"
                 multiple
-                onChange={handleChange}
+                onFilesChange={onChange}
             />
-            {files.length > 0 && (
-                <div className="flex flex-wrap gap-2">
-                    {files.map((file) => (
-                        <Badge
-                            key={`${file.name}-${file.size}`}
-                            variant="secondary"
-                        >
-                            {file.name}
-                        </Badge>
-                    ))}
-                </div>
-            )}
             <InputError message={error} />
         </div>
     );

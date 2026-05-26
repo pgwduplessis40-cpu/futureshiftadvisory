@@ -15,6 +15,7 @@ import { disable, enable } from '@/routes/two-factor';
 
 type Props = {
     canManageTwoFactor?: boolean;
+    canDisableTwoFactor?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
     passwordRules: string;
@@ -22,6 +23,7 @@ type Props = {
 
 export default function Security({
     canManageTwoFactor = false,
+    canDisableTwoFactor = true,
     requiresConfirmation = false,
     twoFactorEnabled = false,
     passwordRules,
@@ -168,19 +170,26 @@ export default function Security({
                                 TOTP-supported application on your phone.
                             </p>
 
-                            <div className="relative inline">
-                                <Form {...disable.form()}>
-                                    {({ processing }) => (
-                                        <Button
-                                            variant="destructive"
-                                            type="submit"
-                                            disabled={processing}
-                                        >
-                                            Disable 2FA
-                                        </Button>
-                                    )}
-                                </Form>
-                            </div>
+                            {canDisableTwoFactor ? (
+                                <div className="relative inline">
+                                    <Form {...disable.form()}>
+                                        {({ processing }) => (
+                                            <Button
+                                                variant="destructive"
+                                                type="submit"
+                                                disabled={processing}
+                                            >
+                                                Disable 2FA
+                                            </Button>
+                                        )}
+                                    </Form>
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground">
+                                    Two-factor authentication is required for
+                                    entrepreneur accounts.
+                                </p>
+                            )}
 
                             <TwoFactorRecoveryCodes
                                 recoveryCodesList={recoveryCodesList}

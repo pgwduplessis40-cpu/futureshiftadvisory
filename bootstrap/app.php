@@ -39,6 +39,7 @@ use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
 use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
+use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
 use App\Http\Middleware\RequireAcceptedTerms;
 use App\Http\Middleware\RequireMfa;
 use App\Jobs\DispatchDailyDigest;
@@ -68,6 +69,7 @@ return Application::configure(basePath: dirname(__DIR__))
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
+            PreventEntrepreneurTwoFactorDisable::class,
             EnforceClientScope::class,
             EnforceSessionSecurity::class,
             RequireAcceptedTerms::class,
