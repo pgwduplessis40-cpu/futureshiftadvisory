@@ -12,6 +12,7 @@ enum QuestionnaireSet: string
     case ENTREPRENEUR_READINESS = 'entrepreneur_readiness';
     case ENTREPRENEUR_IDEA_VALIDATION = 'entrepreneur_idea_validation';
     case GOVERNANCE_REVIEW = 'governance_review';
+    case STANDARD_NPO = 'standard_npo';
 
     /**
      * @return array<int, string>

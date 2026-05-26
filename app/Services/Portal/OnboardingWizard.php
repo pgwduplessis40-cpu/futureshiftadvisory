@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Portal;
 
 use App\Enums\EngagementType;
+use App\Enums\NpoEngagementSubType;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
+use App\Models\NpoEngagement;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
 
@@ -182,13 +184,7 @@ final class OnboardingWizard
                 'phase' => 'Phase 3',
                 'description' => 'Entrepreneur readiness and idea validation questionnaires are part of the Phase 3 entrepreneur module.',
             ],
-            EngagementType::NPO => [
-                'set' => QuestionnaireSet::GOVERNANCE_REVIEW->value,
-                'title' => 'Governance Review Questionnaire',
-                'available' => true,
-                'phase' => 'Phase 5a',
-                'description' => 'Complete the Governance Review questionnaire for the current NPO engagement.',
-            ],
+            EngagementType::NPO => $this->npoQuestionnaire($client),
         };
     }
 
@@ -215,5 +211,41 @@ final class OnboardingWizard
     private function hasStep(string $slug): bool
     {
         return collect($this->steps())->contains(fn (array $step): bool => $step['slug'] === $slug);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function npoQuestionnaire(Client $client): array
+    {
+        if ($this->fullNpoEngagement($client) instanceof NpoEngagement) {
+            return [
+                'set' => QuestionnaireSet::STANDARD_NPO->value,
+                'title' => 'Standard NPO Health Questionnaire',
+                'available' => true,
+                'phase' => 'Phase 5b',
+                'description' => 'Complete the full NPO health questionnaire for the current engagement.',
+            ];
+        }
+
+        return [
+            'set' => QuestionnaireSet::GOVERNANCE_REVIEW->value,
+            'title' => 'Governance Review Questionnaire',
+            'available' => true,
+            'phase' => 'Phase 5a',
+            'description' => 'Complete the Governance Review questionnaire for the current NPO engagement.',
+        ];
+    }
+
+    private function fullNpoEngagement(Client $client): ?NpoEngagement
+    {
+        return NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->whereIn('sub_type', [
+                NpoEngagementSubType::StandardNpo->value,
+                NpoEngagementSubType::SocialEnterprise->value,
+            ])
+            ->latest()
+            ->first();
     }
 }

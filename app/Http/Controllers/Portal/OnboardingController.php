@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Portal;
 
 use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
+use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
@@ -16,6 +17,7 @@ use App\Models\QuestionnaireResponse;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
+use App\Services\Npo\NpoQuestionnaireScoring;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\PortalOfflineSync;
@@ -36,6 +38,7 @@ final class OnboardingController extends Controller
         private readonly AuditWriter $auditWriter,
         private readonly QuestionnairePayload $questionnairePayload,
         private readonly QuestionnaireResponseRecorder $responses,
+        private readonly NpoQuestionnaireScoring $npoQuestionnaireScoring,
         private readonly FunnelTracker $funnels,
         private readonly PortalOfflineSync $offlineSync,
     ) {}
@@ -223,7 +226,9 @@ final class OnboardingController extends Controller
             /** @var User $user */
             $user = $request->user();
             $responseOptions = $this->responseOptions($client, (string) $questionnaire['set'], required: true);
+            $active = $this->visibleQuestionnaireForClient($client, $active);
             $response = $this->responses->record($client, $user, $active, $request->all(), $responseOptions);
+            $this->recordNpoQuestionnaireScores($client, (string) $questionnaire['set'], $responseOptions, $response, $user);
 
             return [
                 'questionnaire_set' => $questionnaire['set'],
@@ -275,7 +280,7 @@ final class OnboardingController extends Controller
         return [
             ...$meta,
             'npo_engagement_id' => $responseOptions['npo_engagement_id'] ?? null,
-            'schema' => $this->questionnairePayload->schema($active),
+            'schema' => $this->questionnairePayload->schema($this->visibleQuestionnaireForClient($client, $active)),
             'answers' => $this->questionnairePayload->answers($response),
         ];
     }
@@ -301,6 +306,19 @@ final class OnboardingController extends Controller
      */
     private function responseOptions(Client $client, string $set, bool $required): array
     {
+        if ($set === QuestionnaireSet::STANDARD_NPO->value) {
+            $engagement = $this->fullNpoEngagement($client);
+            abort_if(
+                $required && ! $engagement instanceof NpoEngagement,
+                422,
+                'A full NPO engagement is required before submitting this questionnaire.',
+            );
+
+            return [
+                'npo_engagement_id' => $engagement?->getKey(),
+            ];
+        }
+
         if ($set !== QuestionnaireSet::GOVERNANCE_REVIEW->value) {
             return ['npo_engagement_id' => null];
         }
@@ -323,6 +341,70 @@ final class OnboardingController extends Controller
         return [
             'npo_engagement_id' => $engagement?->getKey(),
         ];
+    }
+
+    /**
+     * @param  array{npo_engagement_id?: string|null}  $responseOptions
+     */
+    private function recordNpoQuestionnaireScores(
+        Client $client,
+        string $set,
+        array $responseOptions,
+        QuestionnaireResponse $response,
+        User $user,
+    ): void {
+        if ($set !== QuestionnaireSet::STANDARD_NPO->value) {
+            return;
+        }
+
+        $engagementId = $responseOptions['npo_engagement_id'] ?? null;
+        if (! is_string($engagementId)) {
+            return;
+        }
+
+        $engagement = NpoEngagement::query()
+            ->whereKey($engagementId)
+            ->where('client_id', $client->getKey())
+            ->first();
+
+        if ($engagement instanceof NpoEngagement) {
+            $this->npoQuestionnaireScoring->record($engagement, $response, $user);
+        }
+    }
+
+    private function visibleQuestionnaireForClient(Client $client, Questionnaire $questionnaire): Questionnaire
+    {
+        if ($questionnaire->set !== QuestionnaireSet::STANDARD_NPO) {
+            return $questionnaire;
+        }
+
+        $engagement = $this->fullNpoEngagement($client);
+        $tiritiMode = $engagement?->tiriti_mode ?? NpoTiritiMode::Woven;
+
+        if ($tiritiMode === NpoTiritiMode::Standalone) {
+            return $questionnaire;
+        }
+
+        $questionnaire->setRelation(
+            'sections',
+            $questionnaire->sections
+                ->reject(fn ($section): bool => (int) $section->order === 9 && $section->title === 'Te Tiriti')
+                ->values(),
+        );
+
+        return $questionnaire;
+    }
+
+    private function fullNpoEngagement(Client $client): ?NpoEngagement
+    {
+        return NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->whereIn('sub_type', [
+                NpoEngagementSubType::StandardNpo->value,
+                NpoEngagementSubType::SocialEnterprise->value,
+            ])
+            ->latest()
+            ->first();
     }
 
     private function governanceReviewEngagement(Client $client): ?NpoEngagement
