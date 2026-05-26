@@ -231,6 +231,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<NpoEngagement>
+     */
+    public function npoEngagements(): HasMany
+    {
+        return $this->hasMany(NpoEngagement::class);
+    }
+
+    /**
      * @return HasMany<CoachReferralAuthorisation>
      */
     public function coachReferralAuthorisations(): HasMany

@@ -4,6 +4,7 @@ export type ClientSummary = {
     id: string;
     engagement_type: string;
     engagement_type_label: string;
+    is_npo: boolean;
     status: string;
     status_label: string;
     nzbn: string | null;
@@ -34,4 +35,9 @@ export type EngagementTypeOption = {
     value: string;
     label: string;
     description: string;
+};
+
+export type NpoOption = {
+    value: string;
+    label: string;
 };

@@ -12,6 +12,12 @@ enum ReportType: string
     case Trajectory = 'trajectory';
     case DueDiligence = 'due_diligence';
     case EntrepreneurAssessment = 'entrepreneur_assessment';
+    case GovernanceReview = 'governance_review_report';
+    case NpoHealth = 'npo_health_report';
+    case NpoAdvisor = 'npo_advisor_report';
+    case FunderAccountability = 'funder_accountability_report';
+    case SocialEnterpriseDual = 'social_enterprise_dual_report';
+    case ImpactSummary = 'impact_summary_report';
 
     public function label(): string
     {
@@ -22,6 +28,12 @@ enum ReportType: string
             self::Trajectory => 'Business Health Trajectory Report',
             self::DueDiligence => 'Due Diligence Report',
             self::EntrepreneurAssessment => 'Entrepreneur Assessment Report',
+            self::GovernanceReview => 'Governance Review Report',
+            self::NpoHealth => 'NPO Health Report',
+            self::NpoAdvisor => 'NPO Advisor Report',
+            self::FunderAccountability => 'Funder Accountability Report',
+            self::SocialEnterpriseDual => 'Social Enterprise Dual Impact Report',
+            self::ImpactSummary => 'Impact Summary Report',
         };
     }
 

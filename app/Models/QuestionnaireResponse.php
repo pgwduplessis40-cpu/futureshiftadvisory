@@ -36,6 +36,14 @@ final class QuestionnaireResponse extends Model
     }
 
     /**
+     * @return BelongsTo<NpoEngagement, QuestionnaireResponse>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
+    }
+
+    /**
      * @return BelongsTo<User, QuestionnaireResponse>
      */
     public function submittedBy(): BelongsTo

@@ -2,10 +2,11 @@
 
 Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-PHASE2.md`](./PLAN-PHASE2.md) (Phase 2), [`PLAN-PHASE3.md`](./PLAN-PHASE3.md) (Phase 3), [`PLAN-PHASE4.md`](./PLAN-PHASE4.md) (Phase 4), [`PLAN-METHODOLOGY-REGISTRY.md`](./PLAN-METHODOLOGY-REGISTRY.md), and [`CLAUDE.md`](./CLAUDE.md).
 
-**Last updated:** 2026-05-26
+**Last updated:** 2026-05-27
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
 **V2.4 Gap Closure:** **COMPLETE** (5/5, WO-121...WO-125 committed on `featureApp`).
+**NPO Module:** Phase 5a started; **WO-N01 complete** on `featureApp` (NPO engagement scaffold, report constants, shared engagement identity columns).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -13,14 +14,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **139 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) |
+| Work orders complete | **140 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (1, WO-N01) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | None - V2.4 gap closure is complete |
+| Next work order | WO-N02 - Governance Review questionnaire set |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **V2.4 gap closure focused baseline (2026-05-26):** WO-125 PHP syntax, Pint, accounting/calendar route lists, `npm run types:check`, and focused ESLint are green. DB-backed feature PHPUnit remains blocked in this local checkout by PostgreSQL `futureshift_test` authentication (`fe_sendauth: no password supplied`). Phase 4 prior full green baseline remains **513 tests / 513 passed / 4080 assertions**. |
+| Verification status | **WO-N01 baseline (2026-05-27):** focused PHPUnit **10 tests / 73 assertions**, full PHPUnit **575 tests / 5559 assertions**, `npm run types:check`, `npm run lint:check`, `npm run build`, and Pint are green. `npm run format:check` is blocked by a pre-existing formatting issue in `resources/js/components/request-deactivation.tsx`; touched N01 client pages pass Prettier. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Methodology Registry Track
@@ -42,6 +43,12 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-123 | `784d9f0` Complete | Advisor knowledge-base AI-assisted capture via advisor-owned drafts, not the admin learning queue. |
 | WO-124 | `50c06da` Complete | Google Calendar and Microsoft Outlook two-way sync with encrypted per-advisor tokens, fixture/live-gated clients, settings UI, RLS, resilience fallback, and rewrap coverage. |
 | WO-125 | This commit | Sage, Figured, and WorkflowMax added to the encrypted, resilient accounting integration path with fixtures, resolver bindings, UI provider list, and coverage. |
+
+## NPO Module Track
+
+| WO | Status | Notes |
+|---|---|---|
+| WO-N01 | This commit | Adds `EngagementType::NPO`, NPO sub-type/legal-structure enums, six NPO `ReportType` constants, `npo_engagements` with client-scoped RLS, shared `npo_engagement_id` identity columns/composite FKs for reports/questionnaire responses/proposals/fee calculations, engagement-aware questionnaire response uniqueness, advisor create-form NPO legal-structure capture, NPO badges, and focused coverage. |
 
 ## Commit Log
 

@@ -181,6 +181,13 @@ final class OnboardingWizard
                 'phase' => 'Phase 3',
                 'description' => 'Entrepreneur readiness and idea validation questionnaires are part of the Phase 3 entrepreneur module.',
             ],
+            EngagementType::NPO => [
+                'set' => 'governance_review',
+                'title' => 'Governance Review Questionnaire',
+                'available' => false,
+                'phase' => 'Phase 5a',
+                'description' => 'The NPO governance questionnaire is enabled in the Phase 5a questionnaire work order.',
+            ],
         };
     }
 

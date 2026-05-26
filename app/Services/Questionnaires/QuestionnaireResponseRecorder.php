@@ -9,6 +9,7 @@ use App\Jobs\RecomputeDataQualityScore;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\FunnelEvent;
+use App\Models\NpoEngagement;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireQuestion;
@@ -20,6 +21,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use InvalidArgumentException;
 
 final class QuestionnaireResponseRecorder
 {
@@ -31,11 +33,13 @@ final class QuestionnaireResponseRecorder
 
     /**
      * @param  array<string, mixed>  $input
+     * @param  array{npo_engagement_id?: string|null}  $options
      */
-    public function record(Client $client, User $user, Questionnaire $questionnaire, array $input): QuestionnaireResponse
+    public function record(Client $client, User $user, Questionnaire $questionnaire, array $input, array $options = []): QuestionnaireResponse
     {
         $questionnaire->loadMissing('sections.questions');
 
+        $npoEngagementId = $this->normaliseNpoEngagementId($client, $options['npo_engagement_id'] ?? null);
         $answers = is_array($input['answers'] ?? null) ? $input['answers'] : [];
         $visibleIds = $this->rules->visibleQuestionIds($questionnaire, $answers);
         $visibleMap = array_fill_keys($visibleIds, true);
@@ -76,10 +80,11 @@ final class QuestionnaireResponseRecorder
             throw ValidationException::withMessages($errors);
         }
 
-        return DB::transaction(function () use ($client, $normalised, $questionnaire, $user): QuestionnaireResponse {
+        return DB::transaction(function () use ($client, $normalised, $npoEngagementId, $questionnaire, $user): QuestionnaireResponse {
             $response = QuestionnaireResponse::query()->updateOrCreate(
                 [
                     'client_id' => $client->getKey(),
+                    'npo_engagement_id' => $npoEngagementId,
                     'questionnaire_id' => $questionnaire->getKey(),
                 ],
                 [
@@ -104,6 +109,7 @@ final class QuestionnaireResponseRecorder
 
             $this->auditWriter->record('questionnaire.submitted', subject: $response, actor: $user, after: [
                 'client_id' => $client->getKey(),
+                'npo_engagement_id' => $npoEngagementId,
                 'questionnaire_id' => $questionnaire->getKey(),
                 'answers_recorded' => count($normalised),
             ]);
@@ -115,6 +121,30 @@ final class QuestionnaireResponseRecorder
 
             return $response;
         });
+    }
+
+    private function normaliseNpoEngagementId(Client $client, mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        $id = (string) $value;
+
+        if (! Str::isUuid($id)) {
+            throw new InvalidArgumentException('NPO engagement id must be a UUID.');
+        }
+
+        $exists = NpoEngagement::query()
+            ->whereKey($id)
+            ->where('client_id', $client->getKey())
+            ->exists();
+
+        if (! $exists) {
+            throw new InvalidArgumentException('NPO engagement must belong to the response client.');
+        }
+
+        return $id;
     }
 
     private function dispatchDocumentVerifications(QuestionnaireResponse $response): void

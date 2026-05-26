@@ -47,6 +47,14 @@ final class Report extends Model
     }
 
     /**
+     * @return BelongsTo<NpoEngagement, Report>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
+    }
+
+    /**
      * @return BelongsTo<User, Report>
      */
     public function generatedBy(): BelongsTo

@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Enums\EngagementType;
+use App\Enums\NpoEngagementSubType;
+use App\Enums\NpoLegalStructure;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
+use App\Models\NpoEngagement;
 use App\Models\Questionnaire;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -80,6 +83,61 @@ final class AddClientTest extends TestCase
         ]);
         $this->assertDatabaseHas('audit_events', ['action' => 'client.created']);
         $this->assertDatabaseHas('audit_events', ['action' => 'conflict.declared']);
+    }
+
+    public function test_advisor_can_create_npo_governance_review_engagement_with_legal_structure(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.create'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('engagementTypes.4.value', EngagementType::NPO->value)
+                ->where('npoOptions.legalStructures.0.value', NpoLegalStructure::RegisteredCharity->value));
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.store'), [
+                'engagement_type' => EngagementType::NPO->value,
+                'nzbn' => '9429000000000',
+                'legal_name' => '',
+                'trading_name' => 'Future Shift Foundation',
+                'entity_type' => '',
+                'npo' => [
+                    'sub_type' => NpoEngagementSubType::GovernanceReview->value,
+                    'legal_structure' => NpoLegalStructure::RegisteredCharity->value,
+                    'isa_2022_reregistered' => true,
+                ],
+                'conflict' => [
+                    'declared' => true,
+                    'referral_type' => 'client_creation',
+                    'existing_relationship' => false,
+                    'details' => null,
+                ],
+            ])
+            ->assertRedirect();
+
+        $client = Client::query()->firstOrFail();
+        $engagement = NpoEngagement::query()->firstOrFail();
+
+        $this->assertSame(EngagementType::NPO, $client->engagement_type);
+        $this->assertSame((string) $client->getKey(), (string) $engagement->client_id);
+        $this->assertSame(NpoEngagementSubType::GovernanceReview, $engagement->sub_type);
+        $this->assertSame(NpoLegalStructure::RegisteredCharity, $engagement->legal_structure);
+        $this->assertTrue($engagement->isa_2022_reregistered);
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'npo_engagement.created',
+            'subject_id' => $engagement->id,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('clients.0.is_npo', true)
+                ->where('clients.0.engagement_type_label', 'NPO'));
     }
 
     public function test_conflict_declaration_is_required_before_client_save(): void

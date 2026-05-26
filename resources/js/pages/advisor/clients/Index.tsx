@@ -88,6 +88,14 @@ export default function ClientsIndex({ clients, exposureFilter }: Props) {
                                                     {client.trading_name}
                                                 </div>
                                             )}
+                                            {client.is_npo && (
+                                                <Badge
+                                                    className="mt-1"
+                                                    variant="secondary"
+                                                >
+                                                    NPO
+                                                </Badge>
+                                            )}
                                         </td>
                                         <td className="px-3 py-2">
                                             {client.engagement_type_label}

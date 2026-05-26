@@ -455,8 +455,11 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         <h1 className="text-xl font-semibold">
                             {client.legal_name}
                         </h1>
-                        <div className="text-sm text-muted-foreground">
-                            {client.engagement_type_label}
+                        <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                            <span>{client.engagement_type_label}</span>
+                            {client.is_npo && (
+                                <Badge variant="secondary">NPO</Badge>
+                            )}
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

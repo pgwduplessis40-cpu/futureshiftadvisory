@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Advisor;
 use App\Actions\Clients\PopulateFromNzbn;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\NpoEngagementSubType;
+use App\Enums\NpoLegalStructure;
 use App\Enums\ProposalStatus;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
@@ -34,6 +36,7 @@ use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Goals\GoalTracker;
+use App\Services\Npo\NpoEngagementSetup;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -53,6 +56,7 @@ final class ClientController extends Controller
         private readonly GoalTracker $goals,
         private readonly DdOnboarding $ddOnboarding,
         private readonly DataRoom $dataRoom,
+        private readonly NpoEngagementSetup $npoEngagements,
     ) {}
 
     public function index(Request $request, EconomicExposureMapper $economicExposure): Response
@@ -132,6 +136,9 @@ final class ClientController extends Controller
             'legal_name' => ['nullable', 'string', 'max:255'],
             'trading_name' => ['nullable', 'string', 'max:255'],
             'entity_type' => ['nullable', 'string', 'max:120'],
+            'npo.sub_type' => ['required_if:engagement_type,'.EngagementType::NPO->value, Rule::enum(NpoEngagementSubType::class)],
+            'npo.legal_structure' => ['required_if:engagement_type,'.EngagementType::NPO->value, Rule::enum(NpoLegalStructure::class)],
+            'npo.isa_2022_reregistered' => ['nullable', 'boolean'],
             'conflict.declared' => ['accepted'],
             'conflict.referral_type' => ['required', Rule::in(ConflictDeclarer::referralTypes())],
             'conflict.existing_relationship' => ['required', 'boolean'],
@@ -157,6 +164,14 @@ final class ClientController extends Controller
                 'registry_sources' => $lookup['source_badges'],
                 'created_by_user_id' => $user->getKey(),
             ]);
+
+            if ($validated['engagement_type'] === EngagementType::NPO->value) {
+                $this->npoEngagements->create($client, $user, [
+                    'sub_type' => (string) Arr::get($validated, 'npo.sub_type'),
+                    'legal_structure' => (string) Arr::get($validated, 'npo.legal_structure'),
+                    'isa_2022_reregistered' => Arr::get($validated, 'npo.isa_2022_reregistered'),
+                ]);
+            }
 
             ClientTeamMember::query()->create([
                 'client_id' => $client->id,
@@ -460,6 +475,10 @@ final class ClientController extends Controller
     {
         return [
             'engagementTypes' => EngagementType::options(),
+            'npoOptions' => [
+                'subTypes' => NpoEngagementSubType::options(),
+                'legalStructures' => NpoLegalStructure::options(),
+            ],
             'lookup' => $lookup,
             'defaults' => [
                 'engagement_type' => $input['engagement_type'] ?? EngagementType::STANDARD_ADVISORY->value,
@@ -467,6 +486,11 @@ final class ClientController extends Controller
                 'legal_name' => Arr::get($lookup, 'summary.legal_name', $input['legal_name'] ?? ''),
                 'trading_name' => $input['trading_name'] ?? '',
                 'entity_type' => Arr::get($lookup, 'summary.entity_type', $input['entity_type'] ?? ''),
+                'npo' => [
+                    'sub_type' => Arr::get($input, 'npo.sub_type', NpoEngagementSubType::GovernanceReview->value),
+                    'legal_structure' => Arr::get($input, 'npo.legal_structure', ''),
+                    'isa_2022_reregistered' => (bool) Arr::get($input, 'npo.isa_2022_reregistered', false),
+                ],
             ],
         ];
     }
@@ -487,6 +511,7 @@ final class ClientController extends Controller
             'id' => $client->id,
             'engagement_type' => $engagementType->value,
             'engagement_type_label' => $engagementType->label(),
+            'is_npo' => $engagementType === EngagementType::NPO,
             'status' => $status->value,
             'status_label' => $status->label(),
             'nzbn' => $client->nzbn,

@@ -14,7 +14,7 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
-import type { EngagementTypeOption, RegistryLookup } from './types';
+import type { EngagementTypeOption, NpoOption, RegistryLookup } from './types';
 
 type Defaults = {
     engagement_type: string;
@@ -22,6 +22,11 @@ type Defaults = {
     legal_name: string;
     trading_name: string;
     entity_type: string;
+    npo: {
+        sub_type: string;
+        legal_structure: string;
+        isa_2022_reregistered: boolean;
+    };
 };
 
 type CreateClientForm = Defaults & {
@@ -35,12 +40,17 @@ type CreateClientForm = Defaults & {
 
 type Props = {
     engagementTypes: EngagementTypeOption[];
+    npoOptions: {
+        subTypes: NpoOption[];
+        legalStructures: NpoOption[];
+    };
     lookup: RegistryLookup | null;
     defaults: Defaults;
 };
 
 export default function ClientsCreate({
     engagementTypes,
+    npoOptions,
     lookup,
     defaults,
 }: Props) {
@@ -66,6 +76,7 @@ export default function ClientsCreate({
         event.preventDefault();
         form.post('/advisor/clients');
     };
+    const isNpo = form.data.engagement_type === 'npo';
 
     return (
         <>
@@ -113,6 +124,86 @@ export default function ClientsCreate({
                                     message={form.errors.engagement_type}
                                 />
                             </div>
+
+                            {isNpo && (
+                                <div className="grid gap-4 rounded-md border bg-muted/20 p-3 md:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="npo_sub_type">
+                                            NPO stream
+                                        </Label>
+                                        <Select
+                                            value={form.data.npo.sub_type}
+                                            onValueChange={(value) =>
+                                                form.setData('npo', {
+                                                    ...form.data.npo,
+                                                    sub_type: value,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger id="npo_sub_type">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {npoOptions.subTypes.map(
+                                                    (type) => (
+                                                        <SelectItem
+                                                            key={type.value}
+                                                            value={type.value}
+                                                        >
+                                                            {type.label}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError
+                                            message={errors['npo.sub_type']}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="npo_legal_structure">
+                                            Legal structure
+                                        </Label>
+                                        <Select
+                                            value={
+                                                form.data.npo.legal_structure
+                                            }
+                                            onValueChange={(value) =>
+                                                form.setData('npo', {
+                                                    ...form.data.npo,
+                                                    legal_structure: value,
+                                                })
+                                            }
+                                        >
+                                            <SelectTrigger id="npo_legal_structure">
+                                                <SelectValue />
+                                            </SelectTrigger>
+                                            <SelectContent>
+                                                {npoOptions.legalStructures.map(
+                                                    (structure) => (
+                                                        <SelectItem
+                                                            key={
+                                                                structure.value
+                                                            }
+                                                            value={
+                                                                structure.value
+                                                            }
+                                                        >
+                                                            {structure.label}
+                                                        </SelectItem>
+                                                    ),
+                                                )}
+                                            </SelectContent>
+                                        </Select>
+                                        <InputError
+                                            message={
+                                                errors['npo.legal_structure']
+                                            }
+                                        />
+                                    </div>
+                                </div>
+                            )}
 
                             <div className="grid gap-2">
                                 <Label htmlFor="nzbn">NZBN</Label>

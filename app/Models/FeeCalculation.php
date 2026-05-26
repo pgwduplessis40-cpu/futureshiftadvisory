@@ -37,6 +37,14 @@ final class FeeCalculation extends Model
     }
 
     /**
+     * @return BelongsTo<NpoEngagement, FeeCalculation>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
+    }
+
+    /**
      * @return BelongsTo<User, FeeCalculation>
      */
     public function createdBy(): BelongsTo

@@ -102,6 +102,14 @@ final class Proposal extends Model
     }
 
     /**
+     * @return BelongsTo<NpoEngagement, Proposal>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
+    }
+
+    /**
      * @return HasMany<Consent>
      */
     public function consents(): HasMany
