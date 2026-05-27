@@ -87,6 +87,7 @@ type ClientDetail = ClientSummary & {
     npo_conversion: NpoConversionSummary | null;
     npo_configuration: NpoConfigurationSummary | null;
     npo_health: NpoHealthPayload | null;
+    npo_funding: NpoFundingSummary | null;
 };
 
 type ConflictDeclaration = {
@@ -287,6 +288,48 @@ type NpoConfigurationSummary = {
     commercial_weight: number | null;
     mission_weight: number | null;
     update_url: string;
+};
+
+type NpoFundingRecord = {
+    id: string;
+    funder_id: string;
+    funder_name: string | null;
+    funder_needs_verification: boolean;
+    grant_name: string | null;
+    grant_amount: number;
+    currency: string;
+    period_start: string | null;
+    period_end: string | null;
+    reporting_deadline: string | null;
+    next_application_window_opens_at: string | null;
+    next_application_window_closes_at: string | null;
+    grant_expiry_at: string | null;
+    renewal_probability: number | null;
+};
+
+type NpoFundingAlert = {
+    id: string;
+    client_id: string;
+    record_id: string;
+    funder_name: string | null;
+    type: string;
+    severity: string;
+    message: string;
+    due_on: string | null;
+    triggered_at: string | null;
+};
+
+type NpoFundingSummary = {
+    records: NpoFundingRecord[];
+    alerts: NpoFundingAlert[];
+    concentration: {
+        total_active_amount: number;
+        largest_funder_amount: number;
+        largest_funder_ratio: number;
+        largest_funder_name: string | null;
+        risk_level: string;
+        source: string;
+    };
 };
 
 type FinancialSnapshotSummary = {
@@ -708,6 +751,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 {client.npo_health && (
                     <NpoHealthPanel payload={client.npo_health} />
+                )}
+
+                {client.npo_funding && (
+                    <NpoFundingPanel funding={client.npo_funding} />
                 )}
 
                 <KnowledgeAssessmentPanel client={client} />
@@ -1800,6 +1847,125 @@ function NpoConfigurationPanel({
                     </Button>
                 </div>
             </form>
+        </section>
+    );
+}
+
+function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <CreditCard className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">NPO funding</h2>
+                    <Badge variant="secondary">
+                        {funding.records.length} records
+                    </Badge>
+                    {funding.alerts.length > 0 && (
+                        <Badge variant="destructive">
+                            {funding.alerts.length} alerts
+                        </Badge>
+                    )}
+                </div>
+                <Badge variant="outline">
+                    {formatLabel(funding.concentration.risk_level)} risk
+                </Badge>
+            </div>
+
+            <dl className="grid gap-3 text-sm sm:grid-cols-3">
+                <Detail
+                    label="Active funding"
+                    value={formatCurrency(
+                        funding.concentration.total_active_amount,
+                    )}
+                />
+                <Detail
+                    label="Largest funder"
+                    value={funding.concentration.largest_funder_name ?? '-'}
+                />
+                <Detail
+                    label="Concentration"
+                    value={new Intl.NumberFormat(undefined, {
+                        style: 'percent',
+                        maximumFractionDigits: 1,
+                    }).format(funding.concentration.largest_funder_ratio)}
+                />
+            </dl>
+
+            {funding.alerts.length > 0 && (
+                <div className="grid gap-2">
+                    {funding.alerts.map((alert) => (
+                        <div
+                            key={alert.id}
+                            className="flex flex-col gap-1 rounded-md border bg-muted/30 p-3 text-sm sm:flex-row sm:items-center sm:justify-between"
+                        >
+                            <div>
+                                <div className="font-medium">
+                                    {alert.funder_name ?? 'Funder'}
+                                </div>
+                                <div className="text-muted-foreground">
+                                    {alert.message}
+                                </div>
+                            </div>
+                            <div className="flex items-center gap-2">
+                                <Badge
+                                    variant={
+                                        alert.severity === 'critical'
+                                            ? 'destructive'
+                                            : 'outline'
+                                    }
+                                >
+                                    {formatLabel(alert.severity)}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                    {formatDate(alert.due_on)}
+                                </span>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
+
+            <div className="overflow-hidden rounded-md border">
+                <table className="w-full text-sm">
+                    <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
+                        <tr>
+                            <th className="px-3 py-2 font-medium">Funder</th>
+                            <th className="px-3 py-2 font-medium">Amount</th>
+                            <th className="px-3 py-2 font-medium">Report</th>
+                            <th className="px-3 py-2 font-medium">Renewal</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {funding.records.map((record) => (
+                            <tr key={record.id} className="border-t">
+                                <td className="px-3 py-2">
+                                    <div className="font-medium">
+                                        {record.funder_name ?? 'Funder'}
+                                    </div>
+                                    {record.funder_needs_verification && (
+                                        <Badge variant="outline">Verify</Badge>
+                                    )}
+                                </td>
+                                <td className="px-3 py-2">
+                                    {formatMoney(
+                                        record.grant_amount,
+                                        record.currency,
+                                    )}
+                                </td>
+                                <td className="px-3 py-2">
+                                    {formatDate(record.reporting_deadline)}
+                                </td>
+                                <td className="px-3 py-2">
+                                    {record.renewal_probability === null
+                                        ? '-'
+                                        : `${record.renewal_probability}%`}
+                                </td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </section>
     );
 }

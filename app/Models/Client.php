@@ -247,6 +247,22 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<ClientFunderRecord>
+     */
+    public function funderRecords(): HasMany
+    {
+        return $this->hasMany(ClientFunderRecord::class);
+    }
+
+    /**
+     * @return HasMany<ClientFunderAlert>
+     */
+    public function funderAlerts(): HasMany
+    {
+        return $this->hasMany(ClientFunderAlert::class);
+    }
+
+    /**
      * @return HasMany<GovernanceReviewFinding>
      */
     public function governanceReviewFindings(): HasMany

@@ -452,6 +452,27 @@ type NpoPendingConversionsPayload = {
     }>;
 };
 
+type NpoFundingPayload = {
+    summary: {
+        active_records: number;
+        active_alerts: number;
+        critical_alerts: number;
+    };
+    alerts: Array<{
+        id: string;
+        client_id: string;
+        record_id: string;
+        funder_name: string | null;
+        type: string;
+        severity: string;
+        message: string;
+        due_on: string | null;
+        triggered_at: string | null;
+        client_name: string | null;
+        client_url: string;
+    }>;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -468,6 +489,7 @@ type Props = {
     wellbeingAnalytics: WellbeingAnalyticsPayload;
     coachSignals: CoachSignalsPayload;
     npoPendingConversions: NpoPendingConversionsPayload;
+    npoFunding: NpoFundingPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
 };
@@ -488,6 +510,7 @@ export default function AdvisorDashboard({
     wellbeingAnalytics,
     coachSignals,
     npoPendingConversions,
+    npoFunding,
     scenarioPlanning,
     funnelAnalytics,
 }: Props) {
@@ -567,6 +590,7 @@ export default function AdvisorDashboard({
                     <ProposalStatusPanel payload={proposalStatus} />
                     <PaymentStatusPanel payload={paymentStatus} />
                     <NpoPendingConversions payload={npoPendingConversions} />
+                    <NpoFundingPanel payload={npoFunding} />
                     <ProspectInbox payload={prospectInbox} />
                     <EconomicIndicators payload={economicIndicators} />
                 </div>
@@ -871,6 +895,78 @@ function NpoPendingConversions({
                             </div>
                             <Button asChild size="sm" variant="outline">
                                 <Link href={item.client_url}>Open</Link>
+                            </Button>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function NpoFundingPanel({ payload }: { payload: NpoFundingPayload }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <HeartHandshake className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">NPO funding</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="secondary">
+                        {payload.summary.active_records} active
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.critical_alerts > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.active_alerts} alerts
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.alerts.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No funder deadlines are currently due.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.alerts.map((alert) => (
+                        <article
+                            key={alert.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[minmax(0,1fr)_auto]"
+                        >
+                            <div className="min-w-0 space-y-1">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge
+                                        variant={
+                                            alert.severity === 'critical'
+                                                ? 'destructive'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {formatLabel(alert.severity)}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        {formatLabel(alert.type)}
+                                    </Badge>
+                                </div>
+                                <div className="truncate text-sm font-medium">
+                                    {alert.client_name ?? 'Client'}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {alert.funder_name ?? 'Funder'} - due{' '}
+                                    {formatDateOnly(alert.due_on)}
+                                </div>
+                                <div className="line-clamp-2 text-xs text-muted-foreground">
+                                    {alert.message}
+                                </div>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={alert.client_url}>Open</Link>
                             </Button>
                         </article>
                     ))}

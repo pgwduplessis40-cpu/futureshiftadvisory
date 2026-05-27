@@ -130,4 +130,12 @@ final class NpoEngagement extends Model
     {
         return $this->hasMany(NpoDimensionScore::class);
     }
+
+    /**
+     * @return HasMany<ClientFunderRecord>
+     */
+    public function funderRecords(): HasMany
+    {
+        return $this->hasMany(ClientFunderRecord::class);
+    }
 }
