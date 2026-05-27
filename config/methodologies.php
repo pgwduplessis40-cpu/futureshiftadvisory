@@ -350,6 +350,40 @@ return [
             'internal_only' => true,
         ],
 
+        'fees.npo_retainer' => [
+            'id' => 'fees.npo_retainer',
+            'area' => 'Fees',
+            'name' => 'NPO Retainer Fee',
+            'summary' => 'Applies the NPO module discount, budget-band retainer tiers, pro-bono tracking, accountability-report add-ons, and social-enterprise rate rule.',
+            'formula' => 'Monthly NPO fee = configured SME tier monthly rate * (1 - NPO discount) unless a social enterprise is commercial-primary; total mid fee = monthly fee * months + bespoke accountability add-ons. Pro-bono keeps a nominal value but suggested fee is 0.',
+            'inputs' => [
+                'NPO engagement',
+                'Annual operating budget or budget band',
+                'Configured SME retainer tier rates',
+                'NPO discount rate',
+                'Bespoke accountability report count',
+                'Pro-bono flag and year',
+                'Social enterprise rate basis and advisor rationale',
+            ],
+            'config_refs' => [
+                'fees.sme.retainer_monthly',
+                'fees.npo.discount_rate',
+                'fees.npo.bespoke_accountability_report_addon',
+                'fees.npo.pro_bono.max_per_year',
+                'fees.npo.budget_bands',
+            ],
+            'where_used' => [
+                'advisor.fees.calculator',
+                'advisor.npo.retainer_proposal',
+            ],
+            'sources' => [
+                'PLAN-NPO-MODULE.md WO-N19',
+            ],
+            'owning_service' => FeeCalculator::class,
+            'version' => '2026-05-wo-n19',
+            'internal_only' => true,
+        ],
+
         'data_quality.questionnaire_completeness' => [
             'id' => 'data_quality.questionnaire_completeness',
             'area' => 'Data quality',

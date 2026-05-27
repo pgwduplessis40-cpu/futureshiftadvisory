@@ -210,20 +210,27 @@ final class ProposalBuilder
     {
         $scope = is_array($input['scope'] ?? null) ? $input['scope'] : [];
         $isGovernanceReview = $feeCalculation->method === FeeMethod::GovernanceReview;
-        $includedDefault = $isGovernanceReview
-            ? ['Governance evidence review', 'Board-ready Governance Review Report discussion', '12-month governance action plan']
-            : ['Advisor review', 'Implementation roadmap', 'Progress check-in'];
-        $excludedDefault = $isGovernanceReview
-            ? ['Ongoing retainer advisory work is not included in the fixed-fee Governance Review.']
-            : ['Digital signature and payment collection are Phase 3.'];
+        $isNpoRetainer = $feeCalculation->method === FeeMethod::NpoRetainer;
+        $includedDefault = match (true) {
+            $isGovernanceReview => ['Governance evidence review', 'Board-ready Governance Review Report discussion', '12-month governance action plan'],
+            $isNpoRetainer => ['NPO advisory retainer', 'Funding and accountability rhythm', 'Impact measurement check-ins'],
+            default => ['Advisor review', 'Implementation roadmap', 'Progress check-in'],
+        };
+        $excludedDefault = match (true) {
+            $isGovernanceReview => ['Ongoing retainer advisory work is not included in the fixed-fee Governance Review.'],
+            $isNpoRetainer => ['Legal, audit, and trustee services are not included unless separately agreed.'],
+            default => ['Digital signature and payment collection are Phase 3.'],
+        };
         $included = is_array($scope['included'] ?? null) ? $scope['included'] : $includedDefault;
         $excluded = is_array($scope['excluded'] ?? null) ? $scope['excluded'] : $excludedDefault;
         $summary = $scope['summary'] ?? null;
 
         if (! is_string($summary) || $summary === '') {
-            $summary = $isGovernanceReview
-                ? 'Fixed-fee Governance Review proposal for '.$client->legal_name.'.'
-                : 'Advisory engagement proposal for '.$client->legal_name.'.';
+            $summary = match (true) {
+                $isGovernanceReview => 'Fixed-fee Governance Review proposal for '.$client->legal_name.'.',
+                $isNpoRetainer => 'NPO retainer proposal for '.$client->legal_name.'.',
+                default => 'Advisory engagement proposal for '.$client->legal_name.'.',
+            };
         }
 
         $payload = [
@@ -238,6 +245,13 @@ final class ProposalBuilder
             $payload['retainer_structure'] = null;
             $payload['size_band'] = data_get($feeCalculation->justification, 'size_band');
             $payload['conversion_credit'] = $this->conversionCredit($feeCalculation);
+        }
+
+        if ($isNpoRetainer) {
+            $payload['proposal_variant'] = FeeMethod::NpoRetainer->value;
+            $payload['budget_band'] = data_get($feeCalculation->justification, 'budget_band');
+            $payload['pro_bono'] = data_get($feeCalculation->justification, 'pro_bono');
+            $payload['social_enterprise_rate_rule'] = data_get($feeCalculation->justification, 'social_enterprise_rate_rule');
         }
 
         return $payload;
@@ -292,6 +306,13 @@ final class ProposalBuilder
             $summary['conversion_credit'] = $this->conversionCredit($feeCalculation);
         }
 
+        if ($feeCalculation->method === FeeMethod::NpoRetainer) {
+            $summary['proposal_variant'] = FeeMethod::NpoRetainer->value;
+            $summary['budget_band'] = data_get($feeCalculation->justification, 'budget_band');
+            $summary['monthly_retainer_fee'] = data_get($feeCalculation->justification, 'monthly_retainer_fee');
+            $summary['pro_bono'] = data_get($feeCalculation->justification, 'pro_bono');
+        }
+
         return $summary;
     }
 
@@ -316,6 +337,13 @@ final class ProposalBuilder
             $terms['fixed_fee'] = true;
             $terms['no_retainer_structure'] = true;
             $terms['conversion_credit'] = $this->conversionCredit($feeCalculation);
+        }
+
+        if ($feeCalculation->method === FeeMethod::NpoRetainer) {
+            $terms['proposal_variant'] = FeeMethod::NpoRetainer->value;
+            $terms['npo_discount_applied'] = data_get($feeCalculation->justification, 'npo_discount_applied');
+            $terms['pro_bono'] = data_get($feeCalculation->justification, 'pro_bono');
+            $terms['bespoke_accountability_report_addon'] = data_get($feeCalculation->justification, 'bespoke_accountability_report_addon');
         }
 
         return $terms;

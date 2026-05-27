@@ -50,6 +50,41 @@ return [
         'api_key' => env('CHARITIES_SERVICES_API_KEY'),
     ],
 
+    'npo_funders' => [
+        'sources' => [
+            'community_matters_cogs' => [
+                'live' => (bool) env('FEATURE_NPO_FUNDER_COMMUNITY_MATTERS_LIVE', false),
+                'base_url' => env('NPO_FUNDER_COMMUNITY_MATTERS_BASE_URL', 'https://www.communitymatters.govt.nz'),
+                'path' => env('NPO_FUNDER_COMMUNITY_MATTERS_COGS_PATH', 'funding-and-grants/community-organisation-grants-scheme'),
+                'api_key' => env('NPO_FUNDER_COMMUNITY_MATTERS_API_KEY'),
+            ],
+            'community_matters_lottery' => [
+                'live' => (bool) env('FEATURE_NPO_FUNDER_COMMUNITY_MATTERS_LIVE', false),
+                'base_url' => env('NPO_FUNDER_COMMUNITY_MATTERS_BASE_URL', 'https://www.communitymatters.govt.nz'),
+                'path' => env('NPO_FUNDER_COMMUNITY_MATTERS_LOTTERY_PATH', 'funding-and-grants/lottery-grants'),
+                'api_key' => env('NPO_FUNDER_COMMUNITY_MATTERS_API_KEY'),
+            ],
+            'generosity_nz' => [
+                'live' => (bool) env('FEATURE_NPO_FUNDER_GENEROSITY_NZ_LIVE', false),
+                'base_url' => env('NPO_FUNDER_GENEROSITY_NZ_BASE_URL', 'https://generosity.org.nz'),
+                'path' => env('NPO_FUNDER_GENEROSITY_NZ_PATH', 'api/funders'),
+                'api_key' => env('NPO_FUNDER_GENEROSITY_NZ_API_KEY'),
+            ],
+            'fundsorter' => [
+                'live' => (bool) env('FEATURE_NPO_FUNDER_FUNDSORTER_LIVE', false),
+                'base_url' => env('NPO_FUNDER_FUNDSORTER_BASE_URL', 'https://fundsorter.co.nz'),
+                'path' => env('NPO_FUNDER_FUNDSORTER_PATH', 'api/funders'),
+                'api_key' => env('NPO_FUNDER_FUNDSORTER_API_KEY'),
+            ],
+            'te_puni_kokiri' => [
+                'live' => (bool) env('FEATURE_NPO_FUNDER_TPK_LIVE', false),
+                'base_url' => env('NPO_FUNDER_TPK_BASE_URL', 'https://www.tpk.govt.nz'),
+                'path' => env('NPO_FUNDER_TPK_PATH', 'api/funds'),
+                'api_key' => env('NPO_FUNDER_TPK_API_KEY'),
+            ],
+        ],
+    ],
+
     'incorporated_societies' => [
         'live' => (bool) env('FEATURE_INCORPORATED_SOCIETIES_LIVE', false),
         'base_url' => env('INCORPORATED_SOCIETIES_BASE_URL', 'https://api.business.govt.nz/services/v1/incorporated-societies'),

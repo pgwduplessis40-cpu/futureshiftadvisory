@@ -21,7 +21,7 @@ final class FeeCalculator implements ProvidesMethodology
 {
     public static function methodologyIds(): array
     {
-        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur', 'fees.governance_review'];
+        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur', 'fees.governance_review', 'fees.npo_retainer'];
     }
 
     public function __construct(private readonly AuditWriter $audit) {}
@@ -36,13 +36,14 @@ final class FeeCalculator implements ProvidesMethodology
         $npoEngagement = $this->npoEngagement(
             $client,
             $inputs['npo_engagement_id'] ?? $options['npo_engagement_id'] ?? null,
-            $method === FeeMethod::GovernanceReview,
+            $method,
         );
         $result = match ($method) {
             FeeMethod::HoursBased => $this->hoursBased($inputs),
             FeeMethod::OutcomeBased => $this->outcomeBased($client, $inputs, $pv),
             FeeMethod::Entrepreneur => $this->entrepreneur($inputs),
             FeeMethod::GovernanceReview => $this->governanceReview($inputs),
+            FeeMethod::NpoRetainer => $this->npoRetainer($inputs, $npoEngagement),
         };
 
         $calculation = FeeCalculation::query()->create([
@@ -67,6 +68,8 @@ final class FeeCalculator implements ProvidesMethodology
             'improvement_pv_total' => $calculation->improvement_pv_total,
             'risk_cost_pv_total' => $calculation->risk_cost_pv_total,
             'roi_ratio' => $calculation->roi_ratio,
+            'pro_bono' => (bool) data_get($result['justification'], 'pro_bono.flagged', false),
+            'social_enterprise_rate_basis' => data_get($result['justification'], 'social_enterprise_rate_rule.basis'),
         ]);
 
         return $calculation->refresh();
@@ -299,6 +302,93 @@ final class FeeCalculator implements ProvidesMethodology
 
     /**
      * @param  array<string, mixed>  $inputs
+     * @return array{low:float, mid:float, high:float, justification:array<string, mixed>}
+     */
+    private function npoRetainer(array $inputs, ?NpoEngagement $engagement): array
+    {
+        if (! $engagement instanceof NpoEngagement) {
+            throw new InvalidArgumentException('NPO retainer fee calculations require a full NPO engagement.');
+        }
+
+        $annualOperatingBudget = $this->annualOperatingBudget($inputs);
+        $budgetBand = $this->npoBudgetBand($inputs, $annualOperatingBudget);
+        $bandConfig = $this->npoRetainerSchedule()[$budgetBand];
+        $smeTier = (string) ($bandConfig['sme_tier'] ?? 'foundation');
+        $smeMonthly = $this->smeMonthlyRate($smeTier, $inputs);
+        $discountRate = $this->boundedRate($inputs['npo_discount_rate'] ?? config('fees.npo.discount_rate', 0.35), 'NPO discount rate');
+        $socialEnterpriseRule = $this->socialEnterpriseRateRule($engagement, $inputs);
+        $discountApplies = $socialEnterpriseRule['basis'] !== 'commercial_primary';
+        $monthlyFee = $discountApplies
+            ? round($smeMonthly * (1 - $discountRate), 2)
+            : $smeMonthly;
+        $retainerMonths = max(1, (int) ($inputs['retainer_months'] ?? $bandConfig['default_months'] ?? 12));
+        $addonCount = max(0, (int) ($inputs['bespoke_accountability_reports'] ?? 0));
+        $addonUnit = $this->nonNegativeNumber(
+            $inputs['bespoke_accountability_report_fee'] ?? config('fees.npo.bespoke_accountability_report_addon', 650),
+            'Bespoke accountability report fee',
+        );
+        $addonTotal = round($addonCount * $addonUnit, 2);
+        $nominalMid = round(($monthlyFee * $retainerMonths) + $addonTotal, 2);
+        $proBono = (bool) ($inputs['pro_bono'] ?? false);
+        $proBonoYear = (int) ($inputs['pro_bono_year'] ?? now()->year);
+
+        if ($proBono) {
+            $this->assertProBonoCapacity($proBonoYear);
+        }
+
+        $low = $proBono ? 0.0 : round($nominalMid * 0.9, 2);
+        $mid = $proBono ? 0.0 : $nominalMid;
+        $high = $proBono ? 0.0 : round($nominalMid * 1.1, 2);
+
+        return [
+            'low' => $low,
+            'mid' => $mid,
+            'high' => $high,
+            'justification' => [
+                'method' => FeeMethod::NpoRetainer->value,
+                'proposal_variant' => FeeMethod::NpoRetainer->value,
+                'basis' => 'NPO retainer calculated from the configured SME tier rate with the module discount unless the social enterprise is commercial-primary.',
+                'annual_operating_budget' => $annualOperatingBudget,
+                'budget_band' => $budgetBand,
+                'sme_tier' => $smeTier,
+                'sme_monthly_rate' => $smeMonthly,
+                'npo_discount_rate' => $discountRate,
+                'npo_discount_applied' => $discountApplies,
+                'monthly_retainer_fee' => $monthlyFee,
+                'retainer_months' => $retainerMonths,
+                'bespoke_accountability_report_addon' => [
+                    'count' => $addonCount,
+                    'unit_fee' => $addonUnit,
+                    'total' => $addonTotal,
+                ],
+                'pro_bono' => [
+                    'flagged' => $proBono,
+                    'year' => $proBono ? $proBonoYear : null,
+                    'max_per_year' => (int) config('fees.npo.pro_bono.max_per_year', 2),
+                    'tracked_separately' => $proBono,
+                    'full_functionality' => $proBono,
+                    'nominal_value' => $proBono ? $nominalMid : null,
+                ],
+                'social_enterprise_rate_rule' => $socialEnterpriseRule,
+                'services' => [[
+                    'name' => 'NPO advisory retainer',
+                    'fee_method' => FeeMethod::NpoRetainer->value,
+                    'budget_band' => $budgetBand,
+                    'monthly_fee' => $monthlyFee,
+                    'months' => $retainerMonths,
+                    'line_total' => round($monthlyFee * $retainerMonths, 2),
+                ], [
+                    'name' => 'Bespoke accountability report add-on',
+                    'fee_method' => FeeMethod::NpoRetainer->value,
+                    'quantity' => $addonCount,
+                    'line_total' => $addonTotal,
+                ]],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
      */
     private function governanceReviewBand(array $inputs): string
     {
@@ -348,9 +438,129 @@ final class FeeCalculator implements ProvidesMethodology
         return $this->nonNegativeNumber($inputs['annual_operating_budget'], 'Annual operating budget');
     }
 
+    /**
+     * @param  array<string, mixed>  $inputs
+     */
+    private function npoBudgetBand(array $inputs, ?float $annualOperatingBudget): string
+    {
+        $explicit = strtolower(trim((string) ($inputs['budget_band'] ?? '')));
+
+        if ($explicit !== '') {
+            if (! array_key_exists($explicit, $this->npoRetainerSchedule())) {
+                throw new InvalidArgumentException('NPO retainer budget band is not configured.');
+            }
+
+            return $explicit;
+        }
+
+        if ($annualOperatingBudget === null) {
+            throw new InvalidArgumentException('NPO retainer fee requires a budget band or annual operating budget.');
+        }
+
+        foreach ($this->npoRetainerSchedule() as $band => $config) {
+            $max = $config['max_budget'] ?? null;
+
+            if ($max === null || $annualOperatingBudget <= (float) $max) {
+                return (string) $band;
+            }
+        }
+
+        return 'large';
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function npoRetainerSchedule(): array
+    {
+        $schedule = config('fees.npo.budget_bands', []);
+
+        return is_array($schedule) ? $schedule : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
+     */
+    private function smeMonthlyRate(string $tier, array $inputs): float
+    {
+        if (is_numeric($inputs['sme_monthly_rate'] ?? null)) {
+            return $this->nonNegativeNumber($inputs['sme_monthly_rate'], 'SME monthly rate');
+        }
+
+        $rate = data_get(config('fees.sme.retainer_monthly', []), $tier);
+
+        if (! is_numeric($rate)) {
+            throw new InvalidArgumentException("SME retainer tier [{$tier}] is not configured.");
+        }
+
+        return $this->nonNegativeNumber($rate, 'SME monthly rate');
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
+     * @return array{basis:string, rationale:?string, engagement_social_enterprise:bool}
+     */
+    private function socialEnterpriseRateRule(NpoEngagement $engagement, array $inputs): array
+    {
+        $isSocialEnterprise = $engagement->sub_type === NpoEngagementSubType::SocialEnterprise
+            || (bool) $engagement->social_enterprise;
+
+        if (! $isSocialEnterprise) {
+            return [
+                'basis' => 'standard_npo',
+                'rationale' => null,
+                'engagement_social_enterprise' => false,
+            ];
+        }
+
+        $basis = strtolower(trim((string) ($inputs['social_enterprise_rate_basis'] ?? 'mission_primary')));
+
+        if (! in_array($basis, ['mission_primary', 'commercial_primary'], true)) {
+            throw new InvalidArgumentException('Social enterprise rate basis must be mission_primary or commercial_primary.');
+        }
+
+        $rationale = trim((string) ($inputs['social_enterprise_rate_rationale'] ?? ''));
+
+        if ($rationale === '') {
+            throw new InvalidArgumentException('Social enterprise rate rule requires an advisor-recorded rationale.');
+        }
+
+        return [
+            'basis' => $basis,
+            'rationale' => $rationale,
+            'engagement_social_enterprise' => true,
+        ];
+    }
+
+    private function assertProBonoCapacity(int $year): void
+    {
+        $max = max(0, (int) config('fees.npo.pro_bono.max_per_year', 2));
+        $used = FeeCalculation::query()
+            ->where('method', FeeMethod::NpoRetainer->value)
+            ->get()
+            ->filter(fn (FeeCalculation $calculation): bool => (bool) data_get($calculation->justification, 'pro_bono.flagged', false)
+                && (int) data_get($calculation->justification, 'pro_bono.year') === $year)
+            ->count();
+
+        if ($used >= $max) {
+            throw new InvalidArgumentException("Pro-bono NPO provision limit reached for {$year}.");
+        }
+    }
+
     private function boundedPercent(mixed $value): float
     {
         return max(0.0, min(100.0, $this->nonNegativeNumber($value, 'Conversion credit percent')));
+    }
+
+    private function boundedRate(mixed $value, string $label): float
+    {
+        $rate = $this->nonNegativeNumber($value, $label);
+
+        if ($rate > 1.0 && $rate <= 100.0) {
+            $rate = $rate / 100;
+        }
+
+        return max(0.0, min(1.0, $rate));
     }
 
     private function roiRatio(float $improvementPv, float $fee): float
@@ -386,8 +596,10 @@ final class FeeCalculator implements ProvidesMethodology
         return is_int($id) ? $id : null;
     }
 
-    private function npoEngagement(Client $client, mixed $value, bool $requireGovernanceReview): ?NpoEngagement
+    private function npoEngagement(Client $client, mixed $value, FeeMethod $method): ?NpoEngagement
     {
+        $requireGovernanceReview = $method === FeeMethod::GovernanceReview;
+        $requireFullNpo = $method === FeeMethod::NpoRetainer;
         $requested = $value instanceof NpoEngagement || (is_string($value) && $value !== '');
 
         if ($value instanceof NpoEngagement) {
@@ -411,6 +623,10 @@ final class FeeCalculator implements ProvidesMethodology
                 throw new InvalidArgumentException('Governance Review fee calculations require a governance-review NPO engagement.');
             }
 
+            if ($requireFullNpo) {
+                throw new InvalidArgumentException('NPO retainer fee calculations require a full NPO engagement.');
+            }
+
             return null;
         }
 
@@ -420,6 +636,10 @@ final class FeeCalculator implements ProvidesMethodology
 
         if ($requireGovernanceReview && $engagement->sub_type !== NpoEngagementSubType::GovernanceReview) {
             throw new InvalidArgumentException('Governance Review fee calculations require a governance-review NPO engagement.');
+        }
+
+        if ($requireFullNpo && ! in_array($engagement->sub_type, [NpoEngagementSubType::StandardNpo, NpoEngagementSubType::SocialEnterprise], true)) {
+            throw new InvalidArgumentException('NPO retainer fee calculations require a standard NPO or social-enterprise engagement.');
         }
 
         return $engagement;

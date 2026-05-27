@@ -1,0 +1,150 @@
+{
+  "community_matters_cogs": {
+    "source": "community_matters_cogs",
+    "found": true,
+    "manual_entry": false,
+    "funders": [
+      {
+        "name": "COGS Community Grants",
+        "type": "government",
+        "funding_windows": [
+          {
+            "opens": "2026-07-01",
+            "closes": "2026-08-15"
+          }
+        ],
+        "criteria": {
+          "focus": "community outcomes",
+          "region": "Aotearoa New Zealand"
+        },
+        "reporting_requirements": {
+          "final_report": true,
+          "receipts_required": true
+        },
+        "renewal_intelligence": {
+          "renewal_weight": 0.68,
+          "source": "Community Matters COGS fixture"
+        },
+        "last_verified_at": "2026-05-01T00:00:00+00:00"
+      }
+    ]
+  },
+  "community_matters_lottery": {
+    "source": "community_matters_lottery",
+    "found": true,
+    "manual_entry": false,
+    "funders": [
+      {
+        "name": "Lottery Community Fund",
+        "type": "government",
+        "funding_windows": [
+          {
+            "opens": "2026-06-12",
+            "closes": "2026-07-24"
+          }
+        ],
+        "criteria": {
+          "focus": "community wellbeing",
+          "entity": "registered charity or incorporated society"
+        },
+        "reporting_requirements": {
+          "milestone_report": true,
+          "impact_summary": true
+        },
+        "renewal_intelligence": {
+          "renewal_weight": 0.72,
+          "source": "Community Matters Lottery fixture"
+        },
+        "last_verified_at": "2026-05-01T00:00:00+00:00"
+      }
+    ]
+  },
+  "generosity_nz": {
+    "source": "generosity_nz",
+    "found": true,
+    "manual_entry": false,
+    "funders": [
+      {
+        "name": "Generosity NZ Matched Trust",
+        "type": "philanthropic",
+        "funding_windows": [
+          {
+            "opens": "2026-09-01",
+            "closes": "2026-10-15"
+          }
+        ],
+        "criteria": {
+          "focus": "grant discovery",
+          "access": "subscription dataset"
+        },
+        "reporting_requirements": {
+          "varies_by_funder": true
+        },
+        "renewal_intelligence": {
+          "renewal_weight": 0.55,
+          "source": "Generosity NZ fixture"
+        },
+        "last_verified_at": "2026-05-01T00:00:00+00:00"
+      }
+    ]
+  },
+  "fundsorter": {
+    "source": "fundsorter",
+    "found": true,
+    "manual_entry": false,
+    "funders": [
+      {
+        "name": "Fundsorter Discovery Match",
+        "type": "philanthropic",
+        "funding_windows": [
+          {
+            "opens": "2026-08-01",
+            "closes": "2026-09-30"
+          }
+        ],
+        "criteria": {
+          "focus": "funder discovery",
+          "matching": "profile based"
+        },
+        "reporting_requirements": {
+          "varies_by_funder": true
+        },
+        "renewal_intelligence": {
+          "renewal_weight": 0.5,
+          "source": "Fundsorter fixture"
+        },
+        "last_verified_at": "2026-05-01T00:00:00+00:00"
+      }
+    ]
+  },
+  "te_puni_kokiri": {
+    "source": "te_puni_kokiri",
+    "found": true,
+    "manual_entry": true,
+    "funders": [
+      {
+        "name": "Te Puni Kokiri Community Capability Fund",
+        "type": "government",
+        "funding_windows": [
+          {
+            "opens": "2026-07-15",
+            "closes": "2026-09-15"
+          }
+        ],
+        "criteria": {
+          "focus": "whanau and community capability",
+          "entry": "manual advisor verification"
+        },
+        "reporting_requirements": {
+          "advisor_verified": true,
+          "outcomes_report": true
+        },
+        "renewal_intelligence": {
+          "renewal_weight": 0.62,
+          "source": "Te Puni Kokiri manual fixture"
+        },
+        "last_verified_at": "2026-05-01T00:00:00+00:00"
+      }
+    ]
+  }
+}

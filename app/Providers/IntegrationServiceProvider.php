@@ -52,6 +52,10 @@ use App\Services\Integration\Myob\Contracts\MyobClient;
 use App\Services\Integration\Myob\FakeMyobClient;
 use App\Services\Integration\Myob\FallbackMyobClient;
 use App\Services\Integration\Myob\LiveMyobClient;
+use App\Services\Integration\NpoFunders\Contracts\NpoFunderSourceClient;
+use App\Services\Integration\NpoFunders\FakeNpoFunderSourceClient;
+use App\Services\Integration\NpoFunders\FallbackNpoFunderSourceClient;
+use App\Services\Integration\NpoFunders\LiveNpoFunderSourceClient;
 use App\Services\Integration\Nzbn\Contracts\NzbnClient;
 use App\Services\Integration\Nzbn\FakeNzbnClient;
 use App\Services\Integration\Nzbn\FallbackNzbnClient;
@@ -141,6 +145,11 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveCharitiesServicesClient::class);
         $this->app->singleton(FallbackCharitiesServicesClient::class);
         $this->app->singleton(CharitiesServicesClient::class, FallbackCharitiesServicesClient::class);
+
+        $this->app->singleton(FakeNpoFunderSourceClient::class);
+        $this->app->singleton(LiveNpoFunderSourceClient::class);
+        $this->app->singleton(FallbackNpoFunderSourceClient::class);
+        $this->app->singleton(NpoFunderSourceClient::class, FallbackNpoFunderSourceClient::class);
 
         $this->app->singleton(FakeIrdClient::class);
         $this->app->singleton(LiveIrdClient::class);

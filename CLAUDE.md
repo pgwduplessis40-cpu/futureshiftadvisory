@@ -103,3 +103,22 @@ If you ever forget what's in scope vs. out of scope, this is the short version (
 ---
 
 *Spec V2.4 — May 2026 — DEFINITIVE VERSION. Confidential. Owned by Future Shift Advisory, Hamilton NZ.*
+
+---
+
+## NPO Module Rules
+
+The NPO module is an additive engagement lane. Do not weaken existing SME, DD, entrepreneur, broker, coach, or portal behaviour to make an NPO path work.
+
+- NPO clients use `EngagementType::NPO`; the concrete module path lives on `npo_engagements.sub_type`.
+- Full NPO work is only `standard_npo` or `social_enterprise`; Governance Review remains a standalone `governance_review` sub-type with conversion history.
+- `tiriti_mode` is stored as `standalone` or `woven`. Mode A/B are display labels only.
+- The eight NPO health dimensions are mission strategy, service operations, governance/compliance, financial sustainability, people/capability, impact measurement, funding resilience, and Te Tiriti.
+- NPO value calculations are mission-framed and must retain the +/-15% uncertainty range. Do not present them as commercial profit or EBITDA uplift.
+- Social Enterprise dual scorecards use integer weights summing to 100. The blended formula is `(commercial_score*commercial_weight + mission_score*mission_weight) / 100`.
+- Governance Review outputs require reviewed findings, document support notes, source attributions, and the non-legal-advice disclaimer.
+- Funder database mutations go through Layer 34 governed candidates; never write funder registry rows directly from an integration response.
+- NPO learning layers are 34-37: 34 funder database updates, 35 governance compliance thresholds, 36 cost-per-beneficiary benchmarks, 37 funding concentration risk thresholds.
+- Funder contacts get report-scoped access only to reviewed Funder Accountability reports. They never get broad client scope.
+- Incorporated Societies Act 2022 re-registration alerts are critical gates until acknowledged or resolved.
+- NPO reports are Governance Review, NPO Health, NPO Advisor, Funder Accountability, Impact Summary, and Social Enterprise Dual Impact. Board members may see only explicitly allowed board-facing report types.

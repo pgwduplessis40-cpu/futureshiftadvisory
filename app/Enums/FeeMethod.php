@@ -10,6 +10,7 @@ enum FeeMethod: string
     case OutcomeBased = 'outcome_based';
     case Entrepreneur = 'entrepreneur';
     case GovernanceReview = 'governance_review';
+    case NpoRetainer = 'npo_retainer';
 
     /**
      * @return array<int, string>
