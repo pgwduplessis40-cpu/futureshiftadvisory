@@ -8,7 +8,7 @@ import {
     Settings,
     UserRound,
 } from 'lucide-react';
-import type { ComponentType } from 'react';
+import type { ComponentType, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -31,6 +31,7 @@ type DashboardAction = {
     action: string;
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     explanation: string;
+    priority: 'high' | 'information';
 };
 
 const actions: DashboardAction[] = [
@@ -42,15 +43,7 @@ const actions: DashboardAction[] = [
         icon: Bell,
         explanation:
             'Notifications collect account, document, security, and advisory alerts available to your role.',
-    },
-    {
-        title: 'Profile',
-        description: 'Update your name, email, and deactivation request.',
-        href: '/settings/profile',
-        action: 'Manage',
-        icon: UserRound,
-        explanation:
-            'Profile settings let you update identity details and request account deactivation without deleting records.',
+        priority: 'high',
     },
     {
         title: 'Security',
@@ -60,6 +53,17 @@ const actions: DashboardAction[] = [
         icon: KeyRound,
         explanation:
             'Security settings show password controls and two-factor status for your account.',
+        priority: 'high',
+    },
+    {
+        title: 'Profile',
+        description: 'Update your name, email, and deactivation request.',
+        href: '/settings/profile',
+        action: 'Manage',
+        icon: UserRound,
+        explanation:
+            'Profile settings let you update identity details and request account deactivation without deleting records.',
+        priority: 'information',
     },
     {
         title: 'Preferences',
@@ -69,10 +73,18 @@ const actions: DashboardAction[] = [
         icon: Settings,
         explanation:
             'Preferences keep app appearance and account defaults aligned with how you work.',
+        priority: 'information',
     },
 ];
 
 export default function Dashboard() {
+    const priorityActions = actions.filter(
+        (action) => action.priority === 'high',
+    );
+    const informationActions = actions.filter(
+        (action) => action.priority === 'information',
+    );
+
     return (
         <>
             <Head title="Dashboard" />
@@ -85,47 +97,89 @@ export default function Dashboard() {
                     <h1 className="text-2xl font-semibold tracking-normal">
                         Dashboard
                     </h1>
+                    <p className="max-w-2xl text-sm text-muted-foreground">
+                        Start with account actions that can block access, then
+                        use the lower panels for profile and preference context.
+                    </p>
                 </header>
 
-                <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                    {actions.map((action) => (
-                        <ActionCard key={action.href} action={action} />
-                    ))}
-                </section>
+                <DashboardSection
+                    title="Priority actions"
+                    description="Review account alerts and security settings first."
+                >
+                    <section className="grid gap-4 md:grid-cols-2">
+                        {priorityActions.map((action) => (
+                            <ActionCard key={action.href} action={action} />
+                        ))}
+                    </section>
+                </DashboardSection>
 
-                <Card className="rounded-lg">
-                    <CardHeader>
-                        <div className="flex items-center justify-between gap-3">
-                            <div>
-                                <CardTitle>Need a portal?</CardTitle>
-                                <CardDescription>
-                                    Your role does not currently expose a
-                                    dedicated operational dashboard.
-                                </CardDescription>
+                <DashboardSection
+                    title="Account information"
+                    description="Use these panels for lower-urgency account maintenance."
+                >
+                    <section className="grid gap-4 md:grid-cols-2">
+                        {informationActions.map((action) => (
+                            <ActionCard key={action.href} action={action} />
+                        ))}
+                    </section>
+
+                    <Card className="rounded-lg">
+                        <CardHeader>
+                            <div className="flex items-center justify-between gap-3">
+                                <div>
+                                    <CardTitle>Need a portal?</CardTitle>
+                                    <CardDescription>
+                                        Your role does not currently expose a
+                                        dedicated operational dashboard.
+                                    </CardDescription>
+                                </div>
+                                <MessageSquare
+                                    className="size-4 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
                             </div>
-                            <MessageSquare
-                                className="size-4 text-muted-foreground"
-                                aria-hidden="true"
-                            />
-                        </div>
-                    </CardHeader>
-                    <CardContent className="flex flex-wrap gap-2">
-                        <Button asChild variant="outline" size="sm">
-                            <Link href="/notifications">
-                                Check notifications
-                                <ArrowUpRight aria-hidden="true" />
-                            </Link>
-                        </Button>
-                        <Button asChild size="sm">
-                            <Link href="/settings/profile">
-                                Open profile
-                                <ArrowUpRight aria-hidden="true" />
-                            </Link>
-                        </Button>
-                    </CardContent>
-                </Card>
+                        </CardHeader>
+                        <CardContent className="flex flex-wrap gap-2">
+                            <Button asChild variant="outline" size="sm">
+                                <Link href="/notifications">
+                                    Check notifications
+                                    <ArrowUpRight aria-hidden="true" />
+                                </Link>
+                            </Button>
+                            <Button asChild size="sm">
+                                <Link href="/settings/profile">
+                                    Open profile
+                                    <ArrowUpRight aria-hidden="true" />
+                                </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+                </DashboardSection>
             </main>
         </>
+    );
+}
+
+function DashboardSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="space-y-4">{children}</div>
+        </section>
     );
 }
 

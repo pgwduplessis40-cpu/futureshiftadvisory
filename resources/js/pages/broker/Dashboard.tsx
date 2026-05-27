@@ -229,86 +229,158 @@ export default function BrokerDashboard({ dashboard }: Props) {
                     </Card>
                 ) : (
                     <>
-                        <section className="grid gap-4 md:grid-cols-4">
-                            <MetricCard
-                                icon={BriefcaseBusiness}
-                                label="Active referrals"
-                                value={dashboard.summary.activeReferrals}
-                                detail={`${dashboard.summary.totalReferrals} total`}
-                                explanation="Active referrals are broker introductions that still need acknowledgement, quote progress, cover placement, or closure."
-                                href="#broker-referrals"
-                                actionLabel="Review"
-                                onJump={jumpToSection}
-                            />
-                            <MetricCard
-                                icon={ClipboardCheck}
-                                label="Cover placed"
-                                value={dashboard.summary.coverPlaced}
-                                detail="Completed broker outcomes"
-                                explanation="Cover placed counts broker referrals that have reached a successful insurance placement outcome."
-                                href="#broker-referrals"
-                                actionLabel="View"
-                                onJump={jumpToSection}
-                            />
-                            <MetricCard
-                                icon={UsersRound}
-                                label="Reverse referrals"
-                                value={dashboard.summary.reverseReferrals}
-                                detail="Submitted to FSA"
-                                explanation="Reverse referrals are prospects or opportunities you have sent back to Future Shift Advisory for follow-up."
-                                href="#broker-reverse-referrals"
-                                actionLabel="Open"
-                                onJump={jumpToSection}
-                            />
-                            <MetricCard
-                                icon={ShieldCheck}
-                                label="FSP status"
-                                value={labelFor(panel.fspStatus ?? 'unknown')}
-                                detail={
-                                    panel.fspLastCheckedAt
-                                        ? `Checked ${formatDate(panel.fspLastCheckedAt)}`
-                                        : 'Not checked yet'
-                                }
-                                explanation="FSP status reflects the latest registration verification that Future Shift Advisory has recorded for your broker panel profile."
-                                href="#broker-profile"
-                                actionLabel="Details"
-                                onJump={jumpToSection}
-                            />
-                        </section>
+                        <DashboardSection
+                            title="Priority actions"
+                            description="Start with referral work, agreement status, messages, and compliance signals."
+                        >
+                            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <MetricCard
+                                    icon={BriefcaseBusiness}
+                                    label="Active referrals"
+                                    value={dashboard.summary.activeReferrals}
+                                    detail={`${dashboard.summary.totalReferrals} total`}
+                                    explanation="Active referrals are broker introductions that still need acknowledgement, quote progress, cover placement, or closure."
+                                    href="#broker-referrals"
+                                    actionLabel="Review"
+                                    onJump={jumpToSection}
+                                />
+                                <MetricCard
+                                    icon={FileSignature}
+                                    label="Agreement"
+                                    value={
+                                        dashboard.agreement
+                                            ? labelFor(
+                                                  dashboard.agreement.status,
+                                              )
+                                            : 'Pending'
+                                    }
+                                    detail={
+                                        dashboard.agreement?.signedAt
+                                            ? `Signed ${formatDate(dashboard.agreement.signedAt)}`
+                                            : 'Signature record'
+                                    }
+                                    explanation="The panel agreement confirms whether the broker relationship has a signed operating record."
+                                    href="#broker-agreement"
+                                    actionLabel="Review"
+                                    onJump={jumpToSection}
+                                />
+                                <MetricCard
+                                    icon={MessageSquare}
+                                    label="Recent messages"
+                                    value={dashboard.messages.length}
+                                    detail="Referral notes"
+                                    explanation="Recent messages contain advisory context and follow-up notes attached to broker referrals."
+                                    href="#broker-messages"
+                                    actionLabel="Open"
+                                    onJump={jumpToSection}
+                                />
+                                <MetricCard
+                                    icon={ShieldCheck}
+                                    label="FSP status"
+                                    value={labelFor(
+                                        panel.fspStatus ?? 'unknown',
+                                    )}
+                                    detail={
+                                        panel.fspLastCheckedAt
+                                            ? `Checked ${formatDate(panel.fspLastCheckedAt)}`
+                                            : 'Not checked yet'
+                                    }
+                                    explanation="FSP status reflects the latest registration verification that Future Shift Advisory has recorded for your broker panel profile."
+                                    href="#broker-profile"
+                                    actionLabel="Details"
+                                    onJump={jumpToSection}
+                                />
+                            </section>
+                        </DashboardSection>
 
-                        <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-                            <ReferralPipeline
-                                referrals={dashboard.referrals}
-                                processingAction={processingAction}
-                                onStageAction={updateReferralStage}
-                                highlighted={
-                                    highlightedSection === 'broker-referrals'
-                                }
-                            />
-                            <BrokerProfile
-                                panel={panel}
-                                highlighted={
-                                    highlightedSection === 'broker-profile'
-                                }
-                            />
-                        </section>
+                        <DashboardSection
+                            title="Action panels"
+                            description="Use these panels to progress referrals and check any agreement work."
+                        >
+                            <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+                                <ReferralPipeline
+                                    referrals={dashboard.referrals}
+                                    processingAction={processingAction}
+                                    onStageAction={updateReferralStage}
+                                    highlighted={
+                                        highlightedSection ===
+                                        'broker-referrals'
+                                    }
+                                />
+                                <AgreementPanel
+                                    agreement={dashboard.agreement}
+                                    highlighted={
+                                        highlightedSection ===
+                                        'broker-agreement'
+                                    }
+                                />
+                            </section>
+                        </DashboardSection>
 
-                        <section className="grid gap-4 xl:grid-cols-3">
-                            <AgreementPanel
-                                agreement={dashboard.agreement}
-                                highlighted={
-                                    highlightedSection === 'broker-agreement'
-                                }
-                            />
-                            <MessagePanel messages={dashboard.messages} />
-                            <ReverseReferralPanel
-                                referrals={dashboard.reverseReferrals}
-                                highlighted={
-                                    highlightedSection ===
-                                    'broker-reverse-referrals'
-                                }
-                            />
-                        </section>
+                        <DashboardSection
+                            title="Information"
+                            description="Review outcome counts, profile details, recent notes, and reverse referrals after priority work is clear."
+                        >
+                            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <MetricCard
+                                    icon={ClipboardCheck}
+                                    label="Cover placed"
+                                    value={dashboard.summary.coverPlaced}
+                                    detail="Completed broker outcomes"
+                                    explanation="Cover placed counts broker referrals that have reached a successful insurance placement outcome."
+                                    href="#broker-referrals"
+                                    actionLabel="View"
+                                    onJump={jumpToSection}
+                                />
+                                <MetricCard
+                                    icon={UsersRound}
+                                    label="Reverse referrals"
+                                    value={dashboard.summary.reverseReferrals}
+                                    detail="Submitted to FSA"
+                                    explanation="Reverse referrals are prospects or opportunities you have sent back to Future Shift Advisory for follow-up."
+                                    href="#broker-reverse-referrals"
+                                    actionLabel="Open"
+                                    onJump={jumpToSection}
+                                />
+                                <MetricCard
+                                    icon={BriefcaseBusiness}
+                                    label="Total referrals"
+                                    value={dashboard.summary.totalReferrals}
+                                    detail="Lifetime panel scope"
+                                    explanation="Total referrals counts all broker referrals surfaced to your panel in this workspace."
+                                    href="#broker-referrals"
+                                    actionLabel="View"
+                                    onJump={jumpToSection}
+                                />
+                                <MetricCard
+                                    icon={BadgeCheck}
+                                    label="Profile"
+                                    value={panel.regions.length}
+                                    detail="Registered regions"
+                                    explanation="Profile details show the broker company, regions, and specialties FSA has recorded."
+                                    href="#broker-profile"
+                                    actionLabel="Details"
+                                    onJump={jumpToSection}
+                                />
+                            </section>
+
+                            <section className="grid gap-4 xl:grid-cols-3">
+                                <BrokerProfile
+                                    panel={panel}
+                                    highlighted={
+                                        highlightedSection === 'broker-profile'
+                                    }
+                                />
+                                <MessagePanel messages={dashboard.messages} />
+                                <ReverseReferralPanel
+                                    referrals={dashboard.reverseReferrals}
+                                    highlighted={
+                                        highlightedSection ===
+                                        'broker-reverse-referrals'
+                                    }
+                                />
+                            </section>
+                        </DashboardSection>
                     </>
                 )}
             </main>
@@ -342,6 +414,28 @@ function sectionCardClass(highlighted: boolean) {
     return cn(
         'scroll-mt-6 rounded-lg transition-[box-shadow,background-color] outline-none',
         highlighted && 'bg-primary/5 ring-2 ring-primary/40',
+    );
+}
+
+function DashboardSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="space-y-4">{children}</div>
+        </section>
     );
 }
 
@@ -635,7 +729,7 @@ function AgreementPanel({
 
 function MessagePanel({ messages }: { messages: MessageSummary[] }) {
     return (
-        <Card className="rounded-lg">
+        <Card id="broker-messages" className="scroll-mt-6 rounded-lg">
             <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                     <CardTitle>Recent messages</CardTitle>

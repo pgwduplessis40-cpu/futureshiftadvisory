@@ -363,6 +363,22 @@ export default function PortalDashboard({
         setFile(null);
         setUploadKey((key) => key + 1);
     };
+    const unsignedProposalCount = proposals.filter(
+        (proposal) => proposal.status !== 'signed',
+    ).length;
+    const actionProposal =
+        proposals.find((proposal) => proposal.status !== 'signed') ??
+        proposals[0] ??
+        null;
+    const documentReviewCount = documents.filter(isDocumentFlagged).length;
+    const highHealthFindingCount = healthFindings.reduce(
+        (total, dimension) =>
+            total +
+            dimension.findings.filter((finding) =>
+                ['critical', 'high'].includes(finding.severity),
+            ).length,
+        0,
+    );
 
     return (
         <>
@@ -391,287 +407,389 @@ export default function PortalDashboard({
                     </Button>
                 </div>
 
-                <section
-                    className="rounded-md border bg-background p-4"
-                    aria-labelledby="onboarding-progress-heading"
+                <DashboardSection
+                    title="Priority actions"
+                    description="Start with the tiles that can block progress or need a response."
                 >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div>
-                            <h2
-                                id="onboarding-progress-heading"
-                                className="text-sm font-medium"
-                            >
-                                Onboarding progress
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                {progress.completed} of {progress.total} steps
-                                complete
-                            </p>
-                        </div>
-                        <Badge variant="secondary">
-                            {progress.percentage}%
-                        </Badge>
-                    </div>
-                    <div
-                        className="mt-4 h-2 rounded-full bg-muted"
-                        role="progressbar"
-                        aria-valuenow={progress.percentage}
-                        aria-valuemin={0}
-                        aria-valuemax={100}
-                        aria-label="Onboarding completion"
-                    >
-                        <div
-                            className="h-2 rounded-full bg-[var(--fs-admiralty)]"
-                            style={{ width: `${progress.percentage}%` }}
+                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                        <StatusPanel
+                            icon={ClipboardList}
+                            label="Onboarding"
+                            value={`${progress.percentage}% complete`}
+                            explanation="Onboarding collects the client details and evidence needed before advisor work can progress."
+                            href={onboardingUrl}
+                            actionLabel="Continue"
+                        />
+                        <StatusPanel
+                            icon={HeartPulse}
+                            label="Wellbeing"
+                            value={
+                                wellbeing.prompt_due
+                                    ? 'Pulse due'
+                                    : `Shared ${formatDate(wellbeing.submitted_at)}`
+                            }
+                            explanation="Wellbeing prompts help the advisory team understand founder pressure and support needs."
+                            href={wellbeing.url}
+                            actionLabel={wellbeing.prompt_due ? 'Open' : 'View'}
+                        />
+                        <StatusPanel
+                            icon={Bell}
+                            label="Notifications"
+                            value={
+                                notificationSummary.urgent > 0
+                                    ? `${notificationSummary.urgent} urgent`
+                                    : `${notificationSummary.unread} unread`
+                            }
+                            explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
+                            href="/notifications"
+                            actionLabel="Open"
+                        />
+                        <StatusPanel
+                            icon={MessageSquare}
+                            label="Messages"
+                            value="Advisor thread"
+                            explanation="Messages opens your secure conversation history with the advisory team."
+                            href={messagesUrl}
+                            actionLabel="Open"
+                        />
+                        <StatusPanel
+                            icon={FileText}
+                            label="Proposals"
+                            value={
+                                unsignedProposalCount > 0
+                                    ? `${unsignedProposalCount} awaiting review`
+                                    : `${proposals.length} released`
+                            }
+                            explanation="Proposal tiles link to released proposals that may need sign-off or review."
+                            href={
+                                actionProposal?.signoff_url ??
+                                '#section-proposals'
+                            }
+                            actionLabel={
+                                unsignedProposalCount > 0 ? 'Open' : 'View'
+                            }
+                        />
+                        <StatusPanel
+                            icon={Upload}
+                            label="Documents"
+                            value={
+                                documentReviewCount > 0
+                                    ? `${documentReviewCount} need review`
+                                    : `${documents.length} uploaded`
+                            }
+                            explanation="Documents include uploaded evidence and any verification outcomes that need attention."
+                            href="#section-documents"
+                            actionLabel="Review"
+                        />
+                        <StatusPanel
+                            icon={TrendingUp}
+                            label="Data quality"
+                            value={
+                                <DataQualityBadge
+                                    summary={client.data_quality_summary}
+                                />
+                            }
+                            explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
+                            href="#section-health"
+                            actionLabel="Review"
+                        />
+                        <StatusPanel
+                            icon={Activity}
+                            label="Health findings"
+                            value={`${highHealthFindingCount} high priority`}
+                            explanation="High-priority health findings are critical or high severity analysis signals surfaced by the advisory engine."
+                            href="#section-health"
+                            actionLabel="Open"
                         />
                     </div>
-                </section>
+                </DashboardSection>
 
-                <section
-                    className="rounded-md border bg-background p-4"
-                    aria-labelledby="wellbeing-heading"
+                <DashboardSection
+                    title="Action panel"
+                    description="Complete open workflow tasks before reviewing broader context."
                 >
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                        <div className="flex items-start gap-3">
-                            <HeartPulse
-                                className="mt-0.5 size-4 text-muted-foreground"
-                                aria-hidden="true"
-                            />
+                    <section
+                        id="section-onboarding"
+                        className="rounded-md border bg-background p-4"
+                        aria-labelledby="onboarding-progress-heading"
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                             <div>
                                 <h2
-                                    id="wellbeing-heading"
+                                    id="onboarding-progress-heading"
                                     className="text-sm font-medium"
                                 >
-                                    Wellbeing check-in
+                                    Onboarding progress
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    {wellbeing.prompt_due
-                                        ? 'Optional monthly pulse available.'
-                                        : `Shared ${formatDate(wellbeing.submitted_at)}.`}
+                                    {progress.completed} of {progress.total}{' '}
+                                    steps complete
                                 </p>
                             </div>
+                            <Badge variant="secondary">
+                                {progress.percentage}%
+                            </Badge>
                         </div>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={wellbeing.url}>
-                                {wellbeing.prompt_due
-                                    ? 'Open pulse'
-                                    : 'View pulse'}
-                            </Link>
-                        </Button>
-                    </div>
-                </section>
-
-                <div className="grid gap-4 md:grid-cols-3">
-                    <StatusPanel
-                        icon={TrendingUp}
-                        label="Data quality"
-                        value={
-                            <DataQualityBadge
-                                summary={client.data_quality_summary}
+                        <div
+                            className="mt-4 h-2 rounded-full bg-muted"
+                            role="progressbar"
+                            aria-valuenow={progress.percentage}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                            aria-label="Onboarding completion"
+                        >
+                            <div
+                                className="h-2 rounded-full bg-[var(--fs-admiralty)]"
+                                style={{ width: `${progress.percentage}%` }}
                             />
-                        }
-                        explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
-                        href="#section-health"
-                        actionLabel="Review"
-                    />
-                    <StatusPanel
-                        icon={Bell}
-                        label="Notifications"
-                        value={`${notificationSummary.unread} unread`}
-                        explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
-                        href="/notifications"
-                        actionLabel="Open"
-                    />
-                    <StatusPanel
-                        icon={MessageSquare}
-                        label="Messages"
-                        value="Advisor thread"
-                        explanation="Messages opens your secure conversation history with the advisory team."
-                        href={messagesUrl}
-                        actionLabel="Open"
-                    />
-                </div>
-
-                <BusinessHealthPanel
-                    businessHealth={businessHealth}
-                    healthFindings={healthFindings}
-                />
-
-                {npoHealth && (
-                    <NpoHealthPanel payload={npoHealth} title="NPO health" />
-                )}
-
-                {npoPortal && (
-                    <NpoPortalPanel
-                        payload={npoPortal}
-                        metricStoreUrl={npoImpactMetricStoreUrl}
-                        onboardingUrl={onboardingUrl}
-                    />
-                )}
-
-                <GoalProgressPanel goals={goals} />
-
-                <ProposalSignoffPanel proposals={proposals} />
-
-                <section
-                    className="space-y-4 rounded-md border bg-background p-4"
-                    aria-labelledby="reports-heading"
-                >
-                    <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <FileText className="size-4" aria-hidden="true" />
-                            <h2
-                                id="reports-heading"
-                                className="text-sm font-medium"
-                            >
-                                Reports
-                            </h2>
                         </div>
-                        <Badge variant="outline">{reports.length}</Badge>
-                    </div>
+                    </section>
 
-                    {reports.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            No client reports released yet.
-                        </p>
-                    ) : (
-                        <div className="divide-y rounded-md border">
-                            {reports.map((report) => (
-                                <article
-                                    key={report.id}
-                                    className="flex flex-wrap items-center justify-between gap-3 p-3"
-                                >
-                                    <div className="text-sm font-medium">
-                                        {report.title}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {formatDate(report.generated_at)}
-                                    </div>
-                                </article>
-                            ))}
-                        </div>
-                    )}
-                </section>
-
-                <section
-                    id="section-documents"
-                    className="space-y-4 rounded-md border bg-background p-4"
-                    aria-labelledby="documents-heading"
-                >
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                        <div className="flex items-center gap-2">
-                            <FileText className="size-4" aria-hidden="true" />
-                            <h2
-                                id="documents-heading"
-                                className="text-sm font-medium"
-                            >
-                                Documents
-                            </h2>
-                            <Badge variant="outline">{documents.length}</Badge>
-                        </div>
-                        <div className="grid w-full gap-2 lg:max-w-sm">
-                            {npoPortal && (
-                                <Select
-                                    value={documentCategory}
-                                    onValueChange={setDocumentCategory}
-                                >
-                                    <SelectTrigger
-                                        size="sm"
-                                        className="w-full"
-                                        aria-label="Document category"
+                    <section
+                        id="section-wellbeing"
+                        className="rounded-md border bg-background p-4"
+                        aria-labelledby="wellbeing-heading"
+                    >
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="flex items-start gap-3">
+                                <HeartPulse
+                                    className="mt-0.5 size-4 text-muted-foreground"
+                                    aria-hidden="true"
+                                />
+                                <div>
+                                    <h2
+                                        id="wellbeing-heading"
+                                        className="text-sm font-medium"
                                     >
-                                        <SelectValue />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        <SelectItem value="npo_board_record">
-                                            Board record
-                                        </SelectItem>
-                                        <SelectItem value="npo_meeting_minutes">
-                                            Meeting minutes
-                                        </SelectItem>
-                                        <SelectItem value="other">
-                                            Other document
-                                        </SelectItem>
-                                    </SelectContent>
-                                </Select>
-                            )}
-                            <FileDropzone
-                                key={uploadKey}
-                                id="client_dashboard_document"
-                                files={file ? [file] : []}
-                                label="Upload document"
-                                onFilesChange={(files) =>
-                                    setFile(files[0] ?? null)
-                                }
-                            />
-                            <InputError message={uploadError ?? undefined} />
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                disabled={!file || uploading}
-                                onClick={() => void uploadDocument()}
-                            >
-                                <Upload className="size-4" aria-hidden="true" />
-                                {uploading ? 'Uploading' : 'Upload'}
+                                        Wellbeing check-in
+                                    </h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        {wellbeing.prompt_due
+                                            ? 'Optional monthly pulse available.'
+                                            : `Shared ${formatDate(wellbeing.submitted_at)}.`}
+                                    </p>
+                                </div>
+                            </div>
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={wellbeing.url}>
+                                    {wellbeing.prompt_due
+                                        ? 'Open pulse'
+                                        : 'View pulse'}
+                                </Link>
                             </Button>
                         </div>
-                    </div>
+                    </section>
 
-                    {documents.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            No documents uploaded yet.
-                        </p>
-                    ) : (
-                        <div className="grid gap-3 md:grid-cols-2">
-                            {documents.map((document) => (
-                                <DocumentTile
-                                    key={document.id}
-                                    document={document}
+                    <ProposalSignoffPanel proposals={proposals} />
+
+                    <section
+                        id="section-documents"
+                        className="space-y-4 rounded-md border bg-background p-4"
+                        aria-labelledby="documents-heading"
+                    >
+                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                            <div className="flex items-center gap-2">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
                                 />
-                            ))}
+                                <h2
+                                    id="documents-heading"
+                                    className="text-sm font-medium"
+                                >
+                                    Documents
+                                </h2>
+                                <Badge variant="outline">
+                                    {documents.length}
+                                </Badge>
+                            </div>
+                            <div className="grid w-full gap-2 lg:max-w-sm">
+                                {npoPortal && (
+                                    <Select
+                                        value={documentCategory}
+                                        onValueChange={setDocumentCategory}
+                                    >
+                                        <SelectTrigger
+                                            size="sm"
+                                            className="w-full"
+                                            aria-label="Document category"
+                                        >
+                                            <SelectValue />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            <SelectItem value="npo_board_record">
+                                                Board record
+                                            </SelectItem>
+                                            <SelectItem value="npo_meeting_minutes">
+                                                Meeting minutes
+                                            </SelectItem>
+                                            <SelectItem value="other">
+                                                Other document
+                                            </SelectItem>
+                                        </SelectContent>
+                                    </Select>
+                                )}
+                                <FileDropzone
+                                    key={uploadKey}
+                                    id="client_dashboard_document"
+                                    files={file ? [file] : []}
+                                    label="Upload document"
+                                    onFilesChange={(files) =>
+                                        setFile(files[0] ?? null)
+                                    }
+                                />
+                                <InputError
+                                    message={uploadError ?? undefined}
+                                />
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!file || uploading}
+                                    onClick={() => void uploadDocument()}
+                                >
+                                    <Upload
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {uploading ? 'Uploading' : 'Upload'}
+                                </Button>
+                            </div>
                         </div>
+
+                        {documents.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                No documents uploaded yet.
+                            </p>
+                        ) : (
+                            <div className="grid gap-3 md:grid-cols-2">
+                                {documents.map((document) => (
+                                    <DocumentTile
+                                        key={document.id}
+                                        document={document}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                </DashboardSection>
+
+                <DashboardSection
+                    title="Decision context"
+                    description="Use these panels to understand client health, NPO position, and value progress."
+                >
+                    <BusinessHealthPanel
+                        businessHealth={businessHealth}
+                        healthFindings={healthFindings}
+                    />
+
+                    {npoHealth && (
+                        <NpoHealthPanel
+                            payload={npoHealth}
+                            title="NPO health"
+                        />
                     )}
-                </section>
 
-                <div className="grid gap-6 lg:grid-cols-2">
+                    {npoPortal && (
+                        <NpoPortalPanel
+                            payload={npoPortal}
+                            metricStoreUrl={npoImpactMetricStoreUrl}
+                            onboardingUrl={onboardingUrl}
+                        />
+                    )}
+
+                    <GoalProgressPanel goals={goals} />
+                </DashboardSection>
+
+                <DashboardSection
+                    title="Information"
+                    description="Review released reports, scenarios, and message access after open actions are clear."
+                >
                     <section
                         className="space-y-4 rounded-md border bg-background p-4"
-                        aria-labelledby="scenarios-heading"
+                        aria-labelledby="reports-heading"
                     >
-                        <div className="flex items-center gap-2">
-                            <TrendingUp className="size-4" aria-hidden="true" />
-                            <h2
-                                id="scenarios-heading"
-                                className="text-sm font-medium"
-                            >
-                                Scenarios
-                            </h2>
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2
+                                    id="reports-heading"
+                                    className="text-sm font-medium"
+                                >
+                                    Reports
+                                </h2>
+                            </div>
+                            <Badge variant="outline">{reports.length}</Badge>
                         </div>
-                        <ScenarioList scenarios={scenarios} />
+
+                        {reports.length === 0 ? (
+                            <p className="text-sm text-muted-foreground">
+                                No client reports released yet.
+                            </p>
+                        ) : (
+                            <div className="divide-y rounded-md border">
+                                {reports.map((report) => (
+                                    <article
+                                        key={report.id}
+                                        className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                    >
+                                        <div className="text-sm font-medium">
+                                            {report.title}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {formatDate(report.generated_at)}
+                                        </div>
+                                    </article>
+                                ))}
+                            </div>
+                        )}
                     </section>
 
-                    <section
-                        className="space-y-4 rounded-md border bg-background p-4"
-                        aria-labelledby="messages-heading"
-                    >
-                        <div className="flex items-center gap-2">
-                            <MessageSquare
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            <h2
-                                id="messages-heading"
-                                className="text-sm font-medium"
-                            >
-                                Messages
-                            </h2>
-                        </div>
-                        <Button asChild variant="outline" size="sm">
-                            <Link href={messagesUrl}>Open messages</Link>
-                        </Button>
-                    </section>
-                </div>
+                    <div className="grid gap-6 lg:grid-cols-2">
+                        <section
+                            className="space-y-4 rounded-md border bg-background p-4"
+                            aria-labelledby="scenarios-heading"
+                        >
+                            <div className="flex items-center gap-2">
+                                <TrendingUp
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2
+                                    id="scenarios-heading"
+                                    className="text-sm font-medium"
+                                >
+                                    Scenarios
+                                </h2>
+                            </div>
+                            <ScenarioList scenarios={scenarios} />
+                        </section>
+
+                        <section
+                            className="space-y-4 rounded-md border bg-background p-4"
+                            aria-labelledby="messages-heading"
+                        >
+                            <div className="flex items-center gap-2">
+                                <MessageSquare
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2
+                                    id="messages-heading"
+                                    className="text-sm font-medium"
+                                >
+                                    Messages
+                                </h2>
+                            </div>
+                            <Button asChild variant="outline" size="sm">
+                                <Link href={messagesUrl}>Open messages</Link>
+                            </Button>
+                        </section>
+                    </div>
+                </DashboardSection>
             </main>
         </>
     );
@@ -1093,6 +1211,28 @@ function NpoPortalPanel({
     );
 }
 
+function DashboardSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="space-y-4">{children}</div>
+        </section>
+    );
+}
+
 function NpoStat({
     icon: Icon,
     label,
@@ -1348,6 +1488,7 @@ function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
 function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
     return (
         <section
+            id="section-proposals"
             className="space-y-4 rounded-md border bg-background p-4"
             aria-labelledby="proposal-signoff-heading"
         >
@@ -1406,10 +1547,7 @@ function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
 }
 
 function DocumentTile({ document }: { document: DocumentPayload }) {
-    const flagged =
-        document.verification_state === 'advisory_flag' ||
-        document.verification_state === 'accuracy_discrepancy' ||
-        document.verification_state === 'verification_error';
+    const flagged = isDocumentFlagged(document);
 
     return (
         <article className="space-y-3 rounded-md border p-3">
@@ -1442,6 +1580,14 @@ function DocumentTile({ document }: { document: DocumentPayload }) {
                 <a href={document.url}>View document</a>
             </Button>
         </article>
+    );
+}
+
+function isDocumentFlagged(document: DocumentPayload): boolean {
+    return (
+        document.verification_state === 'advisory_flag' ||
+        document.verification_state === 'accuracy_discrepancy' ||
+        document.verification_state === 'verification_error'
     );
 }
 

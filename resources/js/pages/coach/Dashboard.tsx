@@ -192,62 +192,139 @@ export default function CoachDashboard({ dashboard }: Props) {
                     </Card>
                 ) : (
                     <>
-                        <section className="grid gap-4 md:grid-cols-4">
-                            <MetricCard
-                                icon={UsersRound}
-                                label="Active referrals"
-                                value={dashboard.summary.activeReferrals}
-                                detail={`${dashboard.summary.totalReferrals} total`}
-                                explanation="Active referrals are coach introductions that still need a response, session progress, or closure."
-                                href="#coach-referrals"
-                                actionLabel="Review"
-                            />
-                            <MetricCard
-                                icon={Sparkles}
-                                label="Underway"
-                                value={dashboard.summary.underway}
-                                detail="Coaching has started"
-                                explanation="Underway referrals have moved beyond acceptance and are now being supported by your coaching work."
-                                href="#coach-referrals"
-                                actionLabel="View"
-                            />
-                            <MetricCard
-                                icon={ClipboardCheck}
-                                label="Concluded"
-                                value={dashboard.summary.concluded}
-                                detail="Completed outcomes"
-                                explanation="Concluded referrals have been closed as completed coaching outcomes."
-                                href="#coach-referrals"
-                                actionLabel="Open"
-                            />
-                            <MetricCard
-                                icon={ShieldCheck}
-                                label="Vetting"
-                                value={panel.vettedAt ? 'Vetted' : 'Pending'}
-                                detail={
-                                    panel.vettedAt
-                                        ? `Checked ${formatDate(panel.vettedAt)}`
-                                        : 'Awaiting review'
-                                }
-                                explanation="Coach vetting confirms Future Shift Advisory has reviewed your coaching profile, specialisations, and professional boundary requirements."
-                                href="#coach-profile"
-                                actionLabel="Details"
-                            />
-                        </section>
+                        <DashboardSection
+                            title="Priority actions"
+                            description="Start with active coaching referrals, agreement status, messages, and vetting."
+                        >
+                            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                <MetricCard
+                                    icon={UsersRound}
+                                    label="Active referrals"
+                                    value={dashboard.summary.activeReferrals}
+                                    detail={`${dashboard.summary.totalReferrals} total`}
+                                    explanation="Active referrals are coach introductions that still need a response, session progress, or closure."
+                                    href="#coach-referrals"
+                                    actionLabel="Review"
+                                />
+                                <MetricCard
+                                    icon={Sparkles}
+                                    label="Underway"
+                                    value={dashboard.summary.underway}
+                                    detail="Coaching has started"
+                                    explanation="Underway referrals have moved beyond acceptance and are now being supported by your coaching work."
+                                    href="#coach-referrals"
+                                    actionLabel="View"
+                                />
+                                <MetricCard
+                                    icon={FileSignature}
+                                    label="Agreement"
+                                    value={
+                                        dashboard.agreement
+                                            ? labelFor(
+                                                  dashboard.agreement.status,
+                                              )
+                                            : 'Pending'
+                                    }
+                                    detail={
+                                        dashboard.agreement?.signedAt
+                                            ? `Signed ${formatDate(dashboard.agreement.signedAt)}`
+                                            : 'Signature record'
+                                    }
+                                    explanation="The panel agreement confirms whether the coach relationship has a signed operating record."
+                                    href="#coach-agreement"
+                                    actionLabel="Review"
+                                />
+                                <MetricCard
+                                    icon={MessageSquare}
+                                    label="Recent messages"
+                                    value={dashboard.messages.length}
+                                    detail="Referral notes"
+                                    explanation="Recent messages contain advisory context and follow-up notes attached to coach referrals."
+                                    href="#coach-messages"
+                                    actionLabel="Open"
+                                />
+                                <MetricCard
+                                    icon={ShieldCheck}
+                                    label="Vetting"
+                                    value={
+                                        panel.vettedAt ? 'Vetted' : 'Pending'
+                                    }
+                                    detail={
+                                        panel.vettedAt
+                                            ? `Checked ${formatDate(panel.vettedAt)}`
+                                            : 'Awaiting review'
+                                    }
+                                    explanation="Coach vetting confirms Future Shift Advisory has reviewed your coaching profile, specialisations, and professional boundary requirements."
+                                    href="#coach-profile"
+                                    actionLabel="Details"
+                                />
+                            </section>
+                        </DashboardSection>
 
-                        <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
-                            <ReferralPipeline
-                                referrals={dashboard.referrals}
-                                processingAction={processingAction}
-                                onStageAction={updateReferralStage}
-                            />
-                            <CoachProfile panel={panel} />
-                        </section>
+                        <DashboardSection
+                            title="Action panels"
+                            description="Use these panels to progress coaching referrals and check agreement work."
+                        >
+                            <section className="grid gap-4 xl:grid-cols-[1.5fr_1fr]">
+                                <ReferralPipeline
+                                    referrals={dashboard.referrals}
+                                    processingAction={processingAction}
+                                    onStageAction={updateReferralStage}
+                                />
+                                <AgreementPanel
+                                    agreement={dashboard.agreement}
+                                />
+                            </section>
+                        </DashboardSection>
 
-                        <section className="grid gap-4 xl:grid-cols-2">
-                            <AgreementPanel agreement={dashboard.agreement} />
-                            <MessagePanel messages={dashboard.messages} />
-                        </section>
+                        <DashboardSection
+                            title="Information"
+                            description="Review completed outcomes, profile details, and recent referral notes after priority work is clear."
+                        >
+                            <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <MetricCard
+                                    icon={ClipboardCheck}
+                                    label="Concluded"
+                                    value={dashboard.summary.concluded}
+                                    detail="Completed outcomes"
+                                    explanation="Concluded referrals have been closed as completed coaching outcomes."
+                                    href="#coach-referrals"
+                                    actionLabel="Open"
+                                />
+                                <MetricCard
+                                    icon={UsersRound}
+                                    label="Total referrals"
+                                    value={dashboard.summary.totalReferrals}
+                                    detail="Lifetime panel scope"
+                                    explanation="Total referrals counts all coach referrals surfaced to your panel in this workspace."
+                                    href="#coach-referrals"
+                                    actionLabel="View"
+                                />
+                                <MetricCard
+                                    icon={Sparkles}
+                                    label="Specialisations"
+                                    value={panel.specialisations.length}
+                                    detail="Profile coverage"
+                                    explanation="Specialisations show the coaching areas Future Shift Advisory has recorded for your panel profile."
+                                    href="#coach-profile"
+                                    actionLabel="Details"
+                                />
+                                <MetricCard
+                                    icon={ShieldCheck}
+                                    label="Memberships"
+                                    value={panel.memberships.length}
+                                    detail="Professional records"
+                                    explanation="Memberships list professional bodies and levels attached to the coach profile."
+                                    href="#coach-profile"
+                                    actionLabel="Details"
+                                />
+                            </section>
+
+                            <section className="grid gap-4 xl:grid-cols-2">
+                                <CoachProfile panel={panel} />
+                                <MessagePanel messages={dashboard.messages} />
+                            </section>
+                        </DashboardSection>
                     </>
                 )}
             </main>
@@ -263,6 +340,28 @@ CoachDashboard.layout = {
         },
     ],
 };
+
+function DashboardSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="space-y-4">{children}</div>
+        </section>
+    );
+}
 
 function MetricCard({
     icon: Icon,
@@ -554,7 +653,7 @@ function AgreementPanel({ agreement }: { agreement: AgreementSummary | null }) {
 
 function MessagePanel({ messages }: { messages: MessageSummary[] }) {
     return (
-        <Card className="rounded-lg">
+        <Card id="coach-messages" className="scroll-mt-6 rounded-lg">
             <CardHeader>
                 <div className="flex items-center justify-between gap-3">
                     <CardTitle>Recent messages</CardTitle>
