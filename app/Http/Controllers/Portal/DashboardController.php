@@ -231,12 +231,26 @@ final class DashboardController extends Controller
                         ->orWhere(function ($npoReports) use ($engagement): void {
                             $npoReports
                                 ->where('npo_engagement_id', $engagement->getKey())
-                                ->where('review_status', 'reviewed')
-                                ->whereIn('type', [
-                                    ReportType::GovernanceReview->value,
-                                    ReportType::FunderAccountability->value,
-                                    ReportType::ImpactSummary->value,
-                                ]);
+                                ->where(function ($reviewedScope): void {
+                                    $reviewedScope
+                                        ->where(function ($clientReady): void {
+                                            $clientReady
+                                                ->whereIn('type', [
+                                                    ReportType::GovernanceReview->value,
+                                                    ReportType::NpoHealth->value,
+                                                    ReportType::SocialEnterpriseDual->value,
+                                                ])
+                                                ->whereIn('review_status', ['not_required', 'reviewed']);
+                                        })
+                                        ->orWhere(function ($reviewedReports): void {
+                                            $reviewedReports
+                                                ->whereIn('type', [
+                                                    ReportType::FunderAccountability->value,
+                                                    ReportType::ImpactSummary->value,
+                                                ])
+                                                ->where('review_status', 'reviewed');
+                                        });
+                                });
                         });
                 }),
                 fn ($query) => $query->where('type', ReportType::Client->value),

@@ -2850,7 +2850,14 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
 
 function ReportsPanel({ client }: { client: ClientDetail }) {
     const generate = (
-        type: 'client' | 'advisor' | 'stakeholder' | 'trajectory',
+        type:
+            | 'client'
+            | 'advisor'
+            | 'stakeholder'
+            | 'trajectory'
+            | 'npo_health_report'
+            | 'npo_advisor_report'
+            | 'social_enterprise_dual_report',
     ) => {
         router.post(
             client.report_store_url,
@@ -2910,6 +2917,42 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                     <TrendingUp className="size-4" aria-hidden="true" />
                     Trajectory
                 </Button>
+                {client.is_npo && (
+                    <>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generate('npo_health_report')}
+                        >
+                            <HeartPulse className="size-4" aria-hidden="true" />
+                            NPO Health
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generate('npo_advisor_report')}
+                        >
+                            <LockKeyhole
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            NPO Advisor
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                                generate('social_enterprise_dual_report')
+                            }
+                        >
+                            <Star className="size-4" aria-hidden="true" />
+                            Dual Impact
+                        </Button>
+                    </>
+                )}
             </div>
 
             {client.reports.length === 0 ? (

@@ -37,6 +37,9 @@ final class ReportController extends Controller
                 ReportType::Stakeholder->value,
                 ReportType::Trajectory->value,
                 ReportType::GovernanceReview->value,
+                ReportType::NpoHealth->value,
+                ReportType::NpoAdvisor->value,
+                ReportType::SocialEnterpriseDual->value,
                 ReportType::FunderAccountability->value,
                 ReportType::ImpactSummary->value,
             ])],
@@ -53,27 +56,38 @@ final class ReportController extends Controller
             abort_unless($engagement instanceof NpoEngagement, 404);
 
             $reports->composeGovernanceReview($engagement, $user);
-        } elseif (in_array($type, [ReportType::FunderAccountability, ReportType::ImpactSummary], true)) {
+        } elseif (in_array($type, [
+            ReportType::NpoHealth,
+            ReportType::NpoAdvisor,
+            ReportType::SocialEnterpriseDual,
+            ReportType::FunderAccountability,
+            ReportType::ImpactSummary,
+        ], true)) {
             $engagement = NpoEngagement::query()
                 ->where('client_id', $client->getKey())
-                ->whereIn('sub_type', [
-                    NpoEngagementSubType::StandardNpo->value,
-                    NpoEngagementSubType::SocialEnterprise->value,
-                ])
+                ->whereIn('sub_type', $type === ReportType::SocialEnterpriseDual
+                    ? [NpoEngagementSubType::SocialEnterprise->value]
+                    : [
+                        NpoEngagementSubType::StandardNpo->value,
+                        NpoEngagementSubType::SocialEnterprise->value,
+                    ])
                 ->latest()
                 ->first();
 
             abort_unless($engagement instanceof NpoEngagement, 404);
 
-            if ($type === ReportType::FunderAccountability) {
-                $reports->composeFunderAccountability($engagement, actor: $user);
-            } else {
-                $reports->composeImpactSummary($engagement, [
+            match ($type) {
+                ReportType::NpoHealth => $reports->composeNpoHealth($engagement, $user),
+                ReportType::NpoAdvisor => $reports->composeNpoAdvisor($engagement, $user),
+                ReportType::SocialEnterpriseDual => $reports->composeSocialEnterpriseDual($engagement, $user),
+                ReportType::FunderAccountability => $reports->composeFunderAccountability($engagement, actor: $user),
+                ReportType::ImpactSummary => $reports->composeImpactSummary($engagement, [
                     'summary' => 'Impact Summary draft pending client narrative.',
                     'metrics' => [],
                     'platform_metrics' => [],
-                ], $user);
-            }
+                ], $user),
+                default => null,
+            };
         } else {
             $reports->compose($client, $type, $user);
         }

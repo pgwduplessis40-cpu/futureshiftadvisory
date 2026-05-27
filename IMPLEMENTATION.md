@@ -6,7 +6,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
 **V2.4 Gap Closure:** **COMPLETE** (5/5, WO-121...WO-125 committed on `featureApp`).
-**NPO Module:** Phase 5b in progress; **16/19 NPO work orders complete** on `featureApp` through **WO-N16** (plus dependency-ordered WO-N18).
+**NPO Module:** Phase 5b in progress; **17/19 NPO work orders complete** on `featureApp` through **WO-N17** (plus dependency-ordered WO-N18).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -14,14 +14,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **155 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (16/19 complete) |
+| Work orders complete | **156 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (17/19 complete) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | WO-N17 - Remaining NPO report types |
+| Next work order | WO-N19 - NPO integrations, fee structure & CLAUDE.md rules |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **WO-N16 baseline (2026-05-27):** focused NPO PHPUnit **62 tests / 591 assertions**; portal slice **2 tests / 30 assertions**; access-control RLS slice **4 tests / 46 assertions**; report composer **9 tests / 94 assertions**; goal tracker **3 tests / 57 assertions**; secure file writer **4 tests / 23 assertions**; `npm run types:check`, `npm run lint:check`, `npm run format:check`, and Pint are green. |
+| Verification status | **WO-N17 baseline (2026-05-27):** focused NPO PHPUnit **65 tests / 615 assertions**; NPO report suite **3 tests / 24 assertions**; report composer **9 tests / 94 assertions**; `npm run types:check`, `npm run lint:check`, `npm run format:check`, and Pint are green. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Methodology Registry Track
@@ -63,7 +63,8 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-N13 | `34ada27` Complete | Adds the NPO funder registry, client funder records, funding concentration and deadline alerts, advisor/client funding panels, and Layer-34 governance checks. |
 | WO-N14 | `35b9d36` Complete | Adds Funder Accountability and Impact Summary report composition, engagement-scoped milestones/actions, advisor review/auto-release gates, and funder-share readiness checks. |
 | WO-N15 | `1905db2` Complete | Adds NPO board-member and funder-contact access models, report policies, report-scoped funder RLS, engagement-scoped board RLS for reports/dimensions/milestones/actions, and cardinal security tests. |
-| WO-N16 | This commit | Adds the NPO portal workspace: engagement-scoped funding, milestone/cost-per-beneficiary, questionnaire, accountability-deadline, document-category, and impact-metric widgets; impact metrics feed accountability reports; documents gain engagement attribution and board RLS for meeting minutes/board records. |
+| WO-N16 | `1bf3e61` Complete | Adds the NPO portal workspace: engagement-scoped funding, milestone/cost-per-beneficiary, questionnaire, accountability-deadline, document-category, and impact-metric widgets; impact metrics feed accountability reports; documents gain engagement attribution and board RLS for meeting minutes/board records. |
+| WO-N17 | This commit | Adds the remaining NPO report templates: client-facing NPO Health, confidential Cognac NPO Advisor with mission-ROI workings, and Social Enterprise Dual Impact with reviewed evidenced tensions; advisor generation, portal visibility, and board report-type gating are covered. |
 | WO-N18 | `4e9c44a` Complete | Registers NPO learning layers 34-37 with governed cadence metadata and updates registry coverage for the expanded learning architecture. |
 
 ## Commit Log
