@@ -177,6 +177,13 @@ enum Permission: string
                 self::REFERRALS_SEND,
                 self::COACH_PORTAL,
             ],
+
+            User::TYPE_NPO_BOARD_MEMBER => [
+                self::DOCUMENTS_VIEW,
+                self::NOTIFICATIONS_VIEW,
+                self::TERMS_VIEW,
+                self::REPORTS_VIEW,
+            ],
         ];
     }
 

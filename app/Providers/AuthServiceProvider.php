@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\KnowledgeEntryDraft;
 use App\Models\ProspectLead;
+use App\Models\Report;
 use App\Models\Template;
 use App\Models\TermsVersion;
 use App\Policies\AuditEventPolicy;
@@ -20,6 +21,7 @@ use App\Policies\KnowledgeEntryPolicy;
 use App\Policies\NotificationPolicy;
 use App\Policies\ProspectLeadPolicy;
 use App\Policies\QuestionnairePolicy;
+use App\Policies\ReportPolicy;
 use App\Policies\TemplatePolicy;
 use App\Policies\TermsVersionPolicy;
 use Illuminate\Support\Facades\Gate;
@@ -40,5 +42,6 @@ final class AuthServiceProvider extends ServiceProvider
         Gate::policy(ProspectLead::class, ProspectLeadPolicy::class);
         Gate::policy(TermsVersion::class, TermsVersionPolicy::class);
         Gate::policy(AuditEvent::class, AuditEventPolicy::class);
+        Gate::policy(Report::class, ReportPolicy::class);
     }
 }

@@ -56,6 +56,8 @@ class User extends Authenticatable
 
     public const TYPE_COACH = 'coach';
 
+    public const TYPE_NPO_BOARD_MEMBER = 'npo_board_member';
+
     public const MFA_METHOD_TOTP = 'totp';
 
     protected string $guard_name = 'web';
@@ -192,6 +194,10 @@ class User extends Authenticatable
             return [];
         }
 
+        if ($this->isNpoBoardMember()) {
+            return [];
+        }
+
         $query = DB::table('client_team')
             ->where('client_team.user_id', $this->getKey());
 
@@ -256,6 +262,18 @@ class User extends Authenticatable
             self::TYPE_ENTREPRENEUR,
             self::TYPE_BROKER,
             self::TYPE_COACH,
+            self::TYPE_NPO_BOARD_MEMBER,
         ];
+    }
+
+    public function isNpoBoardMember(): bool
+    {
+        if ($this->user_type === self::TYPE_NPO_BOARD_MEMBER || $this->primary_role === self::TYPE_NPO_BOARD_MEMBER) {
+            return true;
+        }
+
+        return Schema::hasTable(config('permission.table_names.roles', 'roles'))
+            && Schema::hasTable(config('permission.table_names.model_has_roles', 'model_has_roles'))
+            && $this->hasRole(self::TYPE_NPO_BOARD_MEMBER);
     }
 }

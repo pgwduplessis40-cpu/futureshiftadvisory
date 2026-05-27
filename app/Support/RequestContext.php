@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\User;
+use Illuminate\Auth\Access\AuthorizationException;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Support\Facades\DB;
 
@@ -79,16 +81,43 @@ final class RequestContext
      * to other drivers does not blow up.
      *
      * @param  array<int, string>  $clientIds
+     *
+     * @throws AuthorizationException
      */
-    public function apply(string $role, array $clientIds, ?string $userId = null): void
-    {
+    public function apply(
+        string $role,
+        array $clientIds,
+        ?string $userId = null,
+        ?string $reportId = null,
+        ?string $npoEngagementId = null,
+    ): void {
         if (DB::connection()->getDriverName() !== 'pgsql') {
             return;
         }
 
+        if ($role === User::TYPE_NPO_BOARD_MEMBER && $npoEngagementId !== null && trim($npoEngagementId) !== '') {
+            DB::statement(
+                'SELECT fsa_set_request_context(?, ?, ?, ?, ?)',
+                [$role, '', $userId, null, null]
+            );
+
+            $allowed = DB::selectOne('SELECT fsa_user_is_board_member_of(?::uuid) AS allowed', [$npoEngagementId]);
+
+            if (! (bool) ($allowed->allowed ?? false)) {
+                DB::statement(
+                    'SELECT fsa_set_request_context(?, ?, ?, ?, ?)',
+                    [$role, '', $userId, null, null]
+                );
+
+                throw new AuthorizationException('Board member is not assigned to this NPO engagement.');
+            }
+        } elseif ($role !== User::TYPE_NPO_BOARD_MEMBER) {
+            $npoEngagementId = null;
+        }
+
         DB::statement(
-            'SELECT fsa_set_request_context(?, ?, ?)',
-            [$role, implode(',', $clientIds), $userId]
+            'SELECT fsa_set_request_context(?, ?, ?, ?, ?)',
+            [$role, implode(',', $clientIds), $userId, $reportId, $npoEngagementId]
         );
     }
 }
