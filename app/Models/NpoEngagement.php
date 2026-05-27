@@ -146,4 +146,20 @@ final class NpoEngagement extends Model
     {
         return $this->hasMany(NpoValueCalculation::class);
     }
+
+    /**
+     * @return HasMany<NpoSocialEnterpriseScorecard>
+     */
+    public function socialEnterpriseScorecards(): HasMany
+    {
+        return $this->hasMany(NpoSocialEnterpriseScorecard::class);
+    }
+
+    /**
+     * @return HasMany<NpoTensionAnalysis>
+     */
+    public function tensionAnalyses(): HasMany
+    {
+        return $this->hasMany(NpoTensionAnalysis::class);
+    }
 }

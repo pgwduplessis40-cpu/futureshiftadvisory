@@ -42,6 +42,7 @@ use App\Services\Npo\NpoEngagementSetup;
 use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoValueCalculator;
+use App\Services\Npo\SocialEnterpriseAssessment;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -216,6 +217,7 @@ final class ClientController extends Controller
         NpoHealthScorer $npoHealth,
         NpoFunderMonitor $npoFunders,
         NpoValueCalculator $npoValues,
+        SocialEnterpriseAssessment $socialEnterprise,
     ): Response {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
@@ -259,6 +261,7 @@ final class ClientController extends Controller
                 'npo_health' => $npoHealth->clientSummary($client),
                 'npo_funding' => $npoFunders->clientSummary($client),
                 'npo_values' => $npoValues->clientSummary($client),
+                'npo_social_enterprise' => $socialEnterprise->clientSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
             'conflictDeclaration' => $client->conflictDeclarations()

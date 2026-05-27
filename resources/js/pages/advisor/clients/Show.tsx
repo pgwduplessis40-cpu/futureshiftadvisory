@@ -89,6 +89,7 @@ type ClientDetail = ClientSummary & {
     npo_health: NpoHealthPayload | null;
     npo_funding: NpoFundingSummary | null;
     npo_values: NpoValueSummary | null;
+    npo_social_enterprise: NpoSocialEnterpriseSummary | null;
 };
 
 type ConflictDeclaration = {
@@ -364,6 +365,43 @@ type NpoValueCalculation = {
 type NpoValueSummary = {
     npo_engagement_id: string;
     calculations: NpoValueCalculation[];
+};
+
+type NpoSocialEnterpriseAxis = {
+    dimension: string;
+    label: string;
+    score: number | null;
+    state?: string;
+};
+
+type NpoSocialEnterpriseSummary = {
+    scorecard: {
+        id: string;
+        commercial_score: number;
+        mission_score: number;
+        commercial_weight: number;
+        mission_weight: number;
+        blended_score: number;
+        commercial_axes: NpoSocialEnterpriseAxis[];
+        mission_axes: NpoSocialEnterpriseAxis[];
+        calculated_at: string | null;
+    };
+    tension_analysis: {
+        id: string;
+        review_status: string;
+        reviewed_at: string | null;
+        is_releasable: boolean;
+        tensions: Array<{
+            type: string;
+            title: string;
+            commercial_implication: string;
+            mission_implication: string;
+            strategic_options: string[];
+            advisor_recommended_path: string;
+            data_points: Array<Record<string, unknown>>;
+        }>;
+        generated_at: string | null;
+    } | null;
 };
 
 type FinancialSnapshotSummary = {
@@ -793,6 +831,12 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 {client.npo_values && (
                     <NpoValuePanel values={client.npo_values} />
+                )}
+
+                {client.npo_social_enterprise && (
+                    <NpoSocialEnterprisePanel
+                        summary={client.npo_social_enterprise}
+                    />
                 )}
 
                 <KnowledgeAssessmentPanel client={client} />
@@ -2088,6 +2132,122 @@ function formatProjectionValue(value: number, unit?: string): string {
     }
 
     return formatCurrency(value);
+}
+
+function NpoSocialEnterprisePanel({
+    summary,
+}: {
+    summary: NpoSocialEnterpriseSummary;
+}) {
+    const { scorecard, tension_analysis } = summary;
+
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <SlidersHorizontal className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Social enterprise scorecard
+                    </h2>
+                </div>
+                <Badge variant="secondary">
+                    Blended {scorecard.blended_score.toFixed(1)}
+                </Badge>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-3">
+                <Detail
+                    label={`Commercial (${scorecard.commercial_weight}%)`}
+                    value={`${scorecard.commercial_score}/100`}
+                />
+                <Detail
+                    label={`Mission (${scorecard.mission_weight}%)`}
+                    value={`${scorecard.mission_score}/100`}
+                />
+                <Detail
+                    label="Blended"
+                    value={`${scorecard.blended_score.toFixed(1)}/100`}
+                />
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+                <AxisList
+                    title="Commercial radar"
+                    axes={scorecard.commercial_axes}
+                />
+                <AxisList title="Mission radar" axes={scorecard.mission_axes} />
+            </div>
+
+            {tension_analysis && (
+                <div className="space-y-3">
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium">Tensions</h3>
+                        <Badge
+                            variant={
+                                tension_analysis.is_releasable
+                                    ? 'secondary'
+                                    : 'outline'
+                            }
+                        >
+                            {formatLabel(tension_analysis.review_status)}
+                        </Badge>
+                    </div>
+                    <div className="grid gap-3">
+                        {tension_analysis.tensions.map((tension) => (
+                            <article
+                                key={`${tension.type}-${tension.title}`}
+                                className="rounded-md border bg-muted/20 p-3"
+                            >
+                                <div className="mb-2 flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">
+                                        {formatLabel(tension.type)}
+                                    </Badge>
+                                    <div className="font-medium">
+                                        {tension.title}
+                                    </div>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                    {tension.commercial_implication}
+                                </p>
+                                <p className="text-sm text-muted-foreground">
+                                    {tension.mission_implication}
+                                </p>
+                            </article>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </section>
+    );
+}
+
+function AxisList({
+    title,
+    axes,
+}: {
+    title: string;
+    axes: NpoSocialEnterpriseAxis[];
+}) {
+    return (
+        <div className="space-y-2 rounded-md border p-3">
+            <h3 className="text-sm font-medium">{title}</h3>
+            <div className="grid gap-2 text-sm">
+                {axes.map((axis) => (
+                    <div
+                        key={`${title}-${axis.dimension}`}
+                        className="flex items-center justify-between gap-3"
+                    >
+                        <span className="text-muted-foreground">
+                            {axis.label}
+                        </span>
+                        <span className="font-medium">
+                            {axis.score === null ? '-' : `${axis.score}/100`}
+                        </span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
 }
 
 function DueDiligenceTargetPanel({

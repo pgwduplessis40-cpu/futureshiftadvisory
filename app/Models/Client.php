@@ -271,6 +271,22 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<NpoSocialEnterpriseScorecard>
+     */
+    public function npoSocialEnterpriseScorecards(): HasMany
+    {
+        return $this->hasMany(NpoSocialEnterpriseScorecard::class);
+    }
+
+    /**
+     * @return HasMany<NpoTensionAnalysis>
+     */
+    public function npoTensionAnalyses(): HasMany
+    {
+        return $this->hasMany(NpoTensionAnalysis::class);
+    }
+
+    /**
      * @return HasMany<GovernanceReviewFinding>
      */
     public function governanceReviewFindings(): HasMany
