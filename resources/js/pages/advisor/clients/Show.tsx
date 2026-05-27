@@ -88,6 +88,7 @@ type ClientDetail = ClientSummary & {
     npo_configuration: NpoConfigurationSummary | null;
     npo_health: NpoHealthPayload | null;
     npo_funding: NpoFundingSummary | null;
+    npo_values: NpoValueSummary | null;
 };
 
 type ConflictDeclaration = {
@@ -330,6 +331,39 @@ type NpoFundingSummary = {
         risk_level: string;
         source: string;
     };
+};
+
+type NpoValueProjection = {
+    key: string;
+    label: string;
+    unit: string;
+    low: number;
+    mid: number;
+    high: number;
+    uncertainty: {
+        rate: number;
+        label: string;
+    };
+};
+
+type NpoValueCalculation = {
+    id: string;
+    type: string;
+    label: string;
+    dimension_number: number;
+    rating: string;
+    projection_mid: number;
+    projection_low: number;
+    projection_high: number;
+    mission_framing: string;
+    stable_assumption_disclosure: string;
+    projections: NpoValueProjection[];
+    calculated_at: string | null;
+};
+
+type NpoValueSummary = {
+    npo_engagement_id: string;
+    calculations: NpoValueCalculation[];
 };
 
 type FinancialSnapshotSummary = {
@@ -755,6 +789,10 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
 
                 {client.npo_funding && (
                     <NpoFundingPanel funding={client.npo_funding} />
+                )}
+
+                {client.npo_values && (
+                    <NpoValuePanel values={client.npo_values} />
                 )}
 
                 <KnowledgeAssessmentPanel client={client} />
@@ -1968,6 +2006,88 @@ function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
             </div>
         </section>
     );
+}
+
+function NpoValuePanel({ values }: { values: NpoValueSummary }) {
+    return (
+        <section className="space-y-4 rounded-md border p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        NPO value calculations
+                    </h2>
+                    <Badge variant="secondary">
+                        {values.calculations.length} latest
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+                {values.calculations.map((calculation) => (
+                    <article
+                        key={calculation.id}
+                        className="space-y-3 rounded-md border bg-muted/20 p-3"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="font-medium">
+                                {calculation.label}
+                            </div>
+                            <Badge
+                                variant={
+                                    calculation.rating === 'critical' ||
+                                    calculation.rating === 'high_cost'
+                                        ? 'destructive'
+                                        : 'outline'
+                                }
+                            >
+                                {formatLabel(calculation.rating)}
+                            </Badge>
+                        </div>
+                        <div className="grid gap-2 text-sm sm:grid-cols-3">
+                            <Detail
+                                label="Low"
+                                value={formatProjectionValue(
+                                    calculation.projection_low,
+                                    calculation.projections[0]?.unit,
+                                )}
+                            />
+                            <Detail
+                                label="Mid"
+                                value={formatProjectionValue(
+                                    calculation.projection_mid,
+                                    calculation.projections[0]?.unit,
+                                )}
+                            />
+                            <Detail
+                                label="High"
+                                value={formatProjectionValue(
+                                    calculation.projection_high,
+                                    calculation.projections[0]?.unit,
+                                )}
+                            />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            {calculation.mission_framing}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                            {calculation.stable_assumption_disclosure}
+                        </p>
+                    </article>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function formatProjectionValue(value: number, unit?: string): string {
+    if (unit === 'beneficiaries') {
+        return `${new Intl.NumberFormat(undefined, {
+            maximumFractionDigits: 1,
+        }).format(value)} beneficiaries`;
+    }
+
+    return formatCurrency(value);
 }
 
 function DueDiligenceTargetPanel({

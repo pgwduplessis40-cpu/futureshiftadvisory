@@ -138,4 +138,12 @@ final class NpoEngagement extends Model
     {
         return $this->hasMany(ClientFunderRecord::class);
     }
+
+    /**
+     * @return HasMany<NpoValueCalculation>
+     */
+    public function valueCalculations(): HasMany
+    {
+        return $this->hasMany(NpoValueCalculation::class);
+    }
 }

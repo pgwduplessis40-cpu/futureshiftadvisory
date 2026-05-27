@@ -263,6 +263,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<NpoValueCalculation>
+     */
+    public function npoValueCalculations(): HasMany
+    {
+        return $this->hasMany(NpoValueCalculation::class);
+    }
+
+    /**
      * @return HasMany<GovernanceReviewFinding>
      */
     public function governanceReviewFindings(): HasMany
