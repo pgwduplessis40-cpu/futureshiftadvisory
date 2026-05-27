@@ -530,8 +530,42 @@ final class TestingSeedDataSeeder extends Seeder
             ],
         );
 
+        $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
+    }
+
+    private function seedPvWaterfallClients(): void
+    {
+        foreach ($this->pvWaterfallClientDefinitions() as $clientKey => $definition) {
+            $this->clients[$clientKey] = Client::query()->updateOrCreate(
+                ['nzbn' => $definition['nzbn']],
+                [
+                    'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                    'status' => ClientStatus::ACTIVE->value,
+                    'legal_name' => $definition['legal_name'],
+                    'trading_name' => $definition['trading_name'],
+                    'entity_type' => 'NZ Limited Company',
+                    'address' => $definition['address'],
+                    'gst_registered' => true,
+                    'directors' => $definition['directors'],
+                    'filing_status' => 'up_to_date',
+                    'data_quality' => $definition['data_quality'],
+                    'registry_sources' => [
+                        'nzbn' => 'seeded',
+                        'pv_waterfall_fixture' => true,
+                    ],
+                    'created_by_user_id' => $this->users['advisor']->getKey(),
+                    'primary_contact_user_id' => null,
+                    'engagement_type_locked_at' => $this->now->copy()->subDays($definition['locked_days_ago']),
+                    'onboarding_wizard_state' => [
+                        'completed_steps' => ['profile', 'documents', 'questionnaire', 'analysis'],
+                        'current_step' => 'pv_review',
+                        'fixture' => 'pv_waterfall',
+                    ],
+                ],
+            );
+        }
     }
 
     private function seedClientTeam(): void
@@ -561,6 +595,10 @@ final class TestingSeedDataSeeder extends Seeder
             ['socialEnterprise', 'socialEnterprise', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports', 'npo', 'social_enterprise']],
         ];
 
+        foreach (array_keys($this->pvWaterfallClientDefinitions()) as $clientKey) {
+            $members[] = [$clientKey, 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports', 'pv']];
+        }
+
         foreach ($members as [$clientKey, $userKey, $role, $modules]) {
             $this->upsert('client_team', [
                 'client_id' => $this->clients[$clientKey]->getKey(),
@@ -574,7 +612,7 @@ final class TestingSeedDataSeeder extends Seeder
 
     private function seedConflictDeclarations(): void
     {
-        foreach (['advisory', 'dd', 'postAcquisition', 'npo', 'socialEnterprise'] as $clientKey) {
+        foreach (['advisory', 'dd', 'postAcquisition', 'npo', 'socialEnterprise', ...array_keys($this->pvWaterfallClientDefinitions())] as $clientKey) {
             $this->ids["conflict_{$clientKey}"] = $this->upsert('conflict_declarations', [
                 'client_id' => $this->clients[$clientKey]->getKey(),
                 'advisor_id' => $this->users['advisor']->getKey(),
@@ -1001,6 +1039,179 @@ final class TestingSeedDataSeeder extends Seeder
             'acknowledged_by_user_id' => $this->users['advisor']->getKey(),
             'resolved_at' => null,
         ]);
+
+        $this->seedPvWaterfallPortfolioFixtures();
+    }
+
+    private function seedPvWaterfallPortfolioFixtures(): void
+    {
+        foreach ($this->pvWaterfallClientDefinitions() as $clientKey => $definition) {
+            $client = $this->clients[$clientKey];
+            $analysisRunId = $this->upsert('analysis_runs', [
+                'client_id' => $client->getKey(),
+                'module' => 'financial',
+                'prompt_version' => "testing-pv-waterfall-{$clientKey}",
+            ], [
+                'status' => 'completed',
+                'framework_lenses' => $this->json(['descriptive', 'diagnostic', 'prescriptive']),
+                'data_quality_snapshot' => $this->json([
+                    'score' => $definition['analysis_quality_score'],
+                    'label' => $definition['data_quality'],
+                    'fixture' => 'pv_waterfall',
+                ]),
+                'ai_model' => 'seeded-pv-waterfall-model',
+                'prompt_hash' => hash('sha256', "testing-pv-waterfall-{$clientKey}"),
+                'tokens_in' => 4_800 + (int) $definition['analysis_quality_score'],
+                'tokens_out' => 1_600 + (count($definition['improvements']) * 120),
+                'started_at' => $this->stableTimestamp($definition['analysis_started_at']),
+                'completed_at' => $this->stableTimestamp($definition['analysis_completed_at']),
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+            ]);
+
+            $valuation = $definition['valuation'];
+            $valuationCalculationId = $this->seedPvCalculation(
+                client: $client,
+                type: 'business_valuation',
+                fixtureKey: "{$clientKey}-valuation",
+                discountRate: $valuation['discount_rate'],
+                rationale: "Seeded PV waterfall baseline valuation for {$definition['legal_name']}.",
+                inputs: [
+                    'normalised_ebitda' => $valuation['normalised_ebitda'],
+                    'growth_rate' => $valuation['growth_rate'],
+                    'terminal_multiple' => $valuation['terminal_multiple'],
+                ],
+                result: [
+                    'low' => $valuation['low'],
+                    'mid' => $valuation['mid'],
+                    'high' => $valuation['high'],
+                ],
+                asAt: $this->stableTimestamp($valuation['as_at']),
+                sourceAttributions: [
+                    ['claim' => 'Seeded PV waterfall baseline valuation.', 'source_reference' => "testing_seed:{$clientKey}:valuation"],
+                ],
+            );
+
+            $this->ids["pv_waterfall_{$clientKey}_valuation"] = $valuationCalculationId;
+            $this->ids["business_valuation_{$clientKey}"] = $this->upsert('business_valuations', [
+                'client_id' => $client->getKey(),
+                'pv_calculation_id' => $valuationCalculationId,
+            ], [
+                'sde_value' => $this->json($this->valuationBand($valuation, 0.94)),
+                'ebitda_value' => $this->json($this->valuationBand($valuation, 1.00)),
+                'dcf_value' => $this->json($this->valuationBand($valuation, 1.03)),
+                'reconciled_low' => $valuation['low'],
+                'reconciled_mid' => $valuation['mid'],
+                'reconciled_high' => $valuation['high'],
+                'adjustments' => $this->json($valuation['adjustments']),
+                'data_quality_disclaimer' => 'Seeded valuation for PV waterfall dashboard testing only.',
+                'source_attributions' => $this->json([
+                    ['type' => 'pv_calculation', 'id' => $valuationCalculationId],
+                    ['claim' => 'Fixture creates varied current PV bands for advisor dashboard testing.', 'source_reference' => "testing_seed:{$clientKey}:business_valuation"],
+                ]),
+                'as_at' => $this->stableTimestamp($valuation['as_at']),
+            ]);
+
+            foreach ($definition['improvements'] as $rank => $improvement) {
+                $findingId = $this->seedPvWaterfallFinding(
+                    analysisRunId: $analysisRunId,
+                    client: $client,
+                    title: $improvement['finding_title'],
+                    body: $improvement['body'],
+                    lens: 'prescriptive',
+                    severity: $improvement['severity'],
+                    sourceReference: "testing_seed:{$clientKey}:improvement:".($rank + 1),
+                );
+                $calculationId = $this->seedPvCalculation(
+                    client: $client,
+                    type: 'improvement_opportunity',
+                    fixtureKey: "{$clientKey}-improvement-".($rank + 1),
+                    discountRate: $improvement['discount_rate'],
+                    rationale: "Seeded PV waterfall improvement {$improvement['title']} for {$definition['legal_name']}.",
+                    inputs: [
+                        'annual_benefit' => $improvement['annual_benefit'],
+                        'duration_years' => $improvement['duration_years'],
+                    ],
+                    result: [
+                        'present_value' => $improvement['pv'],
+                        'annualised_impact' => $improvement['annual_benefit'],
+                    ],
+                    asAt: $this->stableTimestamp($improvement['as_at']),
+                    sourceAttributions: [
+                        ['type' => 'analysis_finding', 'id' => $findingId],
+                    ],
+                );
+                $opportunityId = $this->upsert('improvement_opportunities', [
+                    'client_id' => $client->getKey(),
+                    'title' => $improvement['title'],
+                ], [
+                    'analysis_finding_id' => $findingId,
+                    'pv_calculation_id' => $calculationId,
+                    'annual_benefit' => $improvement['annual_benefit'],
+                    'duration_years' => $improvement['duration_years'],
+                    'pv_of_impact' => $improvement['pv'],
+                    'rank' => $rank + 1,
+                    'source_attributions' => $this->json([
+                        ['type' => 'analysis_finding', 'id' => $findingId],
+                        ['claim' => 'Seeded recommendation supports PV waterfall dashboard testing.', 'source_reference' => "testing_seed:{$clientKey}:improvement:".($rank + 1)],
+                    ]),
+                ]);
+
+                $this->linkFindingToPvItem($findingId, $opportunityId);
+            }
+
+            foreach ($definition['risks'] as $rank => $risk) {
+                $findingId = $this->seedPvWaterfallFinding(
+                    analysisRunId: $analysisRunId,
+                    client: $client,
+                    title: $risk['finding_title'],
+                    body: $risk['body'],
+                    lens: 'diagnostic',
+                    severity: $risk['severity'],
+                    sourceReference: "testing_seed:{$clientKey}:risk:".($rank + 1),
+                );
+                $calculationId = $this->seedPvCalculation(
+                    client: $client,
+                    type: 'risk_cost',
+                    fixtureKey: "{$clientKey}-risk-".($rank + 1),
+                    discountRate: $risk['discount_rate'],
+                    rationale: "Seeded PV waterfall risk {$risk['title']} for {$definition['legal_name']}.",
+                    inputs: [
+                        'financial_impact' => $risk['financial_impact'],
+                        'probability' => $risk['probability'],
+                        'duration_years' => $risk['duration_years'],
+                    ],
+                    result: [
+                        'present_value' => $risk['pv'],
+                        'expected_annual_cost' => $risk['annual_expected_cost'],
+                    ],
+                    asAt: $this->stableTimestamp($risk['as_at']),
+                    sourceAttributions: [
+                        ['type' => 'analysis_finding', 'id' => $findingId],
+                    ],
+                );
+                $riskId = $this->upsert('risk_costs', [
+                    'client_id' => $client->getKey(),
+                    'title' => $risk['title'],
+                ], [
+                    'analysis_finding_id' => $findingId,
+                    'pv_calculation_id' => $calculationId,
+                    'financial_impact' => $risk['financial_impact'],
+                    'probability' => $risk['probability'],
+                    'duration_years' => $risk['duration_years'],
+                    'statutory_penalty_range' => $this->json($risk['statutory_penalty_range']),
+                    'applied_impact' => $risk['applied_impact'],
+                    'annual_expected_cost' => $risk['annual_expected_cost'],
+                    'pv_of_cost' => $risk['pv'],
+                    'rank' => $rank + 1,
+                    'source_attributions' => $this->json([
+                        ['type' => 'analysis_finding', 'id' => $findingId],
+                        ['claim' => 'Seeded risk cost supports PV waterfall dashboard testing.', 'source_reference' => "testing_seed:{$clientKey}:risk:".($rank + 1)],
+                    ]),
+                ]);
+
+                $this->linkFindingToPvItem($findingId, $riskId);
+            }
+        }
     }
 
     private function seedEntrepreneurJourney(): void
@@ -3141,6 +3352,373 @@ final class TestingSeedDataSeeder extends Seeder
             'migrated_by_user_id' => $this->users['advisor']->getKey(),
             'migrated_at' => $this->now->copy()->subHours(12),
         ]);
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function pvWaterfallClientDefinitions(): array
+    {
+        return [
+            'pvMicro' => [
+                'nzbn' => '9429000000096',
+                'legal_name' => 'Bay Micro Tools Limited',
+                'trading_name' => 'Bay Micro Tools',
+                'address' => ['line1' => '9 Dive Crescent', 'city' => 'Tauranga', 'region' => 'Bay of Plenty', 'country' => 'NZ'],
+                'directors' => [['name' => 'Mia Roberts', 'role' => 'Founder']],
+                'data_quality' => Client::DATA_QUALITY_MEDIUM,
+                'locked_days_ago' => 9,
+                'analysis_quality_score' => 68,
+                'analysis_started_at' => '2026-05-16 09:00:00',
+                'analysis_completed_at' => '2026-05-16 09:18:00',
+                'valuation' => [
+                    'low' => 135_000,
+                    'mid' => 180_000,
+                    'high' => 230_000,
+                    'normalised_ebitda' => 52_000,
+                    'growth_rate' => 0.025,
+                    'terminal_multiple' => 3.3,
+                    'discount_rate' => 0.165000,
+                    'as_at' => '2026-05-16 09:30:00',
+                    'adjustments' => ['owner_salary_normalisation' => 12_000, 'micro_business_discount' => 18_000],
+                ],
+                'improvements' => [
+                    [
+                        'title' => 'Quote follow-up automation',
+                        'finding_title' => 'Manual quoting is leaking small-ticket margin',
+                        'body' => 'Quote follow-up is founder-managed and inconsistent, creating avoidable conversion leakage.',
+                        'severity' => 'medium',
+                        'annual_benefit' => 18_000,
+                        'duration_years' => 2,
+                        'pv' => 31_000,
+                        'discount_rate' => 0.165000,
+                        'as_at' => '2026-05-16 10:00:00',
+                    ],
+                    [
+                        'title' => 'Standardise supplier re-order points',
+                        'finding_title' => 'Supplier ordering is creating preventable stock gaps',
+                        'body' => 'Re-order points are held in spreadsheets rather than a repeatable replenishment workflow.',
+                        'severity' => 'low',
+                        'annual_benefit' => 9_000,
+                        'duration_years' => 2,
+                        'pv' => 15_000,
+                        'discount_rate' => 0.165000,
+                        'as_at' => '2026-05-16 10:06:00',
+                    ],
+                ],
+                'risks' => [
+                    [
+                        'title' => 'Single supplier continuity exposure',
+                        'finding_title' => 'Supplier continuity depends on one distributor',
+                        'body' => 'A single distributor provides the highest margin product line with no tested alternative.',
+                        'severity' => 'medium',
+                        'financial_impact' => 45_000,
+                        'probability' => 0.2200,
+                        'duration_years' => 2,
+                        'applied_impact' => 45_000,
+                        'annual_expected_cost' => 9_900,
+                        'pv' => 17_000,
+                        'discount_rate' => 0.175000,
+                        'statutory_penalty_range' => ['low' => 0, 'high' => 0],
+                        'as_at' => '2026-05-16 10:12:00',
+                    ],
+                ],
+            ],
+            'pvMid' => [
+                'nzbn' => '9429000000102',
+                'legal_name' => 'Cobalt Manufacturing Limited',
+                'trading_name' => 'Cobalt Manufacturing',
+                'address' => ['line1' => '31 Port Road', 'city' => 'Napier', 'region' => 'Hawke\'s Bay', 'country' => 'NZ'],
+                'directors' => [['name' => 'Noah Chen', 'role' => 'Managing Director']],
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'locked_days_ago' => 12,
+                'analysis_quality_score' => 77,
+                'analysis_started_at' => '2026-05-17 08:45:00',
+                'analysis_completed_at' => '2026-05-17 09:22:00',
+                'valuation' => [
+                    'low' => 820_000,
+                    'mid' => 950_000,
+                    'high' => 1_120_000,
+                    'normalised_ebitda' => 238_000,
+                    'growth_rate' => 0.040,
+                    'terminal_multiple' => 4.0,
+                    'discount_rate' => 0.140000,
+                    'as_at' => '2026-05-17 09:35:00',
+                    'adjustments' => ['customer_concentration_discount' => 65_000, 'maintainable_margin_normalisation' => 42_000],
+                ],
+                'improvements' => [
+                    [
+                        'title' => 'Shift production scheduling to weekly constraint planning',
+                        'finding_title' => 'Production constraints are not sequenced against gross margin',
+                        'body' => 'Scheduling is optimised for available labour rather than margin contribution and bottleneck throughput.',
+                        'severity' => 'high',
+                        'annual_benefit' => 120_000,
+                        'duration_years' => 3,
+                        'pv' => 285_000,
+                        'discount_rate' => 0.140000,
+                        'as_at' => '2026-05-17 10:00:00',
+                    ],
+                    [
+                        'title' => 'Introduce preventative maintenance cadence',
+                        'finding_title' => 'Maintenance spend is reactive and downtime-heavy',
+                        'body' => 'Unplanned downtime is materially higher than the target operating rhythm for the production line.',
+                        'severity' => 'medium',
+                        'annual_benefit' => 45_000,
+                        'duration_years' => 3,
+                        'pv' => 108_000,
+                        'discount_rate' => 0.140000,
+                        'as_at' => '2026-05-17 10:05:00',
+                    ],
+                ],
+                'risks' => [
+                    [
+                        'title' => 'Machine breakdown exposure',
+                        'finding_title' => 'Aging plant creates a meaningful delivery risk',
+                        'body' => 'The highest-volume machine has no standby plan and is outside the preferred service interval.',
+                        'severity' => 'high',
+                        'financial_impact' => 180_000,
+                        'probability' => 0.3500,
+                        'duration_years' => 3,
+                        'applied_impact' => 180_000,
+                        'annual_expected_cost' => 63_000,
+                        'pv' => 155_000,
+                        'discount_rate' => 0.150000,
+                        'statutory_penalty_range' => ['low' => 0, 'high' => 0],
+                        'as_at' => '2026-05-17 10:10:00',
+                    ],
+                    [
+                        'title' => 'Product compliance rework risk',
+                        'finding_title' => 'Compliance evidence is not retained at batch level',
+                        'body' => 'Batch evidence is inconsistently retained, increasing the cost of responding to product queries.',
+                        'severity' => 'medium',
+                        'financial_impact' => 80_000,
+                        'probability' => 0.2000,
+                        'duration_years' => 3,
+                        'applied_impact' => 80_000,
+                        'annual_expected_cost' => 16_000,
+                        'pv' => 39_000,
+                        'discount_rate' => 0.150000,
+                        'statutory_penalty_range' => ['low' => 0, 'high' => 15_000],
+                        'as_at' => '2026-05-17 10:15:00',
+                    ],
+                ],
+            ],
+            'pvGrowth' => [
+                'nzbn' => '9429000000119',
+                'legal_name' => 'Kowhai Export Co Limited',
+                'trading_name' => 'Kowhai Export Co',
+                'address' => ['line1' => '22 Durham Lane', 'city' => 'Christchurch', 'region' => 'Canterbury', 'country' => 'NZ'],
+                'directors' => [['name' => 'Amelia Singh', 'role' => 'Chief Executive']],
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'locked_days_ago' => 15,
+                'analysis_quality_score' => 84,
+                'analysis_started_at' => '2026-05-18 11:00:00',
+                'analysis_completed_at' => '2026-05-18 11:42:00',
+                'valuation' => [
+                    'low' => 2_650_000,
+                    'mid' => 3_200_000,
+                    'high' => 3_860_000,
+                    'normalised_ebitda' => 710_000,
+                    'growth_rate' => 0.070,
+                    'terminal_multiple' => 4.5,
+                    'discount_rate' => 0.128000,
+                    'as_at' => '2026-05-18 12:00:00',
+                    'adjustments' => ['fx_volatility_discount' => 120_000, 'export_pipeline_premium' => 180_000],
+                ],
+                'improvements' => [
+                    [
+                        'title' => 'Convert distributor demand into rolling forecast',
+                        'finding_title' => 'Export demand signals are not converted into a rolling forecast',
+                        'body' => 'Distributor updates arrive monthly but are not translated into inventory and cash planning.',
+                        'severity' => 'high',
+                        'annual_benefit' => 280_000,
+                        'duration_years' => 4,
+                        'pv' => 875_000,
+                        'discount_rate' => 0.128000,
+                        'as_at' => '2026-05-18 12:20:00',
+                    ],
+                    [
+                        'title' => 'Add landed-margin dashboard by market',
+                        'finding_title' => 'Landed-margin reporting is too slow for export pricing',
+                        'body' => 'Freight and FX movements are visible after month end rather than before pricing decisions.',
+                        'severity' => 'medium',
+                        'annual_benefit' => 95_000,
+                        'duration_years' => 3,
+                        'pv' => 230_000,
+                        'discount_rate' => 0.132000,
+                        'as_at' => '2026-05-18 12:25:00',
+                    ],
+                    [
+                        'title' => 'Tighten receivables cadence for offshore accounts',
+                        'finding_title' => 'Offshore receivables are drifting beyond agreed terms',
+                        'body' => 'Collections timing has widened as export volumes increased, lifting working-capital pressure.',
+                        'severity' => 'medium',
+                        'annual_benefit' => 60_000,
+                        'duration_years' => 2,
+                        'pv' => 105_000,
+                        'discount_rate' => 0.132000,
+                        'as_at' => '2026-05-18 12:30:00',
+                    ],
+                ],
+                'risks' => [
+                    [
+                        'title' => 'FX margin compression risk',
+                        'finding_title' => 'Unhedged USD exposure can erase export margin',
+                        'body' => 'USD receivables and NZD input costs are not hedged against short-term movements.',
+                        'severity' => 'high',
+                        'financial_impact' => 650_000,
+                        'probability' => 0.1800,
+                        'duration_years' => 4,
+                        'applied_impact' => 650_000,
+                        'annual_expected_cost' => 117_000,
+                        'pv' => 360_000,
+                        'discount_rate' => 0.145000,
+                        'statutory_penalty_range' => ['low' => 0, 'high' => 0],
+                        'as_at' => '2026-05-18 12:35:00',
+                    ],
+                    [
+                        'title' => 'Distributor concentration exposure',
+                        'finding_title' => 'Two distributors represent most export revenue',
+                        'body' => 'The top two distributors account for the majority of offshore revenue without replacement plans.',
+                        'severity' => 'high',
+                        'financial_impact' => 420_000,
+                        'probability' => 0.2200,
+                        'duration_years' => 3,
+                        'applied_impact' => 420_000,
+                        'annual_expected_cost' => 92_400,
+                        'pv' => 245_000,
+                        'discount_rate' => 0.145000,
+                        'statutory_penalty_range' => ['low' => 0, 'high' => 0],
+                        'as_at' => '2026-05-18 12:40:00',
+                    ],
+                ],
+            ],
+            'pvEnterprise' => [
+                'nzbn' => '9429000000126',
+                'legal_name' => 'Summit SaaS Limited',
+                'trading_name' => 'Summit SaaS',
+                'address' => ['line1' => '4 Madden Street', 'city' => 'Auckland', 'region' => 'Auckland', 'country' => 'NZ'],
+                'directors' => [['name' => 'Ethan Williams', 'role' => 'Chief Executive']],
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'locked_days_ago' => 18,
+                'analysis_quality_score' => 91,
+                'analysis_started_at' => '2026-05-19 13:00:00',
+                'analysis_completed_at' => '2026-05-19 14:10:00',
+                'valuation' => [
+                    'low' => 7_900_000,
+                    'mid' => 9_500_000,
+                    'high' => 11_400_000,
+                    'normalised_ebitda' => 1_850_000,
+                    'growth_rate' => 0.110,
+                    'terminal_multiple' => 5.2,
+                    'discount_rate' => 0.118000,
+                    'as_at' => '2026-05-19 14:30:00',
+                    'adjustments' => ['recurring_revenue_premium' => 650_000, 'enterprise_churn_discount' => 240_000],
+                ],
+                'improvements' => [
+                    ['title' => 'Self-serve onboarding conversion lift', 'finding_title' => 'Enterprise onboarding is carrying repeatable work manually', 'body' => 'Implementation work repeats across customers and delays revenue activation.', 'severity' => 'high', 'annual_benefit' => 420_000, 'duration_years' => 5, 'pv' => 1_520_000, 'discount_rate' => 0.118000, 'as_at' => '2026-05-19 15:00:00'],
+                    ['title' => 'Enterprise retention playbook', 'finding_title' => 'Retention interventions are reactive rather than cohort-led', 'body' => 'Health signals exist but are not converted into proactive retention motions.', 'severity' => 'high', 'annual_benefit' => 260_000, 'duration_years' => 4, 'pv' => 820_000, 'discount_rate' => 0.118000, 'as_at' => '2026-05-19 15:05:00'],
+                    ['title' => 'Pricing packaging refresh', 'finding_title' => 'Packaging no longer matches high-value customer usage', 'body' => 'The current price book under-recovers from customers with heavier support and integration needs.', 'severity' => 'high', 'annual_benefit' => 190_000, 'duration_years' => 4, 'pv' => 610_000, 'discount_rate' => 0.120000, 'as_at' => '2026-05-19 15:10:00'],
+                    ['title' => 'Infrastructure rightsizing programme', 'finding_title' => 'Cloud cost allocation is not linked to product margin', 'body' => 'Gross margin by module is masked by pooled infrastructure spend.', 'severity' => 'medium', 'annual_benefit' => 120_000, 'duration_years' => 3, 'pv' => 285_000, 'discount_rate' => 0.120000, 'as_at' => '2026-05-19 15:15:00'],
+                    ['title' => 'Partner channel enablement', 'finding_title' => 'Partner leads are not moving through a measurable channel motion', 'body' => 'Partners generate interest but receive inconsistent enablement and follow-up.', 'severity' => 'medium', 'annual_benefit' => 150_000, 'duration_years' => 3, 'pv' => 350_000, 'discount_rate' => 0.120000, 'as_at' => '2026-05-19 15:20:00'],
+                    ['title' => 'RevOps forecast hygiene', 'finding_title' => 'Revenue forecast confidence is reduced by stage drift', 'body' => 'Pipeline stages are updated late and do not reflect buying milestones.', 'severity' => 'medium', 'annual_benefit' => 95_000, 'duration_years' => 3, 'pv' => 220_000, 'discount_rate' => 0.122000, 'as_at' => '2026-05-19 15:25:00'],
+                    ['title' => 'AI support triage', 'finding_title' => 'Support triage consumes senior product time', 'body' => 'Senior product staff are resolving low-complexity tickets that could be routed earlier.', 'severity' => 'medium', 'annual_benefit' => 75_000, 'duration_years' => 3, 'pv' => 174_000, 'discount_rate' => 0.122000, 'as_at' => '2026-05-19 15:30:00'],
+                    ['title' => 'Security assurance automation', 'finding_title' => 'Security questionnaire work slows enterprise deals', 'body' => 'Security responses are recreated deal-by-deal rather than reusable from governed evidence.', 'severity' => 'medium', 'annual_benefit' => 65_000, 'duration_years' => 3, 'pv' => 151_000, 'discount_rate' => 0.122000, 'as_at' => '2026-05-19 15:35:00'],
+                    ['title' => 'Customer education academy', 'finding_title' => 'Customer education is informal and success-manager dependent', 'body' => 'Training material is uneven across cohorts and increases ongoing success load.', 'severity' => 'low', 'annual_benefit' => 55_000, 'duration_years' => 3, 'pv' => 128_000, 'discount_rate' => 0.122000, 'as_at' => '2026-05-19 15:40:00'],
+                ],
+                'risks' => [
+                    ['title' => 'Platform outage exposure', 'finding_title' => 'Availability controls lag enterprise contract expectations', 'body' => 'Enterprise contracts introduce service credits and reputational exposure if availability dips.', 'severity' => 'high', 'financial_impact' => 1_450_000, 'probability' => 0.1800, 'duration_years' => 4, 'applied_impact' => 1_450_000, 'annual_expected_cost' => 261_000, 'pv' => 650_000, 'discount_rate' => 0.135000, 'statutory_penalty_range' => ['low' => 0, 'high' => 0], 'as_at' => '2026-05-19 16:00:00'],
+                    ['title' => 'Privacy incident exposure', 'finding_title' => 'Privacy evidence is fragmented across tooling', 'body' => 'Privacy controls are present but not assembled into a single auditable response pack.', 'severity' => 'high', 'financial_impact' => 900_000, 'probability' => 0.2000, 'duration_years' => 4, 'applied_impact' => 900_000, 'annual_expected_cost' => 180_000, 'pv' => 430_000, 'discount_rate' => 0.140000, 'statutory_penalty_range' => ['low' => 20_000, 'high' => 120_000], 'as_at' => '2026-05-19 16:05:00'],
+                    ['title' => 'Key architect dependency', 'finding_title' => 'Architecture decisions rely on one senior engineer', 'body' => 'Critical architecture knowledge is concentrated in one person with limited succession cover.', 'severity' => 'medium', 'financial_impact' => 620_000, 'probability' => 0.1600, 'duration_years' => 3, 'applied_impact' => 620_000, 'annual_expected_cost' => 99_200, 'pv' => 310_000, 'discount_rate' => 0.138000, 'statutory_penalty_range' => ['low' => 0, 'high' => 0], 'as_at' => '2026-05-19 16:10:00'],
+                ],
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $valuation
+     * @return array{low:float, mid:float, high:float}
+     */
+    private function valuationBand(array $valuation, float $multiplier): array
+    {
+        return [
+            'low' => round((float) $valuation['low'] * $multiplier, 2),
+            'mid' => round((float) $valuation['mid'] * $multiplier, 2),
+            'high' => round((float) $valuation['high'] * $multiplier, 2),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
+     * @param  array<string, mixed>  $result
+     * @param  array<int, array<string, mixed>>  $sourceAttributions
+     */
+    private function seedPvCalculation(
+        Client $client,
+        string $type,
+        string $fixtureKey,
+        float $discountRate,
+        string $rationale,
+        array $inputs,
+        array $result,
+        CarbonInterface $asAt,
+        array $sourceAttributions,
+    ): string|int|null {
+        return $this->upsert('pv_calculations', [
+            'client_id' => $client->getKey(),
+            'type' => $type,
+            'discount_rate_rationale' => $rationale,
+        ], [
+            'discount_method' => 'advisor_configured',
+            'discount_rate' => $discountRate,
+            'inputs' => $this->json(['fixture_key' => $fixtureKey, ...$inputs]),
+            'result' => $this->json($result),
+            'as_at' => $asAt,
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'source_attributions' => $this->json($sourceAttributions),
+        ]);
+    }
+
+    private function seedPvWaterfallFinding(
+        string|int|null $analysisRunId,
+        Client $client,
+        string $title,
+        string $body,
+        string $lens,
+        string $severity,
+        string $sourceReference,
+    ): string|int|null {
+        return $this->upsert('analysis_findings', [
+            'analysis_run_id' => $analysisRunId,
+            'title' => $title,
+        ], [
+            'client_id' => $client->getKey(),
+            'lens' => $lens,
+            'severity' => $severity,
+            'body' => $body,
+            'attributions' => $this->json([
+                ['claim' => 'Seeded PV waterfall analysis finding.', 'source_reference' => $sourceReference],
+            ]),
+            'document_support' => 'supported',
+            'uncertainty' => 'medium',
+            'data_quality_disclaimer' => 'Seeded finding for PV waterfall dashboard testing only.',
+            'bias_signals' => $this->json(['fixture' => 'pv_waterfall']),
+            'pv_link_id' => null,
+        ]);
+    }
+
+    private function linkFindingToPvItem(string|int|null $findingId, string|int|null $pvLinkId): void
+    {
+        if ($findingId === null || $pvLinkId === null) {
+            return;
+        }
+
+        DB::table('analysis_findings')
+            ->where('id', $findingId)
+            ->update([
+                'pv_link_id' => $pvLinkId,
+                'updated_at' => $this->now,
+            ]);
     }
 
     private function seedBulkCommunicationsAndExpiryReminders(): void

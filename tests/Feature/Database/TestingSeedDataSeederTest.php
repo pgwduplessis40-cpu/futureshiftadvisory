@@ -20,6 +20,7 @@ use App\Models\PvCalculation;
 use App\Models\QuestionnaireQuestion;
 use App\Models\Report;
 use App\Models\User;
+use App\Services\Pv\PvWaterfallBuilder;
 use Database\Seeders\TestingSeedDataSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -41,6 +42,10 @@ final class TestingSeedDataSeederTest extends TestCase
             'documents',
             'questionnaire_responses',
             'analysis_findings',
+            'pv_calculations',
+            'business_valuations',
+            'improvement_opportunities',
+            'risk_costs',
             'proposals',
             'business_plans',
             'dd_engagements',
@@ -107,6 +112,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'business_valuations');
         $this->assertAtLeast(1, 'improvement_opportunities');
         $this->assertAtLeast(1, 'risk_costs');
+        $this->assertPvWaterfallSeedCoverage();
 
         $this->assertAtLeast(1, 'goals');
         $this->assertAtLeast(1, 'milestones');
@@ -260,5 +266,40 @@ final class TestingSeedDataSeederTest extends TestCase
     private function assertAtLeast(int $minimum, string $table): void
     {
         $this->assertGreaterThanOrEqual($minimum, DB::table($table)->count(), "Expected [{$table}] to have seed coverage.");
+    }
+
+    private function assertPvWaterfallSeedCoverage(): void
+    {
+        $pvClientIds = DB::table('clients')
+            ->whereIn('nzbn', [
+                '9429000000096',
+                '9429000000102',
+                '9429000000119',
+                '9429000000126',
+            ])
+            ->pluck('id')
+            ->all();
+
+        $this->assertCount(4, $pvClientIds, 'Expected four seeded PV waterfall test clients.');
+        $this->assertGreaterThanOrEqual(6, DB::table('business_valuations')->count());
+        $this->assertGreaterThanOrEqual(17, DB::table('improvement_opportunities')->count());
+        $this->assertGreaterThanOrEqual(9, DB::table('risk_costs')->count());
+
+        $payload = app(PvWaterfallBuilder::class)->forClients($pvClientIds);
+        $clients = collect($payload['clients']);
+        $summit = $clients->firstWhere('client_name', 'Summit SaaS Limited');
+        $bay = $clients->firstWhere('client_name', 'Bay Micro Tools Limited');
+
+        $this->assertSame(4, $payload['summary']['clients']);
+        $this->assertNotNull($bay);
+        $this->assertSame(180000.0, $bay['current_pv']);
+        $this->assertSame(243000.0, $bay['target_pv']);
+        $this->assertNotNull($summit);
+        $this->assertSame(9500000.0, $summit['current_pv']);
+        $this->assertSame(15148000.0, $summit['target_pv']);
+        $this->assertTrue(
+            collect($summit['waterfall'])->contains(fn (array $step): bool => ($step['is_remainder'] ?? false) === true),
+            'Expected Summit SaaS to exercise the PV waterfall remainder step.',
+        );
     }
 }
