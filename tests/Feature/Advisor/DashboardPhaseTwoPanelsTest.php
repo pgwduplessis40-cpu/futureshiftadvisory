@@ -11,7 +11,9 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\FeeCalculation;
 use App\Models\LearningUpdate;
+use App\Models\PanelMember;
 use App\Models\Proposal;
+use App\Models\Referral;
 use App\Models\User;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
 use App\Support\RequestContext;
@@ -39,7 +41,10 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
 
         $proposal = $this->releasedProposal($client, now()->addDays(7));
         $this->releasedProposal($otherClient, now()->addDays(5));
-        $this->questionnaireCandidate();
+        $learningUpdate = $this->questionnaireCandidate();
+        $brokerReferral = $this->panelReferral($client, PanelMember::TYPE_BROKER, Referral::STAGE_BROKER_REFERRAL_SENT);
+        $this->panelReferral($otherClient, PanelMember::TYPE_BROKER, Referral::STAGE_BROKER_REFERRAL_SENT);
+        $coachReferral = $this->panelReferral($client, PanelMember::TYPE_COACH, Referral::STAGE_COACH_ACCEPTED);
 
         $this->actingAsMfa($advisor)
             ->get(route('dashboard'))
@@ -53,7 +58,17 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 ->where('proposalStatus.expiry_alerts.0.id', $proposal->id)
                 ->where('proposalStatus.expiry_alerts.0.client_id', $client->id)
                 ->where('questionnaireOptimisation.summary.detected_candidates', 1)
-                ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory'));
+                ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory')
+                ->where('panelOperations.broker.summary.total', 1)
+                ->where('panelOperations.broker.summary.active', 1)
+                ->where('panelOperations.broker.items.0.id', $brokerReferral->id)
+                ->where('panelOperations.broker.items.0.subject_name', $client->legal_name)
+                ->where('panelOperations.coach.summary.total', 1)
+                ->where('panelOperations.coach.summary.active', 1)
+                ->where('panelOperations.coach.items.0.id', $coachReferral->id)
+                ->where('panelOperations.learning.summary.detected', 1)
+                ->where('panelOperations.learning.queue_url', route('admin.learning-updates.index', absolute: false))
+                ->where('panelOperations.learning.items.0.id', $learningUpdate->id));
     }
 
     /**
@@ -138,6 +153,36 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
             'confidence' => 0.72,
             'evidence' => ['blank_rate' => 0.67],
             'status' => LearningUpdate::STATUS_DETECTED,
+        ]);
+    }
+
+    private function panelReferral(Client $client, string $panelType, string $stage): Referral
+    {
+        $panelUser = User::factory()->withTwoFactor()->create([
+            'user_type' => $panelType === PanelMember::TYPE_BROKER ? User::TYPE_BROKER : User::TYPE_COACH,
+            'primary_role' => $panelType === PanelMember::TYPE_BROKER ? User::TYPE_BROKER : User::TYPE_COACH,
+        ]);
+        $panelUser->assignRole($panelUser->user_type);
+
+        $panelMember = PanelMember::query()->create([
+            'user_id' => $panelUser->getKey(),
+            'panel_type' => $panelType,
+            'status' => PanelMember::STATUS_ACTIVE,
+            'application' => [
+                'company' => $panelType === PanelMember::TYPE_BROKER ? 'Panel Broker Limited' : 'Panel Coach Limited',
+            ],
+            'approved_at' => now()->subWeek(),
+        ]);
+
+        return Referral::query()->create([
+            'client_id' => $client->getKey(),
+            'panel_member_id' => $panelMember->getKey(),
+            'panel_type' => $panelType,
+            'referral_type' => $panelType === PanelMember::TYPE_BROKER ? Referral::TYPE_BROKER : Referral::TYPE_COACH,
+            'stage' => $stage,
+            'payload' => ['reason' => 'Dashboard panel operations fixture.'],
+            'created_by_user_id' => $client->created_by_user_id,
+            'sent_at' => now()->subDay(),
         ]);
     }
 }

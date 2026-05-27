@@ -651,7 +651,215 @@ final class DashboardController extends Controller
                 ...$funnelAnalytics,
                 'methodology_id' => 'funnel.drop_off',
             ],
+            'panelOperations' => $this->panelOperations($user, $clientIds),
         ];
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function panelOperations(User $user, ?array $clientIds): array
+    {
+        return [
+            'broker' => $this->panelReferralQueue(
+                panelType: PanelMember::TYPE_BROKER,
+                terminalStages: [
+                    Referral::STAGE_BROKER_COVER_PLACED,
+                    Referral::STAGE_BROKER_DECLINED,
+                    Referral::STAGE_BROKER_NO_RESPONSE,
+                    Referral::STAGE_WITHDRAWN,
+                ],
+                clientIds: $clientIds,
+                user: $user,
+            ),
+            'coach' => $this->panelReferralQueue(
+                panelType: PanelMember::TYPE_COACH,
+                terminalStages: [
+                    Referral::STAGE_COACH_CONCLUDED,
+                    Referral::STAGE_COACH_DECLINED,
+                    Referral::STAGE_WITHDRAWN,
+                ],
+                clientIds: $clientIds,
+                user: $user,
+            ),
+            'learning' => $this->learningQueue($user),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $terminalStages
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function panelReferralQueue(string $panelType, array $terminalStages, ?array $clientIds, User $user): array
+    {
+        if ($clientIds === []) {
+            return $this->emptyPanelReferralQueue();
+        }
+
+        $base = Referral::query()
+            ->where('panel_type', $panelType);
+
+        if (is_array($clientIds)) {
+            $base->whereIn('client_id', $clientIds);
+        }
+
+        $stageCounts = (clone $base)
+            ->select('stage', DB::raw('count(*) as aggregate'))
+            ->groupBy('stage')
+            ->pluck('aggregate', 'stage')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+
+        $items = (clone $base)
+            ->with(['client', 'entrepreneurProfile', 'panelMember.user'])
+            ->latest('sent_at')
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn (Referral $referral): array => $this->panelReferralQueueItem($referral, $user))
+            ->values()
+            ->all();
+
+        return [
+            'summary' => [
+                'total' => (clone $base)->count(),
+                'active' => (clone $base)->whereNotIn('stage', $terminalStages)->count(),
+                'terminal' => (clone $base)->whereIn('stage', $terminalStages)->count(),
+            ],
+            'stage_counts' => $stageCounts,
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyPanelReferralQueue(): array
+    {
+        return [
+            'summary' => [
+                'total' => 0,
+                'active' => 0,
+                'terminal' => 0,
+            ],
+            'stage_counts' => [],
+            'items' => [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function panelReferralQueueItem(Referral $referral, User $user): array
+    {
+        $client = $referral->client;
+        $entrepreneur = $referral->entrepreneurProfile;
+        $panelMember = $referral->panelMember;
+        $payload = is_array($referral->payload) ? $referral->payload : [];
+        $application = is_array($panelMember?->application) ? $panelMember->application : [];
+
+        return [
+            'id' => $referral->id,
+            'subject_name' => $client?->legal_name
+                ?? $entrepreneur?->name
+                ?? $this->stringFromApplication($payload, 'name')
+                ?? 'Referral subject',
+            'panel_name' => $panelMember?->user?->name
+                ?? $this->stringFromApplication($application, 'company')
+                ?? 'Panel member',
+            'stage' => $referral->stage,
+            'stage_label' => $this->stageLabel($referral->stage),
+            'reason' => $this->stringFromApplication($payload, 'reason')
+                ?? $this->stringFromApplication($payload, 'need')
+                ?? $referral->coach_specialisation,
+            'sent_at' => $referral->sent_at?->toIso8601String(),
+            'detail_url' => $this->panelReferralDetailUrl($referral, $user),
+        ];
+    }
+
+    private function panelReferralDetailUrl(Referral $referral, User $user): ?string
+    {
+        if ($referral->client instanceof Client && $user->can(Permission::CLIENTS_VIEW->value)) {
+            return route('advisor.clients.show', [
+                'client' => $referral->client,
+                'focus' => 'referrals',
+            ], absolute: false);
+        }
+
+        if ($referral->entrepreneurProfile instanceof EntrepreneurProfile && $user->can(Permission::ENTREPRENEURS_VIEW->value)) {
+            return route('advisor.entrepreneurs.show', $referral->entrepreneurProfile, absolute: false);
+        }
+
+        return null;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function learningQueue(User $user): array
+    {
+        if (! Schema::hasTable('learning_updates')) {
+            return [
+                'summary' => [
+                    'detected' => 0,
+                    'staged' => 0,
+                    'approved' => 0,
+                    'implemented' => 0,
+                ],
+                'queue_url' => null,
+                'items' => [],
+            ];
+        }
+
+        $activeStatuses = [
+            LearningUpdate::STATUS_DETECTED,
+            LearningUpdate::STATUS_STAGED,
+            LearningUpdate::STATUS_APPROVED,
+            LearningUpdate::STATUS_DEFERRED,
+        ];
+        $stageCounts = LearningUpdate::query()
+            ->select('status', DB::raw('count(*) as aggregate'))
+            ->groupBy('status')
+            ->pluck('aggregate', 'status')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+        $queueUrl = $user->can(Permission::LEARNING_UPDATES_VIEW->value)
+            ? route('admin.learning-updates.index', absolute: false)
+            : null;
+
+        return [
+            'summary' => [
+                'detected' => (int) ($stageCounts[LearningUpdate::STATUS_DETECTED] ?? 0),
+                'staged' => (int) ($stageCounts[LearningUpdate::STATUS_STAGED] ?? 0),
+                'approved' => (int) ($stageCounts[LearningUpdate::STATUS_APPROVED] ?? 0),
+                'implemented' => (int) ($stageCounts[LearningUpdate::STATUS_IMPLEMENTED] ?? 0),
+            ],
+            'queue_url' => $queueUrl,
+            'items' => LearningUpdate::query()
+                ->whereIn('status', $activeStatuses)
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(fn (LearningUpdate $update): array => [
+                    'id' => $update->id,
+                    'summary' => $update->summary,
+                    'status' => $update->status,
+                    'source_type' => is_array($update->source) ? ($update->source['type'] ?? null) : null,
+                    'confidence' => $update->confidence,
+                    'clients_affected' => $update->clients_affected,
+                    'created_at' => $update->created_at?->toIso8601String(),
+                    'detail_url' => $queueUrl,
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    private function stageLabel(string $stage): string
+    {
+        return ucwords(str_replace('_', ' ', $stage));
     }
 
     /**

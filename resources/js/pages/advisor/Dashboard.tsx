@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import type React from 'react';
 import {
     Activity,
     AlertTriangle,
@@ -473,6 +474,51 @@ type NpoFundingPayload = {
     }>;
 };
 
+type PanelReferralQueue = {
+    summary: {
+        total: number;
+        active: number;
+        terminal: number;
+    };
+    stage_counts: Record<string, number>;
+    items: Array<{
+        id: string;
+        subject_name: string;
+        panel_name: string;
+        stage: string;
+        stage_label: string;
+        reason: string | null;
+        sent_at: string | null;
+        detail_url: string | null;
+    }>;
+};
+
+type LearningQueuePayload = {
+    summary: {
+        detected: number;
+        staged: number;
+        approved: number;
+        implemented: number;
+    };
+    queue_url: string | null;
+    items: Array<{
+        id: string;
+        summary: string;
+        status: string;
+        source_type: string | null;
+        confidence: number;
+        clients_affected: number;
+        created_at: string | null;
+        detail_url: string | null;
+    }>;
+};
+
+type PanelOperationsPayload = {
+    broker: PanelReferralQueue;
+    coach: PanelReferralQueue;
+    learning: LearningQueuePayload;
+};
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -492,6 +538,7 @@ type Props = {
     npoFunding: NpoFundingPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
+    panelOperations: PanelOperationsPayload;
 };
 
 export default function AdvisorDashboard({
@@ -513,6 +560,7 @@ export default function AdvisorDashboard({
     npoFunding,
     scenarioPlanning,
     funnelAnalytics,
+    panelOperations,
 }: Props) {
     return (
         <>
@@ -608,7 +656,7 @@ export default function AdvisorDashboard({
                     <CoachSignals payload={coachSignals} />
                 </div>
 
-                <UpcomingPanels />
+                <PanelOperations payload={panelOperations} />
             </div>
         </>
     );
@@ -2266,22 +2314,206 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
     );
 }
 
-function UpcomingPanels() {
-    const panels = ['Broker referrals', 'Coach referrals', 'Learning queue'];
+function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
+    return (
+        <div className="grid gap-4 xl:grid-cols-3">
+            <PanelReferralQueuePanel
+                title="Broker referrals"
+                description="Broker panel hand-offs and cover-placement progress."
+                icon={<Inbox className="size-4" aria-hidden="true" />}
+                payload={payload.broker}
+                empty="No broker referrals in the current scope."
+            />
+            <PanelReferralQueuePanel
+                title="Coach referrals"
+                description="Founder and client coaching hand-offs."
+                icon={<HeartHandshake className="size-4" aria-hidden="true" />}
+                payload={payload.coach}
+                empty="No coach referrals in the current scope."
+            />
+            <LearningQueuePanel payload={payload.learning} />
+        </div>
+    );
+}
+
+function PanelReferralQueuePanel({
+    title,
+    description,
+    icon,
+    payload,
+    empty,
+}: {
+    title: string;
+    description: string;
+    icon: React.ReactNode;
+    payload: PanelReferralQueue;
+    empty: string;
+}) {
+    const activeStages = Object.entries(payload.stage_counts).filter(
+        ([, count]) => count > 0,
+    );
 
     return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
-            <div className="flex items-center gap-2">
-                <AlertTriangle className="size-4" aria-hidden="true" />
-                <h2 className="text-sm font-medium">Upcoming panels</h2>
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        {icon}
+                        <h2 className="text-sm font-medium">{title}</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {description}
+                    </p>
+                </div>
+                <Badge
+                    variant={payload.summary.active > 0 ? 'default' : 'outline'}
+                >
+                    {payload.summary.active} active
+                </Badge>
             </div>
-            <div className="flex flex-wrap gap-2">
-                {panels.map((panel) => (
-                    <Badge key={panel} variant="outline">
-                        {panel}
-                    </Badge>
-                ))}
+
+            <div className="grid gap-2 sm:grid-cols-3">
+                <PortfolioMetric
+                    label="Total"
+                    value={payload.summary.total.toString()}
+                />
+                <PortfolioMetric
+                    label="Active"
+                    value={payload.summary.active.toString()}
+                />
+                <PortfolioMetric
+                    label="Closed"
+                    value={payload.summary.terminal.toString()}
+                />
             </div>
+
+            {activeStages.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                    {activeStages.map(([stage, count]) => (
+                        <Badge key={stage} variant="secondary">
+                            {formatLabel(stage)} {count}
+                        </Badge>
+                    ))}
+                </div>
+            )}
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{empty}</p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={item.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="truncate text-sm font-medium">
+                                        {item.subject_name}
+                                    </span>
+                                    <Badge variant="outline">
+                                        {item.stage_label}
+                                    </Badge>
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {item.panel_name} ·{' '}
+                                    {formatDate(item.sent_at)}
+                                </div>
+                                {item.reason && (
+                                    <p className="mt-2 line-clamp-2 text-sm">
+                                        {item.reason}
+                                    </p>
+                                )}
+                            </div>
+                            {item.detail_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={item.detail_url}>Open</Link>
+                                </Button>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function LearningQueuePanel({ payload }: { payload: LearningQueuePayload }) {
+    return (
+        <section className="space-y-4 rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <Sparkles className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">Learning queue</h2>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Governed model, questionnaire, and methodology updates.
+                    </p>
+                </div>
+                {payload.queue_url && (
+                    <Button asChild size="sm" variant="outline">
+                        <Link href={payload.queue_url}>Open queue</Link>
+                    </Button>
+                )}
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-4">
+                <PortfolioMetric
+                    label="Detected"
+                    value={payload.summary.detected.toString()}
+                />
+                <PortfolioMetric
+                    label="Staged"
+                    value={payload.summary.staged.toString()}
+                />
+                <PortfolioMetric
+                    label="Approved"
+                    value={payload.summary.approved.toString()}
+                />
+                <PortfolioMetric
+                    label="Live"
+                    value={payload.summary.implemented.toString()}
+                />
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No learning updates are waiting for review.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={item.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="line-clamp-1 text-sm font-medium">
+                                        {item.summary}
+                                    </span>
+                                    <Badge variant="outline">
+                                        {formatLabel(item.status)}
+                                    </Badge>
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {item.source_type
+                                        ? formatLabel(item.source_type)
+                                        : 'Learning update'}{' '}
+                                    · {formatPercent(item.confidence)}{' '}
+                                    confidence · {item.clients_affected} clients
+                                </div>
+                            </div>
+                            {item.detail_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={item.detail_url}>Review</Link>
+                                </Button>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
         </section>
     );
 }
