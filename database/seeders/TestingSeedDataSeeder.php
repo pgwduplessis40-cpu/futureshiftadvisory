@@ -7,10 +7,25 @@ namespace Database\Seeders;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
+use App\Enums\NpoConversionStatus;
+use App\Enums\NpoEngagementSubType;
+use App\Enums\NpoLegalStructure;
+use App\Enums\NpoSocialEnterpriseType;
+use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
+use App\Enums\ReportType;
 use App\Models\Client;
+use App\Models\ClientFunderAlert;
+use App\Models\Document;
+use App\Models\Funder;
+use App\Models\LearningUpdate;
+use App\Models\NpoComplianceAlert;
+use App\Models\NpoDimensionScore;
+use App\Models\NpoTensionAnalysis;
+use App\Models\NpoValueCalculation;
 use App\Models\Questionnaire;
 use App\Models\User;
+use App\Services\Learning\LayerCadenceRegistry;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
@@ -18,6 +33,7 @@ use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Spatie\Permission\Models\Role;
@@ -54,6 +70,7 @@ final class TestingSeedDataSeeder extends Seeder
             PostAcquisitionGapQuestionnaireSeeder::class,
             EntrepreneurReadinessQuestionnaireSeeder::class,
             GovernanceReviewQuestionnaireSeeder::class,
+            StandardNpoQuestionnaireSeeder::class,
             NzResourceSeeder::class,
             RatingFrameworkSeeder::class,
             FoundingRatingFrameworkValuesSeeder::class,
@@ -70,6 +87,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedFinancialsAndAnalysis();
             $this->seedEntrepreneurJourney();
             $this->seedGoalsProposalsAndPayments();
+            $this->seedNpoModuleData();
             $this->seedEngagementTouchpoints();
             $this->seedPanelAndReferralData();
             $this->seedDueDiligenceJourney();
@@ -91,6 +109,10 @@ final class TestingSeedDataSeeder extends Seeder
             'broker' => ['Seed Broker Partner', 'seed.broker@futureshiftadvisory.test', User::TYPE_BROKER, 20],
             'coach' => ['Seed Coach Partner', 'seed.coach@futureshiftadvisory.test', User::TYPE_COACH, 20],
             'mentor' => ['Seed Entrepreneur Mentor', 'seed.mentor@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR_MENTOR, 20],
+            'npoPrimary' => ['Seed NPO Primary', 'seed.npo.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
+            'npoTreasurer' => ['Seed NPO Treasurer', 'seed.npo.treasurer@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
+            'npoBoard' => ['Seed NPO Board Chair', 'seed.npo.board@futureshiftadvisory.test', User::TYPE_NPO_BOARD_MEMBER, 20],
+            'socialEnterprise' => ['Seed Social Enterprise Lead', 'seed.social.enterprise@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'suspendedClient' => ['Seed Suspended Contact', 'seed.suspended@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 10],
         ];
 
@@ -435,6 +457,79 @@ final class TestingSeedDataSeeder extends Seeder
             ],
         );
 
+        $this->clients['npo'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000072'],
+            [
+                'engagement_type' => EngagementType::NPO->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Aroha Community Trust',
+                'trading_name' => 'Aroha Community',
+                'entity_type' => 'Registered Charity and Incorporated Society',
+                'address' => [
+                    'line1' => '18 Rimu Road',
+                    'city' => 'Hamilton',
+                    'region' => 'Waikato',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => false,
+                'directors' => [
+                    ['name' => 'Seed NPO Board Chair', 'role' => 'Board chair'],
+                    ['name' => 'Seed NPO Treasurer', 'role' => 'Treasurer'],
+                ],
+                'filing_status' => 'reregistration_in_progress',
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'registry_sources' => [
+                    'charities_services' => 'seeded',
+                    'companies_office' => 'fixture',
+                    'funding_register' => 'seeded',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['npoPrimary']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(24),
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['profile', 'team', 'documents', 'questionnaire'],
+                    'current_step' => 'advisor_review',
+                    'npo_stream' => 'standard_npo',
+                ],
+            ],
+        );
+
+        $this->clients['socialEnterprise'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000089'],
+            [
+                'engagement_type' => EngagementType::NPO->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Tupu Community Trading Limited',
+                'trading_name' => 'Tupu Trading',
+                'entity_type' => 'Social Enterprise Registered Charity',
+                'address' => [
+                    'line1' => '6 Cuba Street',
+                    'city' => 'Wellington',
+                    'region' => 'Wellington',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Seed Social Enterprise Lead', 'role' => 'General Manager'],
+                    ['name' => 'Seed NPO Board Chair', 'role' => 'Trustee'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_MEDIUM,
+                'registry_sources' => [
+                    'charities_services' => 'seeded',
+                    'social_enterprise_profile' => 'fixture',
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['socialEnterprise']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(16),
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['profile', 'team', 'documents', 'questionnaire'],
+                    'current_step' => 'impact_metrics',
+                    'npo_stream' => 'social_enterprise',
+                ],
+            ],
+        );
+
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
     }
@@ -458,6 +553,12 @@ final class TestingSeedDataSeeder extends Seeder
             ['offboarded', 'primary', 'primary_contact', ['portal', 'reports']],
             ['suspended', 'advisor', 'lead_advisor', ['dashboard']],
             ['suspended', 'suspendedClient', 'primary_contact', ['portal']],
+            ['npo', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports', 'npo', 'funding']],
+            ['npo', 'junior', 'advisor', ['dashboard', 'documents', 'questionnaire', 'npo']],
+            ['npo', 'npoPrimary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports', 'npo']],
+            ['npo', 'npoTreasurer', 'finance_contact', ['portal', 'documents', 'funding', 'reports', 'npo']],
+            ['socialEnterprise', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports', 'npo', 'social_enterprise']],
+            ['socialEnterprise', 'socialEnterprise', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports', 'npo', 'social_enterprise']],
         ];
 
         foreach ($members as [$clientKey, $userKey, $role, $modules]) {
@@ -473,7 +574,7 @@ final class TestingSeedDataSeeder extends Seeder
 
     private function seedConflictDeclarations(): void
     {
-        foreach (['advisory', 'dd', 'postAcquisition'] as $clientKey) {
+        foreach (['advisory', 'dd', 'postAcquisition', 'npo', 'socialEnterprise'] as $clientKey) {
             $this->ids["conflict_{$clientKey}"] = $this->upsert('conflict_declarations', [
                 'client_id' => $this->clients[$clientKey]->getKey(),
                 'advisor_id' => $this->users['advisor']->getKey(),
@@ -1283,6 +1384,1093 @@ final class TestingSeedDataSeeder extends Seeder
         ]);
     }
 
+    private function seedNpoModuleData(): void
+    {
+        $this->seedNpoEngagements();
+        $this->seedNpoDocumentsAndQuestionnaires();
+        $this->seedNpoGovernanceAndHealth();
+        $this->seedNpoFundingValueAndReports();
+    }
+
+    private function seedNpoEngagements(): void
+    {
+        $this->ids['npo_governance_engagement'] = $this->upsert('npo_engagements', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'sub_type' => NpoEngagementSubType::GovernanceReview->value,
+        ], [
+            'legal_structure' => NpoLegalStructure::RegisteredCharityAndIncorporatedSociety->value,
+            'tiriti_mode' => NpoTiritiMode::Standalone->value,
+            'tiriti_decision_guide' => $this->json([
+                'governance_obligation' => true,
+                'mana_whenua_relationship' => true,
+                'tiriti_outcomes' => true,
+            ]),
+            'social_enterprise' => false,
+            'social_enterprise_type' => null,
+            'commercial_weight' => null,
+            'mission_weight' => null,
+            'isa_2022_reregistered' => false,
+            'converted_from_npo_engagement_id' => null,
+            'conversion_status' => NpoConversionStatus::Converted->value,
+            'conversion_decline_reason' => null,
+            'report_delivered_at' => $this->now->copy()->subDays(21),
+            'reengagement_due_at' => $this->now->copy()->addMonthsNoOverflow(11)->toDateString(),
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'updated_by_user_id' => $this->users['advisor']->getKey(),
+        ]);
+
+        $this->ids['npo_standard_engagement'] = $this->upsert('npo_engagements', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'sub_type' => NpoEngagementSubType::StandardNpo->value,
+        ], [
+            'legal_structure' => NpoLegalStructure::RegisteredCharityAndIncorporatedSociety->value,
+            'tiriti_mode' => NpoTiritiMode::Woven->value,
+            'tiriti_decision_guide' => $this->json([
+                'governance_obligation' => true,
+                'mana_whenua_relationship' => true,
+                'tiriti_outcomes' => true,
+            ]),
+            'social_enterprise' => false,
+            'social_enterprise_type' => null,
+            'commercial_weight' => null,
+            'mission_weight' => null,
+            'isa_2022_reregistered' => false,
+            'converted_from_npo_engagement_id' => $this->ids['npo_governance_engagement'],
+            'conversion_status' => null,
+            'conversion_decline_reason' => null,
+            'report_delivered_at' => null,
+            'reengagement_due_at' => $this->now->copy()->addYear()->toDateString(),
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'updated_by_user_id' => $this->users['advisor']->getKey(),
+        ]);
+
+        $this->ids['social_enterprise_engagement'] = $this->upsert('npo_engagements', [
+            'client_id' => $this->clients['socialEnterprise']->getKey(),
+            'sub_type' => NpoEngagementSubType::SocialEnterprise->value,
+        ], [
+            'legal_structure' => NpoLegalStructure::SocialEnterpriseRegisteredCharity->value,
+            'tiriti_mode' => NpoTiritiMode::Woven->value,
+            'tiriti_decision_guide' => $this->json([
+                'governance_obligation' => true,
+                'mana_whenua_relationship' => false,
+                'tiriti_outcomes' => true,
+            ]),
+            'social_enterprise' => true,
+            'social_enterprise_type' => NpoSocialEnterpriseType::CrossSubsidy->value,
+            'commercial_weight' => NpoSocialEnterpriseType::CrossSubsidy->commercialWeight(),
+            'mission_weight' => NpoSocialEnterpriseType::CrossSubsidy->missionWeight(),
+            'isa_2022_reregistered' => true,
+            'converted_from_npo_engagement_id' => null,
+            'conversion_status' => null,
+            'conversion_decline_reason' => null,
+            'report_delivered_at' => null,
+            'reengagement_due_at' => $this->now->copy()->addMonthsNoOverflow(10)->toDateString(),
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'updated_by_user_id' => $this->users['advisor']->getKey(),
+        ]);
+
+        foreach ([
+            ['npo', 'npo_standard_engagement', 'npoBoard', false],
+            ['npo', 'npo_standard_engagement', 'npoTreasurer', true],
+            ['socialEnterprise', 'social_enterprise_engagement', 'npoBoard', false],
+        ] as [$clientKey, $engagementKey, $userKey, $treasurer]) {
+            $this->upsert('npo_board_members', [
+                'npo_engagement_id' => $this->ids[$engagementKey],
+                'user_id' => $this->users[$userKey]->getKey(),
+            ], [
+                'client_id' => $this->clients[$clientKey]->getKey(),
+                'treasurer' => $treasurer,
+                'active' => true,
+                'revoked_at' => null,
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'revoked_by_user_id' => null,
+            ]);
+        }
+    }
+
+    private function seedNpoDocumentsAndQuestionnaires(): void
+    {
+        $this->ids['doc_npo_constitution'] = $this->document(
+            key: 'npo-current-constitution',
+            client: $this->clients['npo'],
+            category: Document::CATEGORY_NPO_BOARD_RECORD,
+            filename: 'aroha-community-constitution.pdf',
+            uploader: $this->users['npoPrimary'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: $this->now->copy()->addMonthsNoOverflow(10),
+            size: 310_000,
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+        );
+        $this->ids['doc_npo_board_minutes'] = $this->document(
+            key: 'npo-board-minutes-may',
+            client: $this->clients['npo'],
+            category: Document::CATEGORY_NPO_MEETING_MINUTES,
+            filename: 'aroha-board-minutes-may-2026.pdf',
+            uploader: $this->users['npoTreasurer'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: null,
+            size: 190_000,
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+        );
+        $this->ids['doc_npo_financials'] = $this->document(
+            key: 'npo-management-accounts-april',
+            client: $this->clients['npo'],
+            category: Document::CATEGORY_FINANCIAL_STATEMENT,
+            filename: 'aroha-management-accounts-april-2026.pdf',
+            uploader: $this->users['npoTreasurer'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: null,
+            size: 380_000,
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+        );
+        $this->ids['doc_npo_funding_agreement'] = $this->document(
+            key: 'npo-community-wellbeing-fund-agreement',
+            client: $this->clients['npo'],
+            category: Document::CATEGORY_COMPLIANCE_DOC,
+            filename: 'community-wellbeing-fund-agreement.pdf',
+            uploader: $this->users['npoPrimary'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: $this->now->copy()->addDays(60),
+            size: 240_000,
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+        );
+        $this->ids['doc_npo_governance_pack'] = $this->document(
+            key: 'npo-governance-review-pack',
+            client: $this->clients['npo'],
+            category: Document::CATEGORY_NPO_BOARD_RECORD,
+            filename: 'aroha-governance-review-evidence-pack.pdf',
+            uploader: $this->users['npoBoard'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: null,
+            size: 520_000,
+            npoEngagementId: (string) $this->ids['npo_governance_engagement'],
+        );
+        $this->ids['doc_social_enterprise_impact'] = $this->document(
+            key: 'social-enterprise-impact-dashboard',
+            client: $this->clients['socialEnterprise'],
+            category: Document::CATEGORY_NPO_BOARD_RECORD,
+            filename: 'tupu-impact-dashboard.pdf',
+            uploader: $this->users['socialEnterprise'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: null,
+            size: 275_000,
+            npoEngagementId: (string) $this->ids['social_enterprise_engagement'],
+        );
+
+        $governance = $this->seedQuestionnaireResponse(
+            client: $this->clients['npo'],
+            set: QuestionnaireSet::GOVERNANCE_REVIEW,
+            submittedBy: $this->users['npoBoard'],
+            attachedDocumentId: (string) $this->ids['doc_npo_governance_pack'],
+            npoEngagementId: (string) $this->ids['npo_governance_engagement'],
+        );
+        $this->ids['npo_governance_response'] = $governance['response_id'];
+
+        $standard = $this->seedQuestionnaireResponse(
+            client: $this->clients['npo'],
+            set: QuestionnaireSet::STANDARD_NPO,
+            submittedBy: $this->users['npoPrimary'],
+            attachedDocumentId: (string) $this->ids['doc_npo_constitution'],
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+        );
+        $this->ids['npo_standard_response'] = $standard['response_id'];
+
+        $social = $this->seedQuestionnaireResponse(
+            client: $this->clients['socialEnterprise'],
+            set: QuestionnaireSet::STANDARD_NPO,
+            submittedBy: $this->users['socialEnterprise'],
+            attachedDocumentId: (string) $this->ids['doc_social_enterprise_impact'],
+            npoEngagementId: (string) $this->ids['social_enterprise_engagement'],
+        );
+        $this->ids['social_enterprise_response'] = $social['response_id'];
+
+        $this->ids['verification_npo_constitution'] = $this->verification(
+            documentId: (string) $this->ids['doc_npo_constitution'],
+            context: 'npo-constitution-current',
+            client: $this->clients['npo'],
+            claim: 'The governing document is uploaded and available for advisor review.',
+            outcome: 'verified',
+            confidence: 0.92,
+            questionnaireResponseId: (string) $standard['response_id'],
+            questionnaireAnswerId: $standard['file_answer_id'],
+            questionnaireQuestionId: $standard['file_question_id'],
+            questionPrompt: $standard['file_question_prompt'],
+        );
+        $this->verification(
+            documentId: (string) $this->ids['doc_npo_funding_agreement'],
+            context: 'npo-funding-reporting-deadline',
+            client: $this->clients['npo'],
+            claim: 'The funder agreement includes a reporting deadline inside the next quarter.',
+            outcome: 'verified',
+            confidence: 0.88,
+            explanation: 'Seeded agreement fixture supports the reporting deadline used by funder alerts.',
+        );
+    }
+
+    private function seedNpoGovernanceAndHealth(): void
+    {
+        foreach ([
+            'constitution-reregistration' => [
+                'category' => 'constitution_compliance',
+                'severity' => 'high',
+                'title' => 'Constitution update needs board sign-off before re-registration',
+                'body' => 'The evidence pack shows the Incorporated Societies Act 2022 re-registration work is in progress but not yet complete.',
+            ],
+            'conflicts-register' => [
+                'category' => 'board_controls',
+                'severity' => 'medium',
+                'title' => 'Conflicts register is present but not reviewed every meeting',
+                'body' => 'Board minutes cite annual interest declarations, while the governance questionnaire says conflict checks are not standing agenda items.',
+            ],
+            'financial-delegations' => [
+                'category' => 'financial_oversight',
+                'severity' => 'medium',
+                'title' => 'Financial delegations need clearer two-person approval thresholds',
+                'body' => 'The treasurer pack includes approvals but does not show a written delegation matrix for grant-restricted spend.',
+            ],
+        ] as $key => $finding) {
+            $this->upsert('governance_review_findings', [
+                'client_id' => $this->clients['npo']->getKey(),
+                'npo_engagement_id' => $this->ids['npo_governance_engagement'],
+                'finding_key' => "seed-{$key}",
+            ], [
+                'category' => $finding['category'],
+                'severity' => $finding['severity'],
+                'title' => $finding['title'],
+                'body' => $finding['body'],
+                'criteria' => $this->json([
+                    'legal_structure' => NpoLegalStructure::RegisteredCharityAndIncorporatedSociety->value,
+                    'fixture' => true,
+                ]),
+                'evidence' => $this->json([
+                    ['document_id' => $this->ids['doc_npo_governance_pack'], 'claim' => 'Governance evidence pack reviewed.'],
+                    ['questionnaire_response_id' => $this->ids['npo_governance_response']],
+                ]),
+                'attributions' => $this->json([
+                    ['type' => 'document', 'id' => $this->ids['doc_npo_governance_pack']],
+                    ['type' => 'questionnaire_response', 'id' => $this->ids['npo_governance_response']],
+                ]),
+                'uncertainty' => 'medium',
+                'ai_payload' => $this->json(['model' => 'seeded-governance-review', 'fixture' => true]),
+                'status' => 'reviewed',
+                'advisor_notes' => 'Seeded reviewed finding for NPO module testing.',
+                'reviewed_at' => $this->now->copy()->subDays(14),
+                'reviewed_by_user_id' => $this->users['advisor']->getKey(),
+            ]);
+        }
+
+        $this->upsert('npo_dimension_scores', [
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'assessment_batch_id' => $this->stableUuid('seed-npo-governance-prepopulation-'.$this->ids['npo_standard_engagement']),
+            'dimension_number' => 3,
+        ], [
+            'client_id' => $this->clients['npo']->getKey(),
+            'dimension_key' => 'governance_compliance',
+            'dimension_label' => 'Governance and compliance',
+            'tiriti_mode' => NpoTiritiMode::Woven->value,
+            'score' => 60,
+            'advisor_weight' => 22,
+            'weighted_score' => 13.20,
+            'health_score' => null,
+            'findings' => $this->json([[
+                'title' => 'Governance review pre-populated the governance dimension.',
+                'severity' => 'medium',
+                'attributions' => [['type' => 'npo_engagement', 'id' => $this->ids['npo_governance_engagement']]],
+            ]]),
+            'mode_b_criteria_contributions' => $this->json(['[TIRITI] governance obligations and board accountability']),
+            'source_attributions' => $this->json([['type' => 'npo_engagement', 'id' => $this->ids['npo_governance_engagement']]]),
+            'scoring_context' => $this->json([
+                'fixture' => true,
+                'prepopulation' => [
+                    'source_npo_engagement_id' => $this->ids['npo_governance_engagement'],
+                    'finding_count' => 3,
+                ],
+            ]),
+            'source' => NpoDimensionScore::SOURCE_GOVERNANCE_REVIEW_PREPOPULATION,
+            'source_npo_engagement_id' => $this->ids['npo_governance_engagement'],
+            'captured_at' => $this->now->copy()->subDays(6),
+        ]);
+
+        $this->seedNpoDimensionBatch(
+            client: $this->clients['npo'],
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+            mode: NpoTiritiMode::Woven,
+            scores: [
+                'mission_strategy' => 78,
+                'service_operations' => 73,
+                'governance_compliance' => 62,
+                'financial_sustainability' => 68,
+                'people_capability' => 74,
+                'impact_measurement' => 66,
+                'funding_resilience' => 58,
+            ],
+            findings: [
+                'governance_compliance' => [[
+                    'title' => 'Re-registration remains the critical governance dependency.',
+                    'severity' => 'high',
+                    'attributions' => [['type' => 'governance_review_finding', 'key' => 'seed-constitution-reregistration']],
+                ]],
+                'funding_resilience' => [[
+                    'title' => 'Anchor funder concentration needs renewal planning.',
+                    'severity' => 'medium',
+                    'attributions' => [['type' => 'client_funder_record', 'key' => 'Community Wellbeing Fund']],
+                ]],
+            ],
+            capturedAt: $this->now->copy()->subDays(5),
+            batchKey: 'seed-npo-standard-health',
+        );
+
+        $this->seedNpoDimensionBatch(
+            client: $this->clients['socialEnterprise'],
+            npoEngagementId: (string) $this->ids['social_enterprise_engagement'],
+            mode: NpoTiritiMode::Woven,
+            scores: [
+                'mission_strategy' => 72,
+                'service_operations' => 76,
+                'governance_compliance' => 69,
+                'financial_sustainability' => 64,
+                'people_capability' => 71,
+                'impact_measurement' => 83,
+                'funding_resilience' => 57,
+            ],
+            findings: [
+                'financial_sustainability' => [[
+                    'title' => 'Cross-subsidy margin is improving but still sensitive to training cohort fill rates.',
+                    'severity' => 'medium',
+                    'attributions' => [['type' => 'document', 'id' => $this->ids['doc_social_enterprise_impact']]],
+                ]],
+                'impact_measurement' => [[
+                    'title' => 'Impact dashboard is board-ready and funder-facing.',
+                    'severity' => 'low',
+                    'attributions' => [['type' => 'document', 'id' => $this->ids['doc_social_enterprise_impact']]],
+                ]],
+            ],
+            capturedAt: $this->now->copy()->subDays(4),
+            batchKey: 'seed-social-enterprise-health',
+        );
+
+        $this->upsert('npo_compliance_alerts', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'type' => NpoComplianceAlert::TYPE_ISA_2022_REREGISTRATION_MISSING,
+        ], [
+            'severity' => NpoComplianceAlert::SEVERITY_CRITICAL,
+            'message' => 'Incorporated Societies Act 2022 re-registration is not yet complete.',
+            'source' => 'governance_review',
+            'metadata' => $this->json([
+                'finding_key' => 'seed-constitution-reregistration',
+                'blocks_analysis' => true,
+            ]),
+            'triggered_at' => $this->now->copy()->subDays(14),
+            'acknowledged_at' => null,
+            'acknowledged_by_user_id' => null,
+            'resolved_at' => null,
+        ]);
+        $this->upsert('npo_compliance_alerts', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'type' => 'charities_return_due',
+        ], [
+            'severity' => 'high',
+            'message' => 'Charities Services annual return is due inside the next quarter.',
+            'source' => 'charities_services_fixture',
+            'metadata' => $this->json(['due_on' => $this->now->copy()->addDays(54)->toDateString()]),
+            'triggered_at' => $this->now->copy()->subDays(2),
+            'acknowledged_at' => $this->now->copy()->subDay(),
+            'acknowledged_by_user_id' => $this->users['advisor']->getKey(),
+            'resolved_at' => null,
+        ]);
+    }
+
+    private function seedNpoFundingValueAndReports(): void
+    {
+        $learningUpdateId = $this->upsert('learning_updates', [
+            'layer_id' => LayerCadenceRegistry::LAYER_NPO_FUNDER_DATABASE_UPDATES,
+            'summary' => 'Seeded NPO funder registry baseline',
+        ], [
+            'source' => $this->json(['type' => 'testing_seed', 'fixture' => true]),
+            'proposed_change' => $this->json(['action' => 'seed_funder_registry']),
+            'impact_scope' => $this->json(['surface' => 'npo_funder_registry']),
+            'clients_affected' => 2,
+            'magnitude' => 'low',
+            'confidence' => 0.9000,
+            'evidence' => $this->json(['source' => 'seed fixture']),
+            'effective_date' => $this->now->copy()->subDays(30),
+            'pre_implementation_notice_at' => null,
+            'review_due_at' => $this->now->copy()->addMonthsNoOverflow(3),
+            'status' => LearningUpdate::STATUS_APPROVED,
+            'decided_by_user_id' => $this->users['admin']->getKey(),
+            'decided_at' => $this->now->copy()->subDays(29),
+            'rollback_id' => null,
+        ]);
+        $this->ids['npo_funder_learning_update'] = $learningUpdateId;
+
+        foreach ([
+            'community_wellbeing' => [
+                'name' => 'Seed Community Wellbeing Fund',
+                'type' => Funder::TYPE_PHILANTHROPIC,
+                'windows' => [['opens' => $this->now->copy()->addDays(60)->toDateString(), 'closes' => $this->now->copy()->addDays(90)->toDateString()]],
+                'criteria' => ['region' => 'Waikato', 'focus' => ['youth', 'community wellbeing']],
+                'requirements' => ['six_month_report' => true, 'impact_metrics' => ['participants', 'volunteer_hours']],
+                'renewal' => ['renewal_weight' => 0.72, 'relationship_signal' => 'warm'],
+            ],
+            'council' => [
+                'name' => 'Seed Auckland Council Community Grants',
+                'type' => Funder::TYPE_GOVERNMENT,
+                'windows' => [['opens' => $this->now->copy()->subDays(1)->toDateString(), 'closes' => $this->now->copy()->addDays(21)->toDateString()]],
+                'criteria' => ['region' => 'Auckland', 'requires_charity_registration' => true],
+                'requirements' => ['annual_report' => true, 'receipts' => true],
+                'renewal' => ['renewal_weight' => 0.55, 'relationship_signal' => 'standard'],
+            ],
+            'impact_enterprise' => [
+                'name' => 'Seed Impact Enterprise Foundation',
+                'type' => Funder::TYPE_COMMUNITY,
+                'windows' => [['opens' => $this->now->copy()->addDays(18)->toDateString(), 'closes' => $this->now->copy()->addDays(48)->toDateString()]],
+                'criteria' => ['focus' => ['employment pathways', 'social enterprise'], 'earned_income_required' => true],
+                'requirements' => ['quarterly_dashboard' => true, 'case_studies' => true],
+                'renewal' => ['renewal_weight' => 0.64, 'relationship_signal' => 'developing'],
+            ],
+        ] as $key => $funder) {
+            $this->ids["funder_{$key}"] = $this->upsert('funders', ['name' => $funder['name']], [
+                'type' => $funder['type'],
+                'funding_windows' => $this->json($funder['windows']),
+                'criteria' => $this->json($funder['criteria']),
+                'reporting_requirements' => $this->json($funder['requirements']),
+                'renewal_intelligence' => $this->json($funder['renewal']),
+                'last_verified_at' => $this->now->copy()->subDays(11),
+                'source_learning_update_id' => $learningUpdateId,
+            ]);
+        }
+
+        $this->ids['npo_funder_record_community'] = $this->upsert('client_funder_records', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'funder_id' => $this->ids['funder_community_wellbeing'],
+            'grant_name' => 'Community wellbeing backbone grant',
+        ], [
+            'grant_amount' => 120_000,
+            'currency' => 'NZD',
+            'period_start' => $this->now->copy()->subMonthsNoOverflow(2)->startOfMonth()->toDateString(),
+            'period_end' => $this->now->copy()->addMonthsNoOverflow(10)->endOfMonth()->toDateString(),
+            'conditions' => $this->json(['restricted_to' => 'youth outreach', 'six_month_report' => true]),
+            'reporting_deadline' => $this->now->copy()->addDays(30)->toDateString(),
+            'next_application_window_opens_at' => $this->now->copy()->addDays(60)->toDateString(),
+            'next_application_window_closes_at' => $this->now->copy()->addDays(90)->toDateString(),
+            'grant_expiry_at' => $this->now->copy()->addDays(60)->toDateString(),
+            'renewal_probability' => 72,
+            'notes' => 'Anchor funder with report due and renewal window coming up.',
+            'history' => $this->json([
+                ['event' => 'grant_awarded', 'at' => $this->now->copy()->subMonthsNoOverflow(2)->toDateString()],
+                ['event' => 'advisor_reviewed_conditions', 'at' => $this->now->copy()->subDays(8)->toDateString()],
+            ]),
+        ]);
+        $this->ids['npo_funder_record_council'] = $this->upsert('client_funder_records', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'funder_id' => $this->ids['funder_council'],
+            'grant_name' => 'Local activation grant',
+        ], [
+            'grant_amount' => 45_000,
+            'currency' => 'NZD',
+            'period_start' => $this->now->copy()->subMonth()->startOfMonth()->toDateString(),
+            'period_end' => $this->now->copy()->addMonthsNoOverflow(5)->endOfMonth()->toDateString(),
+            'conditions' => $this->json(['receipts_required' => true, 'restricted_to' => 'community events']),
+            'reporting_deadline' => $this->now->copy()->addDays(7)->toDateString(),
+            'next_application_window_opens_at' => $this->now->copy()->subDay()->toDateString(),
+            'next_application_window_closes_at' => $this->now->copy()->addDays(21)->toDateString(),
+            'grant_expiry_at' => $this->now->copy()->addMonthsNoOverflow(5)->toDateString(),
+            'renewal_probability' => 58,
+            'notes' => 'Short-cycle grant useful for alert and deadline testing.',
+            'history' => $this->json([['event' => 'grant_record_seeded']]),
+        ]);
+        $this->ids['social_funder_record_impact'] = $this->upsert('client_funder_records', [
+            'client_id' => $this->clients['socialEnterprise']->getKey(),
+            'npo_engagement_id' => $this->ids['social_enterprise_engagement'],
+            'funder_id' => $this->ids['funder_impact_enterprise'],
+            'grant_name' => 'Employment pathway growth grant',
+        ], [
+            'grant_amount' => 85_000,
+            'currency' => 'NZD',
+            'period_start' => $this->now->copy()->subMonth()->startOfMonth()->toDateString(),
+            'period_end' => $this->now->copy()->addYear()->endOfMonth()->toDateString(),
+            'conditions' => $this->json(['employment_outcomes' => true, 'earned_income_reporting' => true]),
+            'reporting_deadline' => $this->now->copy()->addDays(45)->toDateString(),
+            'next_application_window_opens_at' => $this->now->copy()->addDays(18)->toDateString(),
+            'next_application_window_closes_at' => $this->now->copy()->addDays(48)->toDateString(),
+            'grant_expiry_at' => $this->now->copy()->addYear()->toDateString(),
+            'renewal_probability' => 64,
+            'notes' => 'Social enterprise grant connected to dual-impact reporting.',
+            'history' => $this->json([['event' => 'impact_dashboard_shared']]),
+        ]);
+
+        foreach ([
+            ['npo_funder_record_community', ClientFunderAlert::TYPE_REPORT_DUE_30, ClientFunderAlert::SEVERITY_MEDIUM, 'Funder report due in 30 days.', $this->now->copy()->addDays(30)],
+            ['npo_funder_record_community', ClientFunderAlert::TYPE_GRANT_EXPIRY_60, ClientFunderAlert::SEVERITY_HIGH, 'Grant expires in 60 days.', $this->now->copy()->addDays(60)],
+            ['npo_funder_record_council', ClientFunderAlert::TYPE_REPORT_DUE_7, ClientFunderAlert::SEVERITY_HIGH, 'Funder report due in 7 days.', $this->now->copy()->addDays(7)],
+            ['npo_funder_record_council', ClientFunderAlert::TYPE_APPLICATION_WINDOW_OPEN, ClientFunderAlert::SEVERITY_HIGH, 'Funder application window is open.', $this->now->copy()->subDay()],
+        ] as [$recordKey, $type, $severity, $message, $dueOn]) {
+            $recordId = (string) $this->ids[$recordKey];
+            $clientId = DB::table('client_funder_records')->where('id', $recordId)->value('client_id');
+            $this->upsert('client_funder_alerts', [
+                'alert_key' => "{$recordId}:{$type}:{$dueOn->toDateString()}",
+            ], [
+                'client_id' => $clientId,
+                'client_funder_record_id' => $recordId,
+                'type' => $type,
+                'severity' => $severity,
+                'message' => $message,
+                'due_on' => $dueOn->toDateString(),
+                'triggered_at' => $this->now->copy()->subHours(3),
+                'resolved_at' => null,
+                'metadata' => $this->json(['fixture' => true, 'record_key' => $recordKey]),
+            ]);
+        }
+
+        $this->ids['npo_accounting_connection'] = $this->upsert('accounting_connections', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'provider' => 'manual_npo',
+        ], [
+            'external_tenant_id' => 'seed-manual-aroha',
+            'status' => 'connected',
+            'token_envelope' => encrypt('seed-manual-npo-token'),
+            'token_envelope_meta' => $this->json(['fixture' => true]),
+            'scopes' => $this->json(['manual.financials.read']),
+            'connected_by_user_id' => $this->users['npoTreasurer']->getKey(),
+            'connected_at' => $this->now->copy()->subDays(18),
+            'revoked_by_user_id' => null,
+            'revoked_at' => null,
+            'last_snapshot_at' => $this->now->copy()->subDay(),
+        ]);
+        $this->firstOrInsert('financial_snapshots', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'accounting_connection_id' => $this->ids['npo_accounting_connection'],
+            'period_end' => '2026-04-30',
+            'source' => 'seeded_npo_manual',
+        ], [
+            'provider' => 'manual_npo',
+            'period_start' => '2026-04-01',
+            'source_badge' => 'seeded',
+            'degraded' => false,
+            'correlation_id' => null,
+            'profit_and_loss' => $this->json(['revenue' => 420000, 'grant_revenue' => 310000, 'programme_expenditure' => 230000, 'surplus' => 18000]),
+            'balance_sheet' => $this->json(['cash' => 118000, 'restricted_cash' => 62000, 'unrestricted_reserves' => 96000, 'liabilities' => 41000]),
+            'cash_flow' => $this->json(['operating' => 22000, 'grant_receipts' => 125000, 'programme_spend' => -74000]),
+            'metrics' => $this->json(['months_unrestricted_reserves' => 4.8, 'beneficiaries_served' => 520, 'monthly_opex' => 20000]),
+            'pulled_at' => $this->now->copy()->subDay(),
+        ]);
+
+        $this->ids['npo_value_cost_per_beneficiary'] = $this->upsert('npo_value_calculations', [
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'type' => NpoValueCalculation::TYPE_COST_PER_BENEFICIARY,
+            'calculated_at' => $this->stableTimestamp('2026-05-23 09:00:00'),
+        ], [
+            'client_id' => $this->clients['npo']->getKey(),
+            'dimension_number' => 4,
+            'programme_type' => 'community_services',
+            'size_band' => 'medium',
+            'rating' => 'watch',
+            'projection_mid' => 28_000,
+            'projection_low' => 23_800,
+            'projection_high' => 32_200,
+            'inputs' => $this->json(['programme_expenditure' => 230000, 'beneficiary_count' => 520, 'programme_type' => 'community_services']),
+            'result' => $this->json([
+                'cost_per_beneficiary' => 442.31,
+                'benchmark_cost_per_beneficiary' => 388.00,
+                'variance_to_benchmark' => 54.31,
+                'rating' => 'watch',
+                'mission_framing' => 'Efficiency improvement is framed as capacity to serve more whanau, not surplus extraction.',
+                'projections' => [[
+                    'key' => 'annual_reinvestment_capacity',
+                    'label' => 'Annual reinvestment capacity',
+                    'mid' => 28_000,
+                    'low' => 23_800,
+                    'high' => 32_200,
+                    'unit' => 'nzd',
+                    'uncertainty' => ['rate' => 0.15, 'basis' => '+/-15% seed uncertainty range'],
+                ]],
+            ]),
+            'benchmark_config' => $this->json(['source_reference' => 'seed-layer-36-community-services-medium', 'cost_per_beneficiary' => 388.00]),
+            'source_attributions' => $this->json([
+                ['claim' => 'Programme expenditure came from seeded NPO financial snapshot.', 'source_reference' => 'financial_snapshots:seeded_npo_manual'],
+            ]),
+            'stable_assumption_disclosure' => 'Projection keeps programme scope, beneficiary demand, and delivery cost base stable; every projection carries a +/-15% uncertainty range.',
+        ]);
+        $this->ids['npo_value_funding_risk'] = $this->upsert('npo_value_calculations', [
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'type' => NpoValueCalculation::TYPE_FUNDING_RISK,
+            'calculated_at' => $this->stableTimestamp('2026-05-23 10:00:00'),
+        ], [
+            'client_id' => $this->clients['npo']->getKey(),
+            'dimension_number' => 2,
+            'programme_type' => null,
+            'size_band' => null,
+            'rating' => 'high',
+            'projection_mid' => 92_000,
+            'projection_low' => 78_200,
+            'projection_high' => 105_800,
+            'inputs' => $this->json(['annual_revenue' => 420000, 'largest_funder_amount' => 120000, 'unrestricted_reserves' => 96000]),
+            'result' => $this->json([
+                'rating' => 'high',
+                'concentration' => ['largest_funder_ratio' => 0.2857, 'largest_funder_name' => 'Seed Community Wellbeing Fund'],
+                'runway' => ['months' => 4.8, 'rating' => 'watch'],
+                'mission_framing' => 'Funding risk value estimates mission delivery capacity exposed through renewal uncertainty and reserve runway pressure.',
+                'projections' => [[
+                    'key' => 'risk_exposure',
+                    'label' => 'Funding risk value',
+                    'mid' => 92_000,
+                    'low' => 78_200,
+                    'high' => 105_800,
+                    'unit' => 'nzd',
+                    'uncertainty' => ['rate' => 0.15, 'basis' => '+/-15% seed uncertainty range'],
+                ]],
+            ]),
+            'benchmark_config' => $this->json(['source_reference' => 'seed-layer-37-funding-thresholds', 'largest_funder_watch' => 0.25]),
+            'source_attributions' => $this->json([
+                ['claim' => 'Funder concentration came from seeded client funder records.', 'source_reference' => 'client_funder_records:seed'],
+            ]),
+            'stable_assumption_disclosure' => 'Projection keeps current revenue, unrestricted reserves, operating cost base, and renewal probabilities stable; every projection carries a +/-15% uncertainty range.',
+        ]);
+
+        $this->ids['social_scorecard'] = $this->upsert('npo_social_enterprise_scorecards', [
+            'npo_engagement_id' => $this->ids['social_enterprise_engagement'],
+            'calculated_at' => $this->stableTimestamp('2026-05-24 09:00:00'),
+        ], [
+            'client_id' => $this->clients['socialEnterprise']->getKey(),
+            'commercial_score' => 68,
+            'mission_score' => 70,
+            'commercial_weight' => NpoSocialEnterpriseType::CrossSubsidy->commercialWeight(),
+            'mission_weight' => NpoSocialEnterpriseType::CrossSubsidy->missionWeight(),
+            'blended_score' => 69.20,
+            'commercial_axes' => $this->json([
+                ['axis' => 'margin_resilience', 'score' => 62],
+                ['axis' => 'earned_income_pipeline', 'score' => 74],
+            ]),
+            'mission_axes' => $this->json([
+                ['dimension' => 'impact_measurement', 'score' => 83],
+                ['dimension' => 'funding_resilience', 'score' => 57],
+            ]),
+            'source_attributions' => $this->json([
+                ['claim' => 'Commercial score uses seeded business-health axes.', 'source_reference' => 'seed-social-enterprise-commercial'],
+                ['claim' => 'Mission score uses seeded NPO health batch.', 'source_reference' => 'npo_dimension_scores:seed-social-enterprise-health'],
+            ]),
+        ]);
+        $this->upsert('npo_tension_analyses', [
+            'npo_social_enterprise_scorecard_id' => $this->ids['social_scorecard'],
+            'generated_at' => $this->stableTimestamp('2026-05-24 10:00:00'),
+        ], [
+            'client_id' => $this->clients['socialEnterprise']->getKey(),
+            'npo_engagement_id' => $this->ids['social_enterprise_engagement'],
+            'review_status' => NpoTensionAnalysis::REVIEW_REVIEWED,
+            'tensions' => $this->json([
+                [
+                    'type' => NpoTensionAnalysis::TYPE_REVENUE_VS_ACCESS,
+                    'title' => 'Training fee growth may reduce access for priority cohorts',
+                    'commercial_implication' => 'Higher fee recovery improves trading margin.',
+                    'mission_implication' => 'Priority participants may need scholarships to keep access equitable.',
+                    'strategic_options' => ['ring-fenced scholarship pool', 'tiered pricing', 'funder-backed places'],
+                    'advisor_recommended_path' => 'Keep tiered pricing and track access outcomes quarterly.',
+                    'data_points' => [
+                        ['label' => 'Commercial score', 'value' => 68, 'source_reference' => 'npo_social_enterprise_scorecards:seed'],
+                    ],
+                ],
+            ]),
+            'ai_response' => $this->json(['model' => 'seeded-social-enterprise-analysis', 'fixture' => true]),
+            'source_attributions' => $this->json([
+                ['claim' => 'Tension analysis uses seeded scorecard and impact dashboard.', 'source_reference' => 'doc_social_enterprise_impact'],
+            ]),
+            'reviewed_by_user_id' => $this->users['advisor']->getKey(),
+            'reviewed_at' => $this->now->copy()->subDays(2),
+        ]);
+
+        foreach ([
+            ['npo', 'npo_standard_engagement', 'people_reached', 'People reached through youth outreach', 520, 'people', 575.00],
+            ['npo', 'npo_standard_engagement', 'volunteer_hours', 'Volunteer hours contributed', 1840, 'hours', null],
+            ['npo', 'npo_standard_engagement', 'wellbeing_sessions', 'Wellbeing sessions delivered', 96, 'sessions', 104.00],
+            ['socialEnterprise', 'social_enterprise_engagement', 'training_placements', 'Training placements completed', 34, 'placements', 39.00],
+        ] as [$clientKey, $engagementKey, $metricKey, $label, $value, $unit, $platformValue]) {
+            $this->upsert('npo_impact_metrics', [
+                'npo_engagement_id' => $this->ids[$engagementKey],
+                'metric_key' => $metricKey,
+                'period_end' => '2026-04-30',
+            ], [
+                'client_id' => $this->clients[$clientKey]->getKey(),
+                'metric_label' => $label,
+                'value' => $value,
+                'unit' => $unit,
+                'platform_value' => $platformValue,
+                'period_start' => '2026-04-01',
+                'source' => 'testing_seed',
+                'notes' => 'Seeded impact metric for NPO portal and report testing.',
+                'entered_by_user_id' => $clientKey === 'npo' ? $this->users['npoPrimary']->getKey() : $this->users['socialEnterprise']->getKey(),
+            ]);
+        }
+
+        $this->ids['npo_goal_funder_readiness'] = $this->upsert('goals', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'title' => 'Strengthen funder readiness and board assurance',
+        ], [
+            'description' => 'Close governance and reporting gaps before the next funder renewal cycle.',
+            'pv_target_calculation_id' => null,
+            'pv_target' => 92_000,
+            'status' => 'active',
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+        ]);
+        $this->ids['npo_milestone_accountability_pack'] = $this->upsert('milestones', [
+            'goal_id' => $this->ids['npo_goal_funder_readiness'],
+            'title' => 'Complete six-month accountability pack',
+        ], [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'recommendation_ref' => 'seed-npo-funder-accountability',
+            'pv_of_impact_calculation_id' => null,
+            'pv_of_impact' => 42_000,
+            'due_date' => $this->now->copy()->addDays(21)->toDateString(),
+            'status' => 'in_progress',
+            'completed_at' => null,
+        ]);
+        $this->upsert('milestone_actions', [
+            'milestone_id' => $this->ids['npo_milestone_accountability_pack'],
+            'title' => 'Attach outcomes dashboard and treasurer sign-off',
+        ], [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'call_log_id' => null,
+            'owner_user_id' => $this->users['npoTreasurer']->getKey(),
+            'due_date' => $this->now->copy()->addDays(10)->toDateString(),
+            'priority' => 'high',
+            'status' => 'pending',
+        ]);
+
+        $this->ids['npo_fee_governance_review'] = $this->upsert('fee_calculations', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_governance_engagement'],
+            'method' => 'governance_review',
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+        ], [
+            'inputs' => $this->json(['review_scope' => 'board_pack_constitution_financial_controls', 'charity_and_society' => true]),
+            'suggested_low' => 4_800,
+            'suggested_mid' => 6_400,
+            'suggested_high' => 8_200,
+            'improvement_pv_total' => 0,
+            'risk_cost_pv_total' => 0,
+            'roi_ratio' => 0,
+            'justification' => $this->json(['summary' => 'Fixed-fee governance review seed scenario.']),
+        ]);
+        $this->ids['npo_proposal_governance_review'] = $this->upsert('proposals', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'fee_calculation_id' => $this->ids['npo_fee_governance_review'],
+            'version' => 1,
+        ], [
+            'npo_engagement_id' => $this->ids['npo_governance_engagement'],
+            'status' => 'released',
+            'scope' => $this->json(['modules' => ['governance_review', 'constitution', 'board_controls'], 'term_weeks' => 4]),
+            'services' => $this->json([
+                ['name' => 'Governance evidence review', 'cadence' => 'one_off'],
+                ['name' => 'Board findings session', 'cadence' => 'one_off'],
+            ]),
+            'pv_summary' => $this->json(['mission_risk_reduction' => true]),
+            'roi_ratio' => 0,
+            'acceptance_terms' => $this->json(['payment' => 'invoice', 'valid_days' => 14]),
+            'pdf_path' => 'seed/proposals/aroha-governance-review-v1.pdf',
+            'pdf_byte_size' => 170_000,
+            'released_at' => $this->now->copy()->subDays(25),
+            'released_by_user_id' => $this->users['advisor']->getKey(),
+            'expires_at' => $this->now->copy()->addDays(7),
+            'recalled_at' => null,
+            'recalled_by_user_id' => null,
+            'expired_at' => null,
+            'renewed_from_proposal_id' => null,
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'awaiting_signature_at' => null,
+            'signed_at' => null,
+            'signed_by_user_id' => null,
+            'signature_evidence_path' => null,
+            'signature_evidence_sha256_envelope' => null,
+            'signature_envelope_meta' => null,
+            'signature_evidence_byte_size' => null,
+        ]);
+
+        $governanceReportId = $this->seedNpoReport(
+            idKey: 'npo_governance_report',
+            client: $this->clients['npo'],
+            npoEngagementId: (string) $this->ids['npo_governance_engagement'],
+            type: ReportType::GovernanceReview,
+            title: 'Aroha Community Trust Governance Review',
+            sections: [
+                ['key' => 'executive_summary', 'title' => 'Executive summary', 'body' => 'Governance review is complete with re-registration, conflicts, and delegation actions surfaced.'],
+                ['key' => 'findings', 'title' => 'Findings', 'body' => 'Three reviewed findings are linked to questionnaire and document evidence.'],
+            ],
+            reviewStatus: 'reviewed',
+            metadata: ['fixture' => true, 'source' => 'testing_seed'],
+        );
+        $healthReportId = $this->seedNpoReport(
+            idKey: 'npo_health_report',
+            client: $this->clients['npo'],
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+            type: ReportType::NpoHealth,
+            title: 'Aroha Community Trust NPO Health Report',
+            sections: [
+                ['key' => 'health_score', 'title' => 'NPO health score', 'body' => 'Latest seeded health batch shows funding resilience and governance compliance as priority dimensions.'],
+                ['key' => 'dimension_actions', 'title' => 'Dimension actions', 'body' => 'Actions focus on funder reporting, re-registration, and impact measurement cadence.'],
+            ],
+            reviewStatus: 'reviewed',
+            metadata: ['fixture' => true, 'health_score_source' => 'npo_dimension_scores'],
+        );
+        $funderReportId = $this->seedNpoReport(
+            idKey: 'npo_funder_accountability_report',
+            client: $this->clients['npo'],
+            npoEngagementId: (string) $this->ids['npo_standard_engagement'],
+            type: ReportType::FunderAccountability,
+            title: 'Community Wellbeing Fund Accountability Report',
+            sections: [
+                ['key' => 'funding_conditions', 'title' => 'Funding conditions', 'body' => 'The report summarises restricted-funding conditions and due impact metrics.'],
+                ['key' => 'impact_metrics', 'title' => 'Impact metrics', 'body' => 'People reached: 520 people. Volunteer hours contributed: 1840 hours.'],
+            ],
+            reviewStatus: 'reviewed',
+            metadata: ['fixture' => true, 'client_funder_record_id' => $this->ids['npo_funder_record_community']],
+        );
+        $this->ids['npo_report_governance'] = $governanceReportId;
+        $this->ids['npo_report_health'] = $healthReportId;
+        $this->ids['npo_report_funder'] = $funderReportId;
+        $this->ids['social_report_dual'] = $this->seedNpoReport(
+            idKey: 'social_enterprise_dual_report',
+            client: $this->clients['socialEnterprise'],
+            npoEngagementId: (string) $this->ids['social_enterprise_engagement'],
+            type: ReportType::SocialEnterpriseDual,
+            title: 'Tupu Trading Dual Impact Report',
+            sections: [
+                ['key' => 'dual_score', 'title' => 'Dual impact score', 'body' => 'Commercial score 68 and mission score 70 produce a blended seeded score of 69.2.'],
+                ['key' => 'tensions', 'title' => 'Strategic tensions', 'body' => 'Fee growth should be balanced with funded access for priority training cohorts.'],
+            ],
+            reviewStatus: 'reviewed',
+            metadata: ['fixture' => true, 'scorecard_id' => $this->ids['social_scorecard']],
+        );
+
+        $this->ids['npo_funder_report_link'] = $this->upsert('npo_funder_report_links', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'npo_engagement_id' => $this->ids['npo_standard_engagement'],
+            'guest_email' => 'programme.officer@example.test',
+            'report_id' => $funderReportId,
+        ], [
+            'client_funder_record_id' => $this->ids['npo_funder_record_community'],
+            'status' => 'approved',
+            'token_hash' => hash('sha256', 'seed-npo-funder-report-token'),
+            'requested_by_user_id' => $this->users['npoPrimary']->getKey(),
+            'approved_by_user_id' => $this->users['advisor']->getKey(),
+            'declined_by_user_id' => null,
+            'revoked_by_user_id' => null,
+            'approved_at' => $this->now->copy()->subDay(),
+            'declined_at' => null,
+            'decline_reason' => null,
+            'expires_at' => $this->now->copy()->addDays(20),
+            'revoked_at' => null,
+            'last_used_at' => $this->now->copy()->subHours(6),
+        ]);
+        $this->upsert('npo_funder_report_sessions', [
+            'npo_funder_report_link_id' => $this->ids['npo_funder_report_link'],
+            'report_id' => $funderReportId,
+            'accessed_at' => $this->stableTimestamp('2026-05-26 09:00:00'),
+        ], [
+            'client_id' => $this->clients['npo']->getKey(),
+            'metadata' => $this->json(['fixture' => true, 'ip' => '127.0.0.1']),
+        ], timestamps: false);
+
+        $threadId = $this->upsert('message_threads', [
+            'client_id' => $this->clients['npo']->getKey(),
+            'subject' => 'NPO accountability pack next steps',
+        ], [
+            'entrepreneur_profile_id' => null,
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'last_activity_at' => $this->now->copy()->subHours(2),
+        ]);
+        foreach (['advisor', 'npoPrimary', 'npoTreasurer'] as $userKey) {
+            $this->upsert('message_thread_participants', [
+                'thread_id' => $threadId,
+                'user_id' => $this->users[$userKey]->getKey(),
+            ], [
+                'last_read_at' => $userKey === 'advisor' ? $this->now->copy()->subHour() : null,
+            ]);
+        }
+        $this->upsert('messages', [
+            'logical_message_key' => 'seed-npo-accountability-001',
+            'channel' => 'in_app',
+        ], [
+            'thread_id' => $threadId,
+            'sender_user_id' => $this->users['advisor']->getKey(),
+            'body' => 'The funder accountability report is reviewed. Please attach the treasurer sign-off before we share the next impact update.',
+            'attachments' => $this->json([
+                ['type' => 'report', 'id' => $funderReportId],
+                ['type' => 'document', 'id' => $this->ids['doc_npo_funding_agreement']],
+            ]),
+            'delivery_state' => 'sent',
+            'channel_decision' => $this->json(['selected' => 'in_app', 'reason' => 'npo_client_portal']),
+            'email_subject' => null,
+            'email_recipients' => null,
+            'sent_at' => $this->now->copy()->subHours(2),
+        ]);
+    }
+
+    /**
+     * @param  array<int|string, int>  $scores
+     * @param  array<int|string, array<int, array<string, mixed>>>  $findings
+     */
+    private function seedNpoDimensionBatch(
+        Client $client,
+        string $npoEngagementId,
+        NpoTiritiMode $mode,
+        array $scores,
+        array $findings,
+        CarbonInterface $capturedAt,
+        string $batchKey,
+    ): void {
+        $definitions = $this->npoDimensionDefinitions($mode);
+        $healthScore = (int) round(collect($definitions)->sum(function (array $definition) use ($scores): float {
+            $score = (int) ($scores[$definition['number']] ?? $scores[$definition['key']] ?? 0);
+
+            return $score * $definition['weight'] / 100;
+        }));
+        $batchId = $this->stableUuid($batchKey.'-'.$npoEngagementId);
+
+        foreach ($definitions as $definition) {
+            $score = (int) ($scores[$definition['number']] ?? $scores[$definition['key']] ?? 0);
+            $dimensionFindings = array_values($findings[$definition['number']] ?? $findings[$definition['key']] ?? []);
+
+            $this->upsert('npo_dimension_scores', [
+                'npo_engagement_id' => $npoEngagementId,
+                'assessment_batch_id' => $batchId,
+                'dimension_number' => $definition['number'],
+            ], [
+                'client_id' => $client->getKey(),
+                'dimension_key' => $definition['key'],
+                'dimension_label' => $definition['label'],
+                'tiriti_mode' => $mode->value,
+                'score' => max(0, min(100, $score)),
+                'advisor_weight' => $definition['weight'],
+                'weighted_score' => round(max(0, min(100, $score)) * $definition['weight'] / 100, 2),
+                'health_score' => max(0, min(100, $healthScore)),
+                'findings' => $this->json($dimensionFindings),
+                'mode_b_criteria_contributions' => $this->jsonOrNull($definition['mode_b_contributions']),
+                'source_attributions' => $this->json($this->npoFindingAttributions($dimensionFindings)),
+                'scoring_context' => $this->json([
+                    'fixture' => true,
+                    'social_weighting' => [
+                        'social_enterprise' => $client->getKey() === $this->clients['socialEnterprise']->getKey(),
+                    ],
+                ]),
+                'source' => NpoDimensionScore::SOURCE_ADVISOR_ASSESSMENT,
+                'source_npo_engagement_id' => null,
+                'captured_at' => $capturedAt,
+            ]);
+        }
+    }
+
+    /**
+     * @return array<int, array{number:int,key:string,label:string,weight:int,mode_b_contributions:?array<int, string>}>
+     */
+    private function npoDimensionDefinitions(NpoTiritiMode $mode): array
+    {
+        $labels = [
+            1 => ['key' => 'mission_strategy', 'label' => 'Mission and strategy'],
+            2 => ['key' => 'service_operations', 'label' => 'Service delivery and operations'],
+            3 => ['key' => 'governance_compliance', 'label' => 'Governance and compliance'],
+            4 => ['key' => 'financial_sustainability', 'label' => 'Financial sustainability'],
+            5 => ['key' => 'people_capability', 'label' => 'People and capability'],
+            6 => ['key' => 'impact_measurement', 'label' => 'Impact measurement'],
+            7 => ['key' => 'funding_resilience', 'label' => 'Funding resilience'],
+            8 => ['key' => 'te_tiriti', 'label' => 'Te Tiriti'],
+        ];
+        $weights = $mode === NpoTiritiMode::Standalone
+            ? [1 => 10, 2 => 10, 3 => 20, 4 => 15, 5 => 10, 6 => 10, 7 => 15, 8 => 10]
+            : [1 => 12, 2 => 11, 3 => 22, 4 => 16, 5 => 11, 6 => 11, 7 => 17];
+        $modeB = $mode === NpoTiritiMode::Woven ? [
+            1 => ['[TIRITI] purpose and partnership alignment'],
+            3 => ['[TIRITI] governance obligations and board accountability'],
+            6 => ['[TIRITI] equity and outcomes evidence'],
+            7 => ['[TIRITI] funder obligations and restricted funding impacts'],
+        ] : [];
+
+        return collect($weights)
+            ->map(fn (int $weight, int $number): array => [
+                'number' => $number,
+                'key' => $labels[$number]['key'],
+                'label' => $labels[$number]['label'],
+                'weight' => $weight,
+                'mode_b_contributions' => $modeB[$number] ?? null,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $findings
+     * @return array<int, array<string, mixed>>
+     */
+    private function npoFindingAttributions(array $findings): array
+    {
+        return collect($findings)
+            ->flatMap(fn (array $finding): array => collect($finding['attributions'] ?? [])->all())
+            ->filter(fn (mixed $attribution): bool => is_array($attribution))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array{key:string,title:string,body:string,lens?:string,document_support?:string,document_support_note?:string,data_quality_note?:string,metadata?:array<string, mixed>,attributions?:array<int, array<string, mixed>>}>  $sections
+     * @param  array<string, mixed>  $metadata
+     */
+    private function seedNpoReport(
+        string $idKey,
+        Client $client,
+        string $npoEngagementId,
+        ReportType $type,
+        string $title,
+        array $sections,
+        string $reviewStatus,
+        array $metadata,
+    ): string|int|null {
+        $reportId = $this->upsert('reports', [
+            'client_id' => $client->getKey(),
+            'type' => $type->value,
+            'title' => $title,
+        ], [
+            'npo_engagement_id' => $npoEngagementId,
+            'pdf_path' => "seed/reports/{$idKey}.pdf",
+            'pdf_byte_size' => 220_000,
+            'pptx_path' => null,
+            'pptx_byte_size' => null,
+            'generated_by_user_id' => $this->users['advisor']->getKey(),
+            'generated_at' => $this->now->copy()->subDays(2),
+            'metadata' => $this->json([
+                ...$metadata,
+                'npo_engagement_id' => $npoEngagementId,
+            ]),
+            'review_status' => $reviewStatus,
+            'reviewed_by_user_id' => $reviewStatus === 'reviewed' ? $this->users['advisor']->getKey() : null,
+            'reviewed_at' => $reviewStatus === 'reviewed' ? $this->now->copy()->subDay() : null,
+        ]);
+
+        foreach ($sections as $position => $section) {
+            $this->upsert('report_sections', [
+                'report_id' => $reportId,
+                'key' => $section['key'],
+            ], [
+                'client_id' => $client->getKey(),
+                'entrepreneur_profile_id' => null,
+                'title' => $section['title'],
+                'body' => $section['body'],
+                'position' => $position + 1,
+                'lens' => $section['lens'] ?? 'diagnostic',
+                'attributions' => $this->json($section['attributions'] ?? [['type' => 'npo_engagement', 'id' => $npoEngagementId]]),
+                'document_support' => $section['document_support'] ?? 'supported',
+                'document_support_note' => $section['document_support_note'] ?? 'Seeded NPO report section with fixture evidence.',
+                'data_quality_note' => $section['data_quality_note'] ?? 'Testing seed data; not a production advice record.',
+                'metadata' => $this->json($section['metadata'] ?? ['fixture' => true]),
+            ]);
+        }
+
+        return $reportId;
+    }
+
     private function seedEngagementTouchpoints(): void
     {
         $threadId = $this->upsert('message_threads', [
@@ -2035,6 +3223,7 @@ final class TestingSeedDataSeeder extends Seeder
         QuestionnaireSet $set,
         User $submittedBy,
         string $attachedDocumentId,
+        ?string $npoEngagementId = null,
     ): array {
         $questionnaire = Questionnaire::query()
             ->forSet($set)
@@ -2042,13 +3231,21 @@ final class TestingSeedDataSeeder extends Seeder
             ->with('sections.questions')
             ->firstOrFail();
 
-        $responseId = $this->upsert('questionnaire_responses', [
+        $responseKey = [
             'client_id' => $client->getKey(),
             'questionnaire_id' => $questionnaire->getKey(),
-        ], [
+        ];
+        $responseValues = [
             'submitted_at' => $this->now->copy()->subDays(7),
             'submitted_by_user_id' => $submittedBy->getKey(),
-        ]);
+        ];
+
+        if ($npoEngagementId !== null && Schema::hasColumn('questionnaire_responses', 'npo_engagement_id')) {
+            $responseKey['npo_engagement_id'] = $npoEngagementId;
+            $responseValues['npo_engagement_id'] = $npoEngagementId;
+        }
+
+        $responseId = $this->upsert('questionnaire_responses', $responseKey, $responseValues);
 
         $fileAnswerId = null;
         $fileQuestionId = null;
@@ -2109,6 +3306,7 @@ final class TestingSeedDataSeeder extends Seeder
         int $size,
         string $mimeType = 'application/pdf',
         ?string $entrepreneurProfileId = null,
+        ?string $npoEngagementId = null,
     ): string|int|null {
         $storedPath = "seed/documents/{$key}";
         $disk = Storage::disk('secure_local');
@@ -2117,7 +3315,7 @@ final class TestingSeedDataSeeder extends Seeder
             $disk->put($storedPath, $this->fixtureDocumentContent($filename, $key, $mimeType));
         }
 
-        return $this->upsert('documents', ['stored_path' => $storedPath], [
+        $values = [
             'client_id' => $client?->getKey(),
             'entrepreneur_profile_id' => $entrepreneurProfileId,
             'category' => $category,
@@ -2133,7 +3331,13 @@ final class TestingSeedDataSeeder extends Seeder
                 'engine' => 'seed-scanner',
             ]),
             'expires_at' => $expiresAt,
-        ]);
+        ];
+
+        if ($npoEngagementId !== null && Schema::hasColumn('documents', 'npo_engagement_id')) {
+            $values['npo_engagement_id'] = $npoEngagementId;
+        }
+
+        return $this->upsert('documents', ['stored_path' => $storedPath], $values);
     }
 
     private function fixtureDocumentContent(string $filename, string $key, string $mimeType): string
@@ -2332,5 +3536,19 @@ final class TestingSeedDataSeeder extends Seeder
     private function stableTimestamp(string $value): CarbonInterface
     {
         return Carbon::parse($value, config('app.timezone'));
+    }
+
+    private function stableUuid(string $value): string
+    {
+        $hash = md5($value);
+
+        return sprintf(
+            '%s-%s-%s-%s-%s',
+            substr($hash, 0, 8),
+            substr($hash, 8, 4),
+            substr($hash, 12, 4),
+            substr($hash, 16, 4),
+            substr($hash, 20, 12),
+        );
     }
 }

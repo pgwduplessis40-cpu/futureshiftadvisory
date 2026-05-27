@@ -9,6 +9,12 @@ use App\Models\AnalysisRun;
 use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\FeeCalculation;
+use App\Models\GovernanceReviewFinding;
+use App\Models\NpoDimensionScore;
+use App\Models\NpoEngagement;
+use App\Models\NpoSocialEnterpriseScorecard;
+use App\Models\NpoTensionAnalysis;
+use App\Models\NpoValueCalculation;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\QuestionnaireQuestion;
@@ -38,6 +44,11 @@ final class TestingSeedDataSeederTest extends TestCase
             'proposals',
             'business_plans',
             'dd_engagements',
+            'npo_engagements',
+            'npo_dimension_scores',
+            'client_funder_records',
+            'npo_value_calculations',
+            'npo_impact_metrics',
             'bulk_communications',
         ];
 
@@ -138,6 +149,47 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(3, 'dd_integration_plans');
         $this->assertAtLeast(1, 'post_acquisition_migrations');
 
+        $npoClient = DB::table('clients')->where('nzbn', '9429000000072')->first();
+        $this->assertNotNull($npoClient);
+        $this->assertDatabaseHas('clients', [
+            'nzbn' => '9429000000072',
+            'engagement_type' => 'npo',
+            'legal_name' => 'Aroha Community Trust',
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'seed.npo.primary@futureshiftadvisory.test',
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'seed.npo.board@futureshiftadvisory.test',
+            'user_type' => User::TYPE_NPO_BOARD_MEMBER,
+        ]);
+        $this->assertAtLeast(3, 'npo_engagements');
+        $this->assertAtLeast(2, 'npo_board_members');
+        $this->assertAtLeast(3, 'governance_review_findings');
+        $this->assertAtLeast(15, 'npo_dimension_scores');
+        $this->assertAtLeast(2, 'npo_compliance_alerts');
+        $this->assertAtLeast(3, 'funders');
+        $this->assertAtLeast(3, 'client_funder_records');
+        $this->assertAtLeast(4, 'client_funder_alerts');
+        $this->assertAtLeast(2, 'npo_value_calculations');
+        $this->assertAtLeast(1, 'npo_social_enterprise_scorecards');
+        $this->assertAtLeast(1, 'npo_tension_analyses');
+        $this->assertAtLeast(4, 'npo_impact_metrics');
+        $this->assertAtLeast(4, 'reports');
+        $this->assertAtLeast(1, 'npo_funder_report_links');
+        $this->assertAtLeast(1, 'npo_funder_report_sessions');
+        $this->assertGreaterThanOrEqual(
+            2,
+            DB::table('questionnaire_responses')->whereNotNull('npo_engagement_id')->count(),
+            'Expected NPO-scoped questionnaire responses.',
+        );
+        $this->assertGreaterThanOrEqual(
+            5,
+            DB::table('documents')->whereNotNull('npo_engagement_id')->count(),
+            'Expected NPO-scoped documents.',
+        );
+
         $this->assertAtLeast(1, 'message_threads');
         $this->assertAtLeast(1, 'messages');
         $this->assertAtLeast(1, 'wellbeing_checkins');
@@ -174,6 +226,12 @@ final class TestingSeedDataSeederTest extends TestCase
             [Client::class],
             [EntrepreneurProfile::class],
             [FeeCalculation::class],
+            [GovernanceReviewFinding::class],
+            [NpoDimensionScore::class],
+            [NpoEngagement::class],
+            [NpoSocialEnterpriseScorecard::class],
+            [NpoTensionAnalysis::class],
+            [NpoValueCalculation::class],
             [Proposal::class],
             [PvCalculation::class],
             [QuestionnaireQuestion::class],
