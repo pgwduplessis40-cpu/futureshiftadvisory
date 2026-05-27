@@ -17,7 +17,11 @@ final class LoginResponse implements LoginResponseContract
     {
         $user = $request->user();
 
-        if ($user instanceof User && ! $this->mfa->hasCompletedEnrolment($user)) {
+        if (
+            (bool) config('security.mfa_required', true)
+            && $user instanceof User
+            && ! $this->mfa->hasCompletedEnrolment($user)
+        ) {
             return $request->wantsJson()
                 ? new JsonResponse(['two_factor_setup' => true], 409)
                 : redirect()->route('mfa.setup');
