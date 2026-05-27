@@ -43,6 +43,14 @@ final class MilestoneAction extends Model
     }
 
     /**
+     * @return BelongsTo<NpoEngagement, MilestoneAction>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
+    }
+
+    /**
      * @return BelongsTo<CallLog, MilestoneAction>
      */
     public function callLog(): BelongsTo

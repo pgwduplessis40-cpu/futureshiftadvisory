@@ -46,6 +46,14 @@ final class Milestone extends Model
     }
 
     /**
+     * @return BelongsTo<NpoEngagement, Milestone>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
+    }
+
+    /**
      * @return BelongsTo<PvCalculation, Milestone>
      */
     public function pvOfImpactCalculation(): BelongsTo

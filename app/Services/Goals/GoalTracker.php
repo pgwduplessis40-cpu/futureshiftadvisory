@@ -12,6 +12,7 @@ use App\Models\DocumentVerification;
 use App\Models\Goal;
 use App\Models\Milestone;
 use App\Models\MilestoneAction;
+use App\Models\NpoEngagement;
 use App\Models\ProofOfCompletion;
 use App\Models\User;
 use App\Services\Ai\Verification\DocumentVerifier;
@@ -99,6 +100,7 @@ final class GoalTracker
             $milestone = Milestone::query()->create([
                 'goal_id' => $goal->getKey(),
                 'client_id' => $client->getKey(),
+                'npo_engagement_id' => $this->npoEngagementId($client, $input['npo_engagement_id'] ?? null),
                 'title' => $this->requiredString($input, 'title'),
                 'recommendation_ref' => $this->nullableString($input['recommendation_ref'] ?? null),
                 'pv_of_impact_calculation_id' => $pvCalculation?->getKey(),
@@ -125,6 +127,7 @@ final class GoalTracker
         $action = MilestoneAction::query()->create([
             'milestone_id' => $milestone->getKey(),
             'client_id' => $milestone->client_id,
+            'npo_engagement_id' => $milestone->npo_engagement_id,
             'title' => $this->requiredString($input, 'title'),
             'owner_user_id' => $input['owner_user_id'] ?? null,
             'due_date' => $input['due_date'] ?? null,
@@ -332,6 +335,24 @@ final class GoalTracker
         $value = trim((string) $value);
 
         return $value === '' ? null : $value;
+    }
+
+    private function npoEngagementId(Client $client, mixed $value): ?string
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        $engagement = NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->whereKey($value)
+            ->first();
+
+        if (! $engagement instanceof NpoEngagement) {
+            throw new InvalidArgumentException('Milestone NPO engagement must belong to the goal client.');
+        }
+
+        return (string) $engagement->getKey();
     }
 
     private function proofStatus(DocumentVerification $verification): string
