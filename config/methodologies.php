@@ -45,6 +45,8 @@ return [
         'entrepreneurs.capacity.*',
         'privacy.min_cohort',
         'proposals.expiry_days',
+        'fees.sme.*',
+        'fees.npo.*',
     ],
 
     'config_ref_sensitive_patterns' => [
@@ -71,6 +73,7 @@ return [
         'advisor.entrepreneurs.rating_framework' => 'Advisor entrepreneur rating framework manager',
         'advisor.fees.calculator' => 'Advisor fee calculator',
         'advisor.npo.governance_review_proposal' => 'Advisor NPO Governance Review proposal workflow',
+        'advisor.npo.retainer_proposal' => 'Advisor NPO retainer proposal workflow',
         'advisor.payments.retry' => 'Advisor payment retry workflow',
         'advisor.pv.calculations' => 'Advisor present-value calculations',
         'advisor.pv.waterfall' => 'Advisor PV waterfall dashboard',
