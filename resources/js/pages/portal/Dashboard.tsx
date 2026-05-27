@@ -368,7 +368,7 @@ export default function PortalDashboard({
         <>
             <Head title="Client portal" />
 
-            <div className="space-y-6">
+            <main className="flex-1 space-y-6 p-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
@@ -672,7 +672,7 @@ export default function PortalDashboard({
                         </Button>
                     </section>
                 </div>
-            </div>
+            </main>
         </>
     );
 }

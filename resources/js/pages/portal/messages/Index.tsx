@@ -29,7 +29,7 @@ export default function PortalMessages({
     return (
         <>
             <Head title="Messages" />
-            <div className="px-4 py-6">
+            <main className="flex-1 p-6">
                 <ThreadedMessaging
                     client={client}
                     threads={threads}
@@ -39,7 +39,7 @@ export default function PortalMessages({
                     backHref={backHref}
                     backLabel={backLabel}
                 />
-            </div>
+            </main>
         </>
     );
 }
