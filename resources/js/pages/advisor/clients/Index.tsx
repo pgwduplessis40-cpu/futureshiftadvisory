@@ -6,6 +6,12 @@ import type { ClientSummary } from './types';
 
 type Props = {
     clients: ClientSummary[];
+    engagementFilter: {
+        key: string;
+        label: string;
+        description: string;
+        clear_url: string;
+    } | null;
     exposureFilter: {
         key: string;
         label: string;
@@ -15,14 +21,30 @@ type Props = {
     } | null;
 };
 
-export default function ClientsIndex({ clients, exposureFilter }: Props) {
+export default function ClientsIndex({
+    clients,
+    engagementFilter,
+    exposureFilter,
+}: Props) {
+    const pageTitle = engagementFilter?.label ?? 'Clients';
+    const emptyLabel = engagementFilter
+        ? `${engagementFilter.label} clients`
+        : 'clients';
+
     return (
         <>
-            <Head title="Clients" />
+            <Head title={pageTitle} />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
-                    <h1 className="text-xl font-semibold">Clients</h1>
+                    <div>
+                        <h1 className="text-xl font-semibold">{pageTitle}</h1>
+                        {engagementFilter && (
+                            <p className="text-sm text-muted-foreground">
+                                {engagementFilter.description}
+                            </p>
+                        )}
+                    </div>
                     <Button asChild size="sm">
                         <Link href="/advisor/clients/create">
                             <Plus className="size-4" aria-hidden="true" />
@@ -30,6 +52,18 @@ export default function ClientsIndex({ clients, exposureFilter }: Props) {
                         </Link>
                     </Button>
                 </div>
+
+                {engagementFilter && (
+                    <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
+                        <Badge variant="secondary">
+                            {engagementFilter.label}
+                        </Badge>
+                        <span>{clients.length} visible</span>
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={engagementFilter.clear_url}>Clear</Link>
+                        </Button>
+                    </div>
+                )}
 
                 {exposureFilter && (
                     <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/30 px-3 py-2 text-sm">
@@ -145,7 +179,7 @@ export default function ClientsIndex({ clients, exposureFilter }: Props) {
                         </table>
                     ) : (
                         <div className="px-4 py-10 text-sm text-muted-foreground">
-                            No clients yet.
+                            No {emptyLabel} yet.
                         </div>
                     )}
                 </div>

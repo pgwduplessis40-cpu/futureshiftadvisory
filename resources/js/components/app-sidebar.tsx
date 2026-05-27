@@ -6,11 +6,13 @@ import {
     ClipboardList,
     FileText,
     FolderGit2,
+    HeartHandshake,
     HeartPulse,
     Inbox,
     LayoutGrid,
     MessageSquare,
     PlugZap,
+    Scale,
     UsersRound,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -39,6 +41,18 @@ const clientsNavItem: NavItem = {
     title: 'Clients',
     href: '/advisor/clients',
     icon: BriefcaseBusiness,
+};
+
+const dueDiligenceNavItem: NavItem = {
+    title: 'Due Diligence',
+    href: '/advisor/clients?engagement_type=due_diligence',
+    icon: Scale,
+};
+
+const npoNavItem: NavItem = {
+    title: 'NPO',
+    href: '/advisor/clients?engagement_type=npo',
+    icon: HeartHandshake,
 };
 
 const entrepreneursNavItem: NavItem = {
@@ -92,6 +106,8 @@ const questionnairesNavItem: NavItem = {
 const advisorNavItems: NavItem[] = [
     dashboardNavItem,
     clientsNavItem,
+    dueDiligenceNavItem,
+    npoNavItem,
     entrepreneursNavItem,
     knowledgeNavItem,
     templatesNavItem,
@@ -103,6 +119,8 @@ const advisorNavItems: NavItem[] = [
 const juniorAdvisorNavItems: NavItem[] = [
     dashboardNavItem,
     clientsNavItem,
+    dueDiligenceNavItem,
+    npoNavItem,
     entrepreneursNavItem,
     knowledgeNavItem,
     templatesNavItem,
@@ -212,10 +230,62 @@ function canViewInternalFooter(userType?: string | null): boolean {
     );
 }
 
+function navItemsWithClientFilterState(
+    items: NavItem[],
+    currentPath: string,
+    engagementType: string | null,
+): NavItem[] {
+    const viewingClients = currentPath.startsWith('/advisor/clients');
+
+    return items.map((item) => {
+        if (item.href === clientsNavItem.href) {
+            return {
+                ...item,
+                isActive: viewingClients && engagementType === null,
+            };
+        }
+
+        if (item.href === dueDiligenceNavItem.href) {
+            return {
+                ...item,
+                isActive:
+                    currentPath === '/advisor/clients' &&
+                    engagementType === 'due_diligence',
+            };
+        }
+
+        if (item.href === npoNavItem.href) {
+            return {
+                ...item,
+                isActive:
+                    currentPath === '/advisor/clients' &&
+                    engagementType === 'npo',
+            };
+        }
+
+        return item;
+    });
+}
+
 export function AppSidebar() {
-    const { auth } = usePage<{ auth: Auth }>().props;
+    const page = usePage<{ auth: Auth }>();
+    const { auth } = page.props;
     const userType = auth.user.user_type;
-    const mainNavItems = mainNavItemsFor(userType);
+    const currentUrl = new URL(
+        page.url,
+        typeof window !== 'undefined'
+            ? window.location.origin
+            : 'http://localhost',
+    );
+    const engagementType =
+        currentUrl.pathname === '/advisor/clients'
+            ? currentUrl.searchParams.get('engagement_type')
+            : null;
+    const mainNavItems = navItemsWithClientFilterState(
+        mainNavItemsFor(userType),
+        currentUrl.pathname,
+        engagementType,
+    );
     const homeHref = homeHrefFor(userType);
     const visibleFooterItems = canViewInternalFooter(userType)
         ? footerNavItems

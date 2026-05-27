@@ -9,6 +9,7 @@ use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
+use App\Models\ClientTeamMember;
 use App\Models\NpoEngagement;
 use App\Models\Questionnaire;
 use App\Models\User;
@@ -162,6 +163,40 @@ final class AddClientTest extends TestCase
         $this->assertDatabaseCount('conflict_declarations', 0);
     }
 
+    public function test_clients_index_can_filter_by_engagement_type_for_sidebar_shortcuts(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $standard = $this->clientForAdvisor($advisor, 'Standard Limited', EngagementType::STANDARD_ADVISORY);
+        $dueDiligence = $this->clientForAdvisor($advisor, 'Target Due Diligence Limited', EngagementType::DUE_DILIGENCE);
+        $npo = $this->clientForAdvisor($advisor, 'Community Impact Trust', EngagementType::NPO);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index', ['engagement_type' => EngagementType::DUE_DILIGENCE->value]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('engagementFilter.key', EngagementType::DUE_DILIGENCE->value)
+                ->where('engagementFilter.label', 'Due Diligence')
+                ->where('clients.0.id', $dueDiligence->id)
+                ->has('clients', 1));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index', ['engagement_type' => EngagementType::NPO->value]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('engagementFilter.key', EngagementType::NPO->value)
+                ->where('engagementFilter.label', 'NPO')
+                ->where('clients.0.id', $npo->id)
+                ->has('clients', 1));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index', ['engagement_type' => 'not-real']))
+            ->assertNotFound();
+
+        $this->assertDatabaseHas('clients', ['id' => $standard->id]);
+    }
+
     public function test_junior_advisor_cannot_create_clients(): void
     {
         $this->seed(RoleSeeder::class);
@@ -220,5 +255,24 @@ final class AddClientTest extends TestCase
         $advisor->assignRole(User::TYPE_ADVISOR);
 
         return $advisor;
+    }
+
+    private function clientForAdvisor(User $advisor, string $name, EngagementType $type): Client
+    {
+        $client = Client::query()->create([
+            'engagement_type' => $type->value,
+            'nzbn' => '9429000000000',
+            'legal_name' => $name,
+            'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
+        ]);
+
+        ClientTeamMember::query()->create([
+            'client_id' => $client->id,
+            'user_id' => $advisor->id,
+            'role' => 'lead_advisor',
+            'granted_modules' => [$type->value],
+        ]);
+
+        return $client;
     }
 }

@@ -69,8 +69,11 @@ final class ClientController extends Controller
     {
         Gate::authorize('viewAny', Client::class);
 
+        $engagementType = $request->query('engagement_type');
+        $engagementType = is_string($engagementType) ? trim($engagementType) : null;
         $exposedTo = $request->query('exposed_to');
         $exposedTo = is_string($exposedTo) ? trim($exposedTo) : null;
+        $engagementFilter = null;
         $filter = null;
         $user = $request->user();
         $clientIds = $user instanceof User && $user->user_type === User::TYPE_ADVISOR
@@ -84,6 +87,19 @@ final class ClientController extends Controller
                 : $query->whereIn('id', $clientIds);
         }
 
+        if ($engagementType !== null && $engagementType !== '') {
+            $engagement = EngagementType::tryFrom($engagementType);
+            abort_unless($engagement instanceof EngagementType, 404);
+
+            $query->where('engagement_type', $engagement->value);
+            $engagementFilter = [
+                'key' => $engagement->value,
+                'label' => $engagement->label(),
+                'description' => $engagement->description(),
+                'clear_url' => $this->clientsIndexUrl($request->query(), ['engagement_type']),
+            ];
+        }
+
         if ($exposedTo !== null && $exposedTo !== '') {
             abort_unless(in_array($exposedTo, $economicExposure->supportedFilterKeys(), true), 404);
 
@@ -94,7 +110,7 @@ final class ClientController extends Controller
                 'label' => $exposure['label'],
                 'exposed_count' => $exposure['exposed_count'],
                 'unknown_count' => $exposure['unknown_count'],
-                'clear_url' => route('advisor.clients.index', absolute: false),
+                'clear_url' => $this->clientsIndexUrl($request->query(), ['exposed_to']),
             ];
         }
 
@@ -104,8 +120,29 @@ final class ClientController extends Controller
                 ->get()
                 ->map(fn (Client $client): array => $this->clientSummary($client))
                 ->values(),
+            'engagementFilter' => $engagementFilter,
             'exposureFilter' => $filter,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $query
+     * @param  array<int, string>  $without
+     */
+    private function clientsIndexUrl(array $query = [], array $without = []): string
+    {
+        foreach ($without as $key) {
+            unset($query[$key]);
+        }
+
+        $query = array_filter(
+            $query,
+            static fn (mixed $value): bool => is_scalar($value) && trim((string) $value) !== '',
+        );
+
+        $url = route('advisor.clients.index', absolute: false);
+
+        return $query === [] ? $url : $url.'?'.http_build_query($query);
     }
 
     public function create(): Response

@@ -1,6 +1,4 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { useState } from 'react';
-import type React from 'react';
 import {
     Activity,
     AlertTriangle,
@@ -19,6 +17,8 @@ import {
     TrendingUp,
     UsersRound,
 } from 'lucide-react';
+import { useState } from 'react';
+import type React from 'react';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import {
     PvSummaryBadges,
