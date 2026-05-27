@@ -96,7 +96,8 @@ trait BuildsMessagePayloads
     private function messagePayload(Message $message, User $viewer): array
     {
         $attachments = collect($message->attachments ?? [])
-            ->map(fn (mixed $documentId): array => ['document_id' => (string) $documentId])
+            ->map(fn (mixed $attachment): ?array => $this->attachmentPayload($attachment))
+            ->filter()
             ->values()
             ->all();
 
@@ -115,6 +116,34 @@ trait BuildsMessagePayloads
             'attachments' => $attachments,
             'sent_at' => $message->sent_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return array{document_id: string, type?: string}|null
+     */
+    private function attachmentPayload(mixed $attachment): ?array
+    {
+        $id = null;
+        $type = null;
+
+        if (is_scalar($attachment)) {
+            $id = $attachment;
+        } elseif (is_array($attachment)) {
+            $id = $attachment['document_id'] ?? $attachment['id'] ?? null;
+            $type = $attachment['type'] ?? null;
+        }
+
+        if (! is_scalar($id) || (string) $id === '') {
+            return null;
+        }
+
+        $payload = ['document_id' => (string) $id];
+
+        if (is_scalar($type) && (string) $type !== '') {
+            $payload['type'] = (string) $type;
+        }
+
+        return $payload;
     }
 
     private function unreadCount(MessageThread $thread, User $viewer): int

@@ -13,6 +13,7 @@ use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
+use App\Models\MessageThreadParticipant;
 use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -155,6 +156,52 @@ final class ThreadedMessagingTest extends TestCase
                 ->component('portal/messages/Index')
                 ->where('selectedThread.id', $thread->id)
                 ->has('selectedThread.messages', 2));
+    }
+
+    public function test_portal_messages_accept_seeded_attachment_metadata_shape(): void
+    {
+        $advisor = $this->advisor();
+        $clientUser = $this->clientUser();
+        $client = $this->clientWithUsers($clientUser, $advisor);
+
+        $thread = MessageThread::query()->create([
+            'client_id' => $client->getKey(),
+            'created_by_user_id' => $advisor->getKey(),
+            'subject' => 'Seeded attachment metadata',
+            'last_activity_at' => now(),
+        ]);
+
+        foreach ([$advisor, $clientUser] as $participant) {
+            MessageThreadParticipant::query()->create([
+                'thread_id' => $thread->getKey(),
+                'user_id' => $participant->getKey(),
+            ]);
+        }
+
+        Message::query()->create([
+            'thread_id' => $thread->getKey(),
+            'sender_user_id' => $advisor->getKey(),
+            'body' => 'These attachments use the seeded metadata shape.',
+            'attachments' => [
+                ['type' => 'proposal', 'id' => 'proposal-123'],
+                ['type' => 'document', 'id' => 'document-456'],
+                'legacy-document-789',
+            ],
+            'sent_at' => now(),
+        ]);
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.messages.show', $thread))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/messages/Index')
+                ->where('selectedThread.id', $thread->id)
+                ->has('selectedThread.messages.0.attachments', 3)
+                ->where('selectedThread.messages.0.attachments.0.type', 'proposal')
+                ->where('selectedThread.messages.0.attachments.0.document_id', 'proposal-123')
+                ->where('selectedThread.messages.0.attachments.1.type', 'document')
+                ->where('selectedThread.messages.0.attachments.1.document_id', 'document-456')
+                ->where('selectedThread.messages.0.attachments.2.document_id', 'legacy-document-789'));
     }
 
     public function test_entrepreneur_starts_thread_from_portal_and_advisor_is_notified(): void
