@@ -1,4 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
+import { useState } from 'react';
 import type React from 'react';
 import {
     Activity,
@@ -33,9 +34,12 @@ import {
 } from '@/components/ui/tooltip';
 import { DocumentVerificationFlagPanel } from '@/components/verification/DocumentVerificationFlagPanel';
 import type { DocumentVerificationFlag } from '@/components/verification/DocumentVerificationFlagPanel';
+import { cn } from '@/lib/utils';
 import { dashboard } from '@/routes';
 
 type HealthLevel = 'green' | 'amber' | 'red';
+type DashboardTab = 'priorities' | 'signals';
+type ActionPriority = 'critical' | 'warning' | 'neutral';
 type EngagementScoreKey =
     | 'questionnaire_pct'
     | 'documents_pct'
@@ -519,6 +523,28 @@ type PanelOperationsPayload = {
     learning: LearningQueuePayload;
 };
 
+type ActionSummaryItem = {
+    key: string;
+    label: string;
+    value: number;
+    href: string;
+    targetId: string;
+    tab: DashboardTab;
+    priority: ActionPriority;
+    explanation: string;
+    nextStep: string;
+    icon: React.ReactNode;
+};
+
+const signalPanelTargetIds = new Set([
+    'advisor-panel-operations',
+    'advisor-broker-referrals',
+    'advisor-coach-referrals',
+    'advisor-learning-queue',
+    'advisor-npo-funding',
+    'advisor-npo-conversions',
+]);
+
 type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
@@ -562,6 +588,22 @@ export default function AdvisorDashboard({
     funnelAnalytics,
     panelOperations,
 }: Props) {
+    const [activeTab, setActiveTab] =
+        useState<DashboardTab>(initialDashboardTab);
+    const actionItems = buildActionSummaryItems({
+        redFlags,
+        documentVerificationFlags,
+        pendingTermsReacceptance,
+        proposalStatus,
+        paymentStatus,
+        npoPendingConversions,
+        npoFunding,
+        panelOperations,
+    });
+    const actionQueueCount = actionItems.filter(
+        (item) => item.value > 0 && item.priority !== 'neutral',
+    ).length;
+
     return (
         <>
             <Head title="Advisor dashboard" />
@@ -576,6 +618,10 @@ export default function AdvisorDashboard({
                         <h1 className="mt-1 text-xl font-semibold">
                             Advisor dashboard
                         </h1>
+                        <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                            Start with action queues, then move into portfolio
+                            decisions and operating signals.
+                        </p>
                     </div>
 
                     <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
@@ -586,80 +632,599 @@ export default function AdvisorDashboard({
                             href="/advisor/clients"
                         />
                         <Metric
-                            label="Data flags"
+                            label="Action queues"
+                            value={actionQueueCount}
+                            explanation="Action queues count dashboard areas with open priority work for the advisor team."
+                            href="#advisor-command-centre"
+                        />
+                        <Metric
+                            label="Needs attention"
                             value={clientsHealth.summary.needs_attention}
-                            explanation="Data flags count client records with low engagement signals or document verification attention."
+                            explanation="Needs attention counts client records with low engagement signals or document verification attention."
                             href="#advisor-clients-health"
                         />
                         <Metric
-                            label="Red flags"
-                            value={redFlags.summary.open}
-                            explanation="Red flags are open advisory risks that need acknowledgement, review, or resolution."
-                            href="#advisor-red-flags"
-                        />
-                        <Metric
-                            label="Documents"
-                            value={documentVerificationFlags.length}
-                            explanation="Documents counts outstanding verification flags currently surfaced on this dashboard."
-                            href="#advisor-documents"
-                        />
-                        <Metric
-                            label="Terms"
-                            value={pendingTermsReacceptance.total}
-                            explanation="Terms counts client portal users who need to accept the latest published terms."
-                            href="#advisor-terms"
+                            label="Target PV"
+                            value={formatCurrency(
+                                pvWaterfall.summary.target_pv,
+                            )}
+                            explanation="Target PV is the portfolio value if surfaced improvements and risk mitigations are realised."
+                            href="#advisor-pv-waterfall"
                         />
                     </div>
                 </header>
 
-                <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-                    <MyClientsHealth payload={clientsHealth} />
-
-                    <div className="space-y-4">
-                        <RedFlagPanel payload={redFlags} />
-                        <div id="advisor-documents">
-                            <DocumentVerificationFlagPanel
-                                flags={documentVerificationFlags}
-                            />
-                        </div>
-                        <PendingTermsReacceptance
-                            payload={pendingTermsReacceptance}
-                        />
-                    </div>
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-3">
-                    <PracticeHealth payload={practiceHealth} />
-                    <PvWaterfallPanel payload={pvWaterfall} />
-                    <ScenarioPlanning payload={scenarioPlanning} />
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-3">
-                    <ProposalStatusPanel payload={proposalStatus} />
-                    <PaymentStatusPanel payload={paymentStatus} />
-                    <NpoPendingConversions payload={npoPendingConversions} />
-                    <NpoFundingPanel payload={npoFunding} />
-                    <ProspectInbox payload={prospectInbox} />
-                    <EconomicIndicators payload={economicIndicators} />
-                </div>
-
-                <div className="grid gap-4 xl:grid-cols-3">
-                    <IntegrationHealth payload={integrationHealth} />
-                    <FunnelAnalytics payload={funnelAnalytics} />
-                    <QuestionnaireOptimisation
-                        payload={questionnaireOptimisation}
+                <div
+                    className="inline-flex flex-wrap gap-1 rounded-md border bg-muted/30 p-1"
+                    role="tablist"
+                    aria-label="Advisor dashboard sections"
+                >
+                    <DashboardTabButton
+                        active={activeTab === 'priorities'}
+                        onClick={() => setActiveTab('priorities')}
+                        label="Priorities"
+                        count={actionQueueCount}
+                        controls="advisor-dashboard-priorities"
+                    />
+                    <DashboardTabButton
+                        active={activeTab === 'signals'}
+                        onClick={() => setActiveTab('signals')}
+                        label="Signals"
+                        count={
+                            integrationHealth.summary.amber +
+                            integrationHealth.summary.red +
+                            economicIndicators.summary.change_alerts +
+                            funnelAnalytics.summary.abandoned +
+                            questionnaireOptimisation.summary
+                                .detected_candidates
+                        }
+                        controls="advisor-dashboard-signals"
                     />
                 </div>
 
-                <div className="grid gap-4 xl:grid-cols-3">
-                    <WellbeingAnalytics payload={wellbeingAnalytics} />
-                    <CoachSignals payload={coachSignals} />
-                </div>
+                {activeTab === 'priorities' && (
+                    <div
+                        id="advisor-dashboard-priorities"
+                        role="tabpanel"
+                        className="space-y-6"
+                    >
+                        <ActionCommandCentre
+                            items={actionItems}
+                            activeTab={activeTab}
+                            onSelectTab={setActiveTab}
+                        />
 
-                <PanelOperations payload={panelOperations} />
+                        <DashboardSection
+                            title="Action panel"
+                            description="Work the live queues before moving into planning and portfolio decisions."
+                        >
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+                                <RedFlagPanel payload={redFlags} />
+
+                                <div className="space-y-4">
+                                    <div id="advisor-documents">
+                                        <DocumentVerificationFlagPanel
+                                            flags={documentVerificationFlags}
+                                        />
+                                    </div>
+                                    <PendingTermsReacceptance
+                                        payload={pendingTermsReacceptance}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="grid gap-4 xl:grid-cols-2">
+                                <ProposalStatusPanel payload={proposalStatus} />
+                                <PaymentStatusPanel payload={paymentStatus} />
+                            </div>
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Portfolio decisions"
+                            description="Review client health, PV opportunity, practice position, and scenario options."
+                        >
+                            <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+                                <MyClientsHealth payload={clientsHealth} />
+                                <PvWaterfallPanel payload={pvWaterfall} />
+                            </div>
+
+                            <div className="grid gap-4 xl:grid-cols-2">
+                                <PracticeHealth payload={practiceHealth} />
+                                <ScenarioPlanning payload={scenarioPlanning} />
+                            </div>
+                        </DashboardSection>
+                    </div>
+                )}
+
+                {activeTab === 'signals' && (
+                    <div
+                        id="advisor-dashboard-signals"
+                        role="tabpanel"
+                        className="space-y-6"
+                    >
+                        <DashboardSection
+                            title="Panel operations"
+                            description="Track partner hand-offs and governed learning work that supports the advisory team."
+                        >
+                            <PanelOperations payload={panelOperations} />
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Specialist workflows"
+                            description="Monitor NPO conversion, funding, wellbeing, coaching, and prospect signals."
+                        >
+                            <div className="grid gap-4 xl:grid-cols-3">
+                                <NpoPendingConversions
+                                    payload={npoPendingConversions}
+                                />
+                                <NpoFundingPanel payload={npoFunding} />
+                                <ProspectInbox payload={prospectInbox} />
+                            </div>
+
+                            <div className="grid gap-4 xl:grid-cols-3">
+                                <WellbeingAnalytics
+                                    payload={wellbeingAnalytics}
+                                />
+                                <CoachSignals payload={coachSignals} />
+                            </div>
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Operating signals"
+                            description="Use these lower-urgency indicators to spot systemic issues and improvement opportunities."
+                        >
+                            <div className="grid gap-4 xl:grid-cols-3">
+                                <EconomicIndicators
+                                    payload={economicIndicators}
+                                />
+                                <IntegrationHealth
+                                    payload={integrationHealth}
+                                />
+                                <FunnelAnalytics payload={funnelAnalytics} />
+                                <QuestionnaireOptimisation
+                                    payload={questionnaireOptimisation}
+                                />
+                            </div>
+                        </DashboardSection>
+                    </div>
+                )}
             </div>
         </>
     );
+}
+
+function DashboardTabButton({
+    active,
+    onClick,
+    label,
+    count,
+    controls,
+}: {
+    active: boolean;
+    onClick: () => void;
+    label: string;
+    count: number;
+    controls: string;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            aria-controls={controls}
+            onClick={onClick}
+            className={cn(
+                'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                active
+                    ? 'bg-background text-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-background/60 hover:text-foreground',
+            )}
+        >
+            {label}
+            <Badge variant={active ? 'secondary' : 'outline'}>{count}</Badge>
+        </button>
+    );
+}
+
+function DashboardSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: React.ReactNode;
+}) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="space-y-4">{children}</div>
+        </section>
+    );
+}
+
+function ActionCommandCentre({
+    items,
+    activeTab,
+    onSelectTab,
+}: {
+    items: ActionSummaryItem[];
+    activeTab: DashboardTab;
+    onSelectTab: (tab: DashboardTab) => void;
+}) {
+    const sortedItems = [...items].sort(
+        (a, b) =>
+            actionPriorityRank(a.priority) - actionPriorityRank(b.priority) ||
+            b.value - a.value ||
+            a.label.localeCompare(b.label),
+    );
+    const criticalCount = items.filter(
+        (item) => item.value > 0 && item.priority === 'critical',
+    ).length;
+    const totalOpen = items.reduce((total, item) => total + item.value, 0);
+
+    return (
+        <section
+            id="advisor-command-centre"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <Activity className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">Command centre</h2>
+                    </div>
+                    <p className="mt-1 max-w-2xl text-sm text-muted-foreground">
+                        Hover each queue to see why it matters and the next
+                        action to take.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge
+                        variant={criticalCount > 0 ? 'destructive' : 'outline'}
+                    >
+                        {criticalCount} critical
+                    </Badge>
+                    <Badge variant="secondary">{totalOpen} open items</Badge>
+                </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                {sortedItems.map((item) => (
+                    <ActionSummaryCard
+                        key={item.key}
+                        item={item}
+                        activeTab={activeTab}
+                        onSelectTab={onSelectTab}
+                    />
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function ActionSummaryCard({
+    item,
+    activeTab,
+    onSelectTab,
+}: {
+    item: ActionSummaryItem;
+    activeTab: DashboardTab;
+    onSelectTab: (tab: DashboardTab) => void;
+}) {
+    const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+        if (item.tab === activeTab) {
+            return;
+        }
+
+        event.preventDefault();
+        onSelectTab(item.tab);
+
+        window.setTimeout(() => {
+            document
+                .getElementById(item.targetId)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.history.replaceState(null, '', item.href);
+        }, 0);
+    };
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <a
+                    href={item.href}
+                    onClick={handleClick}
+                    className={cn(
+                        'min-h-32 rounded-md border p-4 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                        actionCardClasses(item.priority, item.value),
+                    )}
+                >
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="rounded-md border bg-background p-2 text-muted-foreground">
+                            {item.icon}
+                        </div>
+                        <Badge variant={actionBadgeVariant(item)}>
+                            {item.priority === 'critical'
+                                ? 'Critical'
+                                : item.priority === 'warning'
+                                  ? 'Review'
+                                  : 'Clear'}
+                        </Badge>
+                    </div>
+                    <div className="mt-4 text-2xl font-semibold">
+                        {item.value}
+                    </div>
+                    <div className="mt-1 text-sm font-medium">{item.label}</div>
+                </a>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-sm">
+                <div className="space-y-2">
+                    <p className="font-medium">{item.explanation}</p>
+                    <p className="text-muted-foreground">{item.nextStep}</p>
+                </div>
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+function buildActionSummaryItems({
+    redFlags,
+    documentVerificationFlags,
+    pendingTermsReacceptance,
+    proposalStatus,
+    paymentStatus,
+    npoPendingConversions,
+    npoFunding,
+    panelOperations,
+}: Pick<
+    Props,
+    | 'redFlags'
+    | 'documentVerificationFlags'
+    | 'pendingTermsReacceptance'
+    | 'proposalStatus'
+    | 'paymentStatus'
+    | 'npoPendingConversions'
+    | 'npoFunding'
+    | 'panelOperations'
+>): ActionSummaryItem[] {
+    const paymentActionCount =
+        paymentStatus.summary.failed + paymentStatus.summary.retrying;
+    const proposalActionCount =
+        proposalStatus.summary.expired + proposalStatus.summary.expiring_soon;
+    const learningActionCount =
+        panelOperations.learning.summary.detected +
+        panelOperations.learning.summary.staged;
+
+    return [
+        {
+            key: 'red-flags',
+            label: 'Red flags',
+            value: redFlags.summary.open,
+            href: '#advisor-red-flags',
+            targetId: 'advisor-red-flags',
+            tab: 'priorities',
+            priority:
+                redFlags.summary.unacknowledged > 0
+                    ? 'critical'
+                    : redFlags.summary.open > 0
+                      ? 'warning'
+                      : 'neutral',
+            explanation:
+                'Open AI red flags indicate advisory risks that have not been fully cleared.',
+            nextStep:
+                'Open the panel, acknowledge new items, and resolve risks once reviewed.',
+            icon: <ShieldAlert className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'documents',
+            label: 'Document review',
+            value: documentVerificationFlags.length,
+            href: '#advisor-documents',
+            targetId: 'advisor-documents',
+            tab: 'priorities',
+            priority:
+                documentVerificationFlags.length > 0 ? 'warning' : 'neutral',
+            explanation:
+                'Document review flags surface uploaded evidence that needs advisor verification.',
+            nextStep:
+                'Open each flagged document, confirm evidence quality, and clear or escalate the flag.',
+            icon: <FileText className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'terms',
+            label: 'Terms re-acceptance',
+            value: pendingTermsReacceptance.total,
+            href: '#advisor-terms',
+            targetId: 'advisor-terms',
+            tab: 'priorities',
+            priority:
+                pendingTermsReacceptance.total > 0 ? 'warning' : 'neutral',
+            explanation:
+                'Client contacts in this queue must accept the latest terms before continuing portal workflows.',
+            nextStep:
+                'Follow up with the listed client contacts or confirm the terms gate is working as expected.',
+            icon: <ShieldAlert className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'payments',
+            label: 'Payment exceptions',
+            value: paymentActionCount,
+            href: '#advisor-payments',
+            targetId: 'advisor-payments',
+            tab: 'priorities',
+            priority:
+                paymentStatus.summary.failed > 0
+                    ? 'critical'
+                    : paymentActionCount > 0
+                      ? 'warning'
+                      : 'neutral',
+            explanation:
+                'Payment exceptions indicate failed or retrying transactions that may block delivery or renewals.',
+            nextStep:
+                'Open failed payments, retry where available, or contact the client for updated billing details.',
+            icon: <CreditCard className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'proposals',
+            label: 'Proposal expiry',
+            value: proposalActionCount,
+            href: '#advisor-proposals',
+            targetId: 'advisor-proposals',
+            tab: 'priorities',
+            priority:
+                proposalStatus.summary.expired > 0
+                    ? 'critical'
+                    : proposalActionCount > 0
+                      ? 'warning'
+                      : 'neutral',
+            explanation:
+                'Proposal expiry flags released proposals that need renewal, recall, or advisor follow-up.',
+            nextStep:
+                'Open expiring proposals and decide whether to renew, recall, or progress client sign-off.',
+            icon: <FileText className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'npo-funding',
+            label: 'NPO funding',
+            value: npoFunding.summary.active_alerts,
+            href: '#advisor-npo-funding',
+            targetId: 'advisor-npo-funding',
+            tab: 'signals',
+            priority:
+                npoFunding.summary.critical_alerts > 0
+                    ? 'critical'
+                    : npoFunding.summary.active_alerts > 0
+                      ? 'warning'
+                      : 'neutral',
+            explanation:
+                'NPO funding alerts track deadlines or funder requirements that could affect client delivery.',
+            nextStep:
+                'Review critical alerts first and contact the client before the due date slips.',
+            icon: <HeartHandshake className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'npo-conversions',
+            label: 'NPO nudges',
+            value: npoPendingConversions.summary.nudge_due,
+            href: '#advisor-npo-conversions',
+            targetId: 'advisor-npo-conversions',
+            tab: 'signals',
+            priority:
+                npoPendingConversions.summary.nudge_due > 0
+                    ? 'warning'
+                    : 'neutral',
+            explanation:
+                'NPO nudges show delivered Governance Reviews where re-engagement is due.',
+            nextStep:
+                'Open the client record and decide whether to nudge, defer, or mark the conversion outcome.',
+            icon: <Clock className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'broker-referrals',
+            label: 'Broker referrals',
+            value: panelOperations.broker.summary.active,
+            href: '#advisor-broker-referrals',
+            targetId: 'advisor-broker-referrals',
+            tab: 'signals',
+            priority:
+                panelOperations.broker.summary.active > 0
+                    ? 'warning'
+                    : 'neutral',
+            explanation:
+                'Broker referrals track active hand-offs to broker partners and their current stage.',
+            nextStep:
+                'Open referral details, confirm progress, and chase stale partner responses.',
+            icon: <Inbox className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'coach-referrals',
+            label: 'Coach referrals',
+            value: panelOperations.coach.summary.active,
+            href: '#advisor-coach-referrals',
+            targetId: 'advisor-coach-referrals',
+            tab: 'signals',
+            priority:
+                panelOperations.coach.summary.active > 0
+                    ? 'warning'
+                    : 'neutral',
+            explanation:
+                'Coach referrals track founder or client support hand-offs that need follow-through.',
+            nextStep:
+                'Open the hand-off, confirm the coach stage, and update the referral once progressed.',
+            icon: <HeartHandshake className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'learning-queue',
+            label: 'Learning queue',
+            value: learningActionCount,
+            href: '#advisor-learning-queue',
+            targetId: 'advisor-learning-queue',
+            tab: 'signals',
+            priority: learningActionCount > 0 ? 'warning' : 'neutral',
+            explanation:
+                'Learning queue items are governed model, questionnaire, and methodology updates awaiting review.',
+            nextStep:
+                'Review staged updates before approving changes into the live advisory workflow.',
+            icon: <Sparkles className="size-4" aria-hidden="true" />,
+        },
+    ];
+}
+
+function actionPriorityRank(priority: ActionPriority): number {
+    if (priority === 'critical') {
+        return 0;
+    }
+
+    if (priority === 'warning') {
+        return 1;
+    }
+
+    return 2;
+}
+
+function actionBadgeVariant(
+    item: ActionSummaryItem,
+): 'default' | 'secondary' | 'outline' | 'destructive' {
+    if (item.value === 0) {
+        return 'outline';
+    }
+
+    if (item.priority === 'critical') {
+        return 'destructive';
+    }
+
+    if (item.priority === 'warning') {
+        return 'secondary';
+    }
+
+    return 'outline';
+}
+
+function actionCardClasses(priority: ActionPriority, value: number): string {
+    if (value === 0 || priority === 'neutral') {
+        return 'bg-background hover:bg-muted/40';
+    }
+
+    if (priority === 'critical') {
+        return 'border-destructive/40 bg-destructive/5 hover:bg-destructive/10';
+    }
+
+    return 'border-amber-300 bg-amber-50/60 hover:bg-amber-50 dark:border-amber-500/40 dark:bg-amber-500/10 dark:hover:bg-amber-500/15';
+}
+
+function initialDashboardTab(): DashboardTab {
+    if (typeof window === 'undefined') {
+        return 'priorities';
+    }
+
+    return signalPanelTargetIds.has(window.location.hash.replace('#', ''))
+        ? 'signals'
+        : 'priorities';
 }
 
 function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
@@ -667,7 +1232,7 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
 
     return (
         <section
-            id="advisor-red-flags"
+            id="advisor-proposals"
             className="space-y-4 rounded-md border bg-background p-4"
         >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -735,7 +1300,7 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
 function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
     return (
         <section
-            id="advisor-terms"
+            id="advisor-payments"
             className="space-y-4 rounded-md border bg-background p-4"
         >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -860,7 +1425,10 @@ function NpoPendingConversions({
     payload: NpoPendingConversionsPayload;
 }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-npo-conversions"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <Clock className="size-4" aria-hidden="true" />
@@ -954,7 +1522,10 @@ function NpoPendingConversions({
 
 function NpoFundingPanel({ payload }: { payload: NpoFundingPayload }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-npo-funding"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <HeartHandshake className="size-4" aria-hidden="true" />
@@ -1477,7 +2048,10 @@ function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
     const firstClient = payload.clients[0] ?? null;
 
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-pv-waterfall"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <TrendingUp className="size-4" aria-hidden="true" />
@@ -1519,7 +2093,10 @@ function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-red-flags"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <ShieldAlert className="size-4" aria-hidden="true" />
@@ -1686,7 +2263,7 @@ function Metric({
     href,
 }: {
     label: string;
-    value: number;
+    value: number | string;
     explanation: string;
     href: string;
 }) {
@@ -1863,7 +2440,10 @@ function PendingTermsReacceptance({
     payload: PendingTermsPayload;
 }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-terms"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <ShieldAlert className="size-4" aria-hidden="true" />
@@ -2316,8 +2896,12 @@ function IntegrationHealth({ payload }: { payload: IntegrationHealthPayload }) {
 
 function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
     return (
-        <div className="grid gap-4 xl:grid-cols-3">
+        <div
+            id="advisor-panel-operations"
+            className="grid gap-4 xl:grid-cols-3"
+        >
             <PanelReferralQueuePanel
+                id="advisor-broker-referrals"
                 title="Broker referrals"
                 description="Broker panel hand-offs and cover-placement progress."
                 icon={<Inbox className="size-4" aria-hidden="true" />}
@@ -2325,6 +2909,7 @@ function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
                 empty="No broker referrals in the current scope."
             />
             <PanelReferralQueuePanel
+                id="advisor-coach-referrals"
                 title="Coach referrals"
                 description="Founder and client coaching hand-offs."
                 icon={<HeartHandshake className="size-4" aria-hidden="true" />}
@@ -2337,12 +2922,14 @@ function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
 }
 
 function PanelReferralQueuePanel({
+    id,
     title,
     description,
     icon,
     payload,
     empty,
 }: {
+    id: string;
     title: string;
     description: string;
     icon: React.ReactNode;
@@ -2354,7 +2941,10 @@ function PanelReferralQueuePanel({
     );
 
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id={id}
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <div className="flex items-center gap-2">
@@ -2440,7 +3030,10 @@ function PanelReferralQueuePanel({
 
 function LearningQueuePanel({ payload }: { payload: LearningQueuePayload }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-learning-queue"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                 <div>
                     <div className="flex items-center gap-2">
