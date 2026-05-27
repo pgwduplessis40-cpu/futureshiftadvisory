@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::store
@@ -130,14 +130,14 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::show
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-export const show = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const show = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
@@ -152,7 +152,7 @@ show.definition = {
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-show.url = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+show.url = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { template: args }
     }
@@ -160,7 +160,7 @@ show.url = (args: { template: string | number | { id: string | number } } | [tem
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { template: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     template: args[0],
@@ -185,7 +185,7 @@ show.url = (args: { template: string | number | { id: string | number } } | [tem
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-show.get = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+show.get = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: show.url(args, options),
     method: 'get',
 })
@@ -194,7 +194,7 @@ show.get = (args: { template: string | number | { id: string | number } } | [tem
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-show.head = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+show.head = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: show.url(args, options),
     method: 'head',
 })
@@ -204,7 +204,7 @@ show.head = (args: { template: string | number | { id: string | number } } | [te
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-    const showForm = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const showForm = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: show.url(args, options),
         method: 'get',
     })
@@ -214,7 +214,7 @@ show.head = (args: { template: string | number | { id: string | number } } | [te
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-        showForm.get = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        showForm.get = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, options),
             method: 'get',
         })
@@ -223,7 +223,7 @@ show.head = (args: { template: string | number | { id: string | number } } | [te
  * @see app/Http/Controllers/Advisor/TemplateController.php:89
  * @route '/advisor/templates/{template}'
  */
-        showForm.head = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        showForm.head = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: show.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -232,14 +232,14 @@ show.head = (args: { template: string | number | { id: string | number } } | [te
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::update
  * @see app/Http/Controllers/Advisor/TemplateController.php:106
  * @route '/advisor/templates/{template}'
  */
-export const update = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+export const update = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
@@ -254,7 +254,7 @@ update.definition = {
  * @see app/Http/Controllers/Advisor/TemplateController.php:106
  * @route '/advisor/templates/{template}'
  */
-update.url = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+update.url = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { template: args }
     }
@@ -262,7 +262,7 @@ update.url = (args: { template: string | number | { id: string | number } } | [t
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { template: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     template: args[0],
@@ -287,7 +287,7 @@ update.url = (args: { template: string | number | { id: string | number } } | [t
  * @see app/Http/Controllers/Advisor/TemplateController.php:106
  * @route '/advisor/templates/{template}'
  */
-update.patch = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+update.patch = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
@@ -297,7 +297,7 @@ update.patch = (args: { template: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/Advisor/TemplateController.php:106
  * @route '/advisor/templates/{template}'
  */
-    const updateForm = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const updateForm = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: update.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PATCH',
@@ -312,7 +312,7 @@ update.patch = (args: { template: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/Advisor/TemplateController.php:106
  * @route '/advisor/templates/{template}'
  */
-        updateForm.patch = (args: { template: string | number | { id: string | number } } | [template: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        updateForm.patch = (args: { template: string | { id: string } } | [template: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: update.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PATCH',
@@ -321,7 +321,7 @@ update.patch = (args: { template: string | number | { id: string | number } } | 
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 const TemplateController = { index, store, show, update }
 

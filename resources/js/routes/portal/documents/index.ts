@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:33
+ * @see app/Http/Controllers/DocumentController.php:36
  * @route '/portal/documents'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:33
+ * @see app/Http/Controllers/DocumentController.php:36
  * @route '/portal/documents'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:33
+ * @see app/Http/Controllers/DocumentController.php:36
  * @route '/portal/documents'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:33
+ * @see app/Http/Controllers/DocumentController.php:36
  * @route '/portal/documents'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,18 +45,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\DocumentController::__invoke
- * @see app/Http/Controllers/DocumentController.php:33
+ * @see app/Http/Controllers/DocumentController.php:36
  * @route '/portal/documents'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
 export const show = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -71,7 +71,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
 show.url = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -82,7 +82,7 @@ show.url = (args: { document: string | { id: string } } | [document: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { document: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     document: args[0],
@@ -104,7 +104,7 @@ show.url = (args: { document: string | { id: string } } | [document: string | { 
 
 /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
 show.get = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -113,7 +113,7 @@ show.get = (args: { document: string | { id: string } } | [document: string | { 
 })
 /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
 show.head = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -123,7 +123,7 @@ show.head = (args: { document: string | { id: string } } | [document: string | {
 
     /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
     const showForm = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -133,7 +133,7 @@ show.head = (args: { document: string | { id: string } } | [document: string | {
 
             /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
         showForm.get = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -142,7 +142,7 @@ show.head = (args: { document: string | { id: string } } | [document: string | {
         })
             /**
 * @see \App\Http\Controllers\DocumentController::show
- * @see app/Http/Controllers/DocumentController.php:55
+ * @see app/Http/Controllers/DocumentController.php:58
  * @route '/portal/documents/{document}'
  */
         showForm.head = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -154,7 +154,7 @@ show.head = (args: { document: string | { id: string } } | [document: string | {
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const documents = {
     store: Object.assign(store, store),

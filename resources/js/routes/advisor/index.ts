@@ -1,4 +1,5 @@
 import clients from './clients'
+import npoEngagements from './npo-engagements'
 import payments from './payments'
 import proposals from './proposals'
 import goals from './goals'
@@ -18,6 +19,7 @@ import testimonials from './testimonials'
 import bulkCommunications from './bulk-communications'
 const advisor = {
     clients: Object.assign(clients, clients),
+npoEngagements: Object.assign(npoEngagements, npoEngagements),
 payments: Object.assign(payments, payments),
 proposals: Object.assign(proposals, proposals),
 goals: Object.assign(goals, goals),

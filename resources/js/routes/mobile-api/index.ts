@@ -77,7 +77,7 @@ me.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     me.form = meForm
 const mobileApi = {
     me: Object.assign(me, me),

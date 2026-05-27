@@ -2,6 +2,7 @@ import ClientController from './ClientController'
 import OffboardingController from './OffboardingController'
 import ClientLifecycleController from './ClientLifecycleController'
 import KnowledgeAssessmentController from './KnowledgeAssessmentController'
+import KnowledgeController from './KnowledgeController'
 import GoalController from './GoalController'
 import ProposalController from './ProposalController'
 import ReportController from './ReportController'
@@ -12,10 +13,11 @@ import ClientMessageController from './ClientMessageController'
 import AccountingConnectionController from './AccountingConnectionController'
 import TestimonialController from './TestimonialController'
 import VoiceNoteController from './VoiceNoteController'
+import NpoConversionController from './NpoConversionController'
+import NpoConfigurationController from './NpoConfigurationController'
 import PaymentController from './PaymentController'
 import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
-import KnowledgeController from './KnowledgeController'
 import MethodologyController from './MethodologyController'
 import TemplateController from './TemplateController'
 import ProspectInboxController from './ProspectInboxController'
@@ -28,6 +30,7 @@ const Advisor = {
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
 ClientLifecycleController: Object.assign(ClientLifecycleController, ClientLifecycleController),
 KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, KnowledgeAssessmentController),
+KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
 ReportController: Object.assign(ReportController, ReportController),
@@ -38,10 +41,11 @@ ClientMessageController: Object.assign(ClientMessageController, ClientMessageCon
 AccountingConnectionController: Object.assign(AccountingConnectionController, AccountingConnectionController),
 TestimonialController: Object.assign(TestimonialController, TestimonialController),
 VoiceNoteController: Object.assign(VoiceNoteController, VoiceNoteController),
+NpoConversionController: Object.assign(NpoConversionController, NpoConversionController),
+NpoConfigurationController: Object.assign(NpoConfigurationController, NpoConfigurationController),
 PaymentController: Object.assign(PaymentController, PaymentController),
 BriefingController: Object.assign(BriefingController, BriefingController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
-KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 MethodologyController: Object.assign(MethodologyController, MethodologyController),
 TemplateController: Object.assign(TemplateController, TemplateController),
 ProspectInboxController: Object.assign(ProspectInboxController, ProspectInboxController),

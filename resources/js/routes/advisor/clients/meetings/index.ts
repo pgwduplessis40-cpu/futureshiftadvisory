@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\MeetingController::store
- * @see app/Http/Controllers/Advisor/MeetingController.php:18
+ * @see app/Http/Controllers/Advisor/MeetingController.php:19
  * @route '/advisor/clients/{client}/meetings'
  */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\MeetingController::store
- * @see app/Http/Controllers/Advisor/MeetingController.php:18
+ * @see app/Http/Controllers/Advisor/MeetingController.php:19
  * @route '/advisor/clients/{client}/meetings'
  */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\MeetingController::store
- * @see app/Http/Controllers/Advisor/MeetingController.php:18
+ * @see app/Http/Controllers/Advisor/MeetingController.php:19
  * @route '/advisor/clients/{client}/meetings'
  */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
     /**
 * @see \App\Http\Controllers\Advisor\MeetingController::store
- * @see app/Http/Controllers/Advisor/MeetingController.php:18
+ * @see app/Http/Controllers/Advisor/MeetingController.php:19
  * @route '/advisor/clients/{client}/meetings'
  */
     const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
             /**
 * @see \App\Http\Controllers\Advisor\MeetingController::store
- * @see app/Http/Controllers/Advisor/MeetingController.php:18
+ * @see app/Http/Controllers/Advisor/MeetingController.php:19
  * @route '/advisor/clients/{client}/meetings'
  */
         storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

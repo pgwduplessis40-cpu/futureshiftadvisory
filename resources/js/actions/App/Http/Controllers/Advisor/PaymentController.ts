@@ -24,7 +24,7 @@ retry.url = (args: { payment: string | number } | [payment: string | number ] | 
         args = { payment: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     payment: args[0],
@@ -71,7 +71,7 @@ retry.post = (args: { payment: string | number } | [payment: string | number ] |
             action: retry.url(args, options),
             method: 'post',
         })
-
+    
     retry.form = retryForm
 const PaymentController = { retry }
 

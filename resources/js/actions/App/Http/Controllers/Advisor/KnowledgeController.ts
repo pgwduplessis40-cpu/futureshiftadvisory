@@ -27,7 +27,7 @@ draftFromClient.url = (args: { client: string | { id: string } } | [client: stri
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ draftFromClient.post = (args: { client: string | { id: string } } | [client: str
             action: draftFromClient.url(args, options),
             method: 'post',
         })
-
+    
     draftFromClient.form = draftFromClientForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::index
@@ -154,7 +154,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::create
@@ -232,7 +232,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::store
@@ -287,14 +287,14 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::reviewDraft
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-export const reviewDraft = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const reviewDraft = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: reviewDraft.url(args, options),
     method: 'get',
 })
@@ -309,7 +309,7 @@ reviewDraft.definition = {
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-reviewDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+reviewDraft.url = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { knowledgeEntryDraft: args }
     }
@@ -317,7 +317,7 @@ reviewDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntryDraft: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntryDraft: args[0],
@@ -342,7 +342,7 @@ reviewDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string |
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-reviewDraft.get = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+reviewDraft.get = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: reviewDraft.url(args, options),
     method: 'get',
 })
@@ -351,7 +351,7 @@ reviewDraft.get = (args: { knowledgeEntryDraft: string | number | { id: string |
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-reviewDraft.head = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+reviewDraft.head = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: reviewDraft.url(args, options),
     method: 'head',
 })
@@ -361,7 +361,7 @@ reviewDraft.head = (args: { knowledgeEntryDraft: string | number | { id: string 
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-    const reviewDraftForm = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const reviewDraftForm = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: reviewDraft.url(args, options),
         method: 'get',
     })
@@ -371,7 +371,7 @@ reviewDraft.head = (args: { knowledgeEntryDraft: string | number | { id: string 
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-        reviewDraftForm.get = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        reviewDraftForm.get = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: reviewDraft.url(args, options),
             method: 'get',
         })
@@ -380,7 +380,7 @@ reviewDraft.head = (args: { knowledgeEntryDraft: string | number | { id: string 
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:124
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/review'
  */
-        reviewDraftForm.head = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        reviewDraftForm.head = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: reviewDraft.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',
@@ -389,14 +389,14 @@ reviewDraft.head = (args: { knowledgeEntryDraft: string | number | { id: string 
                     }),
             method: 'get',
         })
-
+    
     reviewDraft.form = reviewDraftForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::acceptDraft
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/accept'
  */
-export const acceptDraft = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+export const acceptDraft = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: acceptDraft.url(args, options),
     method: 'patch',
 })
@@ -411,7 +411,7 @@ acceptDraft.definition = {
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/accept'
  */
-acceptDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+acceptDraft.url = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { knowledgeEntryDraft: args }
     }
@@ -419,7 +419,7 @@ acceptDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntryDraft: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntryDraft: args[0],
@@ -444,7 +444,7 @@ acceptDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string |
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/accept'
  */
-acceptDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+acceptDraft.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: acceptDraft.url(args, options),
     method: 'patch',
 })
@@ -454,7 +454,7 @@ acceptDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: string
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/accept'
  */
-    const acceptDraftForm = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const acceptDraftForm = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: acceptDraft.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PATCH',
@@ -469,7 +469,7 @@ acceptDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: string
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:144
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/accept'
  */
-        acceptDraftForm.patch = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        acceptDraftForm.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: acceptDraft.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PATCH',
@@ -478,14 +478,14 @@ acceptDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: string
                     }),
             method: 'post',
         })
-
+    
     acceptDraft.form = acceptDraftForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::discardDraft
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/discard'
  */
-export const discardDraft = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+export const discardDraft = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: discardDraft.url(args, options),
     method: 'patch',
 })
@@ -500,7 +500,7 @@ discardDraft.definition = {
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/discard'
  */
-discardDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+discardDraft.url = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { knowledgeEntryDraft: args }
     }
@@ -508,7 +508,7 @@ discardDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntryDraft: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntryDraft: args[0],
@@ -533,7 +533,7 @@ discardDraft.url = (args: { knowledgeEntryDraft: string | number | { id: string 
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/discard'
  */
-discardDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+discardDraft.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: discardDraft.url(args, options),
     method: 'patch',
 })
@@ -543,7 +543,7 @@ discardDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: strin
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/discard'
  */
-    const discardDraftForm = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const discardDraftForm = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: discardDraft.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PATCH',
@@ -558,7 +558,7 @@ discardDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: strin
  * @see app/Http/Controllers/Advisor/KnowledgeController.php:153
  * @route '/advisor/knowledge-drafts/{knowledgeEntryDraft}/discard'
  */
-        discardDraftForm.patch = (args: { knowledgeEntryDraft: string | number | { id: string | number } } | [knowledgeEntryDraft: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        discardDraftForm.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledgeEntryDraft: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: discardDraft.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PATCH',
@@ -567,7 +567,7 @@ discardDraft.patch = (args: { knowledgeEntryDraft: string | number | { id: strin
                     }),
             method: 'post',
         })
-
+    
     discardDraft.form = discardDraftForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::show
@@ -597,7 +597,7 @@ show.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -669,7 +669,7 @@ show.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::edit
@@ -699,7 +699,7 @@ edit.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -771,7 +771,7 @@ edit.head = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntry
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::update
@@ -801,7 +801,7 @@ update.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEntr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -860,7 +860,7 @@ update.patch = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEn
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::destroy
@@ -890,7 +890,7 @@ destroy.url = (args: { knowledgeEntry: string | { id: string } } | [knowledgeEnt
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntry: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntry: args[0],
@@ -949,7 +949,7 @@ destroy.delete = (args: { knowledgeEntry: string | { id: string } } | [knowledge
                     }),
             method: 'post',
         })
-
+    
     destroy.form = destroyForm
 const KnowledgeController = { draftFromClient, index, create, store, reviewDraft, acceptDraft, discardDraft, show, edit, update, destroy }
 
