@@ -7,6 +7,7 @@ use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardCont
 use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\MessageController;
+use App\Http\Controllers\Portal\NpoImpactMetricController;
 use App\Http\Controllers\Portal\OnboardingController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
 use App\Http\Controllers\Portal\WellbeingController;
@@ -21,6 +22,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneur/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])->name('entrepreneur.assessments.show');
         Route::post('documents', DocumentController::class)->name('documents.store');
         Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
+        Route::post('npo-impact-metrics', NpoImpactMetricController::class)->name('npo-impact-metrics.store');
         Route::get('messages', [MessageController::class, 'index'])->name('messages.index');
         Route::post('messages', [MessageController::class, 'store'])->name('messages.store');
         Route::get('messages/{messageThread}', [MessageController::class, 'show'])->name('messages.show');

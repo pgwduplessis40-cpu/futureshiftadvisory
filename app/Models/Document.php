@@ -30,6 +30,10 @@ final class Document extends Model
 
     public const CATEGORY_MESSAGE_ATTACHMENT = 'message_attachment';
 
+    public const CATEGORY_NPO_MEETING_MINUTES = 'npo_meeting_minutes';
+
+    public const CATEGORY_NPO_BOARD_RECORD = 'npo_board_record';
+
     public const CATEGORY_OTHER = 'other';
 
     public const SCANNER_PENDING = 'pending';
@@ -76,6 +80,14 @@ final class Document extends Model
     public function entrepreneurProfile(): BelongsTo
     {
         return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<NpoEngagement, Document>
+     */
+    public function npoEngagement(): BelongsTo
+    {
+        return $this->belongsTo(NpoEngagement::class);
     }
 
     /**

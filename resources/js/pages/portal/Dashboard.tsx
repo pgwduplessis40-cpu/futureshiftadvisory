@@ -2,13 +2,18 @@ import { Head, Link } from '@inertiajs/react';
 import {
     Activity,
     Bell,
+    CalendarClock,
     ClipboardList,
+    CircleDollarSign,
     FileText,
     HeartPulse,
     MessageSquare,
+    PieChart,
+    Save,
     Target,
     TrendingUp,
     Upload,
+    Users,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, ReactNode } from 'react';
@@ -22,6 +27,15 @@ import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import {
     Tooltip,
     TooltipContent,
@@ -67,9 +81,11 @@ type Props = {
     businessHealth: BusinessHealthRadarPayload;
     healthFindings: HealthFindingDimension[];
     npoHealth: NpoHealthPayload | null;
+    npoPortal: NpoPortalPayload | null;
     goals: GoalDashboard;
     documents: DocumentPayload[];
     documentUploadUrl: string;
+    npoImpactMetricStoreUrl: string | null;
     scenarios: ScenarioPayload[];
     proposals: ProposalPayload[];
     reports: ReportPayload[];
@@ -91,6 +107,85 @@ type DocumentPayload = {
         client_explanation: string;
         resolved_at: string | null;
     }>;
+};
+
+type NpoPortalPayload = {
+    engagement_id: string;
+    sub_type: string | null;
+    legal_structure: string | null;
+    funding: NpoFundingPayload;
+    milestone_progress: {
+        completed: number;
+        total: number;
+        percentage: number;
+        cost_per_beneficiary: NpoCostPerBeneficiary | null;
+    };
+    accountability_reports_due: NpoFundingRecord[];
+    impact_metrics: NpoImpactMetricPayload[];
+    questionnaire_completion: {
+        completed: boolean;
+        submitted_at: string | null;
+        answered_questions: number;
+    };
+};
+
+type NpoFundingPayload = {
+    summary: {
+        active_records: number;
+        active_amount: number;
+        due_60_count: number;
+        expiry_alerts_count: number;
+    };
+    records: NpoFundingRecord[];
+    alerts: Array<{
+        id: string;
+        funder_name: string | null;
+        type: string;
+        severity: string;
+        message: string;
+        due_on: string | null;
+    }>;
+    concentration: {
+        total_active_amount: number;
+        largest_funder_amount: number;
+        largest_funder_ratio: number;
+        largest_funder_name: string | null;
+        risk_level: string;
+    };
+    deadlines_60: NpoFundingRecord[];
+};
+
+type NpoFundingRecord = {
+    id: string;
+    funder_name: string | null;
+    grant_name: string | null;
+    grant_amount: number;
+    currency?: string;
+    reporting_deadline: string | null;
+    grant_expiry_at?: string | null;
+};
+
+type NpoCostPerBeneficiary = {
+    id: string;
+    cost_per_beneficiary: number | null;
+    benchmark_cost_per_beneficiary: number | null;
+    additional_beneficiaries_mid: number | null;
+    rating: string;
+    calculated_at: string | null;
+};
+
+type NpoImpactMetricPayload = {
+    id: string;
+    metric_key: string;
+    metric_label: string;
+    value: number;
+    unit: string | null;
+    platform_value: number | null;
+    period_start: string | null;
+    period_end: string | null;
+    source: string;
+    notes: string | null;
+    recorded_at: string | null;
 };
 
 type GoalDashboard = {
@@ -189,9 +284,11 @@ export default function PortalDashboard({
     businessHealth,
     healthFindings,
     npoHealth,
+    npoPortal,
     goals,
     documents: initialDocuments,
     documentUploadUrl,
+    npoImpactMetricStoreUrl,
     scenarios,
     proposals,
     reports,
@@ -201,6 +298,9 @@ export default function PortalDashboard({
     const [documents, setDocuments] =
         useState<DocumentPayload[]>(initialDocuments);
     const [file, setFile] = useState<File | null>(null);
+    const [documentCategory, setDocumentCategory] = useState(
+        npoPortal ? 'npo_board_record' : 'client_portal_upload',
+    );
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadKey, setUploadKey] = useState(0);
@@ -215,7 +315,7 @@ export default function PortalDashboard({
 
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('category', 'client_portal_upload');
+        formData.append('category', documentCategory);
         formData.append(
             'claim_value',
             'Document uploaded from the client dashboard.',
@@ -401,6 +501,14 @@ export default function PortalDashboard({
                     <NpoHealthPanel payload={npoHealth} title="NPO health" />
                 )}
 
+                {npoPortal && (
+                    <NpoPortalPanel
+                        payload={npoPortal}
+                        metricStoreUrl={npoImpactMetricStoreUrl}
+                        onboardingUrl={onboardingUrl}
+                    />
+                )}
+
                 <GoalProgressPanel goals={goals} />
 
                 <ProposalSignoffPanel proposals={proposals} />
@@ -462,6 +570,31 @@ export default function PortalDashboard({
                             <Badge variant="outline">{documents.length}</Badge>
                         </div>
                         <div className="grid w-full gap-2 lg:max-w-sm">
+                            {npoPortal && (
+                                <Select
+                                    value={documentCategory}
+                                    onValueChange={setDocumentCategory}
+                                >
+                                    <SelectTrigger
+                                        size="sm"
+                                        className="w-full"
+                                        aria-label="Document category"
+                                    >
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        <SelectItem value="npo_board_record">
+                                            Board record
+                                        </SelectItem>
+                                        <SelectItem value="npo_meeting_minutes">
+                                            Meeting minutes
+                                        </SelectItem>
+                                        <SelectItem value="other">
+                                            Other document
+                                        </SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            )}
                             <FileDropzone
                                 key={uploadKey}
                                 id="client_dashboard_document"
@@ -541,6 +674,445 @@ export default function PortalDashboard({
                 </div>
             </div>
         </>
+    );
+}
+
+function NpoPortalPanel({
+    payload,
+    metricStoreUrl,
+    onboardingUrl,
+}: {
+    payload: NpoPortalPayload;
+    metricStoreUrl: string | null;
+    onboardingUrl: string;
+}) {
+    const [metrics, setMetrics] = useState<NpoImpactMetricPayload[]>(
+        payload.impact_metrics,
+    );
+    const [metricForm, setMetricForm] = useState({
+        metric_key: 'beneficiaries_served',
+        metric_label: 'Beneficiaries served',
+        value: '',
+        unit: 'people',
+        platform_value: '',
+        period_start: '',
+        period_end: '',
+        notes: '',
+    });
+    const [savingMetric, setSavingMetric] = useState(false);
+    const [metricError, setMetricError] = useState<string | null>(null);
+
+    const saveMetric = async () => {
+        if (!metricStoreUrl) {
+            return;
+        }
+
+        setSavingMetric(true);
+        setMetricError(null);
+
+        const response = await fetch(metricStoreUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: JSON.stringify({
+                ...metricForm,
+                platform_value:
+                    metricForm.platform_value === ''
+                        ? null
+                        : metricForm.platform_value,
+                period_start:
+                    metricForm.period_start === ''
+                        ? null
+                        : metricForm.period_start,
+                period_end:
+                    metricForm.period_end === '' ? null : metricForm.period_end,
+                notes: metricForm.notes === '' ? null : metricForm.notes,
+            }),
+        });
+
+        setSavingMetric(false);
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+                message?: string;
+                errors?: Record<string, string[]>;
+            } | null;
+            const firstError = payload?.errors
+                ? Object.values(payload.errors)[0]?.[0]
+                : null;
+            setMetricError(
+                firstError ?? payload?.message ?? 'Metric not saved.',
+            );
+
+            return;
+        }
+
+        const saved = (await response.json()) as {
+            metric?: NpoImpactMetricPayload;
+        };
+
+        if (saved.metric) {
+            setMetrics((current) => [
+                saved.metric as NpoImpactMetricPayload,
+                ...current.filter((metric) => metric.id !== saved.metric?.id),
+            ]);
+            setMetricForm((current) => ({
+                ...current,
+                value: '',
+                platform_value: '',
+                notes: '',
+            }));
+        }
+    };
+
+    return (
+        <section
+            className="space-y-5 rounded-md border bg-background p-4"
+            aria-labelledby="npo-portal-heading"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Users className="size-4" aria-hidden="true" />
+                    <h2 id="npo-portal-heading" className="text-sm font-medium">
+                        NPO workspace
+                    </h2>
+                    <Badge variant="outline">
+                        {payload.sub_type
+                            ? formatLabel(payload.sub_type)
+                            : 'NPO'}
+                    </Badge>
+                </div>
+                <Badge
+                    variant={
+                        payload.questionnaire_completion.completed
+                            ? 'default'
+                            : 'outline'
+                    }
+                >
+                    {payload.questionnaire_completion.completed
+                        ? 'Questionnaire complete'
+                        : 'Questionnaire pending'}
+                </Badge>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-4">
+                <NpoStat
+                    icon={CircleDollarSign}
+                    label="Active funding"
+                    value={formatCurrency(
+                        payload.funding.summary.active_amount,
+                    )}
+                    detail={`${payload.funding.summary.active_records} active grants`}
+                />
+                <NpoStat
+                    icon={PieChart}
+                    label="Concentration"
+                    value={`${Math.round(payload.funding.concentration.largest_funder_ratio * 100)}%`}
+                    detail={formatLabel(
+                        payload.funding.concentration.risk_level,
+                    )}
+                />
+                <NpoStat
+                    icon={CalendarClock}
+                    label="Reports due"
+                    value={`${payload.accountability_reports_due.length}`}
+                    detail={`${payload.funding.summary.due_60_count} inside 60 days`}
+                />
+                <NpoStat
+                    icon={Target}
+                    label="Milestones"
+                    value={`${payload.milestone_progress.percentage}%`}
+                    detail={`${payload.milestone_progress.completed} of ${payload.milestone_progress.total} complete`}
+                />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-3">
+                <article className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Funding</h3>
+                        <Badge variant="outline">
+                            {payload.funding.alerts.length} alerts
+                        </Badge>
+                    </div>
+                    {payload.funding.deadlines_60.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No funder deadlines inside 60 days.
+                        </p>
+                    ) : (
+                        <div className="divide-y rounded-md border">
+                            {payload.funding.deadlines_60.map((record) => (
+                                <div key={record.id} className="p-3">
+                                    <div className="text-sm font-medium">
+                                        {record.funder_name ?? 'Funder'}
+                                    </div>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        {record.grant_name ?? 'Grant'} /{' '}
+                                        {formatOptionalDate(
+                                            record.reporting_deadline,
+                                        )}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </article>
+
+                <article className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">
+                            Cost per beneficiary
+                        </h3>
+                        <Badge variant="outline">
+                            {payload.milestone_progress.cost_per_beneficiary
+                                ?.rating
+                                ? formatLabel(
+                                      payload.milestone_progress
+                                          .cost_per_beneficiary.rating,
+                                  )
+                                : 'Pending'}
+                        </Badge>
+                    </div>
+                    {payload.milestone_progress.cost_per_beneficiary ? (
+                        <div className="space-y-2 text-sm">
+                            <div className="flex justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Current
+                                </span>
+                                <span className="font-medium">
+                                    {formatCurrency(
+                                        payload.milestone_progress
+                                            .cost_per_beneficiary
+                                            .cost_per_beneficiary ?? 0,
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Benchmark
+                                </span>
+                                <span className="font-medium">
+                                    {formatCurrency(
+                                        payload.milestone_progress
+                                            .cost_per_beneficiary
+                                            .benchmark_cost_per_beneficiary ??
+                                            0,
+                                    )}
+                                </span>
+                            </div>
+                            <div className="flex justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Capacity
+                                </span>
+                                <span className="font-medium">
+                                    {formatNumber(
+                                        payload.milestone_progress
+                                            .cost_per_beneficiary
+                                            .additional_beneficiaries_mid ?? 0,
+                                    )}
+                                </span>
+                            </div>
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            No calculation recorded yet.
+                        </p>
+                    )}
+                </article>
+
+                <article className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Questionnaire</h3>
+                        <Badge variant="outline">
+                            {
+                                payload.questionnaire_completion
+                                    .answered_questions
+                            }
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        {payload.questionnaire_completion.completed
+                            ? `Submitted ${formatDate(payload.questionnaire_completion.submitted_at)}.`
+                            : 'No submitted response yet.'}
+                    </p>
+                    <Button asChild variant="outline" size="sm">
+                        <Link href={onboardingUrl}>
+                            <ClipboardList
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Open questionnaire
+                        </Link>
+                    </Button>
+                </article>
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.8fr)]">
+                <article className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-2">
+                        <h3 className="text-sm font-medium">Impact metrics</h3>
+                        <Badge variant="outline">{metrics.length}</Badge>
+                    </div>
+                    {metrics.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">
+                            No impact metrics recorded yet.
+                        </p>
+                    ) : (
+                        <div className="divide-y rounded-md border">
+                            {metrics.slice(0, 6).map((metric) => (
+                                <div
+                                    key={metric.id}
+                                    className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                >
+                                    <div>
+                                        <div className="text-sm font-medium">
+                                            {metric.metric_label}
+                                        </div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            {formatOptionalDate(
+                                                metric.period_end,
+                                            )}
+                                        </div>
+                                    </div>
+                                    <div className="text-sm font-medium">
+                                        {formatMetricValue(metric)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </article>
+
+                <article className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center gap-2">
+                        <Save className="size-4" aria-hidden="true" />
+                        <h3 className="text-sm font-medium">Metric entry</h3>
+                    </div>
+                    <div className="grid gap-3">
+                        <div className="grid gap-1.5">
+                            <Label htmlFor="npo_metric_label">Metric</Label>
+                            <Input
+                                id="npo_metric_label"
+                                value={metricForm.metric_label}
+                                onChange={(event) =>
+                                    setMetricForm((current) => ({
+                                        ...current,
+                                        metric_label: event.target.value,
+                                    }))
+                                }
+                            />
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="npo_metric_value">Value</Label>
+                                <Input
+                                    id="npo_metric_value"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={metricForm.value}
+                                    onChange={(event) =>
+                                        setMetricForm((current) => ({
+                                            ...current,
+                                            value: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="npo_metric_unit">Unit</Label>
+                                <Input
+                                    id="npo_metric_unit"
+                                    value={metricForm.unit}
+                                    onChange={(event) =>
+                                        setMetricForm((current) => ({
+                                            ...current,
+                                            unit: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                        </div>
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="npo_metric_platform">
+                                    Platform
+                                </Label>
+                                <Input
+                                    id="npo_metric_platform"
+                                    type="number"
+                                    min="0"
+                                    step="0.01"
+                                    value={metricForm.platform_value}
+                                    onChange={(event) =>
+                                        setMetricForm((current) => ({
+                                            ...current,
+                                            platform_value: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                            <div className="grid gap-1.5">
+                                <Label htmlFor="npo_metric_period_end">
+                                    Period end
+                                </Label>
+                                <Input
+                                    id="npo_metric_period_end"
+                                    type="date"
+                                    value={metricForm.period_end}
+                                    onChange={(event) =>
+                                        setMetricForm((current) => ({
+                                            ...current,
+                                            period_end: event.target.value,
+                                        }))
+                                    }
+                                />
+                            </div>
+                        </div>
+                        <InputError message={metricError ?? undefined} />
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={
+                                !metricStoreUrl ||
+                                savingMetric ||
+                                metricForm.metric_label.trim() === '' ||
+                                metricForm.value.trim() === ''
+                            }
+                            onClick={() => void saveMetric()}
+                        >
+                            <Save className="size-4" aria-hidden="true" />
+                            {savingMetric ? 'Saving' : 'Save metric'}
+                        </Button>
+                    </div>
+                </article>
+            </div>
+        </section>
+    );
+}
+
+function NpoStat({
+    icon: Icon,
+    label,
+    value,
+    detail,
+}: {
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+    label: string;
+    value: string;
+    detail: string;
+}) {
+    return (
+        <article className="rounded-md border p-3">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                <Icon className="size-4" aria-hidden={true} />
+                {label}
+            </div>
+            <div className="mt-2 text-lg font-semibold">{value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{detail}</div>
+        </article>
     );
 }
 
@@ -923,6 +1495,18 @@ function formatCurrency(value: number): string {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatNumber(value: number): string {
+    return new Intl.NumberFormat(undefined, {
+        maximumFractionDigits: 0,
+    }).format(value);
+}
+
+function formatMetricValue(metric: NpoImpactMetricPayload): string {
+    const unit = metric.unit ? ` ${metric.unit}` : '';
+
+    return `${formatNumber(metric.value)}${unit}`;
 }
 
 function attributionSummary(finding: HealthFinding): string {

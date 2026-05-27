@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\NpoEngagementSubType;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\EntrepreneurProfile;
+use App\Models\NpoEngagement;
 use App\Models\User;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\PortalOfflineSync;
@@ -110,6 +112,7 @@ final class DocumentController extends Controller
             owner: $request->user(),
             category: (string) ($validated['category'] ?? Document::CATEGORY_OTHER),
             clientId: (string) $client->getKey(),
+            npoEngagementId: $this->npoEngagementIdForUpload($client, (string) ($validated['category'] ?? Document::CATEGORY_OTHER)),
         );
 
         VerifyDocumentJob::dispatch((string) $document->getKey(), [
@@ -172,6 +175,28 @@ final class DocumentController extends Controller
         }
 
         return (string) $document->client_id === (string) $client->getKey();
+    }
+
+    private function npoEngagementIdForUpload(Client $client, string $category): ?string
+    {
+        $normalisedCategory = str($category)->lower()->replace(['-', ' '], '_')->toString();
+        if (! in_array($normalisedCategory, [
+            Document::CATEGORY_NPO_MEETING_MINUTES,
+            Document::CATEGORY_NPO_BOARD_RECORD,
+        ], true)) {
+            return null;
+        }
+
+        $engagement = NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->whereIn('sub_type', [
+                NpoEngagementSubType::StandardNpo->value,
+                NpoEngagementSubType::SocialEnterprise->value,
+            ])
+            ->latest()
+            ->first();
+
+        return $engagement instanceof NpoEngagement ? (string) $engagement->getKey() : null;
     }
 
     /**

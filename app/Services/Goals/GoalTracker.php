@@ -216,14 +216,55 @@ final class GoalTracker
      */
     public function dashboard(Client $client, bool $includeAdvisorActions = false): array
     {
+        return $this->dashboardPayload($client, $includeAdvisorActions);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function dashboardForEngagement(Client $client, NpoEngagement $engagement, bool $includeAdvisorActions = false): array
+    {
+        if ((string) $engagement->client_id !== (string) $client->getKey()) {
+            throw new InvalidArgumentException('Goal dashboard engagement must belong to the client.');
+        }
+
+        return $this->dashboardPayload($client, $includeAdvisorActions, $engagement);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dashboardPayload(Client $client, bool $includeAdvisorActions = false, ?NpoEngagement $engagement = null): array
+    {
         $goals = Goal::query()
             ->with(['milestones.actions', 'milestones.proofOfCompletion'])
             ->where('client_id', $client->getKey())
             ->latest()
-            ->get();
+            ->get()
+            ->map(function (Goal $goal) use ($engagement): Goal {
+                if ($engagement instanceof NpoEngagement) {
+                    $goal->setRelation(
+                        'milestones',
+                        $goal->milestones
+                            ->where('npo_engagement_id', $engagement->getKey())
+                            ->values(),
+                    );
+                }
+
+                return $goal;
+            })
+            ->filter(fn (Goal $goal): bool => ! ($engagement instanceof NpoEngagement) || $goal->milestones->isNotEmpty())
+            ->values();
+        $completedTotal = $engagement instanceof NpoEngagement
+            ? round((float) Milestone::query()
+                ->where('client_id', $client->getKey())
+                ->where('npo_engagement_id', $engagement->getKey())
+                ->where('status', Milestone::STATUS_COMPLETED)
+                ->sum('pv_of_impact'), 2)
+            : $this->pvRealisedTotal($client);
 
         return [
-            'pv_realised_total' => $this->pvRealisedTotal($client),
+            'pv_realised_total' => $completedTotal,
             'active_goals' => $goals->where('status', Goal::STATUS_ACTIVE)->count(),
             'goals' => $goals
                 ->map(fn (Goal $goal): array => [

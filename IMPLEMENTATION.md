@@ -6,7 +6,7 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 **Dashboard Interactivity:** Tier 1 **COMPLETE & VERIFIED** (9/9, WO-D01...WO-D09; `PLAN-DASHBOARD-INTERACTIVITY.md` section 6).
 **Methodology Registry:** **COMPLETE** (5/5, WO-M01...WO-M05 committed on `featureApp`; focused verification green, full DB-backed suite requires local PostgreSQL test credentials).
 **V2.4 Gap Closure:** **COMPLETE** (5/5, WO-121...WO-125 committed on `featureApp`).
-**NPO Module:** Phase 5a started; **WO-N01-WO-N05 complete** on `featureApp` (NPO engagement scaffold, Governance Review questionnaire set, registry/compliance lookup and ISA 2022 gate, Governance AI analysis layer, Governance Review Report).
+**NPO Module:** Phase 5b in progress; **16/19 NPO work orders complete** on `featureApp` through **WO-N16** (plus dependency-ordered WO-N18).
 **Phase:** 1 **COMPLETE & VERIFIED** (30/30). Phase 2 **COMPLETE & VERIFIED** (34/34). Phase 3 **COMPLETE & VERIFIED** (37/37, WO-65…WO-101). Phase 4 — Intelligence Expansion **COMPLETE & VERIFIED** (19/19, WO-102…WO-120). **The full V2.4 build (Phases 1–4) is complete.**
 **Plan:** Phase 1 = 30 WOs (`PLAN.md` §8). Phase 2 = WO-31…WO-64 (`PLAN-PHASE2.md` §8). Phase 3 = WO-65…WO-101 (`PLAN-PHASE3.md` §8). Phase 4 = WO-102…WO-120 (`PLAN-PHASE4.md` §8).
 
@@ -14,14 +14,14 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 
 | | |
 |---|---|
-| Work orders complete | **144 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (5, WO-N01...WO-N05) |
+| Work orders complete | **155 total** - Phase 1 (30) + Phase 2 (34) + Phase 3 (37, incl. WO-87a/87b) + Phase 4 (19, WO-102...WO-120) + Dashboard Interactivity (9, WO-D01...WO-D09) + Methodology Registry (5, WO-M01...WO-M05) + V2.4 Gap Closure (5, WO-121...WO-125) + NPO Module (16/19 complete) |
 | Methodology Registry | **5/5 complete** - registry foundation, catalogue, drift guard, internal Knowledge surface, docs, and focused QA baseline. |
 | Work orders in progress | None |
-| Next work order | WO-N06 - Governance Review fixed-fee proposal + sign-off |
+| Next work order | WO-N17 - Remaining NPO report types |
 | Current branch | `featureApp` |
 | Branching rule | Do not create WO branches. Commit each completed WO directly on `featureApp`. |
 | Dashboard interactivity baseline | **COMPLETE & VERIFIED (2026-05-25).** Direct PHPUnit against PostgreSQL `futureshift_test`: **471 tests / 471 passed / 3779 assertions, 0 failures, 0 errors** using `php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage`. Pint, ESLint, `tsc --noEmit`, Prettier, and forbidden-marker scan are green. |
-| Verification status | **WO-N05 baseline (2026-05-27):** focused NPO PHPUnit **18 tests / 139 assertions**; report composer slice **12 tests / 147 assertions**; full PHPUnit **592 tests / 5743 assertions**; `npm run types:check`, `npm run lint:check`, `npm run format:check`, `npm run build`, and Pint are green. Build retains the existing CSS `@import` ordering, Node `module.register()` deprecation, plugin timing, and chunk-size warnings. |
+| Verification status | **WO-N16 baseline (2026-05-27):** focused NPO PHPUnit **62 tests / 591 assertions**; portal slice **2 tests / 30 assertions**; access-control RLS slice **4 tests / 46 assertions**; report composer **9 tests / 94 assertions**; goal tracker **3 tests / 57 assertions**; secure file writer **4 tests / 23 assertions**; `npm run types:check`, `npm run lint:check`, `npm run format:check`, and Pint are green. |
 | Prior baseline | Phase 3 green (2026-05-23): 439 tests / 3370 assertions; defects fixed in `d56834c`. Dashboard Interactivity (2026-05-25): 471 tests / 3779 assertions. |
 
 ## Methodology Registry Track
@@ -52,7 +52,19 @@ Living status document. Read alongside [`PLAN.md`](./PLAN.md) (Phase 1), [`PLAN-
 | WO-N02 | `a45807d` Complete | Adds the admin-managed `governance_review` questionnaire set, required Governance Review evidence uploads, NPO portal availability, response stamping to the current governance-review `npo_engagement_id`, upload scan/verification coverage, and regenerated onboarding Wayfinder references. |
 | WO-N03 | `9296687` Complete | Adds Charities Services and Incorporated Societies fixture/live/fallback lookup clients through `ResilientHttp`, registry fixtures, durable NPO compliance alerts with client-scoped RLS, and an ISA 2022 critical gate that blocks downstream NPO analysis until advisor acknowledgement or registry resolution. |
 | WO-N04 | `a799124` Complete | Adds the engagement-scoped `governance_review_findings` store, legal-structure-specific governance criteria, source-attributed AI analysis via `AiClient`, evidence-thin gap detection, Holidays Act reuse when paid staff are present, and an advisor-review gate before findings become client-facing. |
-| WO-N05 | This commit | Adds `ReportComposer::composeGovernanceReview`, advisor route generation for the NPO Governance Review Report, mandatory s.42G evidence statement and legal disclaimer sections, reviewed-finding-only input, verified-document support notes, engagement stamping, PDF download coverage, and report audit events. |
+| WO-N05 | `144970f` Complete | Adds `ReportComposer::composeGovernanceReview`, advisor route generation for the NPO Governance Review Report, mandatory s.42G evidence statement and legal disclaimer sections, reviewed-finding-only input, verified-document support notes, engagement stamping, PDF download coverage, and report audit events. |
+| WO-N06 | `8e30e4c` Complete | Adds fixed-fee Governance Review proposal generation, engagement-stamped fee calculations/proposals, sign-off flow coverage, and NPO proposal audit trail. |
+| WO-N07 | `f820bdd` Complete | Adds Governance Review conversion pipeline, conversion status/decline tracking, converted full-NPO engagement creation, and conversion notification/audit coverage. |
+| WO-N08 | `116e8d0` Complete | Adds full NPO engagement configuration including Tiriti mode, legal/ISA settings, social-enterprise weighting, configuration audit events, and advisor payload coverage. |
+| WO-N09 | `2e05ec6` Complete | Adds eight-dimension NPO health scoring, Tiriti weighting modes, Governance Review Dimension-3 prepopulation/backfill, radar payloads, and portal/advisor health tests. |
+| WO-N10 | `fe94dba` Complete | Adds the Standard NPO questionnaire set, full-NPO response stamping, dimension-score derivation, and NPO onboarding coverage. |
+| WO-N11 | `a7b071e` Complete | Adds cost-per-beneficiary and funding-risk value calculations with +/-15% uncertainty, Layer-36/37 inputs, mission framing, and advisor value-panel payloads. |
+| WO-N12 | `29bdebf` Complete | Adds Social Enterprise dual-impact scorecards, tension analysis, evidence gates, blended weighting, and social-enterprise dashboard payloads. |
+| WO-N13 | `34ada27` Complete | Adds the NPO funder registry, client funder records, funding concentration and deadline alerts, advisor/client funding panels, and Layer-34 governance checks. |
+| WO-N14 | `35b9d36` Complete | Adds Funder Accountability and Impact Summary report composition, engagement-scoped milestones/actions, advisor review/auto-release gates, and funder-share readiness checks. |
+| WO-N15 | `1905db2` Complete | Adds NPO board-member and funder-contact access models, report policies, report-scoped funder RLS, engagement-scoped board RLS for reports/dimensions/milestones/actions, and cardinal security tests. |
+| WO-N16 | This commit | Adds the NPO portal workspace: engagement-scoped funding, milestone/cost-per-beneficiary, questionnaire, accountability-deadline, document-category, and impact-metric widgets; impact metrics feed accountability reports; documents gain engagement attribution and board RLS for meeting minutes/board records. |
+| WO-N18 | `4e9c44a` Complete | Registers NPO learning layers 34-37 with governed cadence metadata and updates registry coverage for the expanded learning architecture. |
 
 ## Commit Log
 

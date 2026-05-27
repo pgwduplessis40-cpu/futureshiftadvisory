@@ -30,6 +30,7 @@ final class SecureFileWriter
         string $category,
         ?string $clientId = null,
         ?string $entrepreneurProfileId = null,
+        ?string $npoEngagementId = null,
     ): Document {
         $realPath = $uploadedFile->getRealPath();
         if (! is_string($realPath) || ! is_file($realPath)) {
@@ -61,6 +62,7 @@ final class SecureFileWriter
         $document = Document::query()->create([
             'client_id' => $clientId,
             'entrepreneur_profile_id' => $entrepreneurProfileId,
+            'npo_engagement_id' => $npoEngagementId,
             'category' => $this->normaliseCategory($category),
             'original_filename' => $uploadedFile->getClientOriginalName(),
             'stored_path' => $storedPath,
@@ -164,6 +166,8 @@ final class SecureFileWriter
             Document::CATEGORY_PLAN_ATTACHMENT,
             Document::CATEGORY_DD_ARTIFACT,
             Document::CATEGORY_MESSAGE_ATTACHMENT,
+            Document::CATEGORY_NPO_MEETING_MINUTES,
+            Document::CATEGORY_NPO_BOARD_RECORD,
             Document::CATEGORY_OTHER,
         ], true) ? $normalised : Document::CATEGORY_OTHER;
     }

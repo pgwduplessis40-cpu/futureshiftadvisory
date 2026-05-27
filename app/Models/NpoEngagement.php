@@ -140,6 +140,22 @@ final class NpoEngagement extends Model
     }
 
     /**
+     * @return HasMany<Document>
+     */
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    /**
+     * @return HasMany<NpoImpactMetric>
+     */
+    public function impactMetrics(): HasMany
+    {
+        return $this->hasMany(NpoImpactMetric::class);
+    }
+
+    /**
      * @return HasMany<NpoBoardMember>
      */
     public function boardMembers(): HasMany

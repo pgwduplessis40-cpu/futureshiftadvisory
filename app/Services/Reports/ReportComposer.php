@@ -38,6 +38,7 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdDisclaimer;
+use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -67,6 +68,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly RiskCostPv $riskCosts,
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
+        private readonly NpoImpactMetricRecorder $npoImpactMetrics,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -406,8 +408,9 @@ final class ReportComposer implements ProvidesMethodology
             throw new InvalidArgumentException('Impact Summary reports require an NPO engagement with a client.');
         }
 
-        $metrics = (array) ($input['metrics'] ?? []);
-        $platformMetrics = (array) ($input['platform_metrics'] ?? []);
+        $recordedMetrics = $this->npoImpactMetrics->reportMetrics($engagement);
+        $metrics = (array) ($input['metrics'] ?? $recordedMetrics['metrics']);
+        $platformMetrics = (array) ($input['platform_metrics'] ?? $recordedMetrics['platform_metrics']);
         foreach ($metrics as $key => $value) {
             if (is_numeric($value) && is_numeric($platformMetrics[$key] ?? null) && (float) $value > (float) $platformMetrics[$key]) {
                 throw new InvalidArgumentException("Impact metric [{$key}] exceeds recorded platform data.");
@@ -2195,6 +2198,7 @@ final class ReportComposer implements ProvidesMethodology
             ->where('npo_engagement_id', $engagement->getKey())
             ->orderBy('due_date')
             ->get();
+        $impactMetrics = $this->npoImpactMetrics->reportMetrics($engagement);
         $completed = $milestones->where('status', Milestone::STATUS_COMPLETED)->count();
         $total = $milestones->count();
         $prompt = new PromptEnvelope(
@@ -2213,6 +2217,7 @@ final class ReportComposer implements ProvidesMethodology
                     'completed' => $completed,
                     'total' => $total,
                 ],
+                'impact_metrics' => $impactMetrics['payload'],
                 'financial_snapshot_id' => $snapshot?->getKey(),
             ],
             sourceReferences: array_values(array_filter([
@@ -2244,8 +2249,13 @@ final class ReportComposer implements ProvidesMethodology
             $this->generatedSection(
                 key: 'impact_metrics',
                 title: 'Impact metrics',
-                body: 'Impact metrics are sourced from client-entered platform records and require advisor review before inclusion in the funder copy.',
+                body: $this->impactMetricLines($impactMetrics['payload'])
+                    ?: 'No client-entered impact metrics have been recorded for this engagement yet.',
                 sourceReference: 'impact_metrics:'.$engagement->getKey(),
+                metadata: [
+                    'metrics' => $impactMetrics['payload'],
+                    'platform_metrics' => $impactMetrics['platform_metrics'],
+                ],
             ),
             $this->generatedSection(
                 key: 'ai_accountability_narrative',
@@ -2288,6 +2298,25 @@ final class ReportComposer implements ProvidesMethodology
                 metadata: ['metrics' => $metrics],
             ),
         ];
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $metrics
+     */
+    private function impactMetricLines(array $metrics): string
+    {
+        return collect($metrics)
+            ->map(function (array $metric): string {
+                $value = $metric['value'] ?? null;
+                $unit = trim((string) ($metric['unit'] ?? ''));
+                $label = (string) ($metric['metric_label'] ?? $metric['metric_key'] ?? 'Metric');
+                $platform = $metric['platform_value'] ?? null;
+                $suffix = $unit === '' ? '' : " {$unit}";
+                $platformNote = $platform === null ? '' : " (platform cap {$platform}{$suffix})";
+
+                return "{$label}: {$value}{$suffix}{$platformNote}";
+            })
+            ->implode("\n");
     }
 
     private function autoReleaseAt(Report $report): ?Carbon

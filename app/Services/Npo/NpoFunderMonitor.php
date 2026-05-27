@@ -8,7 +8,9 @@ use App\Models\Client;
 use App\Models\ClientFunderAlert;
 use App\Models\ClientFunderRecord;
 use App\Models\Funder;
+use App\Models\NpoEngagement;
 use Carbon\CarbonInterface;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
 
@@ -40,11 +42,12 @@ final class NpoFunderMonitor
     /**
      * @return array<string, mixed>|null
      */
-    public function clientSummary(Client $client): ?array
+    public function clientSummary(Client $client, ?NpoEngagement $engagement = null): ?array
     {
         $records = ClientFunderRecord::query()
             ->with('funder')
             ->where('client_id', $client->getKey())
+            ->when($engagement instanceof NpoEngagement, fn ($query) => $query->where('npo_engagement_id', $engagement->getKey()))
             ->latest('period_end')
             ->limit(8)
             ->get();
@@ -57,15 +60,34 @@ final class NpoFunderMonitor
             ->with('clientFunderRecord.funder')
             ->where('client_id', $client->getKey())
             ->whereNull('resolved_at')
+            ->when($engagement instanceof NpoEngagement, fn ($query) => $query->whereHas(
+                'clientFunderRecord',
+                fn ($recordQuery) => $recordQuery->where('npo_engagement_id', $engagement->getKey()),
+            ))
             ->orderByRaw("case severity when 'critical' then 0 when 'high' then 1 else 2 end")
             ->orderBy('due_on')
             ->limit(8)
             ->get();
+        $activeRecords = $this->activeRecordsQuery($client, $engagement)->get();
+        $deadlines60 = $this->activeRecordsQuery($client, $engagement)
+            ->with('funder')
+            ->whereNotNull('reporting_deadline')
+            ->whereBetween('reporting_deadline', [now()->toDateString(), now()->addDays(60)->toDateString()])
+            ->orderBy('reporting_deadline')
+            ->limit(6)
+            ->get();
 
         return [
+            'summary' => [
+                'active_records' => $activeRecords->count(),
+                'active_amount' => round((float) $activeRecords->sum('grant_amount'), 2),
+                'due_60_count' => $deadlines60->count(),
+                'expiry_alerts_count' => $alerts->where('type', ClientFunderAlert::TYPE_GRANT_EXPIRY_60)->count(),
+            ],
             'records' => $records->map(fn (ClientFunderRecord $record): array => $this->recordPayload($record))->values()->all(),
             'alerts' => $alerts->map(fn (ClientFunderAlert $alert): array => $this->alertPayload($alert))->values()->all(),
-            'concentration' => $this->concentrationForClient($client),
+            'concentration' => $this->concentrationForClient($client, $engagement),
+            'deadlines_60' => $deadlines60->map(fn (ClientFunderRecord $record): array => $this->recordPayload($record))->values()->all(),
         ];
     }
 
@@ -112,18 +134,27 @@ final class NpoFunderMonitor
     /**
      * @return array<string, mixed>
      */
-    public function concentrationForClient(Client $client): array
+    public function concentrationForClient(Client $client, ?NpoEngagement $engagement = null): array
     {
-        $records = ClientFunderRecord::query()
+        $records = $this->activeRecordsQuery($client, $engagement)
             ->with('funder')
-            ->where('client_id', $client->getKey())
-            ->where(function ($query): void {
-                $query->whereNull('period_end')
-                    ->orWhere('period_end', '>=', now()->toDateString());
-            })
             ->get();
 
         return $this->concentration($records);
+    }
+
+    /**
+     * @return Builder<ClientFunderRecord>
+     */
+    private function activeRecordsQuery(Client $client, ?NpoEngagement $engagement = null): Builder
+    {
+        return ClientFunderRecord::query()
+            ->where('client_id', $client->getKey())
+            ->when($engagement instanceof NpoEngagement, fn ($query) => $query->where('npo_engagement_id', $engagement->getKey()))
+            ->where(function ($query): void {
+                $query->whereNull('period_end')
+                    ->orWhere('period_end', '>=', now()->toDateString());
+            });
     }
 
     /**

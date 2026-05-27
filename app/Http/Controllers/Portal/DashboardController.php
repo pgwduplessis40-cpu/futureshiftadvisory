@@ -5,11 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Enums\EngagementType;
+use App\Enums\NpoEngagementSubType;
+use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\ClientFunderRecord;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\NpoEngagement;
+use App\Models\NpoValueCalculation;
 use App\Models\Proposal;
+use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\Scenario;
 use App\Models\User;
@@ -18,7 +24,9 @@ use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Goals\GoalTracker;
 use App\Services\Notifications\NotificationCenter;
+use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Npo\NpoHealthScorer;
+use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use Illuminate\Http\Request;
@@ -35,11 +43,17 @@ final class DashboardController extends Controller
         private readonly GoalTracker $goals,
         private readonly BusinessHealthRadarBuilder $businessHealth,
         private readonly NpoHealthScorer $npoHealth,
+        private readonly NpoFunderMonitor $npoFunding,
+        private readonly NpoImpactMetricRecorder $npoImpactMetrics,
     ) {}
 
     public function __invoke(Request $request): Response
     {
         $client = $this->clients->resolveFor($request);
+        $npoEngagement = $this->currentNpoEngagement($client);
+        $goals = $npoEngagement instanceof NpoEngagement
+            ? $this->goals->dashboardForEngagement($client, $npoEngagement)
+            : $this->goals->dashboard($client);
 
         return Inertia::render('portal/Dashboard', [
             'client' => $this->clientPayload($client),
@@ -54,13 +68,15 @@ final class DashboardController extends Controller
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'businessHealth' => $this->businessHealth->portalPayload($client),
             'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
-            'npoHealth' => $this->npoHealth->clientSummary($client),
-            'goals' => $this->goals->dashboard($client),
-            'documents' => $this->documentPayload($client),
+            'npoHealth' => $npoEngagement instanceof NpoEngagement ? $this->npoHealth->summary($npoEngagement) : null,
+            'npoPortal' => $npoEngagement instanceof NpoEngagement ? $this->npoPortalPayload($client, $npoEngagement, $goals) : null,
+            'goals' => $goals,
+            'documents' => $this->documentPayload($client, $npoEngagement),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
+            'npoImpactMetricStoreUrl' => $npoEngagement instanceof NpoEngagement ? route('portal.npo-impact-metrics.store', absolute: false) : null,
             'scenarios' => $this->scenarioPayload($client),
             'proposals' => $this->proposalPayload($client),
-            'reports' => $this->reportPayload($client),
+            'reports' => $this->reportPayload($client, $npoEngagement),
             'messagesUrl' => route('portal.messages.index', absolute: false),
         ]);
     }
@@ -90,11 +106,15 @@ final class DashboardController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function documentPayload(Client $client): array
+    private function documentPayload(Client $client, ?NpoEngagement $engagement = null): array
     {
         return Document::query()
             ->visibleToClients()
             ->where('client_id', $client->getKey())
+            ->when($engagement instanceof NpoEngagement, fn ($query) => $query->where(function ($scope) use ($engagement): void {
+                $scope->whereNull('npo_engagement_id')
+                    ->orWhere('npo_engagement_id', $engagement->getKey());
+            }))
             ->with('verifications')
             ->latest()
             ->limit(12)
@@ -200,11 +220,27 @@ final class DashboardController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function reportPayload(Client $client): array
+    private function reportPayload(Client $client, ?NpoEngagement $engagement = null): array
     {
         return Report::query()
             ->where('client_id', $client->getKey())
-            ->where('type', 'client')
+            ->when(
+                $engagement instanceof NpoEngagement,
+                fn ($query) => $query->where(function ($scope) use ($engagement): void {
+                    $scope->where('type', ReportType::Client->value)
+                        ->orWhere(function ($npoReports) use ($engagement): void {
+                            $npoReports
+                                ->where('npo_engagement_id', $engagement->getKey())
+                                ->where('review_status', 'reviewed')
+                                ->whereIn('type', [
+                                    ReportType::GovernanceReview->value,
+                                    ReportType::FunderAccountability->value,
+                                    ReportType::ImpactSummary->value,
+                                ]);
+                        });
+                }),
+                fn ($query) => $query->where('type', ReportType::Client->value),
+            )
             ->latest('generated_at')
             ->limit(5)
             ->get()
@@ -215,6 +251,134 @@ final class DashboardController extends Controller
             ])
             ->values()
             ->all();
+    }
+
+    private function currentNpoEngagement(Client $client): ?NpoEngagement
+    {
+        return NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->whereIn('sub_type', [
+                NpoEngagementSubType::StandardNpo->value,
+                NpoEngagementSubType::SocialEnterprise->value,
+            ])
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $goals
+     * @return array<string, mixed>
+     */
+    private function npoPortalPayload(Client $client, NpoEngagement $engagement, array $goals): array
+    {
+        $funding = $this->npoFunding->clientSummary($client, $engagement) ?? $this->emptyFundingPayload();
+        $milestones = collect($goals['goals'] ?? [])
+            ->flatMap(fn (array $goal): array => (array) ($goal['milestones'] ?? []))
+            ->values();
+        $completed = $milestones->where('status', 'completed')->count();
+        $total = $milestones->count();
+        $questionnaire = QuestionnaireResponse::query()
+            ->where('client_id', $client->getKey())
+            ->where('npo_engagement_id', $engagement->getKey())
+            ->latest('submitted_at')
+            ->latest()
+            ->first();
+
+        return [
+            'engagement_id' => $engagement->id,
+            'sub_type' => $engagement->sub_type?->value,
+            'legal_structure' => $engagement->legal_structure?->value,
+            'funding' => $funding,
+            'milestone_progress' => [
+                'completed' => $completed,
+                'total' => $total,
+                'percentage' => $total > 0 ? (int) round($completed / $total * 100) : 0,
+                'cost_per_beneficiary' => $this->costPerBeneficiaryPayload($engagement),
+            ],
+            'accountability_reports_due' => $this->accountabilityReportsDue($engagement),
+            'impact_metrics' => $this->npoImpactMetrics->payloads($this->npoImpactMetrics->latest($engagement)),
+            'questionnaire_completion' => [
+                'completed' => $questionnaire instanceof QuestionnaireResponse && $questionnaire->submitted_at !== null,
+                'submitted_at' => $questionnaire?->submitted_at?->toIso8601String(),
+                'answered_questions' => $questionnaire instanceof QuestionnaireResponse ? $questionnaire->answers()->count() : 0,
+            ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function costPerBeneficiaryPayload(NpoEngagement $engagement): ?array
+    {
+        $calculation = NpoValueCalculation::query()
+            ->where('npo_engagement_id', $engagement->getKey())
+            ->where('type', NpoValueCalculation::TYPE_COST_PER_BENEFICIARY)
+            ->orderByDesc('calculated_at')
+            ->orderByDesc('created_at')
+            ->first();
+
+        if (! $calculation instanceof NpoValueCalculation) {
+            return null;
+        }
+
+        return [
+            'id' => $calculation->id,
+            'cost_per_beneficiary' => $calculation->result['cost_per_beneficiary'] ?? null,
+            'benchmark_cost_per_beneficiary' => $calculation->result['benchmark_cost_per_beneficiary'] ?? null,
+            'additional_beneficiaries_mid' => $calculation->result['improvement']['additional_beneficiaries_mid'] ?? null,
+            'rating' => $calculation->rating,
+            'calculated_at' => $calculation->calculated_at?->toIso8601String(),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function accountabilityReportsDue(NpoEngagement $engagement): array
+    {
+        return ClientFunderRecord::query()
+            ->with('funder')
+            ->where('npo_engagement_id', $engagement->getKey())
+            ->whereNotNull('reporting_deadline')
+            ->where('reporting_deadline', '<=', now()->addDays(60)->toDateString())
+            ->orderBy('reporting_deadline')
+            ->limit(6)
+            ->get()
+            ->map(fn (ClientFunderRecord $record): array => [
+                'id' => $record->id,
+                'funder_name' => $record->funder?->name,
+                'grant_name' => $record->grant_name,
+                'reporting_deadline' => $record->reporting_deadline?->toDateString(),
+                'grant_amount' => (float) $record->grant_amount,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function emptyFundingPayload(): array
+    {
+        return [
+            'summary' => [
+                'active_records' => 0,
+                'active_amount' => 0.0,
+                'due_60_count' => 0,
+                'expiry_alerts_count' => 0,
+            ],
+            'records' => [],
+            'alerts' => [],
+            'concentration' => [
+                'total_active_amount' => 0.0,
+                'largest_funder_amount' => 0.0,
+                'largest_funder_ratio' => 0.0,
+                'largest_funder_name' => null,
+                'risk_level' => 'low',
+                'source' => 'client_funder_records',
+            ],
+            'deadlines_60' => [],
+        ];
     }
 
     private function documentVerificationState(Document $document): string

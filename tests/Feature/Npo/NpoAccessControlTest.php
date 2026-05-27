@@ -11,6 +11,7 @@ use App\Enums\NpoTiritiMode;
 use App\Enums\ReportType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\Document;
 use App\Models\Milestone;
 use App\Models\MilestoneAction;
 use App\Models\NpoBoardMember;
@@ -63,7 +64,7 @@ final class NpoAccessControlTest extends TestCase
             DB::statement('RESET ROLE');
 
             if ($this->connectionBypassesRls) {
-                DB::statement('REVOKE SELECT ON npo_board_members, npo_engagements, npo_dimension_scores, reports, report_sections, milestones, milestone_actions, entrepreneur_profiles FROM '.self::RLS_APP_ROLE);
+                DB::statement('REVOKE SELECT ON npo_board_members, npo_engagements, npo_dimension_scores, reports, report_sections, milestones, milestone_actions, documents, entrepreneur_profiles FROM '.self::RLS_APP_ROLE);
                 DB::statement('REVOKE EXECUTE ON FUNCTION fsa_user_is_board_member_of(uuid) FROM '.self::RLS_APP_ROLE);
                 DB::statement('REVOKE USAGE ON SCHEMA public FROM '.self::RLS_APP_ROLE);
                 DB::statement('DROP ROLE IF EXISTS '.self::RLS_APP_ROLE);
@@ -104,6 +105,10 @@ final class NpoAccessControlTest extends TestCase
         $this->dimensionScore($client, $engagementB, 3);
         [$milestoneA, $actionA] = $this->milestoneAndAction($client, $engagementA);
         [$milestoneB, $actionB] = $this->milestoneAndAction($client, $engagementB);
+        $minutesA = $this->document($client, $engagementA, Document::CATEGORY_NPO_MEETING_MINUTES, 'minutes-a.pdf');
+        $recordA = $this->document($client, $engagementA, Document::CATEGORY_NPO_BOARD_RECORD, 'record-a.pdf');
+        $minutesB = $this->document($client, $engagementB, Document::CATEGORY_NPO_MEETING_MINUTES, 'minutes-b.pdf');
+        $recordB = $this->document($client, $engagementB, Document::CATEGORY_NPO_BOARD_RECORD, 'record-b.pdf');
 
         $this->assertTrue(Gate::forUser($board)->allows('view', $governanceReport));
         $this->assertFalse(Gate::forUser($board)->allows('view', $advisorReport));
@@ -123,6 +128,10 @@ final class NpoAccessControlTest extends TestCase
             'other_milestones' => Milestone::query()->whereKey($milestoneB->id)->count(),
             'own_actions' => MilestoneAction::query()->whereKey($actionA->id)->count(),
             'other_actions' => MilestoneAction::query()->whereKey($actionB->id)->count(),
+            'own_minutes' => Document::query()->whereKey($minutesA->id)->count(),
+            'own_board_records' => Document::query()->whereKey($recordA->id)->count(),
+            'other_minutes' => Document::query()->whereKey($minutesB->id)->count(),
+            'other_board_records' => Document::query()->whereKey($recordB->id)->count(),
         ]);
 
         $this->assertContains($engagementA->id, $visible['engagements']);
@@ -140,6 +149,33 @@ final class NpoAccessControlTest extends TestCase
         $this->assertSame(0, $visible['other_milestones']);
         $this->assertSame(1, $visible['own_actions']);
         $this->assertSame(0, $visible['other_actions']);
+        $this->assertSame(1, $visible['own_minutes']);
+        $this->assertSame(1, $visible['own_board_records']);
+        $this->assertSame(0, $visible['other_minutes']);
+        $this->assertSame(0, $visible['other_board_records']);
+
+        $primary = User::factory()->create([
+            'email' => 'npo-primary-docs@example.test',
+            'user_type' => User::TYPE_CLIENT_PRIMARY,
+            'primary_role' => User::TYPE_CLIENT_PRIMARY,
+        ]);
+        $primary->assignRole(User::TYPE_CLIENT_PRIMARY);
+        ClientTeamMember::query()->create([
+            'client_id' => $client->id,
+            'user_id' => $primary->id,
+            'role' => 'primary_contact',
+            'granted_modules' => [EngagementType::NPO->value],
+        ]);
+        app(RequestContext::class)->apply($primary->fsaRole(), $primary->accessibleClientIds(), (string) $primary->id);
+        $primaryVisible = $this->withRlsRole(fn (): array => [
+            'minutes' => Document::query()->whereIn('id', [$minutesA->id, $minutesB->id])->count(),
+            'board_records' => Document::query()->whereIn('id', [$recordA->id, $recordB->id])->count(),
+            'actions' => MilestoneAction::query()->whereIn('id', [$actionA->id, $actionB->id])->count(),
+        ]);
+
+        $this->assertSame(2, $primaryVisible['minutes']);
+        $this->assertSame(2, $primaryVisible['board_records']);
+        $this->assertSame(2, $primaryVisible['actions']);
 
         app(RequestContext::class)->apply(User::TYPE_NPO_BOARD_MEMBER, [], (string) $board->id, npoEngagementId: (string) $engagementB->id);
         $this->assertSame(1, $this->withRlsRole(fn (): int => Report::query()->whereKey($otherEngagementReport->id)->count()));
@@ -414,6 +450,21 @@ final class NpoAccessControlTest extends TestCase
         return [$milestone, $action];
     }
 
+    private function document(Client $client, NpoEngagement $engagement, string $category, string $filename): Document
+    {
+        return Document::query()->create([
+            'client_id' => $client->id,
+            'npo_engagement_id' => $engagement->id,
+            'category' => $category,
+            'original_filename' => $filename,
+            'stored_path' => 'npo-access/'.$filename,
+            'byte_size' => 100,
+            'mime_type' => 'application/pdf',
+            'sha256' => hash('sha256', $filename),
+            'scanner_result' => Document::SCANNER_CLEAN,
+        ]);
+    }
+
     private function currentRoleBypassesRls(): bool
     {
         $role = DB::selectOne(
@@ -435,7 +486,7 @@ final class NpoAccessControlTest extends TestCase
             $$;
 
             GRANT USAGE ON SCHEMA public TO %1$s;
-            GRANT SELECT ON npo_board_members, npo_engagements, npo_dimension_scores, reports, report_sections, milestones, milestone_actions, entrepreneur_profiles TO %1$s;
+            GRANT SELECT ON npo_board_members, npo_engagements, npo_dimension_scores, reports, report_sections, milestones, milestone_actions, documents, entrepreneur_profiles TO %1$s;
             GRANT EXECUTE ON FUNCTION fsa_user_is_board_member_of(uuid) TO %1$s;
         SQL, self::RLS_APP_ROLE));
     }
