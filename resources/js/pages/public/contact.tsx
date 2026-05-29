@@ -1,4 +1,4 @@
-import { Form, Head, usePage } from '@inertiajs/react';
+import { Form, usePage } from '@inertiajs/react';
 import { Loader2, Mail, MapPin, ShieldCheck } from 'lucide-react';
 import { useMemo } from 'react';
 
@@ -9,6 +9,8 @@ import {
     SectionEyebrow,
     SectionTitle,
 } from '@/components/public/section';
+import { Seo } from '@/components/public/seo';
+import { breadcrumbLd } from '@/lib/structured-data';
 
 type Option = { value: string; label: string };
 
@@ -17,7 +19,9 @@ export default function Contact({
 }: {
     engagementOptions: Option[];
 }) {
-    const { url } = usePage();
+    const page = usePage();
+    const url = page.url;
+    const base = page.props.publicUrl ?? '';
 
     // /contact?interest=standard_advisory deep-links from the Services page.
     const initialInterest = useMemo(() => {
@@ -32,12 +36,14 @@ export default function Contact({
 
     return (
         <>
-            <Head title="Contact — Future Shift Advisory">
-                <meta
-                    name="description"
-                    content="Book a discovery call with Future Shift Advisory. We respond personally — usually within a working day."
-                />
-            </Head>
+            <Seo
+                title="Contact us — book a discovery call"
+                description="Get in touch with Future Shift Advisory. Tell us a little about your business or organisation and we will reply personally, usually within a working day."
+                jsonLd={breadcrumbLd(base, [
+                    { name: 'Home', path: '/' },
+                    { name: 'Contact', path: '/contact' },
+                ])}
+            />
 
             <Section className="pt-20 pb-16 lg:pt-24">
                 <SectionEyebrow>Contact</SectionEyebrow>

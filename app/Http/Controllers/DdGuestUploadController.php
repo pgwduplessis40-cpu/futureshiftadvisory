@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\DdDataRoomItem;
+use App\Models\DdEngagement;
 use App\Services\Dd\DataRoom;
+use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -14,10 +17,14 @@ use Illuminate\Validation\ValidationException;
 
 final class DdGuestUploadController extends Controller
 {
-    public function __invoke(Request $request, string $token, DataRoom $dataRoom): JsonResponse
-    {
+    public function __invoke(
+        Request $request,
+        string $token,
+        DataRoom $dataRoom,
+        DdAdviceReportGenerator $reports,
+    ): JsonResponse {
         $validated = $request->validate([
-            'file' => ['required', 'file', 'max:20480'],
+            'file' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx'],
             'guest_name' => ['nullable', 'string', 'max:160'],
             'guest_email' => ['nullable', 'email', 'max:255'],
         ]);
@@ -39,6 +46,17 @@ final class DdGuestUploadController extends Controller
             throw ValidationException::withMessages([
                 'file' => 'Upload rejected because malware was detected.',
             ]);
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+
+            throw ValidationException::withMessages([
+                'file' => 'Upload could not be stored securely. Please try again or contact Future Shift Advisory.',
+            ]);
+        }
+
+        $item->loadMissing('engagement.client');
+        if ($item->engagement instanceof DdEngagement) {
+            $reports->generateIfReady($item->engagement);
         }
 
         return response()->json([

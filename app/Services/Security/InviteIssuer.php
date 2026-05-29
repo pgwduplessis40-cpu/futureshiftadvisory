@@ -37,7 +37,16 @@ final class InviteIssuer
         $acceptUrl = route('invite.accept', ['token' => $plainToken]);
 
         Mail::raw(
-            "You have been invited to Future Shift Advisory.\n\nAccept your invite: {$acceptUrl}\n",
+            implode("\n", [
+                'Future Shift Advisory invitation',
+                '',
+                "You have been invited to create a {$targetUserType} account for Future Shift Advisory.",
+                "This secure invite expires on {$invite->expires_at?->format('M j, Y g:i A T')}.",
+                '',
+                "Accept your invite: {$acceptUrl}",
+                '',
+                'If the invite expires, contact your Future Shift Advisory advisor and they can issue a fresh link.',
+            ])."\n",
             fn ($message) => $message
                 ->to($email)
                 ->subject('Future Shift Advisory invitation'),

@@ -54,7 +54,23 @@ final class DdOnboardingTest extends TestCase
                 'nzbn' => '9429000000999',
                 'vendor_name' => 'Vendor Person',
                 'industry' => 'Food manufacturing',
+                'industry_code' => 'C1199',
+                'currency' => 'NZD',
                 'asking_price' => 1250000,
+                'valuation_financials' => [
+                    'ebitda' => 320000,
+                    'sde' => 350000,
+                    'cash_flows' => [290000, 305000, 320000],
+                ],
+                'precedent_transactions' => [
+                    ['label' => 'Comparable NZ target', 'enterprise_value_nzd' => 1180000],
+                ],
+                'deal_structure_adjustments' => [
+                    ['label' => 'Working-capital true-up', 'amount' => -50000],
+                ],
+                'synergy_adjustments' => [
+                    ['label' => 'Shared procurement', 'amount' => 90000],
+                ],
                 'notes' => 'Vendor supplied initial teaser only.',
             ],
         );
@@ -64,6 +80,12 @@ final class DdOnboardingTest extends TestCase
         $this->assertSame('Target Bakery Limited', $engagement->target_name);
         $this->assertSame('acquisition_target_only', $engagement->target_details['data_scope']);
         $this->assertSame('Food manufacturing', $engagement->target_details['industry']);
+        $this->assertSame('C1199', $engagement->target_details['industry_code']);
+        $this->assertSame('NZD', $engagement->target_details['currency']);
+        $this->assertSame(320000, $engagement->target_details['valuation_financials']['ebitda']);
+        $this->assertSame(1180000, $engagement->target_details['precedent_transactions'][0]['enterprise_value_nzd']);
+        $this->assertSame(-50000, $engagement->target_details['deal_structure_adjustments'][0]['amount']);
+        $this->assertSame(90000, $engagement->target_details['synergy_adjustments'][0]['amount']);
         $this->assertNotEquals($engagement->target_name, $client->legal_name);
         $this->assertStringContainsString('not legal, tax, accounting, investment', DdDisclaimer::STANDARD);
         $this->assertDatabaseHas('audit_events', [

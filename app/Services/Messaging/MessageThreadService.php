@@ -15,11 +15,14 @@ use App\Models\MessageThreadParticipant;
 use App\Models\User;
 use App\Notifications\NewMessageNotification;
 use App\Services\Audit\AuditWriter;
+use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Validation\ValidationException;
 use LogicException;
 
 final class MessageThreadService
@@ -257,20 +260,34 @@ final class MessageThreadService
                 continue;
             }
 
-            $document = $this->writer->write(
-                uploadedFile: $attachment,
-                owner: $sender,
-                category: Document::CATEGORY_MESSAGE_ATTACHMENT,
-                clientId: (string) $client->getKey(),
-            );
+            try {
+                $document = $this->writer->write(
+                    uploadedFile: $attachment,
+                    owner: $sender,
+                    category: Document::CATEGORY_MESSAGE_ATTACHMENT,
+                    clientId: (string) $client->getKey(),
+                );
+            } catch (InfectedFileException) {
+                throw ValidationException::withMessages([
+                    'attachments' => 'One attachment was rejected because malware was detected.',
+                ]);
+            } catch (SecureFileStorageException $exception) {
+                report($exception);
 
-            VerifyDocumentJob::dispatch((string) $document->getKey(), [
-                'claims' => [[
-                    'source' => 'message_attachment',
-                    'claim' => $body === '' ? 'Message attachment' : $body,
-                    'question_prompt' => 'Attachment on message thread: '.$thread->subject,
-                ]],
-            ]);
+                throw ValidationException::withMessages([
+                    'attachments' => 'One attachment could not be stored securely. Please try again or contact your advisor.',
+                ]);
+            }
+
+            if ($document->scanner_result === Document::SCANNER_CLEAN) {
+                VerifyDocumentJob::dispatch((string) $document->getKey(), [
+                    'claims' => [[
+                        'source' => 'message_attachment',
+                        'claim' => $body === '' ? 'Message attachment' : $body,
+                        'question_prompt' => 'Attachment on message thread: '.$thread->subject,
+                    ]],
+                ]);
+            }
 
             $documentIds[] = (string) $document->getKey();
         }
@@ -296,20 +313,34 @@ final class MessageThreadService
                 continue;
             }
 
-            $document = $this->writer->write(
-                uploadedFile: $attachment,
-                owner: $sender,
-                category: Document::CATEGORY_MESSAGE_ATTACHMENT,
-                entrepreneurProfileId: (string) $profile->getKey(),
-            );
+            try {
+                $document = $this->writer->write(
+                    uploadedFile: $attachment,
+                    owner: $sender,
+                    category: Document::CATEGORY_MESSAGE_ATTACHMENT,
+                    entrepreneurProfileId: (string) $profile->getKey(),
+                );
+            } catch (InfectedFileException) {
+                throw ValidationException::withMessages([
+                    'attachments' => 'One attachment was rejected because malware was detected.',
+                ]);
+            } catch (SecureFileStorageException $exception) {
+                report($exception);
 
-            VerifyDocumentJob::dispatch((string) $document->getKey(), [
-                'claims' => [[
-                    'source' => 'entrepreneur_message_attachment',
-                    'claim' => $body === '' ? 'Message attachment' : $body,
-                    'question_prompt' => 'Attachment on entrepreneur message thread: '.$thread->subject,
-                ]],
-            ]);
+                throw ValidationException::withMessages([
+                    'attachments' => 'One attachment could not be stored securely. Please try again or contact your advisor.',
+                ]);
+            }
+
+            if ($document->scanner_result === Document::SCANNER_CLEAN) {
+                VerifyDocumentJob::dispatch((string) $document->getKey(), [
+                    'claims' => [[
+                        'source' => 'entrepreneur_message_attachment',
+                        'claim' => $body === '' ? 'Message attachment' : $body,
+                        'question_prompt' => 'Attachment on entrepreneur message thread: '.$thread->subject,
+                    ]],
+                ]);
+            }
 
             $documentIds[] = (string) $document->getKey();
         }

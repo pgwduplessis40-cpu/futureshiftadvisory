@@ -1,5 +1,5 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { Check, FileText, X } from 'lucide-react';
+import { Check, Download, FileText, X } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -9,6 +9,7 @@ type Props = {
     version: TermsVersion;
     acceptUrl: string;
     declineUrl: string;
+    downloadUrl: string;
     hasDeclined: boolean;
 };
 
@@ -16,9 +17,11 @@ export default function TermsGate({
     version,
     acceptUrl,
     declineUrl,
+    downloadUrl,
     hasDeclined,
 }: Props) {
     const [hasReachedEnd, setHasReachedEnd] = useState(false);
+    const [scrollProgress, setScrollProgress] = useState(0);
     const scrollRef = useRef<HTMLDivElement>(null);
     const form = useForm<{ scroll_end_confirmed: boolean }>({
         scroll_end_confirmed: false,
@@ -41,6 +44,16 @@ export default function TermsGate({
         if (!element || hasReachedEnd) {
             return;
         }
+
+        const maxScroll = Math.max(
+            1,
+            element.scrollHeight - element.clientHeight,
+        );
+        const progress = Math.min(
+            100,
+            Math.round((element.scrollTop / maxScroll) * 100),
+        );
+        setScrollProgress(progress);
 
         const reachedEnd =
             element.scrollTop + element.clientHeight >=
@@ -122,12 +135,37 @@ export default function TermsGate({
                 </div>
 
                 <footer className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">
-                    <p className="text-sm text-muted-foreground">
-                        {hasReachedEnd
-                            ? 'End of terms reached.'
-                            : 'End of terms not reached.'}
-                    </p>
+                    <div className="min-w-56 space-y-2">
+                        <p className="text-sm text-muted-foreground">
+                            {hasReachedEnd
+                                ? 'End of terms reached.'
+                                : `${scrollProgress}% reviewed`}
+                        </p>
+                        <div
+                            className="h-2 overflow-hidden rounded-full bg-muted"
+                            role="progressbar"
+                            aria-valuenow={hasReachedEnd ? 100 : scrollProgress}
+                            aria-valuemin={0}
+                            aria-valuemax={100}
+                        >
+                            <div
+                                className="h-full bg-primary transition-all"
+                                style={{
+                                    width: `${hasReachedEnd ? 100 : scrollProgress}%`,
+                                }}
+                            />
+                        </div>
+                    </div>
                     <div className="flex gap-2">
+                        <Button type="button" variant="outline" asChild>
+                            <a href={downloadUrl}>
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Download PDF
+                            </a>
+                        </Button>
                         <Button
                             type="button"
                             variant="outline"

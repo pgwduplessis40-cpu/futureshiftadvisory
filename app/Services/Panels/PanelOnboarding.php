@@ -94,6 +94,54 @@ final class PanelOnboarding
         });
     }
 
+    public function requestMoreInformation(PanelMember $member, User $admin, string $reason): PanelMember
+    {
+        if (! in_array($admin->user_type, [User::TYPE_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+            throw new InvalidArgumentException('Only advisors or super admins can request panel application information.');
+        }
+
+        $application = $member->application ?? [];
+        $member->forceFill([
+            'status' => PanelMember::STATUS_INFORMATION_REQUESTED,
+            'application' => [
+                ...$application,
+                'review' => $this->applicationReviewPayload('information_requested', $admin, $reason),
+            ],
+        ])->save();
+
+        $this->audit->record('panel.application_information_requested', subject: $member, actor: $admin, after: [
+            'panel_type' => $member->panel_type,
+            'reason' => $reason,
+        ]);
+
+        return $member->refresh();
+    }
+
+    public function decline(PanelMember $member, User $admin, string $reason): PanelMember
+    {
+        if (! in_array($admin->user_type, [User::TYPE_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+            throw new InvalidArgumentException('Only advisors or super admins can decline panel applications.');
+        }
+
+        $application = $member->application ?? [];
+        $member->forceFill([
+            'status' => PanelMember::STATUS_DECLINED,
+            'approved_by_user_id' => null,
+            'approved_at' => null,
+            'application' => [
+                ...$application,
+                'review' => $this->applicationReviewPayload('declined', $admin, $reason),
+            ],
+        ])->save();
+
+        $this->audit->record('panel.application_declined', subject: $member, actor: $admin, after: [
+            'panel_type' => $member->panel_type,
+            'reason' => $reason,
+        ]);
+
+        return $member->refresh();
+    }
+
     public function signAgreement(PanelAgreement $agreement, User $actor): PanelAgreement
     {
         return DB::transaction(function () use ($agreement, $actor): PanelAgreement {
@@ -102,6 +150,10 @@ final class PanelOnboarding
 
             if ((string) $member->user_id !== (string) $actor->getKey()) {
                 throw new PanelAccessException('Only the panel member can sign their panel agreement.');
+            }
+
+            if ($agreement->status !== PanelAgreement::STATUS_PENDING_SIGNATURE) {
+                throw new InvalidArgumentException('Only pending panel agreements can be signed.');
             }
 
             $pdf = $this->renderer->render($this->agreementHtml($agreement, $actor));
@@ -197,6 +249,19 @@ final class PanelOnboarding
         return [
             ...$baseTerms,
             ...$terms,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function applicationReviewPayload(string $decision, User $admin, string $reason): array
+    {
+        return [
+            'decision' => $decision,
+            'reason' => $reason,
+            'decided_by_user_id' => $admin->getKey(),
+            'decided_at' => now()->toIso8601String(),
         ];
     }
 

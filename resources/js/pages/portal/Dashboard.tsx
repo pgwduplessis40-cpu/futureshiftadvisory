@@ -16,7 +16,7 @@ import {
     Users,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { ComponentType, ReactNode } from 'react';
+import type { ComponentType, MouseEvent, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
@@ -45,6 +45,7 @@ import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
+import { cn } from '@/lib/utils';
 
 type ClientPayload = {
     id: string;
@@ -82,6 +83,9 @@ type Props = {
     healthFindings: HealthFindingDimension[];
     npoHealth: NpoHealthPayload | null;
     npoPortal: NpoPortalPayload | null;
+    ddPlan: DdPlanPayload | null;
+    postAcquisition: PostAcquisitionPayload | null;
+    standardAdvisory: StandardAdvisoryPortalPayload | null;
     goals: GoalDashboard;
     documents: DocumentPayload[];
     documentUploadUrl: string;
@@ -127,6 +131,80 @@ type NpoPortalPayload = {
         submitted_at: string | null;
         answered_questions: number;
     };
+};
+
+type DdPlanPayload = {
+    url: string;
+    generated: boolean;
+    status: string | null;
+    plan_completed: boolean;
+    business_advice_requested: boolean;
+    updated_at: string | null;
+    target_name: string;
+    data_room_item_count: number;
+    workstream_options: Array<{
+        value: string;
+        label: string;
+    }>;
+};
+
+type PostAcquisitionPayload = {
+    source_client_id: string;
+    advisory_client_id: string;
+    source_target_name: string | null;
+    dd_pv_baseline: number;
+    migrated_at: string | null;
+    migrated_document_count: number;
+    gap_questionnaire_url: string;
+    gap_questionnaire: {
+        submitted: boolean;
+        submitted_at: string | null;
+        answered_questions: number;
+        total_questions: number;
+        remaining_questions: number;
+    };
+    proposal: {
+        id: string;
+        status: string | null;
+        status_label: string;
+        suggested_mid: number | null;
+        client_visible: boolean;
+        signoff_url: string | null;
+    } | null;
+    dd_report: {
+        id: string;
+        title: string;
+        generated_at: string | null;
+    } | null;
+    integration_actions: Array<{
+        id: string;
+        day: number;
+        phase: string;
+        action: string;
+        owner: string | null;
+        priority: string;
+        status: string;
+    }>;
+};
+
+type StandardAdvisoryPortalPayload = {
+    status: string;
+    status_label: string;
+    next_action: string;
+    missing: string[];
+    questionnaire_submitted: boolean;
+    document_count: number;
+    client_report: {
+        id: string;
+        title: string;
+        type: string;
+        type_label: string;
+        generated_at: string | null;
+        review_status: string;
+        reviewed_at: string | null;
+        download_url: string | null;
+    } | null;
+    latest_report_generated_at: string | null;
 };
 
 type NpoFundingPayload = {
@@ -248,7 +326,9 @@ type ProposalPayload = {
 type ReportPayload = {
     id: string;
     title: string;
+    type: string;
     generated_at: string | null;
+    download_url: string;
 };
 
 type HealthFindingDimension = {
@@ -275,6 +355,8 @@ type HealthFinding = {
     created_at: string | null;
 };
 
+type PortalDashboardTab = 'actions' | 'information';
+
 export default function PortalDashboard({
     client,
     progress,
@@ -285,6 +367,9 @@ export default function PortalDashboard({
     healthFindings,
     npoHealth,
     npoPortal,
+    ddPlan,
+    postAcquisition,
+    standardAdvisory,
     goals,
     documents: initialDocuments,
     documentUploadUrl,
@@ -299,11 +384,21 @@ export default function PortalDashboard({
         useState<DocumentPayload[]>(initialDocuments);
     const [file, setFile] = useState<File | null>(null);
     const [documentCategory, setDocumentCategory] = useState(
-        npoPortal ? 'npo_board_record' : 'client_portal_upload',
+        npoPortal
+            ? 'npo_board_record'
+            : ddPlan
+              ? 'dd_artifact'
+              : 'client_portal_upload',
+    );
+    const [documentWorkstream, setDocumentWorkstream] = useState(
+        ddPlan?.workstream_options[0]?.value ?? 'financial',
     );
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadKey, setUploadKey] = useState(0);
+    const [activeTab, setActiveTab] = useState<PortalDashboardTab>(() =>
+        initialPortalDashboardTab(),
+    );
 
     const uploadDocument = async () => {
         if (!file) {
@@ -316,6 +411,11 @@ export default function PortalDashboard({
         const formData = new FormData();
         formData.append('file', file);
         formData.append('category', documentCategory);
+
+        if (ddPlan) {
+            formData.append('workstream', documentWorkstream);
+        }
+
         formData.append(
             'claim_value',
             'Document uploaded from the client dashboard.',
@@ -371,6 +471,47 @@ export default function PortalDashboard({
         proposals[0] ??
         null;
     const documentReviewCount = documents.filter(isDocumentFlagged).length;
+    const postAcquisitionProposalUrl =
+        postAcquisition?.proposal?.client_visible &&
+        postAcquisition.proposal.signoff_url
+            ? postAcquisition.proposal.signoff_url
+            : null;
+    const postAcquisitionActionUrl = postAcquisition
+        ? !postAcquisition.gap_questionnaire.submitted
+            ? postAcquisition.gap_questionnaire_url
+            : (postAcquisitionProposalUrl ?? '#section-post-acquisition')
+        : '';
+    const postAcquisitionActionLabel = postAcquisition
+        ? !postAcquisition.gap_questionnaire.submitted
+            ? 'Complete gaps'
+            : postAcquisitionProposalUrl
+              ? 'Review proposal'
+              : 'Review handoff'
+        : '';
+    const postAcquisitionStatus = postAcquisition
+        ? !postAcquisition.gap_questionnaire.submitted
+            ? `${postAcquisition.gap_questionnaire.remaining_questions} gaps remaining`
+            : postAcquisition.proposal?.client_visible
+              ? postAcquisition.proposal.status_label
+              : postAcquisition.proposal
+                ? 'Proposal in prep'
+                : `${postAcquisition.migrated_document_count} docs migrated`
+        : '';
+    const standardAdvisoryReport = reports.find(
+        (report) => report.type === 'client',
+    );
+    const standardAdvisoryActionUrl = standardAdvisory
+        ? standardAdvisory.status === 'waiting_questionnaire'
+            ? onboardingUrl
+            : (standardAdvisoryReport?.download_url ?? '#section-reports')
+        : '';
+    const standardAdvisoryActionLabel = standardAdvisory
+        ? standardAdvisoryReport
+            ? 'Open report'
+            : standardAdvisory.status === 'waiting_questionnaire'
+              ? 'Continue'
+              : 'View status'
+        : '';
     const highHealthFindingCount = healthFindings.reduce(
         (total, dimension) =>
             total +
@@ -379,6 +520,23 @@ export default function PortalDashboard({
             ).length,
         0,
     );
+    const showInformationSection = (
+        sectionId: string,
+        event: MouseEvent<Element>,
+    ) => {
+        event.preventDefault();
+        setActiveTab('information');
+        window.setTimeout(() => {
+            const section = document.getElementById(sectionId);
+
+            if (!section) {
+                return;
+            }
+
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            window.history.replaceState(null, '', `#${sectionId}`);
+        }, 0);
+    };
 
     return (
         <>
@@ -407,389 +565,566 @@ export default function PortalDashboard({
                     </Button>
                 </div>
 
-                <DashboardSection
-                    title="Priority actions"
-                    description="Start with the tiles that can block progress or need a response."
-                >
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <StatusPanel
-                            icon={ClipboardList}
-                            label="Onboarding"
-                            value={`${progress.percentage}% complete`}
-                            explanation="Onboarding collects the client details and evidence needed before advisor work can progress."
-                            href={onboardingUrl}
-                            actionLabel="Continue"
-                        />
-                        <StatusPanel
-                            icon={HeartPulse}
-                            label="Wellbeing"
-                            value={
-                                wellbeing.prompt_due
-                                    ? 'Pulse due'
-                                    : `Shared ${formatDate(wellbeing.submitted_at)}`
-                            }
-                            explanation="Wellbeing prompts help the advisory team understand founder pressure and support needs."
-                            href={wellbeing.url}
-                            actionLabel={wellbeing.prompt_due ? 'Open' : 'View'}
-                        />
-                        <StatusPanel
-                            icon={Bell}
-                            label="Notifications"
-                            value={
-                                notificationSummary.urgent > 0
-                                    ? `${notificationSummary.urgent} urgent`
-                                    : `${notificationSummary.unread} unread`
-                            }
-                            explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
-                            href="/notifications"
-                            actionLabel="Open"
-                        />
-                        <StatusPanel
-                            icon={MessageSquare}
-                            label="Messages"
-                            value="Advisor thread"
-                            explanation="Messages opens your secure conversation history with the advisory team."
-                            href={messagesUrl}
-                            actionLabel="Open"
-                        />
-                        <StatusPanel
-                            icon={FileText}
-                            label="Proposals"
-                            value={
-                                unsignedProposalCount > 0
-                                    ? `${unsignedProposalCount} awaiting review`
-                                    : `${proposals.length} released`
-                            }
-                            explanation="Proposal tiles link to released proposals that may need sign-off or review."
-                            href={
-                                actionProposal?.signoff_url ??
-                                '#section-proposals'
-                            }
-                            actionLabel={
-                                unsignedProposalCount > 0 ? 'Open' : 'View'
-                            }
-                        />
-                        <StatusPanel
-                            icon={Upload}
-                            label="Documents"
-                            value={
-                                documentReviewCount > 0
-                                    ? `${documentReviewCount} need review`
-                                    : `${documents.length} uploaded`
-                            }
-                            explanation="Documents include uploaded evidence and any verification outcomes that need attention."
-                            href="#section-documents"
-                            actionLabel="Review"
-                        />
-                        <StatusPanel
-                            icon={TrendingUp}
-                            label="Data quality"
-                            value={
-                                <DataQualityBadge
-                                    summary={client.data_quality_summary}
-                                />
-                            }
-                            explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
-                            href="#section-health"
-                            actionLabel="Review"
-                        />
-                        <StatusPanel
-                            icon={Activity}
-                            label="Health findings"
-                            value={`${highHealthFindingCount} high priority`}
-                            explanation="High-priority health findings are critical or high severity analysis signals surfaced by the advisory engine."
-                            href="#section-health"
-                            actionLabel="Open"
-                        />
-                    </div>
-                </DashboardSection>
+                <DashboardTabList
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                />
 
-                <DashboardSection
-                    title="Action panel"
-                    description="Complete open workflow tasks before reviewing broader context."
-                >
-                    <section
-                        id="section-onboarding"
-                        className="rounded-md border bg-background p-4"
-                        aria-labelledby="onboarding-progress-heading"
-                    >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div>
-                                <h2
-                                    id="onboarding-progress-heading"
-                                    className="text-sm font-medium"
-                                >
-                                    Onboarding progress
-                                </h2>
-                                <p className="mt-1 text-sm text-muted-foreground">
-                                    {progress.completed} of {progress.total}{' '}
-                                    steps complete
-                                </p>
-                            </div>
-                            <Badge variant="secondary">
-                                {progress.percentage}%
-                            </Badge>
-                        </div>
-                        <div
-                            className="mt-4 h-2 rounded-full bg-muted"
-                            role="progressbar"
-                            aria-valuenow={progress.percentage}
-                            aria-valuemin={0}
-                            aria-valuemax={100}
-                            aria-label="Onboarding completion"
+                {activeTab === 'actions' ? (
+                    <>
+                        <DashboardSection
+                            title="Priority actions"
+                            description="Start with the tiles that can block progress or need a response."
                         >
-                            <div
-                                className="h-2 rounded-full bg-[var(--fs-admiralty)]"
-                                style={{ width: `${progress.percentage}%` }}
-                            />
-                        </div>
-                    </section>
-
-                    <section
-                        id="section-wellbeing"
-                        className="rounded-md border bg-background p-4"
-                        aria-labelledby="wellbeing-heading"
-                    >
-                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="flex items-start gap-3">
-                                <HeartPulse
-                                    className="mt-0.5 size-4 text-muted-foreground"
-                                    aria-hidden="true"
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <StatusPanel
+                                    icon={ClipboardList}
+                                    label="Onboarding"
+                                    value={`${progress.percentage}% complete`}
+                                    explanation="Onboarding collects the client details and evidence needed before advisor work can progress."
+                                    href={onboardingUrl}
+                                    actionLabel="Continue"
                                 />
-                                <div>
-                                    <h2
-                                        id="wellbeing-heading"
-                                        className="text-sm font-medium"
-                                    >
-                                        Wellbeing check-in
-                                    </h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        {wellbeing.prompt_due
-                                            ? 'Optional monthly pulse available.'
-                                            : `Shared ${formatDate(wellbeing.submitted_at)}.`}
-                                    </p>
-                                </div>
-                            </div>
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={wellbeing.url}>
-                                    {wellbeing.prompt_due
-                                        ? 'Open pulse'
-                                        : 'View pulse'}
-                                </Link>
-                            </Button>
-                        </div>
-                    </section>
-
-                    <ProposalSignoffPanel proposals={proposals} />
-
-                    <section
-                        id="section-documents"
-                        className="space-y-4 rounded-md border bg-background p-4"
-                        aria-labelledby="documents-heading"
-                    >
-                        <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
-                            <div className="flex items-center gap-2">
-                                <FileText
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                <h2
-                                    id="documents-heading"
-                                    className="text-sm font-medium"
-                                >
-                                    Documents
-                                </h2>
-                                <Badge variant="outline">
-                                    {documents.length}
-                                </Badge>
-                            </div>
-                            <div className="grid w-full gap-2 lg:max-w-sm">
-                                {npoPortal && (
-                                    <Select
-                                        value={documentCategory}
-                                        onValueChange={setDocumentCategory}
-                                    >
-                                        <SelectTrigger
-                                            size="sm"
-                                            className="w-full"
-                                            aria-label="Document category"
-                                        >
-                                            <SelectValue />
-                                        </SelectTrigger>
-                                        <SelectContent>
-                                            <SelectItem value="npo_board_record">
-                                                Board record
-                                            </SelectItem>
-                                            <SelectItem value="npo_meeting_minutes">
-                                                Meeting minutes
-                                            </SelectItem>
-                                            <SelectItem value="other">
-                                                Other document
-                                            </SelectItem>
-                                        </SelectContent>
-                                    </Select>
+                                {standardAdvisory && (
+                                    <StatusPanel
+                                        icon={FileText}
+                                        label="Advisory report"
+                                        value={standardAdvisory.status_label}
+                                        explanation={`Standard Advisory status: ${standardAdvisory.next_action}`}
+                                        href={standardAdvisoryActionUrl}
+                                        actionLabel={
+                                            standardAdvisoryActionLabel
+                                        }
+                                        onAction={
+                                            standardAdvisoryActionUrl ===
+                                            '#section-reports'
+                                                ? (event) =>
+                                                      showInformationSection(
+                                                          'section-reports',
+                                                          event,
+                                                      )
+                                                : undefined
+                                        }
+                                    />
                                 )}
-                                <FileDropzone
-                                    key={uploadKey}
-                                    id="client_dashboard_document"
-                                    files={file ? [file] : []}
-                                    label="Upload document"
-                                    onFilesChange={(files) =>
-                                        setFile(files[0] ?? null)
+                                {ddPlan && (
+                                    <StatusPanel
+                                        icon={PieChart}
+                                        label="Prepare business plan"
+                                        value={
+                                            ddPlan.business_advice_requested
+                                                ? 'Advice requested'
+                                                : ddPlan.plan_completed
+                                                  ? 'Plan completed'
+                                                  : ddPlan.generated
+                                                    ? `Updated ${formatDate(ddPlan.updated_at)}`
+                                                    : 'Not generated'
+                                        }
+                                        explanation={`Builds a business plan for the target acquisition (${ddPlan.target_name}) from DD questionnaire answers, uploaded evidence, workstream findings, and valuation context.`}
+                                        href={ddPlan.url}
+                                        actionLabel={
+                                            ddPlan.generated
+                                                ? 'Open'
+                                                : 'Prepare'
+                                        }
+                                    />
+                                )}
+                                {postAcquisition && (
+                                    <StatusPanel
+                                        icon={TrendingUp}
+                                        label="Post-acquisition"
+                                        value={postAcquisitionStatus}
+                                        explanation="This handoff uses DD evidence, the DD valuation baseline, and the post-close gap questionnaire to start the advisory engagement."
+                                        href={postAcquisitionActionUrl}
+                                        actionLabel={postAcquisitionActionLabel}
+                                    />
+                                )}
+                                <StatusPanel
+                                    icon={HeartPulse}
+                                    label="Wellbeing"
+                                    value={
+                                        wellbeing.prompt_due
+                                            ? 'Pulse due'
+                                            : `Shared ${formatDate(wellbeing.submitted_at)}`
+                                    }
+                                    explanation="Wellbeing prompts help the advisory team understand founder pressure and support needs."
+                                    href={wellbeing.url}
+                                    actionLabel={
+                                        wellbeing.prompt_due ? 'Open' : 'View'
                                     }
                                 />
-                                <InputError
-                                    message={uploadError ?? undefined}
+                                <StatusPanel
+                                    icon={Bell}
+                                    label="Notifications"
+                                    value={
+                                        notificationSummary.urgent > 0
+                                            ? `${notificationSummary.urgent} urgent`
+                                            : `${notificationSummary.unread} unread`
+                                    }
+                                    explanation="Notifications include advisor updates, document checks, terms prompts, and other portal alerts."
+                                    href="/notifications"
+                                    actionLabel="Open"
                                 />
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={!file || uploading}
-                                    onClick={() => void uploadDocument()}
-                                >
-                                    <Upload
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {uploading ? 'Uploading' : 'Upload'}
-                                </Button>
-                            </div>
-                        </div>
-
-                        {documents.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                No documents uploaded yet.
-                            </p>
-                        ) : (
-                            <div className="grid gap-3 md:grid-cols-2">
-                                {documents.map((document) => (
-                                    <DocumentTile
-                                        key={document.id}
-                                        document={document}
-                                    />
-                                ))}
-                            </div>
-                        )}
-                    </section>
-                </DashboardSection>
-
-                <DashboardSection
-                    title="Decision context"
-                    description="Use these panels to understand client health, NPO position, and value progress."
-                >
-                    <BusinessHealthPanel
-                        businessHealth={businessHealth}
-                        healthFindings={healthFindings}
-                    />
-
-                    {npoHealth && (
-                        <NpoHealthPanel
-                            payload={npoHealth}
-                            title="NPO health"
-                        />
-                    )}
-
-                    {npoPortal && (
-                        <NpoPortalPanel
-                            payload={npoPortal}
-                            metricStoreUrl={npoImpactMetricStoreUrl}
-                            onboardingUrl={onboardingUrl}
-                        />
-                    )}
-
-                    <GoalProgressPanel goals={goals} />
-                </DashboardSection>
-
-                <DashboardSection
-                    title="Information"
-                    description="Review released reports, scenarios, and message access after open actions are clear."
-                >
-                    <section
-                        className="space-y-4 rounded-md border bg-background p-4"
-                        aria-labelledby="reports-heading"
-                    >
-                        <div className="flex items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                <FileText
-                                    className="size-4"
-                                    aria-hidden="true"
+                                <StatusPanel
+                                    icon={MessageSquare}
+                                    label="Messages"
+                                    value="Advisor thread"
+                                    explanation="Messages opens your secure conversation history with the advisory team."
+                                    href={messagesUrl}
+                                    actionLabel="Open"
                                 />
-                                <h2
-                                    id="reports-heading"
-                                    className="text-sm font-medium"
-                                >
-                                    Reports
-                                </h2>
+                                <StatusPanel
+                                    icon={FileText}
+                                    label="Proposals"
+                                    value={
+                                        unsignedProposalCount > 0
+                                            ? `${unsignedProposalCount} awaiting review`
+                                            : `${proposals.length} released`
+                                    }
+                                    explanation="Proposal tiles link to released proposals that may need sign-off or review."
+                                    href={
+                                        actionProposal?.signoff_url ??
+                                        '#section-proposals'
+                                    }
+                                    actionLabel={
+                                        unsignedProposalCount > 0
+                                            ? 'Open'
+                                            : 'View'
+                                    }
+                                />
+                                <StatusPanel
+                                    icon={Upload}
+                                    label="Documents"
+                                    value={
+                                        documentReviewCount > 0
+                                            ? `${documentReviewCount} need review`
+                                            : `${documents.length} uploaded`
+                                    }
+                                    explanation="Documents include uploaded evidence and any verification outcomes that need attention."
+                                    href="#section-documents"
+                                    actionLabel="Review"
+                                />
+                                <StatusPanel
+                                    icon={TrendingUp}
+                                    label="Data quality"
+                                    value={
+                                        <DataQualityBadge
+                                            summary={
+                                                client.data_quality_summary
+                                            }
+                                        />
+                                    }
+                                    explanation="Data quality reflects how complete and usable the evidence in your client workspace is for advisory analysis."
+                                    href="#section-health"
+                                    actionLabel="Review"
+                                    onAction={(event) =>
+                                        showInformationSection(
+                                            'section-health',
+                                            event,
+                                        )
+                                    }
+                                />
+                                <StatusPanel
+                                    icon={Activity}
+                                    label="Health findings"
+                                    value={`${highHealthFindingCount} high priority`}
+                                    explanation="High-priority health findings are critical or high severity analysis signals surfaced by the advisory engine."
+                                    href="#section-health"
+                                    actionLabel="Open"
+                                    onAction={(event) =>
+                                        showInformationSection(
+                                            'section-health',
+                                            event,
+                                        )
+                                    }
+                                />
                             </div>
-                            <Badge variant="outline">{reports.length}</Badge>
-                        </div>
+                        </DashboardSection>
 
-                        {reports.length === 0 ? (
-                            <p className="text-sm text-muted-foreground">
-                                No client reports released yet.
-                            </p>
-                        ) : (
-                            <div className="divide-y rounded-md border">
-                                {reports.map((report) => (
-                                    <article
-                                        key={report.id}
-                                        className="flex flex-wrap items-center justify-between gap-3 p-3"
-                                    >
-                                        <div className="text-sm font-medium">
-                                            {report.title}
-                                        </div>
-                                        <div className="text-xs text-muted-foreground">
-                                            {formatDate(report.generated_at)}
-                                        </div>
-                                    </article>
-                                ))}
-                            </div>
-                        )}
-                    </section>
-
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <section
-                            className="space-y-4 rounded-md border bg-background p-4"
-                            aria-labelledby="scenarios-heading"
+                        <DashboardSection
+                            title="Action panel"
+                            description="Complete open workflow tasks before reviewing broader context."
                         >
-                            <div className="flex items-center gap-2">
-                                <TrendingUp
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                <h2
-                                    id="scenarios-heading"
-                                    className="text-sm font-medium"
+                            <section
+                                id="section-onboarding"
+                                className="rounded-md border bg-background p-4"
+                                aria-labelledby="onboarding-progress-heading"
+                            >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div>
+                                        <h2
+                                            id="onboarding-progress-heading"
+                                            className="text-sm font-medium"
+                                        >
+                                            Onboarding progress
+                                        </h2>
+                                        <p className="mt-1 text-sm text-muted-foreground">
+                                            {progress.completed} of{' '}
+                                            {progress.total} steps complete
+                                        </p>
+                                    </div>
+                                    <Badge variant="secondary">
+                                        {progress.percentage}%
+                                    </Badge>
+                                </div>
+                                <div
+                                    className="mt-4 h-2 rounded-full bg-muted"
+                                    role="progressbar"
+                                    aria-valuenow={progress.percentage}
+                                    aria-valuemin={0}
+                                    aria-valuemax={100}
+                                    aria-label="Onboarding completion"
                                 >
-                                    Scenarios
-                                </h2>
-                            </div>
-                            <ScenarioList scenarios={scenarios} />
-                        </section>
+                                    <div
+                                        className="h-2 rounded-full bg-[var(--fs-admiralty)]"
+                                        style={{
+                                            width: `${progress.percentage}%`,
+                                        }}
+                                    />
+                                </div>
+                            </section>
 
-                        <section
-                            className="space-y-4 rounded-md border bg-background p-4"
-                            aria-labelledby="messages-heading"
-                        >
-                            <div className="flex items-center gap-2">
-                                <MessageSquare
-                                    className="size-4"
-                                    aria-hidden="true"
+                            <section
+                                id="section-wellbeing"
+                                className="rounded-md border bg-background p-4"
+                                aria-labelledby="wellbeing-heading"
+                            >
+                                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                                    <div className="flex items-start gap-3">
+                                        <HeartPulse
+                                            className="mt-0.5 size-4 text-muted-foreground"
+                                            aria-hidden="true"
+                                        />
+                                        <div>
+                                            <h2
+                                                id="wellbeing-heading"
+                                                className="text-sm font-medium"
+                                            >
+                                                Wellbeing check-in
+                                            </h2>
+                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                {wellbeing.prompt_due
+                                                    ? 'Optional monthly pulse available.'
+                                                    : `Shared ${formatDate(wellbeing.submitted_at)}.`}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={wellbeing.url}>
+                                            {wellbeing.prompt_due
+                                                ? 'Open pulse'
+                                                : 'View pulse'}
+                                        </Link>
+                                    </Button>
+                                </div>
+                            </section>
+
+                            <ProposalSignoffPanel proposals={proposals} />
+
+                            {postAcquisition && (
+                                <PostAcquisitionHandoffPanel
+                                    payload={postAcquisition}
                                 />
-                                <h2
-                                    id="messages-heading"
-                                    className="text-sm font-medium"
+                            )}
+
+                            <section
+                                id="section-documents"
+                                className="space-y-4 rounded-md border bg-background p-4"
+                                aria-labelledby="documents-heading"
+                            >
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                    <div className="flex items-center gap-2">
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2
+                                            id="documents-heading"
+                                            className="text-sm font-medium"
+                                        >
+                                            Documents
+                                        </h2>
+                                        <Badge variant="outline">
+                                            {documents.length}
+                                        </Badge>
+                                    </div>
+                                    <div className="grid w-full gap-2 lg:max-w-sm">
+                                        {npoPortal ? (
+                                            <Select
+                                                value={documentCategory}
+                                                onValueChange={
+                                                    setDocumentCategory
+                                                }
+                                            >
+                                                <SelectTrigger
+                                                    size="sm"
+                                                    className="w-full"
+                                                    aria-label="Document category"
+                                                >
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    <SelectItem value="npo_board_record">
+                                                        Board record
+                                                    </SelectItem>
+                                                    <SelectItem value="npo_meeting_minutes">
+                                                        Meeting minutes
+                                                    </SelectItem>
+                                                    <SelectItem value="other">
+                                                        Other document
+                                                    </SelectItem>
+                                                </SelectContent>
+                                            </Select>
+                                        ) : ddPlan ? (
+                                            <Select
+                                                value={documentWorkstream}
+                                                onValueChange={
+                                                    setDocumentWorkstream
+                                                }
+                                            >
+                                                <SelectTrigger
+                                                    size="sm"
+                                                    className="w-full"
+                                                    aria-label="DD workstream"
+                                                >
+                                                    <SelectValue />
+                                                </SelectTrigger>
+                                                <SelectContent>
+                                                    {ddPlan.workstream_options.map(
+                                                        (option) => (
+                                                            <SelectItem
+                                                                key={
+                                                                    option.value
+                                                                }
+                                                                value={
+                                                                    option.value
+                                                                }
+                                                            >
+                                                                {option.label}
+                                                            </SelectItem>
+                                                        ),
+                                                    )}
+                                                </SelectContent>
+                                            </Select>
+                                        ) : null}
+                                        <FileDropzone
+                                            key={uploadKey}
+                                            id="client_dashboard_document"
+                                            files={file ? [file] : []}
+                                            label="Upload document"
+                                            onFilesChange={(files) =>
+                                                setFile(files[0] ?? null)
+                                            }
+                                        />
+                                        <InputError
+                                            message={uploadError ?? undefined}
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!file || uploading}
+                                            onClick={() =>
+                                                void uploadDocument()
+                                            }
+                                        >
+                                            <Upload
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            {uploading ? 'Uploading' : 'Upload'}
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {documents.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No documents uploaded yet.
+                                    </p>
+                                ) : (
+                                    <div className="grid gap-3 md:grid-cols-2">
+                                        {documents.map((document) => (
+                                            <DocumentTile
+                                                key={document.id}
+                                                document={document}
+                                            />
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+                        </DashboardSection>
+                    </>
+                ) : (
+                    <>
+                        <DashboardSection
+                            title="Decision context"
+                            description="Use these panels to understand client health, NPO position, and value progress."
+                        >
+                            <BusinessHealthPanel
+                                businessHealth={businessHealth}
+                                healthFindings={healthFindings}
+                            />
+
+                            {npoHealth && (
+                                <NpoHealthPanel
+                                    payload={npoHealth}
+                                    title="NPO health"
+                                />
+                            )}
+
+                            {npoPortal && (
+                                <NpoPortalPanel
+                                    payload={npoPortal}
+                                    metricStoreUrl={npoImpactMetricStoreUrl}
+                                    onboardingUrl={onboardingUrl}
+                                />
+                            )}
+
+                            <GoalProgressPanel goals={goals} />
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Information"
+                            description="Review released reports, scenarios, and message access after open actions are clear."
+                        >
+                            <section
+                                className="space-y-4 rounded-md border bg-background p-4"
+                                aria-labelledby="reports-heading"
+                            >
+                                <div className="flex items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2
+                                            id="reports-heading"
+                                            className="text-sm font-medium"
+                                        >
+                                            Reports
+                                        </h2>
+                                    </div>
+                                    <Badge variant="outline">
+                                        {reports.length}
+                                    </Badge>
+                                </div>
+
+                                {standardAdvisory &&
+                                    !standardAdvisoryReport && (
+                                        <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                            <div className="font-medium text-foreground">
+                                                {standardAdvisory.status_label}
+                                            </div>
+                                            <div className="mt-1">
+                                                {standardAdvisory.next_action}
+                                            </div>
+                                            {standardAdvisory.missing.length >
+                                                0 && (
+                                                <ul className="mt-2 list-disc space-y-1 pl-5">
+                                                    {standardAdvisory.missing.map(
+                                                        (item) => (
+                                                            <li key={item}>
+                                                                {item}
+                                                            </li>
+                                                        ),
+                                                    )}
+                                                </ul>
+                                            )}
+                                        </div>
+                                    )}
+
+                                {reports.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No client reports released yet.
+                                    </p>
+                                ) : (
+                                    <div className="divide-y rounded-md border">
+                                        {reports.map((report) => (
+                                            <article
+                                                key={report.id}
+                                                className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                            >
+                                                <div>
+                                                    <div className="text-sm font-medium">
+                                                        {report.title}
+                                                    </div>
+                                                    <div className="text-xs text-muted-foreground">
+                                                        {formatDate(
+                                                            report.generated_at,
+                                                        )}
+                                                    </div>
+                                                </div>
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <a
+                                                        href={
+                                                            report.download_url
+                                                        }
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                    >
+                                                        <FileText
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        Open
+                                                    </a>
+                                                </Button>
+                                            </article>
+                                        ))}
+                                    </div>
+                                )}
+                            </section>
+
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                <section
+                                    className="space-y-4 rounded-md border bg-background p-4"
+                                    aria-labelledby="scenarios-heading"
                                 >
-                                    Messages
-                                </h2>
+                                    <div className="flex items-center gap-2">
+                                        <TrendingUp
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2
+                                            id="scenarios-heading"
+                                            className="text-sm font-medium"
+                                        >
+                                            Scenarios
+                                        </h2>
+                                    </div>
+                                    <ScenarioList scenarios={scenarios} />
+                                </section>
+
+                                <section
+                                    className="space-y-4 rounded-md border bg-background p-4"
+                                    aria-labelledby="messages-heading"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <MessageSquare
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2
+                                            id="messages-heading"
+                                            className="text-sm font-medium"
+                                        >
+                                            Messages
+                                        </h2>
+                                    </div>
+                                    <Button asChild variant="outline" size="sm">
+                                        <Link href={messagesUrl}>
+                                            Open messages
+                                        </Link>
+                                    </Button>
+                                </section>
                             </div>
-                            <Button asChild variant="outline" size="sm">
-                                <Link href={messagesUrl}>Open messages</Link>
-                            </Button>
-                        </section>
-                    </div>
-                </DashboardSection>
+                        </DashboardSection>
+                    </>
+                )}
             </main>
         </>
     );
@@ -1233,6 +1568,71 @@ function DashboardSection({
     );
 }
 
+function DashboardTabList({
+    activeTab,
+    onChange,
+}: {
+    activeTab: PortalDashboardTab;
+    onChange: (tab: PortalDashboardTab) => void;
+}) {
+    return (
+        <div
+            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            role="tablist"
+            aria-label="Client portal dashboard sections"
+        >
+            <DashboardTabButton
+                active={activeTab === 'actions'}
+                onClick={() => onChange('actions')}
+            >
+                Actions
+            </DashboardTabButton>
+            <DashboardTabButton
+                active={activeTab === 'information'}
+                onClick={() => onChange('information')}
+            >
+                Information
+            </DashboardTabButton>
+        </div>
+    );
+}
+
+function DashboardTabButton({
+    active,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={cn(
+                'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                active && 'bg-background text-foreground shadow-xs',
+            )}
+            onClick={onClick}
+        >
+            {children}
+        </button>
+    );
+}
+
+function initialPortalDashboardTab(): PortalDashboardTab {
+    if (
+        typeof window !== 'undefined' &&
+        ['#section-health'].includes(window.location.hash)
+    ) {
+        return 'information';
+    }
+
+    return 'actions';
+}
+
 function NpoStat({
     icon: Icon,
     label,
@@ -1485,6 +1885,184 @@ function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
     );
 }
 
+function PostAcquisitionHandoffPanel({
+    payload,
+}: {
+    payload: PostAcquisitionPayload;
+}) {
+    const proposalUrl =
+        payload.proposal?.client_visible && payload.proposal.signoff_url
+            ? payload.proposal.signoff_url
+            : null;
+
+    return (
+        <section
+            id="section-post-acquisition"
+            className="space-y-4 rounded-md border bg-background p-4"
+            aria-labelledby="post-acquisition-heading"
+        >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="flex items-start gap-3">
+                    <TrendingUp
+                        className="mt-0.5 size-4 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <div>
+                        <h2
+                            id="post-acquisition-heading"
+                            className="text-sm font-medium"
+                        >
+                            Post-acquisition handoff
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            DD context for{' '}
+                            {payload.source_target_name ??
+                                'the acquired business'}{' '}
+                            is ready for the advisory engagement.
+                        </p>
+                    </div>
+                </div>
+                <Badge variant="outline">
+                    Migrated {formatDate(payload.migrated_at)}
+                </Badge>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+                <MetricBlock
+                    label="DD valuation baseline"
+                    value={formatCurrency(payload.dd_pv_baseline)}
+                />
+                <MetricBlock
+                    label="Migrated documents"
+                    value={`${payload.migrated_document_count}`}
+                />
+                <MetricBlock
+                    label="Gap questionnaire"
+                    value={
+                        payload.gap_questionnaire.submitted
+                            ? 'Submitted'
+                            : `${payload.gap_questionnaire.remaining_questions} open`
+                    }
+                />
+                <MetricBlock
+                    label="Proposal"
+                    value={payload.proposal?.status_label ?? 'Pending'}
+                />
+            </div>
+
+            {payload.integration_actions.length > 0 ? (
+                <div className="space-y-3 rounded-md border bg-muted/20 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div>
+                            <h3 className="text-sm font-medium">
+                                First 100-day action plan
+                            </h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Advisor-led actions generated from the DD risk
+                                register and integration plan.
+                            </p>
+                        </div>
+                        <Badge variant="outline">
+                            {payload.integration_actions.length} actions
+                        </Badge>
+                    </div>
+                    <div className="grid gap-2">
+                        {payload.integration_actions.map((item) => (
+                            <div
+                                key={item.id}
+                                className="grid gap-3 rounded-md border bg-background p-3 text-sm md:grid-cols-[80px_1fr_auto]"
+                            >
+                                <div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Day
+                                    </div>
+                                    <div className="font-medium">
+                                        {item.day}
+                                    </div>
+                                </div>
+                                <div>
+                                    <div className="font-medium">
+                                        {item.action}
+                                    </div>
+                                    <div className="mt-1 text-muted-foreground">
+                                        {item.phase}
+                                        {item.owner ? ` / ${item.owner}` : ''}
+                                    </div>
+                                </div>
+                                <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                    <Badge variant="secondary">
+                                        {formatLabel(item.priority)}
+                                    </Badge>
+                                    <Badge variant="outline">
+                                        {formatLabel(item.status)}
+                                    </Badge>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            ) : null}
+
+            <div className="flex flex-wrap gap-2">
+                <Button asChild variant="outline" size="sm">
+                    <Link href={payload.gap_questionnaire_url}>
+                        <ClipboardList className="size-4" aria-hidden="true" />
+                        {payload.gap_questionnaire.submitted
+                            ? 'View questionnaire'
+                            : 'Complete gaps'}
+                    </Link>
+                </Button>
+                {proposalUrl ? (
+                    <Button asChild variant="outline" size="sm">
+                        <Link href={proposalUrl}>
+                            <FileText className="size-4" aria-hidden="true" />
+                            Review proposal
+                        </Link>
+                    </Button>
+                ) : (
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    disabled
+                                >
+                                    <FileText
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Proposal pending
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                            The advisor can release the generated draft proposal
+                            before client sign-off.
+                        </TooltipContent>
+                    </Tooltip>
+                )}
+                <Button asChild variant="outline" size="sm">
+                    <a href="#section-documents">
+                        <Upload className="size-4" aria-hidden="true" />
+                        View documents
+                    </a>
+                </Button>
+            </div>
+        </section>
+    );
+}
+
+function MetricBlock({ label, value }: { label: string; value: ReactNode }) {
+    return (
+        <div className="rounded-md border p-3">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-2 text-sm font-medium">{value}</div>
+        </div>
+    );
+}
+
 function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
     return (
         <section
@@ -1699,6 +2277,7 @@ function StatusPanel({
     explanation,
     href,
     actionLabel,
+    onAction,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     label: string;
@@ -1706,6 +2285,7 @@ function StatusPanel({
     explanation: string;
     href: string;
     actionLabel: string;
+    onAction?: (event: MouseEvent<Element>) => void;
 }) {
     return (
         <Tooltip>
@@ -1722,7 +2302,9 @@ function StatusPanel({
                         size="sm"
                         className="mt-3 px-0"
                     >
-                        <Link href={href}>{actionLabel}</Link>
+                        <Link href={href} onClick={onAction}>
+                            {actionLabel}
+                        </Link>
                     </Button>
                 </section>
             </TooltipTrigger>

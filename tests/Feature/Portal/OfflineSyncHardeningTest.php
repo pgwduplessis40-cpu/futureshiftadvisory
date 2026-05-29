@@ -90,7 +90,7 @@ final class OfflineSyncHardeningTest extends TestCase
 
         $first = $this->actingAsMfa($user)
             ->withHeaders($headers)
-            ->post(route('portal.documents.store'), $this->uploadPayload('cashflow.txt', 'stable payload'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('cashflow.pdf', 'stable payload'))
             ->assertCreated();
 
         $documentId = $first->json('document.id');
@@ -106,7 +106,7 @@ final class OfflineSyncHardeningTest extends TestCase
 
         $this->actingAsMfa($user)
             ->withHeaders($headers)
-            ->post(route('portal.documents.store'), $this->uploadPayload('cashflow.txt', 'stable payload'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('cashflow.pdf', 'stable payload'))
             ->assertCreated()
             ->assertJsonPath('document.id', $documentId);
 
@@ -115,7 +115,7 @@ final class OfflineSyncHardeningTest extends TestCase
 
         $this->actingAsMfa($user)
             ->withHeaders($headers)
-            ->post(route('portal.documents.store'), $this->uploadPayload('cashflow.txt', 'changed payload'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('cashflow.pdf', 'changed payload'))
             ->assertConflict()
             ->assertJsonPath('message', 'Offline sync idempotency key was reused with a different payload.');
 
@@ -131,12 +131,12 @@ final class OfflineSyncHardeningTest extends TestCase
 
         $this->actingAsMfa($user)
             ->withHeaders($this->syncHeaders($firstClient, 'shared-key'))
-            ->post(route('portal.documents.store'), $this->uploadPayload('shared.txt', 'same bytes'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('shared.pdf', 'same bytes'))
             ->assertCreated();
 
         $this->actingAsMfa($user)
             ->withHeaders($this->syncHeaders($secondClient, 'shared-key'))
-            ->post(route('portal.documents.store'), $this->uploadPayload('shared.txt', 'same bytes'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('shared.pdf', 'same bytes'))
             ->assertCreated();
 
         $this->assertSame(2, $scanner->calls);
@@ -155,7 +155,7 @@ final class OfflineSyncHardeningTest extends TestCase
                 'X-Portal-Offline-Sync' => '1',
                 'X-Idempotency-Key' => 'legacy-key',
             ])
-            ->post(route('portal.documents.store'), $this->uploadPayload('legacy.txt', 'legacy payload'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('legacy.pdf', 'legacy payload'))
             ->assertUnprocessable();
 
         ClientTeamMember::query()
@@ -165,7 +165,7 @@ final class OfflineSyncHardeningTest extends TestCase
 
         $this->actingAsMfa($user)
             ->withHeaders($this->syncHeaders($client, 'revoked-key'))
-            ->post(route('portal.documents.store'), $this->uploadPayload('revoked.txt', 'revoked payload'))
+            ->post(route('portal.documents.store'), $this->uploadPayload('revoked.pdf', 'revoked payload'))
             ->assertForbidden();
 
         $this->assertDatabaseCount('documents', 0);
@@ -276,6 +276,10 @@ final class OfflineSyncHardeningTest extends TestCase
      */
     private function uploadPayload(string $name, string $contents): array
     {
+        if (str_ends_with($name, '.pdf') && ! str_starts_with($contents, '%PDF-')) {
+            $contents = "%PDF-1.4\n".$contents;
+        }
+
         return [
             'file' => UploadedFile::fake()->createWithContent($name, $contents),
             'category' => Document::CATEGORY_PLAN_ATTACHMENT,

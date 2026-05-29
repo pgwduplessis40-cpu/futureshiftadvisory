@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, Check } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import { ArrowRight, Check, Info } from 'lucide-react';
 
 import { BackToTop } from '@/components/public/back-to-top';
 import {
@@ -9,6 +9,8 @@ import {
     SectionLead,
     SectionTitle,
 } from '@/components/public/section';
+import { Seo } from '@/components/public/seo';
+import { breadcrumbLd, servicesLd } from '@/lib/structured-data';
 
 type EngagementType = {
     slug: string;
@@ -18,6 +20,8 @@ type EngagementType = {
     audience: string;
     deliverables: string[];
     accent: string;
+    paths?: { name: string; blurb: string }[];
+    note?: string;
 };
 
 const accentBar: Record<string, string> = {
@@ -25,6 +29,7 @@ const accentBar: Record<string, string> = {
     admiralty: 'bg-[var(--fs-admiralty)]',
     'deep-cove': 'bg-[var(--fs-deep-cove)]',
     cognac: 'bg-[var(--fs-cognac)]',
+    harbour: 'bg-[var(--fs-harbour)]',
 };
 
 export default function Services({
@@ -32,29 +37,36 @@ export default function Services({
 }: {
     engagementTypes: EngagementType[];
 }) {
+    const base = usePage().props.publicUrl ?? '';
+
     return (
         <>
-            <Head title="Services — Future Shift Advisory">
-                <meta
-                    name="description"
-                    content="Standard Advisory, Due Diligence, Post-acquisition Advisory, and the Entrepreneur Module. Four ways to engage Future Shift Advisory."
-                />
-            </Head>
+            <Seo
+                title="Our services — advisory, due diligence & not-for-profit support"
+                description="How we work with you: Standard Advisory, Due Diligence, Post-acquisition Advisory, the Entrepreneur Module, and dedicated support for not-for-profits and social enterprises."
+                jsonLd={[
+                    servicesLd(base, engagementTypes),
+                    breadcrumbLd(base, [
+                        { name: 'Home', path: '/' },
+                        { name: 'Services', path: '/services' },
+                    ]),
+                ]}
+            />
 
             <Section className="pt-20 pb-16 lg:pt-24">
                 <SectionEyebrow>Services</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
-                    Four ways to{' '}
+                    Ways to{' '}
                     <span className="font-accent text-[var(--fs-cognac)] italic">
                         work with us.
                     </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <SectionLead>
-                    Each engagement type is its own commitment, with its own
-                    deliverables and its own cadence. They share one thing:
-                    every finding is evidenced, and nothing is asserted without
-                    a reason.
+                    Each engagement has its own shape, its own deliverables, and
+                    its own pace. What they share is simple: we explain what we
+                    find in plain language, and we show you the evidence behind
+                    it.
                 </SectionLead>
 
                 <nav className="mt-10 flex flex-wrap gap-3">
@@ -104,7 +116,7 @@ export default function Services({
 
                                     <div className="mt-6 rounded-md bg-[var(--fs-linen)] px-4 py-3 text-sm text-[var(--fs-admiralty)]">
                                         <span className="font-semibold">
-                                            Who it's for:
+                                            Who it’s for:
                                         </span>{' '}
                                         <span className="text-[var(--fs-graphite)]">
                                             {e.audience}
@@ -132,13 +144,43 @@ export default function Services({
                                             href={`/contact?interest=${e.slug}`}
                                             className="mt-6 inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                                         >
-                                            Enquire about{' '}
-                                            {e.title.toLowerCase()}{' '}
+                                            Enquire about this{' '}
                                             <ArrowRight className="h-4 w-4" />
                                         </Link>
                                     </div>
                                 </div>
                             </div>
+
+                            {/* Sub-paths (e.g. the three NPO routes) */}
+                            {e.paths && e.paths.length > 0 && (
+                                <div className="mt-8 border-t border-[var(--fs-sand)] pt-8">
+                                    <div className="eyebrow">
+                                        Three ways we can help
+                                    </div>
+                                    <div className="mt-4 grid gap-4 md:grid-cols-3">
+                                        {e.paths.map((p) => (
+                                            <div
+                                                key={p.name}
+                                                className="rounded-lg border border-[var(--fs-sand)] bg-[var(--fs-parchment)] p-5"
+                                            >
+                                                <h3 className="font-display text-lg text-[var(--fs-admiralty)]">
+                                                    {p.name}
+                                                </h3>
+                                                <p className="mt-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                                                    {p.blurb}
+                                                </p>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            )}
+
+                            {e.note && (
+                                <p className="mt-6 flex items-start gap-2 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                                    <Info className="mt-0.5 h-4 w-4 shrink-0 text-[var(--fs-cognac)]" />
+                                    <span>{e.note}</span>
+                                </p>
+                            )}
                         </article>
                     ))}
                 </div>
@@ -156,9 +198,9 @@ export default function Services({
                             </h2>
                             <p className="font-accent mt-3 max-w-xl text-lg text-[#E0D8CC] italic">
                                 Start with a discovery call. We will listen,
-                                ask, and tell you honestly which engagement
-                                makes sense — or that another provider would
-                                serve you better.
+                                ask, and tell you honestly which path makes
+                                sense — or if another provider would serve you
+                                better.
                             </p>
                         </div>
                         <div className="md:col-span-4 md:text-right">

@@ -13,7 +13,9 @@ use App\Services\DataQuality\DataQualityScore;
 use App\Services\DataQuality\DataQualitySignal;
 use App\Services\DataQuality\Gate;
 use App\Services\DataQuality\QuestionnaireCompletenessResult;
+use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
+use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Dd\PlanBuilder;
@@ -88,6 +90,8 @@ final class MethodologyDriftGuardTest extends TestCase
         Gate::class => 'Policy gate around data quality, not a scoring method.',
         QuestionnaireCompletenessResult::class => 'DTO returned by the completeness calculator.',
         DataRoom::class => 'Data-room file workflow.',
+        AcquisitionPlanRequirements::class => 'Plan requirement checklist for the DD portal workflow.',
+        DdAdviceReportGenerator::class => 'Readiness orchestration before delegating to the report methodology.',
         DdDisclaimer::class => 'Static disclaimer copy.',
         DdOnboarding::class => 'DD workflow orchestration.',
         PlanBuilder::class => 'Builds plan text around DD artefacts.',

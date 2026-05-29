@@ -5,6 +5,12 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 type ProposalPayload = {
     id: string;
@@ -109,15 +115,40 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                     </div>
                     <div className="grid gap-3 md:grid-cols-7">
                         {signoff.steps.map((step) => (
-                            <div
-                                key={step.step}
-                                className="rounded-md border p-3 text-sm"
-                            >
-                                <div className="font-medium">{step.label}</div>
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    {step.completed ? 'Complete' : 'Open'}
-                                </div>
-                            </div>
+                            <Tooltip key={step.step}>
+                                <TooltipTrigger asChild>
+                                    <div
+                                        tabIndex={0}
+                                        className={cn(
+                                            'rounded-md border p-3 text-sm transition-colors outline-none hover:bg-muted/60 focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                                            step.step === signoff.next_step &&
+                                                'border-[var(--fs-admiralty)] bg-[var(--fs-linen)] text-[var(--fs-admiralty)]',
+                                        )}
+                                        aria-current={
+                                            step.step === signoff.next_step
+                                                ? 'step'
+                                                : undefined
+                                        }
+                                    >
+                                        <div className="font-medium">
+                                            {step.label}
+                                        </div>
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            {step.completed
+                                                ? 'Complete'
+                                                : 'Open'}
+                                        </div>
+                                    </div>
+                                </TooltipTrigger>
+                                <TooltipContent
+                                    side="bottom"
+                                    className="max-w-xs"
+                                >
+                                    {step.completed
+                                        ? `${step.label} is complete. The completed response remains part of this sign-off record.`
+                                        : `${step.label} is still open. Use this step to continue proposal sign-off.`}
+                                </TooltipContent>
+                            </Tooltip>
                         ))}
                     </div>
                 </section>

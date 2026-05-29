@@ -12,7 +12,7 @@ Or include it in the normal database seed run:
 SEED_TESTING_DATA=true php artisan db:seed
 ```
 
-All seeded users use the password `password` and have MFA marked as configured so they can exercise protected application flows.
+All seeded users use the password `password`. MFA enrolment is intentionally cleared for these profiles so local manual testing can sign in without a 6-digit authenticator code when `MFA_REQUIRED=false`.
 
 | Role | Email |
 | --- | --- |

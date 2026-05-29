@@ -4,16 +4,23 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
+use App\Models\DdDataRoomItem;
+use App\Models\DdEngagement;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\EntrepreneurProfile;
 use App\Models\NpoEngagement;
 use App\Models\User;
+use App\Services\Dd\DataRoom;
+use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\PortalOfflineSync;
+use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -83,18 +90,21 @@ final class DocumentController extends Controller
         $file = $request->file('file');
         abort_unless($file instanceof UploadedFile, 422);
 
-        $document = $this->writer->write(
-            uploadedFile: $file,
-            owner: $request->user(),
-            category: (string) ($validated['category'] ?? Document::CATEGORY_PLAN_ATTACHMENT),
-            entrepreneurProfileId: (string) $profile->getKey(),
-        );
+        try {
+            $document = $this->writer->write(
+                uploadedFile: $file,
+                owner: $request->user(),
+                category: (string) ($validated['category'] ?? Document::CATEGORY_PLAN_ATTACHMENT),
+                entrepreneurProfileId: (string) $profile->getKey(),
+            );
+        } catch (InfectedFileException) {
+            abort(422, 'Upload rejected because malware was detected.');
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+            abort(422, 'Upload could not be stored securely. Please try again or contact your advisor.');
+        }
 
-        VerifyDocumentJob::dispatch((string) $document->getKey(), [
-            'question_id' => $validated['question_id'] ?? null,
-            'claim_value' => $validated['claim_value'] ?? null,
-            'question_prompt' => $validated['question_prompt'] ?? null,
-        ]);
+        $this->dispatchVerificationIfClean($document, $validated);
 
         return response()->json([
             'document' => $this->documentPayload($document->refresh()->load('verifications')),
@@ -106,20 +116,28 @@ final class DocumentController extends Controller
         $validated = $this->validatedUpload($request);
         $file = $request->file('file');
         abort_unless($file instanceof UploadedFile, 422);
+        $this->assertDdDataRoomUploadAllowed($client, $request->user());
 
-        $document = $this->writer->write(
-            uploadedFile: $file,
-            owner: $request->user(),
-            category: (string) ($validated['category'] ?? Document::CATEGORY_OTHER),
-            clientId: (string) $client->getKey(),
-            npoEngagementId: $this->npoEngagementIdForUpload($client, (string) ($validated['category'] ?? Document::CATEGORY_OTHER)),
-        );
+        try {
+            $document = $this->writer->write(
+                uploadedFile: $file,
+                owner: $request->user(),
+                category: (string) ($validated['category'] ?? Document::CATEGORY_OTHER),
+                clientId: (string) $client->getKey(),
+                npoEngagementId: $this->npoEngagementIdForUpload($client, (string) ($validated['category'] ?? Document::CATEGORY_OTHER)),
+            );
+        } catch (InfectedFileException) {
+            abort(422, 'Upload rejected because malware was detected.');
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+            abort(422, 'Upload could not be stored securely. Please try again or contact your advisor.');
+        }
 
-        VerifyDocumentJob::dispatch((string) $document->getKey(), [
-            'question_id' => $validated['question_id'] ?? null,
-            'claim_value' => $validated['claim_value'] ?? null,
-            'question_prompt' => $validated['question_prompt'] ?? null,
-        ]);
+        $this->dispatchVerificationIfClean($document, $validated);
+
+        if ($document->scanner_result === Document::SCANNER_CLEAN) {
+            $this->syncDdDataRoomItem($client, $document, $request->user(), $validated);
+        }
 
         return response()->json([
             'document' => $this->documentPayload($document->refresh()->load('verifications')),
@@ -132,12 +150,109 @@ final class DocumentController extends Controller
     private function validatedUpload(Request $request): array
     {
         return $request->validate([
-            'file' => ['required', 'file', 'max:20480'],
+            'file' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx'],
             'category' => ['nullable', 'string', 'max:80'],
+            'workstream' => ['nullable', 'string', 'max:80'],
             'question_id' => ['nullable', 'uuid', 'exists:questionnaire_questions,id'],
             'claim_value' => ['nullable', 'string', 'max:4000'],
             'question_prompt' => ['nullable', 'string', 'max:4000'],
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function dispatchVerificationIfClean(Document $document, array $validated): void
+    {
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            return;
+        }
+
+        VerifyDocumentJob::dispatch((string) $document->getKey(), [
+            'question_id' => $validated['question_id'] ?? null,
+            'claim_value' => $validated['claim_value'] ?? null,
+            'question_prompt' => $validated['question_prompt'] ?? null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     */
+    private function syncDdDataRoomItem(Client $client, Document $document, mixed $actor, array $validated): void
+    {
+        $engagement = $this->ddEngagementFor($client);
+
+        if (! $engagement instanceof DdEngagement) {
+            return;
+        }
+
+        app(DataRoom::class)->assertActivated($engagement, $actor instanceof User ? $actor : null);
+
+        $workstream = $this->ddWorkstream((string) ($validated['workstream'] ?? 'financial'));
+
+        DdDataRoomItem::query()->updateOrCreate(
+            [
+                'dd_engagement_id' => $engagement->getKey(),
+                'document_id' => $document->getKey(),
+            ],
+            [
+                'client_id' => $client->getKey(),
+                'workstream' => $workstream,
+                'folder' => 'client_portal',
+                'artifact_type' => DdDataRoomItem::ARTIFACT_TYPE,
+                'source' => DdDataRoomItem::SOURCE_CLIENT_UPLOAD,
+                'dd_guest_link_id' => null,
+                'guest_name' => null,
+                'guest_email' => null,
+                'metadata' => [
+                    'source' => 'client_portal_upload',
+                    'category' => $document->category,
+                    'claim_value' => $validated['claim_value'] ?? null,
+                    'question_prompt' => $validated['question_prompt'] ?? null,
+                    'uploaded_by_user_id' => $actor instanceof User ? $actor->getKey() : null,
+                ],
+            ],
+        );
+
+        app(DdAdviceReportGenerator::class)->generateIfReady($engagement, $actor instanceof User ? $actor : null);
+    }
+
+    private function assertDdDataRoomUploadAllowed(Client $client, mixed $actor): void
+    {
+        $engagement = $this->ddEngagementFor($client);
+
+        if (! $engagement instanceof DdEngagement) {
+            return;
+        }
+
+        app(DataRoom::class)->assertActivated($engagement, $actor instanceof User ? $actor : null);
+    }
+
+    private function ddEngagementFor(Client $client): ?DdEngagement
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::DUE_DILIGENCE) {
+            return null;
+        }
+
+        $engagement = DdEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->first();
+
+        return $engagement instanceof DdEngagement ? $engagement : null;
+    }
+
+    private function ddWorkstream(string $value): string
+    {
+        $normalised = Str::of($value)->lower()->replace(['-', ' '], '_')->toString();
+
+        return array_key_exists($normalised, DataRoom::WORKSTREAMS)
+            ? $normalised
+            : 'financial';
     }
 
     private function entrepreneurProfileFor(Request $request): ?EntrepreneurProfile
@@ -214,7 +329,9 @@ final class DocumentController extends Controller
             'verification_state' => $document->verifications->first()?->outcome
                 ?? DocumentVerification::OUTCOME_PENDING,
             'client_explanation' => $document->verifications->first()?->clientFacingExplanation()
-                ?? 'Verification is in progress.',
+                ?? ($document->scanner_result === Document::SCANNER_ERROR
+                    ? 'This document is quarantined because the malware scanner could not complete. Your advisor has been alerted.'
+                    : 'Verification is in progress.'),
             'verifications' => $document->verifications
                 ->map(fn ($verification): array => [
                     'id' => $verification->id,

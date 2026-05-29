@@ -125,11 +125,11 @@ final class TestingSeedDataSeeder extends Seeder
                 'user_type' => $type,
                 'primary_role' => $type,
                 'remember_token' => Str::random(10),
-                'two_factor_secret' => encrypt("testing-secret-{$key}"),
-                'two_factor_recovery_codes' => encrypt(json_encode(["testing-recovery-{$key}"], JSON_THROW_ON_ERROR)),
-                'two_factor_confirmed_at' => $this->now,
-                'mfa_enabled_at' => $this->now,
-                'mfa_method' => User::MFA_METHOD_TOTP,
+                'two_factor_secret' => null,
+                'two_factor_recovery_codes' => null,
+                'two_factor_confirmed_at' => null,
+                'mfa_enabled_at' => null,
+                'mfa_method' => null,
                 'last_password_set_at' => $this->now->copy()->subDays(7),
                 'session_timeout_minutes' => $timeout,
                 'suspended_at' => $key === 'suspendedClient' ? $this->now->copy()->subDays(2) : null,
@@ -150,13 +150,9 @@ final class TestingSeedDataSeeder extends Seeder
                 'timezone' => 'Pacific/Auckland',
             ]);
 
-            $this->upsert('mfa_factors', ['user_id' => $user->getKey(), 'type' => 'totp'], [
-                'label' => 'Testing authenticator',
-                'secret_envelope' => encrypt("testing-factor-{$key}"),
-                'recovery_codes_envelope' => encrypt(json_encode(["testing-factor-recovery-{$key}"], JSON_THROW_ON_ERROR)),
-                'confirmed_at' => $this->now,
-                'last_used_at' => $this->now->copy()->subDay(),
-            ]);
+            DB::table('mfa_factors')
+                ->where('user_id', $user->getKey())
+                ->delete();
 
             $this->users[$key] = $user->refresh();
         }
@@ -366,8 +362,8 @@ final class TestingSeedDataSeeder extends Seeder
                 'primary_contact_user_id' => $this->users['buyer']->getKey(),
                 'engagement_type_locked_at' => $this->now->copy()->subDays(3),
                 'onboarding_wizard_state' => [
-                    'completed_steps' => ['profile', 'questionnaire'],
-                    'current_step' => 'integration_plan',
+                    'completed_steps' => ['welcome', 'identity', 'business-snapshot', 'goals', 'questionnaire'],
+                    'current_step' => 6,
                 ],
             ],
         );
@@ -3335,6 +3331,52 @@ final class TestingSeedDataSeeder extends Seeder
             'living_plan_divergence_flags' => null,
         ]);
 
+        $postAcquisitionGapReportId = $this->upsert('reports', [
+            'client_id' => $this->clients['postAcquisition']->getKey(),
+            'type' => ReportType::PostAcquisitionGap->value,
+            'title' => 'Kauri Kitchens Post-acquisition Gap Report',
+        ], [
+            'pdf_path' => 'seed/reports/kauri-kitchens-post-acquisition-gap-report.pdf',
+            'pdf_byte_size' => 410_000,
+            'pptx_path' => null,
+            'pptx_byte_size' => null,
+            'generated_by_user_id' => $this->users['advisor']->getKey(),
+            'generated_at' => $this->now->copy()->subHours(8),
+            'metadata' => $this->json([
+                'dd_engagement_id' => $engagementId,
+                'business_plan_id' => $ddPlanId,
+                'dd_pv_baseline' => 2_140_000,
+                'fixture' => true,
+            ]),
+            'review_status' => 'not_required',
+            'reviewed_by_user_id' => null,
+            'reviewed_at' => null,
+        ]);
+
+        foreach ([
+            ['handoff_summary', 'Handoff summary', 'DD handoff identifies customer concentration, working-capital true-up, and post-close operating cadence gaps.', 1],
+            ['dd_gaps', 'DD gaps requiring advisory attention', 'Resolve customer assignment consent, completion accounts, and revenue concentration risks during the first 100 days.', 2],
+            ['plan_comparison', 'DD to business-plan gap comparison', 'The acquisition plan covers target context and financial range; funding structure and handover controls remain pending.', 3],
+        ] as [$key, $title, $body, $position]) {
+            $this->upsert('report_sections', [
+                'report_id' => $postAcquisitionGapReportId,
+                'key' => $key,
+            ], [
+                'client_id' => $this->clients['postAcquisition']->getKey(),
+                'title' => $title,
+                'body' => $body,
+                'position' => $position,
+                'lens' => 'diagnostic',
+                'attributions' => $this->json([
+                    ['type' => 'post_acquisition_migration', 'dd_engagement_id' => $engagementId],
+                ]),
+                'document_support' => 'partial',
+                'document_support_note' => 'Seeded post-acquisition gap report section for testing.',
+                'data_quality_note' => 'Testing seed data; advisor should review before client advice is issued.',
+                'metadata' => $this->json(['fixture' => true]),
+            ]);
+        }
+
         $this->upsert('post_acquisition_migrations', ['dd_engagement_id' => $engagementId], [
             'buyer_client_id' => $this->clients['dd']->getKey(),
             'advisory_client_id' => $this->clients['postAcquisition']->getKey(),
@@ -3348,7 +3390,11 @@ final class TestingSeedDataSeeder extends Seeder
             ]),
             'dd_pv_baseline' => 2_140_000,
             'status' => 'created',
-            'metadata' => $this->json(['fixture' => true, 'source' => 'testing_seed_data']),
+            'metadata' => $this->json([
+                'fixture' => true,
+                'source' => 'testing_seed_data',
+                'post_acquisition_gap_report_id' => $postAcquisitionGapReportId,
+            ]),
             'migrated_by_user_id' => $this->users['advisor']->getKey(),
             'migrated_at' => $this->now->copy()->subHours(12),
         ]);

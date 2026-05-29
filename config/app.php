@@ -17,6 +17,20 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Public canonical URL
+    |--------------------------------------------------------------------------
+    |
+    | The canonical, production-facing origin for the public marketing site
+    | (no trailing slash). Used to build absolute URLs for canonical tags,
+    | Open Graph/Twitter metadata, JSON-LD, and the XML sitemap. Falls back to
+    | APP_URL so local/dev still resolves. Set PUBLIC_URL in production.
+    |
+    */
+
+    'public_url' => rtrim((string) env('PUBLIC_URL', env('APP_URL', 'http://localhost')), '/'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |

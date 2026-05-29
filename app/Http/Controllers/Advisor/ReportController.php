@@ -8,11 +8,18 @@ use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\DdEngagement;
+use App\Models\EntrepreneurProfile;
 use App\Models\NpoEngagement;
+use App\Models\PostAcquisitionMigration;
 use App\Models\Report;
+use App\Models\ReportSection;
+use App\Models\ReportSectionComment;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Reports\ReportComposer;
+use App\Services\Reports\ReportSectionEditor;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -23,6 +30,10 @@ use Illuminate\Validation\Rule;
 
 final class ReportController extends Controller
 {
+    public function __construct(
+        private readonly DdAdviceReportGenerator $ddAdviceReports,
+    ) {}
+
     public function store(Request $request, Client $client, ReportComposer $reports): RedirectResponse
     {
         Gate::authorize('view', $client);
@@ -36,6 +47,8 @@ final class ReportController extends Controller
                 ReportType::Advisor->value,
                 ReportType::Stakeholder->value,
                 ReportType::Trajectory->value,
+                ReportType::DueDiligence->value,
+                ReportType::PostAcquisitionGap->value,
                 ReportType::GovernanceReview->value,
                 ReportType::NpoHealth->value,
                 ReportType::NpoAdvisor->value,
@@ -46,7 +59,30 @@ final class ReportController extends Controller
         ]);
 
         $type = ReportType::from((string) $validated['type']);
-        if ($type === ReportType::GovernanceReview) {
+        if ($type === ReportType::DueDiligence) {
+            $engagement = DdEngagement::query()
+                ->where('client_id', $client->getKey())
+                ->latest()
+                ->first();
+
+            abort_unless($engagement instanceof DdEngagement, 404);
+
+            $report = $this->ddAdviceReports->generateIfReady($engagement, $user, returnCurrent: true);
+
+            if (! $report instanceof Report) {
+                return to_route('advisor.clients.show', $client)->with('status', 'dd-report-not-ready');
+            }
+        } elseif ($type === ReportType::PostAcquisitionGap) {
+            $migration = PostAcquisitionMigration::query()
+                ->where('advisory_client_id', $client->getKey())
+                ->latest('migrated_at')
+                ->latest()
+                ->first();
+
+            abort_unless($migration instanceof PostAcquisitionMigration, 404);
+
+            $reports->composePostAcquisitionGap($migration, $user);
+        } elseif ($type === ReportType::GovernanceReview) {
             $engagement = NpoEngagement::query()
                 ->where('client_id', $client->getKey())
                 ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
@@ -107,8 +143,14 @@ final class ReportController extends Controller
 
     private function streamReport(Request $request, Report $report, AuditWriter $audit, string $format): Response
     {
-        $report->loadMissing('client');
-        Gate::authorize('view', $report->client);
+        $report->loadMissing('client', 'entrepreneurProfile');
+        if ($report->client instanceof Client) {
+            Gate::authorize('view', $report->client);
+        } elseif ($report->entrepreneurProfile instanceof EntrepreneurProfile) {
+            Gate::authorize('view', $report->entrepreneurProfile);
+        } else {
+            abort(404);
+        }
 
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -130,7 +172,8 @@ final class ReportController extends Controller
         $mime = $format === 'pptx'
             ? 'application/vnd.openxmlformats-officedocument.presentationml.presentation'
             : 'application/pdf';
-        $filename = Str::slug($report->type->value.'-'.($report->client?->legal_name ?? 'report')).'.'.$extension;
+        $subjectName = $report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'report';
+        $filename = Str::slug($report->type->value.'-'.$subjectName).'.'.$extension;
         $disposition = $format === 'pptx' ? 'attachment' : 'inline';
 
         return response($contents, 200, [
@@ -153,5 +196,78 @@ final class ReportController extends Controller
         $reports->markReviewed($report, $user);
 
         return to_route('advisor.clients.show', $report->client)->with('status', 'report-reviewed');
+    }
+
+    public function updateSection(
+        Request $request,
+        Report $report,
+        ReportSection $reportSection,
+        ReportSectionEditor $editor,
+    ): RedirectResponse {
+        $report->loadMissing('client', 'entrepreneurProfile');
+        if ($report->client instanceof Client) {
+            Gate::authorize('view', $report->client);
+        } elseif ($report->entrepreneurProfile instanceof EntrepreneurProfile) {
+            Gate::authorize('view', $report->entrepreneurProfile);
+        } else {
+            abort(404);
+        }
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'title' => ['nullable', 'string', 'max:255'],
+            'body' => ['nullable', 'string', 'max:50000'],
+            'reason' => ['nullable', 'string', 'max:4000'],
+        ]);
+
+        $changes = array_filter([
+            'title' => $validated['title'] ?? null,
+            'body' => $validated['body'] ?? null,
+        ], static fn (?string $value): bool => $value !== null);
+
+        abort_if($changes === [], 422, 'At least one section field is required.');
+
+        $editor->edit($report, $reportSection, $user, $changes, $validated['reason'] ?? null);
+
+        return back()->with('status', 'report-section-updated');
+    }
+
+    public function commentSection(
+        Request $request,
+        Report $report,
+        ReportSection $reportSection,
+        ReportSectionEditor $editor,
+    ): RedirectResponse {
+        $report->loadMissing('client', 'entrepreneurProfile');
+        if ($report->client instanceof Client) {
+            Gate::authorize('view', $report->client);
+        } elseif ($report->entrepreneurProfile instanceof EntrepreneurProfile) {
+            Gate::authorize('view', $report->entrepreneurProfile);
+        } else {
+            abort(404);
+        }
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'body' => ['required', 'string', 'max:4000'],
+            'visibility' => ['nullable', Rule::in([
+                ReportSectionComment::VISIBILITY_ADVISOR_ONLY,
+                ReportSectionComment::VISIBILITY_CLIENT_VISIBLE,
+            ])],
+        ]);
+
+        $editor->comment(
+            $report,
+            $reportSection,
+            $user,
+            $validated['body'],
+            $validated['visibility'] ?? ReportSectionComment::VISIBILITY_ADVISOR_ONLY,
+        );
+
+        return back()->with('status', 'report-section-commented');
     }
 }

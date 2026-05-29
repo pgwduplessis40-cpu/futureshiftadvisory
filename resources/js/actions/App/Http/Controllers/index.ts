@@ -13,6 +13,8 @@ import DashboardController from './DashboardController'
 import NotificationController from './NotificationController'
 import Broker from './Broker'
 import Coach from './Coach'
+import PanelApplicationController from './PanelApplicationController'
+import PanelAgreementController from './PanelAgreementController'
 import Settings from './Settings'
 const Controllers = {
     DdGuestUploadController: Object.assign(DdGuestUploadController, DdGuestUploadController),
@@ -30,6 +32,8 @@ DashboardController: Object.assign(DashboardController, DashboardController),
 NotificationController: Object.assign(NotificationController, NotificationController),
 Broker: Object.assign(Broker, Broker),
 Coach: Object.assign(Coach, Coach),
+PanelApplicationController: Object.assign(PanelApplicationController, PanelApplicationController),
+PanelAgreementController: Object.assign(PanelAgreementController, PanelAgreementController),
 Settings: Object.assign(Settings, Settings),
 }
 

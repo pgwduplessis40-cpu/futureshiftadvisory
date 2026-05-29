@@ -10,6 +10,7 @@ use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
+use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\Referral;
 use App\Models\User;
@@ -188,6 +189,44 @@ final class CoachPortalTest extends TestCase
                 ->where('dashboard.referrals.0.stage', Referral::STAGE_ACCEPTED)
                 ->where('dashboard.referrals.0.availableActions.0.stage', Referral::STAGE_COACHING_UNDERWAY)
                 ->where('dashboard.referrals.0.stageUpdateUrl', route('coach.referrals.stage', $referral, absolute: false)));
+    }
+
+    public function test_coach_can_apply_from_portal_and_sign_panel_agreement(): void
+    {
+        $advisor = $this->advisor('coach-self-service-approver@example.test');
+        $coach = $this->coach('coach-self-service@example.test');
+
+        $this->actingAsMfa($coach)
+            ->post(route('panel.application.store'), [
+                'company' => 'Self Service Coaching Limited',
+                'specialties' => 'Wellbeing, Leadership',
+                'professional_memberships' => 'ICF, EMCC',
+                'bio' => 'Coaching for leaders and key staff.',
+            ])
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $member = PanelMember::query()
+            ->where('user_id', $coach->getKey())
+            ->where('panel_type', PanelMember::TYPE_COACH)
+            ->firstOrFail();
+
+        $this->assertSame(PanelMember::STATUS_APPLICATION_PENDING, $member->status);
+        $this->assertSame('Self Service Coaching Limited', $member->application['company']);
+        $this->assertSame(['ICF', 'EMCC'], $member->application['professional_memberships']);
+
+        $agreement = app(PanelOnboarding::class)->approve($member, $advisor);
+
+        $this->actingAsMfa($coach)
+            ->post(route('panel.agreements.sign', $agreement))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertSame(PanelAgreement::STATUS_SIGNED, $agreement->refresh()->status);
+        $this->assertSame(PanelMember::STATUS_ACTIVE, $member->refresh()->status);
+        $this->assertNotNull($agreement->pdf_path);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.agreement_signed',
+            'subject_id' => $agreement->id,
+        ]);
     }
 
     public function test_coach_can_update_own_referral_stage_from_dashboard_action(): void

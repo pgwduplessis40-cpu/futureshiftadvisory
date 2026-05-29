@@ -17,6 +17,7 @@ use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -75,6 +76,7 @@ final class AddEntrepreneurTest extends TestCase
 
         $this->post(route('invite.store', $issued->plainToken), [
             'name' => 'Founder Person',
+            'mobile_phone' => '+64 21 123 4567',
             'password' => 'A-secure-password-123',
             'password_confirmation' => 'A-secure-password-123',
         ])->assertRedirect(route('mfa.setup', absolute: false));
@@ -195,6 +197,8 @@ final class AddEntrepreneurTest extends TestCase
             'surfaced_at' => now(),
             'advisor_notified_at' => now(),
         ]);
+        Storage::fake('secure_local');
+        Storage::disk('secure_local')->put('documents/market-proof.pdf', 'market proof');
         $document = Document::query()->create([
             'entrepreneur_profile_id' => $profile->id,
             'category' => Document::CATEGORY_PLAN_ATTACHMENT,
@@ -228,6 +232,31 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('messagesUrl', route('portal.messages.index', absolute: false))
                 ->where('documentUploadUrl', route('portal.documents.store', absolute: false))
             );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.messages.url', route('advisor.entrepreneurs.messages.index', $profile, absolute: false))
+                ->where('entrepreneur.latest_plan.latest_assessment.url', route('advisor.entrepreneurs.assessments.show', [$profile, $assessment], absolute: false))
+                ->where('entrepreneur.latest_plan.latest_assessment.weighted_score', 86.3)
+                ->where('entrepreneur.documents.0.url', route('advisor.entrepreneurs.documents.show', [$profile, $document], absolute: false))
+            );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.assessments.show', [$profile, $assessment]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/entrepreneur/Assessment')
+                ->where('backLabel', 'Entrepreneur')
+                ->where('assessment.weighted_score', 86.3)
+                ->where('assessment.criteria.0.name', 'Market proof')
+            );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.documents.show', [$profile, $document]))
+            ->assertOk();
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.assessments.show', $assessment))

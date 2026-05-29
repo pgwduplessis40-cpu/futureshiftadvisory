@@ -60,4 +60,28 @@ final class MfaEnforcementTest extends TestCase
             'type' => MfaFactor::TYPE_TOTP,
         ]);
     }
+
+    public function test_mfa_challenge_locks_after_three_failed_attempts(): void
+    {
+        config([
+            'security.mfa_failed_attempt_limit' => 3,
+            'security.mfa_lockout_minutes' => 15,
+        ]);
+
+        $user = User::factory()->withTwoFactor()->create();
+
+        $this->actingAs($user);
+
+        $this->post(route('mfa.challenge.store'), ['code' => '000000'])
+            ->assertSessionHasErrors('code');
+        $this->post(route('mfa.challenge.store'), ['code' => '000000'])
+            ->assertSessionHasErrors('code');
+        $this->post(route('mfa.challenge.store'), ['code' => '000000'])
+            ->assertSessionHasErrors('code');
+
+        $this->post(route('mfa.challenge.store'), ['code' => '000000'])
+            ->assertSessionHasErrors([
+                'code' => 'Too many incorrect authentication attempts. Try again in 15 minutes.',
+            ]);
+    }
 }

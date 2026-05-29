@@ -10,8 +10,10 @@ use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
+use App\Models\Document;
 use App\Models\FunnelEvent;
 use App\Models\NpoEngagement;
+use App\Models\PostAcquisitionMigration;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
@@ -23,6 +25,7 @@ use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\PortalOfflineSync;
 use App\Services\Questionnaires\QuestionnairePayload;
 use App\Services\Questionnaires\QuestionnaireResponseRecorder;
+use App\Services\Reports\ReportComposer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -41,6 +44,7 @@ final class OnboardingController extends Controller
         private readonly NpoQuestionnaireScoring $npoQuestionnaireScoring,
         private readonly FunnelTracker $funnels,
         private readonly PortalOfflineSync $offlineSync,
+        private readonly ReportComposer $reports,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -174,6 +178,10 @@ final class OnboardingController extends Controller
             'progress' => $this->wizard->progress($client),
             'questionnaire' => $this->questionnaireFor($client),
             'documentUploadUrl' => route('portal.documents.store'),
+            'documentCount' => Document::query()
+                ->visibleToClients()
+                ->where('client_id', $client->getKey())
+                ->count(),
             'submitUrl' => route('portal.onboarding.store', ['step' => $step['slug']]),
             'dashboardUrl' => route('portal.dashboard'),
             'authUser' => [
@@ -204,14 +212,45 @@ final class OnboardingController extends Controller
                 'success_measure' => ['nullable', 'string', 'max:1000'],
             ]),
             OnboardingWizard::STEP_QUESTIONNAIRE => $this->validateQuestionnaire($request, $client),
-            OnboardingWizard::STEP_DOCUMENTS => $request->validate([
-                'documents_acknowledged' => ['accepted'],
-            ]),
+            OnboardingWizard::STEP_DOCUMENTS => $this->validateDocuments($request, $client),
             OnboardingWizard::STEP_REVIEW => $request->validate([
                 'review_confirmed' => ['accepted'],
             ]),
             default => abort(404),
         };
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validateDocuments(Request $request, Client $client): array
+    {
+        $validated = $request->validate([
+            'documents_acknowledged' => ['accepted'],
+        ]);
+
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::STANDARD_ADVISORY) {
+            return $validated;
+        }
+
+        $hasDocument = Document::query()
+            ->visibleToClients()
+            ->where('client_id', $client->getKey())
+            ->exists();
+
+        if (! $hasDocument) {
+            validator([], [
+                'supporting_documents' => ['required'],
+            ], [
+                'supporting_documents.required' => 'Upload at least one supporting document before submitting Standard Advisory onboarding.',
+            ])->validate();
+        }
+
+        return $validated;
     }
 
     /**
@@ -229,6 +268,7 @@ final class OnboardingController extends Controller
             $active = $this->visibleQuestionnaireForClient($client, $active);
             $response = $this->responses->record($client, $user, $active, $request->all(), $responseOptions);
             $this->recordNpoQuestionnaireScores($client, (string) $questionnaire['set'], $responseOptions, $response, $user);
+            $this->refreshPostAcquisitionGapReport($client, (string) $questionnaire['set'], $response, $user);
 
             return [
                 'questionnaire_set' => $questionnaire['set'],
@@ -370,6 +410,45 @@ final class OnboardingController extends Controller
         if ($engagement instanceof NpoEngagement) {
             $this->npoQuestionnaireScoring->record($engagement, $response, $user);
         }
+    }
+
+    private function refreshPostAcquisitionGapReport(
+        Client $client,
+        string $set,
+        QuestionnaireResponse $response,
+        User $user,
+    ): void {
+        if ($set !== QuestionnaireSet::POST_ACQUISITION_GAP->value) {
+            return;
+        }
+
+        $migration = PostAcquisitionMigration::query()
+            ->where('advisory_client_id', $client->getKey())
+            ->latest('migrated_at')
+            ->latest()
+            ->first();
+
+        if (! $migration instanceof PostAcquisitionMigration) {
+            return;
+        }
+
+        $migration->forceFill([
+            'gap_questionnaire_response_id' => $response->getKey(),
+            'metadata' => [
+                ...($migration->metadata ?? []),
+                'post_acquisition_gap_report_refreshed_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $report = $this->reports->composePostAcquisitionGap($migration->refresh(), $user);
+
+        $migration->forceFill([
+            'metadata' => [
+                ...($migration->metadata ?? []),
+                'post_acquisition_gap_report_id' => $report->getKey(),
+                'post_acquisition_gap_report_refreshed_at' => now()->toIso8601String(),
+            ],
+        ])->save();
     }
 
     private function visibleQuestionnaireForClient(Client $client, Questionnaire $questionnaire): Questionnaire

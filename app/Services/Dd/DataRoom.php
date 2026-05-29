@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Services\Dd;
 
+use App\Enums\ProposalStatus;
 use App\Models\DdDataRoomItem;
 use App\Models\DdEngagement;
 use App\Models\DdGuestLink;
 use App\Models\Document;
+use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Storage\Exceptions\InfectedFileException;
@@ -51,6 +53,8 @@ final class DataRoom
         ?string $guestEmail = null,
         ?int $maxUploads = null,
     ): array {
+        $this->assertActivated($engagement, $actor);
+
         $workstream = $this->normaliseWorkstream($workstream);
         $folder = $this->normaliseFolder($folder);
         $token = Str::random(48);
@@ -115,6 +119,11 @@ final class DataRoom
         $this->context->apply('system', []);
 
         $link = $this->resolveUsableLink($token);
+        $engagement = $link->engagement;
+
+        if ($engagement instanceof DdEngagement) {
+            $this->assertActivated($engagement);
+        }
 
         try {
             $document = $this->files->write(
@@ -132,6 +141,19 @@ final class DataRoom
             ]);
 
             throw $e;
+        }
+
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            $this->audit->record('dd.guest_upload_quarantined', subject: $link, context: [
+                'document_id' => $document->getKey(),
+                'scanner_result' => $document->scanner_result,
+                'workstream' => $link->workstream,
+                'folder' => $link->folder,
+            ]);
+
+            throw ValidationException::withMessages([
+                'file' => 'Upload is quarantined because the malware scanner could not complete. Future Shift Advisory has been alerted.',
+            ]);
         }
 
         return DB::transaction(function () use ($link, $document, $guestName, $guestEmail, $metadata): DdDataRoomItem {
@@ -186,6 +208,7 @@ final class DataRoom
             ->groupBy('workstream');
 
         return [
+            'activation' => $this->activationStatus($engagement),
             'artifact_category' => Document::CATEGORY_DD_ARTIFACT,
             'guest_upload_only' => true,
             'workstreams' => collect(self::WORKSTREAMS)
@@ -206,6 +229,55 @@ final class DataRoom
         ];
     }
 
+    /**
+     * @return array{active:bool, proposal_id:?string, proposal_status:?string, signed_at:?string, message:string}
+     */
+    public function activationStatus(DdEngagement $engagement): array
+    {
+        $signed = $this->signedProposal($engagement);
+        $latest = $this->latestProposal($engagement);
+
+        if ($signed instanceof Proposal) {
+            return [
+                'active' => true,
+                'proposal_id' => $signed->id,
+                'proposal_status' => ProposalStatus::Signed->value,
+                'signed_at' => $signed->signed_at?->toIso8601String(),
+                'message' => 'DD data room is active because the due diligence fee proposal is signed.',
+            ];
+        }
+
+        $status = $latest?->status;
+        $statusValue = $status instanceof ProposalStatus ? $status->value : (is_string($status) ? $status : null);
+
+        return [
+            'active' => false,
+            'proposal_id' => $latest?->id,
+            'proposal_status' => $statusValue,
+            'signed_at' => null,
+            'message' => 'DD data room opens after the client signs the due diligence fee proposal.',
+        ];
+    }
+
+    public function assertActivated(DdEngagement $engagement, ?User $actor = null): void
+    {
+        if ($this->signedProposal($engagement) instanceof Proposal) {
+            return;
+        }
+
+        $status = $this->activationStatus($engagement);
+
+        $this->audit->record('dd.data_room_activation_blocked', subject: $engagement, actor: $actor, after: [
+            'client_id' => $engagement->client_id,
+            'proposal_id' => $status['proposal_id'],
+            'proposal_status' => $status['proposal_status'],
+        ]);
+
+        throw ValidationException::withMessages([
+            'proposal' => $status['message'],
+        ]);
+    }
+
     public static function hashToken(string $token): string
     {
         return hash('sha256', $token);
@@ -214,6 +286,7 @@ final class DataRoom
     private function resolveUsableLink(string $token): DdGuestLink
     {
         $link = DdGuestLink::query()
+            ->with('engagement')
             ->where('token_hash', self::hashToken($token))
             ->first();
 
@@ -242,6 +315,24 @@ final class DataRoom
         }
 
         return $link;
+    }
+
+    private function signedProposal(DdEngagement $engagement): ?Proposal
+    {
+        return Proposal::query()
+            ->where('client_id', $engagement->client_id)
+            ->where('status', ProposalStatus::Signed->value)
+            ->latest('signed_at')
+            ->latest()
+            ->first();
+    }
+
+    private function latestProposal(DdEngagement $engagement): ?Proposal
+    {
+        return Proposal::query()
+            ->where('client_id', $engagement->client_id)
+            ->latest()
+            ->first();
     }
 
     private function normaliseWorkstream(string $workstream): string

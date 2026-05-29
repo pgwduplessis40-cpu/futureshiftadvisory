@@ -1,6 +1,7 @@
 import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
+    BookOpenCheck,
     ClipboardList,
     HeartPulse,
     LayoutDashboard,
@@ -39,6 +40,11 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   label: 'Dashboard',
                   href: dashboardHref,
                   icon: LayoutDashboard,
+              },
+              {
+                  label: 'Business Plan',
+                  href: '/portal/entrepreneur/plan',
+                  icon: BookOpenCheck,
               },
               {
                   label: 'Messages',

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:26
+ * @see app/Http/Controllers/Advisor/ReportController.php:37
  * @route '/advisor/clients/{client}/reports'
  */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:26
+ * @see app/Http/Controllers/Advisor/ReportController.php:37
  * @route '/advisor/clients/{client}/reports'
  */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:26
+ * @see app/Http/Controllers/Advisor/ReportController.php:37
  * @route '/advisor/clients/{client}/reports'
  */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
     /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:26
+ * @see app/Http/Controllers/Advisor/ReportController.php:37
  * @route '/advisor/clients/{client}/reports'
  */
     const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
             /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:26
+ * @see app/Http/Controllers/Advisor/ReportController.php:37
  * @route '/advisor/clients/{client}/reports'
  */
         storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

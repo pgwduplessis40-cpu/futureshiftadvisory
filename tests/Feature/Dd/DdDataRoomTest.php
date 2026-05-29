@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Dd;
 
 use App\Enums\EngagementType;
+use App\Enums\FeeMethod;
+use App\Enums\ProposalStatus;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\DdEngagement;
 use App\Models\Document;
+use App\Models\FeeCalculation;
+use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dd\DataRoom;
@@ -23,6 +27,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 final class DdDataRoomTest extends TestCase
@@ -70,7 +75,7 @@ final class DdDataRoomTest extends TestCase
             ->post($issued['upload_url'], [
                 'guest_name' => 'Vendor Person',
                 'guest_email' => 'vendor@example.test',
-                'file' => UploadedFile::fake()->createWithContent('lease.txt', 'Lease evidence and assignment terms.'),
+                'file' => UploadedFile::fake()->createWithContent('lease.pdf', "%PDF-1.4\nLease evidence and assignment terms."),
             ]);
 
         $response->assertCreated()
@@ -117,6 +122,29 @@ final class DdDataRoomTest extends TestCase
         $this->getJson($issued['upload_url'])->assertStatus(405);
     }
 
+    public function test_guest_link_requires_signed_due_diligence_fee_proposal(): void
+    {
+        [$advisor, $engagement] = $this->ddEngagement('unsigned-dd-advisor@example.test', signedProposal: false);
+
+        try {
+            app(DataRoom::class)->issueGuestLink($engagement, $advisor, 'financial');
+            $this->fail('DD data room links should require a signed fee proposal.');
+        } catch (ValidationException $exception) {
+            $this->assertSame(
+                'DD data room opens after the client signs the due diligence fee proposal.',
+                $exception->errors()['proposal'][0],
+            );
+        }
+
+        $summary = app(DataRoom::class)->summary($engagement);
+
+        $this->assertFalse($summary['activation']['active']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'dd.data_room_activation_blocked',
+            'subject_id' => $engagement->id,
+        ]);
+    }
+
     public function test_revoked_guest_link_is_rejected_immediately(): void
     {
         $scanner = $this->bindScanner(ScanResult::clean(['engine' => 'dd-test-scanner']));
@@ -128,7 +156,7 @@ final class DdDataRoomTest extends TestCase
         $this
             ->withHeader('Accept', 'application/json')
             ->post($issued['upload_url'], [
-                'file' => UploadedFile::fake()->createWithContent('tax.txt', 'Tax schedule.'),
+                'file' => UploadedFile::fake()->createWithContent('tax.pdf', "%PDF-1.4\nTax schedule."),
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('token');
@@ -155,7 +183,7 @@ final class DdDataRoomTest extends TestCase
         $this
             ->withHeader('Accept', 'application/json')
             ->post($issued['upload_url'], [
-                'file' => UploadedFile::fake()->createWithContent('eicar.txt', 'EICAR fixture'),
+                'file' => UploadedFile::fake()->createWithContent('eicar.pdf', "%PDF-1.4\nEICAR fixture"),
             ])
             ->assertStatus(422)
             ->assertJsonValidationErrors('file');
@@ -199,7 +227,7 @@ final class DdDataRoomTest extends TestCase
     /**
      * @return array{0: User, 1: DdEngagement}
      */
-    private function ddEngagement(string $advisorEmail = 'data-room-dd-advisor@example.test'): array
+    private function ddEngagement(string $advisorEmail = 'data-room-dd-advisor@example.test', bool $signedProposal = true): array
     {
         $advisor = User::factory()->withTwoFactor()->create([
             'email' => $advisorEmail,
@@ -237,6 +265,61 @@ final class DdDataRoomTest extends TestCase
             targetDetails: ['industry' => 'Distribution'],
         );
 
+        if ($signedProposal) {
+            $this->signDdProposal($client, $advisor);
+        }
+
         return [$advisor, $engagement];
+    }
+
+    private function signDdProposal(Client $client, User $advisor): Proposal
+    {
+        $calculation = FeeCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'method' => FeeMethod::OutcomeBased,
+            'inputs' => ['fixture' => true],
+            'suggested_low' => 8000,
+            'suggested_mid' => 10000,
+            'suggested_high' => 12000,
+            'improvement_pv_total' => 25000,
+            'risk_cost_pv_total' => 3000,
+            'roi_ratio' => 2.5,
+            'justification' => [
+                'services' => [
+                    ['name' => 'Due diligence fee proposal', 'line_total' => 10000],
+                ],
+            ],
+        ]);
+
+        $proposal = Proposal::query()->create([
+            'client_id' => $client->getKey(),
+            'fee_calculation_id' => $calculation->getKey(),
+            'status' => ProposalStatus::Released,
+            'version' => 1,
+            'scope' => ['summary' => 'DD fixture proposal.'],
+            'services' => [['name' => 'Due diligence', 'line_total' => 10000]],
+            'pv_summary' => ['fee_suggested_mid' => 10000],
+            'roi_ratio' => 2.5,
+            'acceptance_terms' => ['fixture' => true],
+            'released_at' => now(),
+            'released_by_user_id' => $advisor->getKey(),
+            'expires_at' => now()->addDays(30),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        return Proposal::allowSignoffStatusTransition(function () use ($proposal, $advisor): Proposal {
+            $proposal->forceFill([
+                'status' => ProposalStatus::AwaitingSignature,
+                'awaiting_signature_at' => now(),
+            ])->save();
+
+            $proposal->forceFill([
+                'status' => ProposalStatus::Signed,
+                'signed_at' => now(),
+                'signed_by_user_id' => $advisor->getKey(),
+            ])->save();
+
+            return $proposal->refresh();
+        });
     }
 }

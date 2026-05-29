@@ -92,7 +92,7 @@ final class ThreadedMessagingTest extends TestCase
                 'subject' => 'April cashflow',
                 'body' => 'Please review the attached cashflow statement.',
                 'attachments' => [
-                    UploadedFile::fake()->createWithContent('cashflow.txt', 'Cashflow statement is stable.'),
+                    UploadedFile::fake()->createWithContent('cashflow.pdf', "%PDF-1.4\nCashflow statement is stable."),
                 ],
             ])
             ->assertRedirect();
@@ -239,6 +239,53 @@ final class ThreadedMessagingTest extends TestCase
                 ->where('client.engagement_type_label', 'Entrepreneur portal')
                 ->where('backHref', route('portal.entrepreneur.dashboard', absolute: false))
                 ->where('selectedThread.id', $thread->id)
+                ->has('selectedThread.messages', 1));
+    }
+
+    public function test_advisor_starts_entrepreneur_thread_from_advisor_portal(): void
+    {
+        $advisor = $this->advisor();
+        $entrepreneur = $this->entrepreneurUser();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'name' => 'Advisor Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Advisor-created founder record.',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.index', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/entrepreneurs/messages/Index')
+                ->where('client.legal_name', 'Advisor Founder')
+                ->where('client.engagement_type_label', 'Entrepreneur portal')
+                ->where('indexUrl', route('advisor.entrepreneurs.messages.index', $profile, absolute: false))
+                ->where('createUrl', route('advisor.entrepreneurs.messages.store', $profile, absolute: false))
+                ->has('threads', 0));
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.messages.store', $profile), [
+                'subject' => 'Founder follow-up',
+                'body' => 'Please review the evidence gaps before our next check-in.',
+            ])
+            ->assertRedirect();
+
+        $thread = MessageThread::query()->firstOrFail();
+
+        $this->assertNull($thread->client_id);
+        $this->assertSame($profile->id, $thread->entrepreneur_profile_id);
+        $this->assertSame('message.new', $entrepreneur->notifications()->firstOrFail()->type);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.show', [$profile, $thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/entrepreneurs/messages/Index')
+                ->where('selectedThread.id', $thread->id)
+                ->where('selectedThread.subject', 'Founder follow-up')
                 ->has('selectedThread.messages', 1));
     }
 

@@ -8,12 +8,16 @@ use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
+use App\Models\DdEngagement;
+use App\Models\DdIntegrationPlanItem;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\NpoEngagement;
 use App\Models\NpoValueCalculation;
+use App\Models\PostAcquisitionMigration;
 use App\Models\Proposal;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
@@ -22,6 +26,7 @@ use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
+use App\Services\Dd\DataRoom;
 use App\Services\Goals\GoalTracker;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Npo\NpoFunderMonitor;
@@ -29,6 +34,7 @@ use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -45,12 +51,15 @@ final class DashboardController extends Controller
         private readonly NpoHealthScorer $npoHealth,
         private readonly NpoFunderMonitor $npoFunding,
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
+        private readonly StandardAdvisoryWorkflow $standardAdvisory,
     ) {}
 
     public function __invoke(Request $request): Response
     {
         $client = $this->clients->resolveFor($request);
+        $ddEngagement = $this->currentDdEngagement($client);
         $npoEngagement = $this->currentNpoEngagement($client);
+        $postAcquisition = $this->currentPostAcquisitionMigration($client);
         $goals = $npoEngagement instanceof NpoEngagement
             ? $this->goals->dashboardForEngagement($client, $npoEngagement)
             : $this->goals->dashboard($client);
@@ -70,6 +79,9 @@ final class DashboardController extends Controller
             'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
             'npoHealth' => $npoEngagement instanceof NpoEngagement ? $this->npoHealth->summary($npoEngagement) : null,
             'npoPortal' => $npoEngagement instanceof NpoEngagement ? $this->npoPortalPayload($client, $npoEngagement, $goals) : null,
+            'ddPlan' => $ddEngagement instanceof DdEngagement ? $this->ddPlanPayload($ddEngagement) : null,
+            'postAcquisition' => $postAcquisition instanceof PostAcquisitionMigration ? $this->postAcquisitionPayload($postAcquisition) : null,
+            'standardAdvisory' => $this->standardAdvisory->portalSummary($client),
             'goals' => $goals,
             'documents' => $this->documentPayload($client, $npoEngagement),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
@@ -222,6 +234,10 @@ final class DashboardController extends Controller
      */
     private function reportPayload(Client $client, ?NpoEngagement $engagement = null): array
     {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
         return Report::query()
             ->where('client_id', $client->getKey())
             ->when(
@@ -253,7 +269,27 @@ final class DashboardController extends Controller
                                 });
                         });
                 }),
-                fn ($query) => $query->where('type', ReportType::Client->value),
+                fn ($query) => $query->where(function ($scope) use ($engagementType): void {
+                    $scope
+                        ->where('type', ReportType::Client->value)
+                        ->whereIn('review_status', ['not_required', 'reviewed']);
+
+                    if ($engagementType === EngagementType::POST_ACQUISITION_ADVISORY) {
+                        $scope->orWhere(function ($postAcquisition): void {
+                            $postAcquisition
+                                ->where('type', ReportType::PostAcquisitionGap->value)
+                                ->whereIn('review_status', ['not_required', 'reviewed']);
+                        });
+                    }
+
+                    if ($engagementType === EngagementType::DUE_DILIGENCE) {
+                        $scope->orWhere(function ($dueDiligence): void {
+                            $dueDiligence
+                                ->where('type', ReportType::DueDiligence->value)
+                                ->whereIn('review_status', ['not_required', 'reviewed']);
+                        });
+                    }
+                }),
             )
             ->latest('generated_at')
             ->limit(5)
@@ -261,7 +297,9 @@ final class DashboardController extends Controller
             ->map(fn (Report $report): array => [
                 'id' => $report->id,
                 'title' => $report->title,
+                'type' => $report->type->value,
                 'generated_at' => $report->generated_at?->toIso8601String(),
+                'download_url' => route('portal.reports.show', $report, absolute: false),
             ])
             ->values()
             ->all();
@@ -277,6 +315,159 @@ final class DashboardController extends Controller
             ])
             ->latest()
             ->first();
+    }
+
+    private function currentDdEngagement(Client $client): ?DdEngagement
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::DUE_DILIGENCE) {
+            return null;
+        }
+
+        return DdEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->first();
+    }
+
+    private function currentPostAcquisitionMigration(Client $client): ?PostAcquisitionMigration
+    {
+        $engagementType = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        if ($engagementType !== EngagementType::POST_ACQUISITION_ADVISORY) {
+            return null;
+        }
+
+        return PostAcquisitionMigration::query()
+            ->where('advisory_client_id', $client->getKey())
+            ->with([
+                'ddReport',
+                'engagement',
+                'gapQuestionnaireResponse.answers',
+                'gapQuestionnaireResponse.questionnaire.sections.questions',
+                'proposal.feeCalculation',
+            ])
+            ->latest('migrated_at')
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function postAcquisitionPayload(PostAcquisitionMigration $migration): array
+    {
+        $response = $migration->gapQuestionnaireResponse;
+        $questions = collect($response?->questionnaire?->sections ?? [])
+            ->flatMap(fn ($section) => $section->questions)
+            ->values();
+        $totalQuestions = $questions?->count() ?? 0;
+        $answeredQuestions = $response?->answers?->count() ?? 0;
+        $remainingQuestionIds = data_get($migration->metadata, 'gap_questions_remaining');
+        $submitted = $response instanceof QuestionnaireResponse && $response->submitted_at !== null;
+        $remainingQuestions = $submitted
+            ? 0
+            : (is_array($remainingQuestionIds) ? count($remainingQuestionIds) : max(0, $totalQuestions - $answeredQuestions));
+        $proposal = $migration->proposal;
+        $proposalStatus = $proposal instanceof Proposal
+            ? (is_string($proposal->status) ? $proposal->status : $proposal->status->value)
+            : null;
+        $proposalClientVisible = $proposal instanceof Proposal && in_array($proposalStatus, [
+            'released',
+            'awaiting_signature',
+            'signed',
+        ], true);
+
+        return [
+            'source_client_id' => $migration->buyer_client_id,
+            'advisory_client_id' => $migration->advisory_client_id,
+            'source_target_name' => $migration->engagement?->target_name,
+            'dd_pv_baseline' => $migration->dd_pv_baseline,
+            'migrated_at' => $migration->migrated_at?->toIso8601String(),
+            'migrated_document_count' => count(is_array($migration->migrated_document_ids) ? $migration->migrated_document_ids : []),
+            'gap_questionnaire_url' => route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE], absolute: false),
+            'gap_questionnaire' => [
+                'submitted' => $submitted,
+                'submitted_at' => $response?->submitted_at?->toIso8601String(),
+                'answered_questions' => $answeredQuestions,
+                'total_questions' => $totalQuestions,
+                'remaining_questions' => $remainingQuestions,
+            ],
+            'proposal' => $proposal instanceof Proposal ? [
+                'id' => $proposal->id,
+                'status' => $proposalStatus,
+                'status_label' => str((string) $proposalStatus)->replace('_', ' ')->title()->toString(),
+                'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                'client_visible' => $proposalClientVisible,
+                'signoff_url' => $proposalClientVisible ? route('portal.proposals.signoff.show', $proposal, absolute: false) : null,
+            ] : null,
+            'dd_report' => $migration->ddReport instanceof Report ? [
+                'id' => $migration->ddReport->id,
+                'title' => $migration->ddReport->title,
+                'generated_at' => $migration->ddReport->generated_at?->toIso8601String(),
+            ] : null,
+            'integration_actions' => $this->postAcquisitionIntegrationActions($migration),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function postAcquisitionIntegrationActions(PostAcquisitionMigration $migration): array
+    {
+        return DdIntegrationPlanItem::query()
+            ->where('dd_engagement_id', $migration->dd_engagement_id)
+            ->orderBy('day')
+            ->limit(8)
+            ->get()
+            ->map(fn (DdIntegrationPlanItem $item): array => [
+                'id' => $item->id,
+                'day' => $item->day,
+                'phase' => $item->phase,
+                'action' => $item->action,
+                'owner' => $item->owner,
+                'priority' => $item->priority,
+                'status' => $item->status,
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function ddPlanPayload(DdEngagement $engagement): array
+    {
+        $plan = BusinessPlan::query()
+            ->where('dd_engagement_id', $engagement->getKey())
+            ->where('source_type', BusinessPlan::SOURCE_DUE_DILIGENCE)
+            ->latest()
+            ->first();
+
+        return [
+            'url' => route('portal.dd-plan.show', absolute: false),
+            'generated' => $plan instanceof BusinessPlan,
+            'status' => $plan?->status,
+            'plan_completed' => $plan instanceof BusinessPlan && $plan->status === BusinessPlan::STATUS_FOUNDING,
+            'business_advice_requested' => PostAcquisitionMigration::query()
+                ->where('dd_engagement_id', $engagement->getKey())
+                ->exists(),
+            'updated_at' => $plan?->updated_at?->toIso8601String(),
+            'target_name' => $engagement->target_name,
+            'data_room_item_count' => $engagement->dataRoomItems()->count(),
+            'workstream_options' => collect(DataRoom::WORKSTREAMS)
+                ->map(fn (string $label, string $value): array => [
+                    'value' => $value,
+                    'label' => $label,
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     /**

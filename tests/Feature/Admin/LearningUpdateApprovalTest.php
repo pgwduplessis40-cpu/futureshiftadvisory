@@ -172,6 +172,53 @@ final class LearningUpdateApprovalTest extends TestCase
         $this->assertTrue(true);
     }
 
+    public function test_due_approved_updates_are_implemented_and_receive_impact_review(): void
+    {
+        Carbon::setTestNow('2026-05-23 10:00:00');
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $candidate = $this->candidate([
+            'status' => LearningUpdate::STATUS_APPROVED,
+            'effective_date' => now()->subMinute(),
+            'review_due_at' => now()->subMinute(),
+            'proposed_change' => [
+                'action' => 'revise_prompt',
+                'automatic_application' => false,
+                'target' => ['type' => 'prompt', 'id' => 'analysis.financial'],
+            ],
+        ]);
+
+        $implemented = app(ApprovalFlow::class)->implementDue(now(), $admin);
+
+        $this->assertCount(1, $implemented);
+        $implementation = $implemented->first();
+        $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $candidate->refresh()->status);
+        $this->assertTrue($implementation->review_due->equalTo(now()->subMinute()));
+        $this->assertSame('prompt', $implementation->target_type);
+        $this->assertSame('analysis.financial', $implementation->target_id);
+        $this->assertDatabaseHas('audit_events', ['action' => 'learning_update.implemented']);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.learning-updates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->has('impact_reviews', 1)
+                ->where('impact_reviews.0.id', $implementation->id)
+                ->where('impact_reviews.0.summary', 'Adjust prompt calibration'));
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.learning-update-implementations.review', $implementation), [
+                'review_outcome' => 'No client impact exceptions after 30-day review.',
+            ])
+            ->assertRedirect(route('admin.learning-updates.index', absolute: false));
+
+        $this->assertSame(
+            'No client impact exceptions after 30-day review.',
+            $implementation->refresh()->review_outcome,
+        );
+        $this->assertDatabaseHas('audit_events', ['action' => 'learning_update.impact_reviewed']);
+    }
+
     private function superAdmin(): User
     {
         $user = User::factory()->superAdmin()->withTwoFactor()->create();

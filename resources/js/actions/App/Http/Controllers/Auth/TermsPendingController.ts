@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
 const show619dc3a99425f668ea9cab64e6648cb4 = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show619dc3a99425f668ea9cab64e6648cb4.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
 show619dc3a99425f668ea9cab64e6648cb4.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ show619dc3a99425f668ea9cab64e6648cb4.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
 show619dc3a99425f668ea9cab64e6648cb4.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ show619dc3a99425f668ea9cab64e6648cb4.get = (options?: RouteQueryOptions): RouteD
 })
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
 show619dc3a99425f668ea9cab64e6648cb4.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ show619dc3a99425f668ea9cab64e6648cb4.head = (options?: RouteQueryOptions): Route
 
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
     const show619dc3a99425f668ea9cab64e6648cb4Form = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ show619dc3a99425f668ea9cab64e6648cb4.head = (options?: RouteQueryOptions): Route
 
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
         show619dc3a99425f668ea9cab64e6648cb4Form.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ show619dc3a99425f668ea9cab64e6648cb4.head = (options?: RouteQueryOptions): Route
         })
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms'
  */
         show619dc3a99425f668ea9cab64e6648cb4Form.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ show619dc3a99425f668ea9cab64e6648cb4.head = (options?: RouteQueryOptions): Route
     show619dc3a99425f668ea9cab64e6648cb4.form = show619dc3a99425f668ea9cab64e6648cb4Form
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
 const show5487df76140b55c3bdaed66107ccd928 = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ show5487df76140b55c3bdaed66107ccd928.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
 show5487df76140b55c3bdaed66107ccd928.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ show5487df76140b55c3bdaed66107ccd928.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
 show5487df76140b55c3bdaed66107ccd928.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -112,7 +112,7 @@ show5487df76140b55c3bdaed66107ccd928.get = (options?: RouteQueryOptions): RouteD
 })
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
 show5487df76140b55c3bdaed66107ccd928.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -122,7 +122,7 @@ show5487df76140b55c3bdaed66107ccd928.head = (options?: RouteQueryOptions): Route
 
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
     const show5487df76140b55c3bdaed66107ccd928Form = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -132,7 +132,7 @@ show5487df76140b55c3bdaed66107ccd928.head = (options?: RouteQueryOptions): Route
 
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
         show5487df76140b55c3bdaed66107ccd928Form.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -141,7 +141,7 @@ show5487df76140b55c3bdaed66107ccd928.head = (options?: RouteQueryOptions): Route
         })
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
- * @see app/Http/Controllers/Auth/TermsPendingController.php:30
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:33
  * @route '/terms/pending'
  */
         show5487df76140b55c3bdaed66107ccd928Form.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -167,8 +167,86 @@ export const show = {
 }
 
 /**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+export const download = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: download.url(options),
+    method: 'get',
+})
+
+download.definition = {
+    methods: ["get","head"],
+    url: '/terms/download',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+download.url = (options?: RouteQueryOptions) => {
+    return download.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+download.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: download.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+download.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: download.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+    const downloadForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: download.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+        downloadForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: download.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Auth\TermsPendingController::download
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:56
+ * @route '/terms/download'
+ */
+        downloadForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: download.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    download.form = downloadForm
+/**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
- * @see app/Http/Controllers/Auth/TermsPendingController.php:52
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:80
  * @route '/terms/accept'
  */
 export const accept = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -183,7 +261,7 @@ accept.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
- * @see app/Http/Controllers/Auth/TermsPendingController.php:52
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:80
  * @route '/terms/accept'
  */
 accept.url = (options?: RouteQueryOptions) => {
@@ -192,7 +270,7 @@ accept.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
- * @see app/Http/Controllers/Auth/TermsPendingController.php:52
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:80
  * @route '/terms/accept'
  */
 accept.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -202,7 +280,7 @@ accept.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
- * @see app/Http/Controllers/Auth/TermsPendingController.php:52
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:80
  * @route '/terms/accept'
  */
     const acceptForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -212,7 +290,7 @@ accept.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
- * @see app/Http/Controllers/Auth/TermsPendingController.php:52
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:80
  * @route '/terms/accept'
  */
         acceptForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -223,7 +301,7 @@ accept.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     accept.form = acceptForm
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
- * @see app/Http/Controllers/Auth/TermsPendingController.php:102
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:130
  * @route '/terms/decline'
  */
 export const decline = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -238,7 +316,7 @@ decline.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
- * @see app/Http/Controllers/Auth/TermsPendingController.php:102
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:130
  * @route '/terms/decline'
  */
 decline.url = (options?: RouteQueryOptions) => {
@@ -247,7 +325,7 @@ decline.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
- * @see app/Http/Controllers/Auth/TermsPendingController.php:102
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:130
  * @route '/terms/decline'
  */
 decline.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -257,7 +335,7 @@ decline.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
- * @see app/Http/Controllers/Auth/TermsPendingController.php:102
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:130
  * @route '/terms/decline'
  */
     const declineForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -267,7 +345,7 @@ decline.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
- * @see app/Http/Controllers/Auth/TermsPendingController.php:102
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:130
  * @route '/terms/decline'
  */
         declineForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -278,7 +356,7 @@ decline.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     decline.form = declineForm
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
 export const declined = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -293,7 +371,7 @@ declined.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
 declined.url = (options?: RouteQueryOptions) => {
@@ -302,7 +380,7 @@ declined.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
 declined.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -311,7 +389,7 @@ declined.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
 declined.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -321,7 +399,7 @@ declined.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
     const declinedForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -331,7 +409,7 @@ declined.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
         declinedForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -340,7 +418,7 @@ declined.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
- * @see app/Http/Controllers/Auth/TermsPendingController.php:142
+ * @see app/Http/Controllers/Auth/TermsPendingController.php:170
  * @route '/terms/declined'
  */
         declinedForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -354,6 +432,6 @@ declined.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
     
     declined.form = declinedForm
-const TermsPendingController = { show, accept, decline, declined }
+const TermsPendingController = { show, download, accept, decline, declined }
 
 export default TermsPendingController

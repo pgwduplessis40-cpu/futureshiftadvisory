@@ -6,6 +6,8 @@ use App\Http\Controllers\BulkCommunicationOpenController;
 use App\Http\Controllers\Coach\ReferralStageController as CoachReferralStageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
+use App\Http\Controllers\PanelAgreementController;
+use App\Http\Controllers\PanelApplicationController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -39,6 +41,10 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::patch('coach/referrals/{referral}/stage', CoachReferralStageController::class)
         ->middleware('permission:'.Permission::COACH_PORTAL->value)
         ->name('coach.referrals.stage');
+    Route::post('panel/application', [PanelApplicationController::class, 'store'])
+        ->name('panel.application.store');
+    Route::post('panel/agreements/{panelAgreement}/sign', [PanelAgreementController::class, 'sign'])
+        ->name('panel.agreements.sign');
 });
 
 require __DIR__.'/settings.php';

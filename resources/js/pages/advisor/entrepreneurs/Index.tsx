@@ -2,6 +2,11 @@ import { Head, Link } from '@inertiajs/react';
 import { Plus, Search, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { CapacitySummary, EntrepreneurSummary } from './types';
 
 type Props = {
@@ -41,12 +46,18 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                     <Metric
                         label="Active"
                         value={`${capacity.active_count}/${capacity.limit}`}
+                        explanation="Entrepreneurs currently counted against the active portfolio capacity."
                     />
                     <Metric
                         label="Warning"
                         value={`${capacity.warning_threshold}`}
+                        explanation="The capacity threshold where the advisor should start planning intake carefully."
                     />
-                    <Metric label="Remaining" value={`${capacity.remaining}`} />
+                    <Metric
+                        label="Remaining"
+                        value={`${capacity.remaining}`}
+                        explanation="Available entrepreneur slots before the active capacity limit is reached."
+                    />
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
@@ -129,12 +140,27 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
     );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+    label,
+    value,
+    explanation,
+}: {
+    label: string;
+    value: string;
+    explanation: string;
+}) {
     return (
-        <div className="rounded-md border p-4">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-2 text-sm font-medium">{value}</div>
-        </div>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <div className="rounded-md border p-4">
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="mt-2 text-sm font-medium">{value}</div>
+                </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

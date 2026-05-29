@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ArrowRight } from 'lucide-react';
 
 import { BackToTop } from '@/components/public/back-to-top';
@@ -9,73 +9,78 @@ import {
     SectionLead,
     SectionTitle,
 } from '@/components/public/section';
+import { Seo } from '@/components/public/seo';
+import { breadcrumbLd } from '@/lib/structured-data';
 
 export default function About() {
+    const base = usePage().props.publicUrl ?? '';
+
     return (
         <>
-            <Head title="About — Future Shift Advisory">
-                <meta
-                    name="description"
-                    content="Future Shift Advisory is a Hamilton-based, NZ-grounded advisory practice. Evidence-based, honest, built around the AI Integrity Principle."
-                />
-            </Head>
+            <Seo
+                title="About us — a Hamilton advisory practice you can trust"
+                description="Future Shift Advisory is a Hamilton-based practice for New Zealand SMEs, founders, buyers, and not-for-profits. Honest, evidence-based, and genuinely local."
+                jsonLd={breadcrumbLd(base, [
+                    { name: 'Home', path: '/' },
+                    { name: 'About', path: '/about' },
+                ])}
+            />
 
             <Section className="pt-20 pb-16 lg:pt-24">
                 <SectionEyebrow>About</SectionEyebrow>
                 <SectionTitle as="h1" className="mt-4">
-                    The structure of clarity.{' '}
+                    Clear thinking,{' '}
                     <span className="font-accent text-[var(--fs-cognac)] italic">
-                        The soul of straight talk.
+                        and the courage to say it kindly.
                     </span>
                 </SectionTitle>
                 <GoldRule className="mt-6" />
                 <SectionLead>
-                    Future Shift Advisory is a Hamilton-based advisory practice
-                    working with New&nbsp;Zealand SMEs, acquirers, and founders.
-                    We exist to give business owners a clear, honest,
-                    evidence-backed read on where they stand — and what to do
-                    next.
+                    Future Shift Advisory is a Hamilton-based practice working
+                    with New&nbsp;Zealand SMEs, founders, people buying a
+                    business, and not-for-profits. We are here to give you a
+                    clear, honest, well-grounded read on where you stand — and a
+                    sensible plan for what comes next.
                 </SectionLead>
             </Section>
 
             {/* ── PRINCIPLES ──────────────────────────────────── */}
             <div className="bg-[var(--fs-linen)] py-20">
                 <Section>
-                    <SectionEyebrow>What we hold non-negotiable</SectionEyebrow>
+                    <SectionEyebrow>What we hold ourselves to</SectionEyebrow>
                     <SectionTitle className="mt-3">
-                        The AI Integrity Principle.
+                        How we work with you.
                     </SectionTitle>
                     <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                        Every output — analysis, guidance, scoring,
-                        recommendation, document review — is held to the same
-                        standard.
+                        A few promises that shape every piece of advice we give
+                        — whether it is a quick conversation or a full review.
                     </p>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-2">
                         {[
                             {
-                                title: 'Honest',
-                                body: 'Problems and low scores stated clearly. Kindness in delivery, not in content.',
+                                title: 'Honest, and kind with it',
+                                body: 'If something needs attention, you will hear it clearly. We are kind in how we say it — never in whether we say it.',
                             },
                             {
-                                title: 'Evidence-based',
-                                body: 'Every finding cites its source. AI evidences, never asserts.',
+                                title: 'Backed by evidence',
+                                body: 'Every recommendation comes with the reasoning and the proof. We would rather show you than ask you to take our word for it.',
                             },
                             {
-                                title: 'Accurate',
-                                body: 'NZ-specific, industry-specific, current. Frameworks and references that actually apply here.',
+                                title: 'Genuinely New Zealand',
+                                body: 'Our advice fits the local context — New Zealand regulation, tax, and the way business actually works here.',
                             },
                             {
-                                title: 'Free from bias',
-                                body: 'A bias-detection layer monitors AI outputs. Uncertainty is disclosed when data is insufficient.',
+                                title: 'Honest about uncertainty',
+                                body: 'When the information is not enough to be sure, we say so — rather than dressing up a guess as a fact.',
                             },
                             {
-                                title: 'No score inflation',
-                                body: 'Systematic upward drift triggers a learning-update flag. We do not grade on a curve.',
+                                title: 'No grading on a curve',
+                                body: 'We do not inflate the score to make you feel good. The picture you get is the real one.',
                             },
                             {
-                                title: 'No suppressed warnings',
-                                body: 'Viability alerts, risk flags, compliance gaps, document discrepancies — never hidden.',
+                                title: 'Nothing swept under the rug',
+                                body: 'Risks, warnings, and awkward findings get surfaced and talked through — never quietly left out.',
                             },
                         ].map((p) => (
                             <div
@@ -119,17 +124,18 @@ export default function About() {
                         </h2>
                         <p className="mt-6 text-base leading-relaxed text-[var(--fs-graphite)]">
                             Future Shift Advisory is led by Pieter Du Plessis
-                            from Hamilton, New&nbsp;Zealand. The practice was
-                            founded on a simple frustration: that too many SME
-                            owners receive advice that is either vague,
+                            from Hamilton, New&nbsp;Zealand. The practice grew
+                            out of a simple frustration: too many business
+                            owners receive advice that is vague, a little too
                             flattering, or disconnected from the evidence
                             sitting in their own books.
                         </p>
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
-                            What we built instead is an advisory engagement that
-                            runs on structure, cites every finding, and tells
-                            you what the evidence actually says — not what is
-                            easiest to hear.
+                            So we built something different — advice with real
+                            structure behind it, where every finding is backed
+                            by evidence, and where you hear what the numbers
+                            actually say rather than what is easiest to tell
+                            you.
                         </p>
 
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
@@ -165,36 +171,32 @@ export default function About() {
                                 working nationwide
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                Based in the Waikato, working with SMEs and
-                                founders across New&nbsp;Zealand. Engagements
-                                are run remotely with in-person work where it
+                                Based in the Waikato, working with businesses
+                                and organisations across New&nbsp;Zealand. We
+                                work remotely, and in person where it genuinely
                                 adds value.
                             </p>
                         </div>
                         <div>
-                            <div className="eyebrow">
-                                How we are NZ-grounded
-                            </div>
+                            <div className="eyebrow">Built for New Zealand</div>
                             <h3 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)]">
-                                NZBN, Companies Office, IRD context
+                                Local context, not borrowed playbooks
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                Our analysis, frameworks, and references are
-                                calibrated to NZ tax, compliance, and entity
-                                structures — not borrowed playbooks.
+                                Our analysis and frameworks are tuned to the
+                                New&nbsp;Zealand setting — NZBN, the Companies
+                                Office, IRD, and local tax and compliance.
                             </p>
                         </div>
                         <div>
-                            <div className="eyebrow">
-                                How we treat your data
-                            </div>
+                            <div className="eyebrow">Private by default</div>
                             <h3 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)]">
-                                MFA, encryption, audit trail
+                                Your information stays yours
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
-                                Multi-factor authentication on every account.
-                                Documents encrypted at rest and scanned before
-                                storage. Every action permanently logged.
+                                Multi-factor sign-in, encrypted documents, and
+                                access limited to the people working with you —
+                                with a complete record of who did what.
                             </p>
                         </div>
                     </div>

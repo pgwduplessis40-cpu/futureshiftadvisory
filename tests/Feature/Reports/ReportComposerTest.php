@@ -120,6 +120,8 @@ final class ReportComposerTest extends TestCase
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
 
         $this->assertSame(ReportType::Client, $report->type);
+        $this->assertSame('pending_review', $report->review_status);
+        $this->assertTrue($report->metadata['client_release_gate']);
         $this->assertNotNull($report->pdf_path);
         Storage::disk('secure_local')->assertExists($report->pdf_path);
         $this->assertFalse($report->sections->contains('lens', AnalysisLens::Prescriptive->value));
@@ -235,6 +237,65 @@ final class ReportComposerTest extends TestCase
         ]);
     }
 
+    public function test_advisor_can_edit_report_sections_with_revision_history_comments_and_reopened_review(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-section-editor@example.test');
+        $this->businessValuation($client, 420000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $section = $report->sections->firstOrFail();
+        $oldPdfPath = $report->pdf_path;
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.reports.review', $report))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+        $this->assertTrue($report->refresh()->reviewed());
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.reports.sections.update', [$report, $section]), [
+                'body' => 'Advisor-edited section body with source-checked wording.',
+                'reason' => 'Aligned language with verified evidence.',
+            ])
+            ->assertRedirect();
+
+        $this->assertSame('Advisor-edited section body with source-checked wording.', $section->refresh()->body);
+        $this->assertSame('pending_review', $report->refresh()->review_status);
+        $this->assertNull($report->reviewed_at);
+        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
+        $this->assertDatabaseHas('report_section_revisions', [
+            'report_id' => $report->id,
+            'report_section_id' => $section->id,
+            'revision_number' => 1,
+            'body_after' => 'Advisor-edited section body with source-checked wording.',
+            'reason' => 'Aligned language with verified evidence.',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'report.section_edited',
+            'subject_id' => $section->id,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.reports.sections.comments.store', [$report, $section]), [
+                'body' => 'Check this section with the client before release.',
+                'visibility' => 'advisor_only',
+            ])
+            ->assertRedirect();
+
+        $this->assertDatabaseHas('report_section_comments', [
+            'report_id' => $report->id,
+            'report_section_id' => $section->id,
+            'body' => 'Check this section with the client before release.',
+            'visibility' => 'advisor_only',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'report.section_commented',
+        ]);
+    }
+
     public function test_advisor_can_download_generated_report_pdf(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-download@example.test');
@@ -295,6 +356,10 @@ final class ReportComposerTest extends TestCase
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
 
         $this->assertDatabaseCount('reports', 3);
+        $clientReport = Report::query()
+            ->where('client_id', $client->id)
+            ->where('type', ReportType::Client->value)
+            ->firstOrFail();
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.show', $client))
@@ -302,6 +367,16 @@ final class ReportComposerTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('client.report_store_url', route('advisor.clients.reports.store', $client, absolute: false))
                 ->has('client.reports', 3));
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->has('reports', 0));
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.reports.review', $clientReport))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
 
         $this->actingAsMfa($clientUser)
             ->get(route('portal.dashboard'))

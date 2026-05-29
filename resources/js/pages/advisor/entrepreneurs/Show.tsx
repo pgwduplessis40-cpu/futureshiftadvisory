@@ -1,20 +1,42 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, Mail, TrendingUp, UserRoundCheck } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import {
+    ArrowLeft,
+    ArrowUpRight,
+    CheckCircle2,
+    ClipboardCheck,
+    FileText,
+    Mail,
+    MessageSquare,
+    TrendingUp,
+    UserRoundCheck,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
+import { useState } from 'react';
+import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
+import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { CriterionDelta, EntrepreneurDetail } from './types';
+import { cn } from '@/lib/utils';
+import type {
+    CriterionDelta,
+    EntrepreneurDetail,
+    EntrepreneurDocument,
+} from './types';
 
 type Props = {
     entrepreneur: EntrepreneurDetail;
 };
 
 export default function EntrepreneursShow({ entrepreneur }: Props) {
+    const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
+    const [gateNote, setGateNote] = useState('');
+
     return (
         <>
             <Head title={entrepreneur.name} />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             {entrepreneur.name}
@@ -23,39 +45,451 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             {entrepreneur.email}
                         </div>
                     </div>
-                    <Button asChild size="sm" variant="outline">
-                        <Link href="/advisor/entrepreneurs">
-                            <ArrowLeft className="size-4" aria-hidden="true" />
-                            Back
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap gap-2">
+                        <Button asChild size="sm">
+                            <Link href={entrepreneur.messages.url}>
+                                <MessageSquare
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Messages
+                            </Link>
+                        </Button>
+                        {entrepreneur.conversion.available ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={() =>
+                                    router.post(
+                                        entrepreneur.conversion.convert_url,
+                                    )
+                                }
+                            >
+                                Convert to client
+                            </Button>
+                        ) : null}
+                        <Button asChild size="sm" variant="outline">
+                            <a href={`mailto:${entrepreneur.email}`}>
+                                <Mail className="size-4" aria-hidden="true" />
+                                Email
+                            </a>
+                        </Button>
+                        {latestAssessment ? (
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={latestAssessment.url}>
+                                    <ClipboardCheck
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Assessment
+                                </Link>
+                            </Button>
+                        ) : null}
+                        <Button asChild size="sm" variant="ghost">
+                            <Link href="/advisor/entrepreneurs">
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Back
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
-                <div className="grid gap-4 md:grid-cols-3">
-                    <Metric
+                <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                    <ActionMetric
                         label="Stage"
                         value={entrepreneur.stage_label}
                         badge
-                    />
-                    <Metric
-                        label="Invite"
-                        value={
-                            entrepreneur.invite_accepted_at
-                                ? 'accepted'
-                                : 'sent'
+                        href="#round-progress"
+                        drillLabel="Review progress"
+                        icon={
+                            <UserRoundCheck
+                                className="size-4"
+                                aria-hidden="true"
+                            />
                         }
+                        hoverTitle="Entrepreneur stage"
+                        rows={[
+                            {
+                                label: 'Current stage',
+                                value: entrepreneur.stage_label,
+                            },
+                            {
+                                label: 'Account',
+                                value: entrepreneur.user_id
+                                    ? 'Linked'
+                                    : 'Pending',
+                                tone: entrepreneur.user_id
+                                    ? 'positive'
+                                    : 'muted',
+                            },
+                        ]}
+                        footer="Stage is driven by invite, onboarding, assessment, and advisory readiness progress."
                     />
-                    <Metric
-                        label="Account"
-                        value={entrepreneur.user_id ? 'linked' : 'pending'}
+                    <ActionMetric
+                        label="Messages"
+                        value={`${entrepreneur.messages.threads_count} threads`}
+                        href={entrepreneur.messages.url}
+                        drillLabel="Open messages"
+                        icon={
+                            <MessageSquare
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                        }
+                        hoverTitle="Message activity"
+                        rows={[
+                            {
+                                label: 'Unread',
+                                value: entrepreneur.messages.unread_count,
+                                tone:
+                                    entrepreneur.messages.unread_count > 0
+                                        ? 'negative'
+                                        : 'muted',
+                            },
+                            {
+                                label: 'Latest activity',
+                                value: formatDate(
+                                    entrepreneur.messages.latest_activity_at,
+                                ),
+                            },
+                        ]}
+                        footer="Use messages for advisor-founder follow-up without leaving the entrepreneur record."
+                    />
+                    <ActionMetric
+                        label="Assessment"
+                        value={
+                            latestAssessment
+                                ? `${latestAssessment.weighted_score.toFixed(1)}/100`
+                                : 'Not started'
+                        }
+                        href={latestAssessment?.url ?? '#round-progress'}
+                        drillLabel={
+                            latestAssessment
+                                ? 'View assessment'
+                                : 'Review progress'
+                        }
+                        icon={
+                            <ClipboardCheck
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                        }
+                        hoverTitle="Latest assessment"
+                        rows={[
+                            {
+                                label: 'Round',
+                                value: latestAssessment?.round ?? '-',
+                            },
+                            {
+                                label: 'Grade',
+                                value: latestAssessment
+                                    ? gradeLabel(latestAssessment.overall_grade)
+                                    : '-',
+                            },
+                            {
+                                label: 'Completed',
+                                value: formatDate(
+                                    latestAssessment?.finalised_at ?? null,
+                                ),
+                            },
+                        ]}
+                        footer="The score is the weighted assessment result from the latest advisory readiness round."
+                    />
+                    <ActionMetric
+                        label="Documents"
+                        value={`${entrepreneur.documents.length} recent`}
+                        href="#documents"
+                        drillLabel="Review documents"
+                        icon={
+                            <FileText className="size-4" aria-hidden="true" />
+                        }
+                        hoverTitle="Recent evidence"
+                        rows={[
+                            {
+                                label: 'Clean files',
+                                value: entrepreneur.documents.filter(
+                                    (document) =>
+                                        document.scanner_result === 'clean',
+                                ).length,
+                                tone: 'positive',
+                            },
+                            {
+                                label: 'Latest upload',
+                                value: formatDate(
+                                    entrepreneur.documents[0]?.uploaded_at ??
+                                        null,
+                                ),
+                            },
+                        ]}
+                        footer="Documents are evidence supplied through the entrepreneur portal or advisor messages."
                     />
                 </div>
 
+                <section className="space-y-4 rounded-md border bg-background p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div>
+                            <h2 className="text-sm font-medium">
+                                Action panel
+                            </h2>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Advisor next steps for this entrepreneur.
+                            </p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm">
+                                <Link href={entrepreneur.messages.url}>
+                                    <MessageSquare
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Message founder
+                                </Link>
+                            </Button>
+                            {latestAssessment ? (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={latestAssessment.url}>
+                                        <ClipboardCheck
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        View assessment
+                                    </Link>
+                                </Button>
+                            ) : null}
+                            {entrepreneur.latest_plan && !latestAssessment ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.post(
+                                            entrepreneur.latest_plan
+                                                ?.assess_url ?? '',
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    <ClipboardCheck
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Run assessment
+                                </Button>
+                            ) : null}
+                            {latestAssessment &&
+                            !latestAssessment.finalised_at ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() =>
+                                        router.patch(
+                                            latestAssessment.finalise_url,
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    <CheckCircle2
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Finalise report
+                                </Button>
+                            ) : null}
+                            <Button asChild size="sm" variant="outline">
+                                <a href="#documents">
+                                    <FileText
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Evidence
+                                </a>
+                            </Button>
+                        </div>
+                    </div>
+
+                    {entrepreneur.idea_validation &&
+                    !entrepreneur.idea_validation.advisor_gate_passed_at ? (
+                        <div className="grid gap-3 rounded-md border bg-muted/30 p-3 md:grid-cols-[1fr_auto]">
+                            <label className="grid gap-1 text-sm">
+                                <span>Idea gate note</span>
+                                <textarea
+                                    value={gateNote}
+                                    onChange={(event) =>
+                                        setGateNote(event.target.value)
+                                    }
+                                    rows={2}
+                                    className="rounded-md border bg-background px-3 py-2 text-sm"
+                                    placeholder="Record why the idea is ready to enter the business plan builder."
+                                />
+                            </label>
+                            <div className="flex items-end">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={gateNote.trim().length < 10}
+                                    onClick={() =>
+                                        router.patch(
+                                            entrepreneur.idea_validation
+                                                ?.gate_url ?? '',
+                                            {
+                                                advisor_gate_note: gateNote,
+                                            },
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    Approve builder gate
+                                </Button>
+                            </div>
+                        </div>
+                    ) : null}
+                </section>
+
+                <div className="grid gap-6 lg:grid-cols-3">
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <ClipboardCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Founder readiness
+                                </h2>
+                            </div>
+                            <Badge variant="outline">
+                                {entrepreneur.readiness.completed
+                                    ? `${entrepreneur.readiness.score?.toFixed(1)}/100`
+                                    : 'Needed'}
+                            </Badge>
+                        </div>
+                        <dl className="grid gap-3 text-sm">
+                            <Detail
+                                label="Outcome"
+                                value={
+                                    entrepreneur.readiness.outcome
+                                        ? gradeLabel(
+                                              entrepreneur.readiness.outcome,
+                                          )
+                                        : null
+                                }
+                            />
+                            <Detail
+                                label="Assessed"
+                                value={formatDate(
+                                    entrepreneur.readiness.assessed_at,
+                                )}
+                            />
+                        </dl>
+                    </section>
+
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <UserRoundCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Idea validation
+                                </h2>
+                            </div>
+                            <Badge variant="outline">
+                                {entrepreneur.idea_validation
+                                    ? entrepreneur.idea_validation
+                                          .advisor_gate_passed_at
+                                        ? 'Gate passed'
+                                        : 'Gate needed'
+                                    : 'Needed'}
+                            </Badge>
+                        </div>
+                        <p className="line-clamp-4 text-sm text-muted-foreground">
+                            {entrepreneur.idea_validation?.summary ||
+                                'No idea validation submitted yet.'}
+                        </p>
+                    </section>
+
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">Reports</h2>
+                            </div>
+                            <Badge variant="outline">
+                                {entrepreneur.reports.length}
+                            </Badge>
+                        </div>
+                        {entrepreneur.reports.length > 0 ? (
+                            <div className="space-y-2">
+                                {entrepreneur.reports
+                                    .slice(0, 2)
+                                    .map((report) => (
+                                        <Button
+                                            key={report.id}
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                            className="w-full justify-start"
+                                        >
+                                            <a href={report.download_url}>
+                                                <ArrowUpRight
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                {formatDate(
+                                                    report.generated_at,
+                                                )}
+                                            </a>
+                                        </Button>
+                                    ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                Generated after assessment finalisation.
+                            </p>
+                        )}
+                    </section>
+                </div>
+
                 <div className="grid gap-6 lg:grid-cols-2">
-                    <section className="space-y-4 rounded-md border p-4">
-                        <div className="flex items-center gap-2">
-                            <Mail className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">Invite</h2>
+                    <section
+                        id="invite"
+                        className="space-y-4 rounded-md border bg-background p-4"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Mail className="size-4" aria-hidden="true" />
+                                <h2 className="text-sm font-medium">Invite</h2>
+                            </div>
+                            <HoverBadge
+                                label={
+                                    entrepreneur.invite_accepted_at
+                                        ? 'Accepted'
+                                        : 'Sent'
+                                }
+                                title="Invite status"
+                                rows={[
+                                    {
+                                        label: 'Invite email',
+                                        value: entrepreneur.email,
+                                    },
+                                    {
+                                        label: 'Accepted',
+                                        value: formatDate(
+                                            entrepreneur.invite_accepted_at,
+                                        ),
+                                    },
+                                ]}
+                            />
                         </div>
                         <dl className="grid gap-3 text-sm">
                             <Detail label="Email" value={entrepreneur.email} />
@@ -70,15 +504,40 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 value={formatDate(entrepreneur.created_at)}
                             />
                         </dl>
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm" variant="outline">
+                                <a href={`mailto:${entrepreneur.email}`}>
+                                    <Mail
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Email invite address
+                                </a>
+                            </Button>
+                        </div>
                     </section>
 
-                    <section className="space-y-4 rounded-md border p-4">
-                        <div className="flex items-center gap-2">
-                            <UserRoundCheck
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            <h2 className="text-sm font-medium">Concept</h2>
+                    <section
+                        id="concept"
+                        className="space-y-4 rounded-md border bg-background p-4"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <UserRoundCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">Concept</h2>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={entrepreneur.messages.url}>
+                                    <MessageSquare
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Discuss
+                                </Link>
+                            </Button>
                         </div>
                         <p className="text-sm text-muted-foreground">
                             {entrepreneur.concept_summary || 'No summary yet.'}
@@ -87,7 +546,10 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                 </div>
 
                 {entrepreneur.latest_plan ? (
-                    <section className="space-y-4 rounded-md border p-4">
+                    <section
+                        id="round-progress"
+                        className="space-y-4 rounded-md border bg-background p-4"
+                    >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <TrendingUp
@@ -98,29 +560,86 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     Round progress
                                 </h2>
                             </div>
-                            <div className="flex flex-wrap gap-2">
-                                <Badge variant="secondary">
-                                    {entrepreneur.latest_plan.status}
-                                </Badge>
+                            <div className="flex flex-wrap items-center gap-2">
+                                <HoverBadge
+                                    label={entrepreneur.latest_plan.status}
+                                    title="Plan status"
+                                    rows={[
+                                        {
+                                            label: 'Plan title',
+                                            value: entrepreneur.latest_plan
+                                                .title,
+                                        },
+                                        {
+                                            label: 'Assessments',
+                                            value: entrepreneur.latest_plan
+                                                .assessment_count,
+                                        },
+                                    ]}
+                                />
                                 {entrepreneur.latest_plan.latest_grade ? (
-                                    <Badge variant="outline">
-                                        {gradeLabel(
+                                    <HoverBadge
+                                        label={gradeLabel(
                                             entrepreneur.latest_plan
                                                 .latest_grade,
                                         )}
-                                    </Badge>
+                                        variant="outline"
+                                        title="Latest grade"
+                                        rows={[
+                                            {
+                                                label: 'Round',
+                                                value:
+                                                    entrepreneur.latest_plan
+                                                        .latest_round ?? '-',
+                                            },
+                                            {
+                                                label: 'Score',
+                                                value: latestAssessment
+                                                    ? `${latestAssessment.weighted_score.toFixed(1)}/100`
+                                                    : '-',
+                                            },
+                                        ]}
+                                    />
+                                ) : null}
+                                {latestAssessment ? (
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href={latestAssessment.url}>
+                                            <ArrowUpRight
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            View assessment
+                                        </Link>
+                                    </Button>
                                 ) : null}
                             </div>
                         </div>
 
                         <div className="grid gap-4 md:grid-cols-3">
-                            <Metric
+                            <ActionMetric
                                 label="Assessments"
                                 value={String(
                                     entrepreneur.latest_plan.assessment_count,
                                 )}
+                                href={latestAssessment?.url}
+                                drillLabel="Open latest"
+                                hoverTitle="Assessment count"
+                                rows={[
+                                    {
+                                        label: 'Total rounds',
+                                        value: entrepreneur.latest_plan
+                                            .assessment_count,
+                                    },
+                                    {
+                                        label: 'Latest round',
+                                        value:
+                                            entrepreneur.latest_plan
+                                                .latest_round ?? '-',
+                                    },
+                                ]}
+                                footer="Each round captures scored criteria and advisor notes for the plan."
                             />
-                            <Metric
+                            <ActionMetric
                                 label="Latest round"
                                 value={
                                     entrepreneur.latest_plan.latest_round
@@ -130,14 +649,53 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                           )
                                         : '-'
                                 }
+                                href={latestAssessment?.url}
+                                drillLabel="View round"
+                                hoverTitle="Latest assessment round"
+                                rows={[
+                                    {
+                                        label: 'Status',
+                                        value: latestAssessment
+                                            ? gradeLabel(
+                                                  latestAssessment.status,
+                                              )
+                                            : '-',
+                                    },
+                                    {
+                                        label: 'Completed',
+                                        value: formatDate(
+                                            latestAssessment?.finalised_at ??
+                                                null,
+                                        ),
+                                    },
+                                ]}
                             />
-                            <Metric
+                            <ActionMetric
                                 label="Trajectory"
                                 value={formatDelta(
                                     entrepreneur.latest_plan.latest_revision
                                         ?.trajectory_percent,
                                     '%',
                                 )}
+                                href="#round-progress"
+                                drillLabel="Review movement"
+                                hoverTitle="Trajectory"
+                                rows={[
+                                    {
+                                        label: 'Overall movement',
+                                        value: formatDelta(
+                                            entrepreneur.latest_plan
+                                                .latest_revision?.overall_delta,
+                                        ),
+                                    },
+                                    {
+                                        label: 'Revision round',
+                                        value:
+                                            entrepreneur.latest_plan
+                                                .latest_revision?.round ?? '-',
+                                    },
+                                ]}
+                                footer="Trajectory compares the latest plan revision against the prior scoring baseline."
                             />
                         </div>
 
@@ -163,27 +721,179 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                         ) : null}
                     </section>
                 ) : null}
+
+                <div className="grid gap-6 lg:grid-cols-2">
+                    <section
+                        id="documents"
+                        className="space-y-4 rounded-md border bg-background p-4"
+                    >
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Recent documents
+                                </h2>
+                            </div>
+                            <Badge variant="outline">
+                                {entrepreneur.documents.length}
+                            </Badge>
+                        </div>
+
+                        {entrepreneur.documents.length > 0 ? (
+                            <div className="divide-y rounded-md border">
+                                {entrepreneur.documents.map((document) => (
+                                    <DocumentRow
+                                        key={document.id}
+                                        document={document}
+                                    />
+                                ))}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No evidence documents have been uploaded yet.
+                            </p>
+                        )}
+                    </section>
+
+                    <section className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <MessageSquare
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Messages
+                                </h2>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={entrepreneur.messages.url}>
+                                    <ArrowUpRight
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Open
+                                </Link>
+                            </Button>
+                        </div>
+                        <dl className="grid gap-3 text-sm">
+                            <Detail
+                                label="Threads"
+                                value={String(
+                                    entrepreneur.messages.threads_count,
+                                )}
+                            />
+                            <Detail
+                                label="Unread"
+                                value={String(
+                                    entrepreneur.messages.unread_count,
+                                )}
+                            />
+                            <Detail
+                                label="Latest activity"
+                                value={formatDate(
+                                    entrepreneur.messages.latest_activity_at,
+                                )}
+                            />
+                        </dl>
+                    </section>
+                </div>
             </div>
         </>
     );
 }
 
-function Metric({
+function ActionMetric({
     label,
     value,
     badge = false,
+    href,
+    drillLabel = 'Open',
+    icon,
+    hoverTitle,
+    rows,
+    footer,
 }: {
     label: string;
     value: string;
     badge?: boolean;
+    href?: string;
+    drillLabel?: string;
+    icon?: ReactNode;
+    hoverTitle: string;
+    rows: InsightHoverCardRow[];
+    footer?: ReactNode;
 }) {
-    return (
-        <div className="rounded-md border p-4">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-2 text-sm font-medium">
+    const className = cn(
+        'block min-h-28 rounded-md border bg-background p-4 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+        href ? 'hover:bg-muted/50' : 'cursor-help',
+    );
+    const content = (
+        <>
+            <div className="flex items-start justify-between gap-3">
+                <div className="text-xs text-muted-foreground">{label}</div>
+                {icon ? (
+                    <span className="text-muted-foreground">{icon}</span>
+                ) : null}
+            </div>
+            <div className="mt-3 text-sm font-medium">
                 {badge ? <Badge variant="secondary">{value}</Badge> : value}
             </div>
-        </div>
+            {href ? (
+                <div className="mt-4 inline-flex items-center gap-1 text-xs font-medium text-primary">
+                    {drillLabel}
+                    <ArrowUpRight className="size-3" aria-hidden="true" />
+                </div>
+            ) : null}
+        </>
+    );
+
+    const trigger =
+        href && href.startsWith('#') ? (
+            <a href={href} className={className}>
+                {content}
+            </a>
+        ) : href ? (
+            <Link href={href} className={className}>
+                {content}
+            </Link>
+        ) : (
+            <div className={className}>{content}</div>
+        );
+
+    return (
+        <InsightHoverCard
+            title={hoverTitle}
+            rows={rows}
+            drillHref={href && !href.startsWith('#') ? href : undefined}
+            drillLabel={drillLabel}
+            footer={footer}
+        >
+            {trigger}
+        </InsightHoverCard>
+    );
+}
+
+function HoverBadge({
+    label,
+    title,
+    rows,
+    variant = 'secondary',
+}: {
+    label: string;
+    title: string;
+    rows: InsightHoverCardRow[];
+    variant?: 'default' | 'secondary' | 'destructive' | 'outline';
+}) {
+    return (
+        <InsightHoverCard title={title} rows={rows}>
+            <Badge variant={variant} className="cursor-help">
+                {label}
+            </Badge>
+        </InsightHoverCard>
     );
 }
 
@@ -195,10 +905,68 @@ function Detail({
     value: string | null | undefined;
 }) {
     return (
-        <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3">
+        <div className="grid grid-cols-[140px_minmax(0,1fr)] gap-3">
             <dt className="text-muted-foreground">{label}</dt>
-            <dd>{value || '-'}</dd>
+            <dd className="min-w-0 break-words">{value || '-'}</dd>
         </div>
+    );
+}
+
+function DocumentRow({ document }: { document: EntrepreneurDocument }) {
+    return (
+        <InsightHoverCard
+            title={document.original_filename}
+            rows={[
+                { label: 'Category', value: categoryLabel(document.category) },
+                {
+                    label: 'Scan',
+                    value: scannerLabel(document.scanner_result),
+                    tone:
+                        document.scanner_result === 'clean'
+                            ? 'positive'
+                            : 'muted',
+                },
+                { label: 'Uploaded', value: formatDate(document.uploaded_at) },
+                {
+                    label: 'Uploaded by',
+                    value: document.uploaded_by_name ?? '-',
+                },
+            ]}
+            drillHref={document.url}
+            drillLabel="Open document"
+            footer="Advisor document access opens the stored evidence file when the scan state allows it."
+        >
+            <Link
+                href={document.url}
+                className="grid gap-2 p-3 text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto]"
+            >
+                <div className="min-w-0">
+                    <div className="truncate font-medium">
+                        {document.original_filename}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                        {categoryLabel(document.category)}
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+                    <Badge
+                        variant={
+                            document.scanner_result === 'infected'
+                                ? 'destructive'
+                                : document.scanner_result === 'clean'
+                                  ? 'secondary'
+                                  : 'outline'
+                        }
+                    >
+                        {scannerLabel(document.scanner_result)}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                        {formatDate(document.uploaded_at)}
+                    </span>
+                    <ArrowUpRight className="size-4" aria-hidden="true" />
+                </div>
+            </Link>
+        </InsightHoverCard>
     );
 }
 
@@ -230,6 +998,14 @@ function gradeLabel(value: string): string {
         .join(' ');
 }
 
+function categoryLabel(value: string): string {
+    return gradeLabel(value);
+}
+
+function scannerLabel(value: string): string {
+    return gradeLabel(value);
+}
+
 function ProgressList({
     title,
     rows,
@@ -247,27 +1023,45 @@ function ProgressList({
             {rows.length > 0 ? (
                 <div className="space-y-2">
                     {rows.map((row) => (
-                        <div
+                        <InsightHoverCard
                             key={`${row.criterion_number}-${row.direction}`}
-                            className="flex items-center justify-between gap-3 text-sm"
+                            title={row.criterion_name}
+                            rows={[
+                                {
+                                    label: 'Previous',
+                                    value: row.previous_score ?? '-',
+                                },
+                                { label: 'Current', value: row.current_score },
+                                {
+                                    label: 'Movement',
+                                    value: formatDelta(row.delta),
+                                    tone:
+                                        row.delta >= 0
+                                            ? 'positive'
+                                            : 'negative',
+                                },
+                            ]}
+                            footer="Movement compares this criterion against the previous round."
                         >
-                            <div className="min-w-0">
-                                <div className="truncate font-medium">
-                                    {row.criterion_name}
+                            <div className="flex cursor-help items-center justify-between gap-3 rounded-md border p-3 text-sm">
+                                <div className="min-w-0">
+                                    <div className="truncate font-medium">
+                                        {row.criterion_name}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {row.previous_score ?? '-'} -&gt;{' '}
+                                        {row.current_score}
+                                    </div>
                                 </div>
-                                <div className="text-xs text-muted-foreground">
-                                    {row.previous_score ?? '-'} -&gt;{' '}
-                                    {row.current_score}
-                                </div>
+                                <Badge
+                                    variant={
+                                        row.delta >= 0 ? 'secondary' : 'outline'
+                                    }
+                                >
+                                    {formatDelta(row.delta)}
+                                </Badge>
                             </div>
-                            <Badge
-                                variant={
-                                    row.delta >= 0 ? 'secondary' : 'outline'
-                                }
-                            >
-                                {formatDelta(row.delta)}
-                            </Badge>
-                        </div>
+                        </InsightHoverCard>
                     ))}
                 </div>
             ) : (

@@ -6,6 +6,7 @@ import KnowledgeController from './KnowledgeController'
 import GoalController from './GoalController'
 import ProposalController from './ProposalController'
 import ReportController from './ReportController'
+import StandardAdvisoryController from './StandardAdvisoryController'
 import BusinessHealthController from './BusinessHealthController'
 import MeetingController from './MeetingController'
 import ClientEmailController from './ClientEmailController'
@@ -15,9 +16,14 @@ import TestimonialController from './TestimonialController'
 import VoiceNoteController from './VoiceNoteController'
 import NpoConversionController from './NpoConversionController'
 import NpoConfigurationController from './NpoConfigurationController'
+import NpoGovernanceReviewController from './NpoGovernanceReviewController'
 import PaymentController from './PaymentController'
 import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
+import EntrepreneurMessageController from './EntrepreneurMessageController'
+import EntrepreneurActionController from './EntrepreneurActionController'
+import EntrepreneurAssessmentController from './EntrepreneurAssessmentController'
+import EntrepreneurDocumentController from './EntrepreneurDocumentController'
 import MethodologyController from './MethodologyController'
 import TemplateController from './TemplateController'
 import ProspectInboxController from './ProspectInboxController'
@@ -34,6 +40,7 @@ KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
 ReportController: Object.assign(ReportController, ReportController),
+StandardAdvisoryController: Object.assign(StandardAdvisoryController, StandardAdvisoryController),
 BusinessHealthController: Object.assign(BusinessHealthController, BusinessHealthController),
 MeetingController: Object.assign(MeetingController, MeetingController),
 ClientEmailController: Object.assign(ClientEmailController, ClientEmailController),
@@ -43,9 +50,14 @@ TestimonialController: Object.assign(TestimonialController, TestimonialControlle
 VoiceNoteController: Object.assign(VoiceNoteController, VoiceNoteController),
 NpoConversionController: Object.assign(NpoConversionController, NpoConversionController),
 NpoConfigurationController: Object.assign(NpoConfigurationController, NpoConfigurationController),
+NpoGovernanceReviewController: Object.assign(NpoGovernanceReviewController, NpoGovernanceReviewController),
 PaymentController: Object.assign(PaymentController, PaymentController),
 BriefingController: Object.assign(BriefingController, BriefingController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
+EntrepreneurMessageController: Object.assign(EntrepreneurMessageController, EntrepreneurMessageController),
+EntrepreneurActionController: Object.assign(EntrepreneurActionController, EntrepreneurActionController),
+EntrepreneurAssessmentController: Object.assign(EntrepreneurAssessmentController, EntrepreneurAssessmentController),
+EntrepreneurDocumentController: Object.assign(EntrepreneurDocumentController, EntrepreneurDocumentController),
 MethodologyController: Object.assign(MethodologyController, MethodologyController),
 TemplateController: Object.assign(TemplateController, TemplateController),
 ProspectInboxController: Object.assign(ProspectInboxController, ProspectInboxController),

@@ -1,12 +1,19 @@
-import { Head } from '@inertiajs/react';
+import { Head, Link } from '@inertiajs/react';
 import {
     AlertTriangle,
     CheckCircle2,
     Clock3,
     PlugZap,
+    RotateCw,
     ShieldAlert,
 } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type HealthLevel = 'green' | 'amber' | 'red';
 
@@ -64,12 +71,43 @@ export default function IntegrationHealthIndex({
                             API health
                         </h1>
                     </div>
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
-                        <Metric label="Services" value={summary.total} />
-                        <Metric label="Green" value={summary.green} />
-                        <Metric label="Amber" value={summary.amber} />
-                        <Metric label="Red" value={summary.red} />
-                        <Metric label="Stale" value={summary.stale} />
+                    <div className="flex flex-col gap-3 sm:items-end">
+                        <Button asChild size="sm" variant="outline">
+                            <Link href="/admin/integration-health">
+                                <RotateCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Refresh
+                            </Link>
+                        </Button>
+                        <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                            <Metric
+                                label="Services"
+                                value={summary.total}
+                                explanation="Total integrations represented by the latest rollup."
+                            />
+                            <Metric
+                                label="Green"
+                                value={summary.green}
+                                explanation="Services meeting success, latency, and freshness thresholds."
+                            />
+                            <Metric
+                                label="Amber"
+                                value={summary.amber}
+                                explanation="Services with degraded signals that need watching."
+                            />
+                            <Metric
+                                label="Red"
+                                value={summary.red}
+                                explanation="Services currently breaching health thresholds."
+                            />
+                            <Metric
+                                label="Stale"
+                                value={summary.stale}
+                                explanation="Services whose latest sample is older than the freshness threshold."
+                            />
+                        </div>
                     </div>
                 </header>
 
@@ -212,12 +250,27 @@ export default function IntegrationHealthIndex({
     );
 }
 
-function Metric({ label, value }: { label: string; value: number }) {
+function Metric({
+    label,
+    value,
+    explanation,
+}: {
+    label: string;
+    value: number;
+    explanation: string;
+}) {
     return (
-        <div className="rounded-md border bg-background px-4 py-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-1 text-lg font-semibold">{value}</div>
-        </div>
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <div className="rounded-md border bg-background px-4 py-3">
+                    <div className="text-xs text-muted-foreground">{label}</div>
+                    <div className="mt-1 text-lg font-semibold">{value}</div>
+                </div>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

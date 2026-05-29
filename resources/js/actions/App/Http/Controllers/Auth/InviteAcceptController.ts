@@ -98,7 +98,7 @@ show.head = (args: { token: string | number } | [token: string | number ] | stri
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
- * @see app/Http/Controllers/Auth/InviteAcceptController.php:40
+ * @see app/Http/Controllers/Auth/InviteAcceptController.php:60
  * @route '/invite/{token}'
  */
 export const store = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
- * @see app/Http/Controllers/Auth/InviteAcceptController.php:40
+ * @see app/Http/Controllers/Auth/InviteAcceptController.php:60
  * @route '/invite/{token}'
  */
 store.url = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -141,7 +141,7 @@ store.url = (args: { token: string | number } | [token: string | number ] | stri
 
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
- * @see app/Http/Controllers/Auth/InviteAcceptController.php:40
+ * @see app/Http/Controllers/Auth/InviteAcceptController.php:60
  * @route '/invite/{token}'
  */
 store.post = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -151,7 +151,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
 
     /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
- * @see app/Http/Controllers/Auth/InviteAcceptController.php:40
+ * @see app/Http/Controllers/Auth/InviteAcceptController.php:60
  * @route '/invite/{token}'
  */
     const storeForm = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -161,7 +161,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
 
             /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
- * @see app/Http/Controllers/Auth/InviteAcceptController.php:40
+ * @see app/Http/Controllers/Auth/InviteAcceptController.php:60
  * @route '/invite/{token}'
  */
         storeForm.post = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -21,6 +21,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     user_id: number | null;
     invite_accepted_at: string | null;
     created_at: string | null;
+    documents: EntrepreneurDocument[];
+    messages: EntrepreneurMessageSummary;
     latest_plan: {
         id: string;
         title: string;
@@ -28,6 +30,17 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         assessment_count: number;
         latest_round: number | null;
         latest_grade: string | null;
+        latest_assessment: {
+            id: string;
+            round: number;
+            status: string;
+            overall_grade: string;
+            weighted_score: number;
+            finalised_at: string | null;
+            url: string;
+            finalise_url: string;
+        } | null;
+        assess_url: string;
         latest_revision: {
             id: string;
             round: number;
@@ -38,6 +51,55 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             remaining_gaps: CriterionDelta[];
         } | null;
     } | null;
+    readiness: {
+        completed: boolean;
+        score: number | null;
+        outcome: string | null;
+        assessed_at: string | null;
+    };
+    idea_validation: {
+        id: string;
+        summary: string;
+        viability_alerts: { message?: string; severity?: string }[];
+        evaluated_at: string | null;
+        advisor_gate_passed_at: string | null;
+        advisor_gate_note: string | null;
+        gate_url: string;
+    } | null;
+    advisory_readiness: {
+        id: string;
+        score: number;
+        surfaced_at: string | null;
+    } | null;
+    reports: {
+        id: string;
+        title: string;
+        generated_at: string | null;
+        download_url: string;
+    }[];
+    conversion: {
+        available: boolean;
+        converted: boolean;
+        client_id: string | null;
+        convert_url: string;
+    };
+};
+
+export type EntrepreneurDocument = {
+    id: string;
+    original_filename: string;
+    category: string;
+    scanner_result: string;
+    uploaded_at: string | null;
+    uploaded_by_name: string | null;
+    url: string;
+};
+
+export type EntrepreneurMessageSummary = {
+    threads_count: number;
+    unread_count: number;
+    latest_activity_at: string | null;
+    url: string;
 };
 
 export type CriterionDelta = {

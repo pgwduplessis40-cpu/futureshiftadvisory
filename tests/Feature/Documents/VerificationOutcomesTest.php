@@ -60,7 +60,7 @@ final class VerificationOutcomesTest extends TestCase
         $response = $this->actingAsMfa($clientUser)
             ->withHeader('Accept', 'application/json')
             ->post(route('portal.documents.store'), [
-                'file' => UploadedFile::fake()->createWithContent('cash-position.txt', 'Cash balance is 100.'),
+                'file' => UploadedFile::fake()->createWithContent('cash-position.pdf', "%PDF-1.4\nCash balance is 100."),
                 'category' => Document::CATEGORY_FINANCIAL_STATEMENT,
                 'question_id' => $question->id,
                 'question_prompt' => $question->prompt,
@@ -90,7 +90,7 @@ final class VerificationOutcomesTest extends TestCase
                     'documentVerificationFlags.0.outcome',
                     DocumentVerification::OUTCOME_ACCURACY_DISCREPANCY,
                 )
-                ->where('documentVerificationFlags.0.document_name', 'cash-position.txt'));
+                ->where('documentVerificationFlags.0.document_name', 'cash-position.pdf'));
     }
 
     /**

@@ -144,7 +144,7 @@ final class ClientMessageController extends Controller
             'subject' => [$requireSubject ? 'required' : 'nullable', 'string', 'max:160'],
             'body' => ['required', 'string', 'max:6000'],
             'attachments' => ['nullable', 'array', 'max:5'],
-            'attachments.*' => ['file', 'max:20480'],
+            'attachments.*' => ['file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx'],
         ]);
     }
 

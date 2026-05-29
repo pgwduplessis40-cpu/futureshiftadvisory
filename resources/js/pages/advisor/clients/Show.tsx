@@ -31,7 +31,8 @@ import {
     Unplug,
     Upload,
 } from 'lucide-react';
-import type { FormEvent, ReactNode } from 'react';
+import { useState } from 'react';
+import type { ComponentType, FormEvent, MouseEvent, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
@@ -50,7 +51,13 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
+import { cn } from '@/lib/utils';
 import type { ClientSummary } from './types';
 
 type ClientDetail = ClientSummary & {
@@ -83,8 +90,10 @@ type ClientDetail = ClientSummary & {
     payments: PaymentSummary[];
     created_at: string | null;
     analysis_findings: AnalysisFindingFeedback[];
+    standard_advisory: StandardAdvisorySummary | null;
     due_diligence: DueDiligenceSummary | null;
     npo_conversion: NpoConversionSummary | null;
+    npo_governance_review: NpoGovernanceReviewSummary | null;
     npo_configuration: NpoConfigurationSummary | null;
     npo_health: NpoHealthPayload | null;
     npo_funding: NpoFundingSummary | null;
@@ -105,6 +114,33 @@ type ConflictDeclaration = {
 type Props = {
     client: ClientDetail;
     conflictDeclaration: ConflictDeclaration;
+};
+
+type ClientDetailTab = 'actions' | 'information';
+
+const clientSectionTabs: Record<string, ClientDetailTab> = {
+    'section-analysis': 'actions',
+    'section-due-diligence': 'actions',
+    'section-goals': 'actions',
+    'section-lifecycle': 'actions',
+    'section-npo-configuration': 'actions',
+    'section-npo-conversion': 'actions',
+    'section-npo-governance-review': 'actions',
+    'section-overview': 'actions',
+    'section-payments': 'actions',
+    'section-proposals': 'actions',
+    'section-standard-advisory': 'actions',
+    'section-accounting': 'information',
+    'section-engagement': 'information',
+    'section-knowledge': 'information',
+    'section-meetings': 'information',
+    'section-npo-funding': 'information',
+    'section-npo-health': 'information',
+    'section-npo-social-enterprise': 'information',
+    'section-npo-value': 'information',
+    'section-registry': 'information',
+    'section-reports': 'information',
+    'section-wellbeing': 'information',
 };
 
 type WellbeingPoint = {
@@ -252,6 +288,30 @@ type NpoConversionSummary = {
     report_delivered_url: string;
     decline_url: string;
     convert_url: string;
+};
+
+type NpoGovernanceFinding = {
+    id: string;
+    finding_key: string;
+    category: string;
+    severity: string;
+    title: string;
+    body: string;
+    status: string;
+    advisor_notes: string | null;
+    review_url: string;
+    reviewed_at: string | null;
+};
+
+type NpoGovernanceReviewSummary = {
+    id: string;
+    run_url: string;
+    findings_count: number;
+    pending_review_count: number;
+    reviewed_count: number;
+    high_priority_count: number;
+    can_generate_report: boolean;
+    findings: NpoGovernanceFinding[];
 };
 
 type NpoOption = {
@@ -456,6 +516,9 @@ type ReportSummary = {
     reviewed_at: string | null;
     review_url: string;
     can_review: boolean;
+    section_count: number;
+    revision_count: number;
+    comment_count: number;
 };
 
 type MeetingSummary = {
@@ -586,8 +649,65 @@ type MeetingForm = {
     attendees: string;
 };
 
+type StandardAdvisoryReportSummary = {
+    id: string;
+    type: string;
+    type_label: string;
+    title: string;
+    generated_at: string | null;
+    review_status: string;
+    reviewed_at: string | null;
+    download_url: string | null;
+    review_url: string;
+} | null;
+
+type StandardAdvisorySummary = {
+    questionnaire_submitted: boolean;
+    questionnaire_submitted_at: string | null;
+    answered_questions: number;
+    total_questions: number;
+    document_count: number;
+    verified_document_count: number;
+    blocking_verification_count: number;
+    data_quality: {
+        level: string;
+        score: number;
+        summary: DataQualitySummary;
+    };
+    analysis_modules: Array<{
+        module: string;
+        label: string;
+        status: string;
+        completed: boolean;
+        completed_at: string | null;
+    }>;
+    analysis_completed: number;
+    analysis_total: number;
+    health_recomputed_at: string | null;
+    valuation_ready: boolean;
+    valuation_as_at: string | null;
+    reports: {
+        client: StandardAdvisoryReportSummary;
+        advisor: StandardAdvisoryReportSummary;
+        stakeholder: StandardAdvisoryReportSummary;
+        trajectory: StandardAdvisoryReportSummary;
+    };
+    latest_report_generated_at: string | null;
+    missing: string[];
+    can_run_analysis: boolean;
+    can_generate_pack: boolean;
+    status: string;
+    status_label: string;
+    next_action: string;
+    run_analysis_url: string;
+    generate_pack_url: string;
+};
+
 export default function ClientsShow({ client, conflictDeclaration }: Props) {
     useDrillFocus();
+    const [activeTab, setActiveTab] = useState<ClientDetailTab>(() =>
+        initialClientDetailTab(),
+    );
 
     const lifecycleForm = useForm<LifecycleForm>({
         status: client.status,
@@ -617,6 +737,30 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         );
     };
 
+    const runStandardAdvisoryAnalysis = () => {
+        if (!client.standard_advisory?.can_run_analysis) {
+            return;
+        }
+
+        router.post(
+            client.standard_advisory.run_analysis_url,
+            {},
+            { preserveScroll: true },
+        );
+    };
+
+    const generateStandardAdvisoryPack = () => {
+        if (!client.standard_advisory?.can_generate_pack) {
+            return;
+        }
+
+        router.post(
+            client.standard_advisory.generate_pack_url,
+            {},
+            { preserveScroll: true },
+        );
+    };
+
     const createKnowledgeDraft = () => {
         if (!client.offboarding) {
             return;
@@ -629,12 +773,55 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         );
     };
 
+    const jumpToSection = (sectionId: string, event?: MouseEvent<Element>) => {
+        event?.preventDefault();
+        setActiveTab(clientSectionTabs[sectionId] ?? 'actions');
+
+        window.setTimeout(() => {
+            const section = document.getElementById(sectionId);
+
+            if (!section) {
+                return;
+            }
+
+            if (!section.hasAttribute('tabindex')) {
+                section.setAttribute('tabindex', '-1');
+            }
+
+            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            section.focus({ preventScroll: true });
+            window.history.replaceState(null, '', `#${sectionId}`);
+        }, 0);
+    };
+
+    const failedPaymentCount = client.payments.filter(
+        (payment) => payment.status === 'failed',
+    ).length;
+    const draftProposalCount = client.proposals.filter((proposal) =>
+        ['draft', 'generated'].includes(proposal.status),
+    ).length;
+    const npoConfigurationSummary = client.npo_configuration
+        ? [
+              client.npo_configuration.legal_structure_label,
+              client.npo_configuration.tiriti_mode_label,
+          ]
+              .filter(Boolean)
+              .join(' / ')
+        : 'Not configured';
+    const standardAdvisoryReportStatus =
+        client.standard_advisory?.reports.client?.review_status === 'reviewed'
+            ? 'Released'
+            : client.standard_advisory?.reports.client?.review_status ===
+                'pending_review'
+              ? 'Awaiting release'
+              : client.standard_advisory?.status_label;
+
     return (
         <>
             <Head title={client.legal_name} />
 
             <div className="space-y-6">
-                <div className="flex items-center justify-between gap-4">
+                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
                             {client.legal_name}
@@ -694,276 +881,537 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                     </div>
                 </div>
 
-                <div
-                    id="section-overview"
-                    className="grid gap-4 md:grid-cols-3"
-                >
-                    <Metric label="NZBN" value={client.nzbn ?? '-'} />
-                    <Metric label="Lifecycle">
-                        <Badge variant={statusVariant(client.status)}>
-                            {client.status_label}
-                        </Badge>
-                    </Metric>
-                    <Metric label="Data quality">
-                        <div id="section-questionnaire">
-                            <div id="section-documents">
-                                <DataQualityBadge
-                                    summary={client.data_quality_summary}
-                                />
-                            </div>
-                        </div>
-                    </Metric>
-                </div>
+                <ClientDetailTabList
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                />
 
-                <div className="grid gap-6 lg:grid-cols-2">
-                    <section className="space-y-4 rounded-md border p-4">
-                        <h2 className="text-sm font-medium">Registry</h2>
-                        <dl className="grid gap-3 text-sm">
-                            <Detail label="Entity" value={client.entity_type} />
-                            <Detail
-                                label="Filing"
-                                value={client.filing_status}
-                            />
-                            <Detail
-                                label="Trading"
-                                value={client.trading_name}
-                            />
-                        </dl>
-                        <div className="flex flex-wrap gap-2">
-                            {Object.entries(client.registry_sources).map(
-                                ([service, badge]) => (
-                                    <Badge key={service} variant="secondary">
-                                        {service}: {badge}
-                                    </Badge>
-                                ),
-                            )}
-                        </div>
-                    </section>
-
-                    <section className="space-y-4 rounded-md border p-4">
-                        <div className="flex items-center gap-2">
-                            <h2 className="text-sm font-medium">Engagement</h2>
-                            {client.engagement_type_locked && (
-                                <Badge variant="outline">
-                                    <LockKeyhole
-                                        className="size-3"
-                                        aria-hidden="true"
-                                    />
-                                    locked
-                                </Badge>
-                            )}
-                        </div>
-                        <dl className="grid gap-3 text-sm">
-                            <Detail
-                                label="Type"
-                                value={client.engagement_type_label}
-                            />
-                            <Detail
-                                label="Status"
-                                value={client.status_label}
-                            />
-                            <Detail
-                                label="Conflict"
-                                value={
-                                    conflictDeclaration ? 'declared' : 'missing'
-                                }
-                            />
-                            <Detail
-                                label="Offboarding"
-                                value={
-                                    client.offboarding
-                                        ? formatDate(
-                                              client.offboarding.triggered_at,
-                                          )
-                                        : 'not started'
-                                }
-                            />
-                            <Detail
-                                label="Relationship"
-                                value={
-                                    conflictDeclaration?.declaration
-                                        .existing_relationship
-                                        ? 'yes'
-                                        : 'no'
-                                }
-                            />
-                        </dl>
-                        {client.offboarding && (
-                            <div className="flex justify-end">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={createKnowledgeDraft}
-                                >
-                                    <Brain
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Draft insight
-                                </Button>
-                            </div>
-                        )}
-                    </section>
-                </div>
-
-                {client.due_diligence && (
-                    <DueDiligenceTargetPanel payload={client.due_diligence} />
-                )}
-
-                {client.npo_conversion && (
-                    <NpoConversionPanel conversion={client.npo_conversion} />
-                )}
-
-                {client.npo_configuration && (
-                    <NpoConfigurationPanel
-                        configuration={client.npo_configuration}
-                    />
-                )}
-
-                {client.npo_health && (
-                    <NpoHealthPanel payload={client.npo_health} />
-                )}
-
-                {client.npo_funding && (
-                    <NpoFundingPanel funding={client.npo_funding} />
-                )}
-
-                {client.npo_values && (
-                    <NpoValuePanel values={client.npo_values} />
-                )}
-
-                {client.npo_social_enterprise && (
-                    <NpoSocialEnterprisePanel
-                        summary={client.npo_social_enterprise}
-                    />
-                )}
-
-                <KnowledgeAssessmentPanel client={client} />
-
-                <GoalsPanel client={client} />
-
-                <AccountingConnectionsPanel client={client} />
-
-                <PaymentsPanel client={client} />
-
-                <ProposalsPanel client={client} />
-
-                <ReportsPanel client={client} />
-
-                <MeetingsBriefingsPanel client={client} />
-
-                <section className="space-y-4 rounded-md border p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <RotateCcw className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">Lifecycle</h2>
-                            <Badge variant={statusVariant(client.status)}>
-                                {client.status_label}
-                            </Badge>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                            Portal access is revoked while suspended.
-                        </div>
-                    </div>
-                    <div className="grid gap-2">
-                        <Label htmlFor="lifecycle_reason">Reason</Label>
-                        <textarea
-                            id="lifecycle_reason"
-                            value={lifecycleForm.data.reason}
-                            onChange={(event) =>
-                                lifecycleForm.setData(
-                                    'reason',
-                                    event.target.value,
-                                )
-                            }
-                            rows={3}
-                            className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                        />
-                        <InputError message={lifecycleForm.errors.reason} />
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                        {lifecycleActions(client.status).map((action) => {
-                            const Icon = lifecycleIcon(action.status);
-
-                            return (
-                                <Button
-                                    key={action.status}
-                                    type="button"
-                                    variant={
-                                        action.status === 'suspended'
-                                            ? 'destructive'
-                                            : 'outline'
-                                    }
-                                    disabled={lifecycleForm.processing}
-                                    onClick={() =>
-                                        submitLifecycle(action.status)
-                                    }
-                                >
-                                    <Icon
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {action.label}
-                                </Button>
-                            );
-                        })}
-                    </div>
-                    <InputError message={lifecycleForm.errors.status} />
-                </section>
-
-                <section
-                    id="section-analysis"
-                    className="space-y-4 rounded-md border p-4"
-                >
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div className="flex items-center gap-2">
-                            <MessageSquarePlus
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            <h2 className="text-sm font-medium">
-                                Analysis findings
-                            </h2>
-                        </div>
-                        <Badge variant="outline">
-                            {client.analysis_findings.length}
-                        </Badge>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={recomputeHealthRadar}
+                {activeTab === 'actions' ? (
+                    <>
+                        <ClientDetailSection
+                            title="Priority actions"
+                            description="Start with communication, lifecycle, client work, and commercial actions."
                         >
-                            <RotateCcw className="size-4" aria-hidden="true" />
-                            Recompute health
-                        </Button>
-                    </div>
-
-                    {client.analysis_findings.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">
-                            No analysis findings yet.
-                        </p>
-                    ) : (
-                        <div className="space-y-4">
-                            {client.analysis_findings.map((finding) => (
-                                <FindingFeedbackCard
-                                    key={finding.id}
-                                    finding={finding}
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                                <ActionTile
+                                    icon={MessageSquare}
+                                    title="Messages"
+                                    value="Client thread"
+                                    explanation="Open the secure client message thread and review the latest context."
+                                    href={`/advisor/clients/${client.id}/messages`}
+                                    actionLabel="Open"
                                 />
-                            ))}
-                        </div>
-                    )}
-                </section>
+                                <ActionTile
+                                    icon={Mail}
+                                    title="Email"
+                                    value="Compose update"
+                                    explanation="Send a structured advisory email to the client contact."
+                                    href={`/advisor/clients/${client.id}/compose`}
+                                    actionLabel="Compose"
+                                />
+                                <ActionTile
+                                    icon={RotateCcw}
+                                    title="Lifecycle"
+                                    value={client.status_label}
+                                    explanation="Change lifecycle state, pause access, suspend access, or restore the client."
+                                    href="#section-lifecycle"
+                                    actionLabel="Manage"
+                                    onAction={(event) =>
+                                        jumpToSection(
+                                            'section-lifecycle',
+                                            event,
+                                        )
+                                    }
+                                />
+                                {client.standard_advisory && (
+                                    <ActionTile
+                                        icon={ListChecks}
+                                        title="Standard Advisory"
+                                        value={standardAdvisoryReportStatus}
+                                        explanation="Tracks questionnaire, evidence, analysis, advisory pack generation, and client report release."
+                                        href="#section-standard-advisory"
+                                        actionLabel="Review"
+                                        onAction={(event) =>
+                                            jumpToSection(
+                                                'section-standard-advisory',
+                                                event,
+                                            )
+                                        }
+                                    />
+                                )}
+                                {client.is_npo && (
+                                    <ActionTile
+                                        icon={SlidersHorizontal}
+                                        title="NPO configuration"
+                                        value={npoConfigurationSummary}
+                                        explanation="Review or update NPO classification, Te Tiriti mode, and social-enterprise weighting."
+                                        href={
+                                            client.npo_configuration
+                                                ? '#section-npo-configuration'
+                                                : '#section-overview'
+                                        }
+                                        actionLabel={
+                                            client.npo_configuration
+                                                ? 'Configure'
+                                                : 'Review'
+                                        }
+                                        onAction={(event) =>
+                                            jumpToSection(
+                                                client.npo_configuration
+                                                    ? 'section-npo-configuration'
+                                                    : 'section-overview',
+                                                event,
+                                            )
+                                        }
+                                    />
+                                )}
+                                <ActionTile
+                                    icon={Target}
+                                    title="Goals"
+                                    value={`${client.goals.active_goals} active`}
+                                    explanation="Record goals, milestones, actions, and proof for realised platform value."
+                                    href="#section-goals"
+                                    actionLabel="Open"
+                                    onAction={(event) =>
+                                        jumpToSection('section-goals', event)
+                                    }
+                                />
+                                <ActionTile
+                                    icon={CreditCard}
+                                    title="Payments"
+                                    value={
+                                        failedPaymentCount > 0
+                                            ? `${failedPaymentCount} failed`
+                                            : `${client.payments.length} records`
+                                    }
+                                    explanation="Review payment outcomes and retry failed payments where available."
+                                    href="#section-payments"
+                                    actionLabel="Review"
+                                    onAction={(event) =>
+                                        jumpToSection('section-payments', event)
+                                    }
+                                />
+                                <ActionTile
+                                    icon={FileText}
+                                    title="Proposals"
+                                    value={
+                                        draftProposalCount > 0
+                                            ? `${draftProposalCount} draft`
+                                            : `${client.proposals.length} total`
+                                    }
+                                    explanation="Create, release, recall, or renew advisory proposals for this client."
+                                    href="#section-proposals"
+                                    actionLabel="Review"
+                                    onAction={(event) =>
+                                        jumpToSection(
+                                            'section-proposals',
+                                            event,
+                                        )
+                                    }
+                                />
+                                <ActionTile
+                                    icon={MessageSquarePlus}
+                                    title="Analysis"
+                                    value={`${client.analysis_findings.length} findings`}
+                                    explanation="Review analysis findings, add feedback, and recompute client health."
+                                    href="#section-analysis"
+                                    actionLabel="Review"
+                                    onAction={(event) =>
+                                        jumpToSection('section-analysis', event)
+                                    }
+                                />
+                            </div>
+                        </ClientDetailSection>
 
-                {client.wellbeing_trend && (
-                    <section className="space-y-4 rounded-md border p-4">
-                        <div className="flex items-center gap-2">
-                            <HeartPulse className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">Wellbeing</h2>
-                        </div>
-                        <WellbeingTrend points={client.wellbeing_trend} />
-                    </section>
+                        <ClientDetailSection
+                            title="Client status"
+                            description="Keep the top-level status signals visible before opening detailed workflow panels."
+                        >
+                            <div
+                                id="section-overview"
+                                className="grid gap-4 md:grid-cols-3"
+                            >
+                                <Metric
+                                    label="NZBN"
+                                    value={client.nzbn ?? '-'}
+                                />
+                                <Metric label="Lifecycle">
+                                    <Badge
+                                        variant={statusVariant(client.status)}
+                                    >
+                                        {client.status_label}
+                                    </Badge>
+                                </Metric>
+                                <Metric label="Data quality">
+                                    <div id="section-questionnaire">
+                                        <div id="section-documents">
+                                            <DataQualityBadge
+                                                summary={
+                                                    client.data_quality_summary
+                                                }
+                                            />
+                                        </div>
+                                    </div>
+                                </Metric>
+                            </div>
+                        </ClientDetailSection>
+
+                        <ClientDetailSection
+                            title="Action panels"
+                            description="Editable work areas and operational decisions sit here; use the Information tab for supporting context."
+                        >
+                            {client.standard_advisory && (
+                                <StandardAdvisoryPanel
+                                    summary={client.standard_advisory}
+                                    onRunAnalysis={runStandardAdvisoryAnalysis}
+                                    onGeneratePack={
+                                        generateStandardAdvisoryPack
+                                    }
+                                />
+                            )}
+
+                            {client.due_diligence && (
+                                <DueDiligenceTargetPanel
+                                    payload={client.due_diligence}
+                                />
+                            )}
+
+                            {client.npo_conversion && (
+                                <NpoConversionPanel
+                                    conversion={client.npo_conversion}
+                                />
+                            )}
+
+                            {client.npo_governance_review && (
+                                <NpoGovernanceReviewPanel
+                                    summary={client.npo_governance_review}
+                                />
+                            )}
+
+                            {client.npo_configuration && (
+                                <NpoConfigurationPanel
+                                    configuration={client.npo_configuration}
+                                />
+                            )}
+
+                            <GoalsPanel client={client} />
+
+                            <PaymentsPanel client={client} />
+
+                            <ProposalsPanel client={client} />
+
+                            <section
+                                id="section-lifecycle"
+                                className="space-y-4 rounded-md border p-4"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <RotateCcw
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2 className="text-sm font-medium">
+                                            Lifecycle
+                                        </h2>
+                                        <Badge
+                                            variant={statusVariant(
+                                                client.status,
+                                            )}
+                                        >
+                                            {client.status_label}
+                                        </Badge>
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Portal access is revoked while
+                                        suspended.
+                                    </div>
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="lifecycle_reason">
+                                        Reason
+                                    </Label>
+                                    <textarea
+                                        id="lifecycle_reason"
+                                        value={lifecycleForm.data.reason}
+                                        onChange={(event) =>
+                                            lifecycleForm.setData(
+                                                'reason',
+                                                event.target.value,
+                                            )
+                                        }
+                                        rows={3}
+                                        className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    />
+                                    <InputError
+                                        message={lifecycleForm.errors.reason}
+                                    />
+                                </div>
+                                <div className="flex flex-wrap gap-2">
+                                    {lifecycleActions(client.status).map(
+                                        (action) => {
+                                            const Icon = lifecycleIcon(
+                                                action.status,
+                                            );
+
+                                            return (
+                                                <Button
+                                                    key={action.status}
+                                                    type="button"
+                                                    variant={
+                                                        action.status ===
+                                                        'suspended'
+                                                            ? 'destructive'
+                                                            : 'outline'
+                                                    }
+                                                    disabled={
+                                                        lifecycleForm.processing
+                                                    }
+                                                    onClick={() =>
+                                                        submitLifecycle(
+                                                            action.status,
+                                                        )
+                                                    }
+                                                >
+                                                    <Icon
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    {action.label}
+                                                </Button>
+                                            );
+                                        },
+                                    )}
+                                </div>
+                                <InputError
+                                    message={lifecycleForm.errors.status}
+                                />
+                            </section>
+
+                            <section
+                                id="section-analysis"
+                                className="space-y-4 rounded-md border p-4"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <MessageSquarePlus
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2 className="text-sm font-medium">
+                                            Analysis findings
+                                        </h2>
+                                    </div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline">
+                                            {client.analysis_findings.length}
+                                        </Badge>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={recomputeHealthRadar}
+                                        >
+                                            <RotateCcw
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Recompute health
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                {client.analysis_findings.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No analysis findings yet.
+                                    </p>
+                                ) : (
+                                    <div className="space-y-4">
+                                        {client.analysis_findings.map(
+                                            (finding) => (
+                                                <FindingFeedbackCard
+                                                    key={finding.id}
+                                                    finding={finding}
+                                                />
+                                            ),
+                                        )}
+                                    </div>
+                                )}
+                            </section>
+                        </ClientDetailSection>
+                    </>
+                ) : (
+                    <>
+                        <ClientDetailSection
+                            title="Client information"
+                            description="Registry and engagement context used to interpret the active work."
+                        >
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                <section
+                                    id="section-registry"
+                                    className="space-y-4 rounded-md border p-4"
+                                >
+                                    <h2 className="text-sm font-medium">
+                                        Registry
+                                    </h2>
+                                    <dl className="grid gap-3 text-sm">
+                                        <Detail
+                                            label="Entity"
+                                            value={client.entity_type}
+                                        />
+                                        <Detail
+                                            label="Filing"
+                                            value={client.filing_status}
+                                        />
+                                        <Detail
+                                            label="Trading"
+                                            value={client.trading_name}
+                                        />
+                                    </dl>
+                                    <div className="flex flex-wrap gap-2">
+                                        {Object.entries(
+                                            client.registry_sources,
+                                        ).map(([service, badge]) => (
+                                            <Badge
+                                                key={service}
+                                                variant="secondary"
+                                            >
+                                                {service}: {badge}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                </section>
+
+                                <section
+                                    id="section-engagement"
+                                    className="space-y-4 rounded-md border p-4"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <h2 className="text-sm font-medium">
+                                            Engagement
+                                        </h2>
+                                        {client.engagement_type_locked && (
+                                            <Badge variant="outline">
+                                                <LockKeyhole
+                                                    className="size-3"
+                                                    aria-hidden="true"
+                                                />
+                                                locked
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <dl className="grid gap-3 text-sm">
+                                        <Detail
+                                            label="Type"
+                                            value={client.engagement_type_label}
+                                        />
+                                        <Detail
+                                            label="Status"
+                                            value={client.status_label}
+                                        />
+                                        <Detail
+                                            label="Conflict"
+                                            value={
+                                                conflictDeclaration
+                                                    ? 'declared'
+                                                    : 'missing'
+                                            }
+                                        />
+                                        <Detail
+                                            label="Offboarding"
+                                            value={
+                                                client.offboarding
+                                                    ? formatDate(
+                                                          client.offboarding
+                                                              .triggered_at,
+                                                      )
+                                                    : 'not started'
+                                            }
+                                        />
+                                        <Detail
+                                            label="Relationship"
+                                            value={
+                                                conflictDeclaration?.declaration
+                                                    .existing_relationship
+                                                    ? 'yes'
+                                                    : 'no'
+                                            }
+                                        />
+                                    </dl>
+                                    {client.offboarding && (
+                                        <div className="flex justify-end">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={createKnowledgeDraft}
+                                            >
+                                                <Brain
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Draft insight
+                                            </Button>
+                                        </div>
+                                    )}
+                                </section>
+                            </div>
+                        </ClientDetailSection>
+
+                        <ClientDetailSection
+                            title="Decision context"
+                            description="Review health, funding, value, reports, and operating history after action work is clear."
+                        >
+                            {client.npo_health && (
+                                <div id="section-npo-health">
+                                    <NpoHealthPanel
+                                        payload={client.npo_health}
+                                    />
+                                </div>
+                            )}
+
+                            {client.npo_funding && (
+                                <NpoFundingPanel funding={client.npo_funding} />
+                            )}
+
+                            {client.npo_values && (
+                                <NpoValuePanel values={client.npo_values} />
+                            )}
+
+                            {client.npo_social_enterprise && (
+                                <NpoSocialEnterprisePanel
+                                    summary={client.npo_social_enterprise}
+                                />
+                            )}
+
+                            <KnowledgeAssessmentPanel client={client} />
+
+                            <AccountingConnectionsPanel client={client} />
+
+                            <ReportsPanel client={client} />
+
+                            <MeetingsBriefingsPanel client={client} />
+
+                            {client.wellbeing_trend && (
+                                <section
+                                    id="section-wellbeing"
+                                    className="space-y-4 rounded-md border p-4"
+                                >
+                                    <div className="flex items-center gap-2">
+                                        <HeartPulse
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2 className="text-sm font-medium">
+                                            Wellbeing
+                                        </h2>
+                                    </div>
+                                    <WellbeingTrend
+                                        points={client.wellbeing_trend}
+                                    />
+                                </section>
+                            )}
+                        </ClientDetailSection>
+                    </>
                 )}
             </div>
         </>
@@ -1443,7 +1891,10 @@ function NpoConversionPanel({
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-npo-conversion"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <CalendarClock className="size-4" aria-hidden="true" />
@@ -1562,6 +2013,138 @@ function NpoConversionPanel({
     );
 }
 
+function NpoGovernanceReviewPanel({
+    summary,
+}: {
+    summary: NpoGovernanceReviewSummary;
+}) {
+    const runForm = useForm<Record<string, never>>({});
+
+    return (
+        <section
+            id="section-npo-governance-review"
+            className="space-y-4 rounded-md border p-4"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <FileCheck2 className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Governance Review workflow
+                    </h2>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <Badge variant="secondary">
+                                {summary.pending_review_count} pending
+                            </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                            Advisor review is required before governance
+                            findings can be used in a client-facing report.
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={runForm.processing}
+                    onClick={() =>
+                        runForm.post(summary.run_url, { preserveScroll: true })
+                    }
+                >
+                    <Brain className="size-4" aria-hidden="true" />
+                    Run analysis
+                </Button>
+            </div>
+
+            <dl className="grid gap-3 text-sm sm:grid-cols-4">
+                <Detail
+                    label="Findings"
+                    value={summary.findings_count.toString()}
+                />
+                <Detail
+                    label="High priority"
+                    value={summary.high_priority_count.toString()}
+                />
+                <Detail
+                    label="Reviewed"
+                    value={summary.reviewed_count.toString()}
+                />
+                <Detail
+                    label="Report ready"
+                    value={summary.can_generate_report ? 'Yes' : 'No'}
+                />
+            </dl>
+
+            {summary.findings.length === 0 ? (
+                <p className="rounded-md border px-3 py-6 text-sm text-muted-foreground">
+                    No governance findings generated yet.
+                </p>
+            ) : (
+                <div className="grid gap-3">
+                    {summary.findings.map((finding) => (
+                        <NpoGovernanceFindingCard
+                            key={finding.id}
+                            finding={finding}
+                        />
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function NpoGovernanceFindingCard({
+    finding,
+}: {
+    finding: NpoGovernanceFinding;
+}) {
+    const form = useForm({ advisor_notes: finding.advisor_notes ?? '' });
+
+    return (
+        <article className="grid gap-3 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_minmax(18rem,0.55fr)]">
+            <div className="space-y-2">
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={severityVariant(finding.severity)}>
+                        {formatLabel(finding.severity)}
+                    </Badge>
+                    <Badge variant="outline">
+                        {formatLabel(finding.status)}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                        {formatLabel(finding.category)}
+                    </span>
+                </div>
+                <h3 className="text-sm font-medium">{finding.title}</h3>
+                <p className="text-sm text-muted-foreground">{finding.body}</p>
+            </div>
+            <div className="grid gap-2">
+                <textarea
+                    value={form.data.advisor_notes}
+                    onChange={(event) =>
+                        form.setData('advisor_notes', event.target.value)
+                    }
+                    className="min-h-24 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    placeholder="Advisor review notes"
+                />
+                <Button
+                    type="button"
+                    size="sm"
+                    disabled={form.processing || finding.status === 'reviewed'}
+                    onClick={() =>
+                        form.patch(finding.review_url, {
+                            preserveScroll: true,
+                        })
+                    }
+                >
+                    <CheckCircle2 className="size-4" aria-hidden="true" />
+                    Mark reviewed
+                </Button>
+            </div>
+        </article>
+    );
+}
+
 function NpoConfigurationPanel({
     configuration,
 }: {
@@ -1645,7 +2228,10 @@ function NpoConfigurationPanel({
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-npo-configuration"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Settings2 className="size-4" aria-hidden="true" />
@@ -1935,7 +2521,10 @@ function NpoConfigurationPanel({
 
 function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-npo-funding"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <CreditCard className="size-4" aria-hidden="true" />
@@ -2054,7 +2643,10 @@ function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
 
 function NpoValuePanel({ values }: { values: NpoValueSummary }) {
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-npo-value"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <TrendingUp className="size-4" aria-hidden="true" />
@@ -2142,7 +2734,10 @@ function NpoSocialEnterprisePanel({
     const { scorecard, tension_analysis } = summary;
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-npo-social-enterprise"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <SlidersHorizontal className="size-4" aria-hidden="true" />
@@ -2256,7 +2851,10 @@ function DueDiligenceTargetPanel({
     payload: DueDiligenceSummary;
 }) {
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-due-diligence"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <ShieldAlert className="size-4" aria-hidden="true" />
@@ -2338,7 +2936,10 @@ function AccountingConnectionsPanel({ client }: { client: ClientDetail }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-accounting"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <PlugZap className="size-4" aria-hidden="true" />
@@ -2650,7 +3251,10 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-proposals"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <FileText className="size-4" aria-hidden="true" />
@@ -2848,6 +3452,201 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
     );
 }
 
+function StandardAdvisoryPanel({
+    summary,
+    onRunAnalysis,
+    onGeneratePack,
+}: {
+    summary: StandardAdvisorySummary;
+    onRunAnalysis: () => void;
+    onGeneratePack: () => void;
+}) {
+    const clientReport = summary.reports.client;
+    const releaseClientReport = () => {
+        if (!clientReport || clientReport.review_status !== 'pending_review') {
+            return;
+        }
+
+        router.patch(clientReport.review_url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section
+            id="section-standard-advisory"
+            className="space-y-4 rounded-md border p-4"
+        >
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <ListChecks className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Standard Advisory workflow
+                    </h2>
+                    <Badge
+                        variant={standardAdvisoryStatusVariant(summary.status)}
+                    >
+                        {summary.status_label}
+                    </Badge>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={!summary.can_run_analysis}
+                                    onClick={onRunAnalysis}
+                                >
+                                    <RotateCcw
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Run analysis
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                            Runs the Standard Advisory analysis modules and
+                            refreshes the business health radar.
+                        </TooltipContent>
+                    </Tooltip>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    disabled={!summary.can_generate_pack}
+                                    onClick={onGeneratePack}
+                                >
+                                    <FileText
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Generate pack
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="bottom" className="max-w-xs">
+                            Creates advisor, client, stakeholder, and trajectory
+                            reports from the latest analysis.
+                        </TooltipContent>
+                    </Tooltip>
+                    {clientReport?.review_status === 'pending_review' && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={releaseClientReport}
+                        >
+                            <CheckCircle2
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Release client report
+                        </Button>
+                    )}
+                </div>
+            </div>
+
+            <p className="text-sm text-muted-foreground">
+                {summary.next_action}
+            </p>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                <Metric
+                    label="Questionnaire"
+                    value={
+                        summary.questionnaire_submitted
+                            ? `Submitted ${formatDate(summary.questionnaire_submitted_at)}`
+                            : 'Not submitted'
+                    }
+                />
+                <Metric
+                    label="Evidence"
+                    value={`${summary.document_count} uploaded / ${summary.verified_document_count} verified`}
+                />
+                <Metric
+                    label="Analysis"
+                    value={`${summary.analysis_completed}/${summary.analysis_total} modules complete`}
+                />
+                <Metric
+                    label="Client report"
+                    value={
+                        clientReport
+                            ? formatLabel(clientReport.review_status)
+                            : 'Not generated'
+                    }
+                />
+            </div>
+
+            {summary.missing.length > 0 ? (
+                <div className="rounded-md border bg-muted/30 p-3">
+                    <div className="text-sm font-medium">Readiness gaps</div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
+                        {summary.missing.map((item) => (
+                            <li key={item}>{item}</li>
+                        ))}
+                    </ul>
+                </div>
+            ) : (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    Standard Advisory workflow is ready for the client
+                    conversation.
+                </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+                <div className="rounded-md border p-3">
+                    <div className="text-sm font-medium">Analysis modules</div>
+                    <div className="mt-3 grid gap-2">
+                        {summary.analysis_modules.map((module) => (
+                            <div
+                                key={module.module}
+                                className="flex items-center justify-between gap-3 text-sm"
+                            >
+                                <span>{module.label}</span>
+                                <Badge
+                                    variant={
+                                        module.completed
+                                            ? 'secondary'
+                                            : 'outline'
+                                    }
+                                >
+                                    {module.completed
+                                        ? 'Completed'
+                                        : formatLabel(module.status)}
+                                </Badge>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+                <div className="rounded-md border p-3">
+                    <div className="text-sm font-medium">Report pack</div>
+                    <div className="mt-3 grid gap-2">
+                        {Object.entries(summary.reports).map(
+                            ([key, report]) => (
+                                <div
+                                    key={key}
+                                    className="flex items-center justify-between gap-3 text-sm"
+                                >
+                                    <span>{formatLabel(key)}</span>
+                                    <Badge variant="outline">
+                                        {report
+                                            ? formatLabel(report.review_status)
+                                            : 'Not generated'}
+                                    </Badge>
+                                </div>
+                            ),
+                        )}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
+
 function ReportsPanel({ client }: { client: ClientDetail }) {
     const generate = (
         type:
@@ -2855,6 +3654,9 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
             | 'advisor'
             | 'stakeholder'
             | 'trajectory'
+            | 'due_diligence'
+            | 'post_acquisition_gap_report'
+            | 'governance_review_report'
             | 'npo_health_report'
             | 'npo_advisor_report'
             | 'social_enterprise_dual_report',
@@ -2871,7 +3673,10 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-reports"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <FileText className="size-4" aria-hidden="true" />
@@ -2917,8 +3722,39 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                     <TrendingUp className="size-4" aria-hidden="true" />
                     Trajectory
                 </Button>
+                {client.due_diligence && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generate('due_diligence')}
+                    >
+                        <FileText className="size-4" aria-hidden="true" />
+                        Due Diligence
+                    </Button>
+                )}
+                {client.engagement_type === 'post_acquisition_advisory' && (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={() => generate('post_acquisition_gap_report')}
+                    >
+                        <FileText className="size-4" aria-hidden="true" />
+                        Gap Report
+                    </Button>
+                )}
                 {client.is_npo && (
                     <>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generate('governance_review_report')}
+                        >
+                            <FileCheck2 className="size-4" aria-hidden="true" />
+                            Governance
+                        </Button>
                         <Button
                             type="button"
                             size="sm"
@@ -3015,6 +3851,13 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                                 {report.review_status === 'pending_review' && (
                                     <Badge variant="secondary">Review</Badge>
                                 )}
+                                {(report.revision_count > 0 ||
+                                    report.comment_count > 0) && (
+                                    <Badge variant="outline">
+                                        {report.revision_count} edits /{' '}
+                                        {report.comment_count} comments
+                                    </Badge>
+                                )}
                                 {report.can_review && (
                                     <Button
                                         type="button"
@@ -3026,7 +3869,9 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        Mark reviewed
+                                        {report.type === 'client'
+                                            ? 'Release to client'
+                                            : 'Mark reviewed'}
                                     </Button>
                                 )}
                             </div>
@@ -3060,7 +3905,10 @@ function MeetingsBriefingsPanel({ client }: { client: ClientDetail }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-meetings"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <CalendarClock className="size-4" aria-hidden="true" />
@@ -3311,7 +4159,10 @@ function KnowledgeAssessmentPanel({ client }: { client: ClientDetail }) {
     };
 
     return (
-        <section className="space-y-4 rounded-md border p-4">
+        <section
+            id="section-knowledge"
+            className="space-y-4 rounded-md border p-4"
+        >
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <Brain className="size-4" aria-hidden="true" />
@@ -3653,6 +4504,135 @@ function FindingFeedbackCard({
     );
 }
 
+function ClientDetailSection({
+    title,
+    description,
+    children,
+}: {
+    title: string;
+    description: string;
+    children: ReactNode;
+}) {
+    return (
+        <section className="space-y-3">
+            <div>
+                <h2 className="text-base font-semibold">{title}</h2>
+                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                    {description}
+                </p>
+            </div>
+            <div className="space-y-4">{children}</div>
+        </section>
+    );
+}
+
+function ClientDetailTabList({
+    activeTab,
+    onChange,
+}: {
+    activeTab: ClientDetailTab;
+    onChange: (tab: ClientDetailTab) => void;
+}) {
+    return (
+        <div
+            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            role="tablist"
+            aria-label="Client detail sections"
+        >
+            <ClientDetailTabButton
+                active={activeTab === 'actions'}
+                onClick={() => onChange('actions')}
+            >
+                Actions
+            </ClientDetailTabButton>
+            <ClientDetailTabButton
+                active={activeTab === 'information'}
+                onClick={() => onChange('information')}
+            >
+                Information
+            </ClientDetailTabButton>
+        </div>
+    );
+}
+
+function ClientDetailTabButton({
+    active,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={cn(
+                'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                active && 'bg-background text-foreground shadow-xs',
+            )}
+            onClick={onClick}
+        >
+            {children}
+        </button>
+    );
+}
+
+function ActionTile({
+    icon: Icon,
+    title,
+    value,
+    explanation,
+    href,
+    actionLabel,
+    onAction,
+}: {
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
+    title: string;
+    value: ReactNode;
+    explanation: string;
+    href: string;
+    actionLabel: string;
+    onAction?: (event: MouseEvent<Element>) => void;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <section className="rounded-md border bg-background p-4">
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                        <Icon className="size-4" aria-hidden={true} />
+                        {title}
+                    </div>
+                    <div className="mt-2 text-sm font-medium">{value}</div>
+                    <Button
+                        asChild
+                        variant="ghost"
+                        size="sm"
+                        className="mt-3 px-0"
+                    >
+                        <Link href={href} onClick={onAction}>
+                            {actionLabel}
+                        </Link>
+                    </Button>
+                </section>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+function initialClientDetailTab(): ClientDetailTab {
+    if (typeof window === 'undefined') {
+        return 'actions';
+    }
+
+    return clientSectionTabs[window.location.hash.slice(1)] ?? 'actions';
+}
+
 function Metric({
     label,
     value,
@@ -3770,6 +4750,20 @@ function formatLabel(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function standardAdvisoryStatusVariant(
+    status: string,
+): 'secondary' | 'destructive' | 'outline' {
+    if (status === 'client_report_released') {
+        return 'secondary';
+    }
+
+    if (status === 'verification_blocked') {
+        return 'destructive';
+    }
+
+    return 'outline';
 }
 
 function stringDetail(value: string | number | boolean | null | undefined) {

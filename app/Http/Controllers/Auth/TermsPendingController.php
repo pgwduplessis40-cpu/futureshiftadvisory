@@ -10,12 +10,15 @@ use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\TermsDeclinedUrgentNotification;
 use App\Services\Audit\AuditWriter;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Terms\SignedAcceptancePdf;
 use App\Services\Terms\TermsAcceptanceGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -45,7 +48,32 @@ final class TermsPendingController extends Controller
             'version' => $this->versionPayload($version),
             'acceptUrl' => route('terms.accept'),
             'declineUrl' => route('terms.decline'),
+            'downloadUrl' => route('terms.download'),
             'hasDeclined' => $this->gate->hasDeclinedTermsSuspension($user),
+        ]);
+    }
+
+    public function download(Request $request, PdfRenderer $renderer): HttpResponse
+    {
+        /** @var User $user */
+        $user = $request->user();
+        $version = $this->gate->latestPublishedVersion(withClauses: true);
+        abort_unless($version instanceof TermsVersion, 404);
+
+        $pdf = $renderer->render($this->downloadHtml($version, $user));
+        $filename = Str::slug('future-shift-advisory-terms-'.$version->version).'.pdf';
+
+        $this->auditWriter->record('terms.downloaded', subject: $version, actor: $user, after: [
+            'version' => $version->version,
+            'byte_size' => strlen($pdf),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($pdf),
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
         ]);
     }
 
@@ -168,6 +196,31 @@ final class TermsPendingController extends Controller
                 'material' => $clause->material,
             ])->values(),
         ];
+    }
+
+    private function downloadHtml(TermsVersion $version, User $user): string
+    {
+        $clauses = $version->clauses
+            ->map(fn ($clause): string => sprintf(
+                '<section><h2>Clause %s: %s%s</h2><p>%s</p></section>',
+                $this->escape((string) $clause->clause_number),
+                $this->escape($clause->title),
+                $clause->material ? ' <span>(material)</span>' : '',
+                nl2br($this->escape($clause->body)),
+            ))
+            ->implode('');
+
+        return '<!doctype html><html><head><meta charset="utf-8"><title>Future Shift Advisory Terms</title>'
+            .'<style>body{font-family:Arial,sans-serif;color:#111827;line-height:1.5}h1{color:#0f172a}h2{font-size:16px;margin-top:22px}p{font-size:12px}.meta{font-size:12px;color:#4b5563}</style>'
+            .'</head><body><h1>'.$this->escape($version->title).'</h1>'
+            .'<p class="meta">Version '.$this->escape($version->version).' downloaded by '.$this->escape($user->email).' on '.now()->toDateTimeString().'.</p>'
+            .$clauses
+            .'</body></html>';
+    }
+
+    private function escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     /**

@@ -41,7 +41,7 @@ final class PostAcquisition
 
     public function convert(DdEngagement $engagement, User $actor): PostAcquisitionMigration
     {
-        $engagement->refresh()->loadMissing('client.teamMembers');
+        $engagement->refresh()->loadMissing('client.primaryContact', 'client.teamMembers.user');
 
         if ($engagement->status !== DdEngagement::STATUS_ACQUISITION_PROCEEDING) {
             throw new InvalidArgumentException('Post-acquisition conversion requires the DD engagement to be marked acquisition proceeding.');
@@ -56,18 +56,19 @@ final class PostAcquisition
         }
 
         return DB::transaction(function () use ($engagement, $actor): PostAcquisitionMigration {
+            $owner = $this->conversionOwner($engagement, $actor);
             $report = $this->latestDdReport($engagement) ?? $this->reports->composeDueDiligence($engagement, $actor);
             $plan = $this->foundingPlan($engagement);
-            $advisoryClient = $this->createAdvisoryClient($engagement, $actor);
-            $this->copyTeam($engagement, $advisoryClient, $actor);
-            $migratedDocumentIds = $this->migrateDocuments($engagement, $advisoryClient, $actor);
+            $advisoryClient = $this->createAdvisoryClient($engagement, $owner);
+            $this->copyTeam($engagement, $advisoryClient, $owner, $actor);
+            $migratedDocumentIds = $this->migrateDocuments($engagement, $advisoryClient, $owner);
             [$gapResponse, $remainingQuestions, $prefillPayload] = $this->createGapQuestionnaireResponse(
                 engagement: $engagement,
                 advisoryClient: $advisoryClient,
                 migratedDocumentIds: $migratedDocumentIds,
-                actor: $actor,
+                actor: $owner,
             );
-            $proposal = $this->createProposal($engagement, $advisoryClient, $report, $actor);
+            $proposal = $this->createProposal($engagement, $advisoryClient, $report, $owner);
 
             $migration = PostAcquisitionMigration::query()->create([
                 'dd_engagement_id' => $engagement->getKey(),
@@ -85,17 +86,29 @@ final class PostAcquisition
                     'gap_prefill_payload' => $prefillPayload,
                     'gap_questions_remaining' => $remainingQuestions,
                     'target_details' => $engagement->target_details ?? [],
+                    'requested_by_user_id' => $actor->getKey(),
+                    'conversion_owner_user_id' => $owner->getKey(),
                 ],
                 'migrated_by_user_id' => $actor->getKey(),
                 'migrated_at' => now(),
             ]);
+            $gapReport = $this->reports->composePostAcquisitionGap($migration->refresh(), $owner);
+            $migration->forceFill([
+                'metadata' => [
+                    ...($migration->metadata ?? []),
+                    'post_acquisition_gap_report_id' => $gapReport->getKey(),
+                ],
+            ])->save();
 
             $this->audit->record('dd.post_acquisition_created', subject: $migration, actor: $actor, after: [
                 'dd_engagement_id' => $engagement->getKey(),
                 'advisory_client_id' => $advisoryClient->getKey(),
                 'migrated_document_count' => count($migratedDocumentIds),
                 'proposal_id' => $proposal->getKey(),
+                'gap_report_id' => $gapReport->getKey(),
                 'dd_pv_baseline' => $migration->dd_pv_baseline,
+                'requested_by_user_id' => $actor->getKey(),
+                'conversion_owner_user_id' => $owner->getKey(),
             ]);
 
             return $migration->refresh()->load(['advisoryClient', 'gapQuestionnaireResponse.answers', 'proposal.feeCalculation']);
@@ -142,25 +155,32 @@ final class PostAcquisition
         ]);
     }
 
-    private function copyTeam(DdEngagement $engagement, Client $advisoryClient, User $actor): void
+    private function copyTeam(DdEngagement $engagement, Client $advisoryClient, User $owner, User $requester): void
     {
-        $members = $engagement->client->teamMembers
-            ->map(fn (ClientTeamMember $member): array => [
-                'user_id' => $member->user_id,
-                'role' => $member->role,
-            ])
-            ->push([
-                'user_id' => $actor->getKey(),
-                'role' => 'lead_advisor',
-            ])
-            ->unique('user_id')
-            ->values();
-
-        foreach ($members as $member) {
-            ClientTeamMember::query()->create([
+        foreach ($engagement->client->teamMembers as $member) {
+            ClientTeamMember::query()->updateOrCreate([
                 'client_id' => $advisoryClient->getKey(),
-                'user_id' => $member['user_id'],
-                'role' => $member['role'],
+                'user_id' => $member->user_id,
+            ], [
+                'role' => $member->role,
+                'granted_modules' => [EngagementType::POST_ACQUISITION_ADVISORY->value],
+            ]);
+        }
+
+        ClientTeamMember::query()->updateOrCreate([
+            'client_id' => $advisoryClient->getKey(),
+            'user_id' => $owner->getKey(),
+        ], [
+            'role' => 'lead_advisor',
+            'granted_modules' => [EngagementType::POST_ACQUISITION_ADVISORY->value],
+        ]);
+
+        if (in_array($requester->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)) {
+            ClientTeamMember::query()->updateOrCreate([
+                'client_id' => $advisoryClient->getKey(),
+                'user_id' => $requester->getKey(),
+            ], [
+                'role' => $requester->user_type === User::TYPE_CLIENT_PRIMARY ? 'primary_contact' : 'client_team',
                 'granted_modules' => [EngagementType::POST_ACQUISITION_ADVISORY->value],
             ]);
         }
@@ -360,5 +380,21 @@ final class PostAcquisition
         $mid = data_get($valuation?->normalised_values, 'reconciled.mid');
 
         return is_numeric($mid) ? round((float) $mid, 2) : 0.0;
+    }
+
+    private function conversionOwner(DdEngagement $engagement, User $actor): User
+    {
+        if (in_array($actor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+            return $actor;
+        }
+
+        $advisor = $engagement->client->teamMembers
+            ->first(fn (ClientTeamMember $member): bool => in_array($member->user?->user_type, [
+                User::TYPE_ADVISOR,
+                User::TYPE_JUNIOR_ADVISOR,
+                User::TYPE_SUPER_ADMIN,
+            ], true));
+
+        return $advisor?->user ?? $actor;
     }
 }

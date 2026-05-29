@@ -167,7 +167,7 @@ final class GovernanceReviewQuestionnaireTest extends TestCase
         $response = $this->actingAsMfa($user)
             ->withHeader('Accept', 'application/json')
             ->post(route('portal.documents.store'), [
-                'file' => UploadedFile::fake()->createWithContent('constitution.txt', 'The board meets monthly and records conflicts of interest.'),
+                'file' => UploadedFile::fake()->createWithContent('constitution.pdf', "%PDF-1.4\nThe board meets monthly and records conflicts of interest."),
                 'category' => Document::CATEGORY_COMPLIANCE_DOC,
                 'question_id' => $question->id,
                 'question_prompt' => $question->prompt,

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Questionnaires;
 
 use App\Enums\QuestionnaireQuestionType;
+use App\Enums\QuestionnaireSet;
 use App\Jobs\RecomputeDataQualityScore;
 use App\Jobs\VerifyDocumentJob;
 use App\Models\Client;
@@ -17,6 +18,7 @@ use App\Models\QuestionnaireResponse;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
+use App\Services\Dd\DdAdviceReportGenerator;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -80,7 +82,7 @@ final class QuestionnaireResponseRecorder
             throw ValidationException::withMessages($errors);
         }
 
-        return DB::transaction(function () use ($client, $normalised, $npoEngagementId, $questionnaire, $user): QuestionnaireResponse {
+        $response = DB::transaction(function () use ($client, $normalised, $npoEngagementId, $questionnaire, $user): QuestionnaireResponse {
             $response = QuestionnaireResponse::query()->updateOrCreate(
                 [
                     'client_id' => $client->getKey(),
@@ -121,6 +123,12 @@ final class QuestionnaireResponseRecorder
 
             return $response;
         });
+
+        if ($questionnaire->set === QuestionnaireSet::DUE_DILIGENCE) {
+            app(DdAdviceReportGenerator::class)->generateIfReadyForClient($client, $user);
+        }
+
+        return $response;
     }
 
     private function normaliseNpoEngagementId(Client $client, mixed $value): ?string

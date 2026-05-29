@@ -93,9 +93,12 @@ type EntrepreneurProfile = {
     };
 } | null;
 
+type EntrepreneurDashboardTab = 'actions' | 'information';
+
 type Props = {
     profile: EntrepreneurProfile;
     messagesUrl: string;
+    planWorkspaceUrl: string;
     documentUploadUrl: string;
     notificationsUrl: string;
     settingsUrl: string;
@@ -104,6 +107,7 @@ type Props = {
 export default function EntrepreneurDashboard({
     profile,
     messagesUrl,
+    planWorkspaceUrl,
     documentUploadUrl,
     notificationsUrl,
     settingsUrl,
@@ -115,6 +119,8 @@ export default function EntrepreneurDashboard({
     const [uploading, setUploading] = useState(false);
     const [uploadError, setUploadError] = useState<string | null>(null);
     const [uploadKey, setUploadKey] = useState(0);
+    const [activeTab, setActiveTab] =
+        useState<EntrepreneurDashboardTab>('actions');
     const latestAssessment = profile?.latest_plan?.latest_assessment ?? null;
     const readiness = profile?.advisory_readiness_signal ?? null;
 
@@ -201,398 +207,491 @@ export default function EntrepreneurDashboard({
                     />
                 </div>
 
-                <DashboardSection
-                    title="Priority actions"
-                    description="Start with messages, evidence upload, assessment review, and alerts."
-                >
-                    <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-                        <ActionPanel
-                            icon={MessageSquare}
-                            title="Messages"
-                            value={messageSummary(profile)}
-                            explanation="Messages opens the secure conversation with your advisor and highlights unread threads."
-                        >
-                            <Button asChild size="sm">
-                                <Link href={messagesUrl}>Message advisor</Link>
-                            </Button>
-                        </ActionPanel>
+                <DashboardTabList
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                />
 
-                        <ActionPanel
-                            icon={Upload}
-                            title="Plan evidence"
-                            value={`${documents.length} recent uploads`}
-                            explanation="Plan evidence lets you upload supporting documents for advisor review and future assessment updates."
+                {activeTab === 'actions' ? (
+                    <>
+                        <DashboardSection
+                            title="Priority actions"
+                            description="Start with messages, evidence upload, assessment review, and alerts."
                         >
-                            <div className="grid gap-2">
-                                <FileDropzone
-                                    key={uploadKey}
-                                    id="entrepreneur_document"
-                                    files={file ? [file] : []}
-                                    label="Upload document"
-                                    onFilesChange={(files) =>
-                                        setFile(files[0] ?? null)
-                                    }
-                                />
-                                <InputError
-                                    message={uploadError ?? undefined}
-                                />
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    disabled={!file || uploading}
-                                    onClick={() => void uploadDocument()}
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                                <ActionPanel
+                                    icon={MessageSquare}
+                                    title="Messages"
+                                    value={messageSummary(profile)}
+                                    explanation="Messages opens the secure conversation with your advisor and highlights unread threads."
                                 >
-                                    <Upload
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {uploading ? 'Uploading' : 'Upload'}
-                                </Button>
-                            </div>
-                        </ActionPanel>
+                                    <Button asChild size="sm">
+                                        <Link href={messagesUrl}>
+                                            Message advisor
+                                        </Link>
+                                    </Button>
+                                </ActionPanel>
 
-                        <ActionPanel
-                            icon={ClipboardCheck}
-                            title="Assessment"
-                            value={
-                                latestAssessment
-                                    ? `${latestAssessment.weighted_score.toFixed(1)}/100`
-                                    : readiness
-                                      ? `${readiness.score.toFixed(1)}/100`
-                                      : 'Not completed'
-                            }
-                            explanation="Assessment shows the latest scored plan review and links to the detail when available."
-                        >
-                            {latestAssessment ? (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={latestAssessment.url}>
-                                        <Eye
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        View assessment
-                                    </Link>
-                                </Button>
-                            ) : readiness?.assessment_url ? (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={readiness.assessment_url}>
-                                        <Eye
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        View score detail
-                                    </Link>
-                                </Button>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    Your score will appear once an assessment is
-                                    available.
-                                </p>
-                            )}
-                        </ActionPanel>
-
-                        <ActionPanel
-                            icon={Bell}
-                            title="Notifications"
-                            value="Alerts and updates"
-                            explanation="Notifications contain advisor updates, document outcomes, and account prompts."
-                        >
-                            <div className="flex flex-wrap gap-2">
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={notificationsUrl}>Open</Link>
-                                </Button>
-                                <Button asChild size="sm" variant="ghost">
-                                    <Link href={settingsUrl}>
-                                        <Settings
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Settings
-                                    </Link>
-                                </Button>
-                            </div>
-                        </ActionPanel>
-                    </div>
-                </DashboardSection>
-
-                <DashboardSection
-                    title="Progress and readiness"
-                    description="Review the plan state and the score that explains advisory readiness."
-                >
-                    <section className="space-y-4 rounded-md border bg-background p-4">
-                        <div className="flex flex-wrap items-center justify-between gap-3">
-                            <div className="flex items-center gap-2">
-                                <Hourglass
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                <h2 className="text-sm font-medium">
-                                    Progress
-                                </h2>
-                            </div>
-                            {latestAssessment ? (
-                                <Button asChild size="sm" variant="outline">
-                                    <Link href={latestAssessment.url}>
-                                        <Eye
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        View assessment
-                                    </Link>
-                                </Button>
-                            ) : null}
-                        </div>
-                        {profile?.latest_plan ? (
-                            <dl className="grid gap-3 text-sm md:grid-cols-2">
-                                <Detail
-                                    label="Plan"
-                                    value={formatLabel(
-                                        profile.latest_plan.status,
-                                    )}
-                                />
-                                <Detail
-                                    label="Grade"
+                                <ActionPanel
+                                    icon={FileText}
+                                    title="Business plan"
                                     value={
-                                        latestAssessment?.overall_grade
-                                            ? gradeLabel(
-                                                  latestAssessment.overall_grade,
+                                        profile?.latest_plan
+                                            ? formatLabel(
+                                                  profile.latest_plan.status,
                                               )
-                                            : profile.latest_plan.latest_grade
-                                              ? gradeLabel(
-                                                    profile.latest_plan
-                                                        .latest_grade,
-                                                )
-                                              : null
+                                            : 'Not started'
                                     }
-                                />
-                                <Detail
-                                    label="Assessments"
-                                    value={`${profile.latest_plan.assessment_count} total, ${profile.latest_plan.completed_assessment_count} completed`}
-                                />
-                                <Detail
-                                    label="Assessment score"
-                                    value={
-                                        latestAssessment
-                                            ? `${latestAssessment.weighted_score.toFixed(1)}/100`
-                                            : null
-                                    }
-                                />
-                                <Detail
-                                    label="Next update"
-                                    value={formatDate(
-                                        profile.latest_plan
-                                            .living_plan_next_update_at,
-                                    )}
-                                />
-                            </dl>
-                        ) : (
-                            <p className="max-w-2xl text-sm text-muted-foreground">
-                                Your invite is active and the entrepreneur
-                                module is ready for your next step.
-                            </p>
-                        )}
-                    </section>
-
-                    {readiness ? (
-                        <section className="space-y-4 rounded-md border bg-background p-4">
-                            <div className="flex flex-wrap items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                    <ClipboardCheck
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    <h2 className="text-sm font-medium">
-                                        Advisory readiness
-                                    </h2>
-                                </div>
-                                {readiness.assessment_url ? (
+                                    explanation="Business plan opens the guided workspace for readiness, idea validation, plan sections, preview, and advisory request."
+                                >
                                     <Button asChild size="sm" variant="outline">
-                                        <Link href={readiness.assessment_url}>
+                                        <Link href={planWorkspaceUrl}>
                                             <Eye
                                                 className="size-4"
                                                 aria-hidden="true"
                                             />
-                                            View score detail
+                                            Open workspace
                                         </Link>
                                     </Button>
-                                ) : null}
-                            </div>
-                            <dl className="grid gap-3 text-sm md:grid-cols-2">
-                                <Detail
-                                    label="Score"
-                                    value={`${readiness.score.toFixed(1)}/100`}
-                                />
-                                <Detail
-                                    label="Grade"
-                                    value={
-                                        readiness.grade
-                                            ? gradeLabel(readiness.grade)
-                                            : null
-                                    }
-                                />
-                                <Detail
-                                    label="Threshold"
-                                    value={
-                                        readiness.threshold
-                                            ? `${readiness.threshold.toFixed(0)}/100`
-                                            : null
-                                    }
-                                />
-                                <Detail
-                                    label="Surfaced"
-                                    value={formatDate(readiness.surfaced_at)}
-                                />
-                            </dl>
-                            <p className="max-w-4xl text-sm text-muted-foreground">
-                                {readiness.explanation}
-                            </p>
-                            {readiness.criteria.length > 0 ? (
-                                <div className="divide-y rounded-md border">
-                                    {readiness.criteria
-                                        .slice(0, 4)
-                                        .map((criterion) => (
-                                            <div
-                                                key={criterion.number}
-                                                className="grid gap-2 p-3 text-sm md:grid-cols-[1fr_auto]"
-                                            >
-                                                <div className="min-w-0">
-                                                    <div className="font-medium">
-                                                        {criterion.number}.{' '}
-                                                        {criterion.name}
-                                                    </div>
-                                                    <div className="text-xs text-muted-foreground">
-                                                        {criterion.source_label}
-                                                    </div>
-                                                </div>
-                                                <div className="flex flex-wrap items-center gap-2 md:justify-end">
-                                                    <Badge variant="outline">
-                                                        {criterion.score.toFixed(
-                                                            1,
-                                                        )}
-                                                        /100
-                                                    </Badge>
-                                                    <span className="text-xs text-muted-foreground">
-                                                        {criterion.weight.toFixed(
-                                                            1,
-                                                        )}
-                                                        % weight,{' '}
-                                                        {criterion.contribution.toFixed(
-                                                            1,
-                                                        )}{' '}
-                                                        pts
-                                                    </span>
-                                                </div>
-                                            </div>
-                                        ))}
-                                </div>
-                            ) : null}
-                        </section>
-                    ) : null}
-                </DashboardSection>
+                                </ActionPanel>
 
-                <DashboardSection
-                    title="Information"
-                    description="Use these panels for profile context and recently uploaded plan evidence."
-                >
-                    <div className="grid gap-6 lg:grid-cols-2">
-                        <section className="space-y-4 rounded-md border bg-background p-4">
-                            <div className="flex items-center gap-2">
-                                <ClipboardCheck
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                <h2 className="text-sm font-medium">Profile</h2>
-                            </div>
-                            <dl className="grid gap-3 text-sm">
-                                <Detail label="Email" value={profile?.email} />
-                                <Detail
-                                    label="Advisor"
-                                    value={profile?.assigned_advisor?.name}
-                                />
-                                <Detail
-                                    label="Concept"
-                                    value={profile?.concept_summary}
-                                />
-                            </dl>
-                        </section>
-
-                        <section className="space-y-4 rounded-md border bg-background p-4">
-                            <div className="flex items-center justify-between gap-3">
-                                <div className="flex items-center gap-2">
-                                    <FileText
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    <h2 className="text-sm font-medium">
-                                        Recent documents
-                                    </h2>
-                                </div>
-                                <Badge variant="outline">
-                                    {documents.length}
-                                </Badge>
-                            </div>
-
-                            {documents.length > 0 ? (
-                                <div className="divide-y rounded-md border">
-                                    {documents.map((document) => (
-                                        <article
-                                            key={document.id}
-                                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                <ActionPanel
+                                    icon={Upload}
+                                    title="Plan evidence"
+                                    value={`${documents.length} recent uploads`}
+                                    explanation="Plan evidence lets you upload supporting documents for advisor review and future assessment updates."
+                                >
+                                    <div className="grid gap-2">
+                                        <FileDropzone
+                                            key={uploadKey}
+                                            id="entrepreneur_document"
+                                            files={file ? [file] : []}
+                                            label="Upload document"
+                                            onFilesChange={(files) =>
+                                                setFile(files[0] ?? null)
+                                            }
+                                        />
+                                        <InputError
+                                            message={uploadError ?? undefined}
+                                        />
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!file || uploading}
+                                            onClick={() =>
+                                                void uploadDocument()
+                                            }
                                         >
-                                            <div className="min-w-0">
-                                                <div className="truncate text-sm font-medium">
-                                                    {document.original_filename}
-                                                </div>
-                                                <div className="mt-1 text-xs text-muted-foreground">
-                                                    {formatLabel(
-                                                        document.category,
-                                                    )}
-                                                </div>
-                                            </div>
-                                            <div className="flex flex-wrap items-center gap-2">
-                                                <Badge variant="outline">
-                                                    {formatLabel(
-                                                        document.scanner_result,
-                                                    )}
-                                                </Badge>
-                                                <span className="text-xs text-muted-foreground">
-                                                    {formatDate(
-                                                        document.uploaded_at,
-                                                    )}
-                                                </span>
-                                                {document.scanner_result ===
-                                                'clean' ? (
-                                                    <Button
-                                                        asChild
-                                                        size="sm"
-                                                        variant="outline"
-                                                    >
-                                                        <a
-                                                            href={document.url}
-                                                            target="_blank"
-                                                            rel="noreferrer"
-                                                        >
-                                                            <Eye
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                            View
-                                                        </a>
-                                                    </Button>
-                                                ) : null}
-                                            </div>
-                                        </article>
-                                    ))}
+                                            <Upload
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            {uploading ? 'Uploading' : 'Upload'}
+                                        </Button>
+                                    </div>
+                                </ActionPanel>
+
+                                <ActionPanel
+                                    icon={ClipboardCheck}
+                                    title="Assessment"
+                                    value={
+                                        latestAssessment
+                                            ? `${latestAssessment.weighted_score.toFixed(1)}/100`
+                                            : readiness
+                                              ? `${readiness.score.toFixed(1)}/100`
+                                              : 'Not completed'
+                                    }
+                                    explanation="Assessment shows the latest scored plan review and links to the detail when available."
+                                >
+                                    {latestAssessment ? (
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={latestAssessment.url}>
+                                                <Eye
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                View assessment
+                                            </Link>
+                                        </Button>
+                                    ) : readiness?.assessment_url ? (
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link
+                                                href={readiness.assessment_url}
+                                            >
+                                                <Eye
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                View score detail
+                                            </Link>
+                                        </Button>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            Your score will appear once an
+                                            assessment is available.
+                                        </p>
+                                    )}
+                                </ActionPanel>
+
+                                <ActionPanel
+                                    icon={Bell}
+                                    title="Notifications"
+                                    value="Alerts and updates"
+                                    explanation="Notifications contain advisor updates, document outcomes, and account prompts."
+                                >
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={notificationsUrl}>
+                                                Open
+                                            </Link>
+                                        </Button>
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="ghost"
+                                        >
+                                            <Link href={settingsUrl}>
+                                                <Settings
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Settings
+                                            </Link>
+                                        </Button>
+                                    </div>
+                                </ActionPanel>
+                            </div>
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Progress and readiness"
+                            description="Review the plan state and the score that explains advisory readiness."
+                        >
+                            <section className="space-y-4 rounded-md border bg-background p-4">
+                                <div className="flex flex-wrap items-center justify-between gap-3">
+                                    <div className="flex items-center gap-2">
+                                        <Hourglass
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2 className="text-sm font-medium">
+                                            Progress
+                                        </h2>
+                                    </div>
+                                    {latestAssessment ? (
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={latestAssessment.url}>
+                                                <Eye
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                View assessment
+                                            </Link>
+                                        </Button>
+                                    ) : null}
                                 </div>
-                            ) : (
-                                <p className="text-sm text-muted-foreground">
-                                    No plan evidence has been uploaded yet.
-                                </p>
-                            )}
-                        </section>
-                    </div>
-                </DashboardSection>
+                                {profile?.latest_plan ? (
+                                    <dl className="grid gap-3 text-sm md:grid-cols-2">
+                                        <Detail
+                                            label="Plan"
+                                            value={formatLabel(
+                                                profile.latest_plan.status,
+                                            )}
+                                        />
+                                        <Detail
+                                            label="Grade"
+                                            value={
+                                                latestAssessment?.overall_grade
+                                                    ? gradeLabel(
+                                                          latestAssessment.overall_grade,
+                                                      )
+                                                    : profile.latest_plan
+                                                            .latest_grade
+                                                      ? gradeLabel(
+                                                            profile.latest_plan
+                                                                .latest_grade,
+                                                        )
+                                                      : null
+                                            }
+                                        />
+                                        <Detail
+                                            label="Assessments"
+                                            value={`${profile.latest_plan.assessment_count} total, ${profile.latest_plan.completed_assessment_count} completed`}
+                                        />
+                                        <Detail
+                                            label="Assessment score"
+                                            value={
+                                                latestAssessment
+                                                    ? `${latestAssessment.weighted_score.toFixed(1)}/100`
+                                                    : null
+                                            }
+                                        />
+                                        <Detail
+                                            label="Next update"
+                                            value={formatDate(
+                                                profile.latest_plan
+                                                    .living_plan_next_update_at,
+                                            )}
+                                        />
+                                    </dl>
+                                ) : (
+                                    <p className="max-w-2xl text-sm text-muted-foreground">
+                                        Your invite is active and the
+                                        entrepreneur module is ready for your
+                                        next step.
+                                    </p>
+                                )}
+                            </section>
+
+                            {readiness ? (
+                                <section className="space-y-4 rounded-md border bg-background p-4">
+                                    <div className="flex flex-wrap items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <ClipboardCheck
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            <h2 className="text-sm font-medium">
+                                                Advisory readiness
+                                            </h2>
+                                        </div>
+                                        {readiness.assessment_url ? (
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <Link
+                                                    href={
+                                                        readiness.assessment_url
+                                                    }
+                                                >
+                                                    <Eye
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    View score detail
+                                                </Link>
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                    <dl className="grid gap-3 text-sm md:grid-cols-2">
+                                        <Detail
+                                            label="Score"
+                                            value={`${readiness.score.toFixed(1)}/100`}
+                                        />
+                                        <Detail
+                                            label="Grade"
+                                            value={
+                                                readiness.grade
+                                                    ? gradeLabel(
+                                                          readiness.grade,
+                                                      )
+                                                    : null
+                                            }
+                                        />
+                                        <Detail
+                                            label="Threshold"
+                                            value={
+                                                readiness.threshold
+                                                    ? `${readiness.threshold.toFixed(0)}/100`
+                                                    : null
+                                            }
+                                        />
+                                        <Detail
+                                            label="Surfaced"
+                                            value={formatDate(
+                                                readiness.surfaced_at,
+                                            )}
+                                        />
+                                    </dl>
+                                    <p className="max-w-4xl text-sm text-muted-foreground">
+                                        {readiness.explanation}
+                                    </p>
+                                    {readiness.criteria.length > 0 ? (
+                                        <div className="divide-y rounded-md border">
+                                            {readiness.criteria
+                                                .slice(0, 4)
+                                                .map((criterion) => (
+                                                    <div
+                                                        key={criterion.number}
+                                                        className="grid gap-2 p-3 text-sm md:grid-cols-[1fr_auto]"
+                                                    >
+                                                        <div className="min-w-0">
+                                                            <div className="font-medium">
+                                                                {
+                                                                    criterion.number
+                                                                }
+                                                                .{' '}
+                                                                {criterion.name}
+                                                            </div>
+                                                            <div className="text-xs text-muted-foreground">
+                                                                {
+                                                                    criterion.source_label
+                                                                }
+                                                            </div>
+                                                        </div>
+                                                        <div className="flex flex-wrap items-center gap-2 md:justify-end">
+                                                            <Badge variant="outline">
+                                                                {criterion.score.toFixed(
+                                                                    1,
+                                                                )}
+                                                                /100
+                                                            </Badge>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {criterion.weight.toFixed(
+                                                                    1,
+                                                                )}
+                                                                % weight,{' '}
+                                                                {criterion.contribution.toFixed(
+                                                                    1,
+                                                                )}{' '}
+                                                                pts
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                ))}
+                                        </div>
+                                    ) : null}
+                                </section>
+                            ) : null}
+                        </DashboardSection>
+                    </>
+                ) : (
+                    <>
+                        <DashboardSection
+                            title="Information"
+                            description="Use these panels for profile context and recently uploaded plan evidence."
+                        >
+                            <div className="grid gap-6 lg:grid-cols-2">
+                                <section className="space-y-4 rounded-md border bg-background p-4">
+                                    <div className="flex items-center gap-2">
+                                        <ClipboardCheck
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2 className="text-sm font-medium">
+                                            Profile
+                                        </h2>
+                                    </div>
+                                    <dl className="grid gap-3 text-sm">
+                                        <Detail
+                                            label="Email"
+                                            value={profile?.email}
+                                        />
+                                        <Detail
+                                            label="Advisor"
+                                            value={
+                                                profile?.assigned_advisor?.name
+                                            }
+                                        />
+                                        <Detail
+                                            label="Concept"
+                                            value={profile?.concept_summary}
+                                        />
+                                    </dl>
+                                </section>
+
+                                <section className="space-y-4 rounded-md border bg-background p-4">
+                                    <div className="flex items-center justify-between gap-3">
+                                        <div className="flex items-center gap-2">
+                                            <FileText
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            <h2 className="text-sm font-medium">
+                                                Recent documents
+                                            </h2>
+                                        </div>
+                                        <Badge variant="outline">
+                                            {documents.length}
+                                        </Badge>
+                                    </div>
+
+                                    {documents.length > 0 ? (
+                                        <div className="divide-y rounded-md border">
+                                            {documents.map((document) => (
+                                                <article
+                                                    key={document.id}
+                                                    className="flex flex-wrap items-center justify-between gap-3 p-3"
+                                                >
+                                                    <div className="min-w-0">
+                                                        <div className="truncate text-sm font-medium">
+                                                            {
+                                                                document.original_filename
+                                                            }
+                                                        </div>
+                                                        <div className="mt-1 text-xs text-muted-foreground">
+                                                            {formatLabel(
+                                                                document.category,
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                    <div className="flex flex-wrap items-center gap-2">
+                                                        <Badge variant="outline">
+                                                            {formatLabel(
+                                                                document.scanner_result,
+                                                            )}
+                                                        </Badge>
+                                                        <span className="text-xs text-muted-foreground">
+                                                            {formatDate(
+                                                                document.uploaded_at,
+                                                            )}
+                                                        </span>
+                                                        {document.scanner_result ===
+                                                        'clean' ? (
+                                                            <Button
+                                                                asChild
+                                                                size="sm"
+                                                                variant="outline"
+                                                            >
+                                                                <a
+                                                                    href={
+                                                                        document.url
+                                                                    }
+                                                                    target="_blank"
+                                                                    rel="noreferrer"
+                                                                >
+                                                                    <Eye
+                                                                        className="size-4"
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    View
+                                                                </a>
+                                                            </Button>
+                                                        ) : null}
+                                                    </div>
+                                                </article>
+                                            ))}
+                                        </div>
+                                    ) : (
+                                        <p className="text-sm text-muted-foreground">
+                                            No plan evidence has been uploaded
+                                            yet.
+                                        </p>
+                                    )}
+                                </section>
+                            </div>
+                        </DashboardSection>
+                    </>
+                )}
             </div>
         </>
     );
@@ -695,6 +794,60 @@ function DashboardSection({
             </div>
             <div className="space-y-4">{children}</div>
         </section>
+    );
+}
+
+function DashboardTabList({
+    activeTab,
+    onChange,
+}: {
+    activeTab: EntrepreneurDashboardTab;
+    onChange: (tab: EntrepreneurDashboardTab) => void;
+}) {
+    return (
+        <div
+            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            role="tablist"
+            aria-label="Entrepreneur dashboard sections"
+        >
+            <DashboardTabButton
+                active={activeTab === 'actions'}
+                onClick={() => onChange('actions')}
+            >
+                Actions
+            </DashboardTabButton>
+            <DashboardTabButton
+                active={activeTab === 'information'}
+                onClick={() => onChange('information')}
+            >
+                Information
+            </DashboardTabButton>
+        </div>
+    );
+}
+
+function DashboardTabButton({
+    active,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={cn(
+                'flex-1 rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                active && 'bg-background text-foreground shadow-xs',
+            )}
+            onClick={onClick}
+        >
+            {children}
+        </button>
     );
 }
 

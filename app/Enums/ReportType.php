@@ -11,6 +11,7 @@ enum ReportType: string
     case Stakeholder = 'stakeholder';
     case Trajectory = 'trajectory';
     case DueDiligence = 'due_diligence';
+    case PostAcquisitionGap = 'post_acquisition_gap_report';
     case EntrepreneurAssessment = 'entrepreneur_assessment';
     case GovernanceReview = 'governance_review_report';
     case NpoHealth = 'npo_health_report';
@@ -27,6 +28,7 @@ enum ReportType: string
             self::Stakeholder => 'Stakeholder Report',
             self::Trajectory => 'Business Health Trajectory Report',
             self::DueDiligence => 'Due Diligence Report',
+            self::PostAcquisitionGap => 'Post-acquisition Gap Report',
             self::EntrepreneurAssessment => 'Entrepreneur Assessment Report',
             self::GovernanceReview => 'Governance Review Report',
             self::NpoHealth => 'NPO Health Report',

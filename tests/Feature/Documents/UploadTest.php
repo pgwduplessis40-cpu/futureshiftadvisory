@@ -10,6 +10,8 @@ use App\Enums\QuestionnaireQuestionType;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\ConflictDeclaration;
+use App\Models\DdEngagement;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\EntrepreneurProfile;
@@ -75,7 +77,7 @@ final class UploadTest extends TestCase
         $response = $this->actingAsMfa($user)
             ->withHeader('Accept', 'application/json')
             ->post(route('portal.documents.store'), [
-                'file' => UploadedFile::fake()->createWithContent('cashflow.txt', 'Projected revenue is 120000.'),
+                'file' => UploadedFile::fake()->createWithContent('cashflow.pdf', "%PDF-1.4\nProjected revenue is 120000."),
                 'category' => Document::CATEGORY_FINANCIAL_STATEMENT,
                 'question_id' => $question->id,
                 'question_prompt' => $question->prompt,
@@ -121,7 +123,7 @@ final class UploadTest extends TestCase
         $response = $this->actingAsMfa($user)
             ->withHeader('Accept', 'application/json')
             ->post(route('portal.documents.store'), [
-                'file' => UploadedFile::fake()->createWithContent('business-plan.txt', 'Customer interviews and pricing evidence.'),
+                'file' => UploadedFile::fake()->createWithContent('business-plan.pdf', "%PDF-1.4\nCustomer interviews and pricing evidence."),
                 'category' => Document::CATEGORY_PLAN_ATTACHMENT,
                 'claim_value' => 'Customer interviews and pricing evidence.',
                 'question_prompt' => 'Entrepreneur dashboard document upload',
@@ -142,7 +144,7 @@ final class UploadTest extends TestCase
         $this->actingAsMfa($user)
             ->get(route('portal.documents.show', $documentId))
             ->assertOk()
-            ->assertContent('Customer interviews and pricing evidence.');
+            ->assertContent("%PDF-1.4\nCustomer interviews and pricing evidence.");
 
         [$otherUser] = $this->entrepreneurUserWithProfile();
         $this->actingAsMfa($otherUser)
@@ -189,10 +191,52 @@ final class UploadTest extends TestCase
         $this->assertSame([], $violations);
     }
 
+    public function test_due_diligence_upload_is_blocked_until_fee_proposal_is_signed(): void
+    {
+        [$user, $client] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
+        $advisor = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+        $conflict = ConflictDeclaration::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'declaration' => ['referral_type' => 'due_diligence'],
+            'declared_at' => now(),
+        ]);
+
+        $engagement = DdEngagement::query()->create([
+            'client_id' => $client->getKey(),
+            'target_name' => 'Unsigned Target Limited',
+            'target_details' => ['industry' => 'Distribution'],
+            'status' => DdEngagement::STATUS_IN_PROGRESS,
+            'conflict_declaration_id' => $conflict->getKey(),
+            'created_by_user_id' => $advisor->getKey(),
+            'disclaimer_acknowledged_at' => now(),
+        ]);
+
+        $this->actingAsMfa($user)
+            ->withHeader('Accept', 'application/json')
+            ->post(route('portal.documents.store'), [
+                'file' => UploadedFile::fake()->createWithContent('dd-evidence.pdf', "%PDF-1.4\nDD evidence."),
+                'category' => Document::CATEGORY_DD_ARTIFACT,
+                'workstream' => 'financial',
+            ])
+            ->assertUnprocessable()
+            ->assertJsonValidationErrors('proposal');
+
+        $this->assertDatabaseCount('documents', 0);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'dd.data_room_activation_blocked',
+            'subject_id' => $engagement->id,
+        ]);
+    }
+
     /**
      * @return array{0: User, 1: Client}
      */
-    private function clientUserWithClient(): array
+    private function clientUserWithClient(EngagementType $engagementType = EngagementType::STANDARD_ADVISORY): array
     {
         $user = User::factory()->withTwoFactor()->create([
             'user_type' => User::TYPE_CLIENT_PRIMARY,
@@ -203,7 +247,7 @@ final class UploadTest extends TestCase
         app(RequestContext::class)->apply('system', [], (string) $user->getKey());
 
         $client = Client::query()->create([
-            'engagement_type' => EngagementType::STANDARD_ADVISORY,
+            'engagement_type' => $engagementType,
             'nzbn' => '9429000000000',
             'legal_name' => 'Upload Test Limited',
             'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
@@ -214,7 +258,7 @@ final class UploadTest extends TestCase
             'client_id' => $client->id,
             'user_id' => $user->getKey(),
             'role' => 'primary_contact',
-            'granted_modules' => [EngagementType::STANDARD_ADVISORY->value],
+            'granted_modules' => [$engagementType->value],
         ]);
 
         return [$user, $client];

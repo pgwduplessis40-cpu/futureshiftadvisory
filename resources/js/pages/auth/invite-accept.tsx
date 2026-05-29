@@ -10,6 +10,7 @@ type Props = {
     email: string;
     targetRole: string;
     targetUserType: string;
+    expiresAt: string | null;
     passwordRules: string;
 };
 
@@ -18,10 +19,12 @@ export default function InviteAccept({
     email,
     targetRole,
     targetUserType,
+    expiresAt,
     passwordRules,
 }: Props) {
     const form = useForm({
         name: '',
+        mobile_phone: '',
         password: '',
         password_confirmation: '',
     });
@@ -42,6 +45,9 @@ export default function InviteAccept({
                     <span>
                         {targetUserType} / {targetRole}
                     </span>
+                    {expiresAt ? (
+                        <span>Invite expires {formatDateTime(expiresAt)}</span>
+                    ) : null}
                 </div>
 
                 <div className="grid gap-2">
@@ -56,6 +62,24 @@ export default function InviteAccept({
                         autoFocus
                     />
                     <InputError message={form.errors.name} />
+                </div>
+
+                <div className="grid gap-2">
+                    <Label htmlFor="mobile_phone">Mobile phone</Label>
+                    <Input
+                        id="mobile_phone"
+                        value={form.data.mobile_phone}
+                        onChange={(event) =>
+                            form.setData('mobile_phone', event.target.value)
+                        }
+                        required
+                        inputMode="tel"
+                        autoComplete="tel"
+                    />
+                    <p className="text-xs text-muted-foreground">
+                        Used for account recovery and MFA support.
+                    </p>
+                    <InputError message={form.errors.mobile_phone} />
                 </div>
 
                 <div className="grid gap-2">
@@ -105,3 +129,10 @@ InviteAccept.layout = {
     title: 'Accept invitation',
     description: 'Create your account password',
 };
+
+function formatDateTime(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
+}

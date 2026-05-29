@@ -47,12 +47,14 @@ type Props = {
     };
     assessment: Assessment;
     backUrl: string;
+    backLabel?: string;
 };
 
 export default function EntrepreneurAssessment({
     profile,
     assessment,
     backUrl,
+    backLabel = 'Dashboard',
 }: Props) {
     return (
         <>
@@ -67,7 +69,7 @@ export default function EntrepreneurAssessment({
                                     className="size-4"
                                     aria-hidden="true"
                                 />
-                                Dashboard
+                                {backLabel}
                             </Link>
                         </Button>
                         <div>

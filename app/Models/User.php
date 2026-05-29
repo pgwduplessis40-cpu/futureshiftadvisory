@@ -20,6 +20,7 @@ use Spatie\Permission\Traits\HasRoles;
 #[Fillable([
     'name',
     'email',
+    'mobile_phone',
     'password',
     'user_type',
     'primary_role',

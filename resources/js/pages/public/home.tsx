@@ -1,5 +1,10 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowRight, CheckCircle2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import {
+    ArrowRight,
+    HeartHandshake,
+    ScrollText,
+    ShieldCheck,
+} from 'lucide-react';
 
 import {
     GoldRule,
@@ -8,6 +13,8 @@ import {
     SectionLead,
     SectionTitle,
 } from '@/components/public/section';
+import { Seo } from '@/components/public/seo';
+import { organizationLd, webSiteLd } from '@/lib/structured-data';
 
 type EngagementSummary = {
     slug: string;
@@ -22,6 +29,7 @@ const accentClass: Record<string, string> = {
     admiralty: 'border-l-[var(--fs-admiralty)]',
     'deep-cove': 'border-l-[var(--fs-deep-cove)]',
     cognac: 'border-l-[var(--fs-cognac)]',
+    harbour: 'border-l-[var(--fs-harbour)]',
 };
 
 export default function Home({
@@ -29,14 +37,15 @@ export default function Home({
 }: {
     engagementTypes: EngagementSummary[];
 }) {
+    const base = usePage().props.publicUrl ?? '';
+
     return (
         <>
-            <Head title="Future Shift Advisory — evidence-based advisory for NZ SMEs">
-                <meta
-                    name="description"
-                    content="Evidence-based business advisory, due diligence, and entrepreneur support for New Zealand SMEs and founders. Hamilton-based, nationwide."
-                />
-            </Head>
+            <Seo
+                title="Future Shift Advisory — honest, evidence-based advice for NZ businesses"
+                description="A Hamilton-based advisory practice for New Zealand SMEs, founders, buyers, and not-for-profits. Clear, kind, evidence-based advice you can act on."
+                jsonLd={[organizationLd(base), webSiteLd(base)]}
+            />
 
             {/* ── HERO ─────────────────────────────────────────── */}
             <Section className="pt-20 pb-24 lg:pt-28 lg:pb-32">
@@ -51,10 +60,10 @@ export default function Home({
                         </SectionTitle>
                         <GoldRule className="mt-6" />
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--fs-graphite)]">
-                            Evidence-based business advisory for
-                            New&nbsp;Zealand SMEs and entrepreneurs. Honest
-                            findings. Cited sources. The truth before the
-                            comfortable.
+                            Clear, honest advice for New&nbsp;Zealand SMEs,
+                            founders, and not-for-profits. We tell you what we
+                            see — kindly, and with the reasoning behind it — so
+                            you can move forward with confidence.
                         </p>
                         <div className="mt-10 flex flex-wrap items-center gap-4">
                             <Link
@@ -68,7 +77,7 @@ export default function Home({
                                 href="/services"
                                 className="inline-flex items-center gap-2 text-sm font-medium text-[var(--fs-admiralty)] hover:text-[var(--fs-pacific)]"
                             >
-                                See how we work{' '}
+                                See how we can help{' '}
                                 <ArrowRight className="h-4 w-4" />
                             </Link>
                         </div>
@@ -76,23 +85,25 @@ export default function Home({
 
                     <div className="lg:col-span-5">
                         <div className="rounded-xl border border-[var(--fs-sand)] bg-white p-6 shadow-[0_1px_2px_rgba(28,43,69,0.04)]">
-                            <div className="eyebrow">What you can expect</div>
+                            <div className="eyebrow">
+                                What it’s like to work with us
+                            </div>
                             <ul className="mt-4 space-y-4">
                                 {[
                                     {
-                                        icon: CheckCircle2,
-                                        title: 'Honest findings',
-                                        body: 'Problems and low scores stated clearly. Kindness in delivery, not in content.',
+                                        icon: HeartHandshake,
+                                        title: 'Honest, and kind with it',
+                                        body: 'We tell you what is really going on — the good and the hard — and we are thoughtful in how we say it.',
                                     },
                                     {
-                                        icon: Sparkles,
-                                        title: 'Evidence, not assertion',
-                                        body: 'Every finding cites its source. AI evidences, never asserts.',
+                                        icon: ScrollText,
+                                        title: 'Backed by evidence',
+                                        body: 'Every recommendation comes with the reasoning and the proof behind it, in plain language.',
                                     },
                                     {
                                         icon: ShieldCheck,
-                                        title: 'NZ-grounded & confidential',
-                                        body: 'MFA on every account, encrypted documents, immutable audit trail.',
+                                        title: 'New Zealand-grounded & private',
+                                        body: 'Built for the local context, and confidential by default — your information is only seen by the people working with you.',
                                     },
                                 ].map((row) => (
                                     <li key={row.title} className="flex gap-3">
@@ -116,13 +127,16 @@ export default function Home({
             {/* ── ENGAGEMENT TYPES ────────────────────────────── */}
             <div className="bg-[var(--fs-linen)] py-20">
                 <Section>
-                    <SectionEyebrow>How we work together</SectionEyebrow>
-                    <SectionTitle className="mt-3">Four ways in.</SectionTitle>
+                    <SectionEyebrow>How we can help</SectionEyebrow>
+                    <SectionTitle className="mt-3">
+                        Ways to work together.
+                    </SectionTitle>
                     <SectionLead>
-                        Most engagements start with a Standard Advisory
-                        diagnostic. Others come in through due diligence on an
-                        acquisition, post-acquisition advisory, or the
-                        entrepreneur module for founders pre-launch.
+                        Most people start with a Standard Advisory review.
+                        Others come to us for due diligence on a purchase,
+                        support after an acquisition, a hand getting a new
+                        venture off the ground, or a health check for their
+                        not-for-profit.
                     </SectionLead>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-2">
@@ -159,19 +173,19 @@ export default function Home({
                 <div className="grid gap-10 md:grid-cols-3">
                     {[
                         {
-                            kicker: 'NZ-grounded',
+                            kicker: 'New Zealand-grounded',
                             title: 'Hamilton, working nationwide',
-                            body: 'Our analysis, frameworks, and references are New Zealand-specific — NZBN, Companies Office, IRD, NZ tax and compliance context.',
+                            body: 'Our advice is built for the New Zealand context — local regulation, tax, and the day-to-day realities of doing business here.',
                         },
                         {
-                            kicker: 'Evidence-based',
-                            title: 'Every finding cites its source',
-                            body: 'No score inflation. No suppressed warnings. Uncertainty is disclosed when the data does not support a confident conclusion.',
+                            kicker: 'Honest & evidence-based',
+                            title: 'Straight talk, backed up',
+                            body: 'We show our working. No inflated scores, no buried warnings — and we say so plainly when something is not yet certain.',
                         },
                         {
-                            kicker: 'Built for confidentiality',
-                            title: 'MFA, encryption, audit trail',
-                            body: 'Mandatory MFA on every account. Documents encrypted at rest and scanned before storage. Every action permanently logged.',
+                            kicker: 'Private by default',
+                            title: 'Your information stays yours',
+                            body: 'Multi-factor sign-in, encrypted documents, and access limited to the people working with you. Confidentiality is the baseline.',
                         },
                     ].map((b) => (
                         <div key={b.title}>
@@ -196,12 +210,12 @@ export default function Home({
                                 Ready when you are
                             </p>
                             <h2 className="font-display mt-3 text-3xl leading-tight text-[var(--fs-parchment)] sm:text-4xl">
-                                Have a 30-minute conversation with us.
+                                Let’s have a 30-minute chat.
                             </h2>
                             <p className="font-accent mt-4 max-w-xl text-lg text-[#E0D8CC] italic">
-                                No prepared slides. No upsell. We listen, ask,
-                                and tell you honestly whether we are the right
-                                fit.
+                                No prepared slides, no hard sell. We listen, ask
+                                a few good questions, and tell you honestly
+                                whether we are the right fit.
                             </p>
                         </div>
                         <div className="md:col-span-4 md:text-right">

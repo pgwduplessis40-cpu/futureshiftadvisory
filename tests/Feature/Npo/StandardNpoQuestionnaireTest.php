@@ -187,7 +187,7 @@ final class StandardNpoQuestionnaireTest extends TestCase
         $response = $this->actingAsMfa($user)
             ->withHeader('Accept', 'application/json')
             ->post(route('portal.documents.store'), [
-                'file' => UploadedFile::fake()->createWithContent('constitution.txt', 'The trust deed confirms charitable purpose.'),
+                'file' => UploadedFile::fake()->createWithContent('constitution.pdf', "%PDF-1.4\nThe trust deed confirms charitable purpose."),
                 'category' => Document::CATEGORY_COMPLIANCE_DOC,
                 'question_id' => $question->id,
                 'question_prompt' => $question->prompt,

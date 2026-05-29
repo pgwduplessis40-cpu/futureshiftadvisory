@@ -7,9 +7,13 @@ namespace Tests\Feature\Portal;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\ConflictDeclaration;
+use App\Models\DdEngagement;
+use App\Models\Document;
 use App\Models\User;
 use App\Services\Portal\OnboardingWizard;
 use App\Support\RequestContext;
+use Database\Seeders\PostAcquisitionGapQuestionnaireSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -125,7 +129,7 @@ final class OnboardingWizardTest extends TestCase
             );
     }
 
-    public function test_due_diligence_questionnaire_is_gated_to_phase_three(): void
+    public function test_due_diligence_questionnaire_requires_dd_engagement(): void
     {
         $this->seed(RoleSeeder::class);
         [$user] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
@@ -143,6 +147,44 @@ final class OnboardingWizardTest extends TestCase
             );
     }
 
+    public function test_due_diligence_questionnaire_is_available_for_active_dd_engagement(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::DUE_DILIGENCE);
+        $this->createDdEngagement($client, $user);
+
+        $this->advanceToQuestionnaire($user);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/onboarding/Step')
+                ->where('questionnaire.set', 'dd_specific')
+                ->where('questionnaire.available', true)
+                ->where('questionnaire.phase', 'Phase 3')
+            );
+    }
+
+    public function test_post_acquisition_gap_questionnaire_is_available_for_completion(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $this->seed(PostAcquisitionGapQuestionnaireSeeder::class);
+        [$user] = $this->clientUserWithClient(EngagementType::POST_ACQUISITION_ADVISORY);
+
+        $this->advanceToQuestionnaire($user);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/onboarding/Step')
+                ->where('questionnaire.set', 'post_acquisition_gap')
+                ->where('questionnaire.available', true)
+                ->where('questionnaire.phase', 'Phase 3')
+            );
+    }
+
     public function test_review_submit_completes_the_wizard(): void
     {
         $this->seed(RoleSeeder::class);
@@ -154,6 +196,18 @@ final class OnboardingWizardTest extends TestCase
             ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]), [
                 'questionnaire_set_acknowledged' => true,
             ]);
+        Document::query()->create([
+            'client_id' => $client->id,
+            'category' => Document::CATEGORY_OTHER,
+            'original_filename' => 'supporting-evidence.pdf',
+            'stored_path' => 'documents/testing/supporting-evidence.pdf',
+            'byte_size' => 1200,
+            'mime_type' => 'application/pdf',
+            'sha256' => str_repeat('a', 64),
+            'uploaded_by_user_id' => $user->getKey(),
+            'scanner_result' => Document::SCANNER_CLEAN,
+            'scanner_payload' => [],
+        ]);
         $this->actingAsMfa($user)
             ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_DOCUMENTS]), [
                 'documents_acknowledged' => true,
@@ -232,5 +286,31 @@ final class OnboardingWizardTest extends TestCase
                 'primary_goal' => 'Improve cash visibility before growth funding.',
                 'success_measure' => 'Trusted weekly reporting pack.',
             ]);
+    }
+
+    private function createDdEngagement(Client $client, User $user): DdEngagement
+    {
+        $conflict = ConflictDeclaration::query()->create([
+            'client_id' => $client->getKey(),
+            'advisor_id' => $user->getKey(),
+            'declaration' => [
+                'referral_type' => 'direct',
+                'existing_relationship' => false,
+            ],
+            'declared_at' => now(),
+        ]);
+
+        return DdEngagement::query()->create([
+            'client_id' => $client->getKey(),
+            'target_name' => 'Target Acquisition Limited',
+            'target_details' => [
+                'industry' => 'Manufacturing',
+                'nzbn' => '9429000000099',
+            ],
+            'status' => DdEngagement::STATUS_IN_PROGRESS,
+            'conflict_declaration_id' => $conflict->getKey(),
+            'created_by_user_id' => $user->getKey(),
+            'disclaimer_acknowledged_at' => now(),
+        ]);
     }
 }

@@ -14,6 +14,8 @@ final class DdDataRoomItem extends Model
 
     public const SOURCE_ADVISOR_UPLOAD = 'advisor_upload';
 
+    public const SOURCE_CLIENT_UPLOAD = 'client_upload';
+
     public const SOURCE_GUEST_UPLOAD = 'guest_upload';
 
     public const ARTIFACT_TYPE = 'dd_artifact';

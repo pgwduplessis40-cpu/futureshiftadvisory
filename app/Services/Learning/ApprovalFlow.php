@@ -112,6 +112,78 @@ final class ApprovalFlow
     }
 
     /**
+     * @return Collection<int, LearningUpdateImplementation>
+     */
+    public function implementDue(?CarbonInterface $at = null, ?User $actor = null): Collection
+    {
+        $at ??= now();
+
+        return LearningUpdate::query()
+            ->where('status', LearningUpdate::STATUS_APPROVED)
+            ->whereNotNull('effective_date')
+            ->where('effective_date', '<=', $at)
+            ->whereDoesntHave('implementations', fn ($query) => $query->whereNull('rolled_back_at'))
+            ->orderBy('effective_date')
+            ->get()
+            ->map(fn (LearningUpdate $update): LearningUpdateImplementation => $this->implement($update, $at, $actor))
+            ->values();
+    }
+
+    /**
+     * @return Collection<int, array<string, mixed>>
+     */
+    public function impactReviewCards(?CarbonInterface $at = null): Collection
+    {
+        $at ??= now();
+
+        return LearningUpdateImplementation::query()
+            ->with('learningUpdate')
+            ->whereNull('rolled_back_at')
+            ->whereNull('review_outcome')
+            ->whereNotNull('review_due')
+            ->where('review_due', '<=', $at)
+            ->orderBy('review_due')
+            ->get()
+            ->map(function (LearningUpdateImplementation $implementation): array {
+                $update = $implementation->learningUpdate;
+
+                return [
+                    'id' => $implementation->id,
+                    'learning_update_id' => $implementation->learning_update_id,
+                    'summary' => $update?->summary ?? 'Learning update',
+                    'layer_id' => $update?->layer_id,
+                    'implemented_at' => $implementation->implemented_at?->toIso8601String(),
+                    'review_due' => $implementation->review_due?->toIso8601String(),
+                    'review_url' => route('admin.learning-update-implementations.review', $implementation, absolute: false),
+                    'proposed_change' => $update?->proposed_change ?? [],
+                ];
+            })
+            ->values();
+    }
+
+    public function recordImpactReview(LearningUpdateImplementation $implementation, string $outcome, User $actor): LearningUpdateImplementation
+    {
+        return DB::transaction(function () use ($implementation, $outcome, $actor): LearningUpdateImplementation {
+            /** @var LearningUpdateImplementation $locked */
+            $locked = LearningUpdateImplementation::query()
+                ->with('learningUpdate')
+                ->whereKey($implementation->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $locked->forceFill(['review_outcome' => $outcome])->save();
+
+            $this->audit->record('learning_update.impact_reviewed', subject: $locked->learningUpdate, actor: $actor, after: [
+                'implementation_id' => $locked->getKey(),
+                'review_due' => $locked->review_due?->toIso8601String(),
+                'review_outcome' => $outcome,
+            ]);
+
+            return $locked->refresh();
+        });
+    }
+
+    /**
      * @return array<int, string>
      */
     public function decisions(): array
@@ -122,6 +194,70 @@ final class ApprovalFlow
             LearningUpdateDecision::DECISION_DEFER,
             LearningUpdateDecision::DECISION_REJECT,
         ];
+    }
+
+    private function implement(LearningUpdate $update, CarbonInterface $at, ?User $actor): LearningUpdateImplementation
+    {
+        return DB::transaction(function () use ($update, $at, $actor): LearningUpdateImplementation {
+            /** @var LearningUpdate $locked */
+            $locked = LearningUpdate::query()
+                ->with('implementations')
+                ->whereKey($update->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            $this->assertImplementationAllowed($locked);
+
+            $existing = $locked->implementations
+                ->first(fn (LearningUpdateImplementation $implementation): bool => $implementation->rolled_back_at === null);
+
+            if ($existing instanceof LearningUpdateImplementation) {
+                return $existing;
+            }
+
+            $targetType = $this->implementationTarget('type', $locked);
+            $targetId = $this->implementationTarget('id', $locked);
+
+            /** @var LearningUpdateImplementation $implementation */
+            $implementation = LearningUpdateImplementation::query()->create([
+                'learning_update_id' => $locked->getKey(),
+                'implemented_at' => $at,
+                'review_due' => $locked->review_due_at ?? $at->copy()->addDays(30),
+                'target_type' => $targetType,
+                'target_id' => $targetId,
+                'before_state' => [
+                    'status' => $locked->status,
+                    'effective_date' => $locked->effective_date?->toIso8601String(),
+                    'proposed_change' => $locked->proposed_change,
+                ],
+                'after_state' => [
+                    'status' => LearningUpdate::STATUS_IMPLEMENTED,
+                    'implemented_at' => $at->toIso8601String(),
+                    'proposed_change' => $locked->proposed_change,
+                    'automatic_application' => (bool) data_get($locked->proposed_change, 'automatic_application', false),
+                ],
+            ]);
+
+            $locked->forceFill(['status' => LearningUpdate::STATUS_IMPLEMENTED])->save();
+
+            $this->audit->record('learning_update.implemented', subject: $locked, actor: $actor, after: [
+                'implementation_id' => $implementation->getKey(),
+                'implemented_at' => $at->toIso8601String(),
+                'review_due' => $implementation->review_due?->toIso8601String(),
+                'target_type' => $targetType,
+                'target_id' => $targetId,
+            ]);
+
+            return $implementation->refresh();
+        });
+    }
+
+    private function implementationTarget(string $key, LearningUpdate $update): ?string
+    {
+        $value = data_get($update->proposed_change, "target_{$key}")
+            ?? data_get($update->proposed_change, "target.{$key}");
+
+        return is_scalar($value) && $value !== '' ? (string) $value : null;
     }
 
     /**

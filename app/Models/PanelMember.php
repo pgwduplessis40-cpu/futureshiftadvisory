@@ -21,6 +21,10 @@ final class PanelMember extends Model
 
     public const STATUS_APPLICATION_PENDING = 'application_pending';
 
+    public const STATUS_INFORMATION_REQUESTED = 'information_requested';
+
+    public const STATUS_DECLINED = 'declined';
+
     public const STATUS_APPROVED_PENDING_AGREEMENT = 'approved_pending_agreement';
 
     public const STATUS_ACTIVE = 'active';

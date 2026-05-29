@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\QuestionnaireSet;
 use App\Models\Client;
+use App\Models\DdEngagement;
 use App\Models\NpoEngagement;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Carbon;
@@ -166,16 +167,16 @@ final class OnboardingWizard
             EngagementType::DUE_DILIGENCE => [
                 'set' => 'dd_specific',
                 'title' => 'Due Diligence Questionnaire',
-                'available' => false,
+                'available' => $this->dueDiligenceEngagement($client) instanceof DdEngagement,
                 'phase' => 'Phase 3',
-                'description' => 'Due diligence questionnaire content is gated until the Phase 3 virtual data room work.',
+                'description' => 'Complete the due diligence questionnaire so the advisor can assess the acquisition target and generate DD advice.',
             ],
             EngagementType::POST_ACQUISITION_ADVISORY => [
                 'set' => 'post_acquisition_gap',
                 'title' => 'Post-acquisition Gap Questionnaire',
-                'available' => false,
+                'available' => true,
                 'phase' => 'Phase 3',
-                'description' => 'Post-acquisition questionnaire content is gated until the Phase 3 advisory expansion.',
+                'description' => 'Review DD-prefilled answers and complete the remaining post-close gaps before advisory work begins.',
             ],
             EngagementType::ENTREPRENEUR_MODULE => [
                 'set' => 'entrepreneur_readiness',
@@ -245,6 +246,14 @@ final class OnboardingWizard
                 NpoEngagementSubType::StandardNpo->value,
                 NpoEngagementSubType::SocialEnterprise->value,
             ])
+            ->latest()
+            ->first();
+    }
+
+    private function dueDiligenceEngagement(Client $client): ?DdEngagement
+    {
+        return DdEngagement::query()
+            ->where('client_id', $client->getKey())
             ->latest()
             ->first();
     }

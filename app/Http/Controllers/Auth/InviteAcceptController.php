@@ -26,13 +26,33 @@ final class InviteAcceptController extends Controller
 
     public function show(string $token): Response
     {
-        $invite = $this->usableInvite($token);
+        $invite = $this->inviteForToken($token);
+
+        if (! $invite->isUsable()) {
+            $this->auditWriter->record(
+                action: 'invite.expired_or_used_viewed',
+                subject: $invite,
+                after: [
+                    'email' => $invite->email,
+                    'expired' => $invite->isExpired(),
+                    'accepted' => $invite->isAccepted(),
+                ],
+            );
+
+            return Inertia::render('auth/invite-expired', [
+                'email' => $invite->email,
+                'expiredAt' => $invite->expires_at?->toIso8601String(),
+                'acceptedAt' => $invite->accepted_at?->toIso8601String(),
+                'isAccepted' => $invite->isAccepted(),
+            ]);
+        }
 
         return Inertia::render('auth/invite-accept', [
             'token' => $token,
             'email' => $invite->email,
             'targetRole' => $invite->target_role,
             'targetUserType' => $invite->target_user_type,
+            'expiresAt' => $invite->expires_at?->toIso8601String(),
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
         ]);
     }
@@ -43,6 +63,7 @@ final class InviteAcceptController extends Controller
 
         $validated = $request->validate([
             'name' => ['required', 'string', 'max:255'],
+            'mobile_phone' => ['required', 'string', 'max:40', 'regex:/^[0-9+()\\-\\s]{7,40}$/'],
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
@@ -50,6 +71,7 @@ final class InviteAcceptController extends Controller
             $user = User::query()->create([
                 'name' => $validated['name'],
                 'email' => $invite->email,
+                'mobile_phone' => $validated['mobile_phone'],
                 'email_verified_at' => now(),
                 'password' => $validated['password'],
                 'user_type' => $invite->target_user_type,
@@ -72,6 +94,7 @@ final class InviteAcceptController extends Controller
                     'accepted_by_user_id' => $user->getKey(),
                     'target_user_type' => $invite->target_user_type,
                     'target_role' => $invite->target_role,
+                    'mobile_phone_captured' => true,
                     'entrepreneur_profile_id' => $profile?->getKey(),
                 ],
             );
@@ -92,13 +115,18 @@ final class InviteAcceptController extends Controller
 
     private function usableInvite(string $token): InviteToken
     {
-        $invite = InviteToken::query()
-            ->where('token_hash', InviteToken::hashToken($token))
-            ->firstOrFail();
+        $invite = $this->inviteForToken($token);
 
         abort_unless($invite->isUsable(), 404);
 
         return $invite;
+    }
+
+    private function inviteForToken(string $token): InviteToken
+    {
+        return InviteToken::query()
+            ->where('token_hash', InviteToken::hashToken($token))
+            ->firstOrFail();
     }
 
     private function linkEntrepreneurProfile(InviteToken $invite, User $user): ?EntrepreneurProfile

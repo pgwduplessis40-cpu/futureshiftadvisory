@@ -18,7 +18,11 @@ final class DocumentVerificationController extends Controller
         Gate::authorize('verify', Document::class);
 
         $validated = $request->validate([
-            'resolution_note' => ['nullable', 'string', 'max:2000'],
+            'resolution_note' => [
+                $documentVerification->isBlockingAnalysis() ? 'required' : 'nullable',
+                'string',
+                'max:2000',
+            ],
         ]);
 
         $documentVerification->forceFill([

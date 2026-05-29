@@ -115,6 +115,7 @@ final class DashboardController extends Controller
 
         if (! $member instanceof PanelMember) {
             return [
+                'applicationUrl' => route('panel.application.store', absolute: false),
                 'panel' => null,
                 'summary' => [
                     'totalReferrals' => 0,
@@ -160,6 +161,7 @@ final class DashboardController extends Controller
             ->first();
 
         return [
+            'applicationUrl' => route('panel.application.store', absolute: false),
             'panel' => $this->brokerPanelSummary($member, $user),
             'summary' => [
                 'totalReferrals' => (clone $referralBase)->count(),
@@ -183,6 +185,9 @@ final class DashboardController extends Controller
                 'signedAt' => $agreement->signed_at?->toIso8601String(),
                 'pdfByteSize' => $agreement->pdf_byte_size,
                 'hasStoredPdf' => filled($agreement->pdf_path),
+                'signUrl' => $agreement->status === PanelAgreement::STATUS_PENDING_SIGNATURE
+                    ? route('panel.agreements.sign', $agreement, absolute: false)
+                    : null,
             ] : null,
         ];
     }
@@ -353,6 +358,7 @@ final class DashboardController extends Controller
 
         if (! $member instanceof PanelMember) {
             return [
+                'applicationUrl' => route('panel.application.store', absolute: false),
                 'panel' => null,
                 'summary' => [
                     'totalReferrals' => 0,
@@ -397,6 +403,7 @@ final class DashboardController extends Controller
             ->first();
 
         return [
+            'applicationUrl' => route('panel.application.store', absolute: false),
             'panel' => $this->coachPanelSummary($member, $user),
             'summary' => [
                 'totalReferrals' => (clone $referralBase)->count(),
@@ -425,6 +432,9 @@ final class DashboardController extends Controller
                 'signedAt' => $agreement->signed_at?->toIso8601String(),
                 'pdfByteSize' => $agreement->pdf_byte_size,
                 'hasStoredPdf' => filled($agreement->pdf_path),
+                'signUrl' => $agreement->status === PanelAgreement::STATUS_PENDING_SIGNATURE
+                    ? route('panel.agreements.sign', $agreement, absolute: false)
+                    : null,
             ] : null,
         ];
     }

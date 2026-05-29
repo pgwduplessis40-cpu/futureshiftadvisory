@@ -13,7 +13,11 @@ use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
+use App\Http\Controllers\Advisor\EntrepreneurActionController;
+use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
 use App\Http\Controllers\Advisor\EntrepreneurController;
+use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
+use App\Http\Controllers\Advisor\EntrepreneurMessageController;
 use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
@@ -21,12 +25,14 @@ use App\Http\Controllers\Advisor\MeetingController;
 use App\Http\Controllers\Advisor\MethodologyController;
 use App\Http\Controllers\Advisor\NpoConfigurationController;
 use App\Http\Controllers\Advisor\NpoConversionController;
+use App\Http\Controllers\Advisor\NpoGovernanceReviewController;
 use App\Http\Controllers\Advisor\OffboardingController;
 use App\Http\Controllers\Advisor\PaymentController;
 use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
+use App\Http\Controllers\Advisor\StandardAdvisoryController;
 use App\Http\Controllers\Advisor\TemplateController;
 use App\Http\Controllers\Advisor\TestimonialController;
 use App\Http\Controllers\Advisor\VoiceNoteController;
@@ -72,6 +78,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/reports', [ReportController::class, 'store'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('clients.reports.store');
+        Route::post('clients/{client}/standard-advisory/analysis', [StandardAdvisoryController::class, 'runAnalysis'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.standard-advisory.analysis');
+        Route::post('clients/{client}/standard-advisory/pack', [StandardAdvisoryController::class, 'generatePack'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('clients.standard-advisory.pack');
         Route::post('clients/{client}/health-radar/recompute', [BusinessHealthController::class, 'recompute'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.health-radar.recompute');
@@ -133,6 +145,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('npo-engagements/{npoEngagement}/configuration', [NpoConfigurationController::class, 'update'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('npo-engagements.configuration.update');
+        Route::post('npo-engagements/{npoEngagement}/governance-review/analysis', [NpoGovernanceReviewController::class, 'run'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('npo-engagements.governance-review.analysis');
+        Route::patch('governance-review-findings/{governanceReviewFinding}/review', [NpoGovernanceReviewController::class, 'review'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('governance-review-findings.review');
 
         Route::post('payments/{payment}/retry', [PaymentController::class, 'retry'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
@@ -165,6 +183,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('reports/{report}/review', [ReportController::class, 'review'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.review');
+        Route::patch('reports/{report}/sections/{reportSection}', [ReportController::class, 'updateSection'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('reports.sections.update');
+        Route::post('reports/{report}/sections/{reportSection}/comments', [ReportController::class, 'commentSection'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('reports.sections.comments.store');
         Route::patch('industry-briefings/{industryBriefing}/review', [BriefingController::class, 'reviewIndustry'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('industry-briefings.review');
@@ -181,6 +205,36 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs', [EntrepreneurController::class, 'store'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.store');
+        Route::get('entrepreneurs/{entrepreneurProfile}/messages', [EntrepreneurMessageController::class, 'index'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.messages.index');
+        Route::post('entrepreneurs/{entrepreneurProfile}/messages', [EntrepreneurMessageController::class, 'store'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.messages.store');
+        Route::get('entrepreneurs/{entrepreneurProfile}/messages/{messageThread}', [EntrepreneurMessageController::class, 'show'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.messages.show');
+        Route::post('entrepreneurs/{entrepreneurProfile}/messages/{messageThread}', [EntrepreneurMessageController::class, 'reply'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.messages.reply');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate', [EntrepreneurActionController::class, 'gateIdea'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.idea-validations.gate');
+        Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments', [EntrepreneurActionController::class, 'assess'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.plans.assessments.store');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise', [EntrepreneurActionController::class, 'finalise'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.assessments.finalise');
+        Route::post('entrepreneurs/{entrepreneurProfile}/convert', [EntrepreneurActionController::class, 'convert'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.convert');
+        Route::get('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.assessments.show');
+        Route::get('entrepreneurs/{entrepreneurProfile}/documents/{document}', [EntrepreneurDocumentController::class, 'show'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->name('entrepreneurs.documents.show');
         Route::get('entrepreneurs/{entrepreneurProfile}', [EntrepreneurController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.show');

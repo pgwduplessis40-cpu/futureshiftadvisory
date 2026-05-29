@@ -193,6 +193,44 @@ final class BrokerPortalTest extends TestCase
             );
     }
 
+    public function test_broker_can_apply_from_portal_and_sign_panel_agreement(): void
+    {
+        $advisor = $this->advisor('broker-self-service-approver@example.test');
+        $broker = $this->broker('broker-self-service@example.test');
+
+        $this->actingAsMfa($broker)
+            ->post(route('panel.application.store'), [
+                'company' => 'Self Service Brokers Limited',
+                'fsp_number' => 'FSP100001',
+                'regions' => 'Auckland, Wellington',
+                'specialties' => 'Insurance, Risk',
+            ])
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $member = PanelMember::query()
+            ->where('user_id', $broker->getKey())
+            ->where('panel_type', PanelMember::TYPE_BROKER)
+            ->firstOrFail();
+
+        $this->assertSame(PanelMember::STATUS_APPLICATION_PENDING, $member->status);
+        $this->assertSame('Self Service Brokers Limited', $member->application['company']);
+        $this->assertSame(['Auckland', 'Wellington'], $member->application['regions']);
+
+        $agreement = app(PanelOnboarding::class)->approve($member, $advisor);
+
+        $this->actingAsMfa($broker)
+            ->post(route('panel.agreements.sign', $agreement))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->assertSame(PanelAgreement::STATUS_SIGNED, $agreement->refresh()->status);
+        $this->assertSame(PanelMember::STATUS_ACTIVE, $member->refresh()->status);
+        $this->assertNotNull($agreement->pdf_path);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.agreement_signed',
+            'subject_id' => $agreement->id,
+        ]);
+    }
+
     public function test_broker_can_update_own_referral_stage_from_dashboard_action(): void
     {
         [$advisor, $client] = $this->clientWithAdvisor();

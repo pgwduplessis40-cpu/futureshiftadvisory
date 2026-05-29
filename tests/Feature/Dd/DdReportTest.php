@@ -10,21 +10,27 @@ use App\Enums\DiscountMethod;
 use App\Enums\EngagementType;
 use App\Enums\FindingSeverity;
 use App\Enums\PvType;
+use App\Enums\QuestionnaireSet;
 use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\DdDataRoomItem;
 use App\Models\DdEngagement;
 use App\Models\DdRiskRegisterItem;
 use App\Models\DdValuation;
 use App\Models\DdWorkstream;
+use App\Models\Document;
 use App\Models\PvCalculation;
+use App\Models\Questionnaire;
+use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Conflicts\ConflictDeclarer;
+use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Pdf\PdfRenderer;
@@ -129,6 +135,7 @@ final class DdReportTest extends TestCase
         foreach ([
             'dd_executive_summary',
             'dd_valuation',
+            'dd_purchase_price_range',
             'dd_workstream_findings',
             'dd_risk_register',
             'dd_price_adjustment',
@@ -141,6 +148,7 @@ final class DdReportTest extends TestCase
         }
 
         $this->assertStringContainsString(DdDisclaimer::STANDARD, $this->renderer->html);
+        $this->assertStringContainsString('Primary basis: Discounted Cash Flow (DCF)', $this->renderer->html);
         $this->assertStringContainsString('Liability disclaimer', $this->pptx->payload);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'dd.report_generated',
@@ -174,6 +182,18 @@ final class DdReportTest extends TestCase
             $priceSection->metadata['total_price_adjustment_nzd'],
             0.01,
         );
+
+        $purchaseRangeSection = $report->sections->firstWhere('key', 'dd_purchase_price_range');
+        $this->assertNotNull($purchaseRangeSection);
+        $this->assertEqualsWithDelta(
+            $risks->sum('price_adjustment_nzd'),
+            $purchaseRangeSection->metadata['due_diligence_risk_adjustment_nzd'],
+            0.01,
+        );
+        $this->assertLessThan(
+            $purchaseRangeSection->metadata['dcf_range_nzd']['mid'],
+            $purchaseRangeSection->metadata['purchase_price_range_nzd']['mid'],
+        );
     }
 
     public function test_due_diligence_recommendation_paths_are_proceed_renegotiate_and_abandon(): void
@@ -197,6 +217,33 @@ final class DdReportTest extends TestCase
         $this->assertSame(DdEngagement::RECOMMENDATION_PROCEED, $proceed->refresh()->recommendation);
         $this->assertSame(DdEngagement::RECOMMENDATION_RENEGOTIATE, $renegotiate->refresh()->recommendation);
         $this->assertSame(DdEngagement::RECOMMENDATION_ABANDON, $abandon->refresh()->recommendation);
+    }
+
+    public function test_dd_advice_report_generates_when_questionnaire_and_data_room_upload_are_ready(): void
+    {
+        [$advisor, $engagement] = $this->ddEngagement('ready-dd-advisor@example.test');
+        $this->ddQuestionnaireResponse($engagement, $advisor);
+        $this->dataRoomItem($engagement);
+        $this->ddValuation($engagement, 700000);
+
+        $report = app(DdAdviceReportGenerator::class)->generateIfReady($engagement, $advisor);
+
+        $this->assertInstanceOf(Report::class, $report);
+        $this->assertTrue($report->sections->contains('key', 'dd_purchase_price_range'));
+        $this->assertSame(
+            'dcf',
+            $report->sections->firstWhere('key', 'dd_purchase_price_range')?->metadata['primary_method'],
+        );
+
+        $this->assertNull(app(DdAdviceReportGenerator::class)->generateIfReady($engagement, $advisor));
+
+        $reports = Report::query()
+            ->where('client_id', $engagement->client_id)
+            ->where('type', ReportType::DueDiligence)
+            ->get()
+            ->filter(fn (Report $report): bool => (string) data_get($report->metadata, 'dd_engagement_id') === (string) $engagement->id);
+
+        $this->assertCount(1, $reports);
     }
 
     public function test_dd_report_tables_are_isolated_by_buyer_client_rls(): void
@@ -342,9 +389,9 @@ final class DdReportTest extends TestCase
         $businessValuation = BusinessValuation::query()->create([
             'client_id' => $engagement->client_id,
             'pv_calculation_id' => $calculation->id,
-            'sde_value' => ['mid' => $mid * 0.95],
-            'ebitda_value' => ['mid' => $mid],
-            'dcf_value' => ['mid' => $mid * 1.05],
+            'sde_value' => ['low' => $mid * 0.85, 'mid' => $mid * 0.95, 'high' => $mid * 1.05],
+            'ebitda_value' => ['low' => $mid * 0.9, 'mid' => $mid, 'high' => $mid * 1.1],
+            'dcf_value' => ['low' => $mid * 0.95, 'mid' => $mid * 1.05, 'high' => $mid * 1.18],
             'reconciled_low' => $mid * 0.9,
             'reconciled_mid' => $mid,
             'reconciled_high' => $mid * 1.1,
@@ -380,6 +427,46 @@ final class DdReportTest extends TestCase
                 ['claim' => 'DD fixture valuation', 'source_reference' => 'dd_test:valuation'],
             ],
             'as_at' => now(),
+        ]);
+    }
+
+    private function ddQuestionnaireResponse(DdEngagement $engagement, User $advisor): QuestionnaireResponse
+    {
+        $questionnaire = Questionnaire::query()
+            ->forSet(QuestionnaireSet::DUE_DILIGENCE)
+            ->published()
+            ->firstOrFail();
+
+        return QuestionnaireResponse::query()->create([
+            'client_id' => $engagement->client_id,
+            'questionnaire_id' => $questionnaire->id,
+            'submitted_by_user_id' => $advisor->id,
+            'submitted_at' => now(),
+        ]);
+    }
+
+    private function dataRoomItem(DdEngagement $engagement): DdDataRoomItem
+    {
+        $document = Document::query()->create([
+            'client_id' => $engagement->client_id,
+            'category' => Document::CATEGORY_DD_ARTIFACT,
+            'original_filename' => 'target-management-accounts.pdf',
+            'stored_path' => 'test/dd/target-management-accounts.pdf',
+            'byte_size' => 1024,
+            'mime_type' => 'application/pdf',
+            'sha256' => hash('sha256', 'target-management-accounts'),
+            'scanner_result' => Document::SCANNER_CLEAN,
+        ]);
+
+        return DdDataRoomItem::query()->create([
+            'client_id' => $engagement->client_id,
+            'dd_engagement_id' => $engagement->id,
+            'document_id' => $document->id,
+            'workstream' => 'financial',
+            'folder' => 'management_accounts',
+            'artifact_type' => DdDataRoomItem::ARTIFACT_TYPE,
+            'source' => DdDataRoomItem::SOURCE_GUEST_UPLOAD,
+            'metadata' => ['fixture' => true],
         ]);
     }
 

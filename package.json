@@ -3,8 +3,8 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "vite build",
-        "build:ssr": "vite build && vite build --ssr",
+        "build": "vite build && node scripts/clean-wayfinder-whitespace.mjs",
+        "build:ssr": "vite build && node scripts/clean-wayfinder-whitespace.mjs && vite build --ssr && node scripts/clean-wayfinder-whitespace.mjs",
         "dev": "vite",
         "format": "prettier --write resources/",
         "format:check": "prettier --check resources/",

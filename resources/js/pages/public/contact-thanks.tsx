@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link } from '@inertiajs/react';
 import { ArrowRight, CheckCircle2 } from 'lucide-react';
 
 import {
@@ -7,13 +7,16 @@ import {
     SectionEyebrow,
     SectionTitle,
 } from '@/components/public/section';
+import { Seo } from '@/components/public/seo';
 
 export default function ContactThanks() {
     return (
         <>
-            <Head title="Thanks — Future Shift Advisory">
-                <meta name="robots" content="noindex" />
-            </Head>
+            <Seo
+                title="Thanks — we’ll be in touch"
+                description="Your enquiry has reached Future Shift Advisory."
+                noindex
+            />
 
             <Section className="py-24 lg:py-32">
                 <div className="mx-auto max-w-2xl text-center">

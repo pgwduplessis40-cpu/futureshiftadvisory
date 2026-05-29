@@ -78,10 +78,15 @@ final class TestingSeedDataSeederTest extends TestCase
             'user_id' => $advisor->id,
             'channel' => 'both',
         ]);
-        $this->assertDatabaseHas('mfa_factors', [
-            'user_id' => $advisor->id,
-            'type' => 'totp',
+        $this->assertDatabaseHas('users', [
+            'id' => $advisor->id,
+            'two_factor_secret' => null,
+            'two_factor_recovery_codes' => null,
+            'two_factor_confirmed_at' => null,
+            'mfa_enabled_at' => null,
+            'mfa_method' => null,
         ]);
+        $this->assertDatabaseMissing('mfa_factors', ['user_id' => $advisor->id]);
         $this->assertDatabaseHas('model_has_roles', [
             'role_id' => DB::table('roles')->where('name', User::TYPE_ADVISOR)->value('id'),
             'model_type' => User::class,

@@ -102,6 +102,41 @@ final class GovernanceReviewAnalyzerTest extends TestCase
         $this->assertNotEmpty($evidenceDepth->attributions);
     }
 
+    public function test_advisor_routes_run_and_review_governance_findings_from_client_page(): void
+    {
+        [$engagement, $advisor] = $this->engagement(NpoLegalStructure::RegisteredCharity);
+        $this->governanceResponse($engagement, $advisor);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.npo-engagements.governance-review.analysis', $engagement))
+            ->assertRedirect();
+
+        $finding = GovernanceReviewFinding::query()
+            ->where('npo_engagement_id', $engagement->id)
+            ->where('status', GovernanceReviewFinding::STATUS_PENDING_ADVISOR_REVIEW)
+            ->firstOrFail();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $engagement->client_id))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('client.npo_governance_review.id', $engagement->id)
+                ->where(
+                    'client.npo_governance_review.pending_review_count',
+                    GovernanceReviewFinding::query()->where('npo_engagement_id', $engagement->id)->count(),
+                )
+                ->where('client.npo_governance_review.findings.0.review_url', route('advisor.governance-review-findings.review', $finding, absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.governance-review-findings.review', $finding), [
+                'advisor_notes' => 'Reviewed against the governance evidence pack.',
+            ])
+            ->assertRedirect();
+
+        $this->assertTrue($finding->refresh()->isReviewed());
+        $this->assertSame('Reviewed against the governance evidence pack.', $finding->advisor_notes);
+    }
+
     public function test_selects_legal_structure_specific_criteria(): void
     {
         [$charityEngagement, $advisor] = $this->engagement(NpoLegalStructure::RegisteredCharity);

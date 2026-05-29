@@ -12,6 +12,7 @@ use App\Enums\FeeMethod;
 use App\Enums\FindingSeverity;
 use App\Enums\PvType;
 use App\Enums\QuestionnaireSet;
+use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\BusinessPlan;
@@ -114,6 +115,7 @@ final class PostAcquisitionTest extends TestCase
         $this->assertSame($engagement->client_id, $migration->buyer_client_id);
         $this->assertSame(650000.0, $migration->dd_pv_baseline);
         $this->assertSame('Sourced from DD', $migration->metadata['source_label']);
+        $this->assertNotEmpty($migration->metadata['post_acquisition_gap_report_id']);
         $this->assertSame(EngagementType::POST_ACQUISITION_ADVISORY, $migration->advisoryClient->engagement_type);
         $this->assertSame($engagement->target_name, $migration->advisoryClient->legal_name);
 
@@ -130,6 +132,11 @@ final class PostAcquisitionTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'dd.post_acquisition_created',
             'subject_id' => $migration->id,
+        ]);
+        $this->assertDatabaseHas('reports', [
+            'id' => $migration->metadata['post_acquisition_gap_report_id'],
+            'client_id' => $migration->advisory_client_id,
+            'type' => ReportType::PostAcquisitionGap->value,
         ]);
     }
 

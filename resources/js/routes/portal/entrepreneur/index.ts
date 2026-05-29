@@ -1,4 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import plan from './plan'
+import readiness from './readiness'
+import ideaValidation from './idea-validation'
+import advisoryRequest from './advisory-request'
 import assessments from './assessments'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
@@ -80,6 +84,10 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     dashboard.form = dashboardForm
 const entrepreneur = {
     dashboard: Object.assign(dashboard, dashboard),
+plan: Object.assign(plan, plan),
+readiness: Object.assign(readiness, readiness),
+ideaValidation: Object.assign(ideaValidation, ideaValidation),
+advisoryRequest: Object.assign(advisoryRequest, advisoryRequest),
 assessments: Object.assign(assessments, assessments),
 }
 

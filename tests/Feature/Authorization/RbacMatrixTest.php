@@ -117,6 +117,7 @@ final class RbacMatrixTest extends TestCase
 
         $this->post(route('invite.store', $issued->plainToken), [
             'name' => 'Client Primary',
+            'mobile_phone' => '+64 21 123 4567',
             'password' => 'A-secure-password-123',
             'password_confirmation' => 'A-secure-password-123',
         ])->assertRedirect(route('mfa.setup', absolute: false));

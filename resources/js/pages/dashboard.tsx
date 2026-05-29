@@ -124,7 +124,7 @@ export default function Dashboard() {
                         ))}
                     </section>
 
-                    <Card className="rounded-lg">
+                    <Card className="rounded-md">
                         <CardHeader>
                             <div className="flex items-center justify-between gap-3">
                                 <div>
@@ -189,7 +189,7 @@ function ActionCard({ action }: { action: DashboardAction }) {
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <Card className="rounded-lg">
+                <Card className="rounded-md">
                     <CardHeader className="gap-3">
                         <div className="flex items-center justify-between gap-3">
                             <CardDescription>{action.title}</CardDescription>

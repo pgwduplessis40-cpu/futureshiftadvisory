@@ -77,6 +77,7 @@ final class DdOnboarding
             'standard_advisory_deferred' => true,
             'liability_disclaimer' => DdDisclaimer::STANDARD,
             'disclaimer_acknowledged_at' => $engagement->disclaimer_acknowledged_at?->toIso8601String(),
+            'activation' => app(DataRoom::class)->activationStatus($engagement),
             'acquisition_target_tab' => true,
         ];
     }
@@ -116,7 +117,21 @@ final class DdOnboarding
             'nzbn' => $targetDetails['nzbn'] ?? null,
             'vendor_name' => $targetDetails['vendor_name'] ?? null,
             'industry' => $targetDetails['industry'] ?? null,
+            'industry_code' => $targetDetails['industry_code'] ?? null,
+            'currency' => $targetDetails['currency'] ?? null,
             'asking_price' => $targetDetails['asking_price'] ?? null,
+            'valuation_financials' => is_array($targetDetails['valuation_financials'] ?? null)
+                ? $targetDetails['valuation_financials']
+                : [],
+            'precedent_transactions' => is_array($targetDetails['precedent_transactions'] ?? null)
+                ? $targetDetails['precedent_transactions']
+                : [],
+            'deal_structure_adjustments' => is_array($targetDetails['deal_structure_adjustments'] ?? null)
+                ? $targetDetails['deal_structure_adjustments']
+                : [],
+            'synergy_adjustments' => is_array($targetDetails['synergy_adjustments'] ?? null)
+                ? $targetDetails['synergy_adjustments']
+                : [],
             'notes' => $targetDetails['notes'] ?? null,
             'data_scope' => 'acquisition_target_only',
         ];

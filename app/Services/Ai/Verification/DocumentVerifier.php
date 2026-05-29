@@ -15,6 +15,7 @@ use App\Services\Ai\Prompts\PromptRegistry;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Storage;
 use Throwable;
+use ZipArchive;
 
 final class DocumentVerifier
 {
@@ -161,6 +162,16 @@ final class DocumentVerifier
 
     private function contentExcerpt(string $bytes, ?string $mimeType): ?string
     {
+        $mimeType = (string) $mimeType;
+
+        if (str_contains($mimeType, 'pdf')) {
+            return $this->pdfExcerpt($bytes);
+        }
+
+        if (str_contains($mimeType, 'wordprocessingml') || str_contains($mimeType, 'spreadsheetml')) {
+            return $this->officeOpenXmlExcerpt($bytes, str_contains($mimeType, 'spreadsheetml') ? 'xlsx' : 'docx');
+        }
+
         $isText = str_starts_with((string) $mimeType, 'text/')
             || str_contains((string) $mimeType, 'json')
             || str_contains((string) $mimeType, 'xml')
@@ -171,6 +182,89 @@ final class DocumentVerifier
         }
 
         $excerpt = trim(preg_replace('/\s+/', ' ', $bytes) ?? '');
+
+        return $excerpt === '' ? null : mb_substr($excerpt, 0, 4000);
+    }
+
+    private function pdfExcerpt(string $bytes): ?string
+    {
+        if (mb_check_encoding($bytes, 'UTF-8')) {
+            return $this->normaliseExcerpt($bytes);
+        }
+
+        preg_match_all('/\(([^()]|\\\\[()\\\\]){3,}\)/', $bytes, $matches);
+        $text = collect($matches[0] ?? [])
+            ->map(fn (string $segment): string => trim(stripslashes(substr($segment, 1, -1))))
+            ->filter()
+            ->implode(' ');
+
+        return $this->normaliseExcerpt($text);
+    }
+
+    private function officeOpenXmlExcerpt(string $bytes, string $type): ?string
+    {
+        if (! class_exists(ZipArchive::class)) {
+            return null;
+        }
+
+        $path = tempnam(sys_get_temp_dir(), 'fsa-doc-');
+        if (! is_string($path)) {
+            return null;
+        }
+
+        file_put_contents($path, $bytes);
+
+        try {
+            $zip = new ZipArchive;
+            if ($zip->open($path) !== true) {
+                return null;
+            }
+
+            $parts = $type === 'xlsx'
+                ? $this->xlsxParts($zip)
+                : [$zip->getFromName('word/document.xml') ?: ''];
+
+            $zip->close();
+
+            return $this->normaliseExcerpt(implode(' ', $parts));
+        } finally {
+            @unlink($path);
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function xlsxParts(ZipArchive $zip): array
+    {
+        $parts = [];
+        $sharedStrings = $zip->getFromName('xl/sharedStrings.xml');
+        if (is_string($sharedStrings)) {
+            $parts[] = $sharedStrings;
+        }
+
+        for ($index = 0; $index < $zip->numFiles; $index++) {
+            $name = $zip->getNameIndex($index);
+            if (is_string($name) && str_starts_with($name, 'xl/worksheets/') && str_ends_with($name, '.xml')) {
+                $content = $zip->getFromIndex($index);
+                if (is_string($content)) {
+                    $parts[] = $content;
+                }
+            }
+        }
+
+        return $parts;
+    }
+
+    private function normaliseExcerpt(?string $text): ?string
+    {
+        if ($text === null || $text === '') {
+            return null;
+        }
+
+        $text = preg_replace('/^%PDF-[^\r\n]*(?:\r?\n)?/i', '', $text) ?? $text;
+        $text = html_entity_decode(strip_tags($text), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+        $excerpt = trim(preg_replace('/\s+/', ' ', $text) ?? '');
 
         return $excerpt === '' ? null : mb_substr($excerpt, 0, 4000);
     }

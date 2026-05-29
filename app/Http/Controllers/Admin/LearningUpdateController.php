@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateImplementation;
+use App\Models\User;
 use App\Services\Learning\ApprovalFlow;
+use App\Services\Learning\LayerCadenceRunner;
 use App\Services\Learning\LearningMonitorDashboard;
 use App\Services\Learning\Rollback as RollbackService;
 use Illuminate\Http\RedirectResponse;
@@ -29,7 +31,9 @@ final class LearningUpdateController extends Controller
         return Inertia::render('admin/learning/Index', [
             'cards' => $this->approvalFlow->cards()->values(),
             'decisions' => $this->approvalFlow->decisions(),
+            'impact_reviews' => $this->approvalFlow->impactReviewCards()->values(),
             'monitor' => $this->monitor->dashboard(),
+            'rerun_url' => route('admin.learning-updates.rerun', absolute: false),
         ]);
     }
 
@@ -52,6 +56,38 @@ final class LearningUpdateController extends Controller
         );
 
         return to_route('admin.learning-updates.index')->with('status', 'learning-update-decided');
+    }
+
+    public function rerun(Request $request, LayerCadenceRunner $runner): RedirectResponse
+    {
+        $validated = $request->validate([
+            'layer_ids' => ['nullable', 'array'],
+            'layer_ids.*' => ['integer', 'min:1'],
+        ]);
+
+        $runner->recordDueRuns(now(), $validated['layer_ids'] ?? []);
+
+        return to_route('admin.learning-updates.index')->with('status', 'learning-layers-rerun');
+    }
+
+    public function reviewImpact(
+        Request $request,
+        LearningUpdateImplementation $learningUpdateImplementation,
+    ): RedirectResponse {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'review_outcome' => ['required', 'string', 'max:4000'],
+        ]);
+
+        $this->approvalFlow->recordImpactReview(
+            $learningUpdateImplementation,
+            $validated['review_outcome'],
+            $user,
+        );
+
+        return to_route('admin.learning-updates.index')->with('status', 'learning-impact-reviewed');
     }
 
     public function rollback(

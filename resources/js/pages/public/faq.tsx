@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Link, usePage } from '@inertiajs/react';
 import { ArrowRight, Plus } from 'lucide-react';
 
 import {
@@ -8,10 +8,14 @@ import {
     SectionLead,
     SectionTitle,
 } from '@/components/public/section';
+import { Seo } from '@/components/public/seo';
+import { breadcrumbLd } from '@/lib/structured-data';
 
 type Faq = { group: string; question: string; answer: string };
 
 export default function Faq({ faqs }: { faqs: Faq[] }) {
+    const base = usePage().props.publicUrl ?? '';
+
     const grouped = faqs.reduce<Record<string, Faq[]>>((acc, f) => {
         (acc[f.group] ??= []).push(f);
 
@@ -30,18 +34,17 @@ export default function Faq({ faqs }: { faqs: Faq[] }) {
 
     return (
         <>
-            <Head title="FAQ — Future Shift Advisory">
-                <meta
-                    name="description"
-                    content="Answers to common questions about engagements, security, confidentiality, fees, and how we use AI."
-                />
-                <script
-                    type="application/ld+json"
-                    dangerouslySetInnerHTML={{
-                        __html: JSON.stringify(faqJsonLd),
-                    }}
-                />
-            </Head>
+            <Seo
+                title="Frequently asked questions"
+                description="Honest answers about how we work, what engagements cost, security and confidentiality, support for not-for-profits, and whether we use AI."
+                jsonLd={[
+                    faqJsonLd,
+                    breadcrumbLd(base, [
+                        { name: 'Home', path: '/' },
+                        { name: 'FAQ', path: '/faq' },
+                    ]),
+                ]}
+            />
 
             <Section className="pt-20 pb-16 lg:pt-24">
                 <SectionEyebrow>FAQ</SectionEyebrow>

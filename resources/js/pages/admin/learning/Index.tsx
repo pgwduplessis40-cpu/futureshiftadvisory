@@ -2,15 +2,25 @@ import { Head, router } from '@inertiajs/react';
 import {
     CalendarClock,
     CheckCircle2,
+    Info,
+    ListChecks,
     PauseCircle,
+    RefreshCw,
     ShieldCheck,
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { cn } from '@/lib/utils';
 
 type Decision = 'approve' | 'approve_modified_date' | 'defer' | 'reject';
+type LearningTab = 'actions' | 'information';
 
 type LearningUpdateCard = {
     id: string;
@@ -43,7 +53,20 @@ type LearningUpdateCard = {
 type Props = {
     cards: LearningUpdateCard[];
     decisions: Decision[];
+    impact_reviews: ImpactReviewCard[];
     monitor: LearningMonitor;
+    rerun_url: string;
+};
+
+type ImpactReviewCard = {
+    id: string;
+    learning_update_id: string;
+    summary: string;
+    layer_id: number | null;
+    implemented_at: string | null;
+    review_due: string | null;
+    review_url: string;
+    proposed_change: Record<string, unknown> | null;
 };
 
 type LearningMonitor = {
@@ -85,8 +108,12 @@ const decisionCopy: Record<Decision, string> = {
 export default function LearningUpdatesIndex({
     cards,
     decisions,
+    impact_reviews,
     monitor,
+    rerun_url,
 }: Props) {
+    const [activeTab, setActiveTab] = useState<LearningTab>('actions');
+
     return (
         <>
             <Head title="Learning update queue" />
@@ -105,28 +132,207 @@ export default function LearningUpdatesIndex({
                             Learning update queue
                         </h1>
                     </div>
-                    <Badge variant="secondary">{cards.length} queued</Badge>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => router.post(rerun_url)}
+                        >
+                            <RefreshCw className="size-4" aria-hidden="true" />
+                            Run due layers
+                        </Button>
+                        <Badge variant="secondary">{cards.length} queued</Badge>
+                    </div>
                 </header>
 
-                <MonitorPanel monitor={monitor} />
+                <LearningTabList
+                    activeTab={activeTab}
+                    onChange={setActiveTab}
+                />
 
-                {cards.length === 0 ? (
-                    <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
-                        No governed learning updates are waiting for review.
-                    </p>
-                ) : (
-                    <div className="grid gap-4">
-                        {cards.map((card) => (
-                            <UpdateCard
-                                key={card.id}
-                                card={card}
-                                decisions={decisions}
+                {activeTab === 'actions' ? (
+                    <section className="space-y-4">
+                        <div className="grid gap-2 sm:grid-cols-4">
+                            <Metric
+                                label="Queued"
+                                value={String(
+                                    monitor.summary.queued_candidates,
+                                )}
+                                explanation="Governed learning changes waiting for a human approval decision."
                             />
-                        ))}
-                    </div>
+                            <Metric
+                                label="Approved"
+                                value={String(
+                                    monitor.summary.approved_candidates,
+                                )}
+                                explanation="Learning changes approved for implementation or implementation tracking."
+                            />
+                            <Metric
+                                label="Layers"
+                                value={String(
+                                    monitor.summary.registered_layers,
+                                )}
+                                explanation="Configured learning layers that can surface governed update candidates."
+                            />
+                            <Metric
+                                label="Recent runs"
+                                value={String(monitor.summary.recent_runs)}
+                                explanation="Recent learning monitor executions included in this review window."
+                            />
+                        </div>
+
+                        {impact_reviews.length > 0 && (
+                            <ImpactReviewPanel reviews={impact_reviews} />
+                        )}
+
+                        {cards.length === 0 ? (
+                            <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
+                                No governed learning updates are waiting for
+                                review.
+                            </p>
+                        ) : (
+                            <div className="grid gap-4">
+                                {cards.map((card) => (
+                                    <UpdateCard
+                                        key={card.id}
+                                        card={card}
+                                        decisions={decisions}
+                                    />
+                                ))}
+                            </div>
+                        )}
+                    </section>
+                ) : (
+                    <MonitorPanel monitor={monitor} />
                 )}
             </div>
         </>
+    );
+}
+
+function ImpactReviewPanel({ reviews }: { reviews: ImpactReviewCard[] }) {
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-4">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                    <h2 className="text-sm font-medium">Impact reviews due</h2>
+                    <p className="text-xs text-muted-foreground">
+                        Confirm the 30-day effect of implemented learning
+                        changes before leaving them active.
+                    </p>
+                </div>
+                <Badge variant="secondary">{reviews.length}</Badge>
+            </div>
+            <div className="grid gap-3">
+                {reviews.map((review) => (
+                    <ImpactReviewCardItem key={review.id} review={review} />
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
+    const [outcome, setOutcome] = useState('');
+
+    return (
+        <article className="grid gap-3 rounded-md border p-3 lg:grid-cols-[minmax(0,1fr)_minmax(20rem,0.7fr)]">
+            <div className="space-y-1">
+                <div className="flex flex-wrap items-center gap-2">
+                    {review.layer_id !== null && (
+                        <Badge variant="outline">Layer {review.layer_id}</Badge>
+                    )}
+                    <Badge variant="secondary">
+                        Due {formatDate(review.review_due)}
+                    </Badge>
+                </div>
+                <h3 className="text-sm font-medium">{review.summary}</h3>
+                <p className="text-xs text-muted-foreground">
+                    Implemented {formatDate(review.implemented_at)}
+                </p>
+            </div>
+            <div className="grid gap-2">
+                <textarea
+                    className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
+                    value={outcome}
+                    onChange={(event) => setOutcome(event.target.value)}
+                    placeholder="Record observed impact, exceptions, or rollback decision."
+                />
+                <Button
+                    type="button"
+                    size="sm"
+                    onClick={() =>
+                        router.patch(review.review_url, {
+                            review_outcome:
+                                outcome ||
+                                'Impact review completed with no exceptions recorded.',
+                        })
+                    }
+                >
+                    <CheckCircle2 className="size-4" aria-hidden="true" />
+                    Save impact review
+                </Button>
+            </div>
+        </article>
+    );
+}
+
+function LearningTabList({
+    activeTab,
+    onChange,
+}: {
+    activeTab: LearningTab;
+    onChange: (tab: LearningTab) => void;
+}) {
+    const tabs: Array<{
+        key: LearningTab;
+        label: string;
+        description: string;
+    }> = [
+        {
+            key: 'actions',
+            label: 'Actions',
+            description:
+                'Approve, defer, reject, or roll back learning updates.',
+        },
+        {
+            key: 'information',
+            label: 'Information',
+            description: 'Review monitor layers, cadence, and run history.',
+        },
+    ];
+
+    return (
+        <div
+            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            role="tablist"
+            aria-label="Learning update sections"
+        >
+            {tabs.map((tab) => (
+                <button
+                    key={tab.key}
+                    type="button"
+                    role="tab"
+                    aria-selected={activeTab === tab.key}
+                    className={cn(
+                        'flex flex-1 items-center justify-center gap-2 rounded-sm px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                        activeTab === tab.key
+                            ? 'bg-background text-foreground shadow-xs'
+                            : 'text-muted-foreground hover:text-foreground',
+                    )}
+                    onClick={() => onChange(tab.key)}
+                    title={tab.description}
+                >
+                    {tab.key === 'actions' ? (
+                        <ListChecks className="size-4" aria-hidden="true" />
+                    ) : (
+                        <Info className="size-4" aria-hidden="true" />
+                    )}
+                    {tab.label}
+                </button>
+            ))}
+        </div>
     );
 }
 
@@ -137,18 +343,22 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
                 <Metric
                     label="Layers"
                     value={String(monitor.summary.registered_layers)}
+                    explanation="Configured learning layers that can create governed update candidates."
                 />
                 <Metric
                     label="Queued"
                     value={String(monitor.summary.queued_candidates)}
+                    explanation="Candidates waiting for review in the action queue."
                 />
                 <Metric
                     label="Approved"
                     value={String(monitor.summary.approved_candidates)}
+                    explanation="Candidates approved by a reviewer and awaiting or tracking implementation."
                 />
                 <Metric
                     label="Runs"
                     value={String(monitor.summary.recent_runs)}
+                    explanation="Recent monitor runs included in the history below."
                 />
             </div>
 
@@ -248,6 +458,9 @@ function UpdateCard({
     );
     const [reason, setReason] = useState('');
     const [rollbackReason, setRollbackReason] = useState('');
+    const canDecide = !['rejected', 'implemented', 'rolled_back'].includes(
+        card.status,
+    );
 
     function submit(decision: Decision) {
         router.patch(`/admin/learning-updates/${card.id}/decision`, {
@@ -285,6 +498,7 @@ function UpdateCard({
                         <Metric
                             label="Clients"
                             value={String(card.clients_affected)}
+                            explanation="Client records affected if this learning update is approved."
                         />
                         <Metric
                             label="Confidence"
@@ -293,10 +507,12 @@ function UpdateCard({
                                     ? 'n/a'
                                     : `${Math.round(card.confidence * 100)}%`
                             }
+                            explanation="Model confidence in the proposed change. Keep lower-confidence changes under closer review."
                         />
                         <Metric
                             label="Review due"
                             value={formatDate(card.review_due_at)}
+                            explanation="Date by which this governed update should receive a human decision."
                         />
                     </dl>
                 </div>
@@ -324,6 +540,22 @@ function UpdateCard({
                             onChange={(event) => setReason(event.target.value)}
                         />
                     </label>
+                    {canDecide && (
+                        <div className="flex flex-wrap gap-2">
+                            {decisions.map((decision) => (
+                                <Button
+                                    key={decision}
+                                    type="button"
+                                    size="sm"
+                                    variant={buttonVariant(decision)}
+                                    onClick={() => submit(decision)}
+                                >
+                                    <DecisionIcon decision={decision} />
+                                    {decisionCopy[decision]}
+                                </Button>
+                            ))}
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -398,35 +630,37 @@ function UpdateCard({
                     </label>
                 </section>
             )}
-
-            {!['rejected', 'implemented', 'rolled_back'].includes(
-                card.status,
-            ) && (
-                <div className="mt-4 flex flex-wrap gap-2">
-                    {decisions.map((decision) => (
-                        <Button
-                            key={decision}
-                            type="button"
-                            size="sm"
-                            variant={buttonVariant(decision)}
-                            onClick={() => submit(decision)}
-                        >
-                            <DecisionIcon decision={decision} />
-                            {decisionCopy[decision]}
-                        </Button>
-                    ))}
-                </div>
-            )}
         </article>
     );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
-    return (
+function Metric({
+    label,
+    value,
+    explanation,
+}: {
+    label: string;
+    value: string;
+    explanation?: string;
+}) {
+    const metric = (
         <div className="rounded-md border px-3 py-2">
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="mt-1 font-medium">{value}</dd>
         </div>
+    );
+
+    if (!explanation) {
+        return metric;
+    }
+
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{metric}</TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {explanation}
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

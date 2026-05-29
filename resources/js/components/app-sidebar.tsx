@@ -91,6 +91,12 @@ const messagesNavItem: NavItem = {
     icon: MessageSquare,
 };
 
+const acquisitionPlanNavItem: NavItem = {
+    title: 'Prepare Business Plan',
+    href: '/portal/acquisition-plan',
+    icon: Scale,
+};
+
 const apiHealthNavItem: NavItem = {
     title: 'API Health',
     href: '/admin/integration-health',
@@ -168,6 +174,10 @@ const clientNavItems: NavItem[] = [
 
 const defaultNavItems: NavItem[] = [dashboardNavItem, notificationsNavItem];
 
+type PortalClient = {
+    engagement_type?: string | null;
+};
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -181,12 +191,23 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
-function mainNavItemsFor(userType?: string | null): NavItem[] {
+function mainNavItemsFor(
+    userType?: string | null,
+    portalClient?: PortalClient | null,
+): NavItem[] {
     if (userType === 'entrepreneur') {
         return entrepreneurNavItems;
     }
 
     if (userType === 'client_primary' || userType === 'client_team') {
+        if (portalClient?.engagement_type === 'due_diligence') {
+            return [
+                clientNavItems[0],
+                acquisitionPlanNavItem,
+                ...clientNavItems.slice(1),
+            ];
+        }
+
         return clientNavItems;
     }
 
@@ -268,7 +289,7 @@ function navItemsWithClientFilterState(
 }
 
 export function AppSidebar() {
-    const page = usePage<{ auth: Auth }>();
+    const page = usePage<{ auth: Auth; portalClient?: PortalClient | null }>();
     const { auth } = page.props;
     const userType = auth.user.user_type;
     const currentUrl = new URL(
@@ -282,7 +303,7 @@ export function AppSidebar() {
             ? currentUrl.searchParams.get('engagement_type')
             : null;
     const mainNavItems = navItemsWithClientFilterState(
-        mainNavItemsFor(userType),
+        mainNavItemsFor(userType, page.props.portalClient),
         currentUrl.pathname,
         engagementType,
     );

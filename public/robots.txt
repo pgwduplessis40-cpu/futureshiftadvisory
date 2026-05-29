@@ -1,2 +1,13 @@
+# Future Shift Advisory — https://futureshiftadvisory.nz
+# Public marketing pages are open to search engines and AI answer engines.
+# Authenticated areas (portal, advisor, admin) are not linked publicly and
+# require login.
+
 User-agent: *
-Disallow:
+Allow: /
+Disallow: /portal
+Disallow: /advisor
+Disallow: /admin
+Disallow: /contact/thanks
+
+Sitemap: https://futureshiftadvisory.nz/sitemap.xml

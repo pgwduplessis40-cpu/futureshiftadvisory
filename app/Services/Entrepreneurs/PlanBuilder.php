@@ -77,8 +77,10 @@ final class PlanBuilder
         string $title,
         string $body,
         User $actor,
+        array $metadata = [],
+        array $attachedDocumentIds = [],
     ): PlanSection {
-        return DB::transaction(function () use ($plan, $phaseKey, $key, $title, $body, $actor): PlanSection {
+        return DB::transaction(function () use ($plan, $phaseKey, $key, $title, $body, $actor, $metadata, $attachedDocumentIds): PlanSection {
             $warning = $this->plans->dependencyWarning($plan, $phaseKey);
             $section = $this->plans->upsertSection(
                 plan: $plan,
@@ -90,7 +92,9 @@ final class PlanBuilder
                 metadata: [
                     'dependency_warning' => $warning,
                     'updated_by_user_id' => $actor->getKey(),
+                    ...$metadata,
                 ],
+                attachedDocumentIds: $attachedDocumentIds,
             );
 
             $phasePosition = (int) $section->phase()->value('position');

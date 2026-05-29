@@ -20,12 +20,16 @@ use App\Models\ClientTeamMember;
 use App\Models\DdEngagement;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
+use App\Models\GovernanceReviewFinding;
 use App\Models\IndustryBriefing;
 use App\Models\KnowledgeAssessment;
 use App\Models\Meeting;
+use App\Models\NpoEngagement;
 use App\Models\PreMeetingBrief;
 use App\Models\Proposal;
 use App\Models\Report;
+use App\Models\ReportSectionComment;
+use App\Models\ReportSectionRevision;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
@@ -43,6 +47,7 @@ use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoValueCalculator;
 use App\Services\Npo\SocialEnterpriseAssessment;
+use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -255,6 +260,7 @@ final class ClientController extends Controller
         NpoFunderMonitor $npoFunders,
         NpoValueCalculator $npoValues,
         SocialEnterpriseAssessment $socialEnterprise,
+        StandardAdvisoryWorkflow $standardAdvisory,
     ): Response {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
@@ -292,8 +298,10 @@ final class ClientController extends Controller
                 'accounting' => $this->accountingSummary($client),
                 'payments' => $payments->forClient($client),
                 'analysis_findings' => $this->analysisFindingSummaries($client, $request->query('highlight')),
+                'standard_advisory' => $standardAdvisory->clientSummary($client),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $npoConversion->clientSummary($client),
+                'npo_governance_review' => $this->npoGovernanceReviewSummary($client),
                 'npo_configuration' => $npoConfiguration->clientSummary($client),
                 'npo_health' => $npoHealth->clientSummary($client),
                 'npo_funding' => $npoFunders->clientSummary($client),
@@ -306,6 +314,58 @@ final class ClientController extends Controller
                 ->first()
                 ?->only(['id', 'declaration', 'declared_at']),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function npoGovernanceReviewSummary(Client $client): ?array
+    {
+        $engagement = NpoEngagement::query()
+            ->where('client_id', $client->getKey())
+            ->where('sub_type', NpoEngagementSubType::GovernanceReview->value)
+            ->latest()
+            ->first();
+
+        if (! $engagement instanceof NpoEngagement) {
+            return null;
+        }
+
+        $findings = GovernanceReviewFinding::query()
+            ->where('npo_engagement_id', $engagement->getKey())
+            ->orderByRaw("case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end")
+            ->latest('updated_at')
+            ->get();
+        $pending = $findings->where('status', GovernanceReviewFinding::STATUS_PENDING_ADVISOR_REVIEW);
+        $reviewed = $findings->where('status', GovernanceReviewFinding::STATUS_REVIEWED);
+
+        return [
+            'id' => $engagement->id,
+            'run_url' => route('advisor.npo-engagements.governance-review.analysis', $engagement, absolute: false),
+            'findings_count' => $findings->count(),
+            'pending_review_count' => $pending->count(),
+            'reviewed_count' => $reviewed->count(),
+            'high_priority_count' => $findings
+                ->filter(fn (GovernanceReviewFinding $finding): bool => in_array($finding->severity->value, ['critical', 'high'], true))
+                ->count(),
+            'can_generate_report' => $reviewed->isNotEmpty(),
+            'findings' => $findings
+                ->take(8)
+                ->map(fn (GovernanceReviewFinding $finding): array => [
+                    'id' => $finding->id,
+                    'finding_key' => $finding->finding_key,
+                    'category' => $finding->category,
+                    'severity' => $finding->severity->value,
+                    'title' => $finding->title,
+                    'body' => $finding->body,
+                    'status' => $finding->status,
+                    'advisor_notes' => $finding->advisor_notes,
+                    'review_url' => route('advisor.governance-review-findings.review', $finding, absolute: false),
+                    'reviewed_at' => $finding->reviewed_at?->toIso8601String(),
+                ])
+                ->values()
+                ->all(),
+        ];
     }
 
     /**
@@ -439,7 +499,21 @@ final class ClientController extends Controller
                 'review_status' => $report->review_status,
                 'reviewed_at' => $report->reviewed_at?->toIso8601String(),
                 'review_url' => route('advisor.reports.review', $report, absolute: false),
-                'can_review' => in_array($report->type, [ReportType::Trajectory, ReportType::FunderAccountability, ReportType::ImpactSummary], true) && $report->review_status === 'pending_review',
+                'can_review' => in_array($report->type, [
+                    ReportType::Client,
+                    ReportType::DueDiligence,
+                    ReportType::Trajectory,
+                    ReportType::FunderAccountability,
+                    ReportType::ImpactSummary,
+                ], true) && $report->review_status === 'pending_review',
+                'section_count' => $report->sections()->count(),
+                'revision_count' => ReportSectionRevision::query()
+                    ->where('report_id', $report->getKey())
+                    ->count(),
+                'comment_count' => ReportSectionComment::query()
+                    ->where('report_id', $report->getKey())
+                    ->whereNull('resolved_at')
+                    ->count(),
             ])
             ->values()
             ->all();

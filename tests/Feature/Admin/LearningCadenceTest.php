@@ -6,6 +6,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\LearningLayerRun;
 use App\Models\LearningUpdate;
+use App\Models\LearningUpdateImplementation;
 use App\Models\User;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Learning\LayerCadenceRunner;
@@ -128,5 +129,40 @@ final class LearningCadenceTest extends TestCase
                 ->where('monitor.summary.registered_layers', 37)
                 ->where('monitor.recent_runs.0.layer_id', 12),
             );
+    }
+
+    public function test_admin_can_rerun_due_layers_and_due_approved_updates_are_implemented(): void
+    {
+        Carbon::setTestNow('2026-05-23 03:00:00');
+        $this->seed(RoleSeeder::class);
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create();
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+
+        LearningUpdate::query()->create([
+            'layer_id' => 29,
+            'source' => ['type' => 'rerun_test'],
+            'summary' => 'Approved rerun candidate',
+            'proposed_change' => ['action' => 'refresh_threshold', 'automatic_application' => false],
+            'impact_scope' => ['surface' => 'dashboard'],
+            'clients_affected' => 3,
+            'magnitude' => 'low',
+            'confidence' => 0.9,
+            'evidence' => ['samples' => 12],
+            'status' => LearningUpdate::STATUS_APPROVED,
+            'effective_date' => now()->subDay(),
+            'review_due_at' => now()->addDays(29),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.learning-updates.rerun'), ['layer_ids' => [29]])
+            ->assertRedirect(route('admin.learning-updates.index', absolute: false));
+
+        $this->assertSame(1, LearningLayerRun::query()->where('layer_id', 29)->count());
+        $this->assertSame(1, LearningUpdateImplementation::query()->count());
+        $this->assertDatabaseHas('learning_updates', [
+            'summary' => 'Approved rerun candidate',
+            'status' => LearningUpdate::STATUS_IMPLEMENTED,
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'learning_layer.approved_updates_implemented']);
     }
 }

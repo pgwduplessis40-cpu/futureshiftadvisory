@@ -14,6 +14,7 @@ final class LayerCadenceRunner
     public function __construct(
         private readonly LayerCadenceRegistry $registry,
         private readonly AuditWriter $audit,
+        private readonly ApprovalFlow $approvalFlow,
     ) {}
 
     /**
@@ -29,7 +30,7 @@ final class LayerCadenceRunner
             ->unique('layer_id')
             ->keyBy('layer_id');
 
-        return $this->registry->definitions()
+        $runs = $this->registry->definitions()
             ->filter(fn (array $definition): bool => $onlyLayerIds === [] || in_array($definition['id'], $onlyLayerIds, true))
             ->filter(fn (array $definition): bool => $onlyLayerIds !== [] || $this->registry->isDue(
                 $definition,
@@ -38,6 +39,18 @@ final class LayerCadenceRunner
             ))
             ->map(fn (array $definition): LearningLayerRun => $this->recordRun($definition, $at))
             ->values();
+
+        $implemented = $this->approvalFlow->implementDue($at);
+
+        if ($implemented->isNotEmpty()) {
+            $this->audit->record('learning_layer.approved_updates_implemented', after: [
+                'implemented_count' => $implemented->count(),
+                'implementation_ids' => $implemented->pluck('id')->values()->all(),
+                'ran_at' => $at->toIso8601String(),
+            ]);
+        }
+
+        return $runs;
     }
 
     /**

@@ -6,6 +6,7 @@ use App\Enums\Permission;
 use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
+use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Auth\InviteAcceptController;
@@ -28,6 +29,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
     Route::middleware('mfa')->group(function (): void {
         Route::get('terms', [TermsPendingController::class, 'show'])->name('terms.show');
         Route::get('terms/pending', [TermsPendingController::class, 'show'])->name('terms.pending');
+        Route::get('terms/download', [TermsPendingController::class, 'download'])->name('terms.download');
         Route::post('terms/accept', [TermsPendingController::class, 'accept'])->name('terms.accept');
         Route::post('terms/decline', [TermsPendingController::class, 'decline'])->name('terms.decline');
         Route::get('terms/declined', [TermsPendingController::class, 'declined'])->name('terms.declined');
@@ -71,11 +73,31 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->group(function (): void {
             Route::get('learning-updates', [LearningUpdateController::class, 'index'])
                 ->name('learning-updates.index');
+            Route::post('learning-updates/rerun', [LearningUpdateController::class, 'rerun'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-updates.rerun');
             Route::patch('learning-updates/{learningUpdate}/decision', [LearningUpdateController::class, 'decide'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-updates.decide');
+            Route::patch('learning-update-implementations/{learningUpdateImplementation}/review', [LearningUpdateController::class, 'reviewImpact'])
+                ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
+                ->name('learning-update-implementations.review');
             Route::patch('learning-update-implementations/{learningUpdateImplementation}/rollback', [LearningUpdateController::class, 'rollback'])
                 ->middleware('permission:'.Permission::LEARNING_UPDATES_APPROVE->value)
                 ->name('learning-update-implementations.rollback');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::CLIENTS_MANAGE->value])
+        ->group(function (): void {
+            Route::get('panel-members', [PanelMemberController::class, 'index'])
+                ->name('panel-members.index');
+            Route::patch('panel-members/{panelMember}/approve', [PanelMemberController::class, 'approve'])
+                ->name('panel-members.approve');
+            Route::patch('panel-members/{panelMember}/request-info', [PanelMemberController::class, 'requestInfo'])
+                ->name('panel-members.request-info');
+            Route::patch('panel-members/{panelMember}/decline', [PanelMemberController::class, 'decline'])
+                ->name('panel-members.decline');
         });
 });

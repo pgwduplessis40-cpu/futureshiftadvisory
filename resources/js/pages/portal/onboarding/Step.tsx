@@ -8,10 +8,13 @@ import {
     FileText,
     Flag,
     ShieldCheck,
+    Upload,
     UserRoundCheck,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { ComponentType, FormEvent, ReactNode } from 'react';
 import { toast } from 'sonner';
+import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
 import { Badge } from '@/components/ui/badge';
@@ -39,6 +42,7 @@ type Props = {
     progress: Progress;
     questionnaire: Questionnaire;
     documentUploadUrl: string;
+    documentCount: number;
     submitUrl: string;
     dashboardUrl: string;
     authUser: {
@@ -70,6 +74,7 @@ export default function OnboardingStep({
     progress,
     questionnaire,
     documentUploadUrl,
+    documentCount,
     submitUrl,
     dashboardUrl,
     authUser,
@@ -92,7 +97,6 @@ export default function OnboardingStep({
         review_confirmed: booleanValue(stepData.review_confirmed),
     });
     const errors = form.errors as Record<string, string | undefined>;
-
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -199,6 +203,7 @@ export default function OnboardingStep({
                             errors={errors}
                             questionnaire={questionnaire}
                             documentUploadUrl={documentUploadUrl}
+                            documentCount={documentCount}
                             authUser={authUser}
                         />
                     </section>
@@ -228,6 +233,7 @@ function StepContent({
     errors,
     questionnaire,
     documentUploadUrl,
+    documentCount,
     authUser,
 }: {
     client: ClientPayload;
@@ -237,8 +243,60 @@ function StepContent({
     errors: Record<string, string | undefined>;
     questionnaire: Questionnaire;
     documentUploadUrl: string;
+    documentCount: number;
     authUser: { name: string; email: string };
 }) {
+    const [documentFile, setDocumentFile] = useState<File | null>(null);
+    const [uploadedDocumentCount, setUploadedDocumentCount] =
+        useState(documentCount);
+    const [uploadingDocument, setUploadingDocument] = useState(false);
+    const [documentUploadError, setDocumentUploadError] = useState<
+        string | null
+    >(null);
+
+    const uploadDocument = async () => {
+        if (!documentFile) {
+            return;
+        }
+
+        setUploadingDocument(true);
+        setDocumentUploadError(null);
+
+        const upload = new FormData();
+        upload.append('file', documentFile);
+        upload.append('category', 'other');
+        upload.append(
+            'claim_value',
+            'Supporting document uploaded during onboarding.',
+        );
+        upload.append('question_prompt', 'Onboarding supporting document');
+
+        const response = await fetch(documentUploadUrl, {
+            method: 'POST',
+            headers: {
+                Accept: 'application/json',
+                'X-CSRF-TOKEN': csrfToken(),
+            },
+            body: upload,
+        });
+
+        setUploadingDocument(false);
+
+        if (!response.ok) {
+            const payload = (await response.json().catch(() => null)) as {
+                message?: string;
+            } | null;
+            setDocumentUploadError(payload?.message ?? 'Upload failed.');
+
+            return;
+        }
+
+        setUploadedDocumentCount((count) => count + 1);
+        setDocumentFile(null);
+        form.setData('documents_acknowledged', true);
+        toast.success('Document uploaded.');
+    };
+
     switch (step.slug) {
         case 'welcome':
             return (
@@ -435,11 +493,43 @@ function StepContent({
                 <ContentShell
                     icon={FileText}
                     title="Documents"
-                    description="Supporting document upload is reserved for WO-18."
+                    description="Upload the evidence your advisor needs before the Standard Advisory review can move into analysis."
                 >
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                        {uploadedDocumentCount > 0
+                            ? `${uploadedDocumentCount} supporting document${uploadedDocumentCount === 1 ? '' : 's'} uploaded.`
+                            : 'No supporting documents uploaded yet.'}
+                    </div>
+                    <div className="grid gap-3">
+                        <FileDropzone
+                            id="onboarding_supporting_document"
+                            files={documentFile ? [documentFile] : []}
+                            label="Upload supporting document"
+                            onFilesChange={(files) =>
+                                setDocumentFile(files[0] ?? null)
+                            }
+                        />
+                        <InputError
+                            message={
+                                documentUploadError ??
+                                errors.supporting_documents
+                            }
+                        />
+                        <div className="flex justify-end">
+                            <Button
+                                type="button"
+                                variant="outline"
+                                disabled={!documentFile || uploadingDocument}
+                                onClick={() => void uploadDocument()}
+                            >
+                                <Upload className="size-4" aria-hidden="true" />
+                                {uploadingDocument ? 'Uploading' : 'Upload'}
+                            </Button>
+                        </div>
+                    </div>
                     <CheckboxField
                         id="documents_acknowledged"
-                        label="I will prepare supporting documents for upload."
+                        label="Supporting documents are ready for advisor review."
                         checked={form.data.documents_acknowledged}
                         onCheckedChange={(checked) =>
                             form.setData('documents_acknowledged', checked)
@@ -616,4 +706,12 @@ function summaryValue(
     const value = state.steps[step]?.[key];
 
     return typeof value === 'string' && value !== '' ? value : null;
+}
+
+function csrfToken(): string {
+    return (
+        document
+            .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
+            ?.getAttribute('content') ?? ''
+    );
 }

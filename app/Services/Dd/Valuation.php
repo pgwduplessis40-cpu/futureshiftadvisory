@@ -57,6 +57,9 @@ final class Valuation implements ProvidesMethodology
                 businessValuation: $businessValuation,
                 fx: $fx,
                 askingPrice: $options['asking_price'] ?? $financials['asking_price'] ?? null,
+                precedentTransactions: $options['precedent_transactions'] ?? $financials['precedent_transactions'] ?? $engagement->target_details['precedent_transactions'] ?? [],
+                dealStructureAdjustments: $options['deal_structure_adjustments'] ?? $engagement->target_details['deal_structure_adjustments'] ?? [],
+                synergyAdjustments: $options['synergy_adjustments'] ?? $engagement->target_details['synergy_adjustments'] ?? [],
             );
 
             $valuation = DdValuation::query()->create([
@@ -114,8 +117,14 @@ final class Valuation implements ProvidesMethodology
      * @param  array<string, mixed>  $fx
      * @return array<string, mixed>
      */
-    private function buyerPosition(BusinessValuationModel $businessValuation, array $fx, mixed $askingPrice): array
-    {
+    private function buyerPosition(
+        BusinessValuationModel $businessValuation,
+        array $fx,
+        mixed $askingPrice,
+        mixed $precedentTransactions,
+        mixed $dealStructureAdjustments,
+        mixed $synergyAdjustments,
+    ): array {
         $rate = (float) $fx['source_to_nzd_rate'];
         $askingPriceNzd = is_numeric($askingPrice) ? round((float) $askingPrice * $rate, 2) : null;
         $low = (float) data_get($fx, 'normalised_values.reconciled.low');
@@ -141,6 +150,66 @@ final class Valuation implements ProvidesMethodology
                 $businessValuation->ebitda_value,
                 $businessValuation->dcf_value,
             ])),
+            'valuation_basis' => [
+                'primary_method' => 'dcf',
+                'market_multiple_cross_checks' => ['sde', 'ebitda'],
+                'precedent_transaction_cross_check' => 'supported_when_precedent_transactions_are_supplied',
+            ],
+            'precedent_transactions' => $this->normalisePrecedentTransactions($precedentTransactions),
+            'deal_structure_adjustments' => $this->normaliseAdjustments($dealStructureAdjustments),
+            'synergy_adjustments' => $this->normaliseAdjustments($synergyAdjustments),
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function normalisePrecedentTransactions(mixed $values): array
+    {
+        if (! is_array($values)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $value): array => array_filter([
+                'label' => (string) ($value['label'] ?? $value['name'] ?? 'Precedent transaction'),
+                'amount' => is_numeric($value['amount'] ?? $value['value'] ?? null)
+                    ? round((float) ($value['amount'] ?? $value['value']), 2)
+                    : null,
+                'enterprise_value_nzd' => is_numeric($value['enterprise_value_nzd'] ?? null)
+                    ? round((float) $value['enterprise_value_nzd'], 2)
+                    : null,
+                'value_nzd' => is_numeric($value['value_nzd'] ?? null)
+                    ? round((float) $value['value_nzd'], 2)
+                    : null,
+                'amount_nzd' => is_numeric($value['amount_nzd'] ?? null)
+                    ? round((float) $value['amount_nzd'], 2)
+                    : null,
+                'multiple' => is_numeric($value['multiple'] ?? null)
+                    ? round((float) $value['multiple'], 2)
+                    : null,
+                'rationale' => (string) ($value['rationale'] ?? $value['description'] ?? 'Advisor supplied precedent transaction.'),
+            ], fn (mixed $entry): bool => $entry !== null),
+            array_filter($values, 'is_array'),
+        ));
+    }
+
+    /**
+     * @return array<int, array{label:string, amount:float, rationale:string}>
+     */
+    private function normaliseAdjustments(mixed $values): array
+    {
+        if (! is_array($values)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $value): array => [
+                'label' => (string) ($value['label'] ?? $value['name'] ?? 'DD adjustment'),
+                'amount' => round((float) ($value['amount'] ?? $value['value'] ?? $value['enterprise_value_nzd'] ?? $value['value_nzd'] ?? $value['amount_nzd'] ?? 0), 2),
+                'rationale' => (string) ($value['rationale'] ?? $value['description'] ?? 'Advisor supplied DD adjustment.'),
+            ],
+            array_filter($values, 'is_array'),
+        ));
     }
 }

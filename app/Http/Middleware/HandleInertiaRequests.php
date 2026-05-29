@@ -2,6 +2,8 @@
 
 namespace App\Http\Middleware;
 
+use App\Enums\ClientStatus;
+use App\Models\Client;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Notifications\NotificationCenter;
@@ -41,6 +43,7 @@ class HandleInertiaRequests extends Middleware
         return [
             ...parent::share($request),
             'name' => config('app.name'),
+            'publicUrl' => config('app.public_url'),
             'auth' => [
                 'user' => $request->user(),
             ],
@@ -50,7 +53,47 @@ class HandleInertiaRequests extends Middleware
             'notificationSummary' => fn () => $request->user() instanceof User
                 ? app(NotificationCenter::class)->summary($request->user())
                 : null,
+            'portalClient' => fn () => $this->portalClient($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function portalClient(Request $request): ?array
+    {
+        $user = $request->user();
+
+        if (
+            ! $user instanceof User
+            || ! in_array($user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
+        ) {
+            return null;
+        }
+
+        $clientIds = $user->accessibleClientIds();
+        if ($clientIds === []) {
+            return null;
+        }
+
+        $client = Client::query()
+            ->whereIn('id', $clientIds)
+            ->where('status', '!=', ClientStatus::SUSPENDED->value)
+            ->latest()
+            ->first();
+
+        if (! $client instanceof Client) {
+            return null;
+        }
+
+        return [
+            'id' => $client->id,
+            'legal_name' => $client->legal_name,
+            'trading_name' => $client->trading_name,
+            'engagement_type' => is_string($client->engagement_type)
+                ? $client->engagement_type
+                : $client->engagement_type?->value,
         ];
     }
 }

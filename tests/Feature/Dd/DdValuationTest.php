@@ -64,6 +64,15 @@ final class DdValuationTest extends TestCase
                 'cash_flows' => [90000, 90000, 90000],
                 'source_reference' => 'dd_data_room_item:financial-target',
             ],
+            'precedent_transactions' => [
+                ['label' => 'Comparable target', 'amount' => 525000, 'rationale' => 'Recent sector sale.'],
+            ],
+            'deal_structure_adjustments' => [
+                ['label' => 'Vendor finance discount', 'amount' => -25000],
+            ],
+            'synergy_adjustments' => [
+                ['label' => 'Procurement upside', 'amount' => 40000],
+            ],
         ]);
 
         $this->assertInstanceOf(DdValuation::class, $valuation);
@@ -85,6 +94,10 @@ final class DdValuationTest extends TestCase
             $valuation->sensitivity['plus_10_percent_rate']['reconciled']['mid'],
         );
         $this->assertSame('within_range', $valuation->buyer_position['position']);
+        $this->assertSame('dcf', $valuation->buyer_position['valuation_basis']['primary_method']);
+        $this->assertSame('Comparable target', $valuation->buyer_position['precedent_transactions'][0]['label']);
+        $this->assertEqualsWithDelta(-25000.0, $valuation->buyer_position['deal_structure_adjustments'][0]['amount'], 0.01);
+        $this->assertEqualsWithDelta(40000.0, $valuation->buyer_position['synergy_adjustments'][0]['amount'], 0.01);
         $this->assertContains(
             "exchange_rate:{$rate->id}:NZD/USD",
             collect($valuation->source_attributions)->pluck('source_reference')->all(),

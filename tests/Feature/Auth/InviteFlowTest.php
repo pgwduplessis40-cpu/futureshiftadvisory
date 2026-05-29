@@ -30,7 +30,7 @@ final class InviteFlowTest extends TestCase
         $this->assertStringContainsString($issued->plainToken, $issued->acceptUrl);
         $this->assertNotSame($issued->plainToken, $issued->invite->token_hash);
         $this->assertSame(64, strlen($issued->invite->token_hash));
-        $this->assertTrue($issued->invite->expires_at->greaterThan(now()->addHours(71)));
+        $this->assertTrue($issued->invite->expires_at->greaterThan(now()->addHours(167)));
         $this->assertDatabaseHas('audit_events', [
             'action' => 'invite.issued',
             'subject_id' => $issued->invite->id,
@@ -51,6 +51,7 @@ final class InviteFlowTest extends TestCase
 
         $response = $this->post(route('invite.store', $issued->plainToken), [
             'name' => 'Owner Person',
+            'mobile_phone' => '+64 21 123 4567',
             'password' => 'A-secure-password-123',
             'password_confirmation' => 'A-secure-password-123',
         ]);
@@ -61,6 +62,7 @@ final class InviteFlowTest extends TestCase
         $this->assertAuthenticatedAs($user);
         $this->assertSame(User::TYPE_CLIENT_PRIMARY, $user->user_type);
         $this->assertSame(User::TYPE_CLIENT_PRIMARY, $user->primary_role);
+        $this->assertSame('+64 21 123 4567', $user->mobile_phone);
         $this->assertNotNull($user->last_password_set_at);
         $this->assertNotNull($issued->invite->refresh()->accepted_at);
         $this->assertDatabaseHas('audit_events', [
@@ -81,15 +83,22 @@ final class InviteFlowTest extends TestCase
 
         $this->post(route('invite.store', $issued->plainToken), [
             'name' => 'Client Person',
+            'mobile_phone' => '+64 21 123 4567',
             'password' => 'A-secure-password-123',
             'password_confirmation' => 'A-secure-password-123',
         ]);
 
         auth()->logout();
 
-        $this->get(route('invite.accept', $issued->plainToken))->assertNotFound();
+        $this->get(route('invite.accept', $issued->plainToken))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/invite-expired')
+                ->where('email', 'client@example.com')
+                ->where('isAccepted', true));
         $this->post(route('invite.store', $issued->plainToken), [
             'name' => 'Replay Person',
+            'mobile_phone' => '+64 21 222 3333',
             'password' => 'A-secure-password-123',
             'password_confirmation' => 'A-secure-password-123',
         ])->assertNotFound();
@@ -106,6 +115,10 @@ final class InviteFlowTest extends TestCase
             'expires_at' => now()->subMinute(),
         ]);
 
-        $this->get(route('invite.accept', $plainToken))->assertNotFound();
+        $this->get(route('invite.accept', $plainToken))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/invite-expired')
+                ->where('email', 'expired@example.com'));
     }
 }

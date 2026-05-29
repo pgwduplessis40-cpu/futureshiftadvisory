@@ -6,11 +6,13 @@ namespace App\Services\Reports;
 
 use App\Enums\AnalysisLens;
 use App\Enums\DiscountMethod;
+use App\Enums\EngagementType;
 use App\Enums\FindingSeverity;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\PvType;
 use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
+use App\Models\BusinessPlan;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
@@ -30,8 +32,11 @@ use App\Models\NpoTensionAnalysis;
 use App\Models\NpoValueCalculation;
 use App\Models\NzResource;
 use App\Models\PlanAssessment;
+use App\Models\PlanSection;
+use App\Models\PostAcquisitionMigration;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
+use App\Models\QuestionnaireResponse;
 use App\Models\RatingFramework;
 use App\Models\Report;
 use App\Models\ReportSection;
@@ -40,6 +45,7 @@ use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdDisclaimer;
 use App\Services\Npo\NpoImpactMetricRecorder;
@@ -73,6 +79,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
+        private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -87,6 +94,13 @@ final class ReportComposer implements ProvidesMethodology
             $valuation = $this->latestValuation($client);
             $proposal = $this->latestProposal($client);
 
+            $clientReleaseGate = $type === ReportType::Client && $this->standardAdvisoryClient($client);
+            $reviewStatus = match (true) {
+                $type === ReportType::Trajectory,
+                $clientReleaseGate => 'pending_review',
+                default => 'not_required',
+            };
+
             $report = Report::query()->create([
                 'client_id' => $client->getKey(),
                 'type' => $type,
@@ -95,6 +109,7 @@ final class ReportComposer implements ProvidesMethodology
                 'generated_at' => now(),
                 'metadata' => [
                     'phase' => 'phase_2',
+                    'client_release_gate' => $clientReleaseGate,
                     'redactions' => $type === ReportType::Client
                         ? ['recommendations', 'fee_detail']
                         : ($type === ReportType::Stakeholder ? ['fsa_methodology', 'fsa_ip'] : []),
@@ -105,7 +120,7 @@ final class ReportComposer implements ProvidesMethodology
                         ReportType::EntrepreneurAssessment->value,
                     ],
                 ],
-                'review_status' => $type === ReportType::Trajectory ? 'pending_review' : 'not_required',
+                'review_status' => $reviewStatus,
             ]);
 
             foreach ($this->sections($client, $type, $findings, $waterfall, $valuation, $proposal) as $position => $section) {
@@ -162,7 +177,7 @@ final class ReportComposer implements ProvidesMethodology
                     'recommendation' => $recommendation,
                     'redactions' => [],
                 ],
-                'review_status' => 'not_required',
+                'review_status' => 'pending_review',
             ]);
 
             foreach ($this->dueDiligenceSections($engagement, $findings, $valuation, $risks, $integrationPlan, $recommendation) as $position => $section) {
@@ -184,6 +199,87 @@ final class ReportComposer implements ProvidesMethodology
                 'risk_count' => $risks->count(),
                 'pdf_path' => $report->pdf_path,
                 'pptx_path' => $report->pptx_path,
+            ]);
+
+            return $report->refresh()->load('sections');
+        });
+    }
+
+    public function composePostAcquisitionGap(PostAcquisitionMigration $migration, ?User $actor = null): Report
+    {
+        $migration->loadMissing([
+            'advisoryClient',
+            'buyerClient',
+            'businessPlan.phases.sections',
+            'ddReport',
+            'engagement',
+            'gapQuestionnaireResponse.answers.question',
+            'proposal.feeCalculation',
+        ]);
+
+        $client = $migration->advisoryClient;
+        $engagement = $migration->engagement;
+
+        if (! $client instanceof Client || ! $engagement instanceof DdEngagement) {
+            throw new InvalidArgumentException('Post-acquisition gap reports require a migration, advisory client, and DD engagement.');
+        }
+
+        return DB::transaction(function () use ($migration, $client, $engagement, $actor): Report {
+            $risks = DdRiskRegisterItem::query()
+                ->where('dd_engagement_id', $engagement->getKey())
+                ->orderBy('rank')
+                ->get();
+            $integrationPlan = DdIntegrationPlanItem::query()
+                ->where('dd_engagement_id', $engagement->getKey())
+                ->orderBy('day')
+                ->get();
+            $plan = $migration->businessPlan;
+            $requirements = $plan instanceof BusinessPlan ? $this->acquisitionPlanRequirements->payload($plan) : [];
+            $completion = $plan instanceof BusinessPlan
+                ? $this->acquisitionPlanRequirements->completion($plan, $requirements)
+                : ['complete' => false, 'missing' => collect($this->acquisitionPlanRequirements->templatePayload())
+                    ->flatMap(fn (array $phase): array => collect($phase['requirements'] ?? [])
+                        ->map(fn (array $requirement): string => $phase['title'].': '.$requirement['title'])
+                        ->values()
+                        ->all())
+                    ->values()
+                    ->all()];
+
+            $report = Report::query()->create([
+                'client_id' => $client->getKey(),
+                'type' => ReportType::PostAcquisitionGap,
+                'title' => ReportType::PostAcquisitionGap->label().' - '.$client->legal_name,
+                'generated_by_user_id' => $actor?->getKey(),
+                'generated_at' => now(),
+                'metadata' => [
+                    'phase' => 'phase_3',
+                    'post_acquisition_migration_id' => $migration->getKey(),
+                    'dd_engagement_id' => $engagement->getKey(),
+                    'buyer_client_id' => $migration->buyer_client_id,
+                    'business_plan_id' => $plan?->getKey(),
+                    'dd_pv_baseline' => $migration->dd_pv_baseline,
+                    'redactions' => [],
+                ],
+                'review_status' => 'not_required',
+            ]);
+
+            foreach ($this->postAcquisitionGapSections($migration, $risks, $integrationPlan, $plan, $requirements, $completion) as $position => $section) {
+                ReportSection::query()->create([
+                    ...$section,
+                    'report_id' => $report->getKey(),
+                    'client_id' => $client->getKey(),
+                    'position' => $position + 1,
+                ]);
+            }
+
+            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
+
+            $this->audit->record('post_acquisition.gap_report_generated', subject: $report, actor: $actor, after: [
+                'post_acquisition_migration_id' => $migration->getKey(),
+                'dd_engagement_id' => $engagement->getKey(),
+                'sections' => $report->sections()->count(),
+                'missing_plan_requirements' => $completion['missing'],
+                'pdf_path' => $report->pdf_path,
             ]);
 
             return $report->refresh()->load('sections');
@@ -618,7 +714,7 @@ final class ReportComposer implements ProvidesMethodology
     {
         $report = $report->refresh();
 
-        if (! in_array($report->type, [ReportType::Trajectory, ReportType::FunderAccountability, ReportType::ImpactSummary], true)) {
+        if (! $this->usesAdvisorReviewGate($report)) {
             throw new InvalidArgumentException('This report type does not use the advisor review gate.');
         }
 
@@ -634,6 +730,49 @@ final class ReportComposer implements ProvidesMethodology
         ]);
 
         return $report->refresh();
+    }
+
+    public function rerenderArtifacts(Report $report): Report
+    {
+        $report->loadMissing(['client', 'entrepreneurProfile', 'sections']);
+
+        $this->renderAndStorePdf($report);
+
+        if ($report->pptx_path !== null) {
+            $this->renderAndStorePptx($report->refresh()->load(['client', 'entrepreneurProfile', 'sections']));
+        }
+
+        $this->audit->record('report.rerendered', subject: $report, after: [
+            'type' => $report->type->value,
+            'pdf_path' => $report->pdf_path,
+            'pptx_path' => $report->pptx_path,
+        ]);
+
+        return $report->refresh();
+    }
+
+    private function usesAdvisorReviewGate(Report $report): bool
+    {
+        if (in_array($report->type, [
+            ReportType::DueDiligence,
+            ReportType::Trajectory,
+            ReportType::FunderAccountability,
+            ReportType::ImpactSummary,
+        ], true)) {
+            return true;
+        }
+
+        return $report->type === ReportType::Client
+            && (bool) data_get($report->metadata, 'client_release_gate', false);
+    }
+
+    private function standardAdvisoryClient(Client $client): bool
+    {
+        $type = $client->engagement_type instanceof EngagementType
+            ? $client->engagement_type
+            : EngagementType::tryFrom((string) $client->engagement_type);
+
+        return $type === EngagementType::STANDARD_ADVISORY;
     }
 
     public function autoReleaseDueImpactSummaries(?User $actor = null): int
@@ -833,6 +972,7 @@ final class ReportComposer implements ProvidesMethodology
         return [
             $this->ddExecutiveSummarySection($engagement, $findings, $valuation, $risks, $recommendation),
             $this->ddValuationSection($engagement, $valuation),
+            $this->ddPurchasePriceRangeSection($engagement, $valuation, $risks),
             $this->ddWorkstreamFindingsSection($engagement, $findings),
             $this->ddRiskRegisterSection($engagement, $risks),
             $this->ddPriceAdjustmentSection($engagement, $risks),
@@ -840,6 +980,29 @@ final class ReportComposer implements ProvidesMethodology
             $this->ddBuyerReadinessSection($engagement, $valuation, $risks),
             $this->ddRecommendationSection($engagement, $recommendation),
             $this->ddLiabilityDisclaimerSection($engagement),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
+     * @param  array<string, array<int, array<string, mixed>>>  $requirements
+     * @param  array{complete: bool, missing: array<int, string>}  $completion
+     * @return array<int, array<string, mixed>>
+     */
+    private function postAcquisitionGapSections(
+        PostAcquisitionMigration $migration,
+        Collection $risks,
+        Collection $integrationPlan,
+        ?BusinessPlan $plan,
+        array $requirements,
+        array $completion,
+    ): array {
+        return [
+            $this->postAcquisitionHandoffSummarySection($migration, $plan, $completion),
+            $this->postAcquisitionDdGapsSection($migration, $risks, $integrationPlan),
+            $this->postAcquisitionBusinessPlanComparisonSection($migration, $risks, $plan, $requirements, $completion),
+            $this->postAcquisitionAdvisorActionsSection($migration, $plan, $completion),
         ];
     }
 
@@ -1779,6 +1942,230 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
+     * @param  array{complete: bool, missing: array<int, string>}  $completion
+     * @return array<string, mixed>
+     */
+    private function postAcquisitionHandoffSummarySection(
+        PostAcquisitionMigration $migration,
+        ?BusinessPlan $plan,
+        array $completion,
+    ): array {
+        $response = $migration->gapQuestionnaireResponse;
+        $gapRemaining = $response instanceof QuestionnaireResponse && $response->submitted_at !== null
+            ? 0
+            : count((array) data_get($migration->metadata, 'gap_questions_remaining', []));
+        $proposal = $migration->proposal;
+        $proposalStatus = $proposal instanceof Proposal
+            ? str_replace('_', ' ', (string) (is_string($proposal->status) ? $proposal->status : $proposal->status->value))
+            : 'not generated';
+        $planStatus = $plan instanceof BusinessPlan
+            ? str_replace('_', ' ', (string) $plan->status)
+            : 'not prepared';
+        $body = sprintf(
+            "Target: %s.\nDD PV baseline: %s.\nMigrated DD documents: %d.\nPost-acquisition gap questionnaire: %s.\nAcquisition business plan: %s; %d plan requirement gap(s) remain.\nProposal status: %s.",
+            $migration->engagement?->target_name ?? $migration->advisoryClient?->legal_name ?? 'acquired business',
+            $this->money($migration->dd_pv_baseline),
+            count(is_array($migration->migrated_document_ids) ? $migration->migrated_document_ids : []),
+            $gapRemaining === 0 ? 'submitted or fully prefilled' : "{$gapRemaining} client confirmation item(s) remain",
+            $planStatus,
+            count($completion['missing']),
+            $proposalStatus,
+        );
+
+        return $this->generatedSection(
+            key: 'post_acquisition_handoff_summary',
+            title: 'Handoff summary',
+            body: $body,
+            sourceReference: 'post_acquisition_migration:'.$migration->getKey(),
+            dataQualityNote: 'Data quality note: handoff summary combines DD migration metadata, client gap-questionnaire state, and linked acquisition-plan status.',
+            metadata: [
+                'post_acquisition_migration_id' => $migration->getKey(),
+                'business_plan_id' => $plan?->getKey(),
+                'proposal_id' => $proposal?->getKey(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  Collection<int, DdIntegrationPlanItem>  $integrationPlan
+     * @return array<string, mixed>
+     */
+    private function postAcquisitionDdGapsSection(
+        PostAcquisitionMigration $migration,
+        Collection $risks,
+        Collection $integrationPlan,
+    ): array {
+        $riskBody = $risks->isEmpty()
+            ? 'No ranked DD risk gaps were available at handoff.'
+            : $risks
+                ->map(fn (DdRiskRegisterItem $risk): string => sprintf(
+                    '#%d %s - %s. PV cost: %s. Indicative price adjustment: %s.',
+                    $risk->rank,
+                    str_replace('_', ' ', $risk->risk_level),
+                    $risk->title,
+                    $this->money($risk->pv_of_cost),
+                    $this->money($risk->price_adjustment_nzd),
+                ))
+                ->implode("\n");
+        $integrationBody = $integrationPlan->isEmpty()
+            ? 'No 100-day integration actions were generated from DD yet.'
+            : $integrationPlan
+                ->map(fn (DdIntegrationPlanItem $item): string => sprintf(
+                    'Day %d %s - %s (%s priority).',
+                    $item->day,
+                    $item->phase,
+                    $item->action,
+                    $item->priority,
+                ))
+                ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'post_acquisition_dd_gaps',
+            title: 'DD gaps requiring advisory attention',
+            body: "Ranked DD gaps:\n{$riskBody}\n\nIntegration actions from DD:\n{$integrationBody}",
+            sourceReference: 'dd_gap_sources:'.$migration->dd_engagement_id,
+            dataQualityNote: 'Data quality note: DD gaps come from persisted DD risk-register rows and generated integration-plan actions.',
+            metadata: [
+                'risk_register_ids' => $risks->pluck('id')->values()->all(),
+                'integration_plan_ids' => $integrationPlan->pluck('id')->values()->all(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  array<string, array<int, array<string, mixed>>>  $requirements
+     * @param  array{complete: bool, missing: array<int, string>}  $completion
+     * @return array<string, mixed>
+     */
+    private function postAcquisitionBusinessPlanComparisonSection(
+        PostAcquisitionMigration $migration,
+        Collection $risks,
+        ?BusinessPlan $plan,
+        array $requirements,
+        array $completion,
+    ): array {
+        if (! $plan instanceof BusinessPlan) {
+            $body = "No acquisition business plan is linked to this handoff yet.\nPending plan gaps:\n".implode("\n", $completion['missing']);
+
+            return $this->generatedSection(
+                key: 'post_acquisition_plan_comparison',
+                title: 'DD to business-plan gap comparison',
+                body: $body,
+                sourceReference: 'post_acquisition_plan:none:'.$migration->getKey(),
+                dataQualityNote: 'Data quality note: this comparison is template-only until the DD acquisition business plan is populated.',
+                metadata: [
+                    'missing_requirements' => $completion['missing'],
+                ],
+            );
+        }
+
+        $completeRequirements = collect($requirements)
+            ->flatMap(fn (array $phaseRequirements): array => collect($phaseRequirements)
+                ->filter(fn (array $requirement): bool => (bool) $requirement['complete'])
+                ->map(fn (array $requirement): string => $requirement['phase_title'].': '.$requirement['title'])
+                ->values()
+                ->all())
+            ->values()
+            ->all();
+        $uncoveredRisks = $this->postAcquisitionUncoveredRiskTitles($risks, $plan);
+        $body = sprintf(
+            "Business plan status: %s.\nCompleted plan requirements:\n%s\n\nPending plan requirements:\n%s\n\nDD risks not explicitly referenced in the plan by risk title:\n%s",
+            str_replace('_', ' ', (string) $plan->status),
+            $completeRequirements === [] ? 'None yet.' : implode("\n", $completeRequirements),
+            $completion['missing'] === [] ? 'None.' : implode("\n", $completion['missing']),
+            $uncoveredRisks === [] ? 'None detected by title match.' : implode("\n", $uncoveredRisks),
+        );
+
+        return $this->generatedSection(
+            key: 'post_acquisition_plan_comparison',
+            title: 'DD to business-plan gap comparison',
+            body: $body,
+            sourceReference: 'business_plan:'.$plan->getKey(),
+            dataQualityNote: 'Data quality note: plan comparison checks the DD acquisition-plan requirement template and whether ranked DD risk titles appear in completed plan sections.',
+            metadata: [
+                'business_plan_id' => $plan->getKey(),
+                'missing_requirements' => $completion['missing'],
+                'complete_requirements' => $completeRequirements,
+                'uncovered_risk_titles' => $uncoveredRisks,
+            ],
+        );
+    }
+
+    /**
+     * @param  array{complete: bool, missing: array<int, string>}  $completion
+     * @return array<string, mixed>
+     */
+    private function postAcquisitionAdvisorActionsSection(
+        PostAcquisitionMigration $migration,
+        ?BusinessPlan $plan,
+        array $completion,
+    ): array {
+        $actions = [];
+        $response = $migration->gapQuestionnaireResponse;
+        $proposal = $migration->proposal;
+        $proposalStatus = $proposal instanceof Proposal
+            ? (is_string($proposal->status) ? $proposal->status : $proposal->status->value)
+            : null;
+
+        if (! $response instanceof QuestionnaireResponse || $response->submitted_at === null) {
+            $actions[] = 'Ask the client to complete the post-acquisition gap questionnaire and confirm the DD-prefilled answers.';
+        }
+
+        if (! $plan instanceof BusinessPlan) {
+            $actions[] = 'Prepare or link the DD acquisition business plan before finalising post-acquisition advice.';
+        } elseif (! $completion['complete']) {
+            $actions[] = 'Resolve remaining plan gaps: '.implode('; ', $completion['missing']).'.';
+        }
+
+        if ($proposalStatus === 'draft') {
+            $actions[] = 'Review and release the generated post-acquisition proposal so the client can sign off.';
+        } elseif ($proposalStatus === null) {
+            $actions[] = 'Generate a post-acquisition advisory proposal once scope and gaps are confirmed.';
+        }
+
+        if ($actions === []) {
+            $actions[] = 'Proceed with advisor-led post-acquisition advisory scoping and first 100-day implementation planning.';
+        }
+
+        return $this->generatedSection(
+            key: 'post_acquisition_advisor_actions',
+            title: 'Advisor action list',
+            body: implode("\n", $actions),
+            sourceReference: 'post_acquisition_actions:'.$migration->getKey(),
+            dataQualityNote: 'Data quality note: action list reflects current persisted workflow state and should be reviewed by the advisor before client advice is issued.',
+            metadata: [
+                'actions' => $actions,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @return array<int, string>
+     */
+    private function postAcquisitionUncoveredRiskTitles(Collection $risks, BusinessPlan $plan): array
+    {
+        $plan->loadMissing('phases.sections');
+        $planText = Str::lower($plan->phases
+            ->flatMap(fn ($phase) => $phase->sections)
+            ->filter(fn ($section): bool => $section instanceof PlanSection)
+            ->map(fn (PlanSection $section): string => $section->title."\n".$section->body)
+            ->implode("\n"));
+
+        return $risks
+            ->filter(function (DdRiskRegisterItem $risk) use ($planText): bool {
+                $title = Str::lower(trim($risk->title));
+
+                return $title !== '' && ! str_contains($planText, $title);
+            })
+            ->pluck('title')
+            ->values()
+            ->all();
+    }
+
+    /**
      * @param  Collection<int, AnalysisFinding>  $findings
      * @param  Collection<int, DdRiskRegisterItem>  $risks
      * @param  array{recommendation:string,rationale:string}  $recommendation
@@ -1832,14 +2219,18 @@ final class ReportComposer implements ProvidesMethodology
 
         $valuation->loadMissing('businessValuation', 'pvCalculation');
         $businessValuation = $valuation->businessValuation;
+        $dcfRange = $this->ddValuationRange($valuation, 'dcf_value');
+        $reconciledRange = $this->ddValuationRange($valuation, 'reconciled');
         $body = sprintf(
-            "SDE method: %s.\nEBITDA method: %s.\nDCF/PV method: %s.\nReconciled NZD range: %s low, %s midpoint, %s high.\nFX: %s to NZD at %s, timestamp %s.\nBuyer position: %s.",
-            $this->methodValue($businessValuation?->sde_value),
-            $this->methodValue($businessValuation?->ebitda_value),
-            $this->methodValue($businessValuation?->dcf_value),
-            $this->money(data_get($valuation->normalised_values, 'reconciled.low')),
-            $this->money(data_get($valuation->normalised_values, 'reconciled.mid')),
-            $this->money(data_get($valuation->normalised_values, 'reconciled.high')),
+            "Primary DCF/PV value: %s midpoint, with a %s to %s DCF range.\nMarket-multiple cross-checks: SDE %s; EBITDA %s.\nReconciled NZD range: %s low, %s midpoint, %s high.\nFX: %s to NZD at %s, timestamp %s.\nBuyer position: %s.",
+            $this->money($dcfRange['mid'] ?? null),
+            $this->money($dcfRange['low'] ?? null),
+            $this->money($dcfRange['high'] ?? null),
+            $this->methodValue($this->ddValuationRange($valuation, 'sde_value')),
+            $this->methodValue($this->ddValuationRange($valuation, 'ebitda_value')),
+            $this->money($reconciledRange['low'] ?? null),
+            $this->money($reconciledRange['mid'] ?? null),
+            $this->money($reconciledRange['high'] ?? null),
             $valuation->source_currency,
             number_format($valuation->source_to_nzd_rate, 4),
             $valuation->rate_timestamp?->toDateTimeString() ?? 'n/a',
@@ -1858,6 +2249,75 @@ final class ReportComposer implements ProvidesMethodology
                 'pv_calculation_id' => $valuation->pv_calculation_id,
                 'buyer_position' => $valuation->buyer_position,
                 'sensitivity' => $valuation->sensitivity,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @return array<string, mixed>
+     */
+    private function ddPurchasePriceRangeSection(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
+    {
+        if (! $valuation instanceof DdValuation) {
+            return $this->generatedSection(
+                key: 'dd_purchase_price_range',
+                title: 'Estimated purchase-price range',
+                body: 'No purchase-price range can be generated until the DD valuation is available.',
+                sourceReference: 'dd_purchase_price_range:none:'.$engagement->getKey(),
+                dataQualityNote: 'Data quality note: purchase-price range is pending valuation inputs.',
+            );
+        }
+
+        $valuation->loadMissing('businessValuation');
+        $dcfRange = $this->ddValuationRange($valuation, 'dcf_value') ?? $this->ddValuationRange($valuation, 'reconciled');
+        $marketRange = $this->ddMarketMultipleRange($valuation);
+        $precedentRange = $this->ddPrecedentTransactionRange($engagement, $valuation);
+        $dealStructureInputs = data_get($engagement->target_details, 'deal_structure_adjustments', [])
+            ?: data_get($valuation->buyer_position, 'deal_structure_adjustments', []);
+        $synergyInputs = data_get($engagement->target_details, 'synergy_adjustments', [])
+            ?: data_get($valuation->buyer_position, 'synergy_adjustments', []);
+        $dealStructureAdjustment = $this->ddAdjustmentTotal($dealStructureInputs);
+        $synergyAdjustment = $this->ddAdjustmentTotal($synergyInputs);
+        $riskAdjustment = round((float) $risks->sum('price_adjustment_nzd'), 2);
+        $purchaseRange = $dcfRange === null
+            ? null
+            : $this->applyPurchasePriceAdjustments($dcfRange, $dealStructureAdjustment, $synergyAdjustment, $riskAdjustment);
+
+        $body = sprintf(
+            "Primary basis: Discounted Cash Flow (DCF), %s low, %s midpoint, %s high.\nCross-checks: market multiples indicate %s low, %s midpoint, %s high; precedent transactions indicate %s low, %s midpoint, %s high.\nAdjustments applied to the DCF range: deal structure %s, synergies %s, due-diligence risk %s.\nEstimated purchase-price range for advisor review: %s low, %s midpoint, %s high.",
+            $this->money($dcfRange['low'] ?? null),
+            $this->money($dcfRange['mid'] ?? null),
+            $this->money($dcfRange['high'] ?? null),
+            $this->money($marketRange['low'] ?? null),
+            $this->money($marketRange['mid'] ?? null),
+            $this->money($marketRange['high'] ?? null),
+            $this->money($precedentRange['low'] ?? null),
+            $this->money($precedentRange['mid'] ?? null),
+            $this->money($precedentRange['high'] ?? null),
+            $this->money($dealStructureAdjustment),
+            $this->money($synergyAdjustment),
+            $this->money($riskAdjustment),
+            $this->money($purchaseRange['low'] ?? null),
+            $this->money($purchaseRange['mid'] ?? null),
+            $this->money($purchaseRange['high'] ?? null),
+        );
+
+        return $this->generatedSection(
+            key: 'dd_purchase_price_range',
+            title: 'Estimated purchase-price range',
+            body: $body,
+            sourceReference: 'dd_purchase_price_range:'.$valuation->getKey(),
+            dataQualityNote: 'Data quality note: range is advisor-facing and combines DCF valuation, market and precedent cross-checks, deal structure, synergies, and DD risk adjustments.',
+            metadata: [
+                'primary_method' => 'dcf',
+                'dcf_range_nzd' => $dcfRange,
+                'market_multiple_cross_check_nzd' => $marketRange,
+                'precedent_transaction_cross_check_nzd' => $precedentRange,
+                'deal_structure_adjustment_nzd' => $dealStructureAdjustment,
+                'synergy_adjustment_nzd' => $synergyAdjustment,
+                'due_diligence_risk_adjustment_nzd' => $riskAdjustment,
+                'purchase_price_range_nzd' => $purchaseRange,
             ],
         );
     }
@@ -2875,9 +3335,187 @@ final class ReportComposer implements ProvidesMethodology
 
     private function ddValuationMidpoint(?DdValuation $valuation): ?float
     {
-        $mid = data_get($valuation?->normalised_values, 'reconciled.mid');
+        $mid = data_get($valuation?->normalised_values, 'reconciled.mid')
+            ?? data_get($valuation?->normalised_values, 'mid');
 
         return is_numeric($mid) ? (float) $mid : null;
+    }
+
+    /**
+     * @return array{low:float, mid:float, high:float}|null
+     */
+    private function ddValuationRange(DdValuation $valuation, string $key): ?array
+    {
+        $range = $key === 'reconciled'
+            ? (data_get($valuation->normalised_values, 'reconciled') ?? $valuation->normalised_values)
+            : data_get($valuation->normalised_values, $key);
+
+        if (! is_array($range) && $valuation->businessValuation !== null) {
+            $sourceRange = match ($key) {
+                'sde_value' => $valuation->businessValuation->sde_value,
+                'ebitda_value' => $valuation->businessValuation->ebitda_value,
+                'dcf_value' => $valuation->businessValuation->dcf_value,
+                default => null,
+            };
+
+            $range = is_array($sourceRange)
+                ? $this->convertRangeToNzd($sourceRange, $valuation->source_to_nzd_rate)
+                : null;
+        }
+
+        if (! is_array($range)) {
+            return null;
+        }
+
+        foreach (['low', 'mid', 'high'] as $point) {
+            if (! is_numeric($range[$point] ?? null)) {
+                return null;
+            }
+        }
+
+        return [
+            'low' => round((float) $range['low'], 2),
+            'mid' => round((float) $range['mid'], 2),
+            'high' => round((float) $range['high'], 2),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $range
+     * @return array<string, mixed>
+     */
+    private function convertRangeToNzd(array $range, float $rate): array
+    {
+        foreach (['low', 'mid', 'high'] as $point) {
+            if (is_numeric($range[$point] ?? null)) {
+                $range[$point] = round((float) $range[$point] * $rate, 2);
+            }
+        }
+
+        return $range;
+    }
+
+    /**
+     * @return array{low:float, mid:float, high:float}|null
+     */
+    private function ddMarketMultipleRange(DdValuation $valuation): ?array
+    {
+        $ranges = collect([
+            $this->ddValuationRange($valuation, 'sde_value'),
+            $this->ddValuationRange($valuation, 'ebitda_value'),
+        ])->filter();
+
+        if ($ranges->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'low' => round((float) $ranges->avg('low'), 2),
+            'mid' => round((float) $ranges->avg('mid'), 2),
+            'high' => round((float) $ranges->avg('high'), 2),
+        ];
+    }
+
+    /**
+     * @return array{low:float, mid:float, high:float}|null
+     */
+    private function ddPrecedentTransactionRange(DdEngagement $engagement, DdValuation $valuation): ?array
+    {
+        $precedents = data_get($engagement->target_details, 'precedent_transactions', []);
+        if (! is_array($precedents) || $precedents === []) {
+            $precedents = data_get($valuation->buyer_position, 'precedent_transactions', []);
+        }
+
+        if (! is_array($precedents) || $precedents === []) {
+            return null;
+        }
+
+        if ($this->hasRangePoints($precedents)) {
+            return [
+                'low' => round((float) $precedents['low'], 2),
+                'mid' => round((float) $precedents['mid'], 2),
+                'high' => round((float) $precedents['high'], 2),
+            ];
+        }
+
+        $ebitda = data_get($valuation->businessValuation?->ebitda_value, 'input');
+        $values = collect($precedents)
+            ->filter('is_array')
+            ->map(function (array $precedent) use ($ebitda, $valuation): ?float {
+                $amount = $precedent['enterprise_value_nzd']
+                    ?? $precedent['value_nzd']
+                    ?? $precedent['amount_nzd']
+                    ?? null;
+
+                if (! is_numeric($amount) && is_numeric($precedent['amount'] ?? null)) {
+                    $amount = (float) $precedent['amount'] * $valuation->source_to_nzd_rate;
+                }
+
+                if (! is_numeric($amount) && is_numeric($precedent['multiple'] ?? null) && is_numeric($ebitda)) {
+                    $amount = (float) $precedent['multiple'] * (float) $ebitda * $valuation->source_to_nzd_rate;
+                }
+
+                return is_numeric($amount) ? round((float) $amount, 2) : null;
+            })
+            ->filter(fn (?float $amount): bool => $amount !== null)
+            ->values();
+
+        if ($values->isEmpty()) {
+            return null;
+        }
+
+        return [
+            'low' => round((float) $values->min(), 2),
+            'mid' => round((float) $values->avg(), 2),
+            'high' => round((float) $values->max(), 2),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $range
+     */
+    private function hasRangePoints(array $range): bool
+    {
+        return is_numeric($range['low'] ?? null)
+            && is_numeric($range['mid'] ?? null)
+            && is_numeric($range['high'] ?? null);
+    }
+
+    private function ddAdjustmentTotal(mixed ...$groups): float
+    {
+        return round(collect($groups)
+            ->flatMap(function (mixed $group): array {
+                if (! is_array($group)) {
+                    return [];
+                }
+
+                if (isset($group['amount']) || isset($group['value'])) {
+                    return [$group];
+                }
+
+                return array_values(array_filter($group, 'is_array'));
+            })
+            ->filter('is_array')
+            ->sum(fn (array $adjustment): float => (float) ($adjustment['amount'] ?? $adjustment['value'] ?? 0)), 2);
+    }
+
+    /**
+     * @param  array{low:float, mid:float, high:float}  $range
+     * @return array{low:float, mid:float, high:float}
+     */
+    private function applyPurchasePriceAdjustments(
+        array $range,
+        float $dealStructureAdjustment,
+        float $synergyAdjustment,
+        float $riskAdjustment,
+    ): array {
+        $netAdjustment = $dealStructureAdjustment + $synergyAdjustment - $riskAdjustment;
+
+        return [
+            'low' => round(max(0, $range['low'] + $netAdjustment), 2),
+            'mid' => round(max(0, $range['mid'] + $netAdjustment), 2),
+            'high' => round(max(0, $range['high'] + $netAdjustment), 2),
+        ];
     }
 
     private function severityImpact(FindingSeverity $severity, float $baseValue): float

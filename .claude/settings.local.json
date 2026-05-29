@@ -7,7 +7,11 @@
       "Bash(git merge *)",
       "Bash(git stash *)",
       "Bash(git push *)",
-      "Bash(git checkout *)"
+      "Bash(git checkout *)",
+      "PowerShell(php artisan wayfinder:generate --with-form 2>&1 | Select-Object -Last 3; \"--- format script available? ---\"; \\(Get-Content package.json -Raw | ConvertFrom-Json\\).scripts.PSObject.Properties | Where-Object { $_.Name -match 'format|lint|types' } | ForEach-Object { \"$\\($_.Name\\): $\\($_.Value\\)\" })",
+      "PowerShell(npm run format 2>&1)",
+      "PowerShell(npm run build 2>&1)",
+      "PowerShell(\"=== build ===\")"
     ]
   }
 }

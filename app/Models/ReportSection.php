@@ -7,6 +7,7 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 
 final class ReportSection extends Model
 {
@@ -42,5 +43,21 @@ final class ReportSection extends Model
     public function entrepreneurProfile(): BelongsTo
     {
         return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return HasMany<ReportSectionRevision>
+     */
+    public function revisions(): HasMany
+    {
+        return $this->hasMany(ReportSectionRevision::class);
+    }
+
+    /**
+     * @return HasMany<ReportSectionComment>
+     */
+    public function comments(): HasMany
+    {
+        return $this->hasMany(ReportSectionComment::class);
     }
 }

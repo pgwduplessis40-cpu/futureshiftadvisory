@@ -76,7 +76,7 @@ services.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     services.form = servicesForm
 /**
 * @see \App\Http\Controllers\Public\AboutController::__invoke
@@ -154,7 +154,7 @@ about.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     about.form = aboutForm
 /**
 * @see \App\Http\Controllers\Public\FaqController::__invoke
@@ -232,7 +232,7 @@ faq.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     faq.form = faqForm
 /**
 * @see \App\Http\Controllers\Public\ContactController::contact
@@ -310,13 +310,92 @@ contact.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     contact.form = contactForm
+/**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+export const sitemap = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: sitemap.url(options),
+    method: 'get',
+})
+
+sitemap.definition = {
+    methods: ["get","head"],
+    url: '/sitemap.xml',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+sitemap.url = (options?: RouteQueryOptions) => {
+    return sitemap.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+sitemap.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: sitemap.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+sitemap.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: sitemap.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+    const sitemapForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: sitemap.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+        sitemapForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: sitemap.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Public\SitemapController::__invoke
+ * @see app/Http/Controllers/Public/SitemapController.php:15
+ * @route '/sitemap.xml'
+ */
+        sitemapForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: sitemap.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    sitemap.form = sitemapForm
 const publicMethod = {
     services: Object.assign(services, services),
 about: Object.assign(about, about),
 faq: Object.assign(faq, faq),
 contact: Object.assign(contact, contact50a660),
+sitemap: Object.assign(sitemap, sitemap),
 }
 
 export default publicMethod
