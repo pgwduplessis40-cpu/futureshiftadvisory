@@ -111,9 +111,16 @@ final class GovernanceReviewAnalyzerTest extends TestCase
             ->post(route('advisor.npo-engagements.governance-review.analysis', $engagement))
             ->assertRedirect();
 
+        // Select the finding the client page renders first, using the same
+        // deterministic order as the controller (severity, then most-recently
+        // updated, then id as a stable tiebreaker). All findings are pending
+        // immediately after the run, so the first row is review-valid.
         $finding = GovernanceReviewFinding::query()
             ->where('npo_engagement_id', $engagement->id)
             ->where('status', GovernanceReviewFinding::STATUS_PENDING_ADVISOR_REVIEW)
+            ->orderByRaw("case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end")
+            ->latest('updated_at')
+            ->orderBy('id')
             ->firstOrFail();
 
         $this->actingAsMfa($advisor)

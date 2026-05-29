@@ -335,6 +335,7 @@ final class ClientController extends Controller
             ->where('npo_engagement_id', $engagement->getKey())
             ->orderByRaw("case severity when 'critical' then 0 when 'high' then 1 when 'medium' then 2 when 'low' then 3 else 4 end")
             ->latest('updated_at')
+            ->orderBy('id')
             ->get();
         $pending = $findings->where('status', GovernanceReviewFinding::STATUS_PENDING_ADVISOR_REVIEW);
         $reviewed = $findings->where('status', GovernanceReviewFinding::STATUS_REVIEWED);
