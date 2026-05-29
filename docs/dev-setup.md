@@ -181,7 +181,34 @@ php artisan wayfinder:generate
 
 ---
 
-## 8. What you still need from the owner
+## 8. After pulling or merging changes
+
+When a merge brings in new work (e.g. a feature batch or a new module), sync your **dev** database before using the running app. The test suite uses `RefreshDatabase`, which only ever migrates the **test** DB (`futureshift_test`) — your dev database (`DB_DATABASE` in `.env`, currently `futureshiftadvisory_db`) is **not** touched by running tests, so new migrations and seed content won't appear in the app until you apply them yourself.
+
+```pwsh
+# Apply any new migrations to the dev DB (forward-only, additive — no data loss)
+php artisan migrate
+
+# Re-run seeders that ship new published content (idempotent). Example: the
+# v2 base questionnaires (full Standard Advisory + Due Diligence sets) are
+# additive seeders — run them so the app resolves the latest published set:
+php artisan db:seed --class=StandardAdvisoryQuestionnaireV2Seeder
+php artisan db:seed --class=DdSpecificQuestionnaireV2Seeder
+```
+
+Symptom of skipping the migrate step: a `QueryException` / `SQLSTATE[42P01] Undefined table` in the app for a table that exists in tests but not your dev DB (e.g. `report_section_revisions`). The fix is always `php artisan migrate` — never `migrate:fresh` on a dev DB you care about (that wipes it).
+
+> **Running the full test suite.** The suite has grown well past its original size and now needs a raised memory limit; the default 128M OOMs (exit 255) and `composer test` can hang in this environment. Run the binary directly:
+>
+> ```pwsh
+> php -d memory_limit=2048M vendor/phpunit/phpunit/phpunit --no-coverage
+> ```
+>
+> If the test DB credentials in `.env.testing` are stale for your machine, override per-run: `$env:DB_USERNAME='postgres'; $env:DB_PASSWORD='...'; $env:DB_DATABASE='futureshift_test'` before the command. After Codex/Vite changes, run `npm run build` first if a feature test 500s on a missing Vite manifest entry.
+
+---
+
+## 9. What you still need from the owner
 
 Phase 1 cannot fully run without these:
 
