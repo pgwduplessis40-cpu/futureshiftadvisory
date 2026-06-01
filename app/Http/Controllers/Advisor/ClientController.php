@@ -40,6 +40,7 @@ use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
 use App\Services\Goals\GoalTracker;
+use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Npo\NpoEngagementConfiguration;
 use App\Services\Npo\NpoEngagementSetup;
@@ -68,6 +69,7 @@ final class ClientController extends Controller
         private readonly DdOnboarding $ddOnboarding,
         private readonly DataRoom $dataRoom,
         private readonly NpoEngagementSetup $npoEngagements,
+        private readonly IntegrationActivationResolver $integrations,
     ) {}
 
     public function index(Request $request, EconomicExposureMapper $economicExposure): Response
@@ -695,9 +697,13 @@ final class ClientController extends Controller
             ->unique()
             ->values()
             ->all();
+        $providerLabels = AccountingConnection::applicableProviderLabels(
+            $connectedProviders,
+            fn (string $provider): bool => $this->integrations->isLive($provider),
+        );
 
         return [
-            'providers' => collect(AccountingConnection::providerLabels())
+            'providers' => collect($providerLabels)
                 ->map(fn (string $label, string $provider): array => [
                     'provider' => $provider,
                     'label' => $label,

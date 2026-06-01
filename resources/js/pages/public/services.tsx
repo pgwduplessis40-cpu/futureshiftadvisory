@@ -42,7 +42,7 @@ export default function Services({
     return (
         <>
             <Seo
-                title="Our services — advisory, due diligence & not-for-profit support"
+                title="Our services - advisory, due diligence & not-for-profit support"
                 description="How we work with you: Standard Advisory, Due Diligence, Post-acquisition Advisory, the Entrepreneur Module, and dedicated support for not-for-profits and social enterprises."
                 jsonLd={[
                     servicesLd(base, engagementTypes),
@@ -199,7 +199,7 @@ export default function Services({
                             <p className="font-accent mt-3 max-w-xl text-lg text-[#E0D8CC] italic">
                                 Start with a discovery call. We will listen,
                                 ask, and tell you honestly which path makes
-                                sense — or if another provider would serve you
+                                sense - or if another provider would serve you
                                 better.
                             </p>
                         </div>

@@ -59,6 +59,21 @@ final class AccountingConnection extends Model
         ];
     }
 
+    /**
+     * @param  array<int, string>  $connectedProviders
+     * @param  callable(string): bool  $isLive
+     * @return array<string, string>
+     */
+    public static function applicableProviderLabels(array $connectedProviders, callable $isLive): array
+    {
+        return collect(self::providerLabels())
+            ->filter(
+                fn (string $label, string $provider): bool => in_array($provider, $connectedProviders, true)
+                    || $isLive($provider),
+            )
+            ->all();
+    }
+
     public static function validProvider(string $provider): bool
     {
         return array_key_exists($provider, self::providerLabels());

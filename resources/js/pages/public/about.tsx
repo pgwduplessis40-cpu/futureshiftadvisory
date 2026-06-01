@@ -18,7 +18,7 @@ export default function About() {
     return (
         <>
             <Seo
-                title="About us — a Hamilton advisory practice you can trust"
+                title="About us - a Hamilton advisory practice you can trust"
                 description="Future Shift Advisory is a Hamilton-based practice for New Zealand SMEs, founders, buyers, and not-for-profits. Honest, evidence-based, and genuinely local."
                 jsonLd={breadcrumbLd(base, [
                     { name: 'Home', path: '/' },
@@ -39,7 +39,7 @@ export default function About() {
                     Future Shift Advisory is a Hamilton-based practice working
                     with New&nbsp;Zealand SMEs, founders, people buying a
                     business, and not-for-profits. We are here to give you a
-                    clear, honest, well-grounded read on where you stand — and a
+                    clear, honest, well-grounded read on where you stand - and a
                     sensible plan for what comes next.
                 </SectionLead>
             </Section>
@@ -53,14 +53,14 @@ export default function About() {
                     </SectionTitle>
                     <p className="mt-5 max-w-2xl text-lg leading-relaxed text-[var(--fs-graphite)]">
                         A few promises that shape every piece of advice we give
-                        — whether it is a quick conversation or a full review.
+                        - whether it is a quick conversation or a full review.
                     </p>
 
                     <div className="mt-12 grid gap-6 md:grid-cols-2">
                         {[
                             {
                                 title: 'Honest, and kind with it',
-                                body: 'If something needs attention, you will hear it clearly. We are kind in how we say it — never in whether we say it.',
+                                body: 'If something needs attention, you will hear it clearly. We are kind in how we say it - never in whether we say it.',
                             },
                             {
                                 title: 'Backed by evidence',
@@ -68,11 +68,11 @@ export default function About() {
                             },
                             {
                                 title: 'Genuinely New Zealand',
-                                body: 'Our advice fits the local context — New Zealand regulation, tax, and the way business actually works here.',
+                                body: 'Our advice fits the local context - New Zealand regulation, tax, and the way business actually works here.',
                             },
                             {
                                 title: 'Honest about uncertainty',
-                                body: 'When the information is not enough to be sure, we say so — rather than dressing up a guess as a fact.',
+                                body: 'When the information is not enough to be sure, we say so - rather than dressing up a guess as a fact.',
                             },
                             {
                                 title: 'No grading on a curve',
@@ -80,7 +80,7 @@ export default function About() {
                             },
                             {
                                 title: 'Nothing swept under the rug',
-                                body: 'Risks, warnings, and awkward findings get surfaced and talked through — never quietly left out.',
+                                body: 'Risks, warnings, and awkward findings get surfaced and talked through - never quietly left out.',
                             },
                         ].map((p) => (
                             <div
@@ -131,7 +131,7 @@ export default function About() {
                             sitting in their own books.
                         </p>
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
-                            So we built something different — advice with real
+                            So we built something different - advice with real
                             structure behind it, where every finding is backed
                             by evidence, and where you hear what the numbers
                             actually say rather than what is easiest to tell
@@ -184,7 +184,7 @@ export default function About() {
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
                                 Our analysis and frameworks are tuned to the
-                                New&nbsp;Zealand setting — NZBN, the Companies
+                                New&nbsp;Zealand setting - NZBN, the Companies
                                 Office, IRD, and local tax and compliance.
                             </p>
                         </div>
@@ -195,7 +195,7 @@ export default function About() {
                             </h3>
                             <p className="mt-4 text-sm leading-relaxed text-[var(--fs-graphite)]">
                                 Multi-factor sign-in, encrypted documents, and
-                                access limited to the people working with you —
+                                access limited to the people working with you -
                                 with a complete record of who did what.
                             </p>
                         </div>

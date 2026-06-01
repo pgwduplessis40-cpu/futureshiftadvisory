@@ -42,7 +42,7 @@ export default function Home({
     return (
         <>
             <Seo
-                title="Future Shift Advisory — honest, evidence-based advice for NZ businesses"
+                title="Future Shift Advisory - honest, evidence-based advice for NZ businesses"
                 description="A Hamilton-based advisory practice for New Zealand SMEs, founders, buyers, and not-for-profits. Clear, kind, evidence-based advice you can act on."
                 jsonLd={[organizationLd(base), webSiteLd(base)]}
             />
@@ -62,7 +62,7 @@ export default function Home({
                         <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--fs-graphite)]">
                             Clear, honest advice for New&nbsp;Zealand SMEs,
                             founders, and not-for-profits. We tell you what we
-                            see — kindly, and with the reasoning behind it — so
+                            see - kindly, and with the reasoning behind it - so
                             you can move forward with confidence.
                         </p>
                         <div className="mt-10 flex flex-wrap items-center gap-4">
@@ -93,7 +93,7 @@ export default function Home({
                                     {
                                         icon: HeartHandshake,
                                         title: 'Honest, and kind with it',
-                                        body: 'We tell you what is really going on — the good and the hard — and we are thoughtful in how we say it.',
+                                        body: 'We tell you what is really going on - the good and the hard - and we are thoughtful in how we say it.',
                                     },
                                     {
                                         icon: ScrollText,
@@ -103,7 +103,7 @@ export default function Home({
                                     {
                                         icon: ShieldCheck,
                                         title: 'New Zealand-grounded & private',
-                                        body: 'Built for the local context, and confidential by default — your information is only seen by the people working with you.',
+                                        body: 'Built for the local context, and confidential by default - your information is only seen by the people working with you.',
                                     },
                                 ].map((row) => (
                                     <li key={row.title} className="flex gap-3">
@@ -175,12 +175,12 @@ export default function Home({
                         {
                             kicker: 'New Zealand-grounded',
                             title: 'Hamilton, working nationwide',
-                            body: 'Our advice is built for the New Zealand context — local regulation, tax, and the day-to-day realities of doing business here.',
+                            body: 'Our advice is built for the New Zealand context - local regulation, tax, and the day-to-day realities of doing business here.',
                         },
                         {
                             kicker: 'Honest & evidence-based',
                             title: 'Straight talk, backed up',
-                            body: 'We show our working. No inflated scores, no buried warnings — and we say so plainly when something is not yet certain.',
+                            body: 'We show our working. No inflated scores, no buried warnings - and we say so plainly when something is not yet certain.',
                         },
                         {
                             kicker: 'Private by default',

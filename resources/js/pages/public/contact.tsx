@@ -37,7 +37,7 @@ export default function Contact({
     return (
         <>
             <Seo
-                title="Contact us — book a discovery call"
+                title="Contact us - book a discovery call"
                 description="Get in touch with Future Shift Advisory. Tell us a little about your business or organisation and we will reply personally, usually within a working day."
                 jsonLd={breadcrumbLd(base, [
                     { name: 'Home', path: '/' },
@@ -56,7 +56,7 @@ export default function Contact({
                 <GoldRule className="mt-6" />
                 <p className="mt-6 max-w-2xl text-lg leading-relaxed text-[var(--fs-graphite)]">
                     Tell us a bit about your business and what you are trying to
-                    figure out. We respond personally — usually within a working
+                    figure out. We respond personally - usually within a working
                     day. No automated funnels.
                 </p>
             </Section>
@@ -73,7 +73,7 @@ export default function Contact({
                         >
                             {({ processing, errors }) => (
                                 <>
-                                    {/* Honeypot — visually hidden, not focusable */}
+                                    {/* Honeypot - visually hidden, not focusable */}
                                     <input
                                         type="text"
                                         name="website"

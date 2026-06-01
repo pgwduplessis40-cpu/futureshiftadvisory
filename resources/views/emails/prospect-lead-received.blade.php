@@ -13,7 +13,7 @@
         <div style="padding:20px;">
             <p style="margin:0 0 12px;"><strong>{{ $lead->name }}</strong>
                 @if ($lead->company)
-                    — {{ $lead->company }}
+                    - {{ $lead->company }}
                 @endif
             </p>
             <p style="margin:0 0 8px;">Email: <a href="mailto:{{ $lead->email }}">{{ $lead->email }}</a></p>

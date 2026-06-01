@@ -7,15 +7,17 @@ import type { BreadcrumbItem } from '@/types';
 
 export default function AppLayout({
     breadcrumbs = [],
+    brandHeader = true,
     children,
 }: {
     breadcrumbs?: BreadcrumbItem[];
+    brandHeader?: boolean;
     children: React.ReactNode;
 }) {
     const { aiNotice } = usePage<{ aiNotice?: AiNotice | null }>().props;
 
     return (
-        <AppLayoutTemplate breadcrumbs={breadcrumbs}>
+        <AppLayoutTemplate breadcrumbs={breadcrumbs} brandHeader={brandHeader}>
             <AiUnavailableNotice notice={aiNotice} />
             {children}
         </AppLayoutTemplate>

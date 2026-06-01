@@ -8,9 +8,14 @@ import {
     DropdownMenuContent,
     DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { cn } from '@/lib/utils';
 import type { NotificationSummary } from './types';
 
-export function NotificationBell() {
+export function NotificationBell({
+    brandHeader = false,
+}: {
+    brandHeader?: boolean;
+}) {
     const { notificationSummary } = usePage<{
         notificationSummary?: NotificationSummary | null;
     }>().props;
@@ -43,14 +48,24 @@ export function NotificationBell() {
                     type="button"
                     variant="outline"
                     size="icon"
-                    className="relative"
+                    className={cn(
+                        'relative',
+                        brandHeader &&
+                            'border-white/35 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-[#d4a020]/60',
+                    )}
                     aria-label={
                         unread === 0
                             ? 'Notifications'
                             : `${unread} unread notifications`
                     }
                 >
-                    <Bell className="size-4" aria-hidden="true" />
+                    <Bell
+                        className={cn(
+                            'size-4',
+                            brandHeader && 'text-white',
+                        )}
+                        aria-hidden="true"
+                    />
                     {unread > 0 && (
                         <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-medium text-primary-foreground">
                             {unread > 9 ? '9+' : unread}

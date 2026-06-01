@@ -9,10 +9,13 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 final class IntegrationActivationResolver
 {
+    private ?bool $activationStoreAvailable = null;
+
     public function __construct(
         private readonly IntegrationRegistry $registry,
         private readonly IntegrationCredentials $credentials,
@@ -66,6 +69,8 @@ final class IntegrationActivationResolver
 
     public function activate(string $integrationKey, User $actor): IntegrationActivation
     {
+        abort_unless($this->activationStoreAvailable(), 503, 'Integration activation store is not migrated.');
+
         $definition = $this->registry->integration($integrationKey);
         abort_if($definition === null, 404);
         abort_if(($definition['managed_via'] ?? 'vault') !== 'vault', 422);
@@ -92,6 +97,8 @@ final class IntegrationActivationResolver
 
     public function deactivate(string $integrationKey, User $actor): IntegrationActivation
     {
+        abort_unless($this->activationStoreAvailable(), 503, 'Integration activation store is not migrated.');
+
         $activation = IntegrationActivation::query()->updateOrCreate(
             ['integration_key' => $integrationKey],
             [
@@ -114,6 +121,10 @@ final class IntegrationActivationResolver
      */
     public function activations(): Collection
     {
+        if (! $this->activationStoreAvailable()) {
+            return collect();
+        }
+
         return IntegrationActivation::query()
             ->get()
             ->keyBy('integration_key');
@@ -124,12 +135,14 @@ final class IntegrationActivationResolver
      */
     private function activated(string $integrationKey, array $definition): bool
     {
-        $activation = IntegrationActivation::query()
-            ->where('integration_key', $integrationKey)
-            ->first();
+        if ($this->activationStoreAvailable()) {
+            $activation = IntegrationActivation::query()
+                ->where('integration_key', $integrationKey)
+                ->first();
 
-        if ($activation instanceof IntegrationActivation) {
-            return $activation->active;
+            if ($activation instanceof IntegrationActivation) {
+                return $activation->active;
+            }
         }
 
         $liveConfigPath = $definition['live_config_path'] ?? null;
@@ -138,6 +151,11 @@ final class IntegrationActivationResolver
         }
 
         return $this->credentialsReady($integrationKey);
+    }
+
+    private function activationStoreAvailable(): bool
+    {
+        return $this->activationStoreAvailable ??= Schema::hasTable('integration_activations');
     }
 
     private function environmentReady(string $integrationKey): bool

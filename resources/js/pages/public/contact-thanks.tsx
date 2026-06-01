@@ -13,7 +13,7 @@ export default function ContactThanks() {
     return (
         <>
             <Seo
-                title="Thanks — we’ll be in touch"
+                title="Thanks - we’ll be in touch"
                 description="Your enquiry has reached Future Shift Advisory."
                 noindex
             />
@@ -27,7 +27,7 @@ export default function ContactThanks() {
                         </span>
                     </SectionEyebrow>
                     <SectionTitle className="mt-4">
-                        Thanks &mdash;{' '}
+                        Thanks -{' '}
                         <span className="font-accent text-[var(--fs-cognac)] italic">
                             we&rsquo;ll be in touch.
                         </span>
@@ -35,7 +35,7 @@ export default function ContactThanks() {
                     <GoldRule className="mx-auto mt-6" />
                     <p className="mt-6 text-lg leading-relaxed text-[var(--fs-graphite)]">
                         Your message has reached us. We respond personally
-                        &mdash; usually within a working day. If something is
+                        - usually within a working day. If something is
                         urgent, email{' '}
                         <a
                             href="mailto:hello@futureshiftadvisory.nz"

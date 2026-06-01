@@ -29,7 +29,7 @@ final class EngagementTypeCatalog
                 'slug' => 'standard_advisory',
                 'title' => 'Standard Advisory',
                 'tagline' => 'Where most journeys start.',
-                'summary' => 'We get to know your whole business — the numbers, the people, the day-to-day, and where you want to take it — then give you a clear, honest picture of where you stand. Together we agree the handful of moves that will make the biggest difference, explained in plain language, with the reasoning shown. You will always know why we are recommending something.',
+                'summary' => 'We get to know your whole business - the numbers, the people, the day-to-day, and where you want to take it - then give you a clear, honest picture of where you stand. Together we agree the handful of moves that will make the biggest difference, explained in plain language, with the reasoning shown. You will always know why we are recommending something.',
                 'audience' => 'Established New Zealand SMEs who want a straight, well-grounded read on the business and a practical plan for what to tackle first.',
                 'deliverables' => [
                     'A friendly, whole-of-business review',
@@ -43,7 +43,7 @@ final class EngagementTypeCatalog
                 'slug' => 'due_diligence',
                 'title' => 'Due Diligence',
                 'tagline' => 'Know what you are really buying.',
-                'summary' => 'Thinking about buying a business? We look under the bonnet for you — the finances, the contracts, the people, the risks, and how much it leans on a handful of customers. If something does not add up, we tell you plainly and show you where we saw it. You walk into the deal with your eyes open.',
+                'summary' => 'Thinking about buying a business? We look under the bonnet for you - the finances, the contracts, the people, the risks, and how much it leans on a handful of customers. If something does not add up, we tell you plainly and show you where we saw it. You walk into the deal with your eyes open.',
                 'audience' => 'Owners and investors weighing up an acquisition, merger, or sizeable investment.',
                 'deliverables' => [
                     'A guided, secure review of the target’s documents',
@@ -57,7 +57,7 @@ final class EngagementTypeCatalog
                 'slug' => 'post_acquisition_advisory',
                 'title' => 'Post-acquisition Advisory',
                 'tagline' => 'The first 100 days, mapped out.',
-                'summary' => 'The deal is done — now the real work starts. We help you close the gaps the diligence uncovered, line up the early wins, and settle into a steady advisory rhythm, so the business you bought becomes the business you wanted.',
+                'summary' => 'The deal is done - now the real work starts. We help you close the gaps the diligence uncovered, line up the early wins, and settle into a steady advisory rhythm, so the business you bought becomes the business you wanted.',
                 'audience' => 'Buyers who have just settled and want to turn diligence findings into real momentum.',
                 'deliverables' => [
                     'A gap assessment against your diligence findings',
@@ -71,7 +71,7 @@ final class EngagementTypeCatalog
                 'slug' => 'entrepreneur_module',
                 'title' => 'Entrepreneur Module',
                 'tagline' => 'From first idea to ready-to-go.',
-                'summary' => 'Building something new? We walk alongside you from the first idea through to launch — pressure-testing the concept, shaping the plan, and giving you an honest read on whether it is ready. You will hear the encouraging parts and the hard parts, because both matter when it is your time and money on the line.',
+                'summary' => 'Building something new? We walk alongside you from the first idea through to launch - pressure-testing the concept, shaping the plan, and giving you an honest read on whether it is ready. You will hear the encouraging parts and the hard parts, because both matter when it is your time and money on the line.',
                 'audience' => 'Founders and early-stage operators getting something off the ground in New Zealand.',
                 'deliverables' => [
                     'A readiness and idea-validation review',
@@ -85,7 +85,7 @@ final class EngagementTypeCatalog
                 'slug' => 'npo',
                 'title' => 'Not-for-Profits & Social Enterprises',
                 'tagline' => 'Mission first, with the evidence to back it.',
-                'summary' => 'For New Zealand charities, community organisations, and social enterprises. We look at the health of the whole organisation — from mission and services through to governance, funding, and the difference you make — and frame everything around your impact, not commercial profit. Where we estimate value, we keep it mission-based and we are upfront about the range.',
+                'summary' => 'For New Zealand charities, community organisations, and social enterprises. We look at the health of the whole organisation - from mission and services through to governance, funding, and the difference you make - and frame everything around your impact, not commercial profit. Where we estimate value, we keep it mission-based and we are upfront about the range.',
                 'audience' => 'Charities, incorporated societies, community groups, and social enterprises right across Aotearoa New Zealand.',
                 'deliverables' => [
                     'An organisation-wide health review',
@@ -100,11 +100,11 @@ final class EngagementTypeCatalog
                     ],
                     [
                         'name' => 'Social Enterprise',
-                        'blurb' => 'A dual scorecard for organisations balancing a commercial engine with a social mission — so both sides get an honest read, side by side.',
+                        'blurb' => 'A dual scorecard for organisations balancing a commercial engine with a social mission - so both sides get an honest read, side by side.',
                     ],
                     [
                         'name' => 'Governance Review',
-                        'blurb' => 'An independent look at governance and compliance for your board, with findings, supporting notes, and clear source references. Informational — it does not replace legal advice.',
+                        'blurb' => 'An independent look at governance and compliance for your board, with findings, supporting notes, and clear source references. Informational - it does not replace legal advice.',
                     ],
                 ],
                 'note' => 'Te Tiriti o Waitangi is one of the eight areas we look at, and it can be woven through the whole review or considered on its own. Governance reviews are informational and are not a substitute for legal advice.',

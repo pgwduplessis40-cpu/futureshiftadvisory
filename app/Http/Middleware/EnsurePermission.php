@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Enums\Permission;
 use App\Models\User;
 use Closure;
 use Illuminate\Http\Request;
@@ -27,12 +28,23 @@ final class EnsurePermission
         }
 
         foreach ($requiredPermissions as $permission) {
-            if ($user->can($permission)) {
+            if ($this->configuredRoleGrants($user, $permission) || $user->can($permission)) {
                 return $next($request);
             }
         }
 
         abort(403);
+    }
+
+    private function configuredRoleGrants(User $user, string $permission): bool
+    {
+        foreach ([$user->primary_role, $user->user_type] as $role) {
+            if (is_string($role) && in_array($permission, Permission::valuesForRole($role), true)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

@@ -100,7 +100,7 @@ export default function Faq({ faqs }: { faqs: Faq[] }) {
                                 Still have a question?
                             </h2>
                             <p className="mt-3 max-w-xl text-base text-[var(--fs-graphite)]">
-                                Ask it directly. We respond personally — usually
+                                Ask it directly. We respond personally - usually
                                 within a working day.
                             </p>
                         </div>

@@ -21,6 +21,8 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -36,25 +38,14 @@ final class ReferenceDataController extends Controller
         return Inertia::render('admin/reference-data/Index', [
             'datasets' => ReferenceDataEntry::datasets(),
             'currentValues' => $this->currentValues(),
-            'entries' => ReferenceDataEntry::query()
-                ->with('learningUpdate')
-                ->latest()
-                ->limit(50)
-                ->get()
-                ->map(fn (ReferenceDataEntry $entry): array => [
-                    'id' => $entry->id,
-                    'dataset' => $entry->dataset,
-                    'as_at' => $entry->as_at?->toDateString(),
-                    'source' => $entry->source,
-                    'learning_update_id' => $entry->learning_update_id,
-                    'learning_update_status' => $entry->learningUpdate?->status,
-                    'created_at' => $entry->created_at?->toIso8601String(),
-                ]),
+            'entries' => $this->entryRows(),
         ]);
     }
 
     public function store(Request $request, ReferenceDataSubmission $submission, SecureFileWriter $files): RedirectResponse
     {
+        abort_unless(Schema::hasTable('reference_data_entries'), 503, 'Reference data store is not migrated.');
+
         $validated = $request->validate([
             'dataset' => ['required', 'string', Rule::in(ReferenceDataEntry::datasets())],
             'source' => ['required', 'string', 'max:255'],
@@ -365,9 +356,35 @@ final class ReferenceDataController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
+    private function entryRows(): array
+    {
+        if (! Schema::hasTable('reference_data_entries')) {
+            return [];
+        }
+
+        return ReferenceDataEntry::query()
+            ->with('learningUpdate')
+            ->latest()
+            ->limit(50)
+            ->get()
+            ->map(fn (ReferenceDataEntry $entry): array => [
+                'id' => $entry->id,
+                'dataset' => $entry->dataset,
+                'as_at' => $entry->as_at?->toDateString(),
+                'source' => $entry->source,
+                'learning_update_id' => $entry->learning_update_id,
+                'learning_update_status' => $entry->learningUpdate?->status,
+                'created_at' => $entry->created_at?->toIso8601String(),
+            ])
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function currentValues(): array
     {
-        $economic = EconomicIndicator::query()
+        $economic = $this->whenTableExists('economic_indicators', fn (): Collection => EconomicIndicator::query()
             ->latest('period_date')
             ->latest('fetched_at')
             ->limit(8)
@@ -378,9 +395,9 @@ final class ReferenceDataController extends Controller
                 'value' => $indicator->value.' '.$indicator->unit,
                 'as_at' => $indicator->period_date?->toDateString(),
                 'source' => $indicator->source,
-            ]);
+            ]));
 
-        $valuation = ValuationMultiple::query()
+        $valuation = $this->whenTableExists('valuation_multiples', fn (): Collection => ValuationMultiple::query()
             ->whereNull('superseded_at')
             ->latest('fetched_at')
             ->limit(8)
@@ -391,9 +408,9 @@ final class ReferenceDataController extends Controller
                 'value' => $multiple->multiple_low.'-'.$multiple->multiple_mid.'-'.$multiple->multiple_high,
                 'as_at' => $multiple->quarter,
                 'source' => $multiple->source,
-            ]);
+            ]));
 
-        $wacc = IndustryWaccData::query()
+        $wacc = $this->whenTableExists('industry_wacc_data', fn (): Collection => IndustryWaccData::query()
             ->whereNull('superseded_at')
             ->latest('fetched_at')
             ->limit(8)
@@ -404,15 +421,17 @@ final class ReferenceDataController extends Controller
                 'value' => round($row->wacc_rate * 100, 2).'%',
                 'as_at' => $row->quarter,
                 'source' => $row->source,
-            ]);
+            ]));
 
         $cpb = collect();
-        $update = LearningUpdate::query()
-            ->where('layer_id', LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS)
-            ->where('status', LearningUpdate::STATUS_IMPLEMENTED)
-            ->latest('updated_at')
-            ->latest('created_at')
-            ->first();
+        $update = Schema::hasTable('learning_updates')
+            ? LearningUpdate::query()
+                ->where('layer_id', LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS)
+                ->where('status', LearningUpdate::STATUS_IMPLEMENTED)
+                ->latest('updated_at')
+                ->latest('created_at')
+                ->first()
+            : null;
 
         if ($update instanceof LearningUpdate) {
             $cpb = collect((array) data_get($update->proposed_change, 'benchmarks', []))
@@ -433,5 +452,14 @@ final class ReferenceDataController extends Controller
             ->concat($cpb)
             ->values()
             ->all();
+    }
+
+    /**
+     * @param  callable(): Collection<int, array<string, mixed>>  $callback
+     * @return Collection<int, array<string, mixed>>
+     */
+    private function whenTableExists(string $table, callable $callback): Collection
+    {
+        return Schema::hasTable($table) ? $callback() : collect();
     }
 }

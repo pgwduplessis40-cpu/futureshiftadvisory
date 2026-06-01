@@ -11,10 +11,13 @@ use App\Services\Storage\KeyEnvelope;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 
 final class IntegrationCredentials
 {
+    private ?bool $credentialStoreAvailable = null;
+
     public function __construct(
         private readonly KeyEnvelope $envelope,
         private readonly IntegrationRegistry $registry,
@@ -23,17 +26,19 @@ final class IntegrationCredentials
 
     public function get(string $integrationKey, string $field): ?string
     {
-        $credential = IntegrationCredential::query()
-            ->where('integration_key', $integrationKey)
-            ->where('field', $field)
-            ->first();
+        if ($this->credentialStoreAvailable()) {
+            $credential = IntegrationCredential::query()
+                ->where('integration_key', $integrationKey)
+                ->where('field', $field)
+                ->first();
 
-        if ($credential instanceof IntegrationCredential) {
-            if (! $credential->active()) {
-                return null;
+            if ($credential instanceof IntegrationCredential) {
+                if (! $credential->active()) {
+                    return null;
+                }
+
+                return $this->envelope->decrypt((string) $credential->value_envelope);
             }
-
-            return $this->envelope->decrypt((string) $credential->value_envelope);
         }
 
         return $this->fallback($integrationKey, $field);
@@ -48,6 +53,8 @@ final class IntegrationCredentials
 
     public function set(string $integrationKey, string $field, string $value, User $actor): IntegrationCredential
     {
+        abort_unless($this->credentialStoreAvailable(), 503, 'Integration credential store is not migrated.');
+
         $value = trim($value);
         $existing = IntegrationCredential::query()
             ->where('integration_key', $integrationKey)
@@ -91,6 +98,8 @@ final class IntegrationCredentials
 
     public function revoke(string $integrationKey, string $field, User $actor): ?IntegrationCredential
     {
+        abort_unless($this->credentialStoreAvailable(), 503, 'Integration credential store is not migrated.');
+
         $credential = IntegrationCredential::query()
             ->where('integration_key', $integrationKey)
             ->where('field', $field)
@@ -123,10 +132,12 @@ final class IntegrationCredentials
      */
     public function registryRows(): Collection
     {
-        $stored = IntegrationCredential::query()
-            ->with('setBy')
-            ->get()
-            ->keyBy(fn (IntegrationCredential $credential): string => $credential->integration_key.'|'.$credential->field);
+        $stored = $this->credentialStoreAvailable()
+            ? IntegrationCredential::query()
+                ->with('setBy')
+                ->get()
+                ->keyBy(fn (IntegrationCredential $credential): string => $credential->integration_key.'|'.$credential->field)
+            : collect();
 
         return $this->registry->all()
             ->map(function (array $integration) use ($stored): array {
@@ -163,6 +174,11 @@ final class IntegrationCredentials
                 ];
             })
             ->values();
+    }
+
+    private function credentialStoreAvailable(): bool
+    {
+        return $this->credentialStoreAvailable ??= Schema::hasTable('integration_credentials');
     }
 
     private function fallback(string $integrationKey, string $field): ?string

@@ -40,7 +40,7 @@ export function SiteHeader() {
             ].join(' ')}
         >
             <div className="mx-auto flex h-16 max-w-6xl items-center justify-between px-6 lg:px-8">
-                <Link href="/" aria-label="Future Shift Advisory — home">
+                <Link href="/" aria-label="Future Shift Advisory - home">
                     <BrandMark width={168} />
                 </Link>
 
