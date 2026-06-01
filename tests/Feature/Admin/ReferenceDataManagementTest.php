@@ -131,7 +131,8 @@ final class ReferenceDataManagementTest extends TestCase
         ];
 
         $this->submitJson($admin, ReferenceDataEntry::DATASET_VALUATION_MULTIPLE, $basePayload, source: 'broker-survey');
-        $this->approveAndImplement(ReferenceDataEntry::query()->firstOrFail()->learningUpdate()->firstOrFail(), $admin);
+        $firstEntry = ReferenceDataEntry::query()->firstOrFail();
+        $this->approveAndImplement($firstEntry->learningUpdate()->firstOrFail(), $admin);
         $first = ValuationMultiple::query()->firstOrFail();
 
         $this->submitJson($admin, ReferenceDataEntry::DATASET_VALUATION_MULTIPLE, [
@@ -140,7 +141,10 @@ final class ReferenceDataManagementTest extends TestCase
             'multiple_mid' => 3.4,
             'multiple_high' => 4.0,
         ], source: 'broker-survey');
-        $this->approveAndImplement(ReferenceDataEntry::query()->latest()->firstOrFail()->learningUpdate()->firstOrFail(), $admin);
+        // Select the just-submitted entry deterministically: the frozen test clock makes
+        // both ledger rows share created_at, so latest() ordering is ambiguous (UUID PK).
+        $secondEntry = ReferenceDataEntry::query()->whereKeyNot($firstEntry->getKey())->firstOrFail();
+        $this->approveAndImplement($secondEntry->learningUpdate()->firstOrFail(), $admin);
 
         $active = ValuationMultiple::query()->whereNull('superseded_at')->firstOrFail();
 
