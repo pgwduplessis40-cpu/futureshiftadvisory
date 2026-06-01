@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\StatsNz;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\StatsNz\Contracts\StatsNzClient;
@@ -15,29 +17,59 @@ final class LiveStatsNzClient implements StatsNzClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeStatsNzClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
+        private readonly ManualStatsNzIndicatorSource $manualIndicators,
+        private readonly SdmxJsonIndustryBenchmarkParser $parser,
     ) {}
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function indicators(): array
     {
-        if (! (bool) Config::get('integrations.stats_nz.live', false)) {
+        return $this->manualIndicators->indicators();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function industryBenchmarks(): array
+    {
+        if (! $this->live->isLive('stats_nz')) {
             throw IntegrationDisabledException::forService('stats-nz');
         }
 
-        $result = $this->http->get(
-            service: 'stats-nz',
-            endpoint: $this->endpoint(),
-            query: $this->query(),
-            cacheKey: 'integration:stats-nz:economic-indicators',
-            fallback: fn (): array => $this->fake->fallbackIndicators(),
-        );
+        $benchmarks = [];
 
-        $payload = is_array($result->data) ? $result->data : $this->fake->fallbackIndicators();
-        $indicators = array_is_list($payload) ? $payload : (array) ($payload['indicators'] ?? []);
+        foreach ($this->datasets() as $dataset) {
+            $result = $this->http->request(
+                method: 'GET',
+                service: 'stats-nz',
+                endpoint: $this->datasetEndpoint($dataset),
+                options: [
+                    'headers' => $this->headers(),
+                    'query' => $this->datasetQuery($dataset),
+                ],
+                cacheKey: 'integration:stats-nz:ade:'.(string) ($dataset['key'] ?? $dataset['resourceId'] ?? 'dataset'),
+                fallback: fn (): array => ['benchmarks' => $this->fake->fallbackIndustryBenchmarks()],
+            );
 
-        return array_values(array_map(
-            fn (array $indicator): array => $this->withTransportMeta($result, $indicator),
-            array_filter($indicators, 'is_array'),
-        ));
+            $payload = is_array($result->data) ? $result->data : [];
+            $records = is_array($payload['benchmarks'] ?? null)
+                ? array_values(array_filter($payload['benchmarks'], 'is_array'))
+                : $this->parser->parse($payload, $dataset);
+
+            $benchmarks = [
+                ...$benchmarks,
+                ...array_map(
+                    fn (array $benchmark): array => $this->withTransportMeta($result, $benchmark),
+                    $records,
+                ),
+            ];
+        }
+
+        return $benchmarks;
     }
 
     /**
@@ -55,22 +87,58 @@ final class LiveStatsNzClient implements StatsNzClient
         ];
     }
 
-    private function endpoint(): string
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function datasets(): array
     {
-        $apiKey = (string) Config::get('integrations.stats_nz.api_key', '');
+        $datasets = Config::get('integrations.stats_nz.datasets', []);
 
-        return $apiKey === ''
-            ? 'fsa-disabled://stats-nz/missing-api-key/economic-indicators'
-            : rtrim((string) Config::get('integrations.stats_nz.base_url'), '/').'/economic-indicators';
+        return is_array($datasets)
+            ? array_values(array_filter($datasets, 'is_array'))
+            : [];
+    }
+
+    /**
+     * @param  array<string, mixed>  $dataset
+     */
+    private function datasetEndpoint(array $dataset): string
+    {
+        $resourceId = trim((string) ($dataset['resourceId'] ?? ''));
+        $version = trim((string) ($dataset['version'] ?? '1.0'));
+        $key = trim((string) ($dataset['sdmx_key'] ?? 'all'));
+
+        return rtrim((string) Config::get('integrations.stats_nz.base_url'), '/')
+            .'/data/STATSNZ,'.$resourceId.','.$version.'/'.$key;
     }
 
     /**
      * @return array<string, mixed>
      */
-    private function query(): array
+    private function headers(): array
     {
-        $apiKey = (string) Config::get('integrations.stats_nz.api_key', '');
+        return [
+            'Accept' => 'application/vnd.sdmx.data+json;version=1.0.0',
+            'Ocp-Apim-Subscription-Key' => $this->subscriptionKey(),
+            'User-Agent' => 'futureshiftadvisory/1.0 (Language=php)',
+        ];
+    }
 
-        return $apiKey === '' ? [] : ['api_key' => $apiKey];
+    /**
+     * @param  array<string, mixed>  $dataset
+     * @return array<string, mixed>
+     */
+    private function datasetQuery(array $dataset): array
+    {
+        return [
+            'dimensionAtObservation' => (string) ($dataset['dimensionAtObservation'] ?? 'AllDimensions'),
+            'detail' => 'full',
+            'format' => 'jsondata',
+        ];
+    }
+
+    private function subscriptionKey(): string
+    {
+        return (string) ($this->credentials->get('stats_nz', 'subscription_key') ?? '');
     }
 }

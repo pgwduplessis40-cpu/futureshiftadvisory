@@ -12,7 +12,7 @@ use App\Services\Ai\FallbackAiClient;
 use App\Services\Ai\Integrity\BiasDetector;
 use App\Services\Ai\Integrity\SourceAttribution;
 use App\Services\Ai\IntegrityCheckedAiClient;
-use Illuminate\Support\Facades\Config;
+use App\Services\Integration\IntegrationActivationResolver;
 use Illuminate\Support\ServiceProvider;
 
 final class AiServiceProvider extends ServiceProvider
@@ -27,7 +27,7 @@ final class AiServiceProvider extends ServiceProvider
 
         $this->app->singleton(AiClient::class, function (): AiClient {
             $forceFake = $this->app->environment('testing')
-                || blank((string) Config::get('services.anthropic.key', ''));
+                || ! $this->app->make(IntegrationActivationResolver::class)->isLive('anthropic');
 
             $delegate = new FallbackAiClient(
                 live: $forceFake ? null : $this->app->make(AnthropicClaudeClient::class),

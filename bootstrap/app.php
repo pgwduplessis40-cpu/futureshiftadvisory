@@ -2,6 +2,7 @@
 
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Console\Commands\AlertStuckRedIntegrations;
+use App\Console\Commands\CheckReferenceDataFreshness;
 use App\Console\Commands\CreatePracticeHealthSnapshots;
 use App\Console\Commands\ExpireProposals;
 use App\Console\Commands\GenerateBenchmarkCommunityAggregate;
@@ -27,6 +28,7 @@ use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\RunRatingPredictiveValidity;
 use App\Console\Commands\RunSharedIntelligenceLayer;
 use App\Console\Commands\SendGovernanceReviewConversionNudges;
+use App\Console\Commands\SendMeetingReminders;
 use App\Console\Commands\SendReengagementReminders;
 use App\Console\Commands\SendWellbeingCheckinPrompts;
 use App\Console\Commands\VerifyAuditChain;
@@ -42,6 +44,7 @@ use App\Http\Middleware\LogAuditEvent;
 use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
 use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
 use App\Http\Middleware\RequireAcceptedTerms;
+use App\Http\Middleware\RequireFreshStepUp;
 use App\Http\Middleware\RequireMfa;
 use App\Jobs\DispatchDailyDigest;
 use App\Jobs\DispatchWeeklyDigest;
@@ -89,6 +92,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'mfa' => RequireMfa::class,
             'mobile.api' => AuthenticateMobileDeviceToken::class,
             'permission' => EnsurePermission::class,
+            'require.fresh-step-up' => RequireFreshStepUp::class,
             'role' => EnsureRole::class,
         ]);
     })
@@ -109,6 +113,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(AlertStuckRedIntegrations::class)
             ->everyFiveMinutes()
             ->name('fsa-integration-health-stuck-red-alerts')
+            ->withoutOverlapping();
+
+        $schedule->command(CheckReferenceDataFreshness::class)
+            ->dailyAt('07:05')
+            ->name('fsa-reference-data-freshness')
             ->withoutOverlapping();
 
         $schedule->command(RunFeedbackLearningLayer::class)
@@ -191,6 +200,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(GeneratePreMeetingBriefs::class)
             ->hourly()
             ->name('fsa-pre-meeting-briefs')
+            ->withoutOverlapping();
+
+        $schedule->command(SendMeetingReminders::class)
+            ->everyThirtyMinutes()
+            ->name('fsa-meeting-reminders')
             ->withoutOverlapping();
 
         $schedule->command(RunFunnelAnalyticsLayer::class)

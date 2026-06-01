@@ -12,6 +12,7 @@ return [
     'invite_token_ttl_hours' => (int) env('INVITE_TOKEN_TTL_HOURS', 168),
     'mfa_failed_attempt_limit' => (int) env('MFA_FAILED_ATTEMPT_LIMIT', 3),
     'mfa_lockout_minutes' => (int) env('MFA_LOCKOUT_MINUTES', 15),
+    'fresh_step_up_minutes' => (int) env('FRESH_STEP_UP_MINUTES', 5),
     'prospect_intake_secret' => env('PROSPECT_INTAKE_SECRET'),
     'prospect_intake_tolerance_seconds' => (int) env('PROSPECT_INTAKE_TOLERANCE_SECONDS', 300),
     'session_timeouts' => [

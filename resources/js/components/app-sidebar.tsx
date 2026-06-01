@@ -3,12 +3,15 @@ import {
     Bell,
     BookOpen,
     BriefcaseBusiness,
+    CalendarDays,
     ClipboardList,
+    Database,
     FileText,
     FolderGit2,
     HeartHandshake,
     HeartPulse,
     Inbox,
+    KeyRound,
     LayoutGrid,
     MessageSquare,
     PlugZap,
@@ -41,6 +44,12 @@ const clientsNavItem: NavItem = {
     title: 'Clients',
     href: '/advisor/clients',
     icon: BriefcaseBusiness,
+};
+
+const calendarNavItem: NavItem = {
+    title: 'Calendar',
+    href: '/advisor/calendar',
+    icon: CalendarDays,
 };
 
 const dueDiligenceNavItem: NavItem = {
@@ -103,6 +112,18 @@ const apiHealthNavItem: NavItem = {
     icon: PlugZap,
 };
 
+const integrationCredentialsNavItem: NavItem = {
+    title: 'Credentials',
+    href: '/admin/integration-credentials',
+    icon: KeyRound,
+};
+
+const referenceDataNavItem: NavItem = {
+    title: 'Reference Data',
+    href: '/admin/reference-data',
+    icon: Database,
+};
+
 const questionnairesNavItem: NavItem = {
     title: 'Questionnaires',
     href: '/admin/questionnaires',
@@ -111,6 +132,7 @@ const questionnairesNavItem: NavItem = {
 
 const advisorNavItems: NavItem[] = [
     dashboardNavItem,
+    calendarNavItem,
     clientsNavItem,
     dueDiligenceNavItem,
     npoNavItem,
@@ -124,6 +146,7 @@ const advisorNavItems: NavItem[] = [
 
 const juniorAdvisorNavItems: NavItem[] = [
     dashboardNavItem,
+    calendarNavItem,
     clientsNavItem,
     dueDiligenceNavItem,
     npoNavItem,
@@ -212,7 +235,12 @@ function mainNavItemsFor(
     }
 
     if (userType === 'super_admin') {
-        return [...advisorNavItems, questionnairesNavItem];
+        return [
+            ...advisorNavItems,
+            integrationCredentialsNavItem,
+            referenceDataNavItem,
+            questionnairesNavItem,
+        ];
     }
 
     if (userType === 'advisor') {

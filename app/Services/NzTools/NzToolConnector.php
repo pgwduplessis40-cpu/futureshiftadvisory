@@ -8,6 +8,7 @@ use App\Models\Client;
 use App\Models\NzToolConnection;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Storage\KeyEnvelope;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -21,13 +22,14 @@ final class NzToolConnector
         private readonly NzToolClientResolver $clients,
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function authorizeUrl(Client $client, User $user, string $provider): string
     {
         $this->assertProvider($provider);
         $query = http_build_query([
-            'client_id' => (string) Config::get("integrations.business_tools.{$provider}.client_id", 'fixture-client'),
+            'client_id' => (string) ($this->credentials->get($provider, 'client_id') ?? 'fixture-client'),
             'redirect_uri' => $this->callbackUrl($client, $provider),
             'response_type' => 'code',
             'scope' => implode(' ', $this->scopes($provider)),

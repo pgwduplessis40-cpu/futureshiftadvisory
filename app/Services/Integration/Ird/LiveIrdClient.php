@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\Ird;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Ird\Contracts\IrdClient;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
@@ -14,15 +16,17 @@ final class LiveIrdClient implements IrdClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeIrdClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function gstStatus(string $nzbn): array
     {
-        if (! (bool) Config::get('integrations.ird.live', false)) {
+        if (! $this->live->isLive('ird')) {
             throw IntegrationDisabledException::forService('ird');
         }
 
-        $apiKey = (string) Config::get('integrations.ird.api_key', '');
+        $apiKey = (string) ($this->credentials->get('ird', 'api_key') ?? '');
         $endpoint = $apiKey === ''
             ? 'fsa-disabled://ird/missing-api-key'
             : rtrim((string) Config::get('integrations.ird.base_url'), '/').'/gst-status/'.$nzbn;
@@ -47,7 +51,7 @@ final class LiveIrdClient implements IrdClient
 
     public function legislativeChanges(): array
     {
-        if (! (bool) Config::get('integrations.ird.live', false)) {
+        if (! $this->live->isLive('ird')) {
             throw IntegrationDisabledException::forService('ird');
         }
 

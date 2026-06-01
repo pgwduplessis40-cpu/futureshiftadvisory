@@ -14,12 +14,23 @@ final class FallbackStatsNzClient implements StatsNzClient
         private readonly FakeStatsNzClient $fake,
     ) {}
 
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     public function indicators(): array
     {
+        return $this->live->indicators();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function industryBenchmarks(): array
+    {
         try {
-            return $this->live->indicators();
+            return $this->live->industryBenchmarks();
         } catch (IntegrationDisabledException) {
-            return $this->fake->indicators();
+            return $this->fake->fallbackIndustryBenchmarks();
         }
     }
 }

@@ -134,13 +134,10 @@ final class PaymentProcessingTest extends TestCase
             'amount' => 1500,
             'next_run_at' => now()->subMinute(),
         ]);
-        Config::set('integrations.payments.stripe.live', true);
-        Config::set('integrations.payments.windcave.live', true);
-        Config::set('integrations.payments.stripe.secret', '');
-        Config::set('integrations.payments.windcave.api_user', '');
-        Config::set('integrations.payments.windcave.api_key', '');
-
-        $result = app(PaymentProcessor::class)->processDue(now());
+        $result = app(PaymentProcessor::class)->processDue(now(), chargeMetadata: [
+            'fixture_fail_stripe' => true,
+            'fixture_fail_windcave' => true,
+        ]);
 
         $payment = Payment::query()->firstOrFail();
         $this->assertSame(['scanned' => 1, 'succeeded' => 0, 'retrying' => 1, 'failed' => 0, 'receipts' => 0], $result);

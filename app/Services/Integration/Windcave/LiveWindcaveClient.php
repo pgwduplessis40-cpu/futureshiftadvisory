@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\Windcave;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Windcave\Contracts\WindcaveClient;
 use App\Services\Payments\PaymentAuthorityRequest;
@@ -16,7 +18,11 @@ use Illuminate\Support\Facades\Config;
 
 final class LiveWindcaveClient implements WindcaveClient
 {
-    public function __construct(private readonly ResilientHttp $http) {}
+    public function __construct(
+        private readonly ResilientHttp $http,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
+    ) {}
 
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
     {
@@ -110,12 +116,12 @@ final class LiveWindcaveClient implements WindcaveClient
      */
     private function headers(string $idempotencyKey): array
     {
-        if (! (bool) Config::get('integrations.payments.windcave.live', false)) {
+        if (! $this->live->isLive('windcave')) {
             throw IntegrationDisabledException::forService('windcave');
         }
 
-        $user = (string) Config::get('integrations.payments.windcave.api_user', '');
-        $key = (string) Config::get('integrations.payments.windcave.api_key', '');
+        $user = (string) ($this->credentials->get('windcave', 'api_user') ?? '');
+        $key = (string) ($this->credentials->get('windcave', 'api_key') ?? '');
 
         if ($user === '' || $key === '') {
             throw new PaymentGatewayException('Windcave credentials are not configured.');

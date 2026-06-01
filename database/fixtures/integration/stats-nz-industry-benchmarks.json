@@ -1,0 +1,103 @@
+{
+  "current": {
+    "payload": {
+      "header": {
+        "id": "business-demography-enterprises-by-industry-size",
+        "prepared": "2026-06-01T00:00:00Z",
+        "sender": {
+          "id": "STATSNZ"
+        }
+      },
+      "dataSets": [
+        {
+          "observations": {
+            "0:0:0": [617330],
+            "1:0:0": [654460],
+            "0:1:0": [12500],
+            "1:1:0": [14110]
+          }
+        }
+      ],
+      "structure": {
+        "dimensions": {
+          "observation": [
+            {
+              "id": "MEASURE",
+              "name": "Measure",
+              "values": [
+                {
+                  "id": "ENT",
+                  "name": "Enterprises"
+                },
+                {
+                  "id": "GEO",
+                  "name": "Geographic units"
+                }
+              ]
+            },
+            {
+              "id": "ANZSIC06",
+              "name": "Industry",
+              "values": [
+                {
+                  "id": "all",
+                  "name": "All industries"
+                },
+                {
+                  "id": "A",
+                  "name": "Agriculture, forestry, and fishing"
+                }
+              ]
+            },
+            {
+              "id": "TIME_PERIOD",
+              "name": "Year",
+              "values": [
+                {
+                  "id": "2025",
+                  "name": "2025"
+                }
+              ]
+            }
+          ]
+        }
+      }
+    },
+    "benchmarks": [
+      {
+        "dataset_key": "business_demography_enterprises_by_industry_size",
+        "dataset_label": "Business demography - enterprises by industry and size",
+        "resource_id": "BD_BD_001",
+        "version": "1.0",
+        "industry_code": "all",
+        "industry_label": "All industries",
+        "metric": "ent",
+        "metric_label": "Enterprises",
+        "period": "2025",
+        "period_label": "2025",
+        "value": 617330,
+        "unit": "count",
+        "payload": {
+          "fixture": true
+        }
+      },
+      {
+        "dataset_key": "business_demography_enterprises_by_industry_size",
+        "dataset_label": "Business demography - enterprises by industry and size",
+        "resource_id": "BD_BD_001",
+        "version": "1.0",
+        "industry_code": "A",
+        "industry_label": "Agriculture, forestry, and fishing",
+        "metric": "ent",
+        "metric_label": "Enterprises",
+        "period": "2025",
+        "period_label": "2025",
+        "value": 12500,
+        "unit": "count",
+        "payload": {
+          "fixture": true
+        }
+      }
+    ]
+  }
+}

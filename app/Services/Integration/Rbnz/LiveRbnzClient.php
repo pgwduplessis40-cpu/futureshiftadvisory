@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\Rbnz;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Rbnz\Contracts\RbnzClient;
 use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
@@ -15,11 +17,13 @@ final class LiveRbnzClient implements RbnzClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeRbnzClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function ocr(): array
     {
-        if (! (bool) Config::get('integrations.rbnz.live', false)) {
+        if (! $this->live->isLive('rbnz')) {
             throw IntegrationDisabledException::forService('rbnz');
         }
 
@@ -36,7 +40,7 @@ final class LiveRbnzClient implements RbnzClient
 
     public function exchangeRates(): array
     {
-        if (! (bool) Config::get('integrations.rbnz.live', false)) {
+        if (! $this->live->isLive('rbnz')) {
             throw IntegrationDisabledException::forService('rbnz');
         }
 
@@ -76,7 +80,7 @@ final class LiveRbnzClient implements RbnzClient
 
     private function endpoint(string $service, string $path): string
     {
-        $apiKey = (string) Config::get("integrations.{$service}.api_key", '');
+        $apiKey = (string) ($this->credentials->get($service, 'api_key') ?? '');
 
         return $apiKey === ''
             ? "fsa-disabled://{$service}/missing-api-key/{$path}"
@@ -88,7 +92,7 @@ final class LiveRbnzClient implements RbnzClient
      */
     private function query(string $service): array
     {
-        $apiKey = (string) Config::get("integrations.{$service}.api_key", '');
+        $apiKey = (string) ($this->credentials->get($service, 'api_key') ?? '');
 
         return $apiKey === '' ? [] : ['api_key' => $apiKey];
     }

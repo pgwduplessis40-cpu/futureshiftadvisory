@@ -157,11 +157,12 @@ final class AccountingIntegrationTest extends TestCase
         }
     }
 
-    public function test_new_accounting_providers_live_mode_without_credentials_records_resilience_fallback(): void
+    public function test_new_accounting_providers_live_mode_with_config_credentials_records_resilience_fallback(): void
     {
         foreach ([AccountingConnection::PROVIDER_SAGE, AccountingConnection::PROVIDER_FIGURED, AccountingConnection::PROVIDER_WORKFLOWMAX] as $provider) {
             Config::set("integrations.accounting.{$provider}.live", true);
-            Config::set("integrations.accounting.{$provider}.client_secret", null);
+            Config::set("integrations.accounting.{$provider}.client_id", "{$provider}-test-client");
+            Config::set("integrations.accounting.{$provider}.client_secret", "{$provider}-test-secret");
             $this->forgetAccountingClients();
 
             [$advisor, $client] = $this->advisorAndClient("{$provider}-live-accounting@example.test");
@@ -237,10 +238,11 @@ final class AccountingIntegrationTest extends TestCase
         $snapshot->forceFill(['source_badge' => 'tampered'])->save();
     }
 
-    public function test_live_mode_without_credentials_logs_resilient_http_fallback(): void
+    public function test_live_mode_with_config_credentials_logs_resilient_http_fallback(): void
     {
         Config::set('integrations.accounting.xero.live', true);
-        Config::set('integrations.accounting.xero.client_secret', null);
+        Config::set('integrations.accounting.xero.client_id', 'xero-test-client');
+        Config::set('integrations.accounting.xero.client_secret', 'xero-test-secret');
         $this->forgetAccountingClients();
 
         [$advisor, $client] = $this->advisorAndClient();

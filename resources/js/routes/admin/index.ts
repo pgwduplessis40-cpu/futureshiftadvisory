@@ -2,6 +2,8 @@ import invitations from './invitations'
 import questionnaires from './questionnaires'
 import terms from './terms'
 import integrationHealth from './integration-health'
+import integrationCredentials from './integration-credentials'
+import referenceData from './reference-data'
 import learningUpdates from './learning-updates'
 import learningUpdateImplementations from './learning-update-implementations'
 import panelMembers from './panel-members'
@@ -10,6 +12,8 @@ const admin = {
 questionnaires: Object.assign(questionnaires, questionnaires),
 terms: Object.assign(terms, terms),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),
+integrationCredentials: Object.assign(integrationCredentials, integrationCredentials),
+referenceData: Object.assign(referenceData, referenceData),
 learningUpdates: Object.assign(learningUpdates, learningUpdates),
 learningUpdateImplementations: Object.assign(learningUpdateImplementations, learningUpdateImplementations),
 panelMembers: Object.assign(panelMembers, panelMembers),

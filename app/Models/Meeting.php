@@ -14,12 +14,34 @@ final class Meeting extends Model
 {
     use HasUuids;
 
+    public const STATUS_SCHEDULED = 'scheduled';
+
+    public const STATUS_CANCELLED = 'cancelled';
+
     protected $guarded = [];
 
     protected $casts = [
         'scheduled_at' => 'datetime',
         'attendees' => 'array',
+        'cancelled_at' => 'datetime',
+        'reminder_sent_at' => 'datetime',
     ];
+
+    /**
+     * @return array<int, string>
+     */
+    public static function statuses(): array
+    {
+        return [
+            self::STATUS_SCHEDULED,
+            self::STATUS_CANCELLED,
+        ];
+    }
+
+    public function scheduled(): bool
+    {
+        return $this->status === self::STATUS_SCHEDULED;
+    }
 
     /**
      * @return BelongsTo<Client, Meeting>
@@ -35,6 +57,14 @@ final class Meeting extends Model
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, Meeting>
+     */
+    public function cancelledBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'cancelled_by_user_id');
     }
 
     /**

@@ -65,10 +65,10 @@ final class NpoComplianceLookupTest extends TestCase
         $this->assertSame('stub', $society['source_badge']);
     }
 
-    public function test_live_charities_without_credentials_degrades_and_logs_resilience(): void
+    public function test_live_charities_with_config_credentials_degrades_and_logs_resilience(): void
     {
         Config::set('integrations.charities_services.live', true);
-        Config::set('integrations.charities_services.api_key', null);
+        Config::set('integrations.charities_services.api_key', 'charities-test-key');
         $this->forgetCharitiesClients();
 
         Http::fake(fn () => Http::response(['error' => 'registry unavailable'], 503));

@@ -30,6 +30,7 @@ final class CalendarSync
 
         Meeting::query()
             ->where('created_by_user_id', $connection->user_id)
+            ->where('status', Meeting::STATUS_SCHEDULED)
             ->where('scheduled_at', '>=', now()->subDay())
             ->orderBy('scheduled_at')
             ->limit(50)

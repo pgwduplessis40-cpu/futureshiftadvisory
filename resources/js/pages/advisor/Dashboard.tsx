@@ -6,6 +6,7 @@ import {
     CheckCircle2,
     Clock,
     CreditCard,
+    DatabaseZap,
     FileText,
     HeartHandshake,
     HeartPulse,
@@ -478,6 +479,30 @@ type NpoFundingPayload = {
     }>;
 };
 
+type ReferenceDataTasksPayload = {
+    summary: {
+        total: number;
+        fresh: number;
+        due_soon: number;
+        overdue: number;
+        missing: number;
+    };
+    index_url: string | null;
+    items: Array<{
+        key: string;
+        dataset: string;
+        indicator: string | null;
+        label: string;
+        status: 'fresh' | 'due_soon' | 'overdue' | 'missing';
+        cadence_days: number;
+        last_as_at: string | null;
+        due_at: string | null;
+        source: string | null;
+        entry_id: string | null;
+        action_url: string;
+    }>;
+};
+
 type PanelReferralQueue = {
     summary: {
         total: number;
@@ -541,6 +566,7 @@ const signalPanelTargetIds = new Set([
     'advisor-broker-referrals',
     'advisor-coach-referrals',
     'advisor-learning-queue',
+    'advisor-reference-data-tasks',
     'advisor-npo-funding',
     'advisor-npo-conversions',
 ]);
@@ -562,6 +588,7 @@ type Props = {
     coachSignals: CoachSignalsPayload;
     npoPendingConversions: NpoPendingConversionsPayload;
     npoFunding: NpoFundingPayload;
+    referenceDataTasks: ReferenceDataTasksPayload;
     scenarioPlanning: ScenarioPlanningPayload;
     funnelAnalytics: FunnelAnalyticsPayload;
     panelOperations: PanelOperationsPayload;
@@ -584,6 +611,7 @@ export default function AdvisorDashboard({
     coachSignals,
     npoPendingConversions,
     npoFunding,
+    referenceDataTasks,
     scenarioPlanning,
     funnelAnalytics,
     panelOperations,
@@ -598,6 +626,7 @@ export default function AdvisorDashboard({
         paymentStatus,
         npoPendingConversions,
         npoFunding,
+        referenceDataTasks,
         panelOperations,
     });
     const actionQueueCount = actionItems.filter(
@@ -674,6 +703,9 @@ export default function AdvisorDashboard({
                             integrationHealth.summary.amber +
                             integrationHealth.summary.red +
                             economicIndicators.summary.change_alerts +
+                            referenceDataTasks.summary.missing +
+                            referenceDataTasks.summary.overdue +
+                            referenceDataTasks.summary.due_soon +
                             funnelAnalytics.summary.abandoned +
                             questionnaireOptimisation.summary
                                 .detected_candidates
@@ -776,6 +808,9 @@ export default function AdvisorDashboard({
                             <div className="grid gap-4 xl:grid-cols-3">
                                 <EconomicIndicators
                                     payload={economicIndicators}
+                                />
+                                <ReferenceDataTasksPanel
+                                    payload={referenceDataTasks}
                                 />
                                 <IntegrationHealth
                                     payload={integrationHealth}
@@ -980,6 +1015,7 @@ function buildActionSummaryItems({
     paymentStatus,
     npoPendingConversions,
     npoFunding,
+    referenceDataTasks,
     panelOperations,
 }: Pick<
     Props,
@@ -990,6 +1026,7 @@ function buildActionSummaryItems({
     | 'paymentStatus'
     | 'npoPendingConversions'
     | 'npoFunding'
+    | 'referenceDataTasks'
     | 'panelOperations'
 >): ActionSummaryItem[] {
     const paymentActionCount =
@@ -999,6 +1036,10 @@ function buildActionSummaryItems({
     const learningActionCount =
         panelOperations.learning.summary.detected +
         panelOperations.learning.summary.staged;
+    const referenceDataActionCount =
+        referenceDataTasks.summary.missing +
+        referenceDataTasks.summary.overdue +
+        referenceDataTasks.summary.due_soon;
 
     return [
         {
@@ -1157,6 +1198,27 @@ function buildActionSummaryItems({
             nextStep:
                 'Open the hand-off, confirm the coach stage, and update the referral once progressed.',
             icon: <HeartHandshake className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'reference-data',
+            label: 'Reference data',
+            value: referenceDataActionCount,
+            href: '#advisor-reference-data-tasks',
+            targetId: 'advisor-reference-data-tasks',
+            tab: 'signals',
+            priority:
+                referenceDataTasks.summary.missing +
+                    referenceDataTasks.summary.overdue >
+                0
+                    ? 'warning'
+                    : referenceDataActionCount > 0
+                      ? 'warning'
+                      : 'neutral',
+            explanation:
+                'Reference-data tasks show manual economic, valuation, WACC, and NPO benchmark figures that are due for refresh.',
+            nextStep:
+                'Open Reference Data and record a new value, then approve and implement it through the learning queue.',
+            icon: <DatabaseZap className="size-4" aria-hidden="true" />,
         },
         {
             key: 'learning-queue',
@@ -2780,6 +2842,105 @@ function exposureFooter(exposure: EconomicExposure): string | undefined {
     return exposure.reason === 'classification_not_captured'
         ? 'Classification not captured'
         : 'Exposure unavailable';
+}
+
+function ReferenceDataTasksPanel({
+    payload,
+}: {
+    payload: ReferenceDataTasksPayload;
+}) {
+    const needsRefresh =
+        payload.summary.missing +
+        payload.summary.overdue +
+        payload.summary.due_soon;
+
+    return (
+        <section
+            id="advisor-reference-data-tasks"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-2">
+                    <DatabaseZap className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Reference data</h2>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant={needsRefresh > 0 ? 'outline' : 'secondary'}>
+                        {needsRefresh} due
+                    </Badge>
+                    {payload.index_url && (
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={payload.index_url}>Open</Link>
+                        </Button>
+                    )}
+                </div>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+                <PortfolioMetric
+                    label="Missing"
+                    value={payload.summary.missing.toString()}
+                />
+                <PortfolioMetric
+                    label="Overdue"
+                    value={payload.summary.overdue.toString()}
+                />
+                <PortfolioMetric
+                    label="Due soon"
+                    value={payload.summary.due_soon.toString()}
+                />
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    Implemented reference data is current.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={item.key}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="line-clamp-1 text-sm font-medium">
+                                        {item.label}
+                                    </span>
+                                    <Badge
+                                        variant={
+                                            item.status === 'missing' ||
+                                            item.status === 'overdue'
+                                                ? 'destructive'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {formatLabel(item.status)}
+                                    </Badge>
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {item.last_as_at
+                                        ? `Last ${formatDateOnly(item.last_as_at)}`
+                                        : 'No implemented value'}{' '}
+                                    - Due {formatDateOnly(item.due_at)}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {formatLabel(item.dataset)}
+                                    {item.indicator
+                                        ? ` - ${formatLabel(item.indicator)}`
+                                        : ''}
+                                    {item.source ? ` - ${item.source}` : ''}
+                                </div>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={item.action_url}>Record</Link>
+                            </Button>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
 }
 
 function formatTrend(

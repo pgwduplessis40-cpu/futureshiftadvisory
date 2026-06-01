@@ -6,6 +6,8 @@ namespace App\Services\Integration\CompaniesOffice;
 
 use App\Services\Integration\CompaniesOffice\Contracts\CompaniesOfficeClient;
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
 
@@ -14,15 +16,17 @@ final class LiveCompaniesOfficeClient implements CompaniesOfficeClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeCompaniesOfficeClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function companyProfile(string $nzbn): array
     {
-        if (! (bool) Config::get('integrations.companies_office.live', false)) {
+        if (! $this->live->isLive('companies_office')) {
             throw IntegrationDisabledException::forService('companies-office');
         }
 
-        $apiKey = (string) Config::get('integrations.companies_office.api_key', '');
+        $apiKey = (string) ($this->credentials->get('companies_office', 'api_key') ?? '');
         $endpoint = $apiKey === ''
             ? 'fsa-disabled://companies-office/missing-api-key'
             : rtrim((string) Config::get('integrations.companies_office.base_url'), '/').'/companies/'.$nzbn;
@@ -55,11 +59,11 @@ final class LiveCompaniesOfficeClient implements CompaniesOfficeClient
 
     public function incorporatedSocietyProfile(string $identifier): array
     {
-        if (! (bool) Config::get('integrations.incorporated_societies.live', false)) {
+        if (! $this->live->isLive('incorporated_societies')) {
             throw IntegrationDisabledException::forService('incorporated-societies');
         }
 
-        $apiKey = (string) Config::get('integrations.incorporated_societies.api_key', '');
+        $apiKey = (string) ($this->credentials->get('incorporated_societies', 'api_key') ?? '');
         $endpoint = $apiKey === ''
             ? rtrim((string) Config::get('integrations.incorporated_societies.scrape_url'), '/').'/'.urlencode($identifier)
             : rtrim((string) Config::get('integrations.incorporated_societies.base_url'), '/').'/societies/'.urlencode($identifier);

@@ -106,8 +106,21 @@ return [
 
     'stats_nz' => [
         'live' => (bool) env('FEATURE_STATS_NZ_LIVE', false),
-        'base_url' => env('STATS_NZ_BASE_URL', 'https://api.stats.govt.nz'),
+        'base_url' => env('STATS_NZ_BASE_URL', 'https://api.data.stats.govt.nz/rest'),
         'api_key' => env('STATS_NZ_API_KEY'),
+        'datasets' => [
+            [
+                'key' => 'business_demography_enterprises_by_industry_size',
+                'label' => 'Business demography - enterprises by industry and size',
+                'resourceId' => env('STATS_NZ_BUSINESS_DEMOGRAPHY_RESOURCE_ID', 'BD_BD_001'),
+                'version' => env('STATS_NZ_BUSINESS_DEMOGRAPHY_VERSION', '1.0'),
+                'sdmx_key' => env('STATS_NZ_BUSINESS_DEMOGRAPHY_KEY', 'all'),
+                'dimension_key' => env('STATS_NZ_BUSINESS_DEMOGRAPHY_INDUSTRY_DIMENSION', 'ANZSIC06'),
+                'metric_dimension_key' => env('STATS_NZ_BUSINESS_DEMOGRAPHY_METRIC_DIMENSION', 'MEASURE'),
+                'dimensionAtObservation' => env('STATS_NZ_BUSINESS_DEMOGRAPHY_DIMENSION_AT_OBSERVATION', 'AllDimensions'),
+                'unit' => 'count',
+            ],
+        ],
     ],
 
     'mbie' => [

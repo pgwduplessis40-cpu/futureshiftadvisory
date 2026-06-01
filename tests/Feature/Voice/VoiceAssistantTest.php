@@ -66,7 +66,7 @@ final class VoiceAssistantTest extends TestCase
         app(Assistant::class)->startShortcutSession($client, $advisor, 'summarise_anything');
     }
 
-    public function test_live_whisper_transcription_requires_active_consent(): void
+    public function test_not_wired_whisper_does_not_require_live_consent_even_when_env_flag_is_on(): void
     {
         Storage::fake('secure_local');
         Config::set('services.whisper.live', true);
@@ -74,10 +74,13 @@ final class VoiceAssistantTest extends TestCase
         [$advisor, $client] = $this->advisorAndClient();
         $document = $this->voiceDocument($client, 'consent.txt', 'Consent gate transcript.');
 
-        $this->expectException(InvalidArgumentException::class);
-        $this->expectExceptionMessage('Live Whisper transcription requires active client consent.');
+        $voiceNote = app(VoiceNoteProcessor::class)->processDocument($client, $document, $advisor);
 
-        app(VoiceNoteProcessor::class)->processDocument($client, $document, $advisor);
+        $this->assertSame('summarized', $voiceNote->status);
+        $this->assertDatabaseMissing('consents', [
+            'client_id' => $client->getKey(),
+            'type' => Consent::TYPE_WHISPER_TRANSCRIPTION,
+        ]);
     }
 
     public function test_whisper_transcription_consent_type_is_registered(): void

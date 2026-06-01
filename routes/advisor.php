@@ -8,6 +8,7 @@ use App\Http\Controllers\Advisor\AnalysisFeedbackController;
 use App\Http\Controllers\Advisor\BriefingController;
 use App\Http\Controllers\Advisor\BulkCommunicationController;
 use App\Http\Controllers\Advisor\BusinessHealthController;
+use App\Http\Controllers\Advisor\CalendarController;
 use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
@@ -42,6 +43,21 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->prefix('advisor')
     ->name('advisor.')
     ->group(function (): void {
+        Route::get('calendar', [CalendarController::class, 'index'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('calendar.index');
+        Route::post('calendar/meetings', [CalendarController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('calendar.meetings.store');
+        Route::patch('calendar/meetings/{meeting}', [CalendarController::class, 'update'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->whereUuid('meeting')
+            ->name('calendar.meetings.update');
+        Route::delete('calendar/meetings/{meeting}', [CalendarController::class, 'cancel'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->whereUuid('meeting')
+            ->name('calendar.meetings.cancel');
+
         Route::get('clients', [ClientController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.index');

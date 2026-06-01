@@ -37,7 +37,7 @@ final class MfaChallengeController extends Controller
         }
 
         return Inertia::render('auth/mfa-challenge', [
-            'reason' => $this->mfa->stepUpRequired($request) ? 'step_up' : null,
+            'reason' => $this->mfa->stepUpRequired($request) ? $this->mfa->stepUpReason($request) : null,
         ]);
     }
 

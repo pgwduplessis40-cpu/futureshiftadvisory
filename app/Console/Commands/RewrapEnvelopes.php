@@ -230,6 +230,7 @@ final class RewrapEnvelopes extends Command
             ['table' => 'receipts', 'column' => 'receipt_sha256_envelope', 'meta_column' => 'receipt_envelope_meta'],
             ['table' => 'panel_agreements', 'column' => 'pdf_sha256_envelope', 'meta_column' => 'pdf_envelope_meta'],
             ['table' => 'nz_tool_connections', 'column' => 'token_envelope', 'meta_column' => 'token_envelope_meta'],
+            ['table' => 'integration_credentials', 'column' => 'value_envelope', 'meta_column' => 'value_envelope_meta'],
         ];
     }
 }

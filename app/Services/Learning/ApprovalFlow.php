@@ -9,6 +9,7 @@ use App\Models\LearningUpdateDecision;
 use App\Models\LearningUpdateImplementation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\ReferenceData\ReferenceDataProjector;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 use Illuminate\Support\Collection;
@@ -18,7 +19,10 @@ use RuntimeException;
 
 final class ApprovalFlow
 {
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly ReferenceDataProjector $referenceDataProjector,
+    ) {}
 
     /**
      * @return Collection<int, array<string, mixed>>
@@ -215,8 +219,15 @@ final class ApprovalFlow
                 return $existing;
             }
 
-            $targetType = $this->implementationTarget('type', $locked);
-            $targetId = $this->implementationTarget('id', $locked);
+            $projection = $this->referenceDataProjector->projectIfReferenceData($locked, $at);
+            $targetType = is_array($projection)
+                ? (string) ($projection['target_type'] ?? '')
+                : $this->implementationTarget('type', $locked);
+            $targetId = is_array($projection)
+                ? (string) ($projection['target_id'] ?? '')
+                : $this->implementationTarget('id', $locked);
+            $targetType = $targetType !== '' ? $targetType : null;
+            $targetId = $targetId !== '' ? $targetId : null;
 
             /** @var LearningUpdateImplementation $implementation */
             $implementation = LearningUpdateImplementation::query()->create([
@@ -235,6 +246,7 @@ final class ApprovalFlow
                     'implemented_at' => $at->toIso8601String(),
                     'proposed_change' => $locked->proposed_change,
                     'automatic_application' => (bool) data_get($locked->proposed_change, 'automatic_application', false),
+                    'projection' => $projection,
                 ],
             ]);
 

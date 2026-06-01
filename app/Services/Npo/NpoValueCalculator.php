@@ -303,7 +303,7 @@ final class NpoValueCalculator
         $source = 'default_layer_36_seed';
         $learningUpdateId = null;
 
-        $update = $this->latestApprovedLayerUpdate(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS);
+        $update = $this->latestImplementedLayerUpdate(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS);
         if ($update instanceof LearningUpdate) {
             foreach ($this->normaliseBenchmarkOverrides((array) data_get($update->proposed_change, 'benchmarks', [])) as $override) {
                 $type = $this->slug((string) $override['programme_type']);
@@ -543,6 +543,16 @@ final class NpoValueCalculator
         return LearningUpdate::query()
             ->where('layer_id', $layerId)
             ->whereIn('status', [LearningUpdate::STATUS_APPROVED, LearningUpdate::STATUS_IMPLEMENTED])
+            ->latest('updated_at')
+            ->latest('created_at')
+            ->first();
+    }
+
+    private function latestImplementedLayerUpdate(int $layerId): ?LearningUpdate
+    {
+        return LearningUpdate::query()
+            ->where('layer_id', $layerId)
+            ->where('status', LearningUpdate::STATUS_IMPLEMENTED)
             ->latest('updated_at')
             ->latest('created_at')
             ->first();

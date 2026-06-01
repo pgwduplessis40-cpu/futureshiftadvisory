@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\Stripe;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\PaymentAuthorityRequest;
@@ -16,7 +18,11 @@ use Illuminate\Support\Facades\Config;
 
 final class LiveStripeClient implements StripeClient
 {
-    public function __construct(private readonly ResilientHttp $http) {}
+    public function __construct(
+        private readonly ResilientHttp $http,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
+    ) {}
 
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
     {
@@ -113,11 +119,11 @@ final class LiveStripeClient implements StripeClient
 
     private function secret(): string
     {
-        if (! (bool) Config::get('integrations.payments.stripe.live', false)) {
+        if (! $this->live->isLive('stripe')) {
             throw IntegrationDisabledException::forService('stripe');
         }
 
-        $secret = (string) Config::get('integrations.payments.stripe.secret', '');
+        $secret = (string) ($this->credentials->get('stripe', 'secret') ?? '');
 
         if ($secret === '') {
             throw new PaymentGatewayException('Stripe secret is not configured.');

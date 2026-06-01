@@ -17,6 +17,8 @@ abstract class CalendarLiveClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly object $fake,
+        private ?IntegrationActivationResolver $live = null,
+        private ?IntegrationCredentials $credentials = null,
     ) {}
 
     /**
@@ -25,7 +27,7 @@ abstract class CalendarLiveClient
     public function authorizeUrl(string $state, string $redirectUri, array $scopes): string
     {
         $query = http_build_query([
-            'client_id' => (string) Config::get($this->configKey('client_id'), 'fixture-client'),
+            'client_id' => $this->credential('client_id') ?: 'fixture-client',
             'redirect_uri' => $redirectUri,
             'response_type' => 'code',
             'scope' => implode(' ', $scopes),
@@ -53,8 +55,8 @@ abstract class CalendarLiveClient
                     'grant_type' => 'authorization_code',
                     'code' => $code,
                     'redirect_uri' => $redirectUri,
-                    'client_id' => (string) Config::get($this->configKey('client_id'), ''),
-                    'client_secret' => (string) Config::get($this->configKey('client_secret'), ''),
+                    'client_id' => $this->credential('client_id'),
+                    'client_secret' => $this->credential('client_secret'),
                 ],
             ],
             fallback: fn (): array => $this->fake->fallbackToken(),
@@ -174,14 +176,14 @@ abstract class CalendarLiveClient
 
     private function ensureLive(): void
     {
-        if (! (bool) Config::get($this->configKey('live'), false)) {
+        if (! $this->live()->isLive($this->integrationKey())) {
             throw IntegrationDisabledException::forService($this->provider());
         }
     }
 
     private function endpoint(string $path): string
     {
-        $clientSecret = (string) Config::get($this->configKey('client_secret'), '');
+        $clientSecret = $this->credential('client_secret');
 
         return $clientSecret === ''
             ? "fsa-disabled://{$this->provider()}/missing-client-secret/{$path}"
@@ -191,5 +193,29 @@ abstract class CalendarLiveClient
     private function configKey(string $key): string
     {
         return "integrations.calendar.{$this->provider()}.{$key}";
+    }
+
+    private function integrationKey(): string
+    {
+        return match ($this->provider()) {
+            'google' => 'google_calendar',
+            'microsoft' => 'microsoft_calendar',
+            default => $this->provider(),
+        };
+    }
+
+    private function credential(string $field): string
+    {
+        return (string) ($this->credentials()->get($this->integrationKey(), $field) ?? '');
+    }
+
+    private function live(): IntegrationActivationResolver
+    {
+        return $this->live ??= app(IntegrationActivationResolver::class);
+    }
+
+    private function credentials(): IntegrationCredentials
+    {
+        return $this->credentials ??= app(IntegrationCredentials::class);
     }
 }

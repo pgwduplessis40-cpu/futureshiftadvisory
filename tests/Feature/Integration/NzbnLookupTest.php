@@ -50,10 +50,10 @@ final class NzbnLookupTest extends TestCase
         $this->assertFalse($result['degraded']);
     }
 
-    public function test_live_mode_without_credential_degrades_through_resilience_layer(): void
+    public function test_live_mode_with_config_credential_degrades_through_resilience_layer(): void
     {
         Config::set('integrations.nzbn.live', true);
-        Config::set('integrations.nzbn.api_key', null);
+        Config::set('integrations.nzbn.api_key', 'nzbn-test-key');
         $this->forgetNzbnClients();
 
         Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
@@ -78,10 +78,10 @@ final class NzbnLookupTest extends TestCase
         ]);
     }
 
-    public function test_live_mode_without_credential_uses_cached_data_before_stub_fallback(): void
+    public function test_live_mode_with_config_credential_uses_cached_data_before_stub_fallback(): void
     {
         Config::set('integrations.nzbn.live', true);
-        Config::set('integrations.nzbn.api_key', null);
+        Config::set('integrations.nzbn.api_key', 'nzbn-test-key');
         Cache::put('integration:nzbn:9429000000000', [
             'status_code' => 200,
             'json' => [

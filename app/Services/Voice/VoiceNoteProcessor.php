@@ -16,9 +16,9 @@ use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Voice\Contracts\WhisperClient;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -28,6 +28,7 @@ final class VoiceNoteProcessor
         private readonly WhisperClient $whisper,
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
+        private readonly IntegrationActivationResolver $live,
     ) {}
 
     public function processDocument(Client $client, Document $document, ?User $actor = null, ?Milestone $milestone = null): VoiceNote
@@ -260,7 +261,7 @@ final class VoiceNoteProcessor
 
     private function assertLiveWhisperConsent(Client $client): void
     {
-        if (! (bool) Config::get('services.whisper.live', false)) {
+        if (! $this->live->isLive('whisper')) {
             return;
         }
 

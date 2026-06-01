@@ -4,18 +4,21 @@ declare(strict_types=1);
 
 namespace App\Services\Payments;
 
+use App\Services\Integration\IntegrationCredentials;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 
 final class PaymentWebhookVerifier
 {
+    public function __construct(private readonly IntegrationCredentials $credentials) {}
+
     /**
      * @return array{0: bool, 1: string|null}
      */
     public function verifyStripe(Request $request): array
     {
-        $secret = (string) Config::get('integrations.payments.stripe.webhook_secret', '');
+        $secret = (string) ($this->credentials->get('stripe', 'webhook_secret') ?? '');
 
         if ($secret === '') {
             return [false, 'secret_not_configured'];
@@ -51,7 +54,7 @@ final class PaymentWebhookVerifier
      */
     public function verifyWindcave(Request $request): array
     {
-        $secret = (string) Config::get('integrations.payments.windcave.webhook_secret', '');
+        $secret = (string) ($this->credentials->get('windcave', 'webhook_secret') ?? '');
 
         if ($secret === '') {
             return [false, 'secret_not_configured'];

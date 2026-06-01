@@ -6,6 +6,8 @@ namespace App\Services\Integration\CharitiesServices;
 
 use App\Services\Integration\CharitiesServices\Contracts\CharitiesServicesClient;
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
 
@@ -14,15 +16,17 @@ final class LiveCharitiesServicesClient implements CharitiesServicesClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeCharitiesServicesClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function charityProfile(string $registrationNumber): array
     {
-        if (! (bool) Config::get('integrations.charities_services.live', false)) {
+        if (! $this->live->isLive('charities_services')) {
             throw IntegrationDisabledException::forService('charities-services');
         }
 
-        $apiKey = (string) Config::get('integrations.charities_services.api_key', '');
+        $apiKey = (string) ($this->credentials->get('charities_services', 'api_key') ?? '');
         $endpoint = $apiKey === ''
             ? rtrim((string) Config::get('integrations.charities_services.scrape_url'), '/').'/'.urlencode($registrationNumber)
             : rtrim((string) Config::get('integrations.charities_services.base_url'), '/').'/charities/'.urlencode($registrationNumber);

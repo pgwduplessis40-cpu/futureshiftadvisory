@@ -11,7 +11,6 @@ use App\Models\LearningUpdate;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\Mbie\Contracts\MbieClient;
 use App\Services\Integration\Rbnz\Contracts\RbnzClient;
-use App\Services\Integration\StatsNz\Contracts\StatsNzClient;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -24,7 +23,6 @@ final class EconomicIndicatorRefresher
 
     public function __construct(
         private readonly RbnzClient $rbnz,
-        private readonly StatsNzClient $statsNz,
         private readonly MbieClient $mbie,
         private readonly AuditWriter $audit,
         private readonly RequestContext $context,
@@ -40,7 +38,6 @@ final class EconomicIndicatorRefresher
 
         $indicators = [
             $this->rbnz->ocr(),
-            ...$this->statsNz->indicators(),
             ...$this->mbie->wageRates(),
         ];
         $exchangeRates = $this->rbnz->exchangeRates();

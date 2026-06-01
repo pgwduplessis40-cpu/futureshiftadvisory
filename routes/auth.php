@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\IntegrationHealthController;
+use App\Http\Controllers\Admin\IntegrationCredentialController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\QuestionnaireController;
+use App\Http\Controllers\Admin\ReferenceDataController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Auth\InviteAcceptController;
 use App\Http\Controllers\Auth\MfaChallengeController;
@@ -65,6 +67,36 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->group(function (): void {
             Route::get('integration-health', IntegrationHealthController::class)
                 ->name('integration-health.index');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::CREDENTIAL_MANAGE->value])
+        ->group(function (): void {
+            Route::get('integration-credentials', [IntegrationCredentialController::class, 'index'])
+                ->name('integration-credentials.index');
+            Route::post('integration-credentials', [IntegrationCredentialController::class, 'store'])
+                ->middleware('require.fresh-step-up')
+                ->name('integration-credentials.store');
+            Route::patch('integration-credentials/revoke', [IntegrationCredentialController::class, 'revoke'])
+                ->middleware('require.fresh-step-up')
+                ->name('integration-credentials.revoke');
+            Route::patch('integration-credentials/activate', [IntegrationCredentialController::class, 'activate'])
+                ->middleware('require.fresh-step-up')
+                ->name('integration-credentials.activate');
+            Route::patch('integration-credentials/deactivate', [IntegrationCredentialController::class, 'deactivate'])
+                ->middleware('require.fresh-step-up')
+                ->name('integration-credentials.deactivate');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::REFERENCE_DATA_MANAGE->value])
+        ->group(function (): void {
+            Route::get('reference-data', [ReferenceDataController::class, 'index'])
+                ->name('reference-data.index');
+            Route::post('reference-data', [ReferenceDataController::class, 'store'])
+                ->name('reference-data.store');
         });
 
     Route::prefix('admin')

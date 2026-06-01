@@ -9,6 +9,7 @@ use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
 use App\Observers\ClientLifecycleObserver;
 use App\Services\Integration\Resilience\RetryPolicy;
+use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
@@ -68,7 +69,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(HsmKeyManager::class);
         $this->app->singleton(PqcEnvelopeCipher::class);
         $this->app->singleton(KeyEnvelope::class);
-        $this->app->singleton(WhisperClient::class, fn (): WhisperClient => (bool) config('services.whisper.live', false)
+        $this->app->singleton(WhisperClient::class, fn (): WhisperClient => $this->app->make(IntegrationActivationResolver::class)->isLive('whisper')
             ? $this->app->make(LiveWhisperClient::class)
             : $this->app->make(FakeWhisperClient::class));
     }

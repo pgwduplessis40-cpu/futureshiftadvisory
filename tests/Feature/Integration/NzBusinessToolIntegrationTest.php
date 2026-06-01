@@ -92,10 +92,11 @@ final class NzBusinessToolIntegrationTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'nz_tool_connection.synced']);
     }
 
-    public function test_live_mode_without_credentials_records_resilience_fallback(): void
+    public function test_live_mode_with_config_credentials_records_resilience_fallback(): void
     {
         Config::set('integrations.business_tools.cin7.live', true);
-        Config::set('integrations.business_tools.cin7.client_secret', null);
+        Config::set('integrations.business_tools.cin7.client_id', 'cin7-test-client');
+        Config::set('integrations.business_tools.cin7.client_secret', 'cin7-test-secret');
         $this->forgetNzToolClients();
 
         [$advisor, $client] = $this->advisorAndClient();

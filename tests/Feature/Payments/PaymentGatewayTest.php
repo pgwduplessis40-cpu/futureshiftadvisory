@@ -134,6 +134,7 @@ final class PaymentGatewayTest extends TestCase
     {
         Config::set('integrations.payments.stripe.live', true);
         Config::set('integrations.payments.stripe.secret', 'sk_test_feature');
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test_feature');
         Config::set('integrations.retry.attempts', 1);
         app()->forgetInstance(StripeClient::class);
 

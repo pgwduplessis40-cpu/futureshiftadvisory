@@ -18,6 +18,8 @@ use App\Services\Integration\GoogleCalendar\Contracts\GoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\FakeGoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\FallbackGoogleCalendarClient;
 use App\Services\Integration\GoogleCalendar\LiveGoogleCalendarClient;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\MicrosoftGraph\Contracts\MicrosoftGraphClient;
 use App\Services\Integration\MicrosoftGraph\FakeMicrosoftGraphClient;
 use App\Services\Integration\MicrosoftGraph\FallbackMicrosoftGraphClient;
@@ -54,6 +56,7 @@ final class CalendarIntegrationTest extends TestCase
 
         foreach (CalendarConnection::providers() as $provider) {
             Config::set("integrations.calendar.{$provider}.live", false);
+            Config::set("integrations.calendar.{$provider}.client_id", null);
             Config::set("integrations.calendar.{$provider}.client_secret", null);
             Config::set("integrations.calendar.{$provider}.authorize_url", "https://{$provider}.example.test/oauth");
         }
@@ -180,10 +183,13 @@ final class CalendarIntegrationTest extends TestCase
             );
     }
 
-    public function test_live_mode_without_credentials_records_resilience_fallback(): void
+    public function test_live_mode_with_vault_credentials_records_resilience_fallback(): void
     {
-        Config::set('integrations.calendar.google.live', true);
-        Config::set('integrations.calendar.google.client_secret', null);
+        Config::set('integrations.calendar.google.live', false);
+        $admin = User::factory()->superAdmin()->create();
+        app(IntegrationCredentials::class)->set('google_calendar', 'client_id', 'google-test-client', $admin);
+        app(IntegrationCredentials::class)->set('google_calendar', 'client_secret', 'google-test-secret', $admin);
+        app(IntegrationActivationResolver::class)->activate('google_calendar', $admin);
         $this->forgetCalendarClients();
 
         $advisor = $this->advisor('calendar-live@example.test');

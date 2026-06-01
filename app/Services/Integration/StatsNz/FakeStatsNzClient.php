@@ -30,6 +30,22 @@ final class FakeStatsNzClient implements StatsNzClient
     /**
      * @return array<int, array<string, mixed>>
      */
+    public function industryBenchmarks(): array
+    {
+        return $this->benchmarkRecords('stub');
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function fallbackIndustryBenchmarks(): array
+    {
+        return $this->benchmarkRecords('stub_live_fallback', degraded: true);
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function records(string $badge, bool $degraded = false): array
     {
         $record = $this->fixtures->find('stats-nz-economic', 'current');
@@ -47,6 +63,29 @@ final class FakeStatsNzClient implements StatsNzClient
                 'degraded' => $degraded || (bool) ($indicator['degraded'] ?? false),
             ],
             array_filter($indicators, 'is_array'),
+        ));
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function benchmarkRecords(string $badge, bool $degraded = false): array
+    {
+        $record = $this->fixtures->find('stats-nz-industry-benchmarks', 'current');
+        $benchmarks = $record['benchmarks'] ?? [];
+
+        if (! is_array($benchmarks)) {
+            return [];
+        }
+
+        return array_values(array_map(
+            fn (array $benchmark): array => [
+                ...$benchmark,
+                'source' => 'stats_nz',
+                'source_badge' => $badge,
+                'degraded' => $degraded || (bool) ($benchmark['degraded'] ?? false),
+            ],
+            array_filter($benchmarks, 'is_array'),
         ));
     }
 }

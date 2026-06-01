@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\NpoFunders;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\NpoFunders\Contracts\NpoFunderSourceClient;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
@@ -14,6 +16,8 @@ final class LiveNpoFunderSourceClient implements NpoFunderSourceClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeNpoFunderSourceClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function fetch(string $source): array
@@ -21,13 +25,13 @@ final class LiveNpoFunderSourceClient implements NpoFunderSourceClient
         $source = $this->normaliseSource($source);
         $configPath = "integrations.npo_funders.sources.{$source}";
 
-        if (! (bool) Config::get("{$configPath}.live", false)) {
+        if (! $this->live->isLive($source)) {
             throw IntegrationDisabledException::forService("npo-funders:{$source}");
         }
 
         $endpoint = rtrim((string) Config::get("{$configPath}.base_url"), '/')
             .'/'.ltrim((string) Config::get("{$configPath}.path", ''), '/');
-        $apiKey = (string) Config::get("{$configPath}.api_key", '');
+        $apiKey = (string) ($this->credentials->get($source, 'api_key') ?? '');
         $query = $apiKey === '' ? [] : ['api_key' => $apiKey];
 
         $result = $this->http->get(

@@ -6,6 +6,8 @@ namespace App\Services\Integration\BusinessTools;
 
 use App\Models\NzToolConnection;
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
@@ -15,6 +17,8 @@ abstract class NzBusinessToolLiveClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly object $fake,
+        private ?IntegrationActivationResolver $live = null,
+        private ?IntegrationCredentials $credentials = null,
     ) {}
 
     /**
@@ -33,8 +37,8 @@ abstract class NzBusinessToolLiveClient
                     'grant_type' => 'authorization_code',
                     'code' => $code,
                     'redirect_uri' => $redirectUri,
-                    'client_id' => (string) Config::get($this->configKey('client_id'), ''),
-                    'client_secret' => (string) Config::get($this->configKey('client_secret'), ''),
+                    'client_id' => $this->credential('client_id'),
+                    'client_secret' => $this->credential('client_secret'),
                 ],
             ],
             cacheKey: null,
@@ -114,14 +118,14 @@ abstract class NzBusinessToolLiveClient
 
     private function ensureLive(): void
     {
-        if (! (bool) Config::get($this->configKey('live'), false)) {
+        if (! $this->live()->isLive($this->provider())) {
             throw IntegrationDisabledException::forService($this->provider());
         }
     }
 
     private function endpoint(string $path): string
     {
-        $clientSecret = (string) Config::get($this->configKey('client_secret'), '');
+        $clientSecret = $this->credential('client_secret');
 
         return $clientSecret === ''
             ? "fsa-disabled://{$this->provider()}/missing-client-secret/{$path}"
@@ -131,5 +135,20 @@ abstract class NzBusinessToolLiveClient
     private function configKey(string $key): string
     {
         return "integrations.business_tools.{$this->provider()}.{$key}";
+    }
+
+    private function credential(string $field): string
+    {
+        return (string) ($this->credentials()->get($this->provider(), $field) ?? '');
+    }
+
+    private function live(): IntegrationActivationResolver
+    {
+        return $this->live ??= app(IntegrationActivationResolver::class);
+    }
+
+    private function credentials(): IntegrationCredentials
+    {
+        return $this->credentials ??= app(IntegrationCredentials::class);
     }
 }

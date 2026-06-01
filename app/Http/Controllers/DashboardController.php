@@ -39,6 +39,7 @@ use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Panels\Coach\SignalDetector;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
+use App\Services\ReferenceData\ReferenceDataFreshness;
 use App\Services\Reports\PracticeHealthReport;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Services\Wellbeing\WellbeingTrendAnalytics;
@@ -68,6 +69,7 @@ final class DashboardController extends Controller
         SignalDetector $coachSignals,
         GovernanceReviewConversion $npoConversion,
         NpoFunderMonitor $npoFunders,
+        ReferenceDataFreshness $referenceDataFreshness,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -84,7 +86,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -623,6 +625,7 @@ final class DashboardController extends Controller
         SignalDetector $coachSignals,
         GovernanceReviewConversion $npoConversion,
         NpoFunderMonitor $npoFunders,
+        ReferenceDataFreshness $referenceDataFreshness,
     ): array {
         $clientIds = $this->visibleClientIds($user);
         $pvWaterfall = $pvWaterfalls->forClients($clientIds);
@@ -656,6 +659,7 @@ final class DashboardController extends Controller
             ],
             'npoPendingConversions' => $npoConversion->pendingPanel($user),
             'npoFunding' => $npoFunders->advisorPanel($clientIds),
+            'referenceDataTasks' => $this->referenceDataTasks($user, $referenceDataFreshness),
             'scenarioPlanning' => $this->scenarioPlanning($clientIds),
             'funnelAnalytics' => [
                 ...$funnelAnalytics,
@@ -663,6 +667,28 @@ final class DashboardController extends Controller
             ],
             'panelOperations' => $this->panelOperations($user, $clientIds),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function referenceDataTasks(User $user, ReferenceDataFreshness $freshness): array
+    {
+        if (! $user->can(Permission::REFERENCE_DATA_MANAGE->value)) {
+            return [
+                'summary' => [
+                    'total' => 0,
+                    'fresh' => 0,
+                    'due_soon' => 0,
+                    'overdue' => 0,
+                    'missing' => 0,
+                ],
+                'index_url' => null,
+                'items' => [],
+            ];
+        }
+
+        return $freshness->dashboard();
     }
 
     /**

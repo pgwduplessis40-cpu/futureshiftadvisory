@@ -62,6 +62,7 @@ final class NpoValueCalculationTest extends TestCase
                 ],
             ],
         ]);
+        $benchmark->forceFill(['status' => LearningUpdate::STATUS_IMPLEMENTED])->save();
 
         $calculation = app(NpoValueCalculator::class)->calculateCostPerBeneficiary($engagement, [
             'programme_type' => 'food_rescue',

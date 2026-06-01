@@ -31,6 +31,7 @@ final class NpoFunderIntegrationTest extends TestCase
         Config::set('integrations.npo_funders.sources.community_matters_cogs.live', true);
         Config::set('integrations.npo_funders.sources.community_matters_cogs.base_url', 'https://npo-source.test');
         Config::set('integrations.npo_funders.sources.community_matters_cogs.path', 'community-matters/cogs');
+        Config::set('integrations.npo_funders.sources.community_matters_cogs.api_key', 'npo-funder-test-key');
         Http::fake(['*' => Http::response(['error' => 'temporary outage'], 500)]);
 
         $updates = app(NpoFunderIntegration::class)->sync([NpoFunderIntegration::SOURCE_COMMUNITY_MATTERS_COGS]);

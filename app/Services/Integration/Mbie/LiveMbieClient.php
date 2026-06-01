@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\Integration\Mbie;
 
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\IntegrationActivationResolver;
+use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Mbie\Contracts\MbieClient;
 use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
@@ -15,11 +17,13 @@ final class LiveMbieClient implements MbieClient
     public function __construct(
         private readonly ResilientHttp $http,
         private readonly FakeMbieClient $fake,
+        private readonly IntegrationActivationResolver $live,
+        private readonly IntegrationCredentials $credentials,
     ) {}
 
     public function wageRates(): array
     {
-        if (! (bool) Config::get('integrations.mbie.live', false)) {
+        if (! $this->live->isLive('mbie')) {
             throw IntegrationDisabledException::forService('mbie');
         }
 
@@ -42,7 +46,7 @@ final class LiveMbieClient implements MbieClient
 
     public function valuationMultiples(): array
     {
-        if (! (bool) Config::get('integrations.mbie.live', false)) {
+        if (! $this->live->isLive('mbie')) {
             throw IntegrationDisabledException::forService('mbie');
         }
 
@@ -65,7 +69,7 @@ final class LiveMbieClient implements MbieClient
 
     public function industryWaccRates(): array
     {
-        if (! (bool) Config::get('integrations.mbie.live', false)) {
+        if (! $this->live->isLive('mbie')) {
             throw IntegrationDisabledException::forService('mbie');
         }
 
@@ -103,7 +107,7 @@ final class LiveMbieClient implements MbieClient
 
     private function endpoint(string $resource = 'wage-rates'): string
     {
-        $apiKey = (string) Config::get('integrations.mbie.api_key', '');
+        $apiKey = $this->apiKey();
 
         return $apiKey === ''
             ? "fsa-disabled://mbie/missing-api-key/{$resource}"
@@ -115,8 +119,13 @@ final class LiveMbieClient implements MbieClient
      */
     private function query(): array
     {
-        $apiKey = (string) Config::get('integrations.mbie.api_key', '');
+        $apiKey = $this->apiKey();
 
         return $apiKey === '' ? [] : ['api_key' => $apiKey];
+    }
+
+    private function apiKey(): string
+    {
+        return (string) ($this->credentials->get('mbie', 'api_key') ?? '');
     }
 }

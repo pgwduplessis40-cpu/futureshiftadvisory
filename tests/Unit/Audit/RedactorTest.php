@@ -84,6 +84,33 @@ final class RedactorTest extends TestCase
         $this->assertSame('Pieter', $result['user']['name']);
     }
 
+    public function test_masks_values_under_secret_like_keys(): void
+    {
+        $result = $this->redactor->redact([
+            'api_key' => 'raw-api-key',
+            'client_secret' => 'raw-client-secret',
+            'nested' => [
+                'Authorization' => 'Bearer raw-token-value',
+            ],
+        ]);
+
+        $encoded = json_encode($result);
+
+        $this->assertStringNotContainsString('raw-api-key', $encoded);
+        $this->assertStringNotContainsString('raw-client-secret', $encoded);
+        $this->assertStringNotContainsString('raw-token-value', $encoded);
+        $this->assertMatchesRegularExpression('/\\[secret:[a-f0-9]{10}\\]/', $encoded);
+    }
+
+    public function test_masks_query_string_secrets_in_urls(): void
+    {
+        $result = $this->redactor->redact('https://example.test/data?subscription-key=raw-secret&resource=abc');
+
+        $this->assertStringNotContainsString('raw-secret', $result);
+        $this->assertStringContainsString('subscription-key=[secret:', $result);
+        $this->assertStringContainsString('resource=abc', $result);
+    }
+
     public function test_redactions_for_same_value_are_deterministic(): void
     {
         $a = $this->redactor->redact('a@b.co.nz');

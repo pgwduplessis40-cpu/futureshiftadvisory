@@ -9,12 +9,15 @@ use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Exceptions\AiIntegrityViolation;
 use App\Services\Ai\Exceptions\AiUnavailableException;
+use App\Services\Integration\IntegrationCredentials;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use JsonException;
 
 final class AnthropicClaudeClient implements AiClient
 {
+    public function __construct(private readonly IntegrationCredentials $credentials) {}
+
     public function analyse(PromptEnvelope $prompt): AiResponse
     {
         return $this->send($prompt, 'analyse');
@@ -42,7 +45,7 @@ final class AnthropicClaudeClient implements AiClient
 
     private function send(PromptEnvelope $prompt, string $task): AiResponse
     {
-        $key = (string) Config::get('services.anthropic.key', '');
+        $key = (string) ($this->credentials->get('anthropic', 'key') ?? '');
         if ($key === '') {
             throw new AiUnavailableException('ANTHROPIC_API_KEY is not configured.');
         }

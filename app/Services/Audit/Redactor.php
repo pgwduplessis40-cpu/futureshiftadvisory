@@ -30,6 +30,14 @@ namespace App\Services\Audit;
  */
 final class Redactor
 {
+    private const SECRET_PLACEHOLDER_KIND = 'secret';
+
+    private const SECRET_KEY_PATTERN = '/(^|[_\-.])(api_?key|subscription_?key|secret|token|client_?secret|password|webhook_?secret|authorization|auth|key)([_\-.]|$)/i';
+
+    private const QUERY_SECRET_PATTERN = '/([?&][^=&#\s]*(?:api_?key|subscription-key|subscription_?key|client_?secret|webhook_?secret|secret|token|password|key)[^=&#\s]*=)([^&#\s]+)/i';
+
+    private const AUTH_HEADER_PATTERN = '/\b(authorization\s*[:=]\s*)(bearer\s+|basic\s+)?([A-Za-z0-9+\/._~=-]{8,})/i';
+
     /** @var array<string, string> kind => regex */
     private const PATTERNS = [
         'email' => '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/',
@@ -65,7 +73,9 @@ final class Redactor
             $out = [];
             foreach ($value as $k => $v) {
                 $key = is_string($k) ? $this->redactString($k) : $k;
-                $out[$key] = $this->redact($v);
+                $out[$key] = is_string($k) && $this->isSecretKey($k)
+                    ? $this->redactSecretValue($v)
+                    : $this->redact($v);
             }
 
             return $out;
@@ -83,18 +93,52 @@ final class Redactor
 
     private function redactString(string $input): string
     {
+        $input = preg_replace_callback(
+            self::QUERY_SECRET_PATTERN,
+            fn (array $m): string => $m[1].$this->placeholder((string) $m[2], self::SECRET_PLACEHOLDER_KIND),
+            $input,
+        ) ?? $input;
+
+        $input = preg_replace_callback(
+            self::AUTH_HEADER_PATTERN,
+            fn (array $m): string => $m[1].($m[2] ?? '').$this->placeholder((string) $m[3], self::SECRET_PLACEHOLDER_KIND),
+            $input,
+        ) ?? $input;
+
         foreach (self::PATTERNS as $kind => $pattern) {
             $input = preg_replace_callback(
                 $pattern,
-                static fn (array $m): string => sprintf(
-                    '[%s:%s]',
-                    $kind,
-                    substr(hash('sha256', $m[0]), 0, 10),
-                ),
+                fn (array $m): string => $this->placeholder((string) $m[0], $kind),
                 $input,
             ) ?? $input;
         }
 
         return $input;
+    }
+
+    private function isSecretKey(string $key): bool
+    {
+        return preg_match(self::SECRET_KEY_PATTERN, $key) === 1;
+    }
+
+    /**
+     * @param  mixed  $value
+     */
+    private function redactSecretValue($value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if (is_scalar($value)) {
+            return $this->placeholder((string) $value, self::SECRET_PLACEHOLDER_KIND);
+        }
+
+        return $this->placeholder(json_encode($value) ?: 'complex-secret', self::SECRET_PLACEHOLDER_KIND);
+    }
+
+    private function placeholder(string $value, string $kind): string
+    {
+        return sprintf('[%s:%s]', $kind, substr(hash('sha256', $value), 0, 10));
     }
 }

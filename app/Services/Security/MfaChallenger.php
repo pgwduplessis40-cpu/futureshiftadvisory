@@ -125,9 +125,29 @@ final class MfaChallenger
         }
     }
 
+    public function requireFreshStepUp(Request $request, string $reason): void
+    {
+        if ($request->hasSession()) {
+            $request->session()->put([
+                self::SESSION_STEP_UP_REQUIRED => true,
+                self::SESSION_STEP_UP_REASON => $reason,
+                self::SESSION_STEP_UP_SCORE => null,
+            ]);
+        }
+    }
+
     public function stepUpRequired(Request $request): bool
     {
         return $request->hasSession() && $request->session()->get(self::SESSION_STEP_UP_REQUIRED) === true;
+    }
+
+    public function stepUpReason(Request $request): ?string
+    {
+        $reason = $request->hasSession()
+            ? $request->session()->get(self::SESSION_STEP_UP_REASON)
+            : null;
+
+        return is_string($reason) && $reason !== '' ? $reason : null;
     }
 
     private function verifyCode(User $user, string $code): bool

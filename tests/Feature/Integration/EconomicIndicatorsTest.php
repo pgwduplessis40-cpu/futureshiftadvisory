@@ -24,9 +24,6 @@ use App\Services\Integration\Rbnz\FallbackRbnzClient;
 use App\Services\Integration\Rbnz\LiveRbnzClient;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Resilience\RetryPolicy;
-use App\Services\Integration\StatsNz\FakeStatsNzClient;
-use App\Services\Integration\StatsNz\FallbackStatsNzClient;
-use App\Services\Integration\StatsNz\LiveStatsNzClient;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -48,7 +45,6 @@ final class EconomicIndicatorsTest extends TestCase
         app(RequestContext::class)->apply('system', []);
         Cache::flush();
         Config::set('integrations.rbnz.live', false);
-        Config::set('integrations.stats_nz.live', false);
         Config::set('integrations.mbie.live', false);
         Config::set('integrations.retry.attempts', 1);
         Config::set('integrations.retry.base_delay_ms', 0);
@@ -72,11 +68,6 @@ final class EconomicIndicatorsTest extends TestCase
         $this->assertSame('2026-05-20', $ocr->period_date?->toDateString());
 
         $this->assertDatabaseHas('economic_indicators', [
-            'indicator' => EconomicIndicator::CPI_ANNUAL,
-            'source' => 'stats_nz',
-            'source_badge' => 'stub',
-        ]);
-        $this->assertDatabaseHas('economic_indicators', [
             'indicator' => EconomicIndicator::MINIMUM_WAGE,
             'source' => 'mbie',
             'source_badge' => 'stub',
@@ -89,7 +80,7 @@ final class EconomicIndicatorsTest extends TestCase
         $this->assertSame(0.6123, $rate->rate);
         $this->assertSame('stub', $rate->source_badge);
 
-        $this->assertDatabaseCount('economic_indicators', 6);
+        $this->assertDatabaseCount('economic_indicators', 3);
         $this->assertDatabaseCount('exchange_rates', 2);
         $this->assertDatabaseHas('learning_layer_runs', [
             'layer_id' => EconomicIndicatorRefresher::LAYER_ID,
@@ -97,14 +88,12 @@ final class EconomicIndicatorsTest extends TestCase
         ]);
     }
 
-    public function test_live_mode_without_credentials_degrades_through_resilience_layer(): void
+    public function test_live_mode_with_config_credentials_degrades_through_resilience_layer(): void
     {
         Config::set('integrations.rbnz.live', true);
-        Config::set('integrations.rbnz.api_key', null);
-        Config::set('integrations.stats_nz.live', true);
-        Config::set('integrations.stats_nz.api_key', null);
+        Config::set('integrations.rbnz.api_key', 'rbnz-test-key');
         Config::set('integrations.mbie.live', true);
-        Config::set('integrations.mbie.api_key', null);
+        Config::set('integrations.mbie.api_key', 'mbie-test-key');
         $this->forgetEconomicClients();
 
         Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
@@ -116,8 +105,8 @@ final class EconomicIndicatorsTest extends TestCase
         $this->assertTrue($ocr->degraded);
         $this->assertNotNull($ocr->correlation_id);
 
-        Http::assertSentCount(4);
-        foreach (['rbnz', 'stats-nz', 'mbie'] as $service) {
+        Http::assertSentCount(3);
+        foreach (['rbnz', 'mbie'] as $service) {
             $this->assertDatabaseHas('integration_calls', [
                 'service' => $service,
                 'status' => IntegrationCall::STATUS_FAILURE,
@@ -138,7 +127,7 @@ final class EconomicIndicatorsTest extends TestCase
         app(EconomicIndicatorRefresher::class)->refresh($fetchedAt);
         app(EconomicIndicatorRefresher::class)->refresh($fetchedAt->copy()->addHour());
 
-        $this->assertDatabaseCount('economic_indicators', 6);
+        $this->assertDatabaseCount('economic_indicators', 3);
         $this->assertDatabaseCount('exchange_rates', 2);
         $this->assertDatabaseCount('learning_updates', 0);
         $this->assertDatabaseCount('learning_layer_runs', 2);
@@ -184,7 +173,7 @@ final class EconomicIndicatorsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('economicIndicators.summary.indicators', 6)
+                ->where('economicIndicators.summary.indicators', 3)
                 ->where('economicIndicators.summary.exchange_rates', 2)
                 ->where('economicIndicators.summary.change_alerts', 1)
                 ->where('economicIndicators.indicators.0.indicator', EconomicIndicator::OCR)
@@ -266,9 +255,6 @@ final class EconomicIndicatorsTest extends TestCase
             FakeRbnzClient::class,
             LiveRbnzClient::class,
             FallbackRbnzClient::class,
-            FakeStatsNzClient::class,
-            LiveStatsNzClient::class,
-            FallbackStatsNzClient::class,
             FakeMbieClient::class,
             LiveMbieClient::class,
             FallbackMbieClient::class,
