@@ -1,5 +1,83 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 /**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: index.url(options),
+    method: 'get',
+})
+
+index.definition = {
+    methods: ["get","head"],
+    url: '/calendar',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+index.url = (options?: RouteQueryOptions) => {
+    return index.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: index.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: index.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+    const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: index.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+        indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\CalendarController::__invoke
+ * @see app/Http/Controllers/CalendarController.php:39
+ * @route '/calendar'
+ */
+        indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: index.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+    
+    index.form = indexForm
+/**
 * @see \App\Http\Controllers\Settings\CalendarController::edit
  * @see app/Http/Controllers/Settings/CalendarController.php:26
  * @route '/settings/calendar'
@@ -440,7 +518,8 @@ revoke.patch = (args: { calendarConnection: string | { id: string } } | [calenda
     
     revoke.form = revokeForm
 const calendar = {
-    edit: Object.assign(edit, edit),
+    index: Object.assign(index, index),
+edit: Object.assign(edit, edit),
 connect: Object.assign(connect, connect),
 callback: Object.assign(callback, callback),
 sync: Object.assign(sync, sync),

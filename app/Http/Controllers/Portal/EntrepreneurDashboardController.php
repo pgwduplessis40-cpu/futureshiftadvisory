@@ -8,6 +8,7 @@ use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\AdvisoryReadinessSignal;
+use App\Models\BoardPost;
 use App\Models\BusinessPlan;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
@@ -15,6 +16,7 @@ use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
 use App\Models\User;
+use App\Services\Board\InspirationBoard;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -22,6 +24,8 @@ use Inertia\Response;
 final class EntrepreneurDashboardController extends Controller
 {
     use BuildsEntrepreneurAssessmentPayload;
+
+    public function __construct(private readonly InspirationBoard $inspirationBoard) {}
 
     public function __invoke(Request $request): Response
     {
@@ -89,12 +93,25 @@ final class EntrepreneurDashboardController extends Controller
                 'latest_documents' => $this->latestDocuments($profile),
                 'message_summary' => $this->messageSummary($profile, $user),
             ] : null,
+            'inspirationBoard' => $this->inspirationBoardPayload(),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function inspirationBoardPayload(): ?array
+    {
+        $featured = $this->inspirationBoard->featured();
+
+        return $featured instanceof BoardPost
+            ? $this->inspirationBoard->portalPayload($featured)
+            : null;
     }
 
     /**

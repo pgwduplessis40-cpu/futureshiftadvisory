@@ -44,6 +44,10 @@ import {
 import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
+import {
+    InspirationCard,
+    type InspirationPost,
+} from '@/components/inspiration/InspirationCard';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
 import { cn } from '@/lib/utils';
 
@@ -95,6 +99,7 @@ type Props = {
     reports: ReportPayload[];
     messagesUrl: string;
     welcomeMessage: WelcomeMessage;
+    inspirationBoard: InspirationPost | null;
 };
 
 type WelcomeMessage = {
@@ -436,6 +441,7 @@ export default function PortalDashboard({
     reports,
     messagesUrl,
     welcomeMessage,
+    inspirationBoard,
 }: Props) {
     useDrillFocus();
     const [documents, setDocuments] =
@@ -625,6 +631,10 @@ export default function PortalDashboard({
 
                 {welcomeMessage.has_message && progress.percentage < 100 ? (
                     <WelcomeBanner welcomeMessage={welcomeMessage} />
+                ) : null}
+
+                {inspirationBoard ? (
+                    <InspirationCard post={inspirationBoard} />
                 ) : null}
 
                 <DashboardTabList

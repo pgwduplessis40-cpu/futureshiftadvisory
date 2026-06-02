@@ -1,4 +1,5 @@
 import CalendarController from './CalendarController'
+import MessageInboxController from './MessageInboxController'
 import ClientController from './ClientController'
 import OffboardingController from './OffboardingController'
 import ClientLifecycleController from './ClientLifecycleController'
@@ -34,6 +35,7 @@ import AnalysisFeedbackController from './AnalysisFeedbackController'
 import BulkCommunicationController from './BulkCommunicationController'
 const Advisor = {
     CalendarController: Object.assign(CalendarController, CalendarController),
+MessageInboxController: Object.assign(MessageInboxController, MessageInboxController),
 ClientController: Object.assign(ClientController, ClientController),
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
 ClientLifecycleController: Object.assign(ClientLifecycleController, ClientLifecycleController),

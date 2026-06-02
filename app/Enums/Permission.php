@@ -39,6 +39,7 @@ enum Permission: string
     case CREDENTIAL_MANAGE = 'credential.manage';
     case REFERENCE_DATA_MANAGE = 'reference_data.manage';
     case WELCOME_MESSAGE_MANAGE = 'welcome_message.manage';
+    case BOARD_MANAGE = 'board.manage';
     case REPORTS_VIEW = 'reports.view';
     case INTEGRATION_HEALTH_VIEW = 'integration_health.view';
     case REPORTS_PUBLISH = 'reports.publish';

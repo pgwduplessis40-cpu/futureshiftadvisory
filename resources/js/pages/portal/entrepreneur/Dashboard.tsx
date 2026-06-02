@@ -12,6 +12,10 @@ import {
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import FileDropzone from '@/components/file-dropzone';
+import {
+    InspirationCard,
+    type InspirationPost,
+} from '@/components/inspiration/InspirationCard';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -97,6 +101,7 @@ type EntrepreneurDashboardTab = 'actions' | 'information';
 
 type Props = {
     profile: EntrepreneurProfile;
+    inspirationBoard: InspirationPost | null;
     messagesUrl: string;
     planWorkspaceUrl: string;
     documentUploadUrl: string;
@@ -106,6 +111,7 @@ type Props = {
 
 export default function EntrepreneurDashboard({
     profile,
+    inspirationBoard,
     messagesUrl,
     planWorkspaceUrl,
     documentUploadUrl,
@@ -206,6 +212,10 @@ export default function EntrepreneurDashboard({
                         readiness={readiness}
                     />
                 </div>
+
+                {inspirationBoard ? (
+                    <InspirationCard post={inspirationBoard} />
+                ) : null}
 
                 <DashboardTabList
                     activeTab={activeTab}

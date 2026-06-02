@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
+use App\Models\BoardPost;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
@@ -24,6 +25,7 @@ use App\Models\Report;
 use App\Models\Scenario;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Services\Board\InspirationBoard;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
@@ -54,6 +56,7 @@ final class DashboardController extends Controller
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly StandardAdvisoryWorkflow $standardAdvisory,
         private readonly WelcomeMessageRenderer $welcomeMessage,
+        private readonly InspirationBoard $inspirationBoard,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -74,6 +77,7 @@ final class DashboardController extends Controller
                 $client,
                 $request->user() instanceof User ? $request->user() : null,
             ),
+            'inspirationBoard' => $this->inspirationBoardPayload(),
             'onboardingUrl' => route('portal.onboarding.step', [
                 'step' => $this->wizard->currentStepSlug($client),
             ]),
@@ -97,6 +101,18 @@ final class DashboardController extends Controller
             'reports' => $this->reportPayload($client, $npoEngagement),
             'messagesUrl' => route('portal.messages.index', absolute: false),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function inspirationBoardPayload(): ?array
+    {
+        $featured = $this->inspirationBoard->featured();
+
+        return $featured instanceof BoardPost
+            ? $this->inspirationBoard->portalPayload($featured)
+            : null;
     }
 
     /**

@@ -17,6 +17,7 @@ import {
     MessageSquare,
     PlugZap,
     Scale,
+    Sparkles,
     UsersRound,
 } from 'lucide-react';
 import AppLogo from '@/components/app-logo';
@@ -161,6 +162,18 @@ const welcomeMessageNavItem: NavItem = {
     icon: HeartHandshake,
 };
 
+const inspirationBoardNavItem: NavItem = {
+    title: 'Inspiration Board',
+    href: '/admin/inspiration-board',
+    icon: Sparkles,
+};
+
+const portalInspirationNavItem: NavItem = {
+    title: 'Inspiration',
+    href: '/portal/inspiration-board',
+    icon: Sparkles,
+};
+
 const advisorNavItems: NavItem[] = [
     dashboardNavItem,
     advisorCalendarNavItem,
@@ -207,6 +220,7 @@ const entrepreneurNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
     portalCalendarNavItem,
+    portalInspirationNavItem,
     messagesNavItem,
     notificationsNavItem,
 ];
@@ -228,6 +242,7 @@ const clientNavItems: NavItem[] = [
         href: '/portal/wellbeing',
         icon: HeartPulse,
     },
+    portalInspirationNavItem,
     messagesNavItem,
     notificationsNavItem,
 ];
@@ -295,6 +310,7 @@ function mainNavItemsFor(
             referenceDataNavItem,
             questionnairesNavItem,
             welcomeMessageNavItem,
+            inspirationBoardNavItem,
         ];
     }
 

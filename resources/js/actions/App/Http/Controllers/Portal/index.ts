@@ -5,6 +5,7 @@ import EntrepreneurPlanController from './EntrepreneurPlanController'
 import EntrepreneurAssessmentController from './EntrepreneurAssessmentController'
 import ReportController from './ReportController'
 import NpoImpactMetricController from './NpoImpactMetricController'
+import InspirationBoardController from './InspirationBoardController'
 import MessageController from './MessageController'
 import ProposalSignoffController from './ProposalSignoffController'
 import WellbeingController from './WellbeingController'
@@ -17,6 +18,7 @@ EntrepreneurPlanController: Object.assign(EntrepreneurPlanController, Entreprene
 EntrepreneurAssessmentController: Object.assign(EntrepreneurAssessmentController, EntrepreneurAssessmentController),
 ReportController: Object.assign(ReportController, ReportController),
 NpoImpactMetricController: Object.assign(NpoImpactMetricController, NpoImpactMetricController),
+InspirationBoardController: Object.assign(InspirationBoardController, InspirationBoardController),
 MessageController: Object.assign(MessageController, MessageController),
 ProposalSignoffController: Object.assign(ProposalSignoffController, ProposalSignoffController),
 WellbeingController: Object.assign(WellbeingController, WellbeingController),

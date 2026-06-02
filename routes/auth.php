@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\IntegrationCredentialController;
 use App\Http\Controllers\Admin\IntegrationHealthController;
+use App\Http\Controllers\Admin\InspirationBoardController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
@@ -112,6 +113,26 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('welcome-message.index');
             Route::post('welcome-message', [WelcomeMessageController::class, 'store'])
                 ->name('welcome-message.store');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::BOARD_MANAGE->value])
+        ->group(function (): void {
+            Route::get('inspiration-board', [InspirationBoardController::class, 'index'])
+                ->name('inspiration-board.index');
+            Route::post('inspiration-board', [InspirationBoardController::class, 'store'])
+                ->name('inspiration-board.store');
+            Route::patch('inspiration-board/{boardPost}', [InspirationBoardController::class, 'update'])
+                ->name('inspiration-board.update');
+            Route::post('inspiration-board/{boardPost}/publish', [InspirationBoardController::class, 'publish'])
+                ->name('inspiration-board.publish');
+            Route::post('inspiration-board/{boardPost}/archive', [InspirationBoardController::class, 'archive'])
+                ->name('inspiration-board.archive');
+            Route::post('inspiration-board/{boardPost}/pin', [InspirationBoardController::class, 'pin'])
+                ->name('inspiration-board.pin');
+            Route::post('inspiration-board/{boardPost}/unpin', [InspirationBoardController::class, 'unpin'])
+                ->name('inspiration-board.unpin');
         });
 
     Route::prefix('admin')

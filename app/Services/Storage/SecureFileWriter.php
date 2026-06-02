@@ -168,6 +168,7 @@ final class SecureFileWriter
             Document::CATEGORY_MESSAGE_ATTACHMENT,
             Document::CATEGORY_NPO_MEETING_MINUTES,
             Document::CATEGORY_NPO_BOARD_RECORD,
+            Document::CATEGORY_INSPIRATION_IMAGE,
             Document::CATEGORY_OTHER,
         ], true) ? $normalised : Document::CATEGORY_OTHER;
     }

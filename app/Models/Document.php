@@ -34,6 +34,8 @@ final class Document extends Model
 
     public const CATEGORY_NPO_BOARD_RECORD = 'npo_board_record';
 
+    public const CATEGORY_INSPIRATION_IMAGE = 'inspiration_image';
+
     public const CATEGORY_OTHER = 'other';
 
     public const SCANNER_PENDING = 'pending';

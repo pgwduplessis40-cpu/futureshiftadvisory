@@ -7,6 +7,7 @@ import Auth from './Auth'
 import Admin from './Admin'
 import Advisor from './Advisor'
 import Portal from './Portal'
+import CalendarController from './CalendarController'
 import DocumentController from './DocumentController'
 import BulkCommunicationOpenController from './BulkCommunicationOpenController'
 import DashboardController from './DashboardController'
@@ -26,6 +27,7 @@ Auth: Object.assign(Auth, Auth),
 Admin: Object.assign(Admin, Admin),
 Advisor: Object.assign(Advisor, Advisor),
 Portal: Object.assign(Portal, Portal),
+CalendarController: Object.assign(CalendarController, CalendarController),
 DocumentController: Object.assign(DocumentController, DocumentController),
 BulkCommunicationOpenController: Object.assign(BulkCommunicationOpenController, BulkCommunicationOpenController),
 DashboardController: Object.assign(DashboardController, DashboardController),

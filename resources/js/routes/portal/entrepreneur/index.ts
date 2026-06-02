@@ -6,7 +6,7 @@ import advisoryRequest from './advisory-request'
 import assessments from './assessments'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -21,7 +21,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -30,7 +30,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -39,7 +39,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -49,7 +49,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
     const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -59,7 +59,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
         dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -68,7 +68,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:26
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:30
  * @route '/portal/entrepreneur'
  */
         dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
