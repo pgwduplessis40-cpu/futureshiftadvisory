@@ -23,6 +23,7 @@ use App\Services\Npo\NpoQuestionnaireScoring;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\PortalOfflineSync;
+use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Questionnaires\QuestionnairePayload;
 use App\Services\Questionnaires\QuestionnaireResponseRecorder;
 use App\Services\Reports\ReportComposer;
@@ -45,6 +46,7 @@ final class OnboardingController extends Controller
         private readonly FunnelTracker $funnels,
         private readonly PortalOfflineSync $offlineSync,
         private readonly ReportComposer $reports,
+        private readonly WelcomeMessageRenderer $welcomeMessage,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -173,6 +175,10 @@ final class OnboardingController extends Controller
             ],
             'step' => $step,
             'steps' => $this->wizard->navigation($client),
+            'welcomeMessage' => $this->welcomeMessage->renderForClient(
+                $client,
+                $request->user() instanceof User ? $request->user() : null,
+            ),
             'state' => $state,
             'stepData' => Arr::get($state, "steps.{$step['slug']}", []),
             'progress' => $this->wizard->progress($client),

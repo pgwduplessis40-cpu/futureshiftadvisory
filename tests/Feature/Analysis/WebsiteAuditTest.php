@@ -48,8 +48,16 @@ final class WebsiteAuditTest extends TestCase
 
         $diagnostic = $run->findings->firstWhere('lens', AnalysisLens::Diagnostic);
         $this->assertInstanceOf(AnalysisFinding::class, $diagnostic);
+        $this->assertStringContainsString('Product/service evidence is present', $diagnostic->body);
+        $this->assertStringContainsString('actual offers', $diagnostic->body);
         $this->assertStringContainsString('mobile performance', $diagnostic->body);
         $this->assertStringContainsString('CTA clarity', $diagnostic->body);
+        $this->assertStringContainsString('SEO, GEO, AEO, and AIO', $diagnostic->body);
+
+        $predictive = $run->findings->firstWhere('lens', AnalysisLens::Predictive);
+        $this->assertInstanceOf(AnalysisFinding::class, $predictive);
+        $this->assertStringContainsString('SEO, GEO, AEO, and AIO', $predictive->body);
+
         $this->assertTrue(collect($diagnostic->attributions)->contains(
             fn (array $attribution): bool => str_starts_with($attribution['source_reference'], 'questionnaire_answer:'),
         ));
@@ -90,7 +98,17 @@ final class WebsiteAuditTest extends TestCase
 
         $response->answers()->create([
             'question_id' => $questions['website']->id,
-            'value' => 'https://example.co.nz has useful service pages but weak local SEO for NZ advisory searches.',
+            'value' => 'https://example.co.nz has useful service pages for virtual CFO and cash-flow advisory but weak local SEO for NZ advisory searches.',
+            'attached_document_ids' => [],
+        ]);
+        $response->answers()->create([
+            'question_id' => $questions['products']->id,
+            'value' => 'The client sells fixed-fee cash-flow advisory, monthly CFO support, and pricing workshops for New Zealand SMEs.',
+            'attached_document_ids' => [],
+        ]);
+        $response->answers()->create([
+            'question_id' => $questions['discoverability']->id,
+            'value' => 'The site has no schema, FAQ answer blocks, AEO content, GEO citations, or AIO-friendly service summaries.',
             'attached_document_ids' => [],
         ]);
         $response->answers()->create([
@@ -108,7 +126,7 @@ final class WebsiteAuditTest extends TestCase
     }
 
     /**
-     * @return array{0: Questionnaire, 1: array{website: QuestionnaireQuestion, mobile: QuestionnaireQuestion, cta: QuestionnaireQuestion}}
+     * @return array{0: Questionnaire, 1: array{website: QuestionnaireQuestion, products: QuestionnaireQuestion, discoverability: QuestionnaireQuestion, mobile: QuestionnaireQuestion, cta: QuestionnaireQuestion}}
      */
     private function questionnaireWithQuestions(): array
     {
@@ -131,14 +149,26 @@ final class WebsiteAuditTest extends TestCase
                 'prompt' => 'What website, SEO, or local search information is available?',
                 'required' => true,
             ]),
-            'mobile' => $section->questions()->create([
+            'products' => $section->questions()->create([
                 'order' => 2,
+                'type' => QuestionnaireQuestionType::TEXT,
+                'prompt' => 'What products or services does the business sell?',
+                'required' => true,
+            ]),
+            'discoverability' => $section->questions()->create([
+                'order' => 3,
+                'type' => QuestionnaireQuestionType::TEXT,
+                'prompt' => 'What SEO, GEO, AEO, or AIO discoverability issues are known?',
+                'required' => true,
+            ]),
+            'mobile' => $section->questions()->create([
+                'order' => 4,
                 'type' => QuestionnaireQuestionType::TEXT,
                 'prompt' => 'What mobile performance or UX issues are known?',
                 'required' => true,
             ]),
             'cta' => $section->questions()->create([
-                'order' => 3,
+                'order' => 5,
                 'type' => QuestionnaireQuestionType::TEXT,
                 'prompt' => 'What CTA or enquiry conversion issues are known?',
                 'required' => true,

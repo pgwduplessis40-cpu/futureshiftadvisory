@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Fees;
 
+use App\Enums\EngagementType;
 use App\Enums\FeeMethod;
 use App\Enums\NpoEngagementSubType;
 use App\Models\Client;
@@ -24,7 +25,10 @@ final class FeeCalculator implements ProvidesMethodology
         return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur', 'fees.governance_review', 'fees.npo_retainer'];
     }
 
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly ServiceRateManager $serviceRates,
+    ) {}
 
     /**
      * @param  array<string, mixed>  $inputs
@@ -32,6 +36,7 @@ final class FeeCalculator implements ProvidesMethodology
      */
     public function calculate(Client $client, FeeMethod $method, array $inputs = [], array $options = []): FeeCalculation
     {
+        $inputs = $this->normaliseInputs($method, $inputs);
         $pv = $this->pvTotals($client);
         $npoEngagement = $this->npoEngagement(
             $client,
@@ -39,7 +44,7 @@ final class FeeCalculator implements ProvidesMethodology
             $method,
         );
         $result = match ($method) {
-            FeeMethod::HoursBased => $this->hoursBased($inputs),
+            FeeMethod::HoursBased => $this->hoursBased($client, $inputs, $npoEngagement),
             FeeMethod::OutcomeBased => $this->outcomeBased($client, $inputs, $pv),
             FeeMethod::Entrepreneur => $this->entrepreneur($inputs),
             FeeMethod::GovernanceReview => $this->governanceReview($inputs),
@@ -94,9 +99,9 @@ final class FeeCalculator implements ProvidesMethodology
      * @param  array<string, mixed>  $inputs
      * @return array{low:float, mid:float, high:float, justification:array<string, mixed>}
      */
-    private function hoursBased(array $inputs): array
+    private function hoursBased(Client $client, array $inputs, ?NpoEngagement $npoEngagement): array
     {
-        $services = $this->services($inputs);
+        $services = $this->services($inputs, $this->npoServiceDiscountApplies($client, $npoEngagement));
         $total = round((float) collect($services)->sum('line_total'), 2);
         $retainerMonths = max(1, (int) ($inputs['retainer_months'] ?? 12));
         $retainerMonthlyFee = (bool) ($inputs['retainer_conversion'] ?? false)
@@ -121,9 +126,9 @@ final class FeeCalculator implements ProvidesMethodology
 
     /**
      * @param  array<string, mixed>  $inputs
-     * @return array<int, array{name:string, hours:float, rate:float, line_total:float}>
+     * @return array<int, array{name:string, hours:float, rate:float, base_rate:float, rate_source:string, currency:string, service_rate_setting_id:?string, service_rate_effective_from:?string, npo_service_discount_percent:float, npo_discount_applied:bool, line_total:float}>
      */
-    private function services(array $inputs): array
+    private function services(array $inputs, bool $applyNpoServiceDiscount): array
     {
         $rawServices = is_array($inputs['services'] ?? null) ? $inputs['services'] : [];
 
@@ -131,21 +136,70 @@ final class FeeCalculator implements ProvidesMethodology
             $rawServices = [[
                 'name' => $inputs['service_name'] ?? 'Advisory service',
                 'hours' => $inputs['hours'] ?? 0,
-                'rate' => $inputs['hourly_rate'] ?? $inputs['rate'] ?? 0,
             ]];
         }
 
-        return array_values(array_map(function (array $service): array {
+        $rateSnapshot = $this->serviceRates->currentRateSnapshot($applyNpoServiceDiscount);
+        $rate = $this->nonNegativeNumber($rateSnapshot['hourly_rate'], 'Service rate');
+        $baseRate = $this->nonNegativeNumber($rateSnapshot['base_hourly_rate'], 'Base service rate');
+
+        return array_values(array_map(function (array $service) use ($baseRate, $rate, $rateSnapshot): array {
             $hours = $this->nonNegativeNumber($service['hours'] ?? 0, 'Service hours');
-            $rate = $this->nonNegativeNumber($service['rate'] ?? 0, 'Service rate');
 
             return [
                 'name' => (string) ($service['name'] ?? 'Advisory service'),
                 'hours' => $hours,
                 'rate' => $rate,
+                'base_rate' => $baseRate,
+                'rate_source' => $rateSnapshot['rate_source'],
+                'currency' => $rateSnapshot['currency'],
+                'service_rate_setting_id' => $rateSnapshot['service_rate_setting_id'],
+                'service_rate_effective_from' => $rateSnapshot['effective_from'],
+                'npo_service_discount_percent' => $rateSnapshot['npo_service_discount_percent'],
+                'npo_discount_applied' => $rateSnapshot['npo_discount_applied'],
                 'line_total' => round($hours * $rate, 2),
             ];
         }, array_filter($rawServices, 'is_array')));
+    }
+
+    /**
+     * @param  array<string, mixed>  $inputs
+     * @return array<string, mixed>
+     */
+    private function normaliseInputs(FeeMethod $method, array $inputs): array
+    {
+        if ($method !== FeeMethod::HoursBased) {
+            if ($method === FeeMethod::NpoRetainer) {
+                unset($inputs['npo_discount_rate'], $inputs['npo_discount_percent']);
+            }
+
+            return $inputs;
+        }
+
+        foreach (['rate', 'hourly_rate', 'service_rate'] as $rateKey) {
+            unset($inputs[$rateKey]);
+        }
+
+        if (is_array($inputs['services'] ?? null)) {
+            $inputs['services'] = array_map(function (mixed $service): mixed {
+                if (! is_array($service)) {
+                    return $service;
+                }
+
+                foreach (['rate', 'hourly_rate', 'service_rate'] as $rateKey) {
+                    unset($service[$rateKey]);
+                }
+
+                return $service;
+            }, $inputs['services']);
+        }
+
+        return $inputs;
+    }
+
+    private function npoServiceDiscountApplies(Client $client, ?NpoEngagement $npoEngagement): bool
+    {
+        return $client->engagement_type === EngagementType::NPO || $npoEngagement instanceof NpoEngagement;
     }
 
     /**
@@ -315,7 +369,8 @@ final class FeeCalculator implements ProvidesMethodology
         $bandConfig = $this->npoRetainerSchedule()[$budgetBand];
         $smeTier = (string) ($bandConfig['sme_tier'] ?? 'foundation');
         $smeMonthly = $this->smeMonthlyRate($smeTier, $inputs);
-        $discountRate = $this->boundedRate($inputs['npo_discount_rate'] ?? config('fees.npo.discount_rate', 0.35), 'NPO discount rate');
+        $discountSnapshot = $this->serviceRates->npoRetainerDiscountSnapshot();
+        $discountRate = $discountSnapshot['discount_rate'];
         $socialEnterpriseRule = $this->socialEnterpriseRateRule($engagement, $inputs);
         $discountApplies = $socialEnterpriseRule['basis'] !== 'commercial_primary';
         $monthlyFee = $discountApplies
@@ -347,12 +402,16 @@ final class FeeCalculator implements ProvidesMethodology
             'justification' => [
                 'method' => FeeMethod::NpoRetainer->value,
                 'proposal_variant' => FeeMethod::NpoRetainer->value,
-                'basis' => 'NPO retainer calculated from the configured SME tier rate with the module discount unless the social enterprise is commercial-primary.',
+                'basis' => 'NPO retainer calculated from the configured SME tier rate with the admin retainer discount unless the social enterprise is commercial-primary.',
                 'annual_operating_budget' => $annualOperatingBudget,
                 'budget_band' => $budgetBand,
                 'sme_tier' => $smeTier,
                 'sme_monthly_rate' => $smeMonthly,
                 'npo_discount_rate' => $discountRate,
+                'npo_retainer_discount_percent' => $discountSnapshot['discount_percent'],
+                'npo_retainer_discount_source' => $discountSnapshot['discount_source'],
+                'service_rate_setting_id' => $discountSnapshot['service_rate_setting_id'],
+                'service_rate_effective_from' => $discountSnapshot['effective_from'],
                 'npo_discount_applied' => $discountApplies,
                 'monthly_retainer_fee' => $monthlyFee,
                 'retainer_months' => $retainerMonths,

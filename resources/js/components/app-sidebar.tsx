@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    BadgeDollarSign,
     Bell,
     BookOpen,
     BriefcaseBusiness,
@@ -46,9 +47,21 @@ const clientsNavItem: NavItem = {
     icon: BriefcaseBusiness,
 };
 
-const calendarNavItem: NavItem = {
+const advisorCalendarNavItem: NavItem = {
     title: 'Calendar',
     href: '/advisor/calendar',
+    icon: CalendarDays,
+};
+
+const activityCalendarNavItem: NavItem = {
+    title: 'Calendar',
+    href: '/calendar',
+    icon: CalendarDays,
+};
+
+const portalCalendarNavItem: NavItem = {
+    title: 'Calendar',
+    href: '/portal/calendar',
     icon: CalendarDays,
 };
 
@@ -100,6 +113,12 @@ const messagesNavItem: NavItem = {
     icon: MessageSquare,
 };
 
+const advisorMessagesNavItem: NavItem = {
+    title: 'Messages',
+    href: '/advisor/messages',
+    icon: MessageSquare,
+};
+
 const acquisitionPlanNavItem: NavItem = {
     title: 'Prepare Business Plan',
     href: '/portal/acquisition-plan',
@@ -124,15 +143,27 @@ const referenceDataNavItem: NavItem = {
     icon: Database,
 };
 
+const serviceRatesNavItem: NavItem = {
+    title: 'Service Rates',
+    href: '/admin/service-rates',
+    icon: BadgeDollarSign,
+};
+
 const questionnairesNavItem: NavItem = {
     title: 'Questionnaires',
     href: '/admin/questionnaires',
     icon: ClipboardList,
 };
 
+const welcomeMessageNavItem: NavItem = {
+    title: 'Welcome Message',
+    href: '/admin/welcome-message',
+    icon: HeartHandshake,
+};
+
 const advisorNavItems: NavItem[] = [
     dashboardNavItem,
-    calendarNavItem,
+    advisorCalendarNavItem,
     clientsNavItem,
     dueDiligenceNavItem,
     npoNavItem,
@@ -140,13 +171,14 @@ const advisorNavItems: NavItem[] = [
     knowledgeNavItem,
     templatesNavItem,
     prospectsNavItem,
+    advisorMessagesNavItem,
     notificationsNavItem,
     apiHealthNavItem,
 ];
 
 const juniorAdvisorNavItems: NavItem[] = [
     dashboardNavItem,
-    calendarNavItem,
+    advisorCalendarNavItem,
     clientsNavItem,
     dueDiligenceNavItem,
     npoNavItem,
@@ -154,14 +186,17 @@ const juniorAdvisorNavItems: NavItem[] = [
     knowledgeNavItem,
     templatesNavItem,
     prospectsNavItem,
+    advisorMessagesNavItem,
     notificationsNavItem,
 ];
 
 const mentorNavItems: NavItem[] = [
     dashboardNavItem,
+    activityCalendarNavItem,
     entrepreneursNavItem,
     knowledgeNavItem,
     templatesNavItem,
+    advisorMessagesNavItem,
     notificationsNavItem,
 ];
 
@@ -171,6 +206,7 @@ const entrepreneurNavItems: NavItem[] = [
         href: '/portal/entrepreneur',
         icon: LayoutGrid,
     },
+    portalCalendarNavItem,
     messagesNavItem,
     notificationsNavItem,
 ];
@@ -181,6 +217,7 @@ const clientNavItems: NavItem[] = [
         href: '/portal',
         icon: LayoutGrid,
     },
+    portalCalendarNavItem,
     {
         title: 'Onboarding',
         href: '/portal/onboarding',
@@ -195,7 +232,23 @@ const clientNavItems: NavItem[] = [
     notificationsNavItem,
 ];
 
-const defaultNavItems: NavItem[] = [dashboardNavItem, notificationsNavItem];
+const brokerNavItems: NavItem[] = [
+    dashboardNavItem,
+    activityCalendarNavItem,
+    notificationsNavItem,
+];
+
+const coachNavItems: NavItem[] = [
+    dashboardNavItem,
+    activityCalendarNavItem,
+    notificationsNavItem,
+];
+
+const defaultNavItems: NavItem[] = [
+    dashboardNavItem,
+    activityCalendarNavItem,
+    notificationsNavItem,
+];
 
 type PortalClient = {
     engagement_type?: string | null;
@@ -238,8 +291,10 @@ function mainNavItemsFor(
         return [
             ...advisorNavItems,
             integrationCredentialsNavItem,
+            serviceRatesNavItem,
             referenceDataNavItem,
             questionnairesNavItem,
+            welcomeMessageNavItem,
         ];
     }
 
@@ -253,6 +308,14 @@ function mainNavItemsFor(
 
     if (userType === 'entrepreneur_mentor') {
         return mentorNavItems;
+    }
+
+    if (userType === 'broker') {
+        return brokerNavItems;
+    }
+
+    if (userType === 'coach') {
+        return coachNavItems;
     }
 
     return defaultNavItems;

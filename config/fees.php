@@ -3,6 +3,11 @@
 declare(strict_types=1);
 
 return [
+    'service' => [
+        'default_hourly_rate' => (float) env('FEE_SERVICE_DEFAULT_HOURLY_RATE', 250),
+        'currency' => env('FEE_SERVICE_CURRENCY', 'NZD'),
+    ],
+
     'sme' => [
         'retainer_monthly' => [
             'foundation' => (float) env('FEE_SME_FOUNDATION_RETAINER_MONTHLY', 1200),
@@ -12,7 +17,8 @@ return [
     ],
 
     'npo' => [
-        'discount_rate' => (float) env('FEE_NPO_DISCOUNT_RATE', 0.35),
+        'service_rate_discount_percent' => (float) env('FEE_NPO_SERVICE_RATE_DISCOUNT_PERCENT', 30),
+        'retainer_discount_percent' => (float) env('FEE_NPO_RETAINER_DISCOUNT_PERCENT', 35),
         'bespoke_accountability_report_addon' => (float) env('FEE_NPO_ACCOUNTABILITY_REPORT_ADDON', 650),
         'pro_bono' => [
             'max_per_year' => (int) env('FEE_NPO_PRO_BONO_MAX_PER_YEAR', 2),

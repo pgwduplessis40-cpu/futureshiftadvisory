@@ -120,6 +120,9 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
                     'help_text' => 'Demand generation, sales process, and growth constraints.',
                     'questions' => [
                         $this->q('Which channels generate paying customers?', QuestionnaireQuestionType::MULTI_SELECT, 'List the channels that actually produce sales (not just website visits).', options: $this->options(['Website', 'Social', 'Referrals', 'Marketplace', 'Wholesale', 'Email', 'Paid ads', 'Events', 'Other'])),
+                        $this->q('Website URL and main product/service pages.', QuestionnaireQuestionType::LONG_TEXT, 'List the homepage and the pages that explain what you sell, including product, service, pricing, booking, or enquiry pages.', required: false),
+                        $this->q('How accurately does the website describe what you sell?', QuestionnaireQuestionType::LONG_TEXT, 'Note any products/services, prices, locations, customer segments, proof points, or offers that are missing, outdated, or unclear online.', required: false),
+                        $this->q('Search and AI discoverability evidence.', QuestionnaireQuestionType::LONG_TEXT, 'Share known SEO, local search, structured data, FAQ, answer-engine, AI Overview, GEO, AEO, or AIO issues/opportunities.', required: false),
                         $this->q('Leads per month and conversion to customers.', QuestionnaireQuestionType::LONG_TEXT, 'How many enquiries, and how many become paying customers?', required: false),
                         $this->q('Average sales cycle length.', QuestionnaireQuestionType::TEXT, 'From first contact to payment — days or weeks.', required: false),
                         $this->q('Monthly marketing spend and best-performing channels.', QuestionnaireQuestionType::LONG_TEXT, 'How much you spend and which channels give the best results.', required: false),

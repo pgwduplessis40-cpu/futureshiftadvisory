@@ -17,6 +17,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\ExchangeRate;
 use App\Models\IntegrationHealthSample;
 use App\Models\LearningUpdate;
+use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
@@ -637,6 +638,7 @@ final class DashboardController extends Controller
             'clientsHealth' => $this->clientsHealth($clientIds, $engagementScorer),
             'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
+            'messagesPending' => $this->messagesPending($user, $clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
@@ -1005,6 +1007,90 @@ final class DashboardController extends Controller
         }
 
         return $user->accessibleClientIds();
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function messagesPending(User $user, ?array $clientIds): array
+    {
+        if (! Schema::hasTable('messages') || ! Schema::hasTable('message_threads')) {
+            return [
+                'total' => 0,
+                'index_url' => route('advisor.messages.index', absolute: false),
+            ];
+        }
+
+        $count = Message::query()
+            ->whereHas('sender', fn (Builder $query): Builder => $query->whereIn('user_type', [
+                User::TYPE_CLIENT_PRIMARY,
+                User::TYPE_CLIENT_TEAM,
+                User::TYPE_ENTREPRENEUR,
+            ]))
+            ->whereHas('thread', fn (Builder $query): Builder => $this->visibleMessageThreads($query, $user, $clientIds))
+            ->whereNotExists(function ($query): void {
+                $query
+                    ->selectRaw('1')
+                    ->from('messages as newer_messages')
+                    ->whereColumn('newer_messages.thread_id', 'messages.thread_id')
+                    ->where(function ($query): void {
+                        $query
+                            ->whereColumn('newer_messages.sent_at', '>', 'messages.sent_at')
+                            ->orWhere(function ($query): void {
+                                $query
+                                    ->whereColumn('newer_messages.sent_at', '=', 'messages.sent_at')
+                                    ->whereColumn('newer_messages.created_at', '>', 'messages.created_at');
+                            });
+                    });
+            })
+            ->count();
+
+        return [
+            'total' => $count,
+            'index_url' => route('advisor.messages.index', absolute: false),
+        ];
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @param  Builder<MessageThread>  $query
+     * @return Builder<MessageThread>
+     */
+    private function visibleMessageThreads(Builder $query, User $user, ?array $clientIds): Builder
+    {
+        return $query->where(function (Builder $scope) use ($user, $clientIds): void {
+            $hasScope = false;
+
+            if ($user->can(Permission::CLIENTS_VIEW->value) && $clientIds !== []) {
+                $hasScope = true;
+                $scope->orWhere(function (Builder $clientScope) use ($clientIds): void {
+                    $clientScope->whereNotNull('client_id');
+
+                    if (is_array($clientIds)) {
+                        $clientScope->whereIn('client_id', $clientIds);
+                    }
+                });
+            }
+
+            if ($user->can(Permission::ENTREPRENEURS_VIEW->value)) {
+                $hasScope = true;
+                $scope->orWhere(function (Builder $entrepreneurScope) use ($user): void {
+                    $entrepreneurScope->whereNotNull('entrepreneur_profile_id');
+
+                    if ($user->fsaRole() !== User::TYPE_SUPER_ADMIN) {
+                        $entrepreneurScope->whereHas(
+                            'entrepreneurProfile',
+                            fn (Builder $profileQuery): Builder => $profileQuery->where('assigned_advisor_id', $user->getKey()),
+                        );
+                    }
+                });
+            }
+
+            if (! $hasScope) {
+                $scope->whereRaw('1 = 0');
+            }
+        });
     }
 
     /**

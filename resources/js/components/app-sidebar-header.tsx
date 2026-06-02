@@ -16,9 +16,8 @@ export function AppSidebarHeader({
     return (
         <header
             className={cn(
-                'flex h-16 shrink-0 items-center justify-between gap-4 border-b border-sidebar-border/50 px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4',
-                brandHeader &&
-                    'relative border-b-0 bg-[#2a3b5c] text-white shadow-sm',
+                'sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4',
+                brandHeader && 'border-b-0 bg-[#2a3b5c] text-white shadow-sm',
             )}
         >
             <div className="z-10 flex items-center gap-2">

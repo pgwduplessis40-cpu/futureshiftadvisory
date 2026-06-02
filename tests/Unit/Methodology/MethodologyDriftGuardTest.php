@@ -30,6 +30,7 @@ use App\Services\Entrepreneurs\Benchmarking;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\LivingPlan;
 use App\Services\Entrepreneurs\PlanDocuments;
+use App\Services\Fees\ServiceRateManager;
 use App\Services\Integration\IntegrationHealthBander;
 use App\Services\Panels\Coach\CoachPanel;
 use App\Services\Payments\AuthorityCapture;
@@ -123,6 +124,7 @@ final class MethodologyDriftGuardTest extends TestCase
         PvWaterfallReportChart::class => 'Report chart renderer.',
         ValuationMultipleProvider::class => 'Multiple lookup provider, not a formula owner.',
         ValuationMultipleRefresher::class => 'Data refresh job.',
+        ServiceRateManager::class => 'Admin-set service-rate store and discount provider; fee formulas that consume it are owned by FeeCalculator.',
         WellbeingCheckinService::class => 'Check-in persistence workflow.',
     ];
 

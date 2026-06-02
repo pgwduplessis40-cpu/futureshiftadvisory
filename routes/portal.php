@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Http\Controllers\CalendarController as ActivityCalendarController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardController;
 use App\Http\Controllers\Portal\DdBusinessPlanController;
@@ -21,6 +22,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->name('portal.')
     ->group(function (): void {
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');
         Route::get('acquisition-plan', [DdBusinessPlanController::class, 'show'])->name('dd-plan.show');
         Route::get('acquisition-plan/preview', [DdBusinessPlanController::class, 'preview'])->name('dd-plan.preview');
         Route::post('acquisition-plan', [DdBusinessPlanController::class, 'store'])->name('dd-plan.store');

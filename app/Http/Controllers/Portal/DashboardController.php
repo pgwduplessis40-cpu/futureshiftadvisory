@@ -34,6 +34,7 @@ use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -52,6 +53,7 @@ final class DashboardController extends Controller
         private readonly NpoFunderMonitor $npoFunding,
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly StandardAdvisoryWorkflow $standardAdvisory,
+        private readonly WelcomeMessageRenderer $welcomeMessage,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -68,6 +70,10 @@ final class DashboardController extends Controller
             'client' => $this->clientPayload($client),
             'progress' => $this->wizard->progress($client),
             'currentStep' => $this->wizard->currentStepSlug($client),
+            'welcomeMessage' => $this->welcomeMessage->renderForClient(
+                $client,
+                $request->user() instanceof User ? $request->user() : null,
+            ),
             'onboardingUrl' => route('portal.onboarding.step', [
                 'step' => $this->wizard->currentStepSlug($client),
             ]),

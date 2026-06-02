@@ -12,11 +12,17 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 type ClientOption = {
@@ -73,12 +79,24 @@ type Props = {
     storeUrl: string;
 };
 
-type ViewMode = 'agenda' | 'week' | 'month';
+type ViewMode = 'agenda' | 'work_week' | 'week' | 'month';
 
 const viewLabels: Record<ViewMode, string> = {
     agenda: 'Agenda',
+    work_week: 'Work week',
     week: 'Week',
     month: 'Month',
+};
+
+type MeetingActions = {
+    onEdit: (meeting: CalendarMeeting) => void;
+    onCancel: (meeting: CalendarMeeting) => void;
+};
+
+type MeetingGroup = {
+    key: string;
+    label: string;
+    items: CalendarMeeting[];
 };
 
 export default function AdvisorCalendarIndex({
@@ -89,6 +107,7 @@ export default function AdvisorCalendarIndex({
 }: Props) {
     const [view, setView] = useState<ViewMode>('agenda');
     const [editing, setEditing] = useState<CalendarMeeting | null>(null);
+    const referenceDate = useMemo(() => new Date(), []);
     const form = useForm<MeetingForm>({
         client_id: clients[0]?.id ?? '',
         title: '',
@@ -99,11 +118,16 @@ export default function AdvisorCalendarIndex({
     });
 
     const visibleMeetings = useMemo(
-        () => meetings.filter((meeting) => inView(meeting, view)),
-        [meetings, view],
+        () =>
+            meetings.filter((meeting) => inView(meeting, view, referenceDate)),
+        [meetings, referenceDate, view],
     );
     const groupedMeetings = useMemo(
         () => groupMeetings(visibleMeetings),
+        [visibleMeetings],
+    );
+    const meetingsByDate = useMemo(
+        () => indexMeetingsByDate(visibleMeetings),
         [visibleMeetings],
     );
     const counts = useMemo(
@@ -184,9 +208,7 @@ export default function AdvisorCalendarIndex({
                             />
                             Advisor schedule
                         </div>
-                        <h1 className="mt-1 text-xl font-semibold">
-                            Calendar
-                        </h1>
+                        <h1 className="mt-1 text-xl font-semibold">Calendar</h1>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Badge variant="secondary">
@@ -204,57 +226,64 @@ export default function AdvisorCalendarIndex({
                 <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
                     <section className="space-y-4">
                         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="grid grid-cols-3 rounded-md border p-1 sm:w-80">
-                                {(['agenda', 'week', 'month'] as ViewMode[]).map(
-                                    (mode) => (
-                                        <Button
-                                            key={mode}
-                                            type="button"
-                                            size="sm"
-                                            variant={
-                                                view === mode
-                                                    ? 'secondary'
-                                                    : 'ghost'
-                                            }
-                                            onClick={() => setView(mode)}
-                                        >
-                                            {viewLabels[mode]}
-                                        </Button>
-                                    ),
-                                )}
+                            <div className="grid grid-cols-4 rounded-md border p-1 sm:w-[420px]">
+                                {(
+                                    [
+                                        'agenda',
+                                        'work_week',
+                                        'week',
+                                        'month',
+                                    ] as ViewMode[]
+                                ).map((mode) => (
+                                    <Button
+                                        key={mode}
+                                        type="button"
+                                        size="sm"
+                                        className="px-2 text-xs sm:px-3 sm:text-sm"
+                                        variant={
+                                            view === mode
+                                                ? 'secondary'
+                                                : 'ghost'
+                                        }
+                                        aria-pressed={view === mode}
+                                        onClick={() => setView(mode)}
+                                    >
+                                        {viewLabels[mode]}
+                                    </Button>
+                                ))}
                             </div>
                             <Badge variant="outline">
                                 {visibleMeetings.length} shown
                             </Badge>
                         </div>
 
-                        {groupedMeetings.length === 0 ? (
-                            <div className="rounded-md border p-6 text-sm text-muted-foreground">
-                                No meetings in this view.
-                            </div>
+                        {view === 'agenda' ? (
+                            <AgendaMeetings
+                                groupedMeetings={groupedMeetings}
+                                onEdit={editMeeting}
+                                onCancel={cancelMeeting}
+                            />
+                        ) : view === 'work_week' ? (
+                            <WeekCalendar
+                                referenceDate={referenceDate}
+                                meetingsByDate={meetingsByDate}
+                                workWeek
+                                onEdit={editMeeting}
+                                onCancel={cancelMeeting}
+                            />
+                        ) : view === 'week' ? (
+                            <WeekCalendar
+                                referenceDate={referenceDate}
+                                meetingsByDate={meetingsByDate}
+                                onEdit={editMeeting}
+                                onCancel={cancelMeeting}
+                            />
                         ) : (
-                            <div className="space-y-4">
-                                {groupedMeetings.map((group) => (
-                                    <div
-                                        key={group.key}
-                                        className="space-y-2"
-                                    >
-                                        <div className="text-sm font-medium">
-                                            {group.label}
-                                        </div>
-                                        <div className="space-y-2">
-                                            {group.items.map((meeting) => (
-                                                <MeetingRow
-                                                    key={meeting.id}
-                                                    meeting={meeting}
-                                                    onEdit={editMeeting}
-                                                    onCancel={cancelMeeting}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                ))}
-                            </div>
+                            <MonthCalendar
+                                referenceDate={referenceDate}
+                                meetingsByDate={meetingsByDate}
+                                onEdit={editMeeting}
+                            />
                         )}
                     </section>
 
@@ -387,7 +416,9 @@ export default function AdvisorCalendarIndex({
 
                             <Button
                                 type="submit"
-                                disabled={form.processing || clients.length === 0}
+                                disabled={
+                                    form.processing || clients.length === 0
+                                }
                             >
                                 {editing ? (
                                     <RefreshCw
@@ -473,6 +504,333 @@ export default function AdvisorCalendarIndex({
                 </div>
             </div>
         </>
+    );
+}
+
+function AgendaMeetings({
+    groupedMeetings,
+    onEdit,
+    onCancel,
+}: {
+    groupedMeetings: MeetingGroup[];
+} & MeetingActions) {
+    if (groupedMeetings.length === 0) {
+        return (
+            <div className="rounded-md border p-6 text-sm text-muted-foreground">
+                No meetings in this view.
+            </div>
+        );
+    }
+
+    return (
+        <div className="space-y-4">
+            {groupedMeetings.map((group) => (
+                <div key={group.key} className="space-y-2">
+                    <div className="text-sm font-medium">{group.label}</div>
+                    <div className="space-y-2">
+                        {group.items.map((meeting) => (
+                            <MeetingRow
+                                key={meeting.id}
+                                meeting={meeting}
+                                onEdit={onEdit}
+                                onCancel={onCancel}
+                            />
+                        ))}
+                    </div>
+                </div>
+            ))}
+        </div>
+    );
+}
+
+function WeekCalendar({
+    referenceDate,
+    meetingsByDate,
+    workWeek = false,
+    onEdit,
+    onCancel,
+}: {
+    referenceDate: Date;
+    meetingsByDate: Map<string, CalendarMeeting[]>;
+    workWeek?: boolean;
+} & MeetingActions) {
+    const days = workWeek
+        ? buildWorkWeekDays(referenceDate)
+        : buildWeekDays(referenceDate);
+    const todayKey = localDateKey(new Date());
+
+    return (
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-medium">
+                    {formatWeekRange(days[0], days[days.length - 1])}
+                </h2>
+                <Badge variant="outline">
+                    {workWeek ? 'Work week view' : 'Week view'}
+                </Badge>
+            </div>
+
+            <div className="overflow-x-auto rounded-md border bg-background">
+                <div
+                    className={cn(
+                        'grid divide-x',
+                        workWeek
+                            ? 'min-w-[620px] grid-cols-5'
+                            : 'min-w-[760px] grid-cols-7',
+                    )}
+                >
+                    {days.map((day) => {
+                        const key = localDateKey(day);
+                        const items = meetingsByDate.get(key) ?? [];
+
+                        return (
+                            <div
+                                key={key}
+                                className={cn(
+                                    'min-h-80 p-3',
+                                    key === todayKey && 'bg-muted/30',
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">
+                                            {formatWeekday(day)}
+                                        </div>
+                                        <div className="mt-1 text-lg font-semibold">
+                                            {formatDayNumber(day)}
+                                        </div>
+                                    </div>
+                                    {items.length > 0 && (
+                                        <Badge variant="secondary">
+                                            {items.length}
+                                        </Badge>
+                                    )}
+                                </div>
+
+                                <div className="mt-4 space-y-2">
+                                    {items.length === 0 ? (
+                                        <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                                            No meetings
+                                        </div>
+                                    ) : (
+                                        items.map((meeting) => (
+                                            <CalendarMeetingBlock
+                                                key={meeting.id}
+                                                meeting={meeting}
+                                                onEdit={onEdit}
+                                                onCancel={onCancel}
+                                            />
+                                        ))
+                                    )}
+                                </div>
+                            </div>
+                        );
+                    })}
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function MonthCalendar({
+    referenceDate,
+    meetingsByDate,
+    onEdit,
+}: {
+    referenceDate: Date;
+    meetingsByDate: Map<string, CalendarMeeting[]>;
+    onEdit: (meeting: CalendarMeeting) => void;
+}) {
+    const days = buildMonthDays(referenceDate);
+    const weekdayLabels = buildWeekDays(
+        startOfWeek(startOfMonth(referenceDate)),
+    );
+    const todayKey = localDateKey(new Date());
+
+    return (
+        <div className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2 className="text-sm font-medium">
+                    {formatMonthLabel(referenceDate)}
+                </h2>
+                <Badge variant="outline">Month view</Badge>
+            </div>
+
+            <div className="overflow-x-auto rounded-md border bg-background">
+                <div className="min-w-[760px]">
+                    <div className="grid grid-cols-7 border-b bg-muted/30">
+                        {weekdayLabels.map((day) => (
+                            <div
+                                key={localDateKey(day)}
+                                className="px-3 py-2 text-xs font-medium text-muted-foreground uppercase"
+                            >
+                                {formatWeekday(day)}
+                            </div>
+                        ))}
+                    </div>
+
+                    <div className="grid grid-cols-7">
+                        {days.map((day, index) => {
+                            const key = localDateKey(day);
+                            const items = meetingsByDate.get(key) ?? [];
+                            const visibleItems = items.slice(0, 3);
+                            const moreCount =
+                                items.length - visibleItems.length;
+
+                            return (
+                                <div
+                                    key={key}
+                                    className={cn(
+                                        'min-h-32 border-r border-b p-2',
+                                        (index + 1) % 7 === 0 && 'border-r-0',
+                                        index >= 35 && 'border-b-0',
+                                        !sameMonth(day, referenceDate) &&
+                                            'bg-muted/20 text-muted-foreground',
+                                        key === todayKey && 'bg-muted/40',
+                                    )}
+                                >
+                                    <div className="flex items-center justify-between gap-2">
+                                        <span
+                                            className={cn(
+                                                'flex size-7 items-center justify-center rounded-md text-sm font-medium',
+                                                key === todayKey &&
+                                                    'bg-primary text-primary-foreground',
+                                            )}
+                                        >
+                                            {formatDayNumber(day)}
+                                        </span>
+                                        {items.length > 0 && (
+                                            <Badge variant="secondary">
+                                                {items.length}
+                                            </Badge>
+                                        )}
+                                    </div>
+
+                                    <div className="mt-2 space-y-1.5">
+                                        {visibleItems.map((meeting) => (
+                                            <CalendarMeetingBlock
+                                                key={meeting.id}
+                                                meeting={meeting}
+                                                dense
+                                                onEdit={onEdit}
+                                            />
+                                        ))}
+                                        {moreCount > 0 && (
+                                            <div className="text-xs text-muted-foreground">
+                                                +{moreCount} more
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            );
+                        })}
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+}
+
+function CalendarMeetingBlock({
+    meeting,
+    dense = false,
+    onEdit,
+    onCancel,
+}: {
+    meeting: CalendarMeeting;
+    dense?: boolean;
+    onEdit: (meeting: CalendarMeeting) => void;
+    onCancel?: (meeting: CalendarMeeting) => void;
+}) {
+    const cancelled = meeting.status === 'cancelled';
+
+    return (
+        <article
+            className={cn(
+                'rounded-md border bg-background p-2 text-xs shadow-xs',
+                cancelled && 'opacity-65',
+            )}
+        >
+            <button
+                type="button"
+                className="block w-full min-w-0 text-left disabled:cursor-default"
+                disabled={cancelled}
+                onClick={() => onEdit(meeting)}
+            >
+                <span
+                    className="block truncate font-medium"
+                    title={meeting.title}
+                >
+                    {meeting.title}
+                </span>
+                <span className="mt-1 flex items-center gap-1 text-muted-foreground">
+                    <Clock3 className="size-3" aria-hidden="true" />
+                    {formatTime(meeting.scheduled_at)}
+                </span>
+                {!dense && meeting.client.name && (
+                    <span
+                        className="mt-1 block truncate text-muted-foreground"
+                        title={meeting.client.name}
+                    >
+                        {meeting.client.name}
+                    </span>
+                )}
+            </button>
+
+            {meeting.brief?.red_flag_count ? (
+                <Badge
+                    variant="destructive"
+                    className={cn('mt-2', dense && 'px-1.5 text-[10px]')}
+                >
+                    {meeting.brief.red_flag_count} red flags
+                </Badge>
+            ) : null}
+
+            {!cancelled && !dense && onCancel && (
+                <div className="mt-2 flex gap-1">
+                    <IconActionButton
+                        label="Edit meeting"
+                        onClick={() => onEdit(meeting)}
+                    >
+                        <Edit3 className="size-3.5" aria-hidden="true" />
+                    </IconActionButton>
+                    <IconActionButton
+                        label="Cancel meeting"
+                        onClick={() => onCancel(meeting)}
+                    >
+                        <Trash2 className="size-3.5" aria-hidden="true" />
+                    </IconActionButton>
+                </div>
+            )}
+        </article>
+    );
+}
+
+function IconActionButton({
+    label,
+    children,
+    onClick,
+}: {
+    label: string;
+    children: ReactNode;
+    onClick: () => void;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <Button
+                    type="button"
+                    size="icon"
+                    variant="outline"
+                    className="size-7"
+                    aria-label={label}
+                    onClick={onClick}
+                >
+                    {children}
+                </Button>
+            </TooltipTrigger>
+            <TooltipContent>{label}</TooltipContent>
+        </Tooltip>
     );
 }
 
@@ -572,39 +930,40 @@ function MeetingRow({
     );
 }
 
-function inView(meeting: CalendarMeeting, view: ViewMode): boolean {
+function inView(
+    meeting: CalendarMeeting,
+    view: ViewMode,
+    referenceDate: Date,
+): boolean {
     if (view === 'agenda') {
         return true;
     }
 
-    if (!meeting.scheduled_at) {
+    const date = meetingDate(meeting);
+
+    if (!date) {
         return false;
     }
 
-    const date = new Date(meeting.scheduled_at);
-    const now = new Date();
-
-    if (view === 'week') {
-        const start = startOfWeek(now);
-        const end = new Date(start);
-        end.setDate(start.getDate() + 7);
+    if (view === 'week' || view === 'work_week') {
+        const start = startOfWeek(referenceDate);
+        const end = addDays(start, view === 'work_week' ? 5 : 7);
 
         return date >= start && date < end;
     }
 
     return (
-        date.getFullYear() === now.getFullYear() &&
-        date.getMonth() === now.getMonth()
+        date.getFullYear() === referenceDate.getFullYear() &&
+        date.getMonth() === referenceDate.getMonth()
     );
 }
 
-function groupMeetings(meetings: CalendarMeeting[]) {
+function groupMeetings(meetings: CalendarMeeting[]): MeetingGroup[] {
     const groups = new Map<string, CalendarMeeting[]>();
 
     meetings.forEach((meeting) => {
-        const key = meeting.scheduled_at
-            ? new Date(meeting.scheduled_at).toISOString().slice(0, 10)
-            : 'unscheduled';
+        const date = meetingDate(meeting);
+        const key = date ? localDateKey(date) : 'unscheduled';
         groups.set(key, [...(groups.get(key) ?? []), meeting]);
     });
 
@@ -620,6 +979,33 @@ function groupMeetings(meetings: CalendarMeeting[]) {
     }));
 }
 
+function indexMeetingsByDate(meetings: CalendarMeeting[]) {
+    const dates = new Map<string, CalendarMeeting[]>();
+
+    meetings.forEach((meeting) => {
+        const date = meetingDate(meeting);
+
+        if (!date) {
+            return;
+        }
+
+        const key = localDateKey(date);
+        dates.set(key, [...(dates.get(key) ?? []), meeting]);
+    });
+
+    return dates;
+}
+
+function meetingDate(meeting: CalendarMeeting): Date | null {
+    if (!meeting.scheduled_at) {
+        return null;
+    }
+
+    const date = new Date(meeting.scheduled_at);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
 function startOfWeek(date: Date): Date {
     const start = new Date(date);
     const day = (start.getDay() + 6) % 7;
@@ -629,15 +1015,116 @@ function startOfWeek(date: Date): Date {
     return start;
 }
 
+function startOfMonth(date: Date): Date {
+    return new Date(date.getFullYear(), date.getMonth(), 1);
+}
+
+function buildWeekDays(referenceDate: Date): Date[] {
+    const start = startOfWeek(referenceDate);
+
+    return Array.from({ length: 7 }, (_, index) => addDays(start, index));
+}
+
+function buildWorkWeekDays(referenceDate: Date): Date[] {
+    const start = startOfWeek(referenceDate);
+
+    return Array.from({ length: 5 }, (_, index) => addDays(start, index));
+}
+
+function buildMonthDays(referenceDate: Date): Date[] {
+    const start = startOfWeek(startOfMonth(referenceDate));
+
+    return Array.from({ length: 42 }, (_, index) => addDays(start, index));
+}
+
+function addDays(date: Date, days: number): Date {
+    const next = new Date(date);
+    next.setDate(next.getDate() + days);
+
+    return next;
+}
+
+function sameMonth(left: Date, right: Date): boolean {
+    return (
+        left.getFullYear() === right.getFullYear() &&
+        left.getMonth() === right.getMonth()
+    );
+}
+
+function localDateKey(date: Date): string {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+
+    return `${year}-${month}-${day}`;
+}
+
+function formatWeekday(date: Date): string {
+    return new Intl.DateTimeFormat(undefined, {
+        weekday: 'short',
+    }).format(date);
+}
+
+function formatDayNumber(date: Date): string {
+    return new Intl.DateTimeFormat(undefined, {
+        day: 'numeric',
+    }).format(date);
+}
+
+function formatMonthLabel(date: Date): string {
+    return new Intl.DateTimeFormat(undefined, {
+        month: 'long',
+        year: 'numeric',
+    }).format(date);
+}
+
+function formatWeekRange(start: Date, end: Date): string {
+    const startOptions: Intl.DateTimeFormatOptions =
+        start.getFullYear() === end.getFullYear()
+            ? { month: 'short', day: 'numeric' }
+            : { month: 'short', day: 'numeric', year: 'numeric' };
+
+    return `${new Intl.DateTimeFormat(undefined, startOptions).format(
+        start,
+    )} - ${new Intl.DateTimeFormat(undefined, {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+    }).format(end)}`;
+}
+
 function formatDateTime(value: string | null): string {
     if (!value) {
+        return 'Not scheduled';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
         return 'Not scheduled';
     }
 
     return new Intl.DateTimeFormat(undefined, {
         dateStyle: 'medium',
         timeStyle: 'short',
-    }).format(new Date(value));
+    }).format(date);
+}
+
+function formatTime(value: string | null): string {
+    if (!value) {
+        return 'No time';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return 'No time';
+    }
+
+    return new Intl.DateTimeFormat(undefined, {
+        hour: 'numeric',
+        minute: '2-digit',
+    }).format(date);
 }
 
 function toDateTimeInput(value: string | null): string {

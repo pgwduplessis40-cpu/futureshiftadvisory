@@ -109,6 +109,11 @@ type PendingTermsPayload = {
     }>;
 };
 
+type MessagesPendingPayload = {
+    total: number;
+    index_url: string;
+};
+
 type ProspectInboxPayload = {
     total: number;
     triage_enabled: boolean;
@@ -575,6 +580,7 @@ type Props = {
     clientsHealth: ClientsHealthPayload;
     redFlags: RedFlagsPayload;
     documentVerificationFlags: DocumentVerificationFlag[];
+    messagesPending: MessagesPendingPayload;
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
     integrationHealth: IntegrationHealthPayload;
@@ -598,6 +604,7 @@ export default function AdvisorDashboard({
     clientsHealth,
     redFlags,
     documentVerificationFlags,
+    messagesPending,
     pendingTermsReacceptance,
     prospectInbox,
     integrationHealth,
@@ -653,7 +660,7 @@ export default function AdvisorDashboard({
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                         <Metric
                             label="Clients"
                             value={clientsHealth.summary.total}
@@ -671,6 +678,12 @@ export default function AdvisorDashboard({
                             value={clientsHealth.summary.needs_attention}
                             explanation="Needs attention counts client records with low engagement signals or document verification attention."
                             href="#advisor-clients-health"
+                        />
+                        <Metric
+                            label="Messages pending"
+                            value={messagesPending.total}
+                            explanation="Messages pending counts client and entrepreneur conversations where the latest message is inbound and awaiting advisor attention."
+                            href={messagesPending.index_url}
                         />
                         <Metric
                             label="Target PV"

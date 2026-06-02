@@ -30,7 +30,8 @@ final class NpoFeeStructureTest extends TestCase
         Config::set('fees.sme.retainer_monthly.foundation', 1000);
         Config::set('fees.sme.retainer_monthly.growth', 2000);
         Config::set('fees.sme.retainer_monthly.scale', 3000);
-        Config::set('fees.npo.discount_rate', 0.35);
+        Config::set('fees.npo.service_rate_discount_percent', 30);
+        Config::set('fees.npo.retainer_discount_percent', 35);
         Config::set('fees.npo.bespoke_accountability_report_addon', 500);
         Config::set('fees.npo.pro_bono.max_per_year', 2);
     }
@@ -56,6 +57,30 @@ final class NpoFeeStructureTest extends TestCase
         $this->assertSame(8800.0, $calculation->suggested_mid);
         $this->assertSame(7920.0, $calculation->suggested_low);
         $this->assertSame(9680.0, $calculation->suggested_high);
+    }
+
+    public function test_npo_hours_based_fee_uses_discounted_admin_service_rate(): void
+    {
+        Config::set('fees.service.default_hourly_rate', 250);
+        Config::set('fees.npo.service_rate_discount_percent', 30);
+        [$client, $engagement] = $this->npoClient('Hourly NPO Trust');
+
+        $calculation = app(FeeCalculator::class)->calculate($client, FeeMethod::HoursBased, [
+            'hourly_rate' => 999,
+            'services' => [
+                ['name' => 'NPO advisory support', 'hours' => 8, 'rate' => 999],
+            ],
+        ], [
+            'npo_engagement_id' => $engagement->id,
+        ]);
+
+        $this->assertSame(1400.0, $calculation->suggested_mid);
+        $this->assertEquals(250.0, $calculation->justification['services'][0]['base_rate']);
+        $this->assertEquals(175.0, $calculation->justification['services'][0]['rate']);
+        $this->assertEquals(30.0, $calculation->justification['services'][0]['npo_service_discount_percent']);
+        $this->assertTrue($calculation->justification['services'][0]['npo_discount_applied']);
+        $this->assertArrayNotHasKey('hourly_rate', $calculation->inputs);
+        $this->assertArrayNotHasKey('rate', $calculation->inputs['services'][0]);
     }
 
     public function test_pro_bono_npo_provisions_are_flagged_tracked_and_capped_per_year(): void

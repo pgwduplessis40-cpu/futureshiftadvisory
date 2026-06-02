@@ -39,8 +39,8 @@ final class PromptRegistry
 
         $this->register(
             id: 'analysis.website_audit',
-            version: '2026-05-wo45',
-            body: 'Audit the client website evidence for SEO, content clarity, UX, calls to action, mobile performance, and New Zealand search visibility. Return evidence-based findings only and cite every factual claim.',
+            version: '2026-06-website-discoverability',
+            body: 'Audit the client website evidence against what the client says it sells. Assess product/service content accuracy, SEO, GEO generative-engine extractability, AEO answer readiness, AIO AI-overview readiness, structured data, UX, calls to action, mobile performance, and New Zealand search visibility. Return evidence-based findings only and cite every factual claim.',
             task: 'analyse',
         );
 

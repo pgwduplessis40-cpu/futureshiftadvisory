@@ -42,6 +42,10 @@ final class QuestionnaireBaseContentV2Test extends TestCase
 
         $questions = $this->questions($active);
         $this->assertGreaterThanOrEqual(50, $questions->count());
+        $prompts = $questions->pluck('prompt')->all();
+        $this->assertContains('Website URL and main product/service pages.', $prompts);
+        $this->assertContains('How accurately does the website describe what you sell?', $prompts);
+        $this->assertContains('Search and AI discoverability evidence.', $prompts);
         // Every question carries its "why we need this" as help_text.
         $this->assertTrue(
             $questions->every(fn ($q): bool => is_string($q->help_text) && $q->help_text !== ''),

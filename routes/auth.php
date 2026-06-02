@@ -3,14 +3,16 @@
 declare(strict_types=1);
 
 use App\Enums\Permission;
-use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\IntegrationCredentialController;
+use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\ReferenceDataController;
+use App\Http\Controllers\Admin\ServiceRateController;
 use App\Http\Controllers\Admin\TermsController;
+use App\Http\Controllers\Admin\WelcomeMessageController;
 use App\Http\Controllers\Auth\InviteAcceptController;
 use App\Http\Controllers\Auth\MfaChallengeController;
 use App\Http\Controllers\Auth\MfaSetupController;
@@ -59,6 +61,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('terms/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms.preview');
             Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
+
+            Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
+            Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');
         });
 
     Route::prefix('admin')
@@ -97,6 +102,16 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('reference-data.index');
             Route::post('reference-data', [ReferenceDataController::class, 'store'])
                 ->name('reference-data.store');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::WELCOME_MESSAGE_MANAGE->value])
+        ->group(function (): void {
+            Route::get('welcome-message', [WelcomeMessageController::class, 'index'])
+                ->name('welcome-message.index');
+            Route::post('welcome-message', [WelcomeMessageController::class, 'store'])
+                ->name('welcome-message.store');
         });
 
     Route::prefix('admin')

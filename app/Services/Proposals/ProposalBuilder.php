@@ -261,7 +261,7 @@ final class ProposalBuilder
      * @param  array<string, mixed>  $input
      * @return array<int, array<string, mixed>>
      */
-    private function services(FeeCalculation $feeCalculation, array $input): array
+    private function services(FeeCalculation $feeCalculation, array $input = []): array
     {
         if (is_array($input['services'] ?? null) && $input['services'] !== []) {
             return array_values(array_filter($input['services'], 'is_array'));

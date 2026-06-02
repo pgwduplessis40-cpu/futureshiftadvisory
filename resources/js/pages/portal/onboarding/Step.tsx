@@ -33,10 +33,17 @@ import type {
     WizardStep,
 } from './types';
 
+type WelcomeMessage = {
+    has_message: boolean;
+    html: string;
+    version: number | null;
+};
+
 type Props = {
     client: ClientPayload;
     step: WizardStep;
     steps: WizardStep[];
+    welcomeMessage: WelcomeMessage;
     state: WizardState;
     stepData: Record<string, unknown>;
     progress: Progress;
@@ -69,6 +76,7 @@ export default function OnboardingStep({
     client,
     step,
     steps,
+    welcomeMessage,
     state,
     stepData,
     progress,
@@ -198,6 +206,7 @@ export default function OnboardingStep({
                         <StepContent
                             client={client}
                             step={step}
+                            welcomeMessage={welcomeMessage}
                             state={state}
                             form={form}
                             errors={errors}
@@ -228,6 +237,7 @@ export default function OnboardingStep({
 function StepContent({
     client,
     step,
+    welcomeMessage,
     state,
     form,
     errors,
@@ -238,6 +248,7 @@ function StepContent({
 }: {
     client: ClientPayload;
     step: WizardStep;
+    welcomeMessage: WelcomeMessage;
     state: WizardState;
     form: ReturnType<typeof useForm<OnboardingForm>>;
     errors: Record<string, string | undefined>;
@@ -305,6 +316,14 @@ function StepContent({
                     title="Welcome"
                     description="Your onboarding information is saved as you progress."
                 >
+                    {welcomeMessage.has_message ? (
+                        <div
+                            className="rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5 text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p:last-child]:mb-0 [&_p]:mb-3 [&_strong]:font-semibold"
+                            dangerouslySetInnerHTML={{
+                                __html: welcomeMessage.html,
+                            }}
+                        />
+                    ) : null}
                     <CheckboxField
                         id="acknowledged"
                         label="I am ready to begin onboarding."

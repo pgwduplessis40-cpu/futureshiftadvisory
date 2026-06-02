@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
             PermissionSeeder::class,
             RoleSeeder::class,
             TermsVersionSeeder::class,
+            WelcomeMessageSeeder::class,
             StandardAdvisoryQuestionnaireSeeder::class,
             StandardAdvisoryQuestionnaireV2Seeder::class,
             DdSpecificQuestionnaireSeeder::class,

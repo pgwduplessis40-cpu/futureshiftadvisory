@@ -23,6 +23,7 @@ use App\Http\Controllers\Advisor\GoalController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
+use App\Http\Controllers\Advisor\MessageInboxController;
 use App\Http\Controllers\Advisor\MethodologyController;
 use App\Http\Controllers\Advisor\NpoConfigurationController;
 use App\Http\Controllers\Advisor\NpoConversionController;
@@ -57,6 +58,10 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->whereUuid('meeting')
             ->name('calendar.meetings.cancel');
+
+        Route::get('messages', [MessageInboxController::class, 'index'])
+            ->middleware('permission:'.Permission::NOTIFICATIONS_VIEW->value)
+            ->name('messages.index');
 
         Route::get('clients', [ClientController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)

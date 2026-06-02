@@ -3,6 +3,7 @@
 use App\Enums\Permission;
 use App\Http\Controllers\Broker\ReferralStageController;
 use App\Http\Controllers\BulkCommunicationOpenController;
+use App\Http\Controllers\CalendarController as ActivityCalendarController;
 use App\Http\Controllers\Coach\ReferralStageController as CoachReferralStageController;
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
@@ -26,6 +27,7 @@ Route::get('communications/open/{token}.gif', BulkCommunicationOpenController::c
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::get('dashboard', DashboardController::class)->name('dashboard');
+    Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');
     Route::get('notifications', [NotificationController::class, 'index'])
         ->middleware('permission:'.Permission::NOTIFICATIONS_VIEW->value)
         ->name('notifications.index');

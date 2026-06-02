@@ -16,6 +16,7 @@ use App\Models\RiskCost;
 use App\Services\Fees\FeeCalculator;
 use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
@@ -57,8 +58,9 @@ final class FeeCalculatorTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_hours_based_method_sums_service_lines_and_retainer_conversion(): void
+    public function test_hours_based_method_uses_admin_rate_and_retainer_conversion(): void
     {
+        Config::set('fees.service.default_hourly_rate', 250);
         $client = $this->client();
 
         $calculation = app(FeeCalculator::class)->calculate($client, FeeMethod::HoursBased, [
@@ -71,11 +73,14 @@ final class FeeCalculatorTest extends TestCase
         ]);
 
         $this->assertSame(FeeMethod::HoursBased, $calculation->method);
-        $this->assertSame(3700.0, $calculation->suggested_low);
-        $this->assertSame(3700.0, $calculation->suggested_mid);
-        $this->assertSame(3700.0, $calculation->suggested_high);
-        $this->assertSame(528.57, $calculation->justification['retainer']['monthly_fee']);
+        $this->assertSame(3500.0, $calculation->suggested_low);
+        $this->assertSame(3500.0, $calculation->suggested_mid);
+        $this->assertSame(3500.0, $calculation->suggested_high);
+        $this->assertEquals(500.0, $calculation->justification['retainer']['monthly_fee']);
         $this->assertSame('Implementation plan', $calculation->justification['services'][1]['name']);
+        $this->assertEquals(250.0, $calculation->justification['services'][1]['rate']);
+        $this->assertSame('config_fallback', $calculation->justification['services'][1]['rate_source']);
+        $this->assertArrayNotHasKey('rate', $calculation->inputs['services'][0]);
     }
 
     public function test_outcome_based_method_references_pv_totals_and_roi_ratio(): void
