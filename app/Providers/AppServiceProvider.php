@@ -4,6 +4,7 @@ namespace App\Providers;
 
 use App\Events\NpoEngagementWeightingChanged;
 use App\Listeners\RecomputeNpoScoresForWeightingChange;
+use App\Listeners\SyncRbacAfterMigrations;
 use App\Models\AdvisorApiClient;
 use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
@@ -29,6 +30,7 @@ use App\Services\Voice\FakeWhisperClient;
 use App\Services\Voice\LiveWhisperClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
+use Illuminate\Database\Events\MigrationsEnded;
 use Illuminate\Filesystem\FilesystemAdapter as LaravelFilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -83,6 +85,7 @@ class AppServiceProvider extends ServiceProvider
         $this->registerSecureLocalDisk();
         Notification::extend('fsa_database', fn ($app): FsaDatabaseChannel => $app->make(FsaDatabaseChannel::class));
         Event::listen(NpoEngagementWeightingChanged::class, RecomputeNpoScoresForWeightingChange::class);
+        Event::listen(MigrationsEnded::class, SyncRbacAfterMigrations::class);
         $this->registerRateLimiters();
         $this->configureDefaults();
     }

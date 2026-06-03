@@ -71,6 +71,13 @@
             "@lint:check",
             "@php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage"
         ],
+        "rbac:sync": [
+            "@php artisan db:seed --class=RoleSeeder --force"
+        ],
+        "deploy": [
+            "@php artisan migrate --force",
+            "@php artisan db:seed --class=RoleSeeder --force"
+        ],
         "post-autoload-dump": [
             "Illuminate\\Foundation\\ComposerScripts::postAutoloadDump",
             "@php artisan package:discover --ansi"
