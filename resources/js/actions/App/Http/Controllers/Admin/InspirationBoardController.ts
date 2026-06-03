@@ -137,7 +137,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:70
  * @route '/admin/inspiration-board/{boardPost}'
  */
-export const update = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+export const update = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
@@ -152,7 +152,7 @@ update.definition = {
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:70
  * @route '/admin/inspiration-board/{boardPost}'
  */
-update.url = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+update.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
@@ -185,7 +185,7 @@ update.url = (args: { boardPost: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:70
  * @route '/admin/inspiration-board/{boardPost}'
  */
-update.patch = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+update.patch = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: update.url(args, options),
     method: 'patch',
 })
@@ -195,7 +195,7 @@ update.patch = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:70
  * @route '/admin/inspiration-board/{boardPost}'
  */
-    const updateForm = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const updateForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: update.url(args, {
                     [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                         _method: 'PATCH',
@@ -210,7 +210,7 @@ update.patch = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:70
  * @route '/admin/inspiration-board/{boardPost}'
  */
-        updateForm.patch = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        updateForm.patch = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: update.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'PATCH',
@@ -226,7 +226,7 @@ update.patch = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:83
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
-export const publish = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const publish = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: publish.url(args, options),
     method: 'post',
 })
@@ -241,7 +241,7 @@ publish.definition = {
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:83
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
-publish.url = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+publish.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
@@ -274,7 +274,7 @@ publish.url = (args: { boardPost: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:83
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
-publish.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+publish.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: publish.url(args, options),
     method: 'post',
 })
@@ -284,7 +284,7 @@ publish.post = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:83
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
-    const publishForm = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const publishForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: publish.url(args, options),
         method: 'post',
     })
@@ -294,7 +294,7 @@ publish.post = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:83
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
-        publishForm.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        publishForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: publish.url(args, options),
             method: 'post',
         })
@@ -305,7 +305,7 @@ publish.post = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:90
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
-export const archive = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const archive = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: archive.url(args, options),
     method: 'post',
 })
@@ -320,7 +320,7 @@ archive.definition = {
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:90
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
-archive.url = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+archive.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
@@ -353,7 +353,7 @@ archive.url = (args: { boardPost: string | number | { id: string | number } } | 
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:90
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
-archive.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+archive.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: archive.url(args, options),
     method: 'post',
 })
@@ -363,7 +363,7 @@ archive.post = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:90
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
-    const archiveForm = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const archiveForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: archive.url(args, options),
         method: 'post',
     })
@@ -373,7 +373,7 @@ archive.post = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:90
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
-        archiveForm.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        archiveForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: archive.url(args, options),
             method: 'post',
         })
@@ -384,7 +384,7 @@ archive.post = (args: { boardPost: string | number | { id: string | number } } |
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:97
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
-export const pin = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const pin = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pin.url(args, options),
     method: 'post',
 })
@@ -399,7 +399,7 @@ pin.definition = {
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:97
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
-pin.url = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+pin.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
@@ -432,7 +432,7 @@ pin.url = (args: { boardPost: string | number | { id: string | number } } | [boa
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:97
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
-pin.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+pin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: pin.url(args, options),
     method: 'post',
 })
@@ -442,7 +442,7 @@ pin.post = (args: { boardPost: string | number | { id: string | number } } | [bo
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:97
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
-    const pinForm = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const pinForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: pin.url(args, options),
         method: 'post',
     })
@@ -452,7 +452,7 @@ pin.post = (args: { boardPost: string | number | { id: string | number } } | [bo
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:97
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
-        pinForm.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        pinForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: pin.url(args, options),
             method: 'post',
         })
@@ -463,7 +463,7 @@ pin.post = (args: { boardPost: string | number | { id: string | number } } | [bo
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:104
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
-export const unpin = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+export const unpin = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: unpin.url(args, options),
     method: 'post',
 })
@@ -478,7 +478,7 @@ unpin.definition = {
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:104
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
-unpin.url = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+unpin.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
@@ -511,7 +511,7 @@ unpin.url = (args: { boardPost: string | number | { id: string | number } } | [b
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:104
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
-unpin.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+unpin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: unpin.url(args, options),
     method: 'post',
 })
@@ -521,7 +521,7 @@ unpin.post = (args: { boardPost: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:104
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
-    const unpinForm = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+    const unpinForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: unpin.url(args, options),
         method: 'post',
     })
@@ -531,7 +531,7 @@ unpin.post = (args: { boardPost: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Admin/InspirationBoardController.php:104
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
-        unpinForm.post = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        unpinForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: unpin.url(args, options),
             method: 'post',
         })

@@ -10,6 +10,7 @@ type Props = {
 };
 
 export function NotificationPopover({ summary }: Props) {
+    const latest = summary.latest ?? [];
     const markAllRead = () => {
         router.patch(
             summary.mark_all_read_url,
@@ -44,12 +45,12 @@ export function NotificationPopover({ summary }: Props) {
             </div>
 
             <div className="max-h-[360px] overflow-y-auto p-1">
-                {summary.latest.length === 0 ? (
+                {latest.length === 0 ? (
                     <div className="px-3 py-8 text-center text-sm text-muted-foreground">
                         No notifications.
                     </div>
                 ) : (
-                    summary.latest.map((notification) => (
+                    latest.map((notification) => (
                         <NotificationPreview
                             key={notification.id}
                             notification={notification}

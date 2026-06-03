@@ -82,7 +82,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-export const image = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+export const image = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: image.url(args, options),
     method: 'get',
 })
@@ -97,7 +97,7 @@ image.definition = {
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-image.url = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions) => {
+image.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
         args = { boardPost: args }
     }
@@ -130,7 +130,7 @@ image.url = (args: { boardPost: string | number | { id: string | number } } | [b
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-image.get = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+image.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
     url: image.url(args, options),
     method: 'get',
 })
@@ -139,7 +139,7 @@ image.get = (args: { boardPost: string | number | { id: string | number } } | [b
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-image.head = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+image.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     url: image.url(args, options),
     method: 'head',
 })
@@ -149,7 +149,7 @@ image.head = (args: { boardPost: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-    const imageForm = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+    const imageForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
         action: image.url(args, options),
         method: 'get',
     })
@@ -159,7 +159,7 @@ image.head = (args: { boardPost: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-        imageForm.get = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        imageForm.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: image.url(args, options),
             method: 'get',
         })
@@ -168,7 +168,7 @@ image.head = (args: { boardPost: string | number | { id: string | number } } | [
  * @see app/Http/Controllers/Portal/InspirationBoardController.php:32
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
-        imageForm.head = (args: { boardPost: string | number | { id: string | number } } | [boardPost: string | number | { id: string | number } ] | string | number | { id: string | number }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        imageForm.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
             action: image.url(args, {
                         [options?.mergeQuery ? 'mergeQuery' : 'query']: {
                             _method: 'HEAD',

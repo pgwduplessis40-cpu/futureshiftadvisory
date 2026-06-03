@@ -81,9 +81,9 @@ final class DashboardController extends Controller
             'onboardingUrl' => route('portal.onboarding.step', [
                 'step' => $this->wizard->currentStepSlug($client),
             ]),
-            'notificationSummary' => $request->user() instanceof User
-                ? $this->notifications->counts($request->user())
-                : ['unread' => 0, 'urgent' => 0],
+            // notificationSummary is shared globally (full shape) by HandleInertiaRequests;
+            // do not override it here with counts-only or the bell popover (which reads
+            // summary.latest) crashes the page.
             'wellbeing' => $this->wellbeingPayload($client, $request->user()),
             'businessHealth' => $this->businessHealth->portalPayload($client),
             'healthFindings' => $this->businessHealth->healthFindingsPayload($client),
