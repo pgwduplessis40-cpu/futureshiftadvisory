@@ -135,7 +135,10 @@ export default function ReferenceDataIndex({
                 </header>
 
                 <section className="rounded-md border bg-background p-4">
-                    <form onSubmit={submit} className="grid gap-4 lg:grid-cols-4">
+                    <form
+                        onSubmit={submit}
+                        className="grid gap-4 lg:grid-cols-4"
+                    >
                         <div className="space-y-2">
                             <Label>Dataset</Label>
                             <Select
@@ -219,9 +222,15 @@ export default function ReferenceDataIndex({
                         <div className="flex justify-end lg:col-span-4">
                             <Button type="submit" disabled={form.processing}>
                                 {form.data.upload ? (
-                                    <Upload className="size-4" aria-hidden="true" />
+                                    <Upload
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
                                 ) : (
-                                    <Send className="size-4" aria-hidden="true" />
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
                                 )}
                                 Submit
                             </Button>
@@ -230,7 +239,9 @@ export default function ReferenceDataIndex({
                 </section>
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <h2 className="text-sm font-medium">Current effective values</h2>
+                    <h2 className="text-sm font-medium">
+                        Current effective values
+                    </h2>
                     <div className="overflow-hidden rounded-md border">
                         <table className="w-full table-fixed text-sm">
                             <thead className="bg-muted/60 text-left">
@@ -274,16 +285,16 @@ export default function ReferenceDataIndex({
                                                     ' ',
                                                 )}
                                             </td>
-                                            <td className="break-words px-3 py-3">
+                                            <td className="px-3 py-3 break-words">
                                                 {value.label}
                                             </td>
-                                            <td className="break-words px-3 py-3">
+                                            <td className="px-3 py-3 break-words">
                                                 {value.value}
                                             </td>
                                             <td className="px-3 py-3">
                                                 {value.as_at}
                                             </td>
-                                            <td className="break-words px-3 py-3">
+                                            <td className="px-3 py-3 break-words">
                                                 {value.source}
                                             </td>
                                         </tr>
@@ -326,7 +337,7 @@ export default function ReferenceDataIndex({
                                         <td className="px-3 py-3">
                                             {entry.as_at}
                                         </td>
-                                        <td className="break-words px-3 py-3">
+                                        <td className="px-3 py-3 break-words">
                                             {entry.source}
                                         </td>
                                         <td className="px-3 py-3">

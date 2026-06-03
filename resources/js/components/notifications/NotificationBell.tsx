@@ -60,10 +60,7 @@ export function NotificationBell({
                     }
                 >
                     <Bell
-                        className={cn(
-                            'size-4',
-                            brandHeader && 'text-white',
-                        )}
+                        className={cn('size-4', brandHeader && 'text-white')}
                         aria-hidden="true"
                     />
                     {unread > 0 && (

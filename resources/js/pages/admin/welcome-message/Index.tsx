@@ -115,8 +115,14 @@ export default function WelcomeMessageIndex({
                                 history and every change is audit-logged.
                             </p>
                             <div className="flex justify-end">
-                                <Button type="submit" disabled={form.processing}>
-                                    <Send className="size-4" aria-hidden="true" />
+                                <Button
+                                    type="submit"
+                                    disabled={form.processing}
+                                >
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
                                     Publish new version
                                 </Button>
                             </div>
@@ -132,7 +138,7 @@ export default function WelcomeMessageIndex({
                             </p>
                             {preview.has_message ? (
                                 <div
-                                    className="mt-4 rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5 text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p:last-child]:mb-0 [&_p]:mb-3 [&_strong]:font-semibold"
+                                    className="mt-4 rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5 text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold"
                                     dangerouslySetInnerHTML={{
                                         __html: preview.html,
                                     }}

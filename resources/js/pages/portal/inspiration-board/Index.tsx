@@ -1,9 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { Sparkles } from 'lucide-react';
-import {
-    InspirationCard,
-    type InspirationPost,
-} from '@/components/inspiration/InspirationCard';
+import { InspirationCard } from '@/components/inspiration/InspirationCard';
+import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 
 type Props = {
     posts: InspirationPost[];

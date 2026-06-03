@@ -3,9 +3,9 @@
 declare(strict_types=1);
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\InspirationBoardController;
 use App\Http\Controllers\Admin\IntegrationCredentialController;
 use App\Http\Controllers\Admin\IntegrationHealthController;
-use App\Http\Controllers\Admin\InspirationBoardController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;

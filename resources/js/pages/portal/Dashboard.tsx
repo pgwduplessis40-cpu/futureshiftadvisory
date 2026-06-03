@@ -23,6 +23,8 @@ import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { BusinessHealthRadar } from '@/components/insight/BusinessHealthRadar';
 import type { BusinessHealthRadarPayload } from '@/components/insight/BusinessHealthRadar';
+import { InspirationCard } from '@/components/inspiration/InspirationCard';
+import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { NpoHealthPanel } from '@/components/npo/NpoHealthPanel';
 import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
 import { Badge } from '@/components/ui/badge';
@@ -44,10 +46,6 @@ import {
 import { VerificationBadge } from '@/components/verification/Badge';
 import type { VerificationOutcome } from '@/components/verification/Badge';
 import { FlagBanner } from '@/components/verification/FlagBanner';
-import {
-    InspirationCard,
-    type InspirationPost,
-} from '@/components/inspiration/InspirationCard';
 import { useDrillFocus } from '@/hooks/use-drill-focus';
 import { cn } from '@/lib/utils';
 
@@ -369,11 +367,7 @@ type HealthFinding = {
 
 type PortalDashboardTab = 'actions' | 'information';
 
-function WelcomeBanner({
-    welcomeMessage,
-}: {
-    welcomeMessage: WelcomeMessage;
-}) {
+function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
     const storageKey = `fs-welcome-dismissed-v${welcomeMessage.version ?? 0}`;
     const [dismissed, setDismissed] = useState<boolean>(() => {
         if (typeof window === 'undefined') {
@@ -407,7 +401,7 @@ function WelcomeBanner({
             className="rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5"
         >
             <div
-                className="text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p:last-child]:mb-0 [&_p]:mb-3 [&_strong]:font-semibold"
+                className="text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold"
                 dangerouslySetInnerHTML={{ __html: welcomeMessage.html }}
             />
             <div className="mt-4 flex justify-end">

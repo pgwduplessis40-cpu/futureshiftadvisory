@@ -52,9 +52,13 @@ const statusVariants: Record<
 };
 
 function action(id: string, verb: string): void {
-    router.post(`/admin/inspiration-board/${id}/${verb}`, {}, {
-        preserveScroll: true,
-    });
+    router.post(
+        `/admin/inspiration-board/${id}/${verb}`,
+        {},
+        {
+            preserveScroll: true,
+        },
+    );
 }
 
 export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
@@ -137,7 +141,10 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                     id="title"
                                     value={form.data.title}
                                     onChange={(event) =>
-                                        form.setData('title', event.target.value)
+                                        form.setData(
+                                            'title',
+                                            event.target.value,
+                                        )
                                     }
                                 />
                                 <InputError message={form.errors.title} />
@@ -225,8 +232,14 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                 show it on portals.
                             </p>
                             <div className="flex justify-end">
-                                <Button type="submit" disabled={form.processing}>
-                                    <Send className="size-4" aria-hidden="true" />
+                                <Button
+                                    type="submit"
+                                    disabled={form.processing}
+                                >
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
                                     Add to library
                                 </Button>
                             </div>
@@ -249,7 +262,9 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                             {typeLabels[post.type]}
                                         </Badge>
                                         <Badge
-                                            variant={statusVariants[post.status]}
+                                            variant={
+                                                statusVariants[post.status]
+                                            }
                                         >
                                             {post.status}
                                         </Badge>

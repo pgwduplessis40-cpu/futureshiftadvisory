@@ -12,11 +12,9 @@ import {
 import { useState } from 'react';
 import type { ReactNode } from 'react';
 import FileDropzone from '@/components/file-dropzone';
-import {
-    InspirationCard,
-    type InspirationPost,
-} from '@/components/inspiration/InspirationCard';
 import InputError from '@/components/input-error';
+import { InspirationCard } from '@/components/inspiration/InspirationCard';
+import type { InspirationPost } from '@/components/inspiration/InspirationCard';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {

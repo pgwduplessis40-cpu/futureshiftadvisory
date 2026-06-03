@@ -318,7 +318,7 @@ function StepContent({
                 >
                     {welcomeMessage.has_message ? (
                         <div
-                            className="rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5 text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p:last-child]:mb-0 [&_p]:mb-3 [&_strong]:font-semibold"
+                            className="rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5 text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold"
                             dangerouslySetInnerHTML={{
                                 __html: welcomeMessage.html,
                             }}

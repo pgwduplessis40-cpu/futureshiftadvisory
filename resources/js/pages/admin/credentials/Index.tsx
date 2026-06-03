@@ -1,5 +1,11 @@
 import { Head, useForm } from '@inertiajs/react';
-import { Ban, CircleCheck, KeyRound, RotateCw, ShieldCheck } from 'lucide-react';
+import {
+    Ban,
+    CircleCheck,
+    KeyRound,
+    RotateCw,
+    ShieldCheck,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -108,7 +114,7 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
         <tr className="border-t align-top">
             <td className="px-3 py-3">
                 <div className="font-medium">{row.display_name}</div>
-                <div className="break-words text-xs text-muted-foreground">
+                <div className="text-xs break-words text-muted-foreground">
                     {row.integration_key}
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
@@ -169,7 +175,7 @@ function CredentialList({ row }: { row: IntegrationRow }) {
                         <span className="font-medium">{credential.field}</span>
                         <CredentialStatus credential={credential} />
                     </div>
-                    <div className="break-words text-xs text-muted-foreground">
+                    <div className="text-xs break-words text-muted-foreground">
                         {credential.config_path ?? 'No config path'}
                     </div>
                 </div>
@@ -259,11 +265,7 @@ function CredentialEditor({
     );
 }
 
-function CredentialStatus({
-    credential,
-}: {
-    credential: CredentialField;
-}) {
+function CredentialStatus({ credential }: { credential: CredentialField }) {
     if (credential.status === 'active') {
         return (
             <Badge variant="secondary">

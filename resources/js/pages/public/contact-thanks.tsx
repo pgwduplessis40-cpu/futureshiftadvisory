@@ -34,9 +34,9 @@ export default function ContactThanks() {
                     </SectionTitle>
                     <GoldRule className="mx-auto mt-6" />
                     <p className="mt-6 text-lg leading-relaxed text-[var(--fs-graphite)]">
-                        Your message has reached us. We respond personally
-                        - usually within a working day. If something is
-                        urgent, email{' '}
+                        Your message has reached us. We respond personally -
+                        usually within a working day. If something is urgent,
+                        email{' '}
                         <a
                             href="mailto:hello@futureshiftadvisory.nz"
                             className="text-[var(--fs-admiralty)] underline underline-offset-2 hover:text-[var(--fs-pacific)]"
