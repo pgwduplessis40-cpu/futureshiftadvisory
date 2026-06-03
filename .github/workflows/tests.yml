@@ -7,12 +7,14 @@ on:
       - main
       - master
       - workos
+      - featureApp
   pull_request:
     branches:
       - develop
       - main
       - master
       - workos
+      - featureApp
 
 jobs:
   ci:
