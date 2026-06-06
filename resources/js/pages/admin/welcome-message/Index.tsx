@@ -69,6 +69,7 @@ export default function WelcomeMessageIndex({
 
             <div className="space-y-6">
                 <PageHeader
+                    eyebrow="Client experience"
                     icon={HeartHandshake}
                     title="Welcome message"
                     description="Shown to every new client on their portal and the first onboarding step, before they begin."

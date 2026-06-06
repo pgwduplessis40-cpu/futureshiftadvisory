@@ -1,5 +1,6 @@
 import { Head } from '@inertiajs/react';
 import { Quote } from 'lucide-react';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 
 type Testimonial = {
@@ -24,20 +25,16 @@ export default function TestimonialsIndex({ testimonials }: Props) {
             <Head title="Testimonials" />
 
             <div className="space-y-6">
-                <header className="flex items-center justify-between gap-4">
-                    <div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <Quote className="size-4" aria-hidden="true" />
-                            Consent library
-                        </div>
-                        <h1 className="mt-1 text-xl font-semibold">
-                            Testimonials
-                        </h1>
-                    </div>
-                    <Badge variant="secondary">
-                        {testimonials.length} approved
-                    </Badge>
-                </header>
+                <PageHeader
+                    eyebrow="Consent library"
+                    icon={Quote}
+                    title="Testimonials"
+                    actions={
+                        <Badge variant="secondary">
+                            {testimonials.length} approved
+                        </Badge>
+                    }
+                />
 
                 {testimonials.length === 0 ? (
                     <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">

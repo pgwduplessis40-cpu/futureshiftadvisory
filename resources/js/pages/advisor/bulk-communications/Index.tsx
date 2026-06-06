@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { CalendarClock, MailOpen, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -103,20 +104,16 @@ export default function BulkCommunicationsIndex({
             <Head title="Bulk communications" />
 
             <div className="space-y-6">
-                <header className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <MailOpen className="size-4" aria-hidden="true" />
-                            Communications
-                        </div>
-                        <h1 className="mt-1 text-xl font-semibold">
-                            Bulk communications
-                        </h1>
-                    </div>
-                    <Badge variant="secondary">
-                        {communications.length} batches
-                    </Badge>
-                </header>
+                <PageHeader
+                    eyebrow="Communications"
+                    icon={MailOpen}
+                    title="Bulk communications"
+                    actions={
+                        <Badge variant="secondary">
+                            {communications.length} batches
+                        </Badge>
+                    }
+                />
 
                 <form
                     onSubmit={submit}

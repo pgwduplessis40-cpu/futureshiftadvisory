@@ -9,6 +9,7 @@ import {
     UserRound,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { Button } from '@/components/ui/button';
 import {
     Card,
@@ -89,19 +90,12 @@ export default function Dashboard() {
         <>
             <Head title="Dashboard" />
             <main className="flex-1 space-y-6">
-                <header className="space-y-2">
-                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                        <LayoutGrid className="size-4" aria-hidden="true" />
-                        Account workspace
-                    </div>
-                    <h1 className="text-2xl font-semibold tracking-normal">
-                        Dashboard
-                    </h1>
-                    <p className="max-w-2xl text-sm text-muted-foreground">
-                        Start with account actions that can block access, then
-                        use the lower panels for profile and preference context.
-                    </p>
-                </header>
+                <PageHeader
+                    eyebrow="Account workspace"
+                    icon={LayoutGrid}
+                    title="Dashboard"
+                    description="Start with account actions that can block access, then use the lower panels for profile and preference context."
+                />
 
                 <DashboardSection
                     title="Priority actions"

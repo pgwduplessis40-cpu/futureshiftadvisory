@@ -8,6 +8,7 @@ import {
     UserRound,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { EmptyState } from '@/components/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -105,15 +106,11 @@ export default function AdvisorMessagesIndex({ threads, counts }: Props) {
                 </div>
 
                 {filteredThreads.length === 0 ? (
-                    <div className="rounded-md border bg-background p-10 text-center">
-                        <MessageSquare
-                            className="mx-auto size-8 text-muted-foreground"
-                            aria-hidden="true"
-                        />
-                        <h2 className="mt-3 text-base font-medium">
-                            No messages found
-                        </h2>
-                    </div>
+                    <EmptyState
+                        icon={MessageSquare}
+                        title="No messages found"
+                        description="Conversations with your clients will appear here."
+                    />
                 ) : (
                     <div className="overflow-hidden rounded-md border bg-background">
                         <div className="overflow-x-auto">

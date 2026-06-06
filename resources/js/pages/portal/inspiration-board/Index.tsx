@@ -16,6 +16,7 @@ export default function PortalInspirationBoard({ posts }: Props) {
 
             <main className="flex-1 space-y-6">
                 <PageHeader
+                    eyebrow="For you"
                     icon={Sparkles}
                     title="Inspiration"
                     description="A little motivation from your advisory team."

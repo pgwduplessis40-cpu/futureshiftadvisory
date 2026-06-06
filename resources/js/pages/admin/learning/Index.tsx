@@ -10,6 +10,7 @@ import {
     XCircle,
 } from 'lucide-react';
 import { useState } from 'react';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -119,32 +120,30 @@ export default function LearningUpdatesIndex({
             <Head title="Learning update queue" />
 
             <div className="space-y-6">
-                <header className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <ShieldCheck
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            Human approval
-                        </div>
-                        <h1 className="mt-1 text-xl font-semibold">
-                            Learning update queue
-                        </h1>
-                    </div>
-                    <div className="flex flex-wrap items-center gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={() => router.post(rerun_url)}
-                        >
-                            <RefreshCw className="size-4" aria-hidden="true" />
-                            Run due layers
-                        </Button>
-                        <Badge variant="secondary">{cards.length} queued</Badge>
-                    </div>
-                </header>
+                <PageHeader
+                    eyebrow="Human approval"
+                    icon={ShieldCheck}
+                    title="Learning update queue"
+                    actions={
+                        <>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={() => router.post(rerun_url)}
+                            >
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Run due layers
+                            </Button>
+                            <Badge variant="secondary">
+                                {cards.length} queued
+                            </Badge>
+                        </>
+                    }
+                />
 
                 <LearningTabList
                     activeTab={activeTab}

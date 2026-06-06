@@ -94,6 +94,7 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
 
             <div className="space-y-6">
                 <PageHeader
+                    eyebrow="Engagement"
                     icon={HeartHandshake}
                     title="Inspiration board"
                     description="Post motivational messages, quotes, or images for clients and entrepreneurs. Everything is kept in the library to reuse later."

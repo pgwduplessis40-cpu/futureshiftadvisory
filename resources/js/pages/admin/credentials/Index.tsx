@@ -58,6 +58,7 @@ export default function IntegrationCredentialIndex({ credentials }: Props) {
 
             <div className="space-y-6">
                 <PageHeader
+                    eyebrow="Integrations"
                     icon={ShieldCheck}
                     title="Integration credentials"
                     description="Store and rotate the API keys and secrets used to activate live integrations."

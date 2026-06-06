@@ -131,6 +131,7 @@ export default function ReferenceDataIndex({
 
             <div className="space-y-6">
                 <PageHeader
+                    eyebrow="Governed data"
                     icon={DatabaseZap}
                     title="Reference data"
                     description="Manually enter governed economic, valuation, and benchmark data that APIs cannot provide."

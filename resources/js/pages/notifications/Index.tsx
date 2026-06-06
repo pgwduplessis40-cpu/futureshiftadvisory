@@ -6,6 +6,7 @@ import {
     ExternalLink,
     MailOpen,
 } from 'lucide-react';
+import { EmptyState } from '@/components/empty-state';
 import type {
     NotificationItem,
     NotificationSummary,
@@ -56,9 +57,11 @@ export default function NotificationsIndex({
                 </div>
 
                 {notifications.length === 0 ? (
-                    <div className="rounded-md border p-10 text-center text-sm text-muted-foreground">
-                        No notifications.
-                    </div>
+                    <EmptyState
+                        icon={CheckCheck}
+                        title="No notifications"
+                        description="You're all caught up."
+                    />
                 ) : (
                     <div className="space-y-3">
                         {notifications.map((notification) => (

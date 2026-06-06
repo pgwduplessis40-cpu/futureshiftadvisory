@@ -70,6 +70,7 @@ export default function ServiceRatesIndex({
 
             <div className="space-y-6">
                 <PageHeader
+                    eyebrow="Fees"
                     icon={BadgeDollarSign}
                     title="Service rates"
                     description="Set the hourly rate and NPO discounts used by fee calculations."
