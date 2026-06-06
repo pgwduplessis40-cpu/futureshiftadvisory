@@ -19,7 +19,10 @@ export default function AppLayout({
     return (
         <AppLayoutTemplate breadcrumbs={breadcrumbs} brandHeader={brandHeader}>
             <AiUnavailableNotice notice={aiNotice} />
-            {children}
+            {/* Shared page container: one consistent, responsive padding scale so
+                page content never sits flush against the sidebar/top/edges. Pages
+                provide their own vertical rhythm (space-y-*) inside this. */}
+            <div className="flex-1 px-4 py-6 sm:px-6 lg:px-8">{children}</div>
         </AppLayoutTemplate>
     );
 }

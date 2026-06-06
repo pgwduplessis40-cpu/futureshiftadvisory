@@ -331,7 +331,7 @@ export default function DdBusinessPlan({
         <>
             <Head title="Acquisition plan" />
 
-            <main className="flex-1 space-y-6 p-6">
+            <main className="flex-1 space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">

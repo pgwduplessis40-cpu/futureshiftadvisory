@@ -33,7 +33,7 @@ export default function NotificationsIndex({
         <>
             <Head title="Notifications" />
 
-            <div className="space-y-6 px-4 py-6">
+            <div className="space-y-6">
                 <div className="flex flex-wrap items-center justify-between gap-4">
                     <div>
                         <h1 className="text-xl font-semibold">Notifications</h1>

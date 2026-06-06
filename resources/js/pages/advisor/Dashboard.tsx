@@ -644,7 +644,7 @@ export default function AdvisorDashboard({
         <>
             <Head title="Advisor dashboard" />
 
-            <div className="space-y-6 p-4">
+            <div className="space-y-6">
                 <header className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                     <div>
                         <div className="flex items-center gap-2 text-sm text-muted-foreground">

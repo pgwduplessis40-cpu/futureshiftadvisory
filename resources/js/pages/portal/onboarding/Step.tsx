@@ -129,7 +129,7 @@ export default function OnboardingStep({
         <>
             <Head title={`${step.title} - Onboarding`} />
 
-            <main className="flex-1 space-y-6 p-6">
+            <main className="flex-1 space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <Link

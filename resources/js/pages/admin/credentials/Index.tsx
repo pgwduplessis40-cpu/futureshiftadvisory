@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -56,12 +57,11 @@ export default function IntegrationCredentialIndex({ credentials }: Props) {
             <Head title="Integration credentials" />
 
             <div className="space-y-6">
-                <header className="flex items-center gap-2">
-                    <ShieldCheck className="size-5" aria-hidden="true" />
-                    <h1 className="text-xl font-semibold">
-                        Integration credentials
-                    </h1>
-                </header>
+                <PageHeader
+                    icon={ShieldCheck}
+                    title="Integration credentials"
+                    description="Store and rotate the API keys and secrets used to activate live integrations."
+                />
 
                 {Object.entries(grouped).map(([category, rows]) => (
                     <section

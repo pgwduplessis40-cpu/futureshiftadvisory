@@ -88,7 +88,7 @@ export default function Dashboard() {
     return (
         <>
             <Head title="Dashboard" />
-            <main className="flex-1 space-y-6 p-6">
+            <main className="flex-1 space-y-6">
                 <header className="space-y-2">
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <LayoutGrid className="size-4" aria-hidden="true" />

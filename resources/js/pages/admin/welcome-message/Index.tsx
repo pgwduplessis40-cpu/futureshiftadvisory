@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { HeartHandshake, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
@@ -67,18 +68,11 @@ export default function WelcomeMessageIndex({
             <Head title="Welcome message" />
 
             <div className="space-y-6">
-                <header className="flex items-center gap-2">
-                    <HeartHandshake className="size-5" aria-hidden="true" />
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Welcome message
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Shown to every new client on their portal and the
-                            first onboarding step, before they begin.
-                        </p>
-                    </div>
-                </header>
+                <PageHeader
+                    icon={HeartHandshake}
+                    title="Welcome message"
+                    description="Shown to every new client on their portal and the first onboarding step, before they begin."
+                />
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     <section className="space-y-4 lg:col-span-2">

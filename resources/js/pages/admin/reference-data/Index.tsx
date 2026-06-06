@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { DatabaseZap, Send, Upload } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -129,10 +130,11 @@ export default function ReferenceDataIndex({
             <Head title="Reference data" />
 
             <div className="space-y-6">
-                <header className="flex items-center gap-2">
-                    <DatabaseZap className="size-5" aria-hidden="true" />
-                    <h1 className="text-xl font-semibold">Reference data</h1>
-                </header>
+                <PageHeader
+                    icon={DatabaseZap}
+                    title="Reference data"
+                    description="Manually enter governed economic, valuation, and benchmark data that APIs cannot provide."
+                />
 
                 <section className="rounded-md border bg-background p-4">
                     <form

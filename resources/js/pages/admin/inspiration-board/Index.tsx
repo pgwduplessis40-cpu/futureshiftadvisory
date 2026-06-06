@@ -1,7 +1,10 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import { HeartHandshake, Pin, PinOff, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { EmptyState } from '@/components/empty-state';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
+import { SectionCard } from '@/components/section-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -90,19 +93,11 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
             <Head title="Inspiration board" />
 
             <div className="space-y-6">
-                <header className="flex items-center gap-2">
-                    <HeartHandshake className="size-5" aria-hidden="true" />
-                    <div>
-                        <h1 className="text-xl font-semibold">
-                            Inspiration board
-                        </h1>
-                        <p className="text-sm text-muted-foreground">
-                            Post motivational messages, quotes, or images for
-                            clients and entrepreneurs. Everything is kept in the
-                            library to reuse later.
-                        </p>
-                    </div>
-                </header>
+                <PageHeader
+                    icon={HeartHandshake}
+                    title="Inspiration board"
+                    description="Post motivational messages, quotes, or images for clients and entrepreneurs. Everything is kept in the library to reuse later."
+                />
 
                 <div className="grid gap-6 lg:grid-cols-3">
                     <section className="lg:col-span-1">
@@ -248,14 +243,16 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
 
                     <section className="space-y-3 lg:col-span-2">
                         {posts.length === 0 ? (
-                            <p className="rounded-md border bg-background p-4 text-sm text-muted-foreground">
-                                The library is empty. Add your first post.
-                            </p>
+                            <EmptyState
+                                icon={HeartHandshake}
+                                title="No posts yet"
+                                description="Add your first message, quote, or image — it stays in the library to reuse later."
+                            />
                         ) : (
                             posts.map((post) => (
-                                <article
+                                <SectionCard
                                     key={post.id}
-                                    className="space-y-3 rounded-md border bg-background p-4"
+                                    className="space-y-3"
                                 >
                                     <div className="flex flex-wrap items-center gap-2">
                                         <Badge variant="outline">
@@ -358,7 +355,7 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                             </Button>
                                         )}
                                     </div>
-                                </article>
+                                </SectionCard>
                             ))
                         )}
                     </section>

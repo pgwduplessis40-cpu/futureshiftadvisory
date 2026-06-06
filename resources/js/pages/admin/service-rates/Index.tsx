@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import { BadgeDollarSign, History, Save } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -68,10 +69,11 @@ export default function ServiceRatesIndex({
             <Head title="Service rates" />
 
             <div className="space-y-6">
-                <header className="flex items-center gap-2">
-                    <BadgeDollarSign className="size-5" aria-hidden="true" />
-                    <h1 className="text-xl font-semibold">Service rates</h1>
-                </header>
+                <PageHeader
+                    icon={BadgeDollarSign}
+                    title="Service rates"
+                    description="Set the hourly rate and NPO discounts used by fee calculations."
+                />
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(360px,1fr)]">
                     <div className="rounded-md border bg-background p-4">
