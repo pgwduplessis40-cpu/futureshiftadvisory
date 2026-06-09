@@ -315,6 +315,10 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
             ->whereUuid('template')
             ->name('templates.show');
+        Route::get('templates/{template}/download', [TemplateController::class, 'download'])
+            ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
+            ->whereUuid('template')
+            ->name('templates.download');
         Route::patch('templates/{template}', [TemplateController::class, 'update'])
             ->middleware('permission:'.Permission::TEMPLATE_MANAGE->value)
             ->whereUuid('template')

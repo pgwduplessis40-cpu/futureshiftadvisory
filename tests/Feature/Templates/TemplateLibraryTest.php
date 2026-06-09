@@ -18,6 +18,8 @@ use App\Models\Template;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Fake\FakeAiClient;
+use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Integration\VirusScanner\ScanResult;
 use App\Services\Learning\ApprovalFlow;
 use App\Services\Learning\Rollback;
 use App\Services\Templates\TemplateImplementer;
@@ -25,7 +27,9 @@ use App\Services\Templates\TemplateSuggestionLayer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -190,6 +194,83 @@ final class TemplateLibraryTest extends TestCase
             'title' => 'Follow-up email',
             'status' => Template::STATUS_ACTIVE,
         ]);
+    }
+
+    public function test_admin_can_upload_and_download_proposal_template_file(): void
+    {
+        Storage::fake('secure_local');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+        $upload = UploadedFile::fake()->create(
+            'FSA_Report_Proposal_Template.docx',
+            24,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_PROPOSAL,
+                'title' => 'FSA Report Proposal Template',
+                'body' => '',
+                'status' => Template::STATUS_ACTIVE,
+                'file' => $upload,
+            ])
+            ->assertRedirect();
+
+        $template = Template::query()->firstOrFail();
+        $uploadedFile = data_get($template->structure, 'uploaded_file');
+
+        $this->assertSame(Template::CATEGORY_PROPOSAL, $template->category);
+        $this->assertSame('uploaded_file', $template->structure['source_kind']);
+        $this->assertSame('FSA_Report_Proposal_Template.docx', $uploadedFile['original_name']);
+        Storage::disk('secure_local')->assertExists($uploadedFile['stored_path']);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.index', ['status' => Template::STATUS_ACTIVE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('templates.0.category', Template::CATEGORY_PROPOSAL)
+                ->where('templates.0.uploaded_file.original_name', 'FSA_Report_Proposal_Template.docx')
+                ->where('templates.0.download_url', route('advisor.templates.download', $template, absolute: false)));
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.download', $template))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function test_infected_template_upload_is_rejected_and_not_persisted(): void
+    {
+        Storage::fake('secure_local');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+
+        // Every uploaded file must be virus-scanned before persistence (spec §4).
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::infected('Eicar-Test-Signature');
+            }
+        });
+
+        $upload = UploadedFile::fake()->create(
+            'Infected_Template.docx',
+            24,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_PROPOSAL,
+                'title' => 'Infected proposal template',
+                'body' => '',
+                'status' => Template::STATUS_ACTIVE,
+                'file' => $upload,
+            ])
+            ->assertStatus(422);
+
+        $this->assertSame(0, Template::query()->count());
+        $this->assertEmpty(Storage::disk('secure_local')->allFiles());
     }
 
     /**

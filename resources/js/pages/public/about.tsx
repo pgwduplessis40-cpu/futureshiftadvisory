@@ -139,6 +139,18 @@ export default function About() {
                         </p>
 
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
+                            Pieter brings more than 15 years of helping SMEs
+                            grow with clarity, structure, and commercial
+                            discipline. He has rebuilt finance functions across
+                            a range of industries - technology, manufacturing,
+                            construction, services, and medical devices. His
+                            real strength is making the complicated feel simple:
+                            bringing order where it is missing, and grounding
+                            strategic thinking in what actually works on the
+                            ground.
+                        </p>
+
+                        <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">
                             Pieter is a member of the{' '}
                             <a
                                 href="https://instituteadvisors.com/"

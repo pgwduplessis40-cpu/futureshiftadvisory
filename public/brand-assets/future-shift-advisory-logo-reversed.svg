@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="230" height="64" viewBox="0 0 230 64" role="img" aria-labelledby="title desc">
+  <title id="title">Future Shift Advisory reversed logo</title>
+  <desc id="desc">Future Shift Advisory wordmark with ascending bar chart mark for dark backgrounds.</desc>
+  <rect x="0" y="42" width="9" height="10" rx="1.5" fill="#4A6A8A"/>
+  <rect x="13" y="32" width="9" height="20" rx="1.5" fill="#5A8AAA"/>
+  <rect x="26" y="20" width="9" height="32" rx="1.5" fill="#3ABAAA"/>
+  <rect x="39" y="10" width="9" height="42" rx="1.5" fill="#2ACAAA"/>
+  <line x1="4" y1="47" x2="43" y2="14" stroke="#D4A020" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="43" cy="14" r="3" fill="#D4A020"/>
+  <text x="62" y="26" font-family="'DM Serif Display', Georgia, serif" font-size="18" fill="#F5F0E8">Future Shift</text>
+  <line x1="62" y1="32" x2="224" y2="32" stroke="#D4A020" stroke-width="0.75"/>
+  <text x="62" y="46" font-family="'Outfit', Arial, sans-serif" font-size="11" font-weight="500" fill="#6ACABA" letter-spacing="0.2em">ADVISORY</text>
+</svg>

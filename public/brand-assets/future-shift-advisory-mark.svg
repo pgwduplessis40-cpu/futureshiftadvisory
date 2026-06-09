@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="50" height="56" viewBox="0 0 50 56" role="img" aria-labelledby="title desc">
+  <title id="title">Future Shift Advisory mark</title>
+  <desc id="desc">Future Shift Advisory ascending bar chart icon.</desc>
+  <rect x="0" y="42" width="9" height="10" rx="1.5" fill="#2A3B5C"/>
+  <rect x="13" y="32" width="9" height="20" rx="1.5" fill="#1B5070"/>
+  <rect x="26" y="20" width="9" height="32" rx="1.5" fill="#0D7A7A"/>
+  <rect x="39" y="10" width="9" height="42" rx="1.5" fill="#0D6A5A"/>
+  <line x1="4" y1="47" x2="43" y2="14" stroke="#B8860B" stroke-width="1.8" stroke-linecap="round"/>
+  <circle cx="43" cy="14" r="3" fill="#B8860B"/>
+</svg>

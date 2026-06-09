@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, FileText, Save } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Save, Upload } from 'lucide-react';
 import type { FormEvent } from 'react';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,12 +27,17 @@ export default function TemplateShow({
         title: template.title,
         body: template.body,
         status: template.status,
+        file: null,
     });
 
     const updateTemplate = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.patch(template.update_url, {
+
+        form.transform((data) => ({ ...data, _method: 'patch' }));
+        form.post(template.update_url, {
+            forceFormData: true,
             preserveScroll: true,
+            onFinish: () => form.transform((data) => data),
         });
     };
 
@@ -78,7 +84,40 @@ export default function TemplateShow({
                                 {template.creator_name}
                             </Badge>
                         )}
+                        {template.uploaded_file && (
+                            <Badge variant="outline">file</Badge>
+                        )}
                     </div>
+
+                    {template.uploaded_file && (
+                        <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-w-0 text-sm">
+                                <div className="flex items-center gap-2 font-medium">
+                                    <Upload
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {template.uploaded_file.original_name}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {formatBytes(
+                                        template.uploaded_file.byte_size,
+                                    )}
+                                </div>
+                            </div>
+                            {template.download_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <a href={template.download_url}>
+                                        <Download
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Download
+                                    </a>
+                                </Button>
+                            )}
+                        </div>
+                    )}
 
                     <div className="prose prose-sm max-w-none text-sm leading-6 whitespace-pre-wrap">
                         {template.body}
@@ -114,6 +153,7 @@ export default function TemplateShow({
                                         </option>
                                     ))}
                                 </select>
+                                <InputError message={form.errors.category} />
                             </label>
 
                             <label className="grid gap-1 text-sm">
@@ -129,6 +169,7 @@ export default function TemplateShow({
                                         )
                                     }
                                 />
+                                <InputError message={form.errors.title} />
                             </label>
 
                             <label className="grid gap-1 text-sm">
@@ -154,6 +195,7 @@ export default function TemplateShow({
                                         </option>
                                     ))}
                                 </select>
+                                <InputError message={form.errors.status} />
                             </label>
                         </div>
 
@@ -168,6 +210,24 @@ export default function TemplateShow({
                                     form.setData('body', event.target.value)
                                 }
                             />
+                            <InputError message={form.errors.body} />
+                        </label>
+
+                        <label className="grid gap-1 text-sm">
+                            <span className="text-xs text-muted-foreground">
+                                Replace uploaded template file
+                            </span>
+                            <Input
+                                type="file"
+                                accept=".doc,.docx,.dot,.dotx,.pdf"
+                                onChange={(event) =>
+                                    form.setData(
+                                        'file',
+                                        event.target.files?.[0] ?? null,
+                                    )
+                                }
+                            />
+                            <InputError message={form.errors.file} />
                         </label>
 
                         <div>
@@ -191,3 +251,11 @@ TemplateShow.layout = {
         },
     ],
 };
+
+function formatBytes(bytes: number) {
+    return (
+        new Intl.NumberFormat(undefined, {
+            maximumFractionDigits: 1,
+        }).format(bytes / 1024) + ' KB'
+    );
+}

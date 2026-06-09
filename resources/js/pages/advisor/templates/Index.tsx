@@ -1,7 +1,8 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { FileText, Plus, Search } from 'lucide-react';
+import { Download, FileText, Plus, Search, Upload } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,6 +40,7 @@ export default function TemplateIndex({
         title: '',
         body: '',
         status: 'active',
+        file: null,
     });
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
@@ -73,8 +75,9 @@ export default function TemplateIndex({
     const createTemplate = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         createForm.post(storeUrl, {
+            forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => createForm.reset('title', 'body'),
+            onSuccess: () => createForm.reset('title', 'body', 'file'),
         });
     };
 
@@ -159,6 +162,7 @@ export default function TemplateIndex({
                                     </option>
                                 ))}
                             </select>
+                            <InputError message={createForm.errors.category} />
                         </label>
 
                         <label className="grid gap-1 text-sm">
@@ -174,6 +178,7 @@ export default function TemplateIndex({
                                     )
                                 }
                             />
+                            <InputError message={createForm.errors.title} />
                         </label>
 
                         <label className="grid gap-1 text-sm">
@@ -193,6 +198,7 @@ export default function TemplateIndex({
                                 <option value="active">Active</option>
                                 <option value="archived">Archived</option>
                             </select>
+                            <InputError message={createForm.errors.status} />
                         </label>
 
                         <Button type="submit" disabled={createForm.processing}>
@@ -214,6 +220,24 @@ export default function TemplateIndex({
                                     )
                                 }
                             />
+                            <InputError message={createForm.errors.body} />
+                        </label>
+
+                        <label className="grid gap-1 text-sm lg:col-span-4">
+                            <span className="text-xs text-muted-foreground">
+                                Upload template file
+                            </span>
+                            <Input
+                                type="file"
+                                accept=".doc,.docx,.dot,.dotx,.pdf"
+                                onChange={(event) =>
+                                    createForm.setData(
+                                        'file',
+                                        event.target.files?.[0] ?? null,
+                                    )
+                                }
+                            />
+                            <InputError message={createForm.errors.file} />
                         </label>
                     </form>
                 )}
@@ -247,6 +271,11 @@ export default function TemplateIndex({
                                             <Badge variant="outline">
                                                 v{template.version}
                                             </Badge>
+                                            {template.uploaded_file && (
+                                                <Badge variant="outline">
+                                                    file
+                                                </Badge>
+                                            )}
                                         </div>
                                         <h2 className="mt-3 text-base font-semibold">
                                             <Link href={template.show_url}>
@@ -256,12 +285,45 @@ export default function TemplateIndex({
                                         <p className="mt-2 text-sm text-muted-foreground">
                                             {template.body_excerpt}
                                         </p>
+                                        {template.uploaded_file && (
+                                            <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                                <Upload
+                                                    className="size-3"
+                                                    aria-hidden="true"
+                                                />
+                                                {
+                                                    template.uploaded_file
+                                                        .original_name
+                                                }
+                                            </p>
+                                        )}
                                     </div>
-                                    <Button asChild size="sm" variant="outline">
-                                        <Link href={template.show_url}>
-                                            Open
-                                        </Link>
-                                    </Button>
+                                    <div className="flex flex-wrap gap-2">
+                                        {template.download_url && (
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <a href={template.download_url}>
+                                                    <Download
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    Download
+                                                </a>
+                                            </Button>
+                                        )}
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <Link href={template.show_url}>
+                                                Open
+                                            </Link>
+                                        </Button>
+                                    </div>
                                 </div>
                             </article>
                         ))}

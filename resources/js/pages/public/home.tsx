@@ -6,6 +6,7 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 
+import { BackToTop } from '@/components/public/back-to-top';
 import {
     GoldRule,
     Section,
@@ -202,7 +203,10 @@ export default function Home({
             </Section>
 
             {/* ── CLOSING CTA ─────────────────────────────────── */}
-            <div className="bg-[var(--fs-admiralty)] py-20 text-[var(--fs-parchment)]">
+            <div
+                data-surface="dark"
+                className="bg-[var(--fs-admiralty)] py-20 text-[var(--fs-parchment)]"
+            >
                 <Section>
                     <div className="grid items-center gap-10 md:grid-cols-12">
                         <div className="md:col-span-8">
@@ -230,6 +234,8 @@ export default function Home({
                     </div>
                 </Section>
             </div>
+
+            <BackToTop />
         </>
     );
 }
