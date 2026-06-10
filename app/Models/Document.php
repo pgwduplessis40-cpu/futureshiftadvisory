@@ -36,6 +36,8 @@ final class Document extends Model
 
     public const CATEGORY_INSPIRATION_IMAGE = 'inspiration_image';
 
+    public const CATEGORY_TEMPLATE_FILE = 'template_file';
+
     public const CATEGORY_OTHER = 'other';
 
     public const SCANNER_PENDING = 'pending';

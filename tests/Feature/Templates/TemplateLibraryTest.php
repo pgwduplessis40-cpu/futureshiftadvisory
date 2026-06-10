@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Enums\ReportType;
 use App\Models\AnalysisFinding;
 use App\Models\Client;
+use App\Models\Document;
 use App\Models\LearningRollback;
 use App\Models\LearningUpdate;
 use App\Models\LearningUpdateDecision;
@@ -267,9 +268,10 @@ final class TemplateLibraryTest extends TestCase
                 'status' => Template::STATUS_ACTIVE,
                 'file' => $upload,
             ])
-            ->assertStatus(422);
+            ->assertSessionHasErrors('file');
 
         $this->assertSame(0, Template::query()->count());
+        $this->assertSame(0, Document::query()->count());
         $this->assertEmpty(Storage::disk('secure_local')->allFiles());
     }
 

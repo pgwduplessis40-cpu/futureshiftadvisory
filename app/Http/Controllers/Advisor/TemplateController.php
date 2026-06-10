@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Advisor;
 
 use App\Http\Controllers\Controller;
+use App\Models\Document;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
-use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\SecureFileWriter;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -26,7 +28,7 @@ final class TemplateController extends Controller
 {
     public function __construct(
         private readonly AuditWriter $audit,
-        private readonly FileScanner $scanner,
+        private readonly SecureFileWriter $files,
     ) {}
 
     public function index(Request $request): Response
@@ -72,13 +74,19 @@ final class TemplateController extends Controller
         $user = $this->viewer($request);
         $validated = $this->validated($request);
 
+        try {
+            $uploadStructure = $this->uploadedFileStructure($request, $user);
+        } catch (InfectedFileException) {
+            return back()->withErrors(['file' => 'Upload rejected because malware was detected.']);
+        }
+
         /** @var Template $template */
         $template = Template::query()->create([
             ...$this->templateAttributes($validated),
             'structure' => [
                 'source_kind' => 'manual',
                 'sections' => [],
-                ...$this->uploadedFileStructure($request),
+                ...$uploadStructure,
             ],
             'source_reference' => 'manual:user:'.$user->getKey(),
             'version' => 1,
@@ -155,7 +163,12 @@ final class TemplateController extends Controller
         $before = $template->only(['category', 'title', 'body', 'status', 'version', 'structure']);
         $validated = $this->validated($request);
         $structure = is_array($template->structure) ? $template->structure : [];
-        $uploadStructure = $this->uploadedFileStructure($request);
+
+        try {
+            $uploadStructure = $this->uploadedFileStructure($request, $user);
+        } catch (InfectedFileException) {
+            return back()->withErrors(['file' => 'Upload rejected because malware was detected.']);
+        }
 
         $template->forceFill([
             ...$this->templateAttributes($validated),
@@ -272,9 +285,15 @@ final class TemplateController extends Controller
     }
 
     /**
+     * Persist an uploaded template file via SecureFileWriter — the single
+     * sanctioned upload path (spec §4): virus scan, encrypted secure_local
+     * storage, Document provenance, and audit. Infected uploads throw
+     * InfectedFileException; unscannable uploads are quarantined by the writer
+     * and rejected here so templates only ever reference clean files.
+     *
      * @return array<string, mixed>
      */
-    private function uploadedFileStructure(Request $request): array
+    private function uploadedFileStructure(Request $request, User $user): array
     {
         $file = $request->file('file');
 
@@ -282,52 +301,28 @@ final class TemplateController extends Controller
             return [];
         }
 
-        // Security baseline (spec §4): every uploaded file is virus-scanned
-        // before persistence. Only clean files reach the encrypted secure_local
-        // disk; infected or unscannable uploads are rejected.
-        $this->assertCleanUpload($file);
-
         $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
-        $storedPath = sprintf('templates/%s/%s.%s', (string) Str::uuid(), (string) Str::uuid(), $extension);
-        $contents = $file->get();
-        $written = Storage::disk('secure_local')->put($storedPath, $contents);
+        $document = $this->files->write($file, $user, Document::CATEGORY_TEMPLATE_FILE);
 
-        abort_unless($written === true, 500, 'Template file could not be stored.');
+        abort_unless(
+            $document->scanner_result === Document::SCANNER_CLEAN,
+            422,
+            'Upload could not be virus-scanned. Please try again or contact support.',
+        );
 
         return [
             'source_kind' => 'uploaded_file',
             'uploaded_file' => [
-                'stored_path' => $storedPath,
-                'original_name' => $file->getClientOriginalName(),
-                'mime_type' => $file->getClientMimeType() ?: 'application/octet-stream',
+                'document_id' => (string) $document->getKey(),
+                'stored_path' => $document->stored_path,
+                'original_name' => $document->original_filename,
+                'mime_type' => $document->mime_type ?: 'application/octet-stream',
                 'extension' => $extension,
-                'byte_size' => strlen($contents),
-                'sha256' => hash('sha256', $contents),
+                'byte_size' => $document->byte_size,
+                'sha256' => $document->sha256,
                 'uploaded_at' => now()->toIso8601String(),
             ],
         ];
-    }
-
-    private function assertCleanUpload(UploadedFile $file): void
-    {
-        $realPath = $file->getRealPath();
-        abort_unless(
-            is_string($realPath) && is_file($realPath),
-            422,
-            'Uploaded file could not be read for malware scanning.',
-        );
-
-        $stream = fopen($realPath, 'rb');
-        abort_unless(is_resource($stream), 422, 'Uploaded file could not be opened for malware scanning.');
-
-        try {
-            $result = $this->scanner->scan($stream);
-        } finally {
-            fclose($stream);
-        }
-
-        abort_if($result->isInfected(), 422, 'Upload rejected because malware was detected.');
-        abort_if($result->isError(), 422, 'Upload could not be virus-scanned. Please try again or contact support.');
     }
 
     /**
