@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Ai\Claude;
 
+use App\Services\Ai\AiUsageRecorder;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
@@ -16,7 +17,12 @@ use JsonException;
 
 final class AnthropicClaudeClient implements AiClient
 {
-    public function __construct(private readonly IntegrationCredentials $credentials) {}
+    private const PROVIDER = 'anthropic';
+
+    public function __construct(
+        private readonly IntegrationCredentials $credentials,
+        private readonly AiUsageRecorder $usage,
+    ) {}
 
     public function analyse(PromptEnvelope $prompt): AiResponse
     {
@@ -78,6 +84,8 @@ final class AnthropicClaudeClient implements AiClient
         }
 
         $payload = $response->json();
+        $this->recordUsage($payload, $prompt, $task, $model);
+
         $text = $payload['content'][0]['text'] ?? null;
         if (! is_string($text) || $text === '') {
             throw new AiIntegrityViolation('Anthropic response did not contain structured text content.');
@@ -100,6 +108,33 @@ final class AnthropicClaudeClient implements AiClient
             promptHash: $prompt->hash(),
             tokensIn: (int) ($payload['usage']['input_tokens'] ?? 0),
             tokensOut: (int) ($payload['usage']['output_tokens'] ?? 0),
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $payload
+     */
+    private function recordUsage(?array $payload, PromptEnvelope $prompt, string $task, string $model): void
+    {
+        if ($payload === null) {
+            return;
+        }
+
+        $usage = $payload['usage'] ?? [];
+        if (! is_array($usage)) {
+            return;
+        }
+
+        $this->usage->record(
+            provider: self::PROVIDER,
+            task: $task,
+            model: $model,
+            promptVersion: $prompt->version,
+            promptHash: $prompt->hash(),
+            inputTokens: (int) ($usage['input_tokens'] ?? 0),
+            outputTokens: (int) ($usage['output_tokens'] ?? 0),
+            cacheCreationInputTokens: (int) ($usage['cache_creation_input_tokens'] ?? 0),
+            cacheReadInputTokens: (int) ($usage['cache_read_input_tokens'] ?? 0),
         );
     }
 

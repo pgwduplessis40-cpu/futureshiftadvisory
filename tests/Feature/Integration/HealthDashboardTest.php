@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Integration;
 
 use App\Console\Commands\AlertStuckRedIntegrations;
+use App\Models\AiUsageEvent;
 use App\Models\IntegrationHealthSample;
 use App\Models\User;
 use Carbon\CarbonInterface;
@@ -36,10 +37,17 @@ final class HealthDashboardTest extends TestCase
     public function test_advisor_can_view_latest_integration_health_samples(): void
     {
         $this->travelTo(now()->setMicrosecond(0));
+        config([
+            'ai.costs.monthly_budget_usd' => 1.0,
+            'ai.costs.usd_to_nzd_rate' => 1.7,
+        ]);
         $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'advisor@example.test');
         $this->sample('nzbn', IntegrationHealthSample::HEALTH_GREEN, now()->subMinutes(15), 1.0, 140);
         $this->sample('nzbn', IntegrationHealthSample::HEALTH_RED, now()->subMinutes(2), 0.40, 4200);
         $this->sample('ird', IntegrationHealthSample::HEALTH_AMBER, now()->subMinutes(3), 0.96, 2100);
+        $this->aiUsage('claude-sonnet-4-6', 1_000, 200, 0.006, now()->subHour());
+        $this->aiUsage('claude-sonnet-4-6', 2_000, 400, 0.012, now()->subDays(2));
+        $this->aiUsage('claude-sonnet-4-6', 5_000, 500, 0.0225, now()->subMonth());
 
         $this->actingAsMfa($advisor)
             ->get(route('admin.integration-health.index'))
@@ -54,7 +62,16 @@ final class HealthDashboardTest extends TestCase
                 ->where('services.0.health', IntegrationHealthSample::HEALTH_RED)
                 ->where('services.0.lag_seconds', 120)
                 ->where('services.0.fresh', true)
-                ->where('services.1.service', 'ird'));
+                ->where('services.1.service', 'ird')
+                ->where('aiUsage.today.requests', 1)
+                ->where('aiUsage.today.total_tokens', 1_200)
+                ->where('aiUsage.month.requests', 2)
+                ->where('aiUsage.month.total_tokens', 3_600)
+                ->where('aiUsage.month.estimated_cost_usd', 0.018)
+                ->where('aiUsage.currency.month_estimated_cost_nzd', 0.0306)
+                ->where('aiUsage.budget.status', 'within_budget')
+                ->where('aiUsage.breakdown.0.model', 'claude-sonnet-4-6')
+                ->where('aiUsage.breakdown.0.requests', 2));
     }
 
     public function test_client_users_cannot_view_integration_health_dashboard(): void
@@ -125,6 +142,24 @@ final class HealthDashboardTest extends TestCase
             'success_rate' => $successRate,
             'p95_latency_ms' => $p95LatencyMs,
             'health' => $health,
+        ]);
+    }
+
+    private function aiUsage(
+        string $model,
+        int $inputTokens,
+        int $outputTokens,
+        float $estimatedCostUsd,
+        CarbonInterface $occurredAt,
+    ): AiUsageEvent {
+        return AiUsageEvent::query()->create([
+            'provider' => 'anthropic',
+            'task' => 'analyse',
+            'model' => $model,
+            'input_tokens' => $inputTokens,
+            'output_tokens' => $outputTokens,
+            'estimated_cost_usd' => $estimatedCostUsd,
+            'occurred_at' => $occurredAt,
         ]);
     }
 }

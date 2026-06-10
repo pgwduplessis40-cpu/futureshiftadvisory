@@ -293,6 +293,19 @@ return [
                 ],
             ],
         ],
+        'anthropic_admin' => [
+            'display_name' => 'Anthropic Admin API',
+            'category' => 'ai',
+            'fallback_mode' => 'optional',
+            'managed_via' => 'vault',
+            'wiring_status' => 'wired',
+            'credentials' => [
+                'key' => [
+                    'config_path' => 'services.anthropic.admin_key',
+                    'env_fallback_path' => 'ANTHROPIC_ADMIN_API_KEY',
+                ],
+            ],
+        ],
         'stripe' => [
             'display_name' => 'Stripe',
             'category' => 'payments',

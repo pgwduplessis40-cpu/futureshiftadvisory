@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
 const IntegrationHealthController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ IntegrationHealthController.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
 IntegrationHealthController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ IntegrationHealthController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
 IntegrationHealthController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ IntegrationHealthController.get = (options?: RouteQueryOptions): RouteDefinition
 })
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
 IntegrationHealthController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ IntegrationHealthController.head = (options?: RouteQueryOptions): RouteDefinitio
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
     const IntegrationHealthControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ IntegrationHealthController.head = (options?: RouteQueryOptions): RouteDefinitio
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
         IntegrationHealthControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ IntegrationHealthController.head = (options?: RouteQueryOptions): RouteDefinitio
         })
             /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::__invoke
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:16
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:22
  * @route '/admin/integration-health'
  */
         IntegrationHealthControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

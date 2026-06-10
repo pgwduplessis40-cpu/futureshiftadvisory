@@ -1,8 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
 import {
     AlertTriangle,
+    BrainCircuit,
     CheckCircle2,
     Clock3,
+    CircleDollarSign,
     PlugZap,
     RotateCw,
     ShieldAlert,
@@ -37,6 +39,46 @@ type HealthAlert = {
     notified_at: string | null;
 };
 
+type AiUsagePeriod = {
+    requests: number;
+    input_tokens: number;
+    output_tokens: number;
+    total_tokens: number;
+    estimated_cost_usd: number;
+};
+
+type AiUsageBreakdown = AiUsagePeriod & {
+    model: string;
+};
+
+type AiUsage = {
+    today: AiUsagePeriod;
+    month: AiUsagePeriod;
+    budget: {
+        monthly_budget_usd: number | null;
+        remaining_usd: number | null;
+        percent_used: number | null;
+        status: 'not_set' | 'within_budget' | 'exceeded';
+    };
+    breakdown: AiUsageBreakdown[];
+    currency: {
+        base: 'USD';
+        nzd_rate: number | null;
+        today_estimated_cost_nzd: number | null;
+        month_estimated_cost_nzd: number | null;
+    };
+    official: {
+        configured: boolean;
+        status: 'ready_for_usage_cost_sync' | 'admin_api_key_missing';
+        month_cost_usd: number | null;
+        last_synced_at: string | null;
+    };
+    pricing: {
+        basis: string;
+        provider: string;
+    };
+};
+
 type Props = {
     summary: {
         total: number;
@@ -47,6 +89,7 @@ type Props = {
     };
     services: ServiceHealth[];
     recentAlerts: HealthAlert[];
+    aiUsage: AiUsage;
     generatedAt: string;
 };
 
@@ -54,6 +97,7 @@ export default function IntegrationHealthIndex({
     summary,
     services,
     recentAlerts,
+    aiUsage,
     generatedAt,
 }: Props) {
     return (
@@ -110,6 +154,166 @@ export default function IntegrationHealthIndex({
                         </div>
                     </div>
                 </header>
+
+                <section className="space-y-4 rounded-md border bg-background p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="flex items-center gap-2">
+                            <BrainCircuit
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            <h2 className="text-sm font-medium">
+                                AI usage & cost
+                            </h2>
+                        </div>
+                        <Badge
+                            variant={
+                                aiUsage.official.configured
+                                    ? 'secondary'
+                                    : 'outline'
+                            }
+                        >
+                            <CircleDollarSign
+                                className="size-3"
+                                aria-hidden="true"
+                            />
+                            {aiUsage.official.configured
+                                ? 'Admin API ready'
+                                : 'Estimated only'}
+                        </Badge>
+                    </div>
+
+                    <div className="grid gap-3 md:grid-cols-3">
+                        <Metric
+                            label="Today"
+                            value={formatCurrency(
+                                aiUsage.today.estimated_cost_usd,
+                            )}
+                            explanation={`${formatNumber(aiUsage.today.total_tokens)} tokens across ${aiUsage.today.requests} AI calls today.`}
+                        />
+                        <Metric
+                            label="Month to date"
+                            value={formatCurrency(
+                                aiUsage.month.estimated_cost_usd,
+                            )}
+                            explanation={`${formatNumber(aiUsage.month.total_tokens)} tokens across ${aiUsage.month.requests} AI calls this month.`}
+                        />
+                        <Metric
+                            label="Budget"
+                            value={budgetValue(aiUsage)}
+                            explanation={budgetExplanation(aiUsage)}
+                        />
+                    </div>
+
+                    <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
+                        <div className="overflow-hidden rounded-md border">
+                            <table className="w-full text-sm">
+                                <thead className="bg-muted/60 text-left">
+                                    <tr>
+                                        <th className="px-3 py-2 font-medium">
+                                            Model
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Calls
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Tokens
+                                        </th>
+                                        <th className="px-3 py-2 font-medium">
+                                            Est. cost
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {aiUsage.breakdown.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                className="px-3 py-8 text-sm text-muted-foreground"
+                                                colSpan={4}
+                                            >
+                                                No AI usage recorded this month.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        aiUsage.breakdown.map((model) => (
+                                            <tr
+                                                key={model.model}
+                                                className="border-t"
+                                            >
+                                                <td className="px-3 py-2 font-medium">
+                                                    {model.model}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {model.requests}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {formatNumber(
+                                                        model.total_tokens,
+                                                    )}
+                                                </td>
+                                                <td className="px-3 py-2">
+                                                    {formatCurrency(
+                                                        model.estimated_cost_usd,
+                                                    )}
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <div className="space-y-3 rounded-md border p-3 text-sm">
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Input tokens
+                                </span>
+                                <span className="font-medium">
+                                    {formatNumber(aiUsage.month.input_tokens)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Output tokens
+                                </span>
+                                <span className="font-medium">
+                                    {formatNumber(aiUsage.month.output_tokens)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    NZD estimate
+                                </span>
+                                <span className="font-medium">
+                                    {aiUsage.currency
+                                        .month_estimated_cost_nzd === null
+                                        ? 'Set rate'
+                                        : formatCurrency(
+                                              aiUsage.currency
+                                                  .month_estimated_cost_nzd,
+                                              'NZD',
+                                          )}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Official billing
+                                </span>
+                                <Badge
+                                    variant={
+                                        aiUsage.official.configured
+                                            ? 'secondary'
+                                            : 'outline'
+                                    }
+                                >
+                                    {aiUsage.official.configured
+                                        ? 'Key configured'
+                                        : 'Key missing'}
+                                </Badge>
+                            </div>
+                        </div>
+                    </div>
+                </section>
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex items-center justify-between gap-3">
@@ -256,7 +460,7 @@ function Metric({
     explanation,
 }: {
     label: string;
-    value: number;
+    value: number | string;
     explanation: string;
 }) {
     return (
@@ -298,6 +502,44 @@ function healthVariant(
 
 function formatPercent(value: number): string {
     return `${Math.round(value * 1000) / 10}%`;
+}
+
+function formatNumber(value: number): string {
+    return new Intl.NumberFormat().format(value);
+}
+
+function formatCurrency(value: number, currency = 'USD'): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: value >= 1 ? 2 : 4,
+    }).format(value);
+}
+
+function budgetValue(aiUsage: AiUsage): string {
+    if (aiUsage.budget.monthly_budget_usd === null) {
+        return 'Not set';
+    }
+
+    if (aiUsage.budget.percent_used === null) {
+        return formatCurrency(aiUsage.budget.monthly_budget_usd);
+    }
+
+    return formatPercent(aiUsage.budget.percent_used);
+}
+
+function budgetExplanation(aiUsage: AiUsage): string {
+    if (aiUsage.budget.monthly_budget_usd === null) {
+        return 'Set AI_MONTHLY_BUDGET_USD to show budget use and overrun warnings.';
+    }
+
+    const remaining = aiUsage.budget.remaining_usd ?? 0;
+
+    if (aiUsage.budget.status === 'exceeded') {
+        return `Monthly budget exceeded by ${formatCurrency(Math.abs(remaining))}.`;
+    }
+
+    return `${formatCurrency(remaining)} remaining from the monthly AI budget.`;
 }
 
 function formatLag(value: number | null): string {
