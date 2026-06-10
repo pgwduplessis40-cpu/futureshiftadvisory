@@ -61,6 +61,23 @@ final class IntegrationActivationResolverTest extends TestCase
         $this->assertTrue(app(IntegrationActivationResolver::class)->isLive('stats_nz'));
     }
 
+    public function test_companies_entity_role_search_accepts_legacy_companies_office_key(): void
+    {
+        config([
+            'integrations.companies_entity_role_search.live' => true,
+            'integrations.companies_entity_role_search.api_key' => null,
+            'integrations.companies_office.api_key' => null,
+        ]);
+
+        app(IntegrationCredentials::class)->set('companies_office', 'api_key', 'legacy-role-search-key', $this->admin());
+
+        $resolver = app(IntegrationActivationResolver::class);
+
+        $this->assertTrue($resolver->credentialsReady('companies_entity_role_search'));
+        $this->assertTrue($resolver->readiness('companies_entity_role_search'));
+        $this->assertTrue($resolver->isLive('companies_entity_role_search'));
+    }
+
     public function test_activation_is_blocked_until_exact_required_credentials_are_present(): void
     {
         config([

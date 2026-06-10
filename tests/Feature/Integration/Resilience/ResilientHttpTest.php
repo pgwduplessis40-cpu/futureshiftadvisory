@@ -8,6 +8,7 @@ use App\Models\IntegrationCall;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Resilience\RetryPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -102,5 +103,26 @@ final class ResilientHttpTest extends TestCase
             'status' => IntegrationCall::STATUS_CACHED,
             'attempt' => 0,
         ]);
+    }
+
+    public function test_get_passes_custom_headers_to_provider(): void
+    {
+        Config::set('integrations.retry.attempts', 1);
+        app()->forgetInstance(RetryPolicy::class);
+        app()->forgetInstance(ResilientHttp::class);
+
+        Http::fake(fn () => Http::response(['ok' => true], 200));
+
+        $result = app(ResilientHttp::class)->get(
+            service: 'nzbn',
+            endpoint: 'https://api.business.govt.nz/sandbox/nzbn/v5/entities/9429000000000',
+            headers: [
+                'Ocp-Apim-Subscription-Key' => 'subscription-key',
+                'Accept' => 'application/json',
+            ],
+        );
+
+        $this->assertTrue($result->successful());
+        Http::assertSent(fn (Request $request): bool => $request->hasHeader('Ocp-Apim-Subscription-Key', 'subscription-key'));
     }
 }

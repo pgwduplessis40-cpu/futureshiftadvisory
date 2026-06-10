@@ -12,6 +12,10 @@ use App\Services\Integration\Cin7\Contracts\Cin7Client;
 use App\Services\Integration\Cin7\FakeCin7Client;
 use App\Services\Integration\Cin7\FallbackCin7Client;
 use App\Services\Integration\Cin7\LiveCin7Client;
+use App\Services\Integration\CompaniesEntityRoleSearch\Contracts\CompaniesEntityRoleSearchClient;
+use App\Services\Integration\CompaniesEntityRoleSearch\FakeCompaniesEntityRoleSearchClient;
+use App\Services\Integration\CompaniesEntityRoleSearch\FallbackCompaniesEntityRoleSearchClient;
+use App\Services\Integration\CompaniesEntityRoleSearch\LiveCompaniesEntityRoleSearchClient;
 use App\Services\Integration\CompaniesOffice\Contracts\CompaniesOfficeClient;
 use App\Services\Integration\CompaniesOffice\FakeCompaniesOfficeClient;
 use App\Services\Integration\CompaniesOffice\FallbackCompaniesOfficeClient;
@@ -64,6 +68,8 @@ use App\Services\Integration\NzParliament\Contracts\NzParliamentClient;
 use App\Services\Integration\NzParliament\FakeNzParliamentClient;
 use App\Services\Integration\Ppsr\Contracts\PpsrClient;
 use App\Services\Integration\Ppsr\FakePpsrClient;
+use App\Services\Integration\Ppsr\FallbackPpsrClient;
+use App\Services\Integration\Ppsr\LivePpsrClient;
 use App\Services\Integration\QuickBooks\Contracts\QuickBooksClient;
 use App\Services\Integration\QuickBooks\FakeQuickBooksClient;
 use App\Services\Integration\QuickBooks\FallbackQuickBooksClient;
@@ -114,7 +120,6 @@ final class IntegrationServiceProvider extends ServiceProvider
      * @var array<class-string, class-string>
      */
     private array $scaffolds = [
-        PpsrClient::class => FakePpsrClient::class,
         LinzClient::class => FakeLinzClient::class,
         IponzClient::class => FakeIponzClient::class,
         NzParliamentClient::class => FakeNzParliamentClient::class,
@@ -140,6 +145,16 @@ final class IntegrationServiceProvider extends ServiceProvider
         $this->app->singleton(LiveCompaniesOfficeClient::class);
         $this->app->singleton(FallbackCompaniesOfficeClient::class);
         $this->app->singleton(CompaniesOfficeClient::class, FallbackCompaniesOfficeClient::class);
+
+        $this->app->singleton(FakeCompaniesEntityRoleSearchClient::class);
+        $this->app->singleton(LiveCompaniesEntityRoleSearchClient::class);
+        $this->app->singleton(FallbackCompaniesEntityRoleSearchClient::class);
+        $this->app->singleton(CompaniesEntityRoleSearchClient::class, FallbackCompaniesEntityRoleSearchClient::class);
+
+        $this->app->singleton(FakePpsrClient::class);
+        $this->app->singleton(LivePpsrClient::class);
+        $this->app->singleton(FallbackPpsrClient::class);
+        $this->app->singleton(PpsrClient::class, FallbackPpsrClient::class);
 
         $this->app->singleton(FakeCharitiesServicesClient::class);
         $this->app->singleton(LiveCharitiesServicesClient::class);

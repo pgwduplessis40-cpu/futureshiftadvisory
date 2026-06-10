@@ -21,4 +21,18 @@ final class FakePpsrClient implements PpsrClient
             ],
         ];
     }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function fallbackSecurityInterests(string $nzbn): array
+    {
+        return collect($this->securityInterests($nzbn))
+            ->map(fn (array $record): array => [
+                ...$record,
+                'source_badge' => 'stub_live_fallback',
+                'degraded' => true,
+            ])
+            ->all();
+    }
 }

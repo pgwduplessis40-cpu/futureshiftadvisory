@@ -19,7 +19,7 @@ return [
             ],
         ],
         'companies_office' => [
-            'display_name' => 'Companies Office',
+            'display_name' => 'Companies Office public data (via NZBN)',
             'category' => 'registers',
             'fallback_mode' => 'manual',
             'managed_via' => 'vault',
@@ -29,6 +29,20 @@ return [
                 'api_key' => [
                     'config_path' => 'integrations.companies_office.api_key',
                     'env_fallback_path' => 'COMPANIES_OFFICE_API_KEY',
+                ],
+            ],
+        ],
+        'companies_entity_role_search' => [
+            'display_name' => 'Companies Entity Role Search',
+            'category' => 'registers',
+            'fallback_mode' => 'manual',
+            'managed_via' => 'vault',
+            'wiring_status' => 'wired',
+            'live_config_path' => 'integrations.companies_entity_role_search.live',
+            'credentials' => [
+                'api_key' => [
+                    'config_path' => 'integrations.companies_entity_role_search.api_key',
+                    'env_fallback_path' => 'COMPANIES_ENTITY_ROLE_SEARCH_API_KEY',
                 ],
             ],
         ],
@@ -117,18 +131,12 @@ return [
             ],
         ],
         'fsp' => [
-            'display_name' => 'FSP',
+            'display_name' => 'FSPR bulk data / manual',
             'category' => 'registers',
             'fallback_mode' => 'manual',
-            'managed_via' => 'vault',
-            'wiring_status' => 'wired',
-            'live_config_path' => 'integrations.fsp.live',
-            'credentials' => [
-                'api_key' => [
-                    'config_path' => 'integrations.fsp.api_key',
-                    'env_fallback_path' => 'FSP_API_KEY',
-                ],
-            ],
+            'managed_via' => 'manual',
+            'wiring_status' => 'not_wired',
+            'credentials' => [],
         ],
         'community_matters_cogs' => [
             'display_name' => 'Community Matters COGS',
@@ -469,8 +477,14 @@ return [
             'category' => 'registers',
             'fallback_mode' => 'manual',
             'managed_via' => 'vault',
-            'wiring_status' => 'not_wired',
-            'credentials' => ['api_key' => ['config_path' => null, 'env_fallback_path' => null]],
+            'wiring_status' => 'wired',
+            'live_config_path' => 'integrations.ppsr.live',
+            'credentials' => [
+                'api_key' => [
+                    'config_path' => 'integrations.ppsr.api_key',
+                    'env_fallback_path' => 'PPSR_API_KEY',
+                ],
+            ],
         ],
         'linz' => [
             'display_name' => 'LINZ',

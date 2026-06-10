@@ -14,6 +14,7 @@ use App\Services\Integration\Nzbn\LiveNzbnClient;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Resilience\RetryPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -54,6 +55,7 @@ final class NzbnLookupTest extends TestCase
     {
         Config::set('integrations.nzbn.live', true);
         Config::set('integrations.nzbn.api_key', 'nzbn-test-key');
+        Config::set('integrations.nzbn.base_url', 'https://api.business.govt.nz/sandbox/nzbn/v5');
         $this->forgetNzbnClients();
 
         Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
@@ -65,6 +67,8 @@ final class NzbnLookupTest extends TestCase
         $this->assertTrue($result['degraded']);
         $this->assertArrayHasKey('correlation_id', $result);
         Http::assertSentCount(1);
+        Http::assertSent(fn (Request $request): bool => $request->hasHeader('Ocp-Apim-Subscription-Key', 'nzbn-test-key')
+            && $request->url() === 'https://api.business.govt.nz/sandbox/nzbn/v5/entities/9429000000000');
 
         $this->assertDatabaseHas('integration_calls', [
             'service' => 'nzbn',
@@ -82,6 +86,7 @@ final class NzbnLookupTest extends TestCase
     {
         Config::set('integrations.nzbn.live', true);
         Config::set('integrations.nzbn.api_key', 'nzbn-test-key');
+        Config::set('integrations.nzbn.base_url', 'https://api.business.govt.nz/sandbox/nzbn/v5');
         Cache::put('integration:nzbn:9429000000000', [
             'status_code' => 200,
             'json' => [
@@ -110,11 +115,36 @@ final class NzbnLookupTest extends TestCase
         ]);
     }
 
+    public function test_live_mode_normalises_current_nzbn_v5_response_shape(): void
+    {
+        Config::set('integrations.nzbn.live', true);
+        Config::set('integrations.nzbn.api_key', 'nzbn-test-key');
+        Config::set('integrations.nzbn.base_url', 'https://api.business.govt.nz/sandbox/nzbn/v5');
+        $this->forgetNzbnClients();
+
+        Http::fake(fn () => Http::response([
+            'nzbn' => '9429000106078',
+            'entityName' => 'Sandbox Registry Limited',
+            'entityTypeDescription' => 'NZ Limited Company',
+            'entityStatusDescription' => 'Registered',
+            'registeredAddress' => ['line1' => '1 Test Street'],
+        ], 200));
+
+        $result = app(NzbnClient::class)->lookupByNzbn('9429000106078');
+
+        $this->assertSame('Sandbox Registry Limited', $result['entity_name']);
+        $this->assertSame('NZ Limited Company', $result['entity_type']);
+        $this->assertSame('Registered', $result['status']);
+        $this->assertSame('live', $result['source_badge']);
+        $this->assertFalse($result['degraded']);
+    }
+
     public function test_named_integration_scaffolds_have_interface_and_stub_files(): void
     {
         $scaffolds = [
             ['Nzbn/Contracts/NzbnClient.php', 'Nzbn/FakeNzbnClient.php'],
             ['CompaniesOffice/Contracts/CompaniesOfficeClient.php', 'CompaniesOffice/FakeCompaniesOfficeClient.php'],
+            ['CompaniesEntityRoleSearch/Contracts/CompaniesEntityRoleSearchClient.php', 'CompaniesEntityRoleSearch/FakeCompaniesEntityRoleSearchClient.php'],
             ['Ird/Contracts/IrdClient.php', 'Ird/FakeIrdClient.php'],
             ['Fsp/Contracts/FspClient.php', 'Fsp/FakeFspClient.php'],
             ['Ppsr/Contracts/PpsrClient.php', 'Ppsr/FakePpsrClient.php'],

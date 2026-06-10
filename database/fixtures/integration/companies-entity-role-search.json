@@ -1,0 +1,23 @@
+{
+  "smith": {
+    "name": "Smith",
+    "role_type": "DIR",
+    "registered_only": true,
+    "items": [
+      {
+        "name": "Belinda Jane Smith",
+        "role_type": "DIR",
+        "company_name": "Future Shift Advisory Test Limited",
+        "nzbn": "9429000000000",
+        "company_number": "9999999",
+        "status": "Registered"
+      }
+    ]
+  },
+  "default": {
+    "name": "default",
+    "role_type": "ALL",
+    "registered_only": true,
+    "items": []
+  }
+}

@@ -41,7 +41,7 @@ final class IntegrationActivationResolver
         $fields = $this->registry->credentialFields($integrationKey);
 
         foreach ($fields as $field) {
-            if (! $this->credentials->present($integrationKey, $field)) {
+            if (! $this->credentialPresent($integrationKey, $field)) {
                 return false;
             }
         }
@@ -164,6 +164,18 @@ final class IntegrationActivationResolver
             'mail_delivery' => $this->mailReady((string) Config::get('mail.default', 'log')),
             'logging_slack' => filled(Config::get('logging.channels.slack.url')),
             default => $this->environmentCredentialsReady($integrationKey),
+        };
+    }
+
+    private function credentialPresent(string $integrationKey, string $field): bool
+    {
+        if ($this->credentials->present($integrationKey, $field)) {
+            return true;
+        }
+
+        return match ([$integrationKey, $field]) {
+            ['companies_entity_role_search', 'api_key'] => $this->credentials->present('companies_office', 'api_key'),
+            default => false,
         };
     }
 

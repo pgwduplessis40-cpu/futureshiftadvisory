@@ -24,7 +24,7 @@ This folder holds Architecture Decision Records (ADRs) and topic-specific archit
 | `terms-versioning.md` | WO-10 | Terms versions, clause editing, material publish re-acceptance seam |
 | `terms-acceptance.md` | WO-11 | Authenticated T&C gate, signed PDF evidence, decline suspension |
 | `notifications.md` | WO-12 | Channel preferences, notification decision ledger, digest jobs |
-| `nz-integrations.md` | WO-13 | NZBN, Companies Office, IRD clients and empty named integration scaffolds |
+| `nz-integrations.md` | WO-13 | NZBN, Companies Entity Role Search, PPSR, IRD clients and named integration scaffolds |
 | `client-management.md` | WO-14 | Client creation, engagement type, NZBN population, conflict declaration gate |
 | `entrepreneur-profiles.md` | WO-15 | Basic entrepreneur profiles, invite handoff, Phase 1 capacity gates |
 | `client-portal.md` | WO-16 | Client portal shell, onboarding wizard state, questionnaire placeholders |

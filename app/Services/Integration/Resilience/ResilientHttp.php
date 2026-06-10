@@ -22,6 +22,7 @@ final class ResilientHttp
 
     /**
      * @param  array<string, mixed>  $query
+     * @param  array<string, string>  $headers
      */
     public function get(
         string $service,
@@ -29,12 +30,21 @@ final class ResilientHttp
         array $query = [],
         ?string $cacheKey = null,
         ?callable $fallback = null,
+        array $headers = [],
     ): IntegrationResult {
+        $options = [];
+        if ($query !== []) {
+            $options['query'] = $query;
+        }
+        if ($headers !== []) {
+            $options['headers'] = $headers;
+        }
+
         return $this->request(
             method: 'GET',
             service: $service,
             endpoint: $endpoint,
-            options: $query === [] ? [] : ['query' => $query],
+            options: $options,
             cacheKey: $cacheKey,
             fallback: $fallback,
         );
@@ -42,6 +52,7 @@ final class ResilientHttp
 
     /**
      * @param  array<string, mixed>  $payload
+     * @param  array<string, string>  $headers
      */
     public function post(
         string $service,
@@ -49,12 +60,21 @@ final class ResilientHttp
         array $payload = [],
         ?string $cacheKey = null,
         ?callable $fallback = null,
+        array $headers = [],
     ): IntegrationResult {
+        $options = [];
+        if ($payload !== []) {
+            $options['json'] = $payload;
+        }
+        if ($headers !== []) {
+            $options['headers'] = $headers;
+        }
+
         return $this->request(
             method: 'POST',
             service: $service,
             endpoint: $endpoint,
-            options: $payload === [] ? [] : ['json' => $payload],
+            options: $options,
             cacheKey: $cacheKey,
             fallback: $fallback,
         );

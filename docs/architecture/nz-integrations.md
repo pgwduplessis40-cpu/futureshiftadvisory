@@ -9,6 +9,8 @@ The active Phase 1 clients are:
 - `NzbnClient::lookupByNzbn(string $nzbn)`
 - `CompaniesOfficeClient::companyProfile(string $nzbn)`
 - `CompaniesOfficeClient::directorsForCompany(string $nzbn)`
+- `CompaniesEntityRoleSearchClient::search(string $name, string $roleType = 'ALL')`
+- `PpsrClient::securityInterests(string $nzbn)`
 - `IrdClient::gstStatus(string $nzbn)`
 - `FspClient::lookup(string $fspNumber)` (WO-71 broker panel validation)
 
@@ -22,16 +24,23 @@ Live mode is controlled by:
 
 - `FEATURE_NZBN_LIVE`
 - `FEATURE_COMPANIES_OFFICE_LIVE`
+- `FEATURE_COMPANIES_ENTITY_ROLE_SEARCH_LIVE`
+- `FEATURE_PPSR_LIVE`
 - `FEATURE_IRD_LIVE`
-- `FEATURE_FSP_LIVE`
 
 When a live flag is on but no credential is configured, the live client still routes through `ResilientHttp`. The call fails into the WO-05 resilience ledger, then returns cached data if available or the fixture-backed stub with a `source_badge` of `stub_live_fallback`.
+
+MBIE confirmed that public company profile, directors, shareholdings, registration status, and Incorporated Societies public data should be sourced through the NZBN API rather than the Companies API. The live `CompaniesOfficeClient` therefore uses the NZBN subscription-key gateway and exists as a compatibility adapter for older application call sites. Companies Entity Role Search is a separate live client for director/shareholder name searches.
+
+PPSR live support is wired for debtor-organisation searches via `financing-statements-search`, but fee-bearing search use still depends on the PPSR sandbox/production organisation setup and direct-debit approval steps. Until those prerequisites are complete, PPSR degrades through the resilience layer to fixtures.
+
+MBIE also confirmed there is no FSPR API. Broker FSP checks remain fixture/manual/bulk-data backed until a monthly FSPR bulk data import is added.
 
 ## Fixture data
 
 Stub data lives in `database/fixtures/integration/*.json`.
 
-The known test NZBN is `9429000000000`, which resolves to canned NZBN, Companies Office, and IRD/GST records. The known broker FSP fixtures are `FSP100001` (current) and `FSP999999` (lapsed). Stub payloads include:
+The known test NZBN is `9429000000000`, which resolves to canned NZBN, Companies Office, PPSR, and IRD/GST records. The known broker FSP fixtures are `FSP100001` (current) and `FSP999999` (lapsed). Stub payloads include:
 
 - `source_badge` for UI/source stamping
 - `degraded` when the response came from fallback or a missing fixture
@@ -39,13 +48,14 @@ The known test NZBN is `9429000000000`, which resolves to canned NZBN, Companies
 
 ## Empty named scaffolds
 
-WO-13 also creates interface plus fake class files for the remaining planned integrations: PPSR, LINZ, IPONZ, Stats NZ, RBNZ, MBIE, NZ Parliament, WorkSafe, Stripe, Windcave, Xero, MYOB, QuickBooks, SES/SendGrid, Whisper, Google Calendar, and Microsoft Graph.
+WO-13 also creates interface plus fake class files for the remaining planned integrations: LINZ, IPONZ, Stats NZ, RBNZ, MBIE, NZ Parliament, WorkSafe, Stripe, Windcave, Xero, MYOB, QuickBooks, SES/SendGrid, Whisper, Google Calendar, and Microsoft Graph.
 
 These files intentionally contain no behavior. Future WOs should fill in methods only when a product flow needs them, and live network calls must still use `ResilientHttp`.
 
-FSP is no longer an empty scaffold after WO-71. It has fixture, live, and
-fallback clients and is used by the broker portal approval and re-verification
-flow.
+FSP is no longer an empty scaffold after WO-71. It has fixture and fallback
+clients and is used by the broker portal approval and re-verification flow.
+There is no FSPR live API; future live updates should come from an approved bulk
+data import process.
 
 ## NZ business tools
 

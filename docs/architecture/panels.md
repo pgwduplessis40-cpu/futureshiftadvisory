@@ -68,8 +68,10 @@ Coach referrals use the coach lifecycle added in WO-72:
 
 Broker applications must include an FSP number. `PanelOnboarding::approve()`
 delegates broker approvals to `BrokerFspVerifier`, which looks up the FSP
-record through `FspClient`. Live mode routes through `ResilientHttp`; local and
-test environments use `database/fixtures/integration/fsp.json`.
+record through `FspClient`. MBIE confirmed there is no FSPR API, so local/test
+mode uses `database/fixtures/integration/fsp.json` and production should move to
+an approved monthly FSPR bulk data import or manual verification source rather
+than live API calls.
 
 Approval is blocked unless the FSP status is current. The generated panel
 agreement stores broker-specific clauses requiring the FSP registration to stay

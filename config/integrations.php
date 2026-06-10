@@ -2,6 +2,9 @@
 
 declare(strict_types=1);
 
+$mbieGatewaySegment = (string) env('MBIE_API_GATEWAY_SEGMENT', env('APP_ENV') === 'production' ? 'gateway' : 'sandbox');
+$mbieGatewayBaseUrl = 'https://api.business.govt.nz/'.trim($mbieGatewaySegment, '/');
+
 return [
     'retry' => [
         'attempts' => (int) env('INTEGRATION_RETRY_ATTEMPTS', 3),
@@ -33,14 +36,21 @@ return [
 
     'nzbn' => [
         'live' => (bool) env('FEATURE_NZBN_LIVE', false),
-        'base_url' => env('NZBN_BASE_URL', 'https://api.business.govt.nz/services/v4'),
+        'base_url' => env('NZBN_BASE_URL', "{$mbieGatewayBaseUrl}/nzbn/v5"),
         'api_key' => env('NZBN_API_KEY'),
     ],
 
     'companies_office' => [
         'live' => (bool) env('FEATURE_COMPANIES_OFFICE_LIVE', false),
-        'base_url' => env('COMPANIES_OFFICE_BASE_URL', 'https://api.business.govt.nz/services/v1/companies'),
+        'base_url' => env('COMPANIES_OFFICE_BASE_URL', "{$mbieGatewayBaseUrl}/nzbn/v5"),
         'api_key' => env('COMPANIES_OFFICE_API_KEY'),
+    ],
+
+    'companies_entity_role_search' => [
+        'live' => (bool) env('FEATURE_COMPANIES_ENTITY_ROLE_SEARCH_LIVE', false),
+        'base_url' => env('COMPANIES_ENTITY_ROLE_SEARCH_BASE_URL', "{$mbieGatewayBaseUrl}/companies-entity-role-search/v3"),
+        'search_path' => env('COMPANIES_ENTITY_ROLE_SEARCH_PATH', ''),
+        'api_key' => env('COMPANIES_ENTITY_ROLE_SEARCH_API_KEY'),
     ],
 
     'charities_services' => [
@@ -87,7 +97,7 @@ return [
 
     'incorporated_societies' => [
         'live' => (bool) env('FEATURE_INCORPORATED_SOCIETIES_LIVE', false),
-        'base_url' => env('INCORPORATED_SOCIETIES_BASE_URL', 'https://api.business.govt.nz/services/v1/incorporated-societies'),
+        'base_url' => env('INCORPORATED_SOCIETIES_BASE_URL', "{$mbieGatewayBaseUrl}/nzbn/v5"),
         'scrape_url' => env('INCORPORATED_SOCIETIES_SCRAPE_URL', 'https://is-register.companiesoffice.govt.nz'),
         'api_key' => env('INCORPORATED_SOCIETIES_API_KEY'),
     ],
@@ -133,6 +143,14 @@ return [
         'live' => (bool) env('FEATURE_FSP_LIVE', false),
         'base_url' => env('FSP_BASE_URL', 'https://api.fsp-register.govt.nz'),
         'api_key' => env('FSP_API_KEY'),
+    ],
+
+    'ppsr' => [
+        'live' => (bool) env('FEATURE_PPSR_LIVE', false),
+        'base_url' => env('PPSR_BASE_URL', "{$mbieGatewayBaseUrl}/ppsr"),
+        'security_interests_path' => env('PPSR_SECURITY_INTERESTS_PATH', 'financing-statements-search'),
+        'api_key' => env('PPSR_API_KEY'),
+        'oauth_token' => env('PPSR_OAUTH_TOKEN'),
     ],
 
     'accounting' => [
