@@ -75,6 +75,29 @@ final class ReferenceDataFreshnessTest extends TestCase
         $this->assertIsArray($task);
         $this->assertSame(ReferenceDataFreshness::STATUS_OVERDUE, $task['status']);
         $this->assertSame('2026-02-15', $task['due_at']);
+        $this->assertStringContainsString('target=economic_indicator%3Aocr', $task['action_url']);
+    }
+
+    public function test_record_targets_expose_each_dashboard_series(): void
+    {
+        $targets = app(ReferenceDataFreshness::class)->recordTargets();
+
+        $this->assertCount(7, $targets);
+        $this->assertSame([
+            'economic_indicator:ocr',
+            'economic_indicator:cpi_annual',
+            'economic_indicator:gdp_quarterly',
+            'economic_indicator:unemployment_rate',
+            'valuation_multiple',
+            'industry_wacc',
+            'cpb_benchmark',
+        ], collect($targets)->pluck('key')->all());
+
+        $gdp = collect($targets)->firstWhere('key', 'economic_indicator:gdp_quarterly');
+
+        $this->assertSame(ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR, $gdp['dataset'] ?? null);
+        $this->assertSame(EconomicIndicator::GDP_QUARTERLY, $gdp['indicator'] ?? null);
+        $this->assertSame('GDP quarterly', $gdp['label'] ?? null);
     }
 
     public function test_freshness_command_sends_due_notifications_and_clears_resolved_task(): void

@@ -51,6 +51,22 @@ final class ReferenceDataFreshness
     }
 
     /**
+     * @return array<int, array<string, mixed>>
+     */
+    public function recordTargets(): array
+    {
+        return collect($this->definitions())
+            ->map(fn (array $definition): array => [
+                'key' => (string) $definition['key'],
+                'dataset' => (string) $definition['dataset'],
+                'indicator' => isset($definition['indicator']) ? (string) $definition['indicator'] : null,
+                'label' => (string) $definition['label'],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
      * @return Collection<int, array<string, mixed>>
      */
     public function tasks(?CarbonInterface $at = null): Collection
@@ -176,7 +192,7 @@ final class ReferenceDataFreshness
             'due_at' => $dueAt?->toDateString(),
             'source' => $entry?->source,
             'entry_id' => $entry?->id,
-            'action_url' => route('admin.reference-data.index', absolute: false),
+            'action_url' => route('admin.reference-data.index', ['target' => (string) $definition['key']], false),
         ];
     }
 

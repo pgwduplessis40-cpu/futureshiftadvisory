@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::index
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:36
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:37
  * @route '/admin/reference-data'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:45
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:47
  * @route '/admin/reference-data'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:45
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:47
  * @route '/admin/reference-data'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:45
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:47
  * @route '/admin/reference-data'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:45
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:47
  * @route '/admin/reference-data'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::store
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:45
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:47
  * @route '/admin/reference-data'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

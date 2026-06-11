@@ -13,6 +13,7 @@ use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Models\ValuationMultiple;
 use App\Services\Learning\LayerCadenceRegistry;
+use App\Services\ReferenceData\ReferenceDataFreshness;
 use App\Services\ReferenceData\ReferenceDataSubmission;
 use App\Services\Storage\Exceptions\InfectedFileException;
 use App\Services\Storage\Exceptions\SecureFileStorageException;
@@ -33,10 +34,11 @@ use ZipArchive;
 
 final class ReferenceDataController extends Controller
 {
-    public function index(): Response
+    public function index(ReferenceDataFreshness $freshness): Response
     {
         return Inertia::render('admin/reference-data/Index', [
             'datasets' => ReferenceDataEntry::datasets(),
+            'recordTargets' => $freshness->recordTargets(),
             'currentValues' => $this->currentValues(),
             'entries' => $this->entryRows(),
         ]);

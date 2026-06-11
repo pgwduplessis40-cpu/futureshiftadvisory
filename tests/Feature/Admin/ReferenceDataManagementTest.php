@@ -30,6 +30,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class ReferenceDataManagementTest extends TestCase
@@ -97,6 +98,23 @@ final class ReferenceDataManagementTest extends TestCase
             'action' => 'reference_data.submitted',
             'subject_id' => $entry->id,
         ]);
+    }
+
+    public function test_reference_data_page_exposes_dashboard_record_targets(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.index', ['target' => 'economic_indicator:gdp_quarterly']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/reference-data/Index')
+                ->where('recordTargets.0.key', 'economic_indicator:ocr')
+                ->where('recordTargets.2.key', 'economic_indicator:gdp_quarterly')
+                ->where('recordTargets.2.dataset', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR)
+                ->where('recordTargets.2.indicator', EconomicIndicator::GDP_QUARTERLY)
+                ->where('recordTargets.4.key', ReferenceDataEntry::DATASET_VALUATION_MULTIPLE)
+                ->where('datasets.0', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR));
     }
 
     public function test_rejected_reference_data_never_projects(): void

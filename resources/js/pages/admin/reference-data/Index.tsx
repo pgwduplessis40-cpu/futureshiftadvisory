@@ -1,6 +1,6 @@
 import { Head, useForm } from '@inertiajs/react';
 import { DatabaseZap, Send, Upload } from 'lucide-react';
-import type { FormEvent } from 'react';
+import { useState, type FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -33,8 +33,16 @@ type CurrentValue = {
     source: string;
 };
 
+type RecordTarget = {
+    key: string;
+    dataset: string;
+    indicator: string | null;
+    label: string;
+};
+
 type Props = {
     datasets: string[];
+    recordTargets: RecordTarget[];
     currentValues: CurrentValue[];
     entries: ReferenceDataEntry[];
 };
@@ -89,11 +97,66 @@ const samplePayloads: Record<string, string> = {
     ),
 };
 
+const targetPayloads: Record<string, string> = {
+    'economic_indicator:ocr': JSON.stringify(
+        {
+            indicator: 'ocr',
+            label: 'OCR reference rate',
+            value: 5.25,
+            unit: 'percent',
+            period_date: '2026-06-01',
+        },
+        null,
+        2,
+    ),
+    'economic_indicator:cpi_annual': JSON.stringify(
+        {
+            indicator: 'cpi_annual',
+            label: 'CPI annual',
+            value: 3.4,
+            unit: 'percent',
+            period_date: '2026-06-01',
+        },
+        null,
+        2,
+    ),
+    'economic_indicator:gdp_quarterly': JSON.stringify(
+        {
+            indicator: 'gdp_quarterly',
+            label: 'GDP quarterly',
+            value: 0.7,
+            unit: 'percent_quarterly_change',
+            period_date: '2026-06-01',
+        },
+        null,
+        2,
+    ),
+    'economic_indicator:unemployment_rate': JSON.stringify(
+        {
+            indicator: 'unemployment_rate',
+            label: 'Unemployment rate',
+            value: 4.8,
+            unit: 'percent',
+            period_date: '2026-06-01',
+        },
+        null,
+        2,
+    ),
+};
+
 export default function ReferenceDataIndex({
     datasets,
+    recordTargets,
     currentValues,
     entries,
 }: Props) {
+    const initialTarget = initialRecordTarget(recordTargets, datasets);
+    const initialDataset =
+        initialTarget?.dataset ?? datasets[0] ?? 'economic_indicator';
+    const [selectedTargetKey, setSelectedTargetKey] = useState(
+        initialTarget?.key ?? '',
+    );
+
     const form = useForm<{
         dataset: string;
         source: string;
@@ -101,10 +164,10 @@ export default function ReferenceDataIndex({
         payload_json: string;
         upload: File | null;
     }>({
-        dataset: datasets[0] ?? 'economic_indicator',
+        dataset: initialDataset,
         source: 'manual_admin',
         as_at: new Date().toISOString().slice(0, 10),
-        payload_json: samplePayloads[datasets[0] ?? 'economic_indicator'] ?? '',
+        payload_json: sampleForTarget(initialTarget, initialDataset),
         upload: null,
     });
 
@@ -118,10 +181,29 @@ export default function ReferenceDataIndex({
     }
 
     function setDataset(dataset: string) {
+        const target =
+            recordTargets.find((item) => item.dataset === dataset) ?? null;
+
+        setSelectedTargetKey(target?.key ?? '');
         form.setData((data) => ({
             ...data,
             dataset,
-            payload_json: samplePayloads[dataset] ?? data.payload_json,
+            payload_json: sampleForTarget(target, dataset, data.payload_json),
+        }));
+    }
+
+    function setRecordTarget(targetKey: string) {
+        const target =
+            recordTargets.find((item) => item.key === targetKey) ?? null;
+        if (!target) {
+            return;
+        }
+
+        setSelectedTargetKey(target.key);
+        form.setData((data) => ({
+            ...data,
+            dataset: target.dataset,
+            payload_json: sampleForTarget(target, target.dataset),
         }));
     }
 
@@ -140,8 +222,32 @@ export default function ReferenceDataIndex({
                 <section className="rounded-md border bg-background p-4">
                     <form
                         onSubmit={submit}
-                        className="grid gap-4 lg:grid-cols-4"
+                        className="grid gap-4 lg:grid-cols-5"
                     >
+                        {recordTargets.length > 0 && (
+                            <div className="space-y-2">
+                                <Label>Dashboard item</Label>
+                                <Select
+                                    value={selectedTargetKey}
+                                    onValueChange={setRecordTarget}
+                                >
+                                    <SelectTrigger className="w-full">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {recordTargets.map((target) => (
+                                            <SelectItem
+                                                key={target.key}
+                                                value={target.key}
+                                            >
+                                                {target.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                            </div>
+                        )}
+
                         <div className="space-y-2">
                             <Label>Dataset</Label>
                             <Select
@@ -157,7 +263,7 @@ export default function ReferenceDataIndex({
                                             key={dataset}
                                             value={dataset}
                                         >
-                                            {dataset.replaceAll('_', ' ')}
+                                            {formatDataset(dataset)}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
@@ -195,7 +301,7 @@ export default function ReferenceDataIndex({
                             <Input
                                 id="upload"
                                 type="file"
-                                accept=".csv,text/csv,text/plain"
+                                accept=".csv,.txt,.xlsx,text/csv,text/plain,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
                                 onChange={(event) =>
                                     form.setData(
                                         'upload',
@@ -206,7 +312,7 @@ export default function ReferenceDataIndex({
                             <InputError message={form.errors.upload} />
                         </div>
 
-                        <div className="space-y-2 lg:col-span-4">
+                        <div className="space-y-2 lg:col-span-5">
                             <Label htmlFor="payload_json">Payload</Label>
                             <textarea
                                 id="payload_json"
@@ -222,7 +328,7 @@ export default function ReferenceDataIndex({
                             <InputError message={form.errors.payload_json} />
                         </div>
 
-                        <div className="flex justify-end lg:col-span-4">
+                        <div className="flex justify-end lg:col-span-5">
                             <Button type="submit" disabled={form.processing}>
                                 {form.data.upload ? (
                                     <Upload
@@ -283,10 +389,7 @@ export default function ReferenceDataIndex({
                                             className="border-t"
                                         >
                                             <td className="px-3 py-3">
-                                                {value.dataset.replaceAll(
-                                                    '_',
-                                                    ' ',
-                                                )}
+                                                {formatDataset(value.dataset)}
                                             </td>
                                             <td className="px-3 py-3 break-words">
                                                 {value.label}
@@ -335,7 +438,7 @@ export default function ReferenceDataIndex({
                                 {entries.map((entry) => (
                                     <tr key={entry.id} className="border-t">
                                         <td className="px-3 py-3">
-                                            {entry.dataset.replaceAll('_', ' ')}
+                                            {formatDataset(entry.dataset)}
                                         </td>
                                         <td className="px-3 py-3">
                                             {entry.as_at}
@@ -365,6 +468,45 @@ export default function ReferenceDataIndex({
             </div>
         </>
     );
+}
+
+function initialRecordTarget(
+    recordTargets: RecordTarget[],
+    datasets: string[],
+): RecordTarget | null {
+    const params =
+        typeof window === 'undefined'
+            ? new URLSearchParams()
+            : new URLSearchParams(window.location.search);
+    const requestedTarget = params.get('target');
+    const requestedDataset = params.get('dataset');
+
+    return (
+        recordTargets.find((target) => target.key === requestedTarget) ??
+        recordTargets.find((target) => target.dataset === requestedDataset) ??
+        recordTargets.find((target) => target.dataset === datasets[0]) ??
+        recordTargets[0] ??
+        null
+    );
+}
+
+function sampleForTarget(
+    target: RecordTarget | null,
+    dataset: string,
+    fallback = '',
+): string {
+    if (target && targetPayloads[target.key]) {
+        return targetPayloads[target.key];
+    }
+
+    return samplePayloads[dataset] ?? fallback;
+}
+
+function formatDataset(dataset: string): string {
+    return dataset
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
 }
 
 ReferenceDataIndex.layout = {
