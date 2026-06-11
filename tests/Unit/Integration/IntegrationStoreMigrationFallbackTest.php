@@ -43,5 +43,13 @@ final class IntegrationStoreMigrationFallbackTest extends TestCase
         $this->assertIsArray($statsNz);
         $this->assertSame('stats_nz', $statsNz['integration_key']);
         $this->assertTrue($statsNz['credentials'][0]['has_env_fallback']);
+
+        $cin7 = app(IntegrationCredentials::class)
+            ->registryRows()
+            ->firstWhere('integration_key', 'cin7');
+
+        $this->assertIsArray($cin7);
+        $this->assertStringContainsString('inventory', strtolower((string) $cin7['purpose']));
+        $this->assertStringContainsString('cash-flow', strtolower((string) $cin7['api_outcome']));
     }
 }

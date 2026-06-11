@@ -134,7 +134,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
 export const evidence = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -149,7 +149,7 @@ evidence.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
 evidence.url = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -182,7 +182,7 @@ evidence.url = (args: { document: string | { id: string } } | [document: string 
 
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
 evidence.get = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -191,7 +191,7 @@ evidence.get = (args: { document: string | { id: string } } | [document: string 
 })
 /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
 evidence.head = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -201,7 +201,7 @@ evidence.head = (args: { document: string | { id: string } } | [document: string
 
     /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
     const evidenceForm = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -211,7 +211,7 @@ evidence.head = (args: { document: string | { id: string } } | [document: string
 
             /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
         evidenceForm.get = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -220,7 +220,7 @@ evidence.head = (args: { document: string | { id: string } } | [document: string
         })
             /**
 * @see \App\Http\Controllers\Admin\ReferenceDataController::evidence
- * @see app/Http/Controllers/Admin/ReferenceDataController.php:89
+ * @see app/Http/Controllers/Admin/ReferenceDataController.php:98
  * @route '/admin/reference-data/evidence/{document}'
  */
         evidenceForm.head = (args: { document: string | { id: string } } | [document: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

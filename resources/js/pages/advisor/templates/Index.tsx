@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Download, FileText, Plus, Search, Upload } from 'lucide-react';
+import { Download, FileText, Save, Search, Upload } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
@@ -42,6 +42,7 @@ export default function TemplateIndex({
         status: 'active',
         file: null,
     });
+    const selectedFileName = createForm.data.file?.name ?? null;
 
     const submitSearch = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -137,7 +138,7 @@ export default function TemplateIndex({
                 {canManage && (
                     <form
                         onSubmit={createTemplate}
-                        className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[11rem_1fr_9rem_auto] lg:items-end"
+                        className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[11rem_1fr_9rem]"
                     >
                         <label className="grid gap-1 text-sm">
                             <span className="text-xs text-muted-foreground">
@@ -201,12 +202,7 @@ export default function TemplateIndex({
                             <InputError message={createForm.errors.status} />
                         </label>
 
-                        <Button type="submit" disabled={createForm.processing}>
-                            <Plus className="size-4" aria-hidden="true" />
-                            New
-                        </Button>
-
-                        <label className="grid gap-1 text-sm lg:col-span-4">
+                        <label className="grid gap-1 text-sm lg:col-span-3">
                             <span className="text-xs text-muted-foreground">
                                 Body
                             </span>
@@ -223,7 +219,7 @@ export default function TemplateIndex({
                             <InputError message={createForm.errors.body} />
                         </label>
 
-                        <label className="grid gap-1 text-sm lg:col-span-4">
+                        <label className="grid gap-1 text-sm lg:col-span-3">
                             <span className="text-xs text-muted-foreground">
                                 Upload template file
                             </span>
@@ -239,6 +235,22 @@ export default function TemplateIndex({
                             />
                             <InputError message={createForm.errors.file} />
                         </label>
+
+                        <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-3">
+                            <div className="min-h-5 text-xs text-muted-foreground">
+                                {selectedFileName
+                                    ? `Selected file: ${selectedFileName}`
+                                    : 'Add body text or choose a file, then save the template.'}
+                            </div>
+                            <Button
+                                type="submit"
+                                disabled={createForm.processing}
+                                className="sm:self-end"
+                            >
+                                <Save className="size-4" aria-hidden="true" />
+                                Save template
+                            </Button>
+                        </div>
                     </form>
                 )}
 

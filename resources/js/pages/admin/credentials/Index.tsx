@@ -2,6 +2,7 @@ import { Head, useForm } from '@inertiajs/react';
 import {
     Ban,
     CircleCheck,
+    Info,
     KeyRound,
     RotateCw,
     ShieldCheck,
@@ -13,6 +14,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type CredentialField = {
     field: string;
@@ -33,6 +39,8 @@ type IntegrationRow = {
     fallback_mode: string;
     managed_via: 'vault' | 'environment' | string;
     wiring_status: 'wired' | 'not_wired' | string;
+    purpose: string;
+    api_outcome: string;
     credentials_ready: boolean;
     effective_live: boolean;
     credentials: CredentialField[];
@@ -114,7 +122,10 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
     return (
         <tr className="border-t align-top">
             <td className="px-3 py-3">
-                <div className="font-medium">{row.display_name}</div>
+                <div className="flex items-center gap-1.5 font-medium">
+                    <span>{row.display_name}</span>
+                    <IntegrationHelpTooltip row={row} />
+                </div>
                 <div className="text-xs break-words text-muted-foreground">
                     {row.integration_key}
                 </div>
@@ -160,6 +171,40 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
                 <LiveControl row={row} />
             </td>
         </tr>
+    );
+}
+
+function IntegrationHelpTooltip({ row }: { row: IntegrationRow }) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <button
+                    type="button"
+                    className="inline-flex size-5 items-center justify-center rounded-full text-muted-foreground outline-none hover:bg-muted hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    aria-label={`About ${row.display_name}`}
+                >
+                    <Info className="size-3.5" aria-hidden="true" />
+                </button>
+            </TooltipTrigger>
+            <TooltipContent
+                side="right"
+                align="start"
+                className="max-w-sm space-y-3 p-3 text-left"
+            >
+                <div>
+                    <div className="text-xs font-semibold tracking-normal text-primary-foreground/80 uppercase">
+                        What it is
+                    </div>
+                    <p className="mt-1 text-xs leading-5">{row.purpose}</p>
+                </div>
+                <div>
+                    <div className="text-xs font-semibold tracking-normal text-primary-foreground/80 uppercase">
+                        What the API enables
+                    </div>
+                    <p className="mt-1 text-xs leading-5">{row.api_outcome}</p>
+                </div>
+            </TooltipContent>
+        </Tooltip>
     );
 }
 

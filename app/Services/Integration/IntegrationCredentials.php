@@ -16,6 +16,24 @@ use Illuminate\Support\Str;
 
 final class IntegrationCredentials
 {
+    /**
+     * @var array<string, array{purpose: string, api_outcome: string}>
+     */
+    private const DESCRIPTIONS = [
+        'employment_hero' => [
+            'purpose' => 'Employment Hero is the HR and payroll platform used to understand workforce structure, employee cost drivers, leave patterns, and people-related operating risk.',
+            'api_outcome' => 'Activating the API allows Future Shift Advisory to pull workforce and payroll context into staffing, capacity, compliance, and profitability analysis without manually re-keying HR data.',
+        ],
+        'cin7' => [
+            'purpose' => 'Cin7 is the inventory, order, and product-management platform used to understand stock movement, fulfilment, sales mix, and working-capital pressure.',
+            'api_outcome' => 'Activating the API allows Future Shift Advisory to enrich advisory work with inventory, order, product, and customer signals for margin, cash-flow, operational-risk, and valuation analysis.',
+        ],
+        'tradify' => [
+            'purpose' => 'Tradify is the job-management platform for trade and service businesses, covering quotes, jobs, time, materials, invoices, and workflow progress.',
+            'api_outcome' => 'Activating the API allows Future Shift Advisory to connect job pipeline, labour utilisation, work-in-progress, and job profitability signals to operational and cash-flow advice.',
+        ],
+    ];
+
     private ?bool $credentialStoreAvailable = null;
 
     public function __construct(
@@ -151,6 +169,8 @@ final class IntegrationCredentials
                     'fallback_mode' => $integration['fallback_mode'] ?? 'optional',
                     'managed_via' => $integration['managed_via'] ?? 'vault',
                     'wiring_status' => $integration['wiring_status'] ?? 'wired',
+                    'purpose' => $this->description($integrationKey, $integration, 'purpose'),
+                    'api_outcome' => $this->description($integrationKey, $integration, 'api_outcome'),
                     'credentials' => is_array($credentials)
                         ? collect($credentials)
                             ->map(function (array $credentialDefinition, string $field) use ($integrationKey, $stored): array {
@@ -174,6 +194,29 @@ final class IntegrationCredentials
                 ];
             })
             ->values();
+    }
+
+    /**
+     * @param  array<string, mixed>  $integration
+     */
+    private function description(string $integrationKey, array $integration, string $field): string
+    {
+        $configured = $integration[$field] ?? null;
+        if (is_string($configured) && trim($configured) !== '') {
+            return trim($configured);
+        }
+
+        $known = self::DESCRIPTIONS[$integrationKey][$field] ?? null;
+        if (is_string($known) && $known !== '') {
+            return $known;
+        }
+
+        $displayName = (string) ($integration['display_name'] ?? Str::headline($integrationKey));
+        $category = str_replace('_', ' ', (string) ($integration['category'] ?? 'integration'));
+
+        return $field === 'purpose'
+            ? "{$displayName} is a {$category} integration used to connect trusted external data to the advisory workflow."
+            : "Activating the API allows Future Shift Advisory to use {$displayName} data in live workflows while keeping credentials governed through the credential vault.";
     }
 
     private function credentialStoreAvailable(): bool
