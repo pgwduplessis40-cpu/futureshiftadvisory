@@ -15,6 +15,7 @@ use App\Services\Pv\IndustryWaccRefresher;
 use App\Services\Pv\ValuationMultipleRefresher;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
 
@@ -38,28 +39,40 @@ final class ReferenceDataSubmission
         }
 
         $payload = $this->normalisePayload($dataset, $payload, $asAt, $source);
+        $storesEvidenceDocument = Schema::hasColumn('reference_data_entries', 'evidence_document_id');
+        $evidenceDocument = $storesEvidenceDocument ? $evidenceDocument : null;
 
-        return DB::transaction(function () use ($actor, $asAt, $dataset, $evidenceDocument, $payload, $source): ReferenceDataEntry {
+        return DB::transaction(function () use ($actor, $asAt, $dataset, $evidenceDocument, $payload, $source, $storesEvidenceDocument): ReferenceDataEntry {
             $learningUpdate = $this->learningUpdate($dataset, $payload, $asAt, $source, $actor, $evidenceDocument);
 
-            /** @var ReferenceDataEntry $entry */
-            $entry = ReferenceDataEntry::query()->create([
+            $entryAttributes = [
                 'dataset' => $dataset,
                 'payload' => $payload,
                 'as_at' => $asAt->toDateString(),
                 'source' => $source,
                 'entered_by_user_id' => $actor->getKey(),
                 'learning_update_id' => $learningUpdate->getKey(),
-                'evidence_document_id' => $evidenceDocument?->getKey(),
-            ]);
+            ];
 
-            $this->audit->record('reference_data.submitted', subject: $entry, actor: $actor, after: [
+            if ($storesEvidenceDocument) {
+                $entryAttributes['evidence_document_id'] = $evidenceDocument?->getKey();
+            }
+
+            /** @var ReferenceDataEntry $entry */
+            $entry = ReferenceDataEntry::query()->create($entryAttributes);
+
+            $after = [
                 'dataset' => $dataset,
                 'as_at' => $entry->as_at?->toDateString(),
                 'source' => $source,
                 'learning_update_id' => $learningUpdate->getKey(),
-                'evidence_document_id' => $evidenceDocument?->getKey(),
-            ]);
+            ];
+
+            if ($storesEvidenceDocument) {
+                $after['evidence_document_id'] = $evidenceDocument?->getKey();
+            }
+
+            $this->audit->record('reference_data.submitted', subject: $entry, actor: $actor, after: $after);
 
             return $entry->refresh();
         });

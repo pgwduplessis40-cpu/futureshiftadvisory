@@ -50,6 +50,7 @@ final class ReferenceDataController extends Controller
     public function store(Request $request, ReferenceDataSubmission $submission, SecureFileWriter $files): RedirectResponse
     {
         abort_unless(Schema::hasTable('reference_data_entries'), 503, 'Reference data store is not migrated.');
+        $storesEvidenceDocument = $this->storesEvidenceDocument();
 
         $validated = $request->validate([
             'dataset' => ['required', 'string', Rule::in(ReferenceDataEntry::datasets())],
@@ -72,7 +73,15 @@ final class ReferenceDataController extends Controller
             $payloads = $fromUpload
                 ? $this->payloadsFromUpload($request->file('upload'), $dataset, $files, $user)
                 : $this->payloadsFromJson((string) $validated['payload_json'], $dataset);
-            $evidenceDocument = $this->evidenceDocumentFromUpload($request->file('evidence_upload'), $files, $user);
+            $evidenceDocument = $storesEvidenceDocument
+                ? $this->evidenceDocumentFromUpload($request->file('evidence_upload'), $files, $user)
+                : null;
+
+            if (! $storesEvidenceDocument && $request->hasFile('evidence_upload')) {
+                throw ValidationException::withMessages([
+                    'evidence_upload' => 'Evidence uploads will be available after the latest reference data migration runs.',
+                ]);
+            }
 
             foreach ($payloads as $payload) {
                 $submission->submit($dataset, $payload, $asAt, $source, $user, $evidenceDocument);
@@ -88,6 +97,7 @@ final class ReferenceDataController extends Controller
 
     public function evidence(Document $document): SymfonyResponse
     {
+        abort_unless($this->storesEvidenceDocument(), 404);
         abort_unless(ReferenceDataEntry::query()->where('evidence_document_id', $document->getKey())->exists(), 404);
         abort_unless($document->scanner_result === Document::SCANNER_CLEAN, 404);
 
@@ -415,17 +425,20 @@ final class ReferenceDataController extends Controller
             return [];
         }
 
-        return ReferenceDataEntry::query()
-            ->with(['evidenceDocument', 'learningUpdate'])
+        $storesEvidenceDocument = $this->storesEvidenceDocument();
+
+        $query = ReferenceDataEntry::query()
+            ->with($storesEvidenceDocument ? ['evidenceDocument', 'learningUpdate'] : ['learningUpdate'])
             ->latest()
-            ->limit(50)
-            ->get()
+            ->limit(50);
+
+        return $query->get()
             ->map(fn (ReferenceDataEntry $entry): array => [
                 'id' => $entry->id,
                 'dataset' => $entry->dataset,
                 'as_at' => $entry->as_at?->toDateString(),
                 'source' => $entry->source,
-                'evidence' => $entry->evidenceDocument instanceof Document ? [
+                'evidence' => $storesEvidenceDocument && $entry->evidenceDocument instanceof Document ? [
                     'id' => $entry->evidenceDocument->id,
                     'filename' => $entry->evidenceDocument->original_filename,
                     'url' => route('admin.reference-data.evidence', $entry->evidenceDocument, absolute: false),
@@ -435,6 +448,11 @@ final class ReferenceDataController extends Controller
                 'created_at' => $entry->created_at?->toIso8601String(),
             ])
             ->all();
+    }
+
+    private function storesEvidenceDocument(): bool
+    {
+        return Schema::hasColumn('reference_data_entries', 'evidence_document_id');
     }
 
     /**
