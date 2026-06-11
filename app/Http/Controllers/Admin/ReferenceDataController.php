@@ -25,11 +25,14 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use InvalidArgumentException;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
+use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use ZipArchive;
 
 final class ReferenceDataController extends Controller
@@ -54,6 +57,7 @@ final class ReferenceDataController extends Controller
             'as_at' => ['required', 'date'],
             'payload_json' => ['nullable', 'string', 'required_without:upload'],
             'upload' => ['nullable', 'file', 'mimes:csv,txt,xlsx', 'max:10240', 'required_without:payload_json'],
+            'evidence_upload' => ['nullable', 'file', 'mimes:png,jpg,jpeg,webp,pdf', 'max:10240'],
         ]);
 
         $user = $request->user();
@@ -68,9 +72,10 @@ final class ReferenceDataController extends Controller
             $payloads = $fromUpload
                 ? $this->payloadsFromUpload($request->file('upload'), $dataset, $files, $user)
                 : $this->payloadsFromJson((string) $validated['payload_json'], $dataset);
+            $evidenceDocument = $this->evidenceDocumentFromUpload($request->file('evidence_upload'), $files, $user);
 
             foreach ($payloads as $payload) {
-                $submission->submit($dataset, $payload, $asAt, $source, $user);
+                $submission->submit($dataset, $payload, $asAt, $source, $user, $evidenceDocument);
             }
         } catch (InvalidArgumentException $exception) {
             throw ValidationException::withMessages([
@@ -79,6 +84,27 @@ final class ReferenceDataController extends Controller
         }
 
         return to_route('admin.reference-data.index')->with('status', 'reference-data-submitted');
+    }
+
+    public function evidence(Document $document): SymfonyResponse
+    {
+        abort_unless(ReferenceDataEntry::query()->where('evidence_document_id', $document->getKey())->exists(), 404);
+        abort_unless($document->scanner_result === Document::SCANNER_CLEAN, 404);
+
+        $disk = Storage::disk('secure_local');
+        abort_unless($disk->exists($document->stored_path), 404);
+
+        $disposition = (new ResponseHeaderBag)->makeDisposition(
+            ResponseHeaderBag::DISPOSITION_INLINE,
+            $document->original_filename,
+            Str::ascii($document->original_filename) ?: 'reference-data-evidence',
+        );
+
+        return response($disk->get($document->stored_path), 200, [
+            'Content-Disposition' => $disposition,
+            'Content-Type' => $document->mime_type ?: 'application/octet-stream',
+            'X-Content-Type-Options' => 'nosniff',
+        ]);
     }
 
     /**
@@ -145,6 +171,31 @@ final class ReferenceDataController extends Controller
             : $this->rowsFromCsv($contents);
 
         return $dataset === ReferenceDataEntry::DATASET_CPB_BENCHMARK ? [$rows] : $rows;
+    }
+
+    private function evidenceDocumentFromUpload(?UploadedFile $upload, SecureFileWriter $files, User $user): ?Document
+    {
+        if (! $upload instanceof UploadedFile) {
+            return null;
+        }
+
+        try {
+            $document = $files->write(
+                uploadedFile: $upload,
+                owner: $user,
+                category: Document::CATEGORY_REFERENCE_DATA_EVIDENCE,
+            );
+        } catch (InfectedFileException) {
+            throw ValidationException::withMessages(['evidence_upload' => 'Evidence upload failed malware scanning.']);
+        } catch (SecureFileStorageException) {
+            throw ValidationException::withMessages(['evidence_upload' => 'Evidence upload could not be securely stored for scanning.']);
+        }
+
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            throw ValidationException::withMessages(['evidence_upload' => 'Evidence upload is quarantined until malware scanning is available.']);
+        }
+
+        return $document;
     }
 
     /**
@@ -365,7 +416,7 @@ final class ReferenceDataController extends Controller
         }
 
         return ReferenceDataEntry::query()
-            ->with('learningUpdate')
+            ->with(['evidenceDocument', 'learningUpdate'])
             ->latest()
             ->limit(50)
             ->get()
@@ -374,6 +425,11 @@ final class ReferenceDataController extends Controller
                 'dataset' => $entry->dataset,
                 'as_at' => $entry->as_at?->toDateString(),
                 'source' => $entry->source,
+                'evidence' => $entry->evidenceDocument instanceof Document ? [
+                    'id' => $entry->evidenceDocument->id,
+                    'filename' => $entry->evidenceDocument->original_filename,
+                    'url' => route('admin.reference-data.evidence', $entry->evidenceDocument, absolute: false),
+                ] : null,
                 'learning_update_id' => $entry->learning_update_id,
                 'learning_update_status' => $entry->learningUpdate?->status,
                 'created_at' => $entry->created_at?->toIso8601String(),

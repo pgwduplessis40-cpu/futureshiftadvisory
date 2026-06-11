@@ -49,6 +49,14 @@ final class ReferenceDataEntry extends Model
     }
 
     /**
+     * @return BelongsTo<Document, ReferenceDataEntry>
+     */
+    public function evidenceDocument(): BelongsTo
+    {
+        return $this->belongsTo(Document::class, 'evidence_document_id');
+    }
+
+    /**
      * @return BelongsTo<User, ReferenceDataEntry>
      */
     public function enteredBy(): BelongsTo

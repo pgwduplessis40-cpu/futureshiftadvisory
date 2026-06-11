@@ -20,6 +20,11 @@ type ReferenceDataEntry = {
     dataset: string;
     as_at: string | null;
     source: string;
+    evidence: {
+        id: string;
+        filename: string;
+        url: string;
+    } | null;
     learning_update_id: string;
     learning_update_status: string | null;
     created_at: string | null;
@@ -163,12 +168,14 @@ export default function ReferenceDataIndex({
         as_at: string;
         payload_json: string;
         upload: File | null;
+        evidence_upload: File | null;
     }>({
         dataset: initialDataset,
         source: 'manual_admin',
         as_at: new Date().toISOString().slice(0, 10),
         payload_json: sampleForTarget(initialTarget, initialDataset),
         upload: null,
+        evidence_upload: null,
     });
 
     function submit(event: FormEvent) {
@@ -176,7 +183,7 @@ export default function ReferenceDataIndex({
         form.post('/admin/reference-data', {
             forceFormData: true,
             preserveScroll: true,
-            onSuccess: () => form.reset('upload'),
+            onSuccess: () => form.reset('upload', 'evidence_upload'),
         });
     }
 
@@ -297,7 +304,7 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="upload">Upload</Label>
+                            <Label htmlFor="upload">Data import</Label>
                             <Input
                                 id="upload"
                                 type="file"
@@ -310,6 +317,26 @@ export default function ReferenceDataIndex({
                                 }
                             />
                             <InputError message={form.errors.upload} />
+                        </div>
+
+                        <div className="space-y-2">
+                            <Label htmlFor="evidence_upload">
+                                Source evidence
+                            </Label>
+                            <Input
+                                id="evidence_upload"
+                                type="file"
+                                accept=".png,.jpg,.jpeg,.webp,.pdf,image/png,image/jpeg,image/webp,application/pdf"
+                                onChange={(event) =>
+                                    form.setData(
+                                        'evidence_upload',
+                                        event.target.files?.[0] ?? null,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={form.errors.evidence_upload}
+                            />
                         </div>
 
                         <div className="space-y-2 lg:col-span-5">
@@ -330,7 +357,8 @@ export default function ReferenceDataIndex({
 
                         <div className="flex justify-end lg:col-span-5">
                             <Button type="submit" disabled={form.processing}>
-                                {form.data.upload ? (
+                                {form.data.upload ||
+                                form.data.evidence_upload ? (
                                     <Upload
                                         className="size-4"
                                         aria-hidden="true"
@@ -417,19 +445,22 @@ export default function ReferenceDataIndex({
                         <table className="w-full table-fixed text-sm">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
-                                    <th className="w-[24%] px-3 py-2 font-medium">
+                                    <th className="w-[20%] px-3 py-2 font-medium">
                                         Dataset
                                     </th>
-                                    <th className="w-[18%] px-3 py-2 font-medium">
+                                    <th className="w-[14%] px-3 py-2 font-medium">
                                         As at
                                     </th>
-                                    <th className="w-[22%] px-3 py-2 font-medium">
+                                    <th className="w-[20%] px-3 py-2 font-medium">
                                         Source
                                     </th>
-                                    <th className="w-[18%] px-3 py-2 font-medium">
+                                    <th className="w-[14%] px-3 py-2 font-medium">
+                                        Evidence
+                                    </th>
+                                    <th className="w-[16%] px-3 py-2 font-medium">
                                         Status
                                     </th>
-                                    <th className="w-[18%] px-3 py-2 font-medium">
+                                    <th className="w-[16%] px-3 py-2 font-medium">
                                         Submitted
                                     </th>
                                 </tr>
@@ -445,6 +476,22 @@ export default function ReferenceDataIndex({
                                         </td>
                                         <td className="px-3 py-3 break-words">
                                             {entry.source}
+                                        </td>
+                                        <td className="px-3 py-3">
+                                            {entry.evidence ? (
+                                                <a
+                                                    className="text-sm font-medium text-primary underline-offset-4 hover:underline"
+                                                    href={entry.evidence.url}
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    View
+                                                </a>
+                                            ) : (
+                                                <span className="text-muted-foreground">
+                                                    None
+                                                </span>
+                                            )}
                                         </td>
                                         <td className="px-3 py-3">
                                             <Badge variant="outline">

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\ReferenceData;
 
+use App\Models\Document;
 use App\Models\LearningUpdate;
 use App\Models\ReferenceDataEntry;
 use App\Models\User;
@@ -30,6 +31,7 @@ final class ReferenceDataSubmission
         CarbonInterface $asAt,
         string $source,
         User $actor,
+        ?Document $evidenceDocument = null,
     ): ReferenceDataEntry {
         if (! in_array($dataset, ReferenceDataEntry::datasets(), true)) {
             throw new InvalidArgumentException("Unsupported reference dataset [{$dataset}].");
@@ -37,8 +39,8 @@ final class ReferenceDataSubmission
 
         $payload = $this->normalisePayload($dataset, $payload, $asAt, $source);
 
-        return DB::transaction(function () use ($actor, $asAt, $dataset, $payload, $source): ReferenceDataEntry {
-            $learningUpdate = $this->learningUpdate($dataset, $payload, $asAt, $source, $actor);
+        return DB::transaction(function () use ($actor, $asAt, $dataset, $evidenceDocument, $payload, $source): ReferenceDataEntry {
+            $learningUpdate = $this->learningUpdate($dataset, $payload, $asAt, $source, $actor, $evidenceDocument);
 
             /** @var ReferenceDataEntry $entry */
             $entry = ReferenceDataEntry::query()->create([
@@ -48,6 +50,7 @@ final class ReferenceDataSubmission
                 'source' => $source,
                 'entered_by_user_id' => $actor->getKey(),
                 'learning_update_id' => $learningUpdate->getKey(),
+                'evidence_document_id' => $evidenceDocument?->getKey(),
             ]);
 
             $this->audit->record('reference_data.submitted', subject: $entry, actor: $actor, after: [
@@ -55,6 +58,7 @@ final class ReferenceDataSubmission
                 'as_at' => $entry->as_at?->toDateString(),
                 'source' => $source,
                 'learning_update_id' => $learningUpdate->getKey(),
+                'evidence_document_id' => $evidenceDocument?->getKey(),
             ]);
 
             return $entry->refresh();
@@ -191,6 +195,7 @@ final class ReferenceDataSubmission
         CarbonInterface $asAt,
         string $source,
         User $actor,
+        ?Document $evidenceDocument,
     ): LearningUpdate {
         $layerId = match ($dataset) {
             ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR => EconomicIndicatorRefresher::LAYER_ID,
@@ -207,6 +212,7 @@ final class ReferenceDataSubmission
                 'dataset' => $dataset,
                 'source' => $source,
                 'entered_by_user_id' => $actor->getKey(),
+                'evidence_document_id' => $evidenceDocument?->getKey(),
                 'signal_key' => hash('sha256', $dataset.'|'.$source.'|'.$asAt->toDateString().'|'.json_encode($payload, JSON_THROW_ON_ERROR)),
             ],
             'summary' => $this->summary($dataset, $payload, $asAt),
@@ -228,6 +234,12 @@ final class ReferenceDataSubmission
                 'as_at' => $asAt->toDateString(),
                 'source' => $source,
                 'payload' => $payload,
+                'evidence_document' => $evidenceDocument instanceof Document ? [
+                    'id' => $evidenceDocument->getKey(),
+                    'filename' => $evidenceDocument->original_filename,
+                    'mime_type' => $evidenceDocument->mime_type,
+                    'sha256' => $evidenceDocument->sha256,
+                ] : null,
             ],
             'status' => LearningUpdate::STATUS_DETECTED,
         ]);

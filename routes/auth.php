@@ -103,6 +103,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('reference-data.index');
             Route::post('reference-data', [ReferenceDataController::class, 'store'])
                 ->name('reference-data.store');
+            Route::get('reference-data/evidence/{document}', [ReferenceDataController::class, 'evidence'])
+                ->name('reference-data.evidence');
         });
 
     Route::prefix('admin')

@@ -117,6 +117,52 @@ final class ReferenceDataManagementTest extends TestCase
                 ->where('datasets.0', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR));
     }
 
+    public function test_reference_data_submission_accepts_screenshot_evidence(): void
+    {
+        Carbon::setTestNow('2026-06-01 10:00:00');
+        $admin = $this->superAdmin();
+        $screenshot = UploadedFile::fake()->create('rbnz-ocr-screenshot.png', 8, 'image/png');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.reference-data.store'), [
+                'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
+                'source' => 'rbnz-screenshot',
+                'as_at' => '2026-05-29',
+                'payload_json' => json_encode([
+                    'indicator' => EconomicIndicator::OCR,
+                    'label' => 'OCR reference rate',
+                    'value' => 2.25,
+                    'unit' => 'percent',
+                    'period_date' => '2026-05-27',
+                ], JSON_THROW_ON_ERROR),
+                'evidence_upload' => $screenshot,
+            ])
+            ->assertRedirect(route('admin.reference-data.index', absolute: false));
+
+        $entry = ReferenceDataEntry::query()->firstOrFail();
+        $document = Document::query()->firstOrFail();
+        $update = $entry->learningUpdate()->firstOrFail();
+
+        $this->assertSame($document->id, $entry->evidence_document_id);
+        $this->assertSame(Document::CATEGORY_REFERENCE_DATA_EVIDENCE, $document->category);
+        $this->assertSame('rbnz-ocr-screenshot.png', $document->original_filename);
+        $this->assertSame($document->id, data_get($update->evidence, 'evidence_document.id'));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/reference-data/Index')
+                ->where('entries.0.evidence.id', $document->id)
+                ->where('entries.0.evidence.filename', 'rbnz-ocr-screenshot.png')
+                ->where('entries.0.evidence.url', route('admin.reference-data.evidence', $document, absolute: false)));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.evidence', $document))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+    }
+
     public function test_rejected_reference_data_never_projects(): void
     {
         $admin = $this->superAdmin();

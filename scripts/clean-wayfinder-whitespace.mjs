@@ -1,7 +1,9 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const generatedFiles = [
+    'resources/js/actions/App/Http/Controllers/Admin/ReferenceDataController.ts',
     'resources/js/routes/advisor/entrepreneurs/index.ts',
+    'resources/js/routes/admin/reference-data/index.ts',
     'resources/js/routes/public/index.ts',
 ];
 
