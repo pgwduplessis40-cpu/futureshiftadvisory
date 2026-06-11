@@ -144,6 +144,39 @@
     }
 }
 
+@layer components {
+    :where(section, article, div, form, main, aside, nav, header, li)[id]:target {
+        scroll-margin-top: 5rem;
+        outline: 2px solid color-mix(in oklch, var(--chart-4) 72%, white 28%);
+        outline-offset: 4px;
+        box-shadow:
+            0 0 0 6px color-mix(in oklch, var(--chart-4) 18%, transparent),
+            0 16px 36px color-mix(in oklch, var(--foreground) 10%, transparent);
+    }
+
+    @media (prefers-reduced-motion: no-preference) {
+        :where(section, article, div, form, main, aside, nav, header, li)[id]:target {
+            animation: fsa-target-highlight 1800ms ease-out;
+        }
+    }
+
+    @keyframes fsa-target-highlight {
+        0% {
+            background-color: color-mix(
+                in oklch,
+                var(--chart-4) 30%,
+                var(--background)
+            );
+            outline-color: color-mix(in oklch, var(--chart-4) 90%, white 10%);
+        }
+
+        100% {
+            background-color: transparent;
+            outline-color: color-mix(in oklch, var(--chart-4) 72%, white 28%);
+        }
+    }
+}
+
 /* ──────────────────────────────────────────────────────────────
    Meridian Warm — public marketing site brand tokens.
    Scoped to .public so the authenticated app/auth/settings UI
