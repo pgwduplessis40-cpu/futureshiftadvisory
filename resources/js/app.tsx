@@ -9,6 +9,7 @@ import NotificationsLayout from '@/layouts/notifications-layout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { registerPortalOffline } from '@/lib/portal-offline';
+import { registerTargetHighlighting } from '@/lib/target-highlight';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 
@@ -53,3 +54,4 @@ createInertiaApp({
 // This will set light / dark mode on load...
 initializeTheme();
 registerPortalOffline();
+registerTargetHighlighting();

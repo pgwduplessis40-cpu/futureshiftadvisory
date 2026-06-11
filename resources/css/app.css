@@ -145,17 +145,39 @@
 }
 
 @layer components {
-    :where(section, article, div, form, main, aside, nav, header, li)[id]:target {
+    :where(section, article, div, form, main, aside, nav, header, li)[id]:target,
+    :where(
+            section,
+            article,
+            div,
+            form,
+            main,
+            aside,
+            nav,
+            header,
+            li
+        ).fsa-target-highlight {
         scroll-margin-top: 5rem;
-        outline: 2px solid color-mix(in oklch, var(--chart-4) 72%, white 28%);
+        outline: 2px solid color-mix(in oklch, var(--chart-2) 76%, white 24%);
         outline-offset: 4px;
         box-shadow:
-            0 0 0 6px color-mix(in oklch, var(--chart-4) 18%, transparent),
+            0 0 0 6px color-mix(in oklch, var(--chart-2) 20%, transparent),
             0 16px 36px color-mix(in oklch, var(--foreground) 10%, transparent);
     }
 
     @media (prefers-reduced-motion: no-preference) {
-        :where(section, article, div, form, main, aside, nav, header, li)[id]:target {
+        :where(section, article, div, form, main, aside, nav, header, li)[id]:target,
+        :where(
+                section,
+                article,
+                div,
+                form,
+                main,
+                aside,
+                nav,
+                header,
+                li
+            ).fsa-target-highlight {
             animation: fsa-target-highlight 1800ms ease-out;
         }
     }
@@ -164,15 +186,15 @@
         0% {
             background-color: color-mix(
                 in oklch,
-                var(--chart-4) 30%,
+                var(--chart-2) 30%,
                 var(--background)
             );
-            outline-color: color-mix(in oklch, var(--chart-4) 90%, white 10%);
+            outline-color: color-mix(in oklch, var(--chart-2) 90%, white 10%);
         }
 
         100% {
             background-color: transparent;
-            outline-color: color-mix(in oklch, var(--chart-4) 72%, white 28%);
+            outline-color: color-mix(in oklch, var(--chart-2) 76%, white 24%);
         }
     }
 }
