@@ -6,12 +6,14 @@ namespace Tests\Feature\Integration;
 
 use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Models\AiUsageEvent;
+use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthSample;
 use App\Models\User;
 use Carbon\CarbonInterface;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -81,6 +83,27 @@ final class HealthDashboardTest extends TestCase
         $this->actingAsMfa($client)
             ->get(route('admin.integration-health.index'))
             ->assertForbidden();
+    }
+
+    public function test_refresh_aggregates_recent_integration_call_logs(): void
+    {
+        $this->travelTo(now()->setMicrosecond(0));
+        $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'refresh-advisor@example.test');
+
+        $this->recordCall('nzbn', IntegrationCall::STATUS_SUCCESS, 180, now()->subMinute());
+        $this->recordCall('nzbn', IntegrationCall::STATUS_SUCCESS, 220, now()->subMinute());
+
+        $this->actingAsMfa($advisor)
+            ->post(route('admin.integration-health.refresh'))
+            ->assertRedirect(route('admin.integration-health.index'))
+            ->assertSessionHas('status', 'integration-health-refreshed');
+
+        $this->assertDatabaseHas('integration_health_samples', [
+            'service' => 'nzbn',
+            'success_rate' => 1.0,
+            'p95_latency_ms' => 220,
+            'health' => IntegrationHealthSample::HEALTH_GREEN,
+        ]);
     }
 
     public function test_stuck_red_alert_fires_once_per_red_window(): void
@@ -159,6 +182,26 @@ final class HealthDashboardTest extends TestCase
             'input_tokens' => $inputTokens,
             'output_tokens' => $outputTokens,
             'estimated_cost_usd' => $estimatedCostUsd,
+            'occurred_at' => $occurredAt,
+        ]);
+    }
+
+    private function recordCall(
+        string $service,
+        string $status,
+        int $latencyMs,
+        CarbonInterface $occurredAt,
+    ): IntegrationCall {
+        return IntegrationCall::query()->create([
+            'service' => $service,
+            'endpoint' => 'https://api.example.test/'.$service,
+            'status' => $status,
+            'latency_ms' => $latencyMs,
+            'attempt' => 1,
+            'error_payload' => $status === IntegrationCall::STATUS_FAILURE
+                ? ['reason' => 'fixture']
+                : null,
+            'correlation_id' => (string) Str::uuid(),
             'occurred_at' => $occurredAt,
         ]);
     }

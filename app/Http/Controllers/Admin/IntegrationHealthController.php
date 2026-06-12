@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Console\Commands\AggregateIntegrationHealth;
 use App\Http\Controllers\Controller;
 use App\Models\AiUsageEvent;
 use App\Models\IntegrationHealthAlert;
 use App\Models\IntegrationHealthSample;
 use App\Services\Integration\IntegrationCredentials;
 use Carbon\CarbonInterface;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -19,7 +22,7 @@ final class IntegrationHealthController extends Controller
 {
     public function __construct(private readonly IntegrationCredentials $credentials) {}
 
-    public function __invoke(): Response
+    public function index(): Response
     {
         $samples = IntegrationHealthSample::query()
             ->latest('window_end')
@@ -48,6 +51,16 @@ final class IntegrationHealthController extends Controller
             'aiUsage' => $this->aiUsagePayload(),
             'generatedAt' => now()->toIso8601String(),
         ]);
+    }
+
+    public function refresh(): RedirectResponse
+    {
+        Artisan::call(AggregateIntegrationHealth::class, [
+            '--minutes' => 5,
+        ]);
+
+        return to_route('admin.integration-health.index')
+            ->with('status', 'integration-health-refreshed');
     }
 
     /**

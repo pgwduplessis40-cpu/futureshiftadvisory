@@ -71,8 +71,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->name('admin.')
         ->middleware(['mfa', 'permission:'.Permission::INTEGRATION_HEALTH_VIEW->value])
         ->group(function (): void {
-            Route::get('integration-health', IntegrationHealthController::class)
+            Route::get('integration-health', [IntegrationHealthController::class, 'index'])
                 ->name('integration-health.index');
+            Route::post('integration-health/refresh', [IntegrationHealthController::class, 'refresh'])
+                ->name('integration-health.refresh');
         });
 
     Route::prefix('admin')

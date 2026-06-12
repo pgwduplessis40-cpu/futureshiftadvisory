@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     BrainCircuit,
@@ -9,8 +9,10 @@ import {
     RotateCw,
     ShieldAlert,
 } from 'lucide-react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 import {
     Tooltip,
     TooltipContent,
@@ -100,6 +102,20 @@ export default function IntegrationHealthIndex({
     aiUsage,
     generatedAt,
 }: Props) {
+    const [refreshing, setRefreshing] = useState(false);
+
+    const refreshHealth = () => {
+        router.post(
+            '/admin/integration-health/refresh',
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setRefreshing(true),
+                onFinish: () => setRefreshing(false),
+            },
+        );
+    };
+
     return (
         <>
             <Head title="API health" />
@@ -116,14 +132,21 @@ export default function IntegrationHealthIndex({
                         </h1>
                     </div>
                     <div className="flex flex-col gap-3 sm:items-end">
-                        <Button asChild size="sm" variant="outline">
-                            <Link href="/admin/integration-health">
-                                <RotateCw
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Refresh
-                            </Link>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={refreshing}
+                            onClick={refreshHealth}
+                        >
+                            <RotateCw
+                                className={cn(
+                                    'size-4',
+                                    refreshing && 'animate-spin',
+                                )}
+                                aria-hidden="true"
+                            />
+                            Refresh
                         </Button>
                         <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
                             <Metric
