@@ -91,7 +91,6 @@ final class EconomicIndicatorsTest extends TestCase
     public function test_live_mode_with_config_credentials_degrades_through_resilience_layer(): void
     {
         Config::set('integrations.rbnz.live', true);
-        Config::set('integrations.rbnz.api_key', 'rbnz-test-key');
         Config::set('integrations.mbie.live', true);
         Config::set('integrations.mbie.api_key', 'mbie-test-key');
         $this->forgetEconomicClients();
@@ -118,6 +117,46 @@ final class EconomicIndicatorsTest extends TestCase
                 'attempt' => 1,
             ]);
         }
+    }
+
+    public function test_rbnz_live_mode_uses_approved_website_agent_without_api_key(): void
+    {
+        Config::set('integrations.rbnz.live', true);
+        Config::set('integrations.mbie.live', false);
+        Config::set('integrations.rbnz.user_agent', 'rbnz-approved-agent/rsd-58801');
+        $this->forgetEconomicClients();
+
+        Http::fake([
+            'https://www.rbnz.govt.nz/monetary-policy/about-monetary-policy/the-official-cash-rate' => Http::response(
+                '<h3>Official Cash Rate</h3><div>2.25 %</div><p>Updated: 2:00pm, 27 May 2026</p><p>Next update: 2:00pm, 08 Jul 2026</p>',
+                200,
+            ),
+            'https://www.rbnz.govt.nz/' => Http::response(
+                '<a>Exchange Rates USD 0.58020 GBP 0.43345 AUD 0.82810 EUR 0.50215 CAD 0.80845 JPY 93.11920 Updated: 11 Jun 2026</a>',
+                200,
+            ),
+        ]);
+
+        app(EconomicIndicatorRefresher::class)->refresh(now());
+
+        $ocr = EconomicIndicator::query()->where('indicator', EconomicIndicator::OCR)->firstOrFail();
+        $this->assertSame(2.25, $ocr->value);
+        $this->assertSame('2026-05-27', $ocr->period_date?->toDateString());
+        $this->assertSame('live', $ocr->source_badge);
+        $this->assertSame('approved_website_agent', $ocr->payload['source_mode'] ?? null);
+
+        $rate = ExchangeRate::query()
+            ->where('base_currency', 'NZD')
+            ->where('quote_currency', 'USD')
+            ->firstOrFail();
+        $this->assertSame(0.5802, $rate->rate);
+        $this->assertSame('2026-06-11', $rate->rate_date?->toDateString());
+        $this->assertSame('live', $rate->source_badge);
+
+        Http::assertSentCount(2);
+        Http::assertSent(fn ($request): bool =>
+            $request->hasHeader('User-Agent', 'rbnz-approved-agent/rsd-58801')
+            && ! str_contains($request->url(), 'api_key='));
     }
 
     public function test_refresh_is_idempotent_for_same_source_periods(): void

@@ -110,8 +110,13 @@ return [
 
     'rbnz' => [
         'live' => (bool) env('FEATURE_RBNZ_LIVE', false),
-        'base_url' => env('RBNZ_BASE_URL', 'https://api.rbnz.govt.nz'),
-        'api_key' => env('RBNZ_API_KEY'),
+        'base_url' => env('RBNZ_BASE_URL', 'https://www.rbnz.govt.nz'),
+        'user_agent' => env('RBNZ_USER_AGENT', 'rbnz-approved-agent/rsd-58801'),
+        'max_requests_per_hour' => (int) env('RBNZ_MAX_REQUESTS_PER_HOUR', 292),
+        'paths' => [
+            'ocr' => env('RBNZ_OCR_PATH', '/monetary-policy/about-monetary-policy/the-official-cash-rate'),
+            'exchange_rates' => env('RBNZ_EXCHANGE_RATES_PATH', '/'),
+        ],
     ],
 
     'stats_nz' => [

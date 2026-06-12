@@ -92,15 +92,12 @@ return [
             'display_name' => 'RBNZ',
             'category' => 'economic_data',
             'fallback_mode' => 'manual',
-            'managed_via' => 'vault',
+            'managed_via' => 'environment',
             'wiring_status' => 'wired',
             'live_config_path' => 'integrations.rbnz.live',
-            'credentials' => [
-                'api_key' => [
-                    'config_path' => 'integrations.rbnz.api_key',
-                    'env_fallback_path' => 'RBNZ_API_KEY',
-                ],
-            ],
+            'purpose' => 'RBNZ is the Reserve Bank of New Zealand website source used for OCR and exchange-rate reference data.',
+            'api_outcome' => 'RBNZ does not provide this feed through an API key; live access uses the approved website agent user-agent and RBNZ IP allowlisting.',
+            'credentials' => [],
         ],
         'ird' => [
             'display_name' => 'IRD',
