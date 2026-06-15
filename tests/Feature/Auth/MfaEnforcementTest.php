@@ -8,6 +8,7 @@ use App\Models\MfaFactor;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class MfaEnforcementTest extends TestCase
@@ -61,6 +62,44 @@ final class MfaEnforcementTest extends TestCase
         ]);
     }
 
+    #[DataProvider('userTypeProvider')]
+    public function test_two_factor_qr_code_can_be_generated_for_every_profile_type(string $userType): void
+    {
+        $user = User::factory()->create([
+            'user_type' => $userType,
+            'primary_role' => $userType,
+        ]);
+
+        $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => now()->getTimestamp()])
+            ->post(route('two-factor.enable'))
+            ->assertSessionHasNoErrors();
+
+        $response = $this->actingAs($user)
+            ->withSession(['auth.password_confirmed_at' => now()->getTimestamp()])
+            ->getJson(route('two-factor.qr-code'));
+
+        $response
+            ->assertOk()
+            ->assertJsonStructure(['svg', 'url']);
+
+        $this->assertNotNull($user->refresh()->two_factor_secret);
+        $this->assertIsString($response->json('svg'));
+        $this->assertStringContainsString('<svg', $response->json('svg'));
+        $this->assertIsString($response->json('url'));
+        $this->assertStringStartsWith('otpauth://totp/', $response->json('url'));
+    }
+
+    public function test_two_factor_qr_modal_keeps_svg_scannable_on_white_background(): void
+    {
+        $component = file_get_contents(resource_path('js/components/two-factor-setup-modal.tsx'));
+
+        $this->assertIsString($component);
+        $this->assertStringContainsString('rounded-lg bg-white p-2', $component);
+        $this->assertStringNotContainsString('dark:invert', $component);
+        $this->assertStringNotContainsString('invert', $component);
+    }
+
     public function test_mfa_challenge_locks_after_three_failed_attempts(): void
     {
         config([
@@ -83,5 +122,15 @@ final class MfaEnforcementTest extends TestCase
             ->assertSessionHasErrors([
                 'code' => 'Too many incorrect authentication attempts. Try again in 15 minutes.',
             ]);
+    }
+
+    /**
+     * @return array<string, array{0: string}>
+     */
+    public static function userTypeProvider(): array
+    {
+        return collect(User::userTypes())
+            ->mapWithKeys(fn (string $userType): array => [$userType => [$userType]])
+            ->all();
     }
 }

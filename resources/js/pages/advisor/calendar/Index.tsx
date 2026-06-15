@@ -570,7 +570,61 @@ function WeekCalendar({
                 </Badge>
             </div>
 
-            <div className="overflow-x-auto rounded-md border bg-background">
+            <div className="grid gap-3 md:hidden">
+                {days.map((day) => {
+                    const key = localDateKey(day);
+                    const items = meetingsByDate.get(key) ?? [];
+
+                    return (
+                        <section
+                            key={key}
+                            className={cn(
+                                'rounded-md border bg-background p-3',
+                                key === todayKey &&
+                                    'border-primary/40 bg-muted/30',
+                            )}
+                        >
+                            <div className="flex items-start justify-between gap-2">
+                                <div>
+                                    <div className="text-xs font-medium text-muted-foreground uppercase">
+                                        {formatWeekday(day)}
+                                    </div>
+                                    <div className="mt-1 text-lg font-semibold">
+                                        {formatDayNumber(day)}
+                                    </div>
+                                </div>
+                                <Badge
+                                    variant={
+                                        items.length > 0
+                                            ? 'secondary'
+                                            : 'outline'
+                                    }
+                                >
+                                    {items.length}
+                                </Badge>
+                            </div>
+                            <div className="mt-3 space-y-2">
+                                {items.length === 0 ? (
+                                    <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
+                                        No meetings
+                                    </div>
+                                ) : (
+                                    items.map((meeting) => (
+                                        <CalendarMeetingBlock
+                                            key={meeting.id}
+                                            meeting={meeting}
+                                            onEdit={onEdit}
+                                            onCancel={onCancel}
+                                        />
+                                    ))
+                                )}
+                            </div>
+                        </section>
+                    );
+                })}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-md border bg-background md:block">
                 <div
                     className={cn(
                         'grid divide-x',
@@ -646,6 +700,14 @@ function MonthCalendar({
         startOfWeek(startOfMonth(referenceDate)),
     );
     const todayKey = localDateKey(new Date());
+    const mobileDays = days.filter((day) => {
+        const key = localDateKey(day);
+
+        return (
+            sameMonth(day, referenceDate) &&
+            (meetingsByDate.get(key)?.length ?? 0) > 0
+        );
+    });
 
     return (
         <div className="space-y-3">
@@ -656,7 +718,54 @@ function MonthCalendar({
                 <Badge variant="outline">Month view</Badge>
             </div>
 
-            <div className="overflow-x-auto rounded-md border bg-background">
+            <div className="grid gap-3 md:hidden">
+                {mobileDays.length === 0 ? (
+                    <div className="rounded-md border border-dashed bg-background p-4 text-sm text-muted-foreground">
+                        No meetings this month.
+                    </div>
+                ) : (
+                    mobileDays.map((day) => {
+                        const key = localDateKey(day);
+                        const items = meetingsByDate.get(key) ?? [];
+
+                        return (
+                            <section
+                                key={key}
+                                className={cn(
+                                    'rounded-md border bg-background p-3',
+                                    key === todayKey &&
+                                        'border-primary/40 bg-muted/30',
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <div>
+                                        <div className="text-xs font-medium text-muted-foreground uppercase">
+                                            {formatWeekday(day)}
+                                        </div>
+                                        <div className="mt-1 text-lg font-semibold">
+                                            {formatDayNumber(day)}
+                                        </div>
+                                    </div>
+                                    <Badge variant="secondary">
+                                        {items.length}
+                                    </Badge>
+                                </div>
+                                <div className="mt-3 space-y-2">
+                                    {items.map((meeting) => (
+                                        <CalendarMeetingBlock
+                                            key={meeting.id}
+                                            meeting={meeting}
+                                            onEdit={onEdit}
+                                        />
+                                    ))}
+                                </div>
+                            </section>
+                        );
+                    })
+                )}
+            </div>
+
+            <div className="hidden overflow-x-auto rounded-md border bg-background md:block">
                 <div className="min-w-[760px]">
                     <div className="grid grid-cols-7 border-b bg-muted/30">
                         {weekdayLabels.map((day) => (

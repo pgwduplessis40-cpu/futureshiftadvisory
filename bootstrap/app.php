@@ -135,6 +135,8 @@ return Application::configure(basePath: dirname(__DIR__))
             ->name('fsa-analysis-bias-calibration')
             ->withoutOverlapping();
 
+        // RBNZ approved website-agent access is tied to the allowlisted public IP:
+        // daily OCR/exchange-rate refreshes keep data current and prevent 30-day idle removal.
         $schedule->command(RefreshEconomicIndicators::class)
             ->dailyAt('03:30')
             ->name('fsa-economic-indicators-refresh')

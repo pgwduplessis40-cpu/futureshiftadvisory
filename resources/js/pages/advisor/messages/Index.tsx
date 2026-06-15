@@ -113,8 +113,8 @@ export default function AdvisorMessagesIndex({ threads, counts }: Props) {
                     />
                 ) : (
                     <div className="overflow-hidden rounded-md border bg-background">
-                        <div className="overflow-x-auto">
-                            <table className="w-full min-w-[760px] text-sm">
+                        <div>
+                            <table className="fsa-responsive-table">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
                                         <th className="px-3 py-2 font-medium">
@@ -161,7 +161,7 @@ function ThreadRow({ thread }: { thread: ThreadSummary }) {
 
     return (
         <tr className="border-t align-top">
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Conversation">
                 <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
                         <Badge variant="outline" className="gap-1">
@@ -180,7 +180,7 @@ function ThreadRow({ thread }: { thread: ThreadSummary }) {
                     </div>
                 </div>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Source">
                 <div className="min-w-0">
                     <div className="font-medium">{thread.context_name}</div>
                     {thread.context_detail && (
@@ -190,7 +190,7 @@ function ThreadRow({ thread }: { thread: ThreadSummary }) {
                     )}
                 </div>
             </td>
-            <td className="max-w-[26rem] px-3 py-3">
+            <td className="max-w-[26rem] px-3 py-3" data-label="Latest">
                 <div className="min-w-0">
                     {thread.latest_sender_name && (
                         <div className="text-xs font-medium text-muted-foreground">
@@ -208,14 +208,17 @@ function ThreadRow({ thread }: { thread: ThreadSummary }) {
                     )}
                 </div>
             </td>
-            <td className="px-3 py-3 text-right whitespace-nowrap">
-                <div className="inline-flex items-center justify-end gap-1 text-xs text-muted-foreground">
+            <td
+                className="px-3 py-3 text-left whitespace-nowrap md:text-right"
+                data-label="Activity"
+            >
+                <div className="inline-flex items-center justify-start gap-1 text-xs text-muted-foreground md:justify-end">
                     <Clock3 className="size-3" aria-hidden="true" />
                     {formatDate(thread.last_activity_at)}
                 </div>
             </td>
-            <td className="px-3 py-3">
-                <div className="flex justify-end">
+            <td className="px-3 py-3" data-label="Open">
+                <div className="flex justify-start md:justify-end">
                     <Button asChild variant="outline" size="sm">
                         <Link href={thread.url}>
                             <ExternalLink

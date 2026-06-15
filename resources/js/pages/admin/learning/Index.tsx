@@ -363,7 +363,7 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
 
             <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_minmax(22rem,0.7fr)]">
                 <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                    <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-3 py-2 font-medium">Layer</th>
@@ -381,7 +381,10 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
                         <tbody>
                             {monitor.layers.slice(0, 12).map((layer) => (
                                 <tr key={layer.id} className="border-t">
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Layer"
+                                    >
                                         <div className="font-medium">
                                             {layer.id}. {layer.name}
                                         </div>
@@ -389,17 +392,26 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
                                             {layer.command ?? 'registry'}
                                         </div>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Cadence"
+                                    >
                                         <Badge variant="outline">
                                             {layer.cadence}
                                         </Badge>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Latest run"
+                                    >
                                         {formatDate(
                                             layer.latest_run?.ran_at ?? null,
                                         )}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Candidates"
+                                    >
                                         {layer.latest_run?.candidates_created ??
                                             0}
                                     </td>

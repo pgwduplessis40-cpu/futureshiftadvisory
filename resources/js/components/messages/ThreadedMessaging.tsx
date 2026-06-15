@@ -171,7 +171,12 @@ export function ThreadedMessaging({
             </div>
 
             <div className="grid gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
-                <aside className="space-y-4">
+                <aside
+                    className={cn(
+                        'space-y-4 lg:order-none',
+                        selectedThread ? 'order-2' : 'order-1',
+                    )}
+                >
                     <section className="rounded-md border bg-background p-4">
                         <div className="flex items-center justify-between gap-3">
                             <h2 className="text-sm font-medium">Threads</h2>
@@ -254,9 +259,14 @@ export function ThreadedMessaging({
                     </section>
                 </aside>
 
-                <section className="min-h-[520px] rounded-md border bg-background">
+                <section
+                    className={cn(
+                        'min-h-[360px] rounded-md border bg-background md:min-h-[520px] lg:order-none',
+                        selectedThread ? 'order-1' : 'order-2',
+                    )}
+                >
                     {selectedThread ? (
-                        <div className="flex min-h-[520px] flex-col">
+                        <div className="flex min-h-[360px] flex-col md:min-h-[520px]">
                             <div className="border-b p-4">
                                 <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                                     <div>
@@ -378,7 +388,7 @@ function MessageBubble({ message }: { message: ThreadMessage }) {
     return (
         <article
             className={cn(
-                'max-w-[min(42rem,88%)] rounded-md border p-3',
+                'max-w-full rounded-md border p-3 sm:max-w-[min(42rem,88%)]',
                 message.mine ? 'ml-auto bg-muted/60' : 'bg-background',
             )}
         >

@@ -12,6 +12,7 @@ use App\Models\User;
 use Carbon\CarbonInterface;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -72,8 +73,55 @@ final class HealthDashboardTest extends TestCase
                 ->where('aiUsage.month.estimated_cost_usd', 0.018)
                 ->where('aiUsage.currency.month_estimated_cost_nzd', 0.0306)
                 ->where('aiUsage.budget.status', 'within_budget')
+                ->where('aiUsage.official.status', 'admin_api_key_missing')
+                ->where('aiUsage.official.credit_balance_supported', false)
                 ->where('aiUsage.breakdown.0.model', 'claude-sonnet-4-6')
                 ->where('aiUsage.breakdown.0.requests', 2));
+    }
+
+    public function test_admin_api_key_syncs_official_anthropic_month_cost(): void
+    {
+        $this->travelTo(now()->setDate(2026, 6, 15)->setTime(12, 0)->setMicrosecond(0));
+        config(['services.anthropic.admin_key' => 'sk-ant-admin01-test']);
+        Http::fake([
+            'https://api.anthropic.com/v1/organizations/cost_report*' => Http::response([
+                'data' => [
+                    [
+                        'starting_at' => '2026-06-01T00:00:00Z',
+                        'ending_at' => '2026-06-02T00:00:00Z',
+                        'results' => [
+                            ['amount' => '123.45', 'currency' => 'USD'],
+                        ],
+                    ],
+                    [
+                        'starting_at' => '2026-06-02T00:00:00Z',
+                        'ending_at' => '2026-06-03T00:00:00Z',
+                        'results' => [
+                            ['amount' => '6.55', 'currency' => 'USD'],
+                        ],
+                    ],
+                ],
+                'has_more' => false,
+                'next_page' => null,
+            ]),
+        ]);
+
+        $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'anthropic-cost-advisor@example.test');
+
+        $this->actingAsMfa($advisor)
+            ->get(route('admin.integration-health.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/integration-health/Index')
+                ->where('aiUsage.official.configured', true)
+                ->where('aiUsage.official.status', 'synced')
+                ->where('aiUsage.official.month_cost_usd', 1.3)
+                ->where('aiUsage.official.credit_balance_supported', false)
+                ->where('aiUsage.official.credit_balance_usd', null));
+
+        Http::assertSent(fn ($request): bool => $request->hasHeader('anthropic-version', '2023-06-01')
+            && $request->hasHeader('x-api-key', 'sk-ant-admin01-test')
+            && str_starts_with((string) $request->url(), 'https://api.anthropic.com/v1/organizations/cost_report'));
     }
 
     public function test_client_users_cannot_view_integration_health_dashboard(): void

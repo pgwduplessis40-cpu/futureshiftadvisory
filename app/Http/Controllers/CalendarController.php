@@ -46,7 +46,7 @@ final class CalendarController extends Controller
         }
 
         [$title, $subtitle, $events] = match ($user->user_type) {
-            User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM => $this->clientCalendar($clients->resolveFor($request)),
+            User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM, User::TYPE_NPO_BOARD_MEMBER => $this->clientCalendar($clients->resolveFor($request)),
             User::TYPE_ENTREPRENEUR => $this->entrepreneurCalendar($user),
             User::TYPE_ENTREPRENEUR_MENTOR => $this->mentorCalendar($user),
             User::TYPE_BROKER => $this->panelCalendar($user, PanelMember::TYPE_BROKER),

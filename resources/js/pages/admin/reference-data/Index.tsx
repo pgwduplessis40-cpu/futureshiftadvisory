@@ -334,9 +334,7 @@ export default function ReferenceDataIndex({
                                     )
                                 }
                             />
-                            <InputError
-                                message={form.errors.evidence_upload}
-                            />
+                            <InputError message={form.errors.evidence_upload} />
                         </div>
 
                         <div className="space-y-2 lg:col-span-5">
@@ -380,7 +378,7 @@ export default function ReferenceDataIndex({
                         Current effective values
                     </h2>
                     <div className="overflow-hidden rounded-md border">
-                        <table className="w-full table-fixed text-sm">
+                        <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="w-[22%] px-3 py-2 font-medium">
@@ -416,19 +414,34 @@ export default function ReferenceDataIndex({
                                             key={`${value.dataset}-${value.label}-${index}`}
                                             className="border-t"
                                         >
-                                            <td className="px-3 py-3">
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="Dataset"
+                                            >
                                                 {formatDataset(value.dataset)}
                                             </td>
-                                            <td className="px-3 py-3 break-words">
+                                            <td
+                                                className="px-3 py-3 break-words"
+                                                data-label="Item"
+                                            >
                                                 {value.label}
                                             </td>
-                                            <td className="px-3 py-3 break-words">
+                                            <td
+                                                className="px-3 py-3 break-words"
+                                                data-label="Value"
+                                            >
                                                 {value.value}
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="As at"
+                                            >
                                                 {value.as_at}
                                             </td>
-                                            <td className="px-3 py-3 break-words">
+                                            <td
+                                                className="px-3 py-3 break-words"
+                                                data-label="Source"
+                                            >
                                                 {value.source}
                                             </td>
                                         </tr>
@@ -442,7 +455,7 @@ export default function ReferenceDataIndex({
                 <section className="space-y-3 rounded-md border bg-background p-4">
                     <h2 className="text-sm font-medium">Recent submissions</h2>
                     <div className="overflow-hidden rounded-md border">
-                        <table className="w-full table-fixed text-sm">
+                        <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="w-[20%] px-3 py-2 font-medium">
@@ -468,16 +481,28 @@ export default function ReferenceDataIndex({
                             <tbody>
                                 {entries.map((entry) => (
                                     <tr key={entry.id} className="border-t">
-                                        <td className="px-3 py-3">
+                                        <td
+                                            className="px-3 py-3"
+                                            data-label="Dataset"
+                                        >
                                             {formatDataset(entry.dataset)}
                                         </td>
-                                        <td className="px-3 py-3">
+                                        <td
+                                            className="px-3 py-3"
+                                            data-label="As at"
+                                        >
                                             {entry.as_at}
                                         </td>
-                                        <td className="px-3 py-3 break-words">
+                                        <td
+                                            className="px-3 py-3 break-words"
+                                            data-label="Source"
+                                        >
                                             {entry.source}
                                         </td>
-                                        <td className="px-3 py-3">
+                                        <td
+                                            className="px-3 py-3"
+                                            data-label="Evidence"
+                                        >
                                             {entry.evidence ? (
                                                 <a
                                                     className="text-sm font-medium text-primary underline-offset-4 hover:underline"
@@ -493,13 +518,19 @@ export default function ReferenceDataIndex({
                                                 </span>
                                             )}
                                         </td>
-                                        <td className="px-3 py-3">
+                                        <td
+                                            className="px-3 py-3"
+                                            data-label="Status"
+                                        >
                                             <Badge variant="outline">
                                                 {entry.learning_update_status ??
                                                     'pending'}
                                             </Badge>
                                         </td>
-                                        <td className="px-3 py-3">
+                                        <td
+                                            className="px-3 py-3"
+                                            data-label="Submitted"
+                                        >
                                             {entry.created_at
                                                 ? new Date(
                                                       entry.created_at,

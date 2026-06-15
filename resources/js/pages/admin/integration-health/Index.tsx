@@ -71,9 +71,16 @@ type AiUsage = {
     };
     official: {
         configured: boolean;
-        status: 'ready_for_usage_cost_sync' | 'admin_api_key_missing';
+        status:
+            | 'synced'
+            | 'sync_failed'
+            | 'invalid_admin_api_key'
+            | 'admin_api_key_missing';
         month_cost_usd: number | null;
         last_synced_at: string | null;
+        error: string | null;
+        credit_balance_supported: boolean;
+        credit_balance_usd: null;
     };
     pricing: {
         basis: string;
@@ -200,9 +207,7 @@ export default function IntegrationHealthIndex({
                                 className="size-3"
                                 aria-hidden="true"
                             />
-                            {aiUsage.official.configured
-                                ? 'Admin API ready'
-                                : 'Estimated only'}
+                            {officialBadgeLabel(aiUsage)}
                         </Badge>
                     </div>
 
@@ -230,7 +235,7 @@ export default function IntegrationHealthIndex({
 
                     <div className="grid gap-4 lg:grid-cols-[1fr_22rem]">
                         <div className="overflow-hidden rounded-md border">
-                            <table className="w-full text-sm">
+                            <table className="fsa-responsive-table">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
                                         <th className="px-3 py-2 font-medium">
@@ -263,18 +268,30 @@ export default function IntegrationHealthIndex({
                                                 key={model.model}
                                                 className="border-t"
                                             >
-                                                <td className="px-3 py-2 font-medium">
+                                                <td
+                                                    className="px-3 py-2 font-medium"
+                                                    data-label="Model"
+                                                >
                                                     {model.model}
                                                 </td>
-                                                <td className="px-3 py-2">
+                                                <td
+                                                    className="px-3 py-2"
+                                                    data-label="Calls"
+                                                >
                                                     {model.requests}
                                                 </td>
-                                                <td className="px-3 py-2">
+                                                <td
+                                                    className="px-3 py-2"
+                                                    data-label="Tokens"
+                                                >
                                                     {formatNumber(
                                                         model.total_tokens,
                                                     )}
                                                 </td>
-                                                <td className="px-3 py-2">
+                                                <td
+                                                    className="px-3 py-2"
+                                                    data-label="Est. cost"
+                                                >
                                                     {formatCurrency(
                                                         model.estimated_cost_usd,
                                                     )}
@@ -320,20 +337,48 @@ export default function IntegrationHealthIndex({
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-muted-foreground">
-                                    Official billing
+                                    Official Anthropic cost
                                 </span>
-                                <Badge
-                                    variant={
-                                        aiUsage.official.configured
-                                            ? 'secondary'
-                                            : 'outline'
-                                    }
-                                >
-                                    {aiUsage.official.configured
-                                        ? 'Key configured'
-                                        : 'Key missing'}
+                                <span className="font-medium">
+                                    {aiUsage.official.month_cost_usd === null
+                                        ? officialStatusLabel(aiUsage)
+                                        : formatCurrency(
+                                              aiUsage.official.month_cost_usd,
+                                          )}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Admin API status
+                                </span>
+                                <Badge variant={officialVariant(aiUsage)}>
+                                    {officialStatusLabel(aiUsage)}
                                 </Badge>
                             </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Credit balance
+                                </span>
+                                <Badge variant="outline">Not exposed</Badge>
+                            </div>
+                            {aiUsage.official.last_synced_at && (
+                                <p className="text-xs text-muted-foreground">
+                                    Synced{' '}
+                                    {formatDate(
+                                        aiUsage.official.last_synced_at,
+                                    )}
+                                </p>
+                            )}
+                            {aiUsage.official.error && (
+                                <p className="rounded-md border border-destructive/30 bg-destructive/10 px-3 py-2 text-xs text-destructive">
+                                    {aiUsage.official.error}
+                                </p>
+                            )}
+                            <p className="text-xs text-muted-foreground">
+                                Anthropic Admin API returns usage and cost
+                                reports only; prepaid credit balance must be
+                                checked in Claude Console.
+                            </p>
                         </div>
                     </div>
                 </section>
@@ -357,7 +402,7 @@ export default function IntegrationHealthIndex({
                         </p>
                     ) : (
                         <div className="overflow-hidden rounded-md border">
-                            <table className="w-full text-sm">
+                            <table className="fsa-responsive-table">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
                                         <th className="px-3 py-2 font-medium">
@@ -383,7 +428,10 @@ export default function IntegrationHealthIndex({
                                             key={service.id}
                                             className="border-t"
                                         >
-                                            <td className="px-3 py-2">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Service"
+                                            >
                                                 <div className="font-medium">
                                                     {service.service}
                                                 </div>
@@ -393,7 +441,10 @@ export default function IntegrationHealthIndex({
                                                     )}
                                                 </div>
                                             </td>
-                                            <td className="px-3 py-2">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Health"
+                                            >
                                                 <Badge
                                                     variant={healthVariant(
                                                         service.health,
@@ -405,17 +456,26 @@ export default function IntegrationHealthIndex({
                                                     {service.health}
                                                 </Badge>
                                             </td>
-                                            <td className="px-3 py-2">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Success"
+                                            >
                                                 {formatPercent(
                                                     service.success_rate,
                                                 )}
                                             </td>
-                                            <td className="px-3 py-2">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="P95"
+                                            >
                                                 {service.p95_latency_ms === null
                                                     ? 'n/a'
                                                     : `${service.p95_latency_ms}ms`}
                                             </td>
-                                            <td className="px-3 py-2">
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Lag"
+                                            >
                                                 <Badge
                                                     variant={
                                                         service.fresh
@@ -549,6 +609,39 @@ function budgetValue(aiUsage: AiUsage): string {
     }
 
     return formatPercent(aiUsage.budget.percent_used);
+}
+
+function officialBadgeLabel(aiUsage: AiUsage): string {
+    return aiUsage.official.status === 'synced'
+        ? 'Official cost synced'
+        : 'Estimated only';
+}
+
+function officialStatusLabel(aiUsage: AiUsage): string {
+    switch (aiUsage.official.status) {
+        case 'synced':
+            return 'Synced';
+        case 'sync_failed':
+            return 'Sync failed';
+        case 'invalid_admin_api_key':
+            return 'Invalid admin key';
+        case 'admin_api_key_missing':
+            return 'Key missing';
+    }
+}
+
+function officialVariant(
+    aiUsage: AiUsage,
+): 'secondary' | 'outline' | 'destructive' {
+    if (aiUsage.official.status === 'synced') {
+        return 'secondary';
+    }
+
+    if (aiUsage.official.status === 'admin_api_key_missing') {
+        return 'outline';
+    }
+
+    return 'destructive';
 }
 
 function budgetExplanation(aiUsage: AiUsage): string {

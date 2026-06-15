@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import npoBoard from './npo-board'
 import calendar from './calendar'
 import ddPlan from './dd-plan'
 import entrepreneur from './entrepreneur'
@@ -90,6 +91,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     dashboard.form = dashboardForm
 const portal = {
     dashboard: Object.assign(dashboard, dashboard),
+npoBoard: Object.assign(npoBoard, npoBoard),
 calendar: Object.assign(calendar, calendar),
 ddPlan: Object.assign(ddPlan, ddPlan),
 entrepreneur: Object.assign(entrepreneur, entrepreneur),

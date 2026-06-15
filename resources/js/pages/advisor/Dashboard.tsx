@@ -2390,7 +2390,7 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                 </p>
             ) : (
                 <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                    <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-3 py-2 font-medium">
@@ -2411,7 +2411,10 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                         <tbody>
                             {payload.clients.map((client) => (
                                 <tr key={client.id} className="border-t">
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Client"
+                                    >
                                         <Link
                                             href={client.show_url}
                                             className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
@@ -2423,12 +2426,18 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                                                 client.engagement_type_label}
                                         </div>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Engagement"
+                                    >
                                         <EngagementBadge
                                             engagement={client.engagement}
                                         />
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Flags"
+                                    >
                                         <Badge
                                             variant={
                                                 client.open_document_flags_count >
@@ -2440,10 +2449,16 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                                             {client.open_document_flags_count}
                                         </Badge>
                                     </td>
-                                    <td className="px-3 py-2 text-muted-foreground">
+                                    <td
+                                        className="px-3 py-2 text-muted-foreground"
+                                        data-label="Activity"
+                                    >
                                         {formatDate(client.last_activity_at)}
                                     </td>
-                                    <td className="px-3 py-2 text-right">
+                                    <td
+                                        className="px-3 py-2 text-left md:text-right"
+                                        data-label="Open"
+                                    >
                                         <Button
                                             asChild
                                             size="sm"

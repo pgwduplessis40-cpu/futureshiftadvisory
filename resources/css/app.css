@@ -145,7 +145,70 @@
 }
 
 @layer components {
-    :where(section, article, div, form, main, aside, nav, header, li)[id]:target,
+    .fsa-responsive-table {
+        width: 100%;
+        table-layout: auto;
+        font-size: 0.875rem;
+    }
+
+    @media (max-width: 767px) {
+        .fsa-responsive-table thead {
+            display: none;
+        }
+
+        .fsa-responsive-table,
+        .fsa-responsive-table tbody,
+        .fsa-responsive-table tr,
+        .fsa-responsive-table td {
+            display: block;
+            width: 100%;
+        }
+
+        .fsa-responsive-table tbody {
+            display: grid;
+            gap: 0.75rem;
+            padding: 0.75rem;
+        }
+
+        .fsa-responsive-table tr {
+            border: 1px solid var(--border);
+            border-radius: var(--radius-md);
+            background: var(--background);
+            padding: 0.75rem;
+        }
+
+        .fsa-responsive-table tr + tr {
+            border-top-width: 1px;
+        }
+
+        .fsa-responsive-table td {
+            border: 0;
+            padding: 0.375rem 0;
+            text-align: left;
+        }
+
+        .fsa-responsive-table td[data-label] {
+            display: grid;
+            grid-template-columns: minmax(7rem, 0.42fr) minmax(0, 1fr);
+            gap: 0.75rem;
+            align-items: start;
+        }
+
+        .fsa-responsive-table td[data-label]::before {
+            content: attr(data-label);
+            color: var(--muted-foreground);
+            font-weight: 500;
+        }
+
+        .fsa-responsive-table td[data-label=''] {
+            display: block;
+        }
+
+        .fsa-responsive-table td[data-label='']::before {
+            content: none;
+        }
+    }
+
     :where(
             section,
             article,
@@ -156,7 +219,18 @@
             nav,
             header,
             li
-        ).fsa-target-highlight {
+        )[id]:target,
+    :where(
+        section,
+        article,
+        div,
+        form,
+        main,
+        aside,
+        nav,
+        header,
+        li
+    ).fsa-target-highlight {
         scroll-margin-top: 5rem;
         outline: 2px solid color-mix(in oklch, var(--chart-2) 76%, white 24%);
         outline-offset: 4px;
@@ -166,7 +240,6 @@
     }
 
     @media (prefers-reduced-motion: no-preference) {
-        :where(section, article, div, form, main, aside, nav, header, li)[id]:target,
         :where(
                 section,
                 article,
@@ -177,7 +250,18 @@
                 nav,
                 header,
                 li
-            ).fsa-target-highlight {
+            )[id]:target,
+        :where(
+            section,
+            article,
+            div,
+            form,
+            main,
+            aside,
+            nav,
+            header,
+            li
+        ).fsa-target-highlight {
             animation: fsa-target-highlight 1800ms ease-out;
         }
     }

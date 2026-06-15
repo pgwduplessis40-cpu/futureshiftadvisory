@@ -34,7 +34,7 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                    <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-3 py-2 font-medium">Set</th>
@@ -58,7 +58,7 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                         <tbody>
                             {questionnaires.map((questionnaire) => (
                                 <tr key={questionnaire.id} className="border-t">
-                                    <td className="px-3 py-2">
+                                    <td className="px-3 py-2" data-label="Set">
                                         <Link
                                             href={`/admin/questionnaires/${questionnaire.id}/preview`}
                                             className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
@@ -69,10 +69,16 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                                             {questionnaire.set}
                                         </div>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Version"
+                                    >
                                         {questionnaire.version}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Status"
+                                    >
                                         <Badge
                                             variant={
                                                 questionnaire.published_at
@@ -85,14 +91,23 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                                                 : 'draft'}
                                         </Badge>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Sections"
+                                    >
                                         {questionnaire.sections_count}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Responses"
+                                    >
                                         {questionnaire.responses_count}
                                     </td>
-                                    <td className="px-3 py-2">
-                                        <div className="flex justify-end gap-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Actions"
+                                    >
+                                        <div className="flex justify-start gap-2 md:justify-end">
                                             <Button
                                                 asChild
                                                 size="sm"

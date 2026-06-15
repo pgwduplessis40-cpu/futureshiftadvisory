@@ -35,7 +35,7 @@ export default function TermsIndex({ versions }: Props) {
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                    <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-3 py-2 font-medium">
@@ -61,10 +61,16 @@ export default function TermsIndex({ versions }: Props) {
                         <tbody>
                             {versions.map((version) => (
                                 <tr key={version.id} className="border-t">
-                                    <td className="px-3 py-2 font-medium">
+                                    <td
+                                        className="px-3 py-2 font-medium"
+                                        data-label="Version"
+                                    >
                                         {version.version}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Status"
+                                    >
                                         <Badge
                                             variant={
                                                 version.published_at
@@ -77,18 +83,30 @@ export default function TermsIndex({ versions }: Props) {
                                                 : 'draft'}
                                         </Badge>
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Material"
+                                    >
                                         {version.material ? 'yes' : 'no'}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Clause classes"
+                                    >
                                         {version.material_clauses_count ?? 0}{' '}
                                         material
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Clauses"
+                                    >
                                         {version.clauses_count ?? 0}
                                     </td>
-                                    <td className="px-3 py-2">
-                                        <div className="flex justify-end gap-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Actions"
+                                    >
+                                        <div className="flex justify-start gap-2 md:justify-end">
                                             <Button
                                                 asChild
                                                 size="sm"

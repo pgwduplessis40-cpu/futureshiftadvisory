@@ -2454,7 +2454,7 @@ function NpoConfigurationPanel({
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                    <table className="fsa-responsive-table">
                         <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                             <tr>
                                 <th className="px-3 py-2 font-medium">Type</th>
@@ -2476,16 +2476,28 @@ function NpoConfigurationPanel({
                                         key={suggestion.value}
                                         className="border-t"
                                     >
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Type"
+                                        >
                                             {suggestion.label}
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Commercial"
+                                        >
                                             {suggestion.commercial_weight}%
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Mission"
+                                        >
                                             {suggestion.mission_weight}%
                                         </td>
-                                        <td className="px-3 py-2 text-right">
+                                        <td
+                                            className="px-3 py-2 text-left md:text-right"
+                                            data-label="Apply"
+                                        >
                                             <Button
                                                 type="button"
                                                 size="sm"
@@ -2598,7 +2610,7 @@ function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
             )}
 
             <div className="overflow-hidden rounded-md border">
-                <table className="w-full text-sm">
+                <table className="fsa-responsive-table">
                     <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
                         <tr>
                             <th className="px-3 py-2 font-medium">Funder</th>
@@ -2610,7 +2622,7 @@ function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
                     <tbody>
                         {funding.records.map((record) => (
                             <tr key={record.id} className="border-t">
-                                <td className="px-3 py-2">
+                                <td className="px-3 py-2" data-label="Funder">
                                     <div className="font-medium">
                                         {record.funder_name ?? 'Funder'}
                                     </div>
@@ -2618,16 +2630,16 @@ function NpoFundingPanel({ funding }: { funding: NpoFundingSummary }) {
                                         <Badge variant="outline">Verify</Badge>
                                     )}
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-3 py-2" data-label="Amount">
                                     {formatMoney(
                                         record.grant_amount,
                                         record.currency,
                                     )}
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-3 py-2" data-label="Report">
                                     {formatDate(record.reporting_deadline)}
                                 </td>
-                                <td className="px-3 py-2">
+                                <td className="px-3 py-2" data-label="Renewal">
                                     {record.renewal_probability === null
                                         ? '-'
                                         : `${record.renewal_probability}%`}

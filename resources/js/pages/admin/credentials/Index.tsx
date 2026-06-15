@@ -81,7 +81,7 @@ export default function IntegrationCredentialIndex({ credentials }: Props) {
                             {category.replaceAll('_', ' ')}
                         </h2>
                         <div className="overflow-hidden rounded-md border">
-                            <table className="w-full table-fixed text-sm">
+                            <table className="fsa-responsive-table table-fixed md:table-fixed">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
                                         <th className="w-[22%] px-3 py-2 font-medium">
@@ -121,7 +121,7 @@ export default function IntegrationCredentialIndex({ credentials }: Props) {
 function IntegrationRowView({ row }: { row: IntegrationRow }) {
     return (
         <tr className="border-t align-top">
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Integration">
                 <div className="flex items-center gap-1.5 font-medium">
                     <span>{row.display_name}</span>
                     <IntegrationHelpTooltip row={row} />
@@ -139,13 +139,13 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
                     ) : null}
                 </div>
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Required keys">
                 <CredentialList row={row} />
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Readiness">
                 <ReadinessBadge row={row} />
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Update">
                 {row.managed_via === 'vault' ? (
                     <div className="space-y-3">
                         {row.credentials.map((credential) => (
@@ -167,7 +167,7 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
                     </div>
                 )}
             </td>
-            <td className="px-3 py-3">
+            <td className="px-3 py-3" data-label="Live">
                 <LiveControl row={row} />
             </td>
         </tr>

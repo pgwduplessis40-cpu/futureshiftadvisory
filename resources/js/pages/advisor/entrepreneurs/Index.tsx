@@ -62,7 +62,7 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
 
                 <div className="overflow-hidden rounded-md border">
                     {entrepreneurs.length > 0 ? (
-                        <table className="w-full text-sm">
+                        <table className="fsa-responsive-table">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="px-3 py-2 font-medium">
@@ -85,7 +85,10 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                                         key={entrepreneur.id}
                                         className="border-t"
                                     >
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Entrepreneur"
+                                        >
                                             <Link
                                                 href={`/advisor/entrepreneurs/${entrepreneur.id}`}
                                                 className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
@@ -96,17 +99,26 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                                                 {entrepreneur.email}
                                             </div>
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Stage"
+                                        >
                                             <Badge variant="secondary">
                                                 {entrepreneur.stage_label}
                                             </Badge>
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Advisor"
+                                        >
                                             {entrepreneur.assigned_advisor_name ??
                                                 'Unassigned'}
                                         </td>
-                                        <td className="px-3 py-2">
-                                            <div className="flex justify-end">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Actions"
+                                        >
+                                            <div className="flex justify-start md:justify-end">
                                                 <Button
                                                     asChild
                                                     size="sm"

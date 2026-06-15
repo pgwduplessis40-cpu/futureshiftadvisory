@@ -27,6 +27,7 @@ use App\Services\Integration\Resilience\RetryPolicy;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
@@ -154,9 +155,18 @@ final class EconomicIndicatorsTest extends TestCase
         $this->assertSame('live', $rate->source_badge);
 
         Http::assertSentCount(2);
-        Http::assertSent(fn ($request): bool =>
-            $request->hasHeader('User-Agent', 'rbnz-approved-agent/rsd-58801')
+        Http::assertSent(fn ($request): bool => $request->hasHeader('User-Agent', 'rbnz-approved-agent/rsd-58801')
             && ! str_contains($request->url(), 'api_key='));
+    }
+
+    public function test_rbnz_approved_agent_refresh_is_scheduled_daily(): void
+    {
+        Artisan::call('schedule:list');
+
+        $this->assertMatchesRegularExpression(
+            '/30\s+3\s+\*\s+\*\s+\*\s+php artisan economic-indicators:refresh/',
+            Artisan::output(),
+        );
     }
 
     public function test_refresh_is_idempotent_for_same_source_periods(): void

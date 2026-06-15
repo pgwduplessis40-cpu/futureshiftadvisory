@@ -14,9 +14,11 @@ use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 final class IntegrationHealthController extends Controller
 {
@@ -127,14 +129,7 @@ final class IntegrationHealthController extends Controller
                 'today_estimated_cost_nzd' => $this->toNzd($today['estimated_cost_usd']),
                 'month_estimated_cost_nzd' => $this->toNzd($month['estimated_cost_usd']),
             ],
-            'official' => [
-                'configured' => $this->credentials->present('anthropic_admin', 'key'),
-                'status' => $this->credentials->present('anthropic_admin', 'key')
-                    ? 'ready_for_usage_cost_sync'
-                    : 'admin_api_key_missing',
-                'month_cost_usd' => null,
-                'last_synced_at' => null,
-            ],
+            'official' => $this->anthropicOfficialCostPayload($now),
             'pricing' => [
                 'basis' => 'local_estimate_from_response_tokens',
                 'provider' => 'anthropic',
@@ -261,5 +256,96 @@ final class IntegrationHealthController extends Controller
     private function aiUsageStoreAvailable(): bool
     {
         return Schema::hasTable('ai_usage_events');
+    }
+
+    /**
+     * @return array{configured:bool,status:string,month_cost_usd:float|null,last_synced_at:string|null,error:string|null,credit_balance_supported:bool,credit_balance_usd:null}
+     */
+    private function anthropicOfficialCostPayload(CarbonInterface $now): array
+    {
+        $key = $this->credentials->get('anthropic_admin', 'key');
+
+        if (! is_string($key) || trim($key) === '') {
+            return $this->emptyAnthropicOfficialPayload('admin_api_key_missing');
+        }
+
+        $key = trim($key);
+        if (! str_starts_with($key, 'sk-ant-admin')) {
+            return $this->emptyAnthropicOfficialPayload('invalid_admin_api_key');
+        }
+
+        $endpoint = 'https://api.anthropic.com/v1/organizations/cost_report';
+
+        try {
+            $response = Http::timeout(12)
+                ->acceptJson()
+                ->withHeaders([
+                    'anthropic-version' => '2023-06-01',
+                    'x-api-key' => $key,
+                    'User-Agent' => 'FutureShiftAdvisory/1.0 (https://futureshiftadvisory.nz)',
+                ])
+                ->get($endpoint, [
+                    'starting_at' => $now->copy()->utc()->startOfMonth()->toIso8601ZuluString(),
+                    'ending_at' => $now->copy()->utc()->toIso8601ZuluString(),
+                    'bucket_width' => '1d',
+                    'limit' => 31,
+                ]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->emptyAnthropicOfficialPayload('sync_failed', 'Unable to reach Anthropic Admin API.');
+        }
+
+        if ($response->failed()) {
+            return $this->emptyAnthropicOfficialPayload(
+                'sync_failed',
+                'Anthropic Admin API returned HTTP '.$response->status().'.',
+            );
+        }
+
+        return [
+            'configured' => true,
+            'status' => 'synced',
+            'month_cost_usd' => $this->sumAnthropicCostUsd($response->json()),
+            'last_synced_at' => now()->toIso8601String(),
+            'error' => null,
+            'credit_balance_supported' => false,
+            'credit_balance_usd' => null,
+        ];
+    }
+
+    /**
+     * @return array{configured:bool,status:string,month_cost_usd:null,last_synced_at:null,error:string|null,credit_balance_supported:bool,credit_balance_usd:null}
+     */
+    private function emptyAnthropicOfficialPayload(string $status, ?string $error = null): array
+    {
+        return [
+            'configured' => $status !== 'admin_api_key_missing',
+            'status' => $status,
+            'month_cost_usd' => null,
+            'last_synced_at' => null,
+            'error' => $error,
+            'credit_balance_supported' => false,
+            'credit_balance_usd' => null,
+        ];
+    }
+
+    private function sumAnthropicCostUsd(mixed $payload): float
+    {
+        if (! is_array($payload)) {
+            return 0.0;
+        }
+
+        $cents = collect($payload['data'] ?? [])
+            ->filter(fn (mixed $bucket): bool => is_array($bucket))
+            ->flatMap(fn (array $bucket): array => is_array($bucket['results'] ?? null) ? $bucket['results'] : [])
+            ->filter(fn (mixed $result): bool => is_array($result))
+            ->sum(function (array $result): float {
+                $amount = $result['amount'] ?? 0;
+
+                return is_numeric($amount) ? (float) $amount : 0.0;
+            });
+
+        return round($cents / 100, 6);
     }
 }

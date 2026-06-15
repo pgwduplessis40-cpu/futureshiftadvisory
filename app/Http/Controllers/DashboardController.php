@@ -78,6 +78,10 @@ final class DashboardController extends Controller
             return to_route('portal.entrepreneur.dashboard');
         }
 
+        if ($user instanceof User && $user->user_type === User::TYPE_NPO_BOARD_MEMBER) {
+            return to_route('portal.npo-board.dashboard');
+        }
+
         if (
             $user instanceof User
             && in_array($user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)

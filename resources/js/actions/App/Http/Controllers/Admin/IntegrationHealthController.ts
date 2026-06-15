@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::index
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:25
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:27
  * @route '/admin/integration-health'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:56
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:58
  * @route '/admin/integration-health/refresh'
  */
 export const refresh = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ refresh.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:56
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:58
  * @route '/admin/integration-health/refresh'
  */
 refresh.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ refresh.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:56
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:58
  * @route '/admin/integration-health/refresh'
  */
 refresh.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ refresh.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:56
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:58
  * @route '/admin/integration-health/refresh'
  */
     const refreshForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ refresh.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
- * @see app/Http/Controllers/Admin/IntegrationHealthController.php:56
+ * @see app/Http/Controllers/Admin/IntegrationHealthController.php:58
  * @route '/admin/integration-health/refresh'
  */
         refreshForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

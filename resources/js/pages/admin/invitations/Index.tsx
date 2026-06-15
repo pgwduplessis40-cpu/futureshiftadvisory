@@ -32,7 +32,7 @@ export default function InvitationsIndex({ invites }: Props) {
                 </div>
 
                 <div className="overflow-hidden rounded-md border">
-                    <table className="w-full text-sm">
+                    <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
                                 <th className="px-3 py-2 font-medium">Email</th>
@@ -46,16 +46,22 @@ export default function InvitationsIndex({ invites }: Props) {
                         <tbody>
                             {invites.map((invite) => (
                                 <tr key={invite.id} className="border-t">
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Email"
+                                    >
                                         {invite.email}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td className="px-3 py-2" data-label="Type">
                                         {invite.target_user_type}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td className="px-3 py-2" data-label="Role">
                                         {invite.target_role}
                                     </td>
-                                    <td className="px-3 py-2">
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Status"
+                                    >
                                         {invite.accepted_at
                                             ? 'accepted'
                                             : 'pending'}

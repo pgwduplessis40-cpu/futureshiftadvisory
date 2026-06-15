@@ -11,7 +11,19 @@
       "PowerShell(php artisan wayfinder:generate --with-form 2>&1 | Select-Object -Last 3; \"--- format script available? ---\"; \\(Get-Content package.json -Raw | ConvertFrom-Json\\).scripts.PSObject.Properties | Where-Object { $_.Name -match 'format|lint|types' } | ForEach-Object { \"$\\($_.Name\\): $\\($_.Value\\)\" })",
       "PowerShell(npm run format 2>&1)",
       "PowerShell(npm run build 2>&1)",
-      "PowerShell(\"=== build ===\")"
+      "PowerShell(\"=== build ===\")",
+      "PowerShell($env:DB_HOST='localhost'; $env:DB_USERNAME='postgres'; $env:DB_PASSWORD=$env:FSA_TEST_DB_PASSWORD; $env:DB_DATABASE='futureshift_test'; php -d memory_limit=2048M vendor/phpunit/phpunit/phpunit --no-coverage > full-test.txt 2>&1; \"EXIT=$LASTEXITCODE\" | Out-File -Append full-test.txt -Encoding utf8)",
+      "Bash(git rev-list *)",
+      "PowerShell($env:DB_HOST='localhost'; $env:DB_USERNAME='postgres'; $env:DB_PASSWORD=$env:FSA_TEST_DB_PASSWORD; $env:DB_DATABASE='futureshift_test'; php -d memory_limit=1024M vendor/phpunit/phpunit/phpunit --no-coverage tests/Feature/Npo/GovernanceReviewAnalyzerTest.php 2>&1 | Select-Object -Last 3; \"=== pint ===\"; php vendor/bin/pint --test app/Http/Controllers/Advisor/ClientController.php tests/Feature/Npo/GovernanceReviewAnalyzerTest.php 2>&1 | Select-Object -Last 2)",
+      "PowerShell($raw = Get-Content full-test.txt -Raw -Encoding Unicode; if \\($raw.IndexOf\\('{\"tool\"'\\) -lt 0\\) { $raw = Get-Content full-test.txt -Raw }; $s = $raw.IndexOf\\('{\"tool\"'\\); $e = $raw.LastIndexOf\\('}'\\); $j = $raw.Substring\\($s, $e-$s+1\\) | ConvertFrom-Json; \"result=$\\($j.result\\) tests=$\\($j.tests\\) passed=$\\($j.passed\\) failed=$\\($j.failed\\) errors=$\\($j.errors\\) assertions=$\\($j.assertions\\)\")",
+      "Bash(sed -n '162,170p' app/Providers/AppServiceProvider.php)",
+      "Bash(grep -nA6 \"Password::min\\\\\\(12\\\\\\)\" app/Providers/AppServiceProvider.php)",
+      "Bash(grep -viE \"permissions|//|transmission\")",
+      "Bash(grep -nE '\\\\$table->' database/migrations/2026_05_23_010000_create_briefing_tables.php)",
+      "Bash(grep -nE \"insert-only \\\\\\(status transitions|approved_by_user_id|columns: .dataset., .indicator., .value|api_key. / .secret.|Stripe/Windcave need|status\\\\` \\\\\\(\\\\`pending\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
+      "Bash(grep -nE \"Incorporated Societies, PPSR|Whisper today|reads on approval|reads \\\\\\(no table\\\\\\)|integrations.\\\\.\\\\{key\\\\}|config\\\\\\('integrations\\\\.…'\\\\\\)\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
+      "Bash(grep -nE \"No code path reads a raw key except the resolver\\\\.$|reads a raw key except the resolver\\\\.\\\\\"|services\\\\.whisper\\\\.live.*Live\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
+      "Bash(grep -nE \"flag on\\\\b|flag-gated|FEATURE_STATS_NZ_LIVE|with the flag on|flag\\\\.\\\\*\\\\*$\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)"
     ]
   }
 }

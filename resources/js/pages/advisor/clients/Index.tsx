@@ -84,7 +84,7 @@ export default function ClientsIndex({
 
                 <div className="overflow-hidden rounded-md border">
                     {clients.length > 0 ? (
-                        <table className="w-full text-sm">
+                        <table className="fsa-responsive-table">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="px-3 py-2 font-medium">
@@ -110,7 +110,10 @@ export default function ClientsIndex({
                             <tbody>
                                 {clients.map((client) => (
                                     <tr key={client.id} className="border-t">
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Client"
+                                        >
                                             <Link
                                                 href={`/advisor/clients/${client.id}`}
                                                 className="font-medium hover:underline focus-visible:underline focus-visible:outline-none"
@@ -131,10 +134,16 @@ export default function ClientsIndex({
                                                 </Badge>
                                             )}
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Engagement"
+                                        >
                                             {client.engagement_type_label}
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Status"
+                                        >
                                             <Badge
                                                 variant={
                                                     client.status ===
@@ -146,16 +155,25 @@ export default function ClientsIndex({
                                                 {client.status_label}
                                             </Badge>
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="NZBN"
+                                        >
                                             {client.nzbn ?? '—'}
                                         </td>
-                                        <td className="px-3 py-2">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Quality"
+                                        >
                                             <Badge variant="secondary">
                                                 {client.data_quality}
                                             </Badge>
                                         </td>
-                                        <td className="px-3 py-2">
-                                            <div className="flex justify-end">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Actions"
+                                        >
+                                            <div className="flex justify-start md:justify-end">
                                                 <Button
                                                     asChild
                                                     size="sm"

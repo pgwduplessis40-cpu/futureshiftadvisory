@@ -247,6 +247,17 @@ const clientNavItems: NavItem[] = [
     notificationsNavItem,
 ];
 
+const npoBoardNavItems: NavItem[] = [
+    {
+        title: 'Dashboard',
+        href: '/portal/npo-board',
+        icon: LayoutGrid,
+    },
+    portalCalendarNavItem,
+    messagesNavItem,
+    notificationsNavItem,
+];
+
 const brokerNavItems: NavItem[] = [
     dashboardNavItem,
     activityCalendarNavItem,
@@ -302,6 +313,10 @@ function mainNavItemsFor(
         return clientNavItems;
     }
 
+    if (userType === 'npo_board_member') {
+        return npoBoardNavItems;
+    }
+
     if (userType === 'super_admin') {
         return [
             ...advisorNavItems,
@@ -344,6 +359,10 @@ function homeHrefFor(userType?: string | null): NavItem['href'] {
 
     if (userType === 'client_primary' || userType === 'client_team') {
         return '/portal';
+    }
+
+    if (userType === 'npo_board_member') {
+        return '/portal/npo-board';
     }
 
     return dashboard();

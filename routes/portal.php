@@ -11,6 +11,7 @@ use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\EntrepreneurPlanController;
 use App\Http\Controllers\Portal\InspirationBoardController;
 use App\Http\Controllers\Portal\MessageController;
+use App\Http\Controllers\Portal\NpoBoardDashboardController;
 use App\Http\Controllers\Portal\NpoImpactMetricController;
 use App\Http\Controllers\Portal\OnboardingController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
@@ -23,6 +24,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->name('portal.')
     ->group(function (): void {
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::get('npo-board', NpoBoardDashboardController::class)->name('npo-board.dashboard');
         Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');
         Route::get('acquisition-plan', [DdBusinessPlanController::class, 'show'])->name('dd-plan.show');
         Route::get('acquisition-plan/preview', [DdBusinessPlanController::class, 'preview'])->name('dd-plan.preview');

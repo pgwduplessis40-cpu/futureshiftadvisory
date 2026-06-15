@@ -236,7 +236,7 @@ export default function ServiceRatesIndex({
                     </div>
 
                     <div className="overflow-hidden rounded-md border">
-                        <table className="w-full table-fixed text-sm">
+                        <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="w-[18%] px-3 py-2 font-medium">
@@ -272,32 +272,50 @@ export default function ServiceRatesIndex({
                                 ) : (
                                     history.map((rate) => (
                                         <tr key={rate.id} className="border-t">
-                                            <td className="px-3 py-3 font-medium">
+                                            <td
+                                                className="px-3 py-3 font-medium"
+                                                data-label="Rate"
+                                            >
                                                 {formatMoney(
                                                     rate.hourly_rate,
                                                     rate.currency,
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="Service discount"
+                                            >
                                                 {formatPercent(
                                                     rate.npo_service_discount_percent,
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="Retainer discount"
+                                            >
                                                 {formatPercent(
                                                     rate.npo_retainer_discount_percent,
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="Effective"
+                                            >
                                                 {formatDate(
                                                     rate.effective_from,
                                                 )}
                                             </td>
-                                            <td className="px-3 py-3">
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="Updated by"
+                                            >
                                                 {rate.created_by_name ??
                                                     'Admin'}
                                             </td>
-                                            <td className="px-3 py-3 break-words text-muted-foreground">
+                                            <td
+                                                className="px-3 py-3 break-words text-muted-foreground"
+                                                data-label="Notes"
+                                            >
                                                 {rate.notes ?? ''}
                                             </td>
                                         </tr>
