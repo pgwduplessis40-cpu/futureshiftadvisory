@@ -32,6 +32,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
 import type { Auth, NavItem } from '@/types';
@@ -416,6 +417,7 @@ function navItemsWithClientFilterState(
 
 export function AppSidebar() {
     const page = usePage<{ auth: Auth; portalClient?: PortalClient | null }>();
+    const { isMobile, setOpenMobile } = useSidebar();
     const { auth } = page.props;
     const userType = auth.user.user_type;
     const currentUrl = new URL(
@@ -437,6 +439,11 @@ export function AppSidebar() {
     const visibleFooterItems = canViewInternalFooter(userType)
         ? footerNavItems
         : [];
+    const closeMobileSidebar = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -448,7 +455,11 @@ export function AppSidebar() {
                             className="h-16 px-3 group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-1!"
                             asChild
                         >
-                            <Link href={homeHref} prefetch>
+                            <Link
+                                href={homeHref}
+                                prefetch
+                                onClick={closeMobileSidebar}
+                            >
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

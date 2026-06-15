@@ -66,7 +66,7 @@ final class ApprovalFlow
                 ->firstOrFail();
 
             $decidedAt = now();
-            $effectiveAt = $this->effectiveDateFor($decision, $effectiveDate, $decidedAt);
+            $effectiveAt = $this->effectiveDateFor($decision, $effectiveDate, $decidedAt, $locked);
             $status = match ($decision) {
                 LearningUpdateDecision::DECISION_APPROVE,
                 LearningUpdateDecision::DECISION_APPROVE_MODIFIED_DATE => LearningUpdate::STATUS_APPROVED,
@@ -100,6 +100,15 @@ final class ApprovalFlow
                 'review_due_at' => $locked->review_due_at?->toIso8601String(),
             ]);
 
+            if (
+                $status === LearningUpdate::STATUS_APPROVED
+                && $this->isManualReferenceDataUpdate($locked)
+                && $effectiveAt instanceof CarbonInterface
+                && $effectiveAt->lessThanOrEqualTo($decidedAt)
+            ) {
+                $this->implement($locked->refresh(), $decidedAt, $actor);
+            }
+
             return $record;
         });
     }
@@ -111,6 +120,10 @@ final class ApprovalFlow
         }
 
         if (! $update->effective_date instanceof CarbonInterface || $update->effective_date->isFuture()) {
+            if ($this->isPlainApprovedManualReferenceDataUpdate($update)) {
+                return;
+            }
+
             throw new RuntimeException('Learning update implementation is blocked until the approved effective date.');
         }
     }
@@ -124,8 +137,16 @@ final class ApprovalFlow
 
         return LearningUpdate::query()
             ->where('status', LearningUpdate::STATUS_APPROVED)
-            ->whereNotNull('effective_date')
-            ->where('effective_date', '<=', $at)
+            ->where(function ($query) use ($at): void {
+                $query
+                    ->where(fn ($due) => $due
+                        ->whereNotNull('effective_date')
+                        ->where('effective_date', '<=', $at))
+                    ->orWhere(fn ($manual) => $manual
+                        ->where('source->type', 'manual_reference_data')
+                        ->where('proposed_change->action', 'project_manual_reference_data')
+                        ->whereHas('decisions', fn ($decision) => $decision->where('decision', LearningUpdateDecision::DECISION_APPROVE)));
+            })
             ->whereDoesntHave('implementations', fn ($query) => $query->whereNull('rolled_back_at'))
             ->orderBy('effective_date')
             ->get()
@@ -314,10 +335,18 @@ final class ApprovalFlow
         ];
     }
 
-    private function effectiveDateFor(string $decision, ?CarbonInterface $effectiveDate, CarbonInterface $decidedAt): ?CarbonInterface
-    {
+    private function effectiveDateFor(
+        string $decision,
+        ?CarbonInterface $effectiveDate,
+        CarbonInterface $decidedAt,
+        LearningUpdate $update,
+    ): ?CarbonInterface {
         if ($decision === LearningUpdateDecision::DECISION_DEFER || $decision === LearningUpdateDecision::DECISION_REJECT) {
             return null;
+        }
+
+        if ($this->isManualReferenceDataUpdate($update)) {
+            return $effectiveDate ?? $decidedAt;
         }
 
         $minimum = $decidedAt->copy()->addDays(7);
@@ -327,5 +356,19 @@ final class ApprovalFlow
         }
 
         return $effectiveDate->greaterThan($minimum) ? $effectiveDate : $minimum;
+    }
+
+    private function isManualReferenceDataUpdate(LearningUpdate $update): bool
+    {
+        return data_get($update->source, 'type') === 'manual_reference_data'
+            && data_get($update->proposed_change, 'action') === 'project_manual_reference_data';
+    }
+
+    private function isPlainApprovedManualReferenceDataUpdate(LearningUpdate $update): bool
+    {
+        return $this->isManualReferenceDataUpdate($update)
+            && $update->decisions()
+                ->where('decision', LearningUpdateDecision::DECISION_APPROVE)
+                ->exists();
     }
 }

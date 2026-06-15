@@ -1,8 +1,13 @@
 import { Head, useForm } from '@inertiajs/react';
-import { DatabaseZap, Send, Upload } from 'lucide-react';
+import { Clock3, DatabaseZap, Send, Upload } from 'lucide-react';
 import { useState, type FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
+import {
+    Alert,
+    AlertDescription,
+    AlertTitle,
+} from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,10 +50,29 @@ type RecordTarget = {
     label: string;
 };
 
+type PendingReview = {
+    id: string;
+    target_key: string;
+    dataset: string;
+    label: string;
+    value: string;
+    as_at: string | null;
+    source: string;
+    learning_update_id: string;
+    status: string | null;
+    submitted_at: string | null;
+    evidence: {
+        id: string;
+        filename: string;
+        url: string;
+    } | null;
+};
+
 type Props = {
     datasets: string[];
     recordTargets: RecordTarget[];
     currentValues: CurrentValue[];
+    pendingReviews: PendingReview[];
     entries: ReferenceDataEntry[];
 };
 
@@ -153,6 +177,7 @@ export default function ReferenceDataIndex({
     datasets,
     recordTargets,
     currentValues,
+    pendingReviews,
     entries,
 }: Props) {
     const initialTarget = initialRecordTarget(recordTargets, datasets);
@@ -177,6 +202,13 @@ export default function ReferenceDataIndex({
         upload: null,
         evidence_upload: null,
     });
+    const selectedPendingReview = pendingReviewForSelection(
+        pendingReviews,
+        selectedTargetKey,
+        form.data.dataset,
+    );
+    const selectedTargetHasPendingReview =
+        selectedPendingReview !== null && form.data.upload === null;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -231,6 +263,57 @@ export default function ReferenceDataIndex({
                         onSubmit={submit}
                         className="grid gap-4 lg:grid-cols-5"
                     >
+                        {selectedPendingReview && (
+                            <div className="lg:col-span-5">
+                                <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                                    <Clock3
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <AlertTitle>
+                                        {selectedPendingReview.label} is pending
+                                        review
+                                    </AlertTitle>
+                                    <AlertDescription>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <span>
+                                                {selectedPendingReview.value
+                                                    ? `${selectedPendingReview.value} submitted`
+                                                    : 'Submitted'}
+                                                {selectedPendingReview.as_at
+                                                    ? ` for ${selectedPendingReview.as_at}`
+                                                    : ''}
+                                                {selectedPendingReview.submitted_at
+                                                    ? ` on ${formatDate(
+                                                          selectedPendingReview.submitted_at,
+                                                      )}`
+                                                    : ''}
+                                                .
+                                            </span>
+                                            <Badge variant="outline">
+                                                {formatStatus(
+                                                    selectedPendingReview.status,
+                                                )}
+                                            </Badge>
+                                            {selectedPendingReview.evidence && (
+                                                <a
+                                                    className="font-medium underline-offset-4 hover:underline"
+                                                    href={
+                                                        selectedPendingReview
+                                                            .evidence.url
+                                                    }
+                                                    target="_blank"
+                                                    rel="noreferrer"
+                                                >
+                                                    Evidence
+                                                </a>
+                                            )}
+                                        </div>
+                                    </AlertDescription>
+                                </Alert>
+                            </div>
+                        )}
+
                         {recordTargets.length > 0 && (
                             <div className="space-y-2">
                                 <Label>Dashboard item</Label>
@@ -354,8 +437,19 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="flex justify-end lg:col-span-5">
-                            <Button type="submit" disabled={form.processing}>
-                                {form.data.upload ||
+                            <Button
+                                type="submit"
+                                disabled={
+                                    form.processing ||
+                                    selectedTargetHasPendingReview
+                                }
+                            >
+                                {selectedTargetHasPendingReview ? (
+                                    <Clock3
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                ) : form.data.upload ||
                                 form.data.evidence_upload ? (
                                     <Upload
                                         className="size-4"
@@ -367,7 +461,9 @@ export default function ReferenceDataIndex({
                                         aria-hidden="true"
                                     />
                                 )}
-                                Submit
+                                {selectedTargetHasPendingReview
+                                    ? 'Pending review'
+                                    : 'Submit'}
                             </Button>
                         </div>
                     </form>
@@ -548,6 +644,23 @@ export default function ReferenceDataIndex({
     );
 }
 
+function pendingReviewForSelection(
+    pendingReviews: PendingReview[],
+    targetKey: string,
+    dataset: string,
+): PendingReview | null {
+    return (
+        pendingReviews.find((review) => review.target_key === targetKey) ??
+        pendingReviews.find(
+            (review) =>
+                targetKey === '' &&
+                review.target_key === dataset &&
+                review.dataset === dataset,
+        ) ??
+        null
+    );
+}
+
 function initialRecordTarget(
     recordTargets: RecordTarget[],
     datasets: string[],
@@ -585,6 +698,21 @@ function formatDataset(dataset: string): string {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatStatus(status: string | null): string {
+    if (!status) {
+        return 'Pending review';
+    }
+
+    return status
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}
+
+function formatDate(value: string): string {
+    return new Date(value).toLocaleDateString();
 }
 
 ReferenceDataIndex.layout = {

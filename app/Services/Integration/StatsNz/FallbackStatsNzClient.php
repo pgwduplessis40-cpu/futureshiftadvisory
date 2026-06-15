@@ -19,7 +19,11 @@ final class FallbackStatsNzClient implements StatsNzClient
      */
     public function indicators(): array
     {
-        return $this->live->indicators();
+        try {
+            return $this->live->indicators();
+        } catch (IntegrationDisabledException) {
+            return $this->fake->indicators();
+        }
     }
 
     /**

@@ -35,6 +35,7 @@ final class StatsNzAdeTest extends TestCase
         Config::set('integrations.retry.max_delay_ms', 0);
         Config::set('integrations.stats_nz.base_url', 'https://api.data.stats.govt.nz/rest');
         Config::set('integrations.stats_nz.datasets', [$this->datasetConfig()]);
+        Config::set('integrations.stats_nz.indicator_datasets', []);
         $this->forgetStatsNzClients();
     }
 
@@ -89,42 +90,70 @@ final class StatsNzAdeTest extends TestCase
         $this->assertFalse(app(IntegrationActivationResolver::class)->isLive('stats_nz'));
     }
 
-    public function test_macro_indicators_come_from_manual_reference_snapshots(): void
+    public function test_disabled_macro_indicators_use_fixture_feed_without_live_call(): void
     {
+        Config::set('integrations.stats_nz.live', false);
+        $this->forgetStatsNzClients();
         Http::fake();
-
-        EconomicIndicator::query()->create([
-            'indicator' => EconomicIndicator::CPI_ANNUAL,
-            'label' => 'Consumers Price Index annual change',
-            'value' => 2.7,
-            'unit' => 'percent',
-            'period_date' => '2026-03-31',
-            'source' => 'stats-manual',
-            'source_badge' => 'manual_admin',
-            'degraded' => false,
-            'fetched_at' => now()->subDay(),
-            'payload' => ['reference_data_entry_id' => 'manual-old'],
-        ]);
-        EconomicIndicator::query()->create([
-            'indicator' => EconomicIndicator::CPI_ANNUAL,
-            'label' => 'Consumers Price Index annual change',
-            'value' => 3.1,
-            'unit' => 'percent',
-            'period_date' => '2026-06-30',
-            'source' => 'stats-manual',
-            'source_badge' => 'manual_admin',
-            'degraded' => false,
-            'fetched_at' => now(),
-            'payload' => ['reference_data_entry_id' => 'manual-new'],
-        ]);
 
         $records = app(StatsNzClient::class)->indicators();
 
         Http::assertNothingSent();
+        $this->assertCount(3, $records);
+        $this->assertSame(EconomicIndicator::GDP_QUARTERLY, $records[1]['indicator']);
+        $this->assertSame(0.7, $records[1]['value']);
+        $this->assertSame(EconomicIndicator::UNEMPLOYMENT_RATE, $records[2]['indicator']);
+        $this->assertSame(4.3, $records[2]['value']);
+        $this->assertSame('stub', $records[2]['source_badge']);
+    }
+
+    public function test_live_macro_indicators_use_vault_key_and_explicit_ade_dataset_config(): void
+    {
+        Config::set('integrations.stats_nz.live', false);
+        Config::set('integrations.stats_nz.api_key', 'env-key-should-not-be-used');
+        Config::set('integrations.stats_nz.indicator_datasets', [[
+            'key' => 'gdp_quarterly',
+            'indicator' => EconomicIndicator::GDP_QUARTERLY,
+            'label' => 'Gross Domestic Product quarterly change',
+            'resourceId' => 'GDP_TEST',
+            'version' => '1.0',
+            'sdmx_key' => 'all',
+            'dimensionAtObservation' => 'AllDimensions',
+            'unit' => 'percent',
+        ]]);
+        $admin = User::factory()->superAdmin()->create();
+
+        app(IntegrationCredentials::class)->set('stats_nz', 'subscription_key', 'vaulted-stats-key', $admin);
+        app(IntegrationActivationResolver::class)->activate('stats_nz', $admin);
+        $this->forgetStatsNzClients();
+
+        Http::fake([
+            'api.data.stats.govt.nz/*' => Http::response([
+                'indicators' => [[
+                    'indicator' => EconomicIndicator::GDP_QUARTERLY,
+                    'label' => 'Gross Domestic Product quarterly change',
+                    'value' => 0.2,
+                    'unit' => 'percent',
+                    'period_date' => '2026-06-30',
+                    'source' => 'stats_nz',
+                    'payload' => ['series' => 'GDP_TEST'],
+                ]],
+            ], 200),
+        ]);
+
+        $records = app(StatsNzClient::class)->indicators();
+
         $this->assertCount(1, $records);
-        $this->assertSame(EconomicIndicator::CPI_ANNUAL, $records[0]['indicator']);
-        $this->assertSame(3.1, $records[0]['value']);
-        $this->assertSame('manual_admin', $records[0]['source_badge']);
+        $this->assertSame(EconomicIndicator::GDP_QUARTERLY, $records[0]['indicator']);
+        $this->assertSame(0.2, $records[0]['value']);
+        $this->assertSame('live', $records[0]['source_badge']);
+
+        Http::assertSent(function ($request): bool {
+            return str_contains($request->url(), '/rest/data/STATSNZ,GDP_TEST,1.0/all')
+                && str_contains($request->url(), 'dimensionAtObservation=AllDimensions')
+                && $request->hasHeader('Ocp-Apim-Subscription-Key', 'vaulted-stats-key')
+                && $request->hasHeader('Accept', 'application/vnd.sdmx.data+json;version=1.0.0');
+        });
     }
 
     /**

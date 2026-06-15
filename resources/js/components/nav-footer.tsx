@@ -5,6 +5,7 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    useSidebar,
 } from '@/components/ui/sidebar';
 import { toUrl } from '@/lib/utils';
 import type { NavItem } from '@/types';
@@ -16,6 +17,14 @@ export function NavFooter({
 }: ComponentPropsWithoutRef<typeof SidebarGroup> & {
     items: NavItem[];
 }) {
+    const { isMobile, setOpenMobile } = useSidebar();
+
+    const closeMobileSidebar = () => {
+        if (isMobile) {
+            setOpenMobile(false);
+        }
+    };
+
     return (
         <SidebarGroup
             {...props}
@@ -33,6 +42,7 @@ export function NavFooter({
                                     href={toUrl(item.href)}
                                     target="_blank"
                                     rel="noopener noreferrer"
+                                    onClick={closeMobileSidebar}
                                 >
                                     {item.icon && (
                                         <item.icon className="h-5 w-5" />

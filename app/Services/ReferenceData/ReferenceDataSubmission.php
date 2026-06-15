@@ -21,6 +21,17 @@ use InvalidArgumentException;
 
 final class ReferenceDataSubmission
 {
+    /**
+     * Statuses that are still awaiting a final outcome and should block exact
+     * duplicate manual reference data submissions.
+     */
+    public const PENDING_REVIEW_STATUSES = [
+        LearningUpdate::STATUS_DETECTED,
+        LearningUpdate::STATUS_STAGED,
+        LearningUpdate::STATUS_APPROVED,
+        LearningUpdate::STATUS_DEFERRED,
+    ];
+
     public function __construct(private readonly AuditWriter $audit) {}
 
     /**
@@ -41,9 +52,20 @@ final class ReferenceDataSubmission
         $payload = $this->normalisePayload($dataset, $payload, $asAt, $source);
         $storesEvidenceDocument = Schema::hasColumn('reference_data_entries', 'evidence_document_id');
         $evidenceDocument = $storesEvidenceDocument ? $evidenceDocument : null;
+        $signalKey = $this->signalKey($dataset, $source, $asAt, $payload);
 
-        return DB::transaction(function () use ($actor, $asAt, $dataset, $evidenceDocument, $payload, $source, $storesEvidenceDocument): ReferenceDataEntry {
-            $learningUpdate = $this->learningUpdate($dataset, $payload, $asAt, $source, $actor, $evidenceDocument);
+        $existing = $this->existingPendingEntry($signalKey);
+        if ($existing instanceof ReferenceDataEntry) {
+            return $existing;
+        }
+
+        return DB::transaction(function () use ($actor, $asAt, $dataset, $evidenceDocument, $payload, $signalKey, $source, $storesEvidenceDocument): ReferenceDataEntry {
+            $existing = $this->existingPendingEntry($signalKey);
+            if ($existing instanceof ReferenceDataEntry) {
+                return $existing;
+            }
+
+            $learningUpdate = $this->learningUpdate($dataset, $payload, $asAt, $source, $actor, $evidenceDocument, $signalKey);
 
             $entryAttributes = [
                 'dataset' => $dataset,
@@ -209,6 +231,7 @@ final class ReferenceDataSubmission
         string $source,
         User $actor,
         ?Document $evidenceDocument,
+        string $signalKey,
     ): LearningUpdate {
         $layerId = match ($dataset) {
             ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR => EconomicIndicatorRefresher::LAYER_ID,
@@ -226,7 +249,7 @@ final class ReferenceDataSubmission
                 'source' => $source,
                 'entered_by_user_id' => $actor->getKey(),
                 'evidence_document_id' => $evidenceDocument?->getKey(),
-                'signal_key' => hash('sha256', $dataset.'|'.$source.'|'.$asAt->toDateString().'|'.json_encode($payload, JSON_THROW_ON_ERROR)),
+                'signal_key' => $signalKey,
             ],
             'summary' => $this->summary($dataset, $payload, $asAt),
             'proposed_change' => [
@@ -256,6 +279,33 @@ final class ReferenceDataSubmission
             ],
             'status' => LearningUpdate::STATUS_DETECTED,
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function signalKey(string $dataset, string $source, CarbonInterface $asAt, array $payload): string
+    {
+        return hash('sha256', $dataset.'|'.$source.'|'.$asAt->toDateString().'|'.json_encode($payload, JSON_THROW_ON_ERROR));
+    }
+
+    private function existingPendingEntry(string $signalKey): ?ReferenceDataEntry
+    {
+        $update = LearningUpdate::query()
+            ->whereIn('status', self::PENDING_REVIEW_STATUSES)
+            ->where('source->type', 'manual_reference_data')
+            ->where('source->signal_key', $signalKey)
+            ->latest()
+            ->first();
+
+        if (! $update instanceof LearningUpdate) {
+            return null;
+        }
+
+        return ReferenceDataEntry::query()
+            ->where('learning_update_id', $update->getKey())
+            ->latest()
+            ->first();
     }
 
     /**

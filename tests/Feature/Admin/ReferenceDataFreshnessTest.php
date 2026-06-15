@@ -6,6 +6,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\EconomicIndicator;
 use App\Models\LearningUpdate;
+use App\Models\LearningUpdateDecision;
 use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Services\Learning\ApprovalFlow;
@@ -37,28 +38,96 @@ final class ReferenceDataFreshnessTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_approved_but_not_implemented_reference_data_does_not_clear_dashboard_task(): void
+    public function test_approved_reference_data_is_implemented_and_clears_dashboard_task(): void
+    {
+        Carbon::setTestNow('2026-06-01 10:00:00');
+        $admin = $this->superAdmin();
+        $entry = $this->submitEconomic($admin, EconomicIndicator::GDP_QUARTERLY, now());
+        $update = $entry->learningUpdate()->firstOrFail();
+
+        $dashboard = app(ReferenceDataFreshness::class)->dashboard(now());
+        $task = collect($dashboard['items'])->firstWhere('key', 'economic_indicator:gdp_quarterly');
+
+        $this->assertIsArray($task);
+        $this->assertSame(ReferenceDataFreshness::STATUS_MISSING, $task['status']);
+
+        app(ApprovalFlow::class)->decide(
+            update: $update,
+            decision: LearningUpdateDecision::DECISION_APPROVE,
+            actor: $admin,
+        );
+
+        $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $update->refresh()->status);
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::GDP_QUARTERLY,
+            'source' => 'manual-test',
+            'period_date' => '2026-06-01',
+        ]);
+
+        $dashboard = app(ReferenceDataFreshness::class)->dashboard(now());
+
+        $this->assertNull(collect($dashboard['items'])->firstWhere('key', 'economic_indicator:gdp_quarterly'));
+    }
+
+    public function test_future_dated_reference_data_approval_waits_until_effective_date(): void
     {
         Carbon::setTestNow('2026-06-01 10:00:00');
         $admin = $this->superAdmin();
         $entry = $this->submitEconomic($admin, EconomicIndicator::CPI_ANNUAL, now());
         $update = $entry->learningUpdate()->firstOrFail();
 
+        app(ApprovalFlow::class)->decide(
+            update: $update,
+            decision: LearningUpdateDecision::DECISION_APPROVE_MODIFIED_DATE,
+            actor: $admin,
+            effectiveDate: now()->addDay(),
+        );
+
+        $this->assertSame(LearningUpdate::STATUS_APPROVED, $update->refresh()->status);
+        $this->assertDatabaseCount('economic_indicators', 0);
+
+        app(ApprovalFlow::class)->implementDue(now()->addDay(), $admin);
+
+        $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $update->refresh()->status);
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::CPI_ANNUAL,
+            'source' => 'manual-test',
+        ]);
+    }
+
+    public function test_plain_approved_reference_data_from_prior_flow_is_implemented_even_with_future_effective_date(): void
+    {
+        Carbon::setTestNow('2026-06-01 10:00:00');
+        $admin = $this->superAdmin();
+        $entry = $this->submitEconomic($admin, EconomicIndicator::GDP_QUARTERLY, now());
+        $update = $entry->learningUpdate()->firstOrFail();
+
         $update->forceFill([
             'status' => LearningUpdate::STATUS_APPROVED,
-            'effective_date' => now()->subMinute(),
+            'effective_date' => now()->addDays(7),
+            'review_due_at' => now()->addDays(37),
+            'decided_by_user_id' => $admin->getKey(),
+            'decided_at' => now(),
         ])->save();
-
-        $dashboard = app(ReferenceDataFreshness::class)->dashboard(now());
-        $task = collect($dashboard['items'])->firstWhere('key', 'economic_indicator:cpi_annual');
-
-        $this->assertIsArray($task);
-        $this->assertSame(ReferenceDataFreshness::STATUS_MISSING, $task['status']);
+        $update->decisions()->create([
+            'decision' => LearningUpdateDecision::DECISION_APPROVE,
+            'effective_date' => now()->addDays(7),
+            'reason' => null,
+            'decided_by_user_id' => $admin->getKey(),
+            'decided_at' => now(),
+        ]);
 
         app(ApprovalFlow::class)->implementDue(now(), $admin);
+
+        $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $update->refresh()->status);
+        $this->assertDatabaseHas('economic_indicators', [
+            'indicator' => EconomicIndicator::GDP_QUARTERLY,
+            'source' => 'manual-test',
+        ]);
+
         $dashboard = app(ReferenceDataFreshness::class)->dashboard(now());
 
-        $this->assertNull(collect($dashboard['items'])->firstWhere('key', 'economic_indicator:cpi_annual'));
+        $this->assertNull(collect($dashboard['items'])->firstWhere('key', 'economic_indicator:gdp_quarterly'));
     }
 
     public function test_implemented_reference_data_becomes_overdue_after_declared_cadence(): void
@@ -76,6 +145,42 @@ final class ReferenceDataFreshnessTest extends TestCase
         $this->assertSame(ReferenceDataFreshness::STATUS_OVERDUE, $task['status']);
         $this->assertSame('2026-02-15', $task['due_at']);
         $this->assertStringContainsString('target=economic_indicator%3Aocr', $task['action_url']);
+    }
+
+    public function test_api_fed_economic_indicators_clear_freshness_tasks(): void
+    {
+        Carbon::setTestNow('2026-06-16 10:00:00');
+
+        EconomicIndicator::query()->create([
+            'indicator' => EconomicIndicator::GDP_QUARTERLY,
+            'label' => 'Gross Domestic Product quarterly change',
+            'value' => 0.7,
+            'unit' => 'percent',
+            'period_date' => '2026-03-31',
+            'source' => 'stats_nz',
+            'source_badge' => 'live',
+            'degraded' => false,
+            'fetched_at' => now(),
+            'payload' => ['series' => 'GDP'],
+        ]);
+        EconomicIndicator::query()->create([
+            'indicator' => EconomicIndicator::UNEMPLOYMENT_RATE,
+            'label' => 'Unemployment rate',
+            'value' => 4.3,
+            'unit' => 'percent',
+            'period_date' => '2026-03-31',
+            'source' => 'stats_nz',
+            'source_badge' => 'live',
+            'degraded' => false,
+            'fetched_at' => now(),
+            'payload' => ['series' => 'HLFS'],
+        ]);
+
+        $dashboard = app(ReferenceDataFreshness::class)->dashboard(now());
+        $keys = collect($dashboard['items'])->pluck('key')->all();
+
+        $this->assertNotContains('economic_indicator:gdp_quarterly', $keys);
+        $this->assertNotContains('economic_indicator:unemployment_rate', $keys);
     }
 
     public function test_record_targets_expose_each_dashboard_series(): void

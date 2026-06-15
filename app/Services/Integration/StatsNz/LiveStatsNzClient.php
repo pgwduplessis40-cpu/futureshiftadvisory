@@ -11,6 +11,7 @@ use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\StatsNz\Contracts\StatsNzClient;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 
 final class LiveStatsNzClient implements StatsNzClient
 {
@@ -21,6 +22,7 @@ final class LiveStatsNzClient implements StatsNzClient
         private readonly IntegrationCredentials $credentials,
         private readonly ManualStatsNzIndicatorSource $manualIndicators,
         private readonly SdmxJsonIndustryBenchmarkParser $parser,
+        private readonly SdmxJsonIndicatorParser $indicatorParser,
     ) {}
 
     /**
@@ -28,7 +30,49 @@ final class LiveStatsNzClient implements StatsNzClient
      */
     public function indicators(): array
     {
-        return $this->manualIndicators->indicators();
+        if (! $this->live->isLive('stats_nz')) {
+            throw IntegrationDisabledException::forService('stats-nz');
+        }
+
+        $datasets = $this->indicatorDatasets();
+        if ($datasets === []) {
+            $manualIndicators = $this->manualIndicators->indicators();
+
+            return $manualIndicators === []
+                ? $this->fake->fallbackIndicators()
+                : $manualIndicators;
+        }
+
+        $indicators = [];
+
+        foreach ($datasets as $dataset) {
+            $result = $this->http->request(
+                method: 'GET',
+                service: 'stats-nz',
+                endpoint: $this->datasetEndpoint($dataset),
+                options: [
+                    'headers' => $this->headers(),
+                    'query' => $this->datasetQuery($dataset),
+                ],
+                cacheKey: 'integration:stats-nz:ade:indicator:'.(string) ($dataset['key'] ?? $dataset['indicator'] ?? $dataset['resourceId'] ?? 'dataset'),
+                fallback: fn (): array => ['indicators' => $this->fallbackIndicatorsFor($dataset)],
+            );
+
+            $payload = is_array($result->data) ? $result->data : [];
+            $records = is_array($payload['indicators'] ?? null)
+                ? array_values(array_filter($payload['indicators'], 'is_array'))
+                : $this->indicatorParser->parse($payload, $dataset);
+
+            $indicators = [
+                ...$indicators,
+                ...array_map(
+                    fn (array $indicator): array => $this->withTransportMeta($result, $this->withIndicatorDefaults($indicator, $dataset)),
+                    $records,
+                ),
+            ];
+        }
+
+        return $indicators;
     }
 
     /**
@@ -88,6 +132,31 @@ final class LiveStatsNzClient implements StatsNzClient
     }
 
     /**
+     * @param  array<string, mixed>  $record
+     * @param  array<string, mixed>  $dataset
+     * @return array<string, mixed>
+     */
+    private function withIndicatorDefaults(array $record, array $dataset): array
+    {
+        $indicator = (string) ($record['indicator'] ?? $dataset['indicator'] ?? $dataset['key'] ?? '');
+
+        return [
+            ...$record,
+            'indicator' => $indicator,
+            'label' => (string) ($record['label'] ?? $dataset['label'] ?? Str::headline($indicator)),
+            'value' => (float) ($record['value'] ?? 0),
+            'unit' => (string) ($record['unit'] ?? $dataset['unit'] ?? 'value'),
+            'source' => (string) ($record['source'] ?? 'stats_nz'),
+            'payload' => [
+                ...((array) ($record['payload'] ?? [])),
+                'dataset_key' => (string) ($dataset['key'] ?? $indicator),
+                'resource_id' => (string) ($dataset['resourceId'] ?? ''),
+                'version' => (string) ($dataset['version'] ?? '1.0'),
+            ],
+        ];
+    }
+
+    /**
      * @return array<int, array<string, mixed>>
      */
     private function datasets(): array
@@ -97,6 +166,39 @@ final class LiveStatsNzClient implements StatsNzClient
         return is_array($datasets)
             ? array_values(array_filter($datasets, 'is_array'))
             : [];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function indicatorDatasets(): array
+    {
+        $datasets = Config::get('integrations.stats_nz.indicator_datasets', []);
+
+        if (! is_array($datasets)) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            $datasets,
+            fn (mixed $dataset): bool => is_array($dataset)
+                && trim((string) ($dataset['resourceId'] ?? '')) !== ''
+                && trim((string) ($dataset['indicator'] ?? $dataset['key'] ?? '')) !== '',
+        ));
+    }
+
+    /**
+     * @param  array<string, mixed>  $dataset
+     * @return array<int, array<string, mixed>>
+     */
+    private function fallbackIndicatorsFor(array $dataset): array
+    {
+        $indicator = (string) ($dataset['indicator'] ?? $dataset['key'] ?? '');
+
+        return array_values(array_filter(
+            $this->fake->fallbackIndicators(),
+            fn (array $record): bool => $indicator === '' || (string) ($record['indicator'] ?? '') === $indicator,
+        ));
     }
 
     /**

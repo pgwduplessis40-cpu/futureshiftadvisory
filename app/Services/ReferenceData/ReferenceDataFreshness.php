@@ -175,9 +175,9 @@ final class ReferenceDataFreshness
      */
     private function task(array $definition, CarbonInterface $at): array
     {
-        $entry = $this->latestImplementedEntry($definition);
+        $point = $this->latestImplementedPoint($definition);
         $cadenceDays = (int) $definition['cadence_days'];
-        $lastAsAt = $entry?->as_at;
+        $lastAsAt = $point['as_at'] ?? null;
         $dueAt = $lastAsAt?->copy()->addDays($cadenceDays);
         $status = $this->status($lastAsAt, $dueAt, $at);
 
@@ -190,10 +190,41 @@ final class ReferenceDataFreshness
             'cadence_days' => $cadenceDays,
             'last_as_at' => $lastAsAt?->toDateString(),
             'due_at' => $dueAt?->toDateString(),
-            'source' => $entry?->source,
-            'entry_id' => $entry?->id,
+            'source' => $point['source'] ?? null,
+            'entry_id' => $point['entry_id'] ?? null,
             'action_url' => route('admin.reference-data.index', ['target' => (string) $definition['key']], false),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     * @return array{as_at: CarbonInterface, source: string|null, entry_id: string|null}|null
+     */
+    private function latestImplementedPoint(array $definition): ?array
+    {
+        $points = collect();
+
+        $entry = $this->latestImplementedEntry($definition);
+        if ($entry instanceof ReferenceDataEntry && $entry->as_at instanceof CarbonInterface) {
+            $points->push([
+                'as_at' => $entry->as_at,
+                'source' => $entry->source,
+                'entry_id' => $entry->id,
+            ]);
+        }
+
+        $indicator = $this->latestEconomicIndicator($definition);
+        if ($indicator instanceof EconomicIndicator && $indicator->period_date instanceof CarbonInterface) {
+            $points->push([
+                'as_at' => $indicator->period_date,
+                'source' => $indicator->source,
+                'entry_id' => null,
+            ]);
+        }
+
+        return $points
+            ->sortByDesc(fn (array $point): string => $point['as_at']->toDateString())
+            ->first();
     }
 
     /**
@@ -219,6 +250,28 @@ final class ReferenceDataFreshness
 
         return $entries
             ->first(fn (ReferenceDataEntry $entry): bool => (string) data_get($entry->payload, 'indicator') === (string) $definition['indicator']);
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     */
+    private function latestEconomicIndicator(array $definition): ?EconomicIndicator
+    {
+        if (
+            ($definition['dataset'] ?? null) !== ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR
+            || ! isset($definition['indicator'])
+            || ! Schema::hasTable('economic_indicators')
+        ) {
+            return null;
+        }
+
+        return EconomicIndicator::query()
+            ->where('indicator', (string) $definition['indicator'])
+            ->where('degraded', false)
+            ->whereIn('source_badge', ['live', 'cached', 'manual_admin'])
+            ->latest('period_date')
+            ->latest('fetched_at')
+            ->first();
     }
 
     private function status(?CarbonInterface $lastAsAt, ?CarbonInterface $dueAt, CarbonInterface $at): string

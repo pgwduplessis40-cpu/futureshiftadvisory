@@ -43,6 +43,7 @@ final class ReferenceDataController extends Controller
             'datasets' => ReferenceDataEntry::datasets(),
             'recordTargets' => $freshness->recordTargets(),
             'currentValues' => $this->currentValues(),
+            'pendingReviews' => $this->pendingReviewRows(),
             'entries' => $this->entryRows(),
         ]);
     }
@@ -83,8 +84,12 @@ final class ReferenceDataController extends Controller
                 ]);
             }
 
+            $created = false;
+            $redirectTarget = null;
             foreach ($payloads as $payload) {
-                $submission->submit($dataset, $payload, $asAt, $source, $user, $evidenceDocument);
+                $entry = $submission->submit($dataset, $payload, $asAt, $source, $user, $evidenceDocument);
+                $created = $created || $entry->wasRecentlyCreated;
+                $redirectTarget ??= $this->targetKey($entry);
             }
         } catch (InvalidArgumentException $exception) {
             throw ValidationException::withMessages([
@@ -92,7 +97,12 @@ final class ReferenceDataController extends Controller
             ]);
         }
 
-        return to_route('admin.reference-data.index')->with('status', 'reference-data-submitted');
+        $routeParameters = is_string($redirectTarget) && $redirectTarget !== ''
+            ? ['target' => $redirectTarget]
+            : [];
+
+        return to_route('admin.reference-data.index', $routeParameters)
+            ->with('status', $created ? 'reference-data-submitted' : 'reference-data-pending-review');
     }
 
     public function evidence(Document $document): SymfonyResponse
@@ -419,6 +429,45 @@ final class ReferenceDataController extends Controller
     /**
      * @return array<int, array<string, mixed>>
      */
+    private function pendingReviewRows(): array
+    {
+        if (! Schema::hasTable('reference_data_entries') || ! Schema::hasTable('learning_updates')) {
+            return [];
+        }
+
+        $storesEvidenceDocument = $this->storesEvidenceDocument();
+
+        return ReferenceDataEntry::query()
+            ->with($storesEvidenceDocument ? ['evidenceDocument', 'learningUpdate'] : ['learningUpdate'])
+            ->whereHas('learningUpdate', fn ($query) => $query->whereIn('status', ReferenceDataSubmission::PENDING_REVIEW_STATUSES))
+            ->latest()
+            ->limit(100)
+            ->get()
+            ->map(fn (ReferenceDataEntry $entry): array => [
+                'id' => $entry->id,
+                'target_key' => $this->targetKey($entry),
+                'dataset' => $entry->dataset,
+                'label' => $this->entryLabel($entry),
+                'value' => $this->entryValue($entry),
+                'as_at' => $entry->as_at?->toDateString(),
+                'source' => $entry->source,
+                'learning_update_id' => $entry->learning_update_id,
+                'status' => $entry->learningUpdate?->status,
+                'submitted_at' => $entry->created_at?->toIso8601String(),
+                'evidence' => $storesEvidenceDocument && $entry->evidenceDocument instanceof Document ? [
+                    'id' => $entry->evidenceDocument->id,
+                    'filename' => $entry->evidenceDocument->original_filename,
+                    'url' => route('admin.reference-data.evidence', $entry->evidenceDocument, absolute: false),
+                ] : null,
+            ])
+            ->filter(fn (array $entry): bool => $entry['target_key'] !== '')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
     private function entryRows(): array
     {
         if (! Schema::hasTable('reference_data_entries')) {
@@ -448,6 +497,43 @@ final class ReferenceDataController extends Controller
                 'created_at' => $entry->created_at?->toIso8601String(),
             ])
             ->all();
+    }
+
+    private function targetKey(ReferenceDataEntry $entry): string
+    {
+        if ($entry->dataset === ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR) {
+            $indicator = trim((string) data_get($entry->payload, 'indicator'));
+
+            return $indicator === '' ? '' : ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR.':'.$indicator;
+        }
+
+        return $entry->dataset;
+    }
+
+    private function entryLabel(ReferenceDataEntry $entry): string
+    {
+        $payload = $entry->payload;
+
+        return match ($entry->dataset) {
+            ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR => (string) data_get($payload, 'label', Str::headline((string) data_get($payload, 'indicator', 'Economic indicator'))),
+            ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => trim((string) data_get($payload, 'industry_label', 'Valuation multiple').' / '.(string) data_get($payload, 'metric', '')),
+            ReferenceDataEntry::DATASET_INDUSTRY_WACC => (string) data_get($payload, 'industry_label', 'Industry WACC'),
+            ReferenceDataEntry::DATASET_CPB_BENCHMARK => 'Cost-per-beneficiary benchmarks',
+            default => Str::headline($entry->dataset),
+        };
+    }
+
+    private function entryValue(ReferenceDataEntry $entry): string
+    {
+        $payload = $entry->payload;
+
+        return match ($entry->dataset) {
+            ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR => trim((string) data_get($payload, 'value', '').' '.(string) data_get($payload, 'unit', '')),
+            ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => trim((string) data_get($payload, 'multiple_low', '').'-'.(string) data_get($payload, 'multiple_mid', '').'-'.(string) data_get($payload, 'multiple_high', '')),
+            ReferenceDataEntry::DATASET_INDUSTRY_WACC => is_numeric(data_get($payload, 'wacc_rate')) ? round((float) data_get($payload, 'wacc_rate') * 100, 2).'%' : '',
+            ReferenceDataEntry::DATASET_CPB_BENCHMARK => count((array) data_get($payload, 'benchmarks', [])).' benchmarks',
+            default => '',
+        };
     }
 
     private function storesEvidenceDocument(): bool

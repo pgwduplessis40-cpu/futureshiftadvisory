@@ -117,6 +117,76 @@ final class ReferenceDataManagementTest extends TestCase
                 ->where('datasets.0', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR));
     }
 
+    public function test_reference_data_page_marks_selected_gdp_as_pending_review(): void
+    {
+        Carbon::setTestNow('2026-06-15 10:00:00');
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.reference-data.store'), [
+                'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
+                'source' => 'manual_admin',
+                'as_at' => '2026-06-15',
+                'payload_json' => json_encode([
+                    'indicator' => EconomicIndicator::GDP_QUARTERLY,
+                    'label' => 'GDP quarterly',
+                    'value' => 0.2,
+                    'unit' => 'percent_quarterly_change',
+                    'period_date' => '2026-06-15',
+                ], JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect(route('admin.reference-data.index', ['target' => 'economic_indicator:gdp_quarterly'], absolute: false))
+            ->assertSessionHas('status', 'reference-data-submitted');
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.index', ['target' => 'economic_indicator:gdp_quarterly']))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/reference-data/Index')
+                ->where('pendingReviews.0.target_key', 'economic_indicator:gdp_quarterly')
+                ->where('pendingReviews.0.label', 'GDP quarterly')
+                ->where('pendingReviews.0.value', '0.2 percent_quarterly_change')
+                ->where('pendingReviews.0.as_at', '2026-06-15')
+                ->where('pendingReviews.0.status', LearningUpdate::STATUS_DETECTED)
+                ->where('entries.0.learning_update_status', LearningUpdate::STATUS_DETECTED));
+    }
+
+    public function test_duplicate_pending_reference_data_submission_reuses_existing_review(): void
+    {
+        Carbon::setTestNow('2026-06-15 10:00:00');
+        $admin = $this->superAdmin();
+        $payload = [
+            'indicator' => EconomicIndicator::GDP_QUARTERLY,
+            'label' => 'GDP quarterly',
+            'value' => 0.2,
+            'unit' => 'percent_quarterly_change',
+            'period_date' => '2026-06-15',
+        ];
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.reference-data.store'), [
+                'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
+                'source' => 'manual_admin',
+                'as_at' => '2026-06-15',
+                'payload_json' => json_encode($payload, JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect(route('admin.reference-data.index', ['target' => 'economic_indicator:gdp_quarterly'], absolute: false))
+            ->assertSessionHas('status', 'reference-data-submitted');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.reference-data.store'), [
+                'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
+                'source' => 'manual_admin',
+                'as_at' => '2026-06-15',
+                'payload_json' => json_encode($payload, JSON_THROW_ON_ERROR),
+            ])
+            ->assertRedirect(route('admin.reference-data.index', ['target' => 'economic_indicator:gdp_quarterly'], absolute: false))
+            ->assertSessionHas('status', 'reference-data-pending-review');
+
+        $this->assertDatabaseCount('reference_data_entries', 1);
+        $this->assertDatabaseCount('learning_updates', 1);
+    }
+
     public function test_reference_data_submission_accepts_screenshot_evidence(): void
     {
         Carbon::setTestNow('2026-06-01 10:00:00');
@@ -137,7 +207,7 @@ final class ReferenceDataManagementTest extends TestCase
                 ], JSON_THROW_ON_ERROR),
                 'evidence_upload' => $screenshot,
             ])
-            ->assertRedirect(route('admin.reference-data.index', absolute: false));
+            ->assertRedirect(route('admin.reference-data.index', ['target' => 'economic_indicator:ocr'], absolute: false));
 
         $entry = ReferenceDataEntry::query()->firstOrFail();
         $document = Document::query()->firstOrFail();
@@ -262,7 +332,7 @@ final class ReferenceDataManagementTest extends TestCase
                 'as_at' => '2026-06-01',
                 'upload' => UploadedFile::fake()->createWithContent('cpb.csv', $csv),
             ])
-            ->assertRedirect(route('admin.reference-data.index', absolute: false));
+            ->assertRedirect(route('admin.reference-data.index', ['target' => ReferenceDataEntry::DATASET_CPB_BENCHMARK], absolute: false));
 
         $entry = ReferenceDataEntry::query()->firstOrFail();
         $update = $entry->learningUpdate()->firstOrFail();
@@ -356,7 +426,19 @@ final class ReferenceDataManagementTest extends TestCase
                 'as_at' => '2026-06-01',
                 'payload_json' => json_encode($payload, JSON_THROW_ON_ERROR),
             ])
-            ->assertRedirect(route('admin.reference-data.index', absolute: false));
+            ->assertRedirect(route('admin.reference-data.index', ['target' => $this->targetForPayload($dataset, $payload)], absolute: false));
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function targetForPayload(string $dataset, array $payload): string
+    {
+        if ($dataset === ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR) {
+            return ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR.':'.(string) $payload['indicator'];
+        }
+
+        return $dataset;
     }
 
     private function approveAndImplement(LearningUpdate $update, User $admin): LearningUpdateImplementation

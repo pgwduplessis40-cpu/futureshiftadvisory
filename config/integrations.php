@@ -1,6 +1,7 @@
 <?php
 
 declare(strict_types=1);
+use App\Models\EconomicIndicator;
 
 $mbieGatewaySegment = (string) env('MBIE_API_GATEWAY_SEGMENT', env('APP_ENV') === 'production' ? 'gateway' : 'sandbox');
 $mbieGatewayBaseUrl = 'https://api.business.govt.nz/'.trim($mbieGatewaySegment, '/');
@@ -123,6 +124,41 @@ return [
         'live' => (bool) env('FEATURE_STATS_NZ_LIVE', false),
         'base_url' => env('STATS_NZ_BASE_URL', 'https://api.data.stats.govt.nz/rest'),
         'api_key' => env('STATS_NZ_API_KEY'),
+        'indicator_datasets' => [
+            [
+                'key' => 'cpi_annual',
+                'indicator' => EconomicIndicator::CPI_ANNUAL,
+                'label' => 'Consumers Price Index annual change',
+                'resourceId' => env('STATS_NZ_CPI_RESOURCE_ID', ''),
+                'version' => env('STATS_NZ_CPI_VERSION', '1.0'),
+                'sdmx_key' => env('STATS_NZ_CPI_KEY', 'all'),
+                'time_dimension_key' => env('STATS_NZ_CPI_TIME_DIMENSION', 'TIME_PERIOD'),
+                'dimensionAtObservation' => env('STATS_NZ_CPI_DIMENSION_AT_OBSERVATION', 'AllDimensions'),
+                'unit' => 'percent',
+            ],
+            [
+                'key' => 'gdp_quarterly',
+                'indicator' => EconomicIndicator::GDP_QUARTERLY,
+                'label' => 'Gross Domestic Product quarterly change',
+                'resourceId' => env('STATS_NZ_GDP_RESOURCE_ID', ''),
+                'version' => env('STATS_NZ_GDP_VERSION', '1.0'),
+                'sdmx_key' => env('STATS_NZ_GDP_KEY', 'all'),
+                'time_dimension_key' => env('STATS_NZ_GDP_TIME_DIMENSION', 'TIME_PERIOD'),
+                'dimensionAtObservation' => env('STATS_NZ_GDP_DIMENSION_AT_OBSERVATION', 'AllDimensions'),
+                'unit' => 'percent',
+            ],
+            [
+                'key' => 'unemployment_rate',
+                'indicator' => EconomicIndicator::UNEMPLOYMENT_RATE,
+                'label' => 'Unemployment rate',
+                'resourceId' => env('STATS_NZ_UNEMPLOYMENT_RESOURCE_ID', ''),
+                'version' => env('STATS_NZ_UNEMPLOYMENT_VERSION', '1.0'),
+                'sdmx_key' => env('STATS_NZ_UNEMPLOYMENT_KEY', 'all'),
+                'time_dimension_key' => env('STATS_NZ_UNEMPLOYMENT_TIME_DIMENSION', 'TIME_PERIOD'),
+                'dimensionAtObservation' => env('STATS_NZ_UNEMPLOYMENT_DIMENSION_AT_OBSERVATION', 'AllDimensions'),
+                'unit' => 'percent',
+            ],
+        ],
         'datasets' => [
             [
                 'key' => 'business_demography_enterprises_by_industry_size',
