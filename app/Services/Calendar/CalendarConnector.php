@@ -10,6 +10,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Storage\KeyEnvelope;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JsonException;
 
@@ -119,6 +120,25 @@ final class CalendarConnector
      */
     public function scopes(string $provider): array
     {
+        $configured = Config::get("integrations.calendar.{$provider}.scopes");
+        if (is_array($configured)) {
+            return collect($configured)
+                ->map(fn (mixed $scope): string => trim((string) $scope))
+                ->filter()
+                ->values()
+                ->all();
+        }
+
+        if (is_string($configured) && trim($configured) !== '') {
+            return Str::of($configured)
+                ->replace(',', ' ')
+                ->explode(' ')
+                ->map(fn (string $scope): string => trim($scope))
+                ->filter()
+                ->values()
+                ->all();
+        }
+
         return match ($provider) {
             CalendarConnection::PROVIDER_GOOGLE => ['https://www.googleapis.com/auth/calendar.events', 'offline_access'],
             CalendarConnection::PROVIDER_MICROSOFT => ['Calendars.ReadWrite', 'offline_access'],

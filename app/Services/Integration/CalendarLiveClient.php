@@ -30,13 +30,14 @@ abstract class CalendarLiveClient
             'client_id' => $this->credential('client_id') ?: 'fixture-client',
             'redirect_uri' => $redirectUri,
             'response_type' => 'code',
+            'response_mode' => 'query',
             'scope' => implode(' ', $scopes),
             'state' => $state,
             'access_type' => 'offline',
             'prompt' => 'consent',
         ]);
 
-        return rtrim((string) Config::get($this->configKey('authorize_url')), '?').'?'.$query;
+        return rtrim($this->configuredUrl('authorize_url'), '?').'?'.$query;
     }
 
     /**
@@ -185,14 +186,36 @@ abstract class CalendarLiveClient
     {
         $clientSecret = $this->credential('client_secret');
 
-        return $clientSecret === ''
-            ? "fsa-disabled://{$this->provider()}/missing-client-secret/{$path}"
-            : rtrim((string) Config::get($this->configKey('base_url')), '/').'/'.$path;
+        if ($clientSecret === '') {
+            return "fsa-disabled://{$this->provider()}/missing-client-secret/{$path}";
+        }
+
+        if ($path === 'token') {
+            $tokenUrl = $this->configuredUrl('token_url');
+
+            return $tokenUrl === ''
+                ? rtrim($this->configuredUrl('base_url'), '/').'/'.$path
+                : $tokenUrl;
+        }
+
+        if ($path === 'revoke' && filled(Config::get($this->configKey('revoke_url')))) {
+            return $this->configuredUrl('revoke_url');
+        }
+
+        return rtrim($this->configuredUrl('base_url'), '/').'/'.$path;
     }
 
     private function configKey(string $key): string
     {
         return "integrations.calendar.{$this->provider()}.{$key}";
+    }
+
+    private function configuredUrl(string $key): string
+    {
+        $url = (string) Config::get($this->configKey($key), '');
+        $tenant = rawurlencode((string) Config::get($this->configKey('tenant'), 'common'));
+
+        return str_replace('{tenant}', $tenant === '' ? 'common' : $tenant, $url);
     }
 
     private function integrationKey(): string

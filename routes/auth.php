@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
+use App\Http\Controllers\Admin\ProjectSettingsController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\ReferenceDataController;
 use App\Http\Controllers\Admin\ServiceRateController;
@@ -83,6 +84,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
         ->group(function (): void {
             Route::get('integration-credentials', [IntegrationCredentialController::class, 'index'])
                 ->name('integration-credentials.index');
+            Route::get('project-settings', [ProjectSettingsController::class, 'index'])
+                ->name('project-settings.index');
+            Route::patch('project-settings', [ProjectSettingsController::class, 'update'])
+                ->middleware('require.fresh-step-up')
+                ->name('project-settings.update');
+            Route::patch('project-settings/reset', [ProjectSettingsController::class, 'reset'])
+                ->middleware('require.fresh-step-up')
+                ->name('project-settings.reset');
+            Route::post('project-settings/test-email', [ProjectSettingsController::class, 'testEmail'])
+                ->middleware('require.fresh-step-up')
+                ->name('project-settings.test-email');
             Route::post('integration-credentials', [IntegrationCredentialController::class, 'store'])
                 ->middleware('require.fresh-step-up')
                 ->name('integration-credentials.store');

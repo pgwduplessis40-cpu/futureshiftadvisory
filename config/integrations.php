@@ -258,7 +258,10 @@ return [
         'microsoft' => [
             'live' => (bool) env('FEATURE_CALENDAR_LIVE', false) && (bool) env('FEATURE_MICROSOFT_GRAPH_LIVE', false),
             'base_url' => env('MICROSOFT_GRAPH_BASE_URL', 'https://graph.microsoft.com/v1.0/me'),
-            'authorize_url' => env('MICROSOFT_GRAPH_AUTHORIZE_URL', 'https://login.microsoftonline.com/common/oauth2/v2.0/authorize'),
+            'tenant' => env('MICROSOFT_GRAPH_TENANT', 'common'),
+            'authorize_url' => env('MICROSOFT_GRAPH_AUTHORIZE_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize'),
+            'token_url' => env('MICROSOFT_GRAPH_TOKEN_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token'),
+            'scopes' => array_values(array_filter(preg_split('/[\s,]+/', (string) env('MICROSOFT_GRAPH_SCOPES', 'Calendars.ReadWrite offline_access')) ?: [])),
             'client_id' => env('MICROSOFT_GRAPH_CLIENT_ID'),
             'client_secret' => env('MICROSOFT_GRAPH_CLIENT_SECRET'),
         ],

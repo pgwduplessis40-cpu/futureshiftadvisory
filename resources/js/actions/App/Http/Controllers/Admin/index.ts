@@ -4,6 +4,7 @@ import TermsController from './TermsController'
 import ServiceRateController from './ServiceRateController'
 import IntegrationHealthController from './IntegrationHealthController'
 import IntegrationCredentialController from './IntegrationCredentialController'
+import ProjectSettingsController from './ProjectSettingsController'
 import ReferenceDataController from './ReferenceDataController'
 import WelcomeMessageController from './WelcomeMessageController'
 import InspirationBoardController from './InspirationBoardController'
@@ -16,6 +17,7 @@ TermsController: Object.assign(TermsController, TermsController),
 ServiceRateController: Object.assign(ServiceRateController, ServiceRateController),
 IntegrationHealthController: Object.assign(IntegrationHealthController, IntegrationHealthController),
 IntegrationCredentialController: Object.assign(IntegrationCredentialController, IntegrationCredentialController),
+ProjectSettingsController: Object.assign(ProjectSettingsController, ProjectSettingsController),
 ReferenceDataController: Object.assign(ReferenceDataController, ReferenceDataController),
 WelcomeMessageController: Object.assign(WelcomeMessageController, WelcomeMessageController),
 InspirationBoardController: Object.assign(InspirationBoardController, InspirationBoardController),

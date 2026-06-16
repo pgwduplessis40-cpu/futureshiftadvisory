@@ -17,6 +17,7 @@ import {
     MessageSquare,
     PlugZap,
     Scale,
+    Settings2,
     Sparkles,
     UsersRound,
 } from 'lucide-react';
@@ -137,6 +138,12 @@ const integrationCredentialsNavItem: NavItem = {
     title: 'Credentials',
     href: '/admin/integration-credentials',
     icon: KeyRound,
+};
+
+const projectSettingsNavItem: NavItem = {
+    title: 'Project Settings',
+    href: '/admin/project-settings',
+    icon: Settings2,
 };
 
 const referenceDataNavItem: NavItem = {
@@ -322,6 +329,7 @@ function mainNavItemsFor(
         return [
             ...advisorNavItems,
             integrationCredentialsNavItem,
+            projectSettingsNavItem,
             serviceRatesNavItem,
             referenceDataNavItem,
             questionnairesNavItem,

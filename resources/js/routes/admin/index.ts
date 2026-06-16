@@ -4,6 +4,7 @@ import terms from './terms'
 import serviceRates from './service-rates'
 import integrationHealth from './integration-health'
 import integrationCredentials from './integration-credentials'
+import projectSettings from './project-settings'
 import referenceData from './reference-data'
 import welcomeMessage from './welcome-message'
 import inspirationBoard from './inspiration-board'
@@ -17,6 +18,7 @@ terms: Object.assign(terms, terms),
 serviceRates: Object.assign(serviceRates, serviceRates),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),
 integrationCredentials: Object.assign(integrationCredentials, integrationCredentials),
+projectSettings: Object.assign(projectSettings, projectSettings),
 referenceData: Object.assign(referenceData, referenceData),
 welcomeMessage: Object.assign(welcomeMessage, welcomeMessage),
 inspirationBoard: Object.assign(inspirationBoard, inspirationBoard),
