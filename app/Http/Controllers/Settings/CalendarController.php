@@ -10,11 +10,13 @@ use App\Models\CalendarEventMapping;
 use App\Models\User;
 use App\Services\Calendar\CalendarConnector;
 use App\Services\Calendar\CalendarSync;
+use App\Services\Integration\Exceptions\IntegrationRequestFailedException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 
 final class CalendarController extends Controller
 {
@@ -30,6 +32,10 @@ final class CalendarController extends Controller
             ->forUser($user)
             ->latest()
             ->get();
+        $connectedConnectionIds = $connections
+            ->filter(fn (CalendarConnection $connection): bool => $connection->connected())
+            ->pluck('id')
+            ->all();
 
         $providerLabels = CalendarConnection::providerLabels();
 
@@ -51,7 +57,7 @@ final class CalendarController extends Controller
                 ->values()
                 ->all(),
             'externalEvents' => CalendarEventMapping::query()
-                ->whereIn('calendar_connection_id', $connections->pluck('id')->all())
+                ->whereIn('calendar_connection_id', $connectedConnectionIds)
                 ->where('is_external_only', true)
                 ->where('starts_at', '>=', now()->subDay())
                 ->with('calendarConnection')
@@ -82,12 +88,18 @@ final class CalendarController extends Controller
             'state' => ['required', 'string'],
         ]);
 
-        $this->connector->connectFromCallback(
-            user: $user,
-            provider: $provider,
-            code: $validated['code'],
-            state: $validated['state'],
-        );
+        try {
+            $this->connector->connectFromCallback(
+                user: $user,
+                provider: $provider,
+                code: $validated['code'],
+                state: $validated['state'],
+            );
+        } catch (IntegrationRequestFailedException|InvalidArgumentException) {
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('Calendar connection failed. Check the provider configuration and try connecting again.')]);
+
+            return to_route('calendar.edit');
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Calendar connected.')]);
 
@@ -99,7 +111,17 @@ final class CalendarController extends Controller
         $user = $this->calendarUser($request);
         $this->authorizeConnection($calendarConnection, $user);
 
-        $this->sync->syncConnection($calendarConnection, $user);
+        try {
+            $this->sync->syncConnection($calendarConnection, $user);
+        } catch (IntegrationRequestFailedException) {
+            $calendarConnection->forceFill([
+                'status' => CalendarConnection::STATUS_ERROR,
+            ])->save();
+
+            Inertia::flash('toast', ['type' => 'error', 'message' => __('Calendar sync failed. Reconnect the calendar or check the provider configuration.')]);
+
+            return to_route('calendar.edit');
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => __('Calendar sync completed.')]);
 

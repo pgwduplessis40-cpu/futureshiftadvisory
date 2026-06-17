@@ -8,6 +8,7 @@ use App\Models\CalendarConnection;
 use App\Models\CalendarEventMapping;
 use App\Models\Meeting;
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
+use App\Services\Integration\Exceptions\IntegrationRequestFailedException;
 use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
@@ -52,7 +53,10 @@ abstract class CalendarLiveClient
             service: $this->provider(),
             endpoint: $this->endpoint('token'),
             options: [
-                'json' => [
+                'headers' => [
+                    'Accept' => 'application/json',
+                ],
+                'form_params' => [
                     'grant_type' => 'authorization_code',
                     'code' => $code,
                     'redirect_uri' => $redirectUri,
@@ -60,10 +64,17 @@ abstract class CalendarLiveClient
                     'client_secret' => $this->credential('client_secret'),
                 ],
             ],
-            fallback: fn (): array => $this->fake->fallbackToken(),
+            fallback: null,
         );
 
-        return $this->withTransportMeta($result, $this->fake->fallbackToken());
+        $this->requireLiveResult($result, 'calendar token exchange');
+
+        $token = $this->withTransportMeta($result, []);
+        if (! is_scalar($token['access_token'] ?? null) || trim((string) $token['access_token']) === '') {
+            throw IntegrationRequestFailedException::forService($this->provider(), 'calendar token exchange', $result->correlationId);
+        }
+
+        return $token;
     }
 
     /**
@@ -79,32 +90,23 @@ abstract class CalendarLiveClient
         $this->ensureLive();
 
         $method = $mapping instanceof CalendarEventMapping ? 'PATCH' : 'POST';
-        $path = $mapping instanceof CalendarEventMapping
-            ? 'events/'.rawurlencode($mapping->external_event_id)
-            : 'events';
-
-        $startsAt = $meeting->scheduled_at ?? now();
         $result = $this->http->request(
             method: $method,
             service: $this->provider(),
-            endpoint: $this->endpoint($path),
+            endpoint: $this->endpoint($this->eventPath($mapping)),
             options: [
                 'headers' => [
                     'Authorization' => 'Bearer '.(string) ($token['access_token'] ?? ''),
                     'Accept' => 'application/json',
                 ],
-                'json' => [
-                    'summary' => $meeting->title,
-                    'start' => ['dateTime' => $startsAt->toIso8601String()],
-                    'end' => ['dateTime' => $startsAt->copy()->addHour()->toIso8601String()],
-                    'location' => $meeting->location,
-                    'attendees' => $meeting->attendees ?? [],
-                ],
+                'json' => $this->eventPayload($meeting),
             ],
-            fallback: fn (): array => $this->fake->fallbackPushedEvent($meeting),
+            fallback: null,
         );
 
-        return $this->withTransportMeta($result, $this->fake->fallbackPushedEvent($meeting));
+        $this->requireLiveResult($result, 'calendar event push');
+
+        return $this->normalisePushedEvent($this->withTransportMeta($result, []), $meeting, $result->correlationId);
     }
 
     /**
@@ -118,22 +120,21 @@ abstract class CalendarLiveClient
         $result = $this->http->request(
             method: 'GET',
             service: $this->provider(),
-            endpoint: $this->endpoint('events'),
+            endpoint: $this->endpoint($this->eventCollectionPath()),
             options: [
                 'headers' => [
                     'Authorization' => 'Bearer '.(string) ($token['access_token'] ?? ''),
                     'Accept' => 'application/json',
                 ],
-                'query' => array_filter([
-                    'syncToken' => $connection->sync_token,
-                    'deltaLink' => $connection->delta_link,
-                ]),
+                'query' => $this->pullQuery($connection),
             ],
             cacheKey: null,
-            fallback: fn (): array => $this->fake->fallbackPulledEvents($connection->sync_token),
+            fallback: null,
         );
 
-        return $this->withTransportMeta($result, $this->fake->fallbackPulledEvents($connection->sync_token));
+        $this->requireLiveResult($result, 'calendar event pull');
+
+        return $this->normalisePulledEvents($this->withTransportMeta($result, []), $connection);
     }
 
     /**
@@ -143,17 +144,22 @@ abstract class CalendarLiveClient
     {
         $this->ensureLive();
 
+        $endpoint = $this->endpoint('revoke');
+        if ($endpoint === '') {
+            return;
+        }
+
         $this->http->request(
             method: 'POST',
             service: $this->provider(),
-            endpoint: $this->endpoint('revoke'),
+            endpoint: $endpoint,
             options: [
                 'json' => [
                     'token' => (string) ($token['refresh_token'] ?? $token['access_token'] ?? ''),
                     'external_account_id' => $connection->external_account_id,
                 ],
             ],
-            fallback: fn (): array => ['revoked' => true],
+            fallback: null,
         );
     }
 
@@ -198,11 +204,230 @@ abstract class CalendarLiveClient
                 : $tokenUrl;
         }
 
-        if ($path === 'revoke' && filled(Config::get($this->configKey('revoke_url')))) {
-            return $this->configuredUrl('revoke_url');
+        if ($path === 'revoke') {
+            return filled(Config::get($this->configKey('revoke_url')))
+                ? $this->configuredUrl('revoke_url')
+                : '';
         }
 
         return rtrim($this->configuredUrl('base_url'), '/').'/'.$path;
+    }
+
+    private function eventCollectionPath(): string
+    {
+        return match ($this->provider()) {
+            CalendarConnection::PROVIDER_GOOGLE => 'calendars/primary/events',
+            default => 'events',
+        };
+    }
+
+    private function eventPath(?CalendarEventMapping $mapping): string
+    {
+        if (! $mapping instanceof CalendarEventMapping) {
+            return $this->eventCollectionPath();
+        }
+
+        return $this->eventCollectionPath().'/'.rawurlencode($mapping->external_event_id);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function eventPayload(Meeting $meeting): array
+    {
+        $startsAt = $meeting->scheduled_at ?? now();
+        $endsAt = $startsAt->copy()->addHour();
+        $timezone = (string) Config::get('app.timezone', 'UTC');
+
+        if ($this->provider() === CalendarConnection::PROVIDER_MICROSOFT) {
+            return array_filter([
+                'subject' => $meeting->title,
+                'start' => [
+                    'dateTime' => $startsAt->toIso8601String(),
+                    'timeZone' => $timezone,
+                ],
+                'end' => [
+                    'dateTime' => $endsAt->toIso8601String(),
+                    'timeZone' => $timezone,
+                ],
+                'location' => filled($meeting->location) ? ['displayName' => $meeting->location] : null,
+                'attendees' => $this->microsoftAttendees($meeting->attendees ?? []),
+            ], fn (mixed $value): bool => $value !== null && $value !== []);
+        }
+
+        return array_filter([
+            'summary' => $meeting->title,
+            'start' => ['dateTime' => $startsAt->toIso8601String(), 'timeZone' => $timezone],
+            'end' => ['dateTime' => $endsAt->toIso8601String(), 'timeZone' => $timezone],
+            'location' => $meeting->location,
+            'attendees' => $this->googleAttendees($meeting->attendees ?? []),
+        ], fn (mixed $value): bool => $value !== null && $value !== []);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function pullQuery(CalendarConnection $connection): array
+    {
+        if ($this->provider() === CalendarConnection::PROVIDER_MICROSOFT) {
+            return [
+                '$top' => 25,
+                '$select' => 'id,subject,start,end,location,attendees,lastModifiedDateTime,changeKey',
+            ];
+        }
+
+        return array_filter([
+            'syncToken' => $connection->sync_token,
+            'singleEvents' => true,
+            'orderBy' => $connection->sync_token === null ? 'startTime' : null,
+            'timeMin' => $connection->sync_token === null ? now()->subDay()->toIso8601String() : null,
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array<string, mixed>
+     */
+    private function normalisePushedEvent(array $record, Meeting $meeting, string $correlationId): array
+    {
+        $event = $this->normaliseEvent($record);
+
+        if (! is_scalar($event['external_event_id'] ?? null) || trim((string) $event['external_event_id']) === '') {
+            throw IntegrationRequestFailedException::forService($this->provider(), 'calendar event push', $correlationId);
+        }
+
+        return [
+            'title' => $meeting->title,
+            'starts_at' => $meeting->scheduled_at,
+            'ends_at' => $meeting->scheduled_at?->copy()->addHour(),
+            'location' => $meeting->location,
+            'attendees' => $meeting->attendees ?? [],
+            ...$event,
+            'source_badge' => $record['source_badge'] ?? 'live',
+            'degraded' => (bool) ($record['degraded'] ?? false),
+            'correlation_id' => $record['correlation_id'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array<string, mixed>
+     */
+    private function normalisePulledEvents(array $record, CalendarConnection $connection): array
+    {
+        $items = $record['value'] ?? $record['items'] ?? $record['events'] ?? [];
+        $items = is_array($items) ? $items : [];
+
+        $events = [];
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $event = $this->normaliseEvent($item);
+            if (is_scalar($event['external_event_id'] ?? null) && trim((string) $event['external_event_id']) !== '') {
+                $events[] = $event;
+            }
+        }
+
+        return [
+            'events' => $events,
+            'sync_token' => $record['nextSyncToken'] ?? $record['sync_token'] ?? $connection->sync_token,
+            'delta_link' => $record['@odata.deltaLink'] ?? $record['delta_link'] ?? $connection->delta_link,
+            'source_badge' => $record['source_badge'] ?? 'live',
+            'degraded' => (bool) ($record['degraded'] ?? false),
+            'correlation_id' => $record['correlation_id'] ?? null,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array<string, mixed>
+     */
+    private function normaliseEvent(array $record): array
+    {
+        return [
+            'external_event_id' => $this->scalar($record['id'] ?? $record['external_event_id'] ?? null),
+            'etag' => $this->scalar($record['changeKey'] ?? $record['etag'] ?? null),
+            'updated_at' => $this->scalar($record['lastModifiedDateTime'] ?? $record['updated'] ?? $record['updated_at'] ?? null) ?? now()->toIso8601String(),
+            'title' => $this->scalar($record['subject'] ?? $record['summary'] ?? $record['title'] ?? null),
+            'starts_at' => $this->scalar(data_get($record, 'start.dateTime') ?? data_get($record, 'start.date') ?? $record['starts_at'] ?? null),
+            'ends_at' => $this->scalar(data_get($record, 'end.dateTime') ?? data_get($record, 'end.date') ?? $record['ends_at'] ?? null),
+            'location' => $this->scalar(data_get($record, 'location.displayName') ?? $record['location'] ?? null),
+            'attendees' => $this->attendeeEmails($record['attendees'] ?? []),
+        ];
+    }
+
+    /**
+     * @param  array<int, mixed>  $attendees
+     * @return array<int, array<string, mixed>>
+     */
+    private function microsoftAttendees(array $attendees): array
+    {
+        return collect($this->attendeeEmails($attendees))
+            ->map(fn (string $email): array => [
+                'emailAddress' => [
+                    'address' => $email,
+                    'name' => $email,
+                ],
+                'type' => 'required',
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, mixed>  $attendees
+     * @return array<int, array<string, string>>
+     */
+    private function googleAttendees(array $attendees): array
+    {
+        return collect($this->attendeeEmails($attendees))
+            ->map(fn (string $email): array => ['email' => $email])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function attendeeEmails(mixed $attendees): array
+    {
+        if (! is_array($attendees)) {
+            return [];
+        }
+
+        return collect($attendees)
+            ->map(function (mixed $attendee): ?string {
+                if (is_string($attendee)) {
+                    return filter_var($attendee, FILTER_VALIDATE_EMAIL) ? $attendee : null;
+                }
+
+                if (is_array($attendee)) {
+                    $email = data_get($attendee, 'emailAddress.address') ?? data_get($attendee, 'email') ?? data_get($attendee, 'address');
+
+                    return is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null;
+                }
+
+                return null;
+            })
+            ->filter()
+            ->values()
+            ->all();
+    }
+
+    private function scalar(mixed $value): ?string
+    {
+        return is_scalar($value) && trim((string) $value) !== ''
+            ? (string) $value
+            : null;
+    }
+
+    private function requireLiveResult(IntegrationResult $result, string $operation): void
+    {
+        if ($result->fromFallback || ! $result->successful()) {
+            throw IntegrationRequestFailedException::forService($this->provider(), $operation, $result->correlationId);
+        }
     }
 
     private function configKey(string $key): string

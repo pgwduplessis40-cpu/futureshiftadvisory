@@ -183,7 +183,7 @@ final class CalendarIntegrationTest extends TestCase
             );
     }
 
-    public function test_live_mode_with_vault_credentials_records_resilience_fallback(): void
+    public function test_live_oauth_failure_does_not_create_fixture_calendar_connection(): void
     {
         Config::set('integrations.calendar.google.live', false);
         $admin = User::factory()->superAdmin()->create();
@@ -205,6 +205,7 @@ final class CalendarIntegrationTest extends TestCase
             ->assertRedirect(route('calendar.edit', absolute: false));
 
         Http::assertSentCount(1);
+        $this->assertDatabaseCount('calendar_connections', 0);
         $this->assertDatabaseHas('integration_calls', [
             'service' => CalendarConnection::PROVIDER_GOOGLE,
             'status' => IntegrationCall::STATUS_FAILURE,
@@ -215,7 +216,7 @@ final class CalendarIntegrationTest extends TestCase
             'status' => IntegrationCall::STATUS_FALLBACK,
             'attempt' => 1,
         ]);
-        $this->assertDatabaseHas('audit_events', ['action' => 'calendar_connection.connected']);
+        $this->assertDatabaseMissing('audit_events', ['action' => 'calendar_connection.connected']);
     }
 
     public function test_settings_page_exposes_connections_and_external_events(): void
