@@ -10,7 +10,6 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Storage\KeyEnvelope;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Str;
 use InvalidArgumentException;
 use JsonException;
 
@@ -130,9 +129,7 @@ final class CalendarConnector
         }
 
         if (is_string($configured) && trim($configured) !== '') {
-            return Str::of($configured)
-                ->replace(',', ' ')
-                ->explode(' ')
+            return collect(preg_split('/[\s,]+/', $configured) ?: [])
                 ->map(fn (string $scope): string => trim($scope))
                 ->filter()
                 ->values()

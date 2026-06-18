@@ -96,7 +96,14 @@ final class CalendarController extends Controller
                 code: $validated['code'],
                 state: $validated['state'],
             );
-        } catch (IntegrationDisabledException|IntegrationRequestFailedException|InvalidArgumentException) {
+        } catch (IntegrationRequestFailedException $exception) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => __('Calendar connection failed. Check API Health with correlation ID :id.', ['id' => $exception->correlationId]),
+            ]);
+
+            return to_route('calendar.edit');
+        } catch (IntegrationDisabledException|InvalidArgumentException) {
             Inertia::flash('toast', ['type' => 'error', 'message' => __('Calendar connection failed. Check the provider configuration and try connecting again.')]);
 
             return to_route('calendar.edit');
@@ -114,7 +121,18 @@ final class CalendarController extends Controller
 
         try {
             $this->sync->syncConnection($calendarConnection, $user);
-        } catch (IntegrationDisabledException|IntegrationRequestFailedException) {
+        } catch (IntegrationRequestFailedException $exception) {
+            $calendarConnection->forceFill([
+                'status' => CalendarConnection::STATUS_ERROR,
+            ])->save();
+
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => __('Calendar sync failed. Check API Health with correlation ID :id.', ['id' => $exception->correlationId]),
+            ]);
+
+            return to_route('calendar.edit');
+        } catch (IntegrationDisabledException) {
             $calendarConnection->forceFill([
                 'status' => CalendarConnection::STATUS_ERROR,
             ])->save();

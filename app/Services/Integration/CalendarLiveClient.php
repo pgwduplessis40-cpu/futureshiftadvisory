@@ -56,13 +56,14 @@ abstract class CalendarLiveClient
                 'headers' => [
                     'Accept' => 'application/json',
                 ],
-                'form_params' => [
+                'form_params' => array_filter([
                     'grant_type' => 'authorization_code',
                     'code' => $code,
                     'redirect_uri' => $redirectUri,
                     'client_id' => $this->credential('client_id'),
                     'client_secret' => $this->credential('client_secret'),
-                ],
+                    'scope' => $this->tokenExchangeScope(),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''),
             ],
             fallback: null,
         );
@@ -433,6 +434,32 @@ abstract class CalendarLiveClient
     private function configKey(string $key): string
     {
         return "integrations.calendar.{$this->provider()}.{$key}";
+    }
+
+    private function tokenExchangeScope(): ?string
+    {
+        if ($this->provider() !== CalendarConnection::PROVIDER_MICROSOFT) {
+            return null;
+        }
+
+        $configured = Config::get($this->configKey('scopes'));
+        if (is_array($configured)) {
+            $scopes = collect($configured)
+                ->map(fn (mixed $scope): string => trim((string) $scope))
+                ->filter()
+                ->values()
+                ->all();
+        } elseif (is_string($configured) && trim($configured) !== '') {
+            $scopes = collect(preg_split('/[\s,]+/', $configured) ?: [])
+                ->map(fn (string $scope): string => trim($scope))
+                ->filter()
+                ->values()
+                ->all();
+        } else {
+            $scopes = ['Calendars.ReadWrite', 'offline_access'];
+        }
+
+        return $scopes === [] ? null : implode(' ', $scopes);
     }
 
     private function configuredUrl(string $key): string
