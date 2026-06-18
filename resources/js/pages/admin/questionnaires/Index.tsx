@@ -1,7 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Eye, FilePlus, Pencil, Send } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { QuestionnaireSummary } from './types';
 
 type Props = {
@@ -108,54 +114,66 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                                         data-label="Actions"
                                     >
                                         <div className="flex justify-start gap-2 md:justify-end">
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="outline"
+                                            <ActionTooltip
+                                                label={`Preview ${questionnaire.title}`}
                                             >
-                                                <Link
-                                                    href={`/admin/questionnaires/${questionnaire.id}/preview`}
-                                                    aria-label={`Preview ${questionnaire.title}`}
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
                                                 >
-                                                    <Eye
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                </Link>
-                                            </Button>
-                                            {!questionnaire.published_at && (
-                                                <>
-                                                    <Button
-                                                        asChild
-                                                        size="sm"
-                                                        variant="outline"
+                                                    <Link
+                                                        href={`/admin/questionnaires/${questionnaire.id}/preview`}
+                                                        aria-label={`Preview ${questionnaire.title}`}
                                                     >
-                                                        <Link
-                                                            href={`/admin/questionnaires/${questionnaire.id}/edit`}
-                                                            aria-label={`Edit ${questionnaire.title}`}
-                                                        >
-                                                            <Pencil
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        size="sm"
-                                                        variant="outline"
-                                                        type="button"
-                                                        aria-label={`Publish ${questionnaire.title}`}
-                                                        onClick={() =>
-                                                            router.post(
-                                                                `/admin/questionnaires/${questionnaire.id}/publish`,
-                                                            )
-                                                        }
-                                                    >
-                                                        <Send
+                                                        <Eye
                                                             className="size-4"
                                                             aria-hidden="true"
                                                         />
-                                                    </Button>
+                                                    </Link>
+                                                </Button>
+                                            </ActionTooltip>
+                                            {!questionnaire.published_at && (
+                                                <>
+                                                    <ActionTooltip
+                                                        label={`Edit ${questionnaire.title}`}
+                                                    >
+                                                        <Button
+                                                            asChild
+                                                            size="sm"
+                                                            variant="outline"
+                                                        >
+                                                            <Link
+                                                                href={`/admin/questionnaires/${questionnaire.id}/edit`}
+                                                                aria-label={`Edit ${questionnaire.title}`}
+                                                            >
+                                                                <Pencil
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionTooltip>
+                                                    <ActionTooltip
+                                                        label={`Publish ${questionnaire.title}`}
+                                                    >
+                                                        <Button
+                                                            size="sm"
+                                                            variant="outline"
+                                                            type="button"
+                                                            aria-label={`Publish ${questionnaire.title}`}
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    `/admin/questionnaires/${questionnaire.id}/publish`,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Send
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                        </Button>
+                                                    </ActionTooltip>
                                                 </>
                                             )}
                                         </div>
@@ -167,5 +185,20 @@ export default function QuestionnairesIndex({ questionnaires, sets }: Props) {
                 </div>
             </div>
         </>
+    );
+}
+
+function ActionTooltip({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side="top">{label}</TooltipContent>
+        </Tooltip>
     );
 }

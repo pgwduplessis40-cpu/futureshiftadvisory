@@ -8,10 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Models\TermsAcceptance;
 use App\Models\TermsVersion;
 use App\Services\Audit\AuditWriter;
+use App\Services\Pdf\PdfRenderer;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response as HttpResponse;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -138,6 +141,29 @@ final class TermsController extends Controller
         ]);
     }
 
+    public function download(Request $request, TermsVersion $termsVersion, PdfRenderer $renderer): HttpResponse
+    {
+        Gate::authorize('view', $termsVersion);
+
+        $termsVersion->load('clauses');
+        $pdf = $renderer->render($this->downloadHtml($termsVersion));
+        $filename = Str::slug('future-shift-advisory-terms-'.$termsVersion->version).'.pdf';
+
+        $this->auditWriter->record('terms.downloaded_for_review', subject: $termsVersion, actor: $request->user(), after: [
+            'version' => $termsVersion->version,
+            'byte_size' => strlen($pdf),
+            'published_at' => $termsVersion->published_at?->toIso8601String(),
+        ]);
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($pdf),
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
     public function confirmPublish(TermsVersion $termsVersion): Response
     {
         Gate::authorize('publish', $termsVersion);
@@ -243,5 +269,30 @@ final class TermsController extends Controller
             ->max() + 1;
 
         return (string) max(1, $next);
+    }
+
+    private function downloadHtml(TermsVersion $version): string
+    {
+        $clauses = $version->clauses
+            ->map(fn ($clause): string => sprintf(
+                '<section><h2>Clause %s: %s%s</h2><p>%s</p></section>',
+                $this->escape((string) $clause->clause_number),
+                $this->escape($clause->title),
+                $clause->material ? ' <span>(material)</span>' : '',
+                nl2br($this->escape($clause->body)),
+            ))
+            ->implode('');
+
+        return '<!doctype html><html><head><meta charset="utf-8"><title>Future Shift Advisory Terms</title>'
+            .'<style>body{font-family:Arial,sans-serif;color:#111827;line-height:1.5}h1{color:#0f172a}h2{font-size:16px;margin-top:22px}p{font-size:12px}.meta{font-size:12px;color:#4b5563}</style>'
+            .'</head><body><h1>'.$this->escape($version->title).'</h1>'
+            .'<p class="meta">Version '.$this->escape($version->version).' generated for review on '.now()->toDateTimeString().'.</p>'
+            .$clauses
+            .'</body></html>';
+    }
+
+    private function escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }

@@ -68,6 +68,7 @@ final class AuditWriter
             'id' => (string) Str::uuid(),
             'occurred_at' => now(),
             'actor_user_id' => $this->resolveActorUserId($actor),
+            'actor_user_key' => $this->resolveActorUserKey($actor),
             'actor_role' => $this->resolveActorRole($actor),
             'client_id' => $this->resolveClientId($subject),
             'action' => $action,
@@ -120,6 +121,17 @@ final class AuditWriter
         return is_scalar($identifier) && Str::isUuid((string) $identifier)
             ? (string) $identifier
             : null;
+    }
+
+    private function resolveActorUserKey(?Authenticatable $actor): ?string
+    {
+        if ($actor === null) {
+            return null;
+        }
+
+        $identifier = $actor->getAuthIdentifier();
+
+        return is_scalar($identifier) ? (string) $identifier : null;
     }
 
     private function resolveClientId(?Model $subject): ?string

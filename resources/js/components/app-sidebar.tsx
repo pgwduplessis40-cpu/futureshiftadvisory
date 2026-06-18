@@ -11,6 +11,7 @@ import {
     FolderGit2,
     HeartHandshake,
     HeartPulse,
+    History,
     Inbox,
     KeyRound,
     LayoutGrid,
@@ -156,6 +157,18 @@ const serviceRatesNavItem: NavItem = {
     title: 'Service Rates',
     href: '/admin/service-rates',
     icon: BadgeDollarSign,
+};
+
+const termsNavItem: NavItem = {
+    title: "T&C's",
+    href: '/admin/terms',
+    icon: FileText,
+};
+
+const auditTrailNavItem: NavItem = {
+    title: 'Audit Trail',
+    href: '/admin/audit-trail',
+    icon: History,
 };
 
 const questionnairesNavItem: NavItem = {
@@ -331,6 +344,8 @@ function mainNavItemsFor(
             integrationCredentialsNavItem,
             projectSettingsNavItem,
             serviceRatesNavItem,
+            termsNavItem,
+            auditTrailNavItem,
             referenceDataNavItem,
             questionnairesNavItem,
             welcomeMessageNavItem,

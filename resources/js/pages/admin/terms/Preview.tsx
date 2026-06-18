@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Pencil, Send } from 'lucide-react';
+import { Download, Pencil, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { TermsVersion } from './types';
@@ -40,30 +40,43 @@ export default function TermsPreview({ version }: Props) {
                         </div>
                     </div>
 
-                    {!version.published_at && (
-                        <div className="flex gap-2">
-                            <Button asChild size="sm" variant="outline">
-                                <Link href={`/admin/terms/${version.id}/edit`}>
-                                    <Pencil
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Edit
-                                </Link>
-                            </Button>
-                            <Button asChild size="sm">
-                                <Link
-                                    href={`/admin/terms/${version.id}/publish`}
-                                >
-                                    <Send
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Publish
-                                </Link>
-                            </Button>
-                        </div>
-                    )}
+                    <div className="flex gap-2">
+                        <Button asChild size="sm" variant="outline">
+                            <a href={`/admin/terms/${version.id}/download`}>
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Download PDF
+                            </a>
+                        </Button>
+                        {!version.published_at && (
+                            <>
+                                <Button asChild size="sm" variant="outline">
+                                    <Link
+                                        href={`/admin/terms/${version.id}/edit`}
+                                    >
+                                        <Pencil
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Edit
+                                    </Link>
+                                </Button>
+                                <Button asChild size="sm">
+                                    <Link
+                                        href={`/admin/terms/${version.id}/publish`}
+                                    >
+                                        <Send
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Publish
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <article className="space-y-6">

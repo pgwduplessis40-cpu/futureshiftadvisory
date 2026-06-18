@@ -1,13 +1,10 @@
 import { Head, useForm } from '@inertiajs/react';
 import { Clock3, DatabaseZap, Send, Upload } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
-import {
-    Alert,
-    AlertDescription,
-    AlertTitle,
-} from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -234,6 +231,7 @@ export default function ReferenceDataIndex({
     function setRecordTarget(targetKey: string) {
         const target =
             recordTargets.find((item) => item.key === targetKey) ?? null;
+
         if (!target) {
             return;
         }
@@ -450,7 +448,7 @@ export default function ReferenceDataIndex({
                                         aria-hidden="true"
                                     />
                                 ) : form.data.upload ||
-                                form.data.evidence_upload ? (
+                                  form.data.evidence_upload ? (
                                     <Upload
                                         className="size-4"
                                         aria-hidden="true"

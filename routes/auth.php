@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\AuditTrailController;
 use App\Http\Controllers\Admin\InspirationBoardController;
 use App\Http\Controllers\Admin\IntegrationCredentialController;
 use App\Http\Controllers\Admin\IntegrationHealthController;
@@ -61,6 +62,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('terms/{termsVersion}/edit', [TermsController::class, 'edit'])->name('terms.edit');
             Route::put('terms/{termsVersion}', [TermsController::class, 'update'])->name('terms.update');
             Route::get('terms/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms.preview');
+            Route::get('terms/{termsVersion}/download', [TermsController::class, 'download'])->name('terms.download');
             Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
 
@@ -76,6 +78,15 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('integration-health.index');
             Route::post('integration-health/refresh', [IntegrationHealthController::class, 'refresh'])
                 ->name('integration-health.refresh');
+        });
+
+    Route::prefix('admin')
+        ->name('admin.')
+        ->middleware(['mfa', 'permission:'.Permission::AUDIT_VIEW->value])
+        ->group(function (): void {
+            Route::get('audit-trail', AuditTrailController::class)
+                ->middleware('audit.read:audit_trail.viewed')
+                ->name('audit-trail.index');
         });
 
     Route::prefix('admin')

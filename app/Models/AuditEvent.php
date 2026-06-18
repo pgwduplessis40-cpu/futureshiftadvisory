@@ -20,6 +20,7 @@ use Illuminate\Support\Carbon;
  * @property string $id
  * @property Carbon $occurred_at
  * @property string|null $actor_user_id
+ * @property string|null $actor_user_key
  * @property string|null $actor_role
  * @property string|null $client_id
  * @property string $action

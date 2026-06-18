@@ -3,6 +3,7 @@ import QuestionnaireController from './QuestionnaireController'
 import TermsController from './TermsController'
 import ServiceRateController from './ServiceRateController'
 import IntegrationHealthController from './IntegrationHealthController'
+import AuditTrailController from './AuditTrailController'
 import IntegrationCredentialController from './IntegrationCredentialController'
 import ProjectSettingsController from './ProjectSettingsController'
 import ReferenceDataController from './ReferenceDataController'
@@ -16,6 +17,7 @@ QuestionnaireController: Object.assign(QuestionnaireController, QuestionnaireCon
 TermsController: Object.assign(TermsController, TermsController),
 ServiceRateController: Object.assign(ServiceRateController, ServiceRateController),
 IntegrationHealthController: Object.assign(IntegrationHealthController, IntegrationHealthController),
+AuditTrailController: Object.assign(AuditTrailController, AuditTrailController),
 IntegrationCredentialController: Object.assign(IntegrationCredentialController, IntegrationCredentialController),
 ProjectSettingsController: Object.assign(ProjectSettingsController, ProjectSettingsController),
 ReferenceDataController: Object.assign(ReferenceDataController, ReferenceDataController),

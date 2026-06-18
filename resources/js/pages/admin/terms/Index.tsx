@@ -1,7 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye, FilePlus, History, Pencil, Send } from 'lucide-react';
+import { Download, Eye, FilePlus, History, Pencil, Send } from 'lucide-react';
+import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 import type { TermsVersion } from './types';
 
 type Props = {
@@ -107,53 +113,84 @@ export default function TermsIndex({ versions }: Props) {
                                         data-label="Actions"
                                     >
                                         <div className="flex justify-start gap-2 md:justify-end">
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="outline"
+                                            <ActionTooltip
+                                                label={`Preview version ${version.version}`}
                                             >
-                                                <Link
-                                                    href={`/admin/terms/${version.id}/preview`}
-                                                    aria-label={`Preview version ${version.version}`}
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
                                                 >
-                                                    <Eye
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                </Link>
-                                            </Button>
+                                                    <Link
+                                                        href={`/admin/terms/${version.id}/preview`}
+                                                        aria-label={`Preview version ${version.version}`}
+                                                    >
+                                                        <Eye
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </Link>
+                                                </Button>
+                                            </ActionTooltip>
+                                            <ActionTooltip
+                                                label={`Download version ${version.version}`}
+                                            >
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <a
+                                                        href={`/admin/terms/${version.id}/download`}
+                                                        aria-label={`Download version ${version.version}`}
+                                                    >
+                                                        <Download
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </a>
+                                                </Button>
+                                            </ActionTooltip>
                                             {!version.published_at && (
                                                 <>
-                                                    <Button
-                                                        asChild
-                                                        size="sm"
-                                                        variant="outline"
+                                                    <ActionTooltip
+                                                        label={`Edit version ${version.version}`}
                                                     >
-                                                        <Link
-                                                            href={`/admin/terms/${version.id}/edit`}
-                                                            aria-label={`Edit version ${version.version}`}
+                                                        <Button
+                                                            asChild
+                                                            size="sm"
+                                                            variant="outline"
                                                         >
-                                                            <Pencil
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        asChild
-                                                        size="sm"
-                                                        variant="outline"
+                                                            <Link
+                                                                href={`/admin/terms/${version.id}/edit`}
+                                                                aria-label={`Edit version ${version.version}`}
+                                                            >
+                                                                <Pencil
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionTooltip>
+                                                    <ActionTooltip
+                                                        label={`Publish version ${version.version}`}
                                                     >
-                                                        <Link
-                                                            href={`/admin/terms/${version.id}/publish`}
-                                                            aria-label={`Publish version ${version.version}`}
+                                                        <Button
+                                                            asChild
+                                                            size="sm"
+                                                            variant="outline"
                                                         >
-                                                            <Send
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                        </Link>
-                                                    </Button>
+                                                            <Link
+                                                                href={`/admin/terms/${version.id}/publish`}
+                                                                aria-label={`Publish version ${version.version}`}
+                                                            >
+                                                                <Send
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                            </Link>
+                                                        </Button>
+                                                    </ActionTooltip>
                                                 </>
                                             )}
                                         </div>
@@ -165,5 +202,20 @@ export default function TermsIndex({ versions }: Props) {
                 </div>
             </div>
         </>
+    );
+}
+
+function ActionTooltip({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>{children}</TooltipTrigger>
+            <TooltipContent side="top">{label}</TooltipContent>
+        </Tooltip>
     );
 }

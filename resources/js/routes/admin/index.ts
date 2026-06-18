@@ -3,6 +3,7 @@ import questionnaires from './questionnaires'
 import terms from './terms'
 import serviceRates from './service-rates'
 import integrationHealth from './integration-health'
+import auditTrail from './audit-trail'
 import integrationCredentials from './integration-credentials'
 import projectSettings from './project-settings'
 import referenceData from './reference-data'
@@ -17,6 +18,7 @@ questionnaires: Object.assign(questionnaires, questionnaires),
 terms: Object.assign(terms, terms),
 serviceRates: Object.assign(serviceRates, serviceRates),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),
+auditTrail: Object.assign(auditTrail, auditTrail),
 integrationCredentials: Object.assign(integrationCredentials, integrationCredentials),
 projectSettings: Object.assign(projectSettings, projectSettings),
 referenceData: Object.assign(referenceData, referenceData),
