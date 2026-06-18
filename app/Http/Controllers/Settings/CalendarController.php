@@ -10,6 +10,7 @@ use App\Models\CalendarEventMapping;
 use App\Models\User;
 use App\Services\Calendar\CalendarConnector;
 use App\Services\Calendar\CalendarSync;
+use App\Services\Integration\Exceptions\IntegrationDisabledException;
 use App\Services\Integration\Exceptions\IntegrationRequestFailedException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -95,7 +96,7 @@ final class CalendarController extends Controller
                 code: $validated['code'],
                 state: $validated['state'],
             );
-        } catch (IntegrationRequestFailedException|InvalidArgumentException) {
+        } catch (IntegrationDisabledException|IntegrationRequestFailedException|InvalidArgumentException) {
             Inertia::flash('toast', ['type' => 'error', 'message' => __('Calendar connection failed. Check the provider configuration and try connecting again.')]);
 
             return to_route('calendar.edit');
@@ -113,7 +114,7 @@ final class CalendarController extends Controller
 
         try {
             $this->sync->syncConnection($calendarConnection, $user);
-        } catch (IntegrationRequestFailedException) {
+        } catch (IntegrationDisabledException|IntegrationRequestFailedException) {
             $calendarConnection->forceFill([
                 'status' => CalendarConnection::STATUS_ERROR,
             ])->save();

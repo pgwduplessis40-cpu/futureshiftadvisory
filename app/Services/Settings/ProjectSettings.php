@@ -200,6 +200,14 @@ final class ProjectSettings
             'default' => '',
         ],
         [
+            'key' => 'integrations.calendar.microsoft.live',
+            'group' => 'microsoft_graph',
+            'label' => 'Live Graph calendar sync',
+            'type' => self::TYPE_BOOLEAN,
+            'config_path' => 'integrations.calendar.microsoft.live',
+            'default' => false,
+        ],
+        [
             'key' => 'integrations.calendar.microsoft.tenant',
             'group' => 'microsoft_graph',
             'label' => 'Tenant',

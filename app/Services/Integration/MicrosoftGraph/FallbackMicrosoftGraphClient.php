@@ -9,6 +9,7 @@ use App\Models\CalendarEventMapping;
 use App\Models\Meeting;
 use App\Services\Integration\Exceptions\IntegrationDisabledException;
 use App\Services\Integration\MicrosoftGraph\Contracts\MicrosoftGraphClient;
+use Illuminate\Support\Facades\Config;
 
 final class FallbackMicrosoftGraphClient implements MicrosoftGraphClient
 {
@@ -26,7 +27,11 @@ final class FallbackMicrosoftGraphClient implements MicrosoftGraphClient
     {
         try {
             return $this->live->exchangeCodeForToken($code, $redirectUri);
-        } catch (IntegrationDisabledException) {
+        } catch (IntegrationDisabledException $e) {
+            if (! $this->fixturesAllowed()) {
+                throw $e;
+            }
+
             return $this->fake->exchangeCodeForToken($code, $redirectUri);
         }
     }
@@ -39,7 +44,11 @@ final class FallbackMicrosoftGraphClient implements MicrosoftGraphClient
     ): array {
         try {
             return $this->live->pushEvent($connection, $meeting, $token, $mapping);
-        } catch (IntegrationDisabledException) {
+        } catch (IntegrationDisabledException $e) {
+            if (! $this->fixturesAllowed()) {
+                throw $e;
+            }
+
             return $this->fake->pushEvent($connection, $meeting, $token, $mapping);
         }
     }
@@ -48,7 +57,11 @@ final class FallbackMicrosoftGraphClient implements MicrosoftGraphClient
     {
         try {
             return $this->live->pullEvents($connection, $token);
-        } catch (IntegrationDisabledException) {
+        } catch (IntegrationDisabledException $e) {
+            if (! $this->fixturesAllowed()) {
+                throw $e;
+            }
+
             return $this->fake->pullEvents($connection, $token);
         }
     }
@@ -60,5 +73,11 @@ final class FallbackMicrosoftGraphClient implements MicrosoftGraphClient
         } catch (IntegrationDisabledException) {
             $this->fake->revoke($connection, $token);
         }
+    }
+
+    private function fixturesAllowed(): bool
+    {
+        return ! filled(Config::get('integrations.calendar.microsoft.client_id'))
+            && ! filled(Config::get('integrations.calendar.microsoft.client_secret'));
     }
 }
