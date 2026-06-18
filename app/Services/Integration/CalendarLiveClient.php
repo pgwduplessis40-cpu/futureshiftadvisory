@@ -12,6 +12,8 @@ use App\Services\Integration\Exceptions\IntegrationRequestFailedException;
 use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
+use JsonException;
 
 abstract class CalendarLiveClient
 {
@@ -72,7 +74,12 @@ abstract class CalendarLiveClient
 
         $token = $this->withTransportMeta($result, []);
         if (! is_scalar($token['access_token'] ?? null) || trim((string) $token['access_token']) === '') {
-            throw IntegrationRequestFailedException::forService($this->provider(), 'calendar token exchange', $result->correlationId);
+            throw IntegrationRequestFailedException::forService(
+                $this->provider(),
+                'calendar token exchange',
+                $result->correlationId,
+                $this->providerFailureMessage($result),
+            );
         }
 
         return $token;
@@ -427,8 +434,74 @@ abstract class CalendarLiveClient
     private function requireLiveResult(IntegrationResult $result, string $operation): void
     {
         if ($result->fromFallback || ! $result->successful()) {
-            throw IntegrationRequestFailedException::forService($this->provider(), $operation, $result->correlationId);
+            throw IntegrationRequestFailedException::forService(
+                $this->provider(),
+                $operation,
+                $result->correlationId,
+                $this->providerFailureMessage($result),
+            );
         }
+    }
+
+    private function providerFailureMessage(IntegrationResult $result): ?string
+    {
+        if (! is_array($result->data)) {
+            return null;
+        }
+
+        $errorPayload = $result->data['error_payload'] ?? $result->data;
+        if (! is_array($errorPayload)) {
+            return null;
+        }
+
+        $body = $errorPayload['body'] ?? null;
+        if (is_string($body) && trim($body) !== '') {
+            $decoded = $this->decodeProviderErrorBody($body);
+            if ($decoded !== null) {
+                return $decoded;
+            }
+
+            return $this->compactProviderMessage(strip_tags($body));
+        }
+
+        foreach (['message', 'reason', 'exception'] as $key) {
+            $value = $errorPayload[$key] ?? null;
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return $this->compactProviderMessage((string) $value);
+            }
+        }
+
+        return null;
+    }
+
+    private function decodeProviderErrorBody(string $body): ?string
+    {
+        try {
+            $decoded = json_decode($body, true, flags: JSON_THROW_ON_ERROR);
+        } catch (JsonException) {
+            return null;
+        }
+
+        if (! is_array($decoded)) {
+            return null;
+        }
+
+        foreach (['error_description', 'message', 'error'] as $key) {
+            $value = $decoded[$key] ?? null;
+            if (is_scalar($value) && trim((string) $value) !== '') {
+                return $this->compactProviderMessage((string) $value);
+            }
+        }
+
+        return null;
+    }
+
+    private function compactProviderMessage(string $message): string
+    {
+        $message = preg_replace('/\s+/', ' ', trim($message)) ?? trim($message);
+        $message = preg_replace('/(?:Trace ID|Correlation ID|Timestamp):\s*[^.]+\.?/i', '', $message) ?? $message;
+
+        return Str::limit(trim($message), 240);
     }
 
     private function configKey(string $key): string

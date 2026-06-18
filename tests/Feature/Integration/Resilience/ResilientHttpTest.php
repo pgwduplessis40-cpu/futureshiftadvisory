@@ -125,4 +125,29 @@ final class ResilientHttpTest extends TestCase
         $this->assertTrue($result->successful());
         Http::assertSent(fn (Request $request): bool => $request->hasHeader('Ocp-Apim-Subscription-Key', 'subscription-key'));
     }
+
+    public function test_failure_result_includes_provider_error_payload_for_callers(): void
+    {
+        Config::set('integrations.retry.attempts', 1);
+        app()->forgetInstance(RetryPolicy::class);
+        app()->forgetInstance(ResilientHttp::class);
+
+        Http::fake(fn () => Http::response([
+            'error' => 'invalid_client',
+            'error_description' => 'AADSTS7000215: Invalid client secret provided.',
+        ], 401));
+
+        $result = app(ResilientHttp::class)->request(
+            method: 'POST',
+            service: 'microsoft',
+            endpoint: 'https://login.microsoftonline.com/example/oauth2/v2.0/token',
+            options: ['form_params' => ['client_secret' => 'do-not-log']],
+            fallback: null,
+        );
+
+        $this->assertTrue($result->fromFallback);
+        $this->assertSame('http_failure', $result->json('reason'));
+        $this->assertSame(401, $result->json('error_payload.http_status'));
+        $this->assertStringContainsString('AADSTS7000215', (string) $result->json('error_payload.body'));
+    }
 }

@@ -13,13 +13,18 @@ final class IntegrationRequestFailedException extends RuntimeException
         public readonly string $service,
         public readonly string $operation,
         public readonly string $correlationId,
+        public readonly ?string $detail = null,
         ?Throwable $previous = null,
     ) {
-        parent::__construct("Integration [{$service}] failed during {$operation}. Correlation ID: {$correlationId}.", 0, $previous);
+        $detailMessage = $detail === null || trim($detail) === ''
+            ? ''
+            : " Detail: {$detail}.";
+
+        parent::__construct("Integration [{$service}] failed during {$operation}.{$detailMessage} Correlation ID: {$correlationId}.", 0, $previous);
     }
 
-    public static function forService(string $service, string $operation, string $correlationId): self
+    public static function forService(string $service, string $operation, string $correlationId, ?string $detail = null): self
     {
-        return new self($service, $operation, $correlationId);
+        return new self($service, $operation, $correlationId, $detail);
     }
 }

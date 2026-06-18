@@ -99,7 +99,12 @@ final class CalendarController extends Controller
         } catch (IntegrationRequestFailedException $exception) {
             Inertia::flash('toast', [
                 'type' => 'error',
-                'message' => __('Calendar connection failed. Check API Health with correlation ID :id.', ['id' => $exception->correlationId]),
+                'message' => $exception->detail === null
+                    ? __('Calendar connection failed. Check API Health with correlation ID :id.', ['id' => $exception->correlationId])
+                    : __('Calendar connection failed: :detail Correlation ID: :id.', [
+                        'detail' => $exception->detail,
+                        'id' => $exception->correlationId,
+                    ]),
             ]);
 
             return to_route('calendar.edit');
@@ -128,7 +133,12 @@ final class CalendarController extends Controller
 
             Inertia::flash('toast', [
                 'type' => 'error',
-                'message' => __('Calendar sync failed. Check API Health with correlation ID :id.', ['id' => $exception->correlationId]),
+                'message' => $exception->detail === null
+                    ? __('Calendar sync failed. Check API Health with correlation ID :id.', ['id' => $exception->correlationId])
+                    : __('Calendar sync failed: :detail Correlation ID: :id.', [
+                        'detail' => $exception->detail,
+                        'id' => $exception->correlationId,
+                    ]),
             ]);
 
             return to_route('calendar.edit');

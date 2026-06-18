@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Integration\Resilience;
 
 use App\Models\IntegrationCall;
+use App\Services\Audit\Redactor;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -18,6 +19,7 @@ final class ResilientHttp
         private readonly RetryPolicy $retryPolicy,
         private readonly CircuitBreaker $breaker,
         private readonly HealthRecorder $recorder,
+        private readonly Redactor $redactor,
     ) {}
 
     /**
@@ -274,6 +276,7 @@ final class ResilientHttp
                 'degraded' => true,
                 'service' => $service,
                 'reason' => $reason,
+                'error_payload' => $this->redactor->redact($errorPayload),
             ];
 
         $this->recorder->record(
