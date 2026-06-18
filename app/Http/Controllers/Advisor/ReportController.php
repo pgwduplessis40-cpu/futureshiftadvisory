@@ -131,9 +131,9 @@ final class ReportController extends Controller
         return to_route('advisor.clients.show', $client)->with('status', 'report-generated');
     }
 
-    public function download(Request $request, Report $report, AuditWriter $audit): Response
+    public function download(Request $request, Report $report, AuditWriter $audit, ReportComposer $reports): Response
     {
-        return $this->streamReport($request, $report, $audit, 'pdf');
+        return $this->streamReport($request, $report, $audit, 'pdf', $reports);
     }
 
     public function downloadPptx(Request $request, Report $report, AuditWriter $audit): Response
@@ -141,8 +141,13 @@ final class ReportController extends Controller
         return $this->streamReport($request, $report, $audit, 'pptx');
     }
 
-    private function streamReport(Request $request, Report $report, AuditWriter $audit, string $format): Response
-    {
+    private function streamReport(
+        Request $request,
+        Report $report,
+        AuditWriter $audit,
+        string $format,
+        ?ReportComposer $reports = null,
+    ): Response {
         $report->loadMissing('client', 'entrepreneurProfile');
         if ($report->client instanceof Client) {
             Gate::authorize('view', $report->client);
@@ -157,6 +162,11 @@ final class ReportController extends Controller
 
         $path = $format === 'pptx' ? $report->pptx_path : $report->pdf_path;
         $disk = Storage::disk('secure_local');
+
+        if ($format === 'pdf' && ($path === null || ! $disk->exists($path)) && $reports instanceof ReportComposer) {
+            $report = $reports->rerenderArtifacts($report);
+            $path = $report->pdf_path;
+        }
 
         abort_if($path === null || ! $disk->exists($path), 404);
 

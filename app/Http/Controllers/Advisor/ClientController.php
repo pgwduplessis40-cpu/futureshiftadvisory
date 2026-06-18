@@ -493,9 +493,7 @@ final class ClientController extends Controller
                 'generated_at' => $report->generated_at?->toIso8601String(),
                 'pdf_byte_size' => $report->pdf_byte_size,
                 'pptx_byte_size' => $report->pptx_byte_size,
-                'download_url' => $report->pdf_path !== null
-                    ? route('advisor.reports.download', $report, absolute: false)
-                    : null,
+                'download_url' => route('advisor.reports.download', $report, absolute: false),
                 'pptx_url' => $report->pptx_path !== null
                     ? route('advisor.reports.pptx', $report, absolute: false)
                     : null,

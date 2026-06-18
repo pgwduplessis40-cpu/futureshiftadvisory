@@ -3546,18 +3546,35 @@ function StandardAdvisoryPanel({
                         </TooltipContent>
                     </Tooltip>
                     {clientReport?.review_status === 'pending_review' && (
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            onClick={releaseClientReport}
-                        >
-                            <CheckCircle2
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            Release client report
-                        </Button>
+                        <>
+                            {clientReport.download_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <a
+                                        href={clientReport.download_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <FileText
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Review client report
+                                    </a>
+                                </Button>
+                            )}
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={releaseClientReport}
+                            >
+                                <CheckCircle2
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Release client report
+                            </Button>
+                        </>
                     )}
                 </div>
             </div>
@@ -3644,11 +3661,36 @@ function StandardAdvisoryPanel({
                                     className="flex items-center justify-between gap-3 text-sm"
                                 >
                                     <span>{formatLabel(key)}</span>
-                                    <Badge variant="outline">
-                                        {report
-                                            ? formatLabel(report.review_status)
-                                            : 'Not generated'}
-                                    </Badge>
+                                    <div className="flex items-center gap-2">
+                                        <Badge variant="outline">
+                                            {report
+                                                ? formatLabel(
+                                                      report.review_status,
+                                                  )
+                                                : 'Not generated'}
+                                        </Badge>
+                                        {report?.download_url && (
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="ghost"
+                                                className="h-7 px-2"
+                                            >
+                                                <a
+                                                    href={report.download_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    aria-label={`View ${formatLabel(key)} report PDF`}
+                                                >
+                                                    <FileText
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    View
+                                                </a>
+                                            </Button>
+                                        )}
+                                    </div>
                                 </div>
                             ),
                         )}

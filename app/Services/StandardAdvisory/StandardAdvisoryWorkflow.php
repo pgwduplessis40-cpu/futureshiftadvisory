@@ -429,9 +429,7 @@ final class StandardAdvisoryWorkflow
             'generated_at' => $report->generated_at?->toIso8601String(),
             'review_status' => $report->review_status,
             'reviewed_at' => $report->reviewed_at?->toIso8601String(),
-            'download_url' => $report->pdf_path !== null
-                ? route('advisor.reports.download', $report, absolute: false)
-                : null,
+            'download_url' => route('advisor.reports.download', $report, absolute: false),
             'review_url' => route('advisor.reports.review', $report, absolute: false),
         ];
     }
