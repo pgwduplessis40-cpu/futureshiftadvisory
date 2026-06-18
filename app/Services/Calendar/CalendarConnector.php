@@ -49,9 +49,10 @@ final class CalendarConnector
         $refreshToken = (string) ($token['refresh_token'] ?? '');
         $accessEnvelope = $this->envelope->encrypt($accessToken);
         $refreshEnvelope = $refreshToken === '' ? null : $this->envelope->encrypt($refreshToken);
-        $externalAccountId = (string) ($token['external_account_id'] ?? $token['external_account_email'] ?? $user->email);
+        $externalAccountEmail = $this->externalAccountEmail($token);
+        $externalAccountId = (string) ($token['external_account_id'] ?? $externalAccountEmail ?? $user->email);
 
-        return DB::transaction(function () use ($accessEnvelope, $externalAccountId, $provider, $refreshEnvelope, $token, $user): CalendarConnection {
+        return DB::transaction(function () use ($accessEnvelope, $externalAccountEmail, $externalAccountId, $provider, $refreshEnvelope, $token, $user): CalendarConnection {
             $connection = CalendarConnection::query()->updateOrCreate(
                 [
                     'user_id' => $user->getKey(),
@@ -59,7 +60,7 @@ final class CalendarConnector
                     'external_account_id' => $externalAccountId,
                 ],
                 [
-                    'external_account_email' => $token['external_account_email'] ?? null,
+                    'external_account_email' => $externalAccountEmail,
                     'access_token_envelope' => $accessEnvelope,
                     'access_token_envelope_meta' => $this->envelope->inspect($accessEnvelope),
                     'refresh_token_envelope' => $refreshEnvelope,
@@ -72,9 +73,20 @@ final class CalendarConnector
                 ],
             );
 
+            CalendarConnection::query()
+                ->where('user_id', $user->getKey())
+                ->where('provider', $provider)
+                ->whereKeyNot($connection->getKey())
+                ->connected()
+                ->update([
+                    'status' => CalendarConnection::STATUS_REVOKED,
+                    'updated_at' => now(),
+                ]);
+
             $this->audit->record('calendar_connection.connected', subject: $connection, actor: $user, after: [
                 'provider' => $provider,
                 'external_account_id' => $externalAccountId,
+                'external_account_email' => $externalAccountEmail,
                 'source_badge' => $token['source_badge'] ?? null,
                 'degraded' => $token['degraded'] ?? false,
             ]);
@@ -205,5 +217,17 @@ final class CalendarConnector
         } catch (JsonException $e) {
             throw new InvalidArgumentException('Unable to encode calendar payload.', previous: $e);
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $token
+     */
+    private function externalAccountEmail(array $token): ?string
+    {
+        $email = $token['external_account_email'] ?? null;
+
+        return is_string($email) && filter_var($email, FILTER_VALIDATE_EMAIL)
+            ? $email
+            : null;
     }
 }

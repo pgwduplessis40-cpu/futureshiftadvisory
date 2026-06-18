@@ -219,6 +219,64 @@ final class CalendarIntegrationTest extends TestCase
         $this->assertDatabaseMissing('audit_events', ['action' => 'calendar_connection.connected']);
     }
 
+    public function test_live_microsoft_oauth_stores_calendar_owner_and_replaces_previous_connection(): void
+    {
+        Config::set('integrations.calendar.microsoft.live', false);
+        Config::set('integrations.calendar.microsoft.base_url', 'https://graph.microsoft.com/v1.0/me');
+        Config::set('integrations.calendar.microsoft.token_url', 'https://login.microsoftonline.com/fsa-test/oauth2/v2.0/token');
+        $admin = User::factory()->superAdmin()->create();
+        app(IntegrationCredentials::class)->set('microsoft_calendar', 'client_id', 'graph-client-id', $admin);
+        app(IntegrationCredentials::class)->set('microsoft_calendar', 'client_secret', 'graph-client-secret', $admin);
+        app(IntegrationActivationResolver::class)->activate('microsoft_calendar', $admin);
+        $this->forgetCalendarClients();
+
+        $advisor = $this->advisor('calendar-live-microsoft@example.test');
+        CalendarConnection::query()->create([
+            'user_id' => $advisor->getKey(),
+            'provider' => CalendarConnection::PROVIDER_MICROSOFT,
+            'external_account_id' => $advisor->email,
+            'external_account_email' => null,
+            'access_token_envelope' => app(KeyEnvelope::class)->encrypt('old-access-token'),
+            'refresh_token_envelope' => app(KeyEnvelope::class)->encrypt('old-refresh-token'),
+            'status' => CalendarConnection::STATUS_CONNECTED,
+        ]);
+
+        $state = $this->connectState($advisor, CalendarConnection::PROVIDER_MICROSOFT);
+        Http::fakeSequence()
+            ->push([
+                'access_token' => 'graph-access-token',
+                'refresh_token' => 'graph-refresh-token',
+                'expires_in' => 3600,
+            ])
+            ->push([
+                'id' => 'AAMkAGraphCalendarId',
+                'owner' => [
+                    'name' => 'Microsoft Advisor',
+                    'address' => 'microsoft.advisor@futureshiftadvisory.nz',
+                ],
+            ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('calendar.callback', [
+                CalendarConnection::PROVIDER_MICROSOFT,
+                'code' => 'live-code',
+                'state' => $state,
+            ]))
+            ->assertRedirect(route('calendar.edit', absolute: false));
+
+        $this->assertDatabaseHas('calendar_connections', [
+            'provider' => CalendarConnection::PROVIDER_MICROSOFT,
+            'external_account_id' => 'AAMkAGraphCalendarId',
+            'external_account_email' => 'microsoft.advisor@futureshiftadvisory.nz',
+            'status' => CalendarConnection::STATUS_CONNECTED,
+        ]);
+        $this->assertDatabaseHas('calendar_connections', [
+            'provider' => CalendarConnection::PROVIDER_MICROSOFT,
+            'external_account_id' => $advisor->email,
+            'status' => CalendarConnection::STATUS_REVOKED,
+        ]);
+    }
+
     public function test_settings_page_exposes_connections_and_external_events(): void
     {
         [$advisor, $client] = $this->advisorAndClient('calendar-settings@example.test');

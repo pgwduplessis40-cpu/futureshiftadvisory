@@ -82,7 +82,10 @@ abstract class CalendarLiveClient
             );
         }
 
-        return $token;
+        return [
+            ...$token,
+            ...$this->externalAccountProfile($token),
+        ];
     }
 
     /**
@@ -441,6 +444,89 @@ abstract class CalendarLiveClient
                 $this->providerFailureMessage($result),
             );
         }
+    }
+
+    /**
+     * @param  array<string, mixed>  $token
+     * @return array<string, string>
+     */
+    private function externalAccountProfile(array $token): array
+    {
+        $accessToken = $this->scalar($token['access_token'] ?? null);
+        if ($accessToken === null) {
+            return [];
+        }
+
+        foreach ($this->externalAccountProfileEndpoints() as $endpoint) {
+            $result = $this->http->request(
+                method: 'GET',
+                service: $this->provider(),
+                endpoint: $endpoint,
+                options: [
+                    'headers' => [
+                        'Authorization' => 'Bearer '.$accessToken,
+                        'Accept' => 'application/json',
+                    ],
+                ],
+                cacheKey: null,
+                fallback: null,
+            );
+
+            if ($result->fromFallback || ! $result->successful() || ! is_array($result->data)) {
+                continue;
+            }
+
+            $profile = $this->normaliseExternalAccountProfile($result->data);
+            if ($profile !== []) {
+                return $profile;
+            }
+        }
+
+        return [];
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function externalAccountProfileEndpoints(): array
+    {
+        return match ($this->provider()) {
+            CalendarConnection::PROVIDER_MICROSOFT => [
+                $this->microsoftMeUrl().'/calendar',
+                $this->microsoftMeUrl(),
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * @param  array<string, mixed>  $record
+     * @return array<string, string>
+     */
+    private function normaliseExternalAccountProfile(array $record): array
+    {
+        $email = $this->scalar(
+            data_get($record, 'owner.address')
+            ?? data_get($record, 'owner.emailAddress.address')
+            ?? data_get($record, 'emailAddress.address')
+            ?? $record['mail']
+            ?? $record['userPrincipalName']
+            ?? $record['email']
+            ?? null
+        );
+        $id = $this->scalar($record['id'] ?? null) ?? $email;
+
+        return array_filter([
+            'external_account_id' => $id,
+            'external_account_email' => filter_var($email, FILTER_VALIDATE_EMAIL) ? $email : null,
+        ], fn (?string $value): bool => $value !== null && $value !== '');
+    }
+
+    private function microsoftMeUrl(): string
+    {
+        $baseUrl = rtrim($this->configuredUrl('base_url'), '/');
+
+        return str_ends_with($baseUrl, '/me') ? $baseUrl : $baseUrl.'/me';
     }
 
     private function providerFailureMessage(IntegrationResult $result): ?string

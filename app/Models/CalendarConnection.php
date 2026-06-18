@@ -106,6 +106,15 @@ final class CalendarConnection extends Model
     }
 
     /**
+     * @param  Builder<CalendarConnection>  $query
+     * @return Builder<CalendarConnection>
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->where('status', '!=', self::STATUS_REVOKED);
+    }
+
+    /**
      * @return BelongsTo<User, CalendarConnection>
      */
     public function user(): BelongsTo

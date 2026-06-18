@@ -31,6 +31,7 @@ final class CalendarController extends Controller
         $user = $this->calendarUser($request);
         $connections = CalendarConnection::query()
             ->forUser($user)
+            ->active()
             ->latest()
             ->get();
         $connectedConnectionIds = $connections
@@ -178,6 +179,7 @@ final class CalendarController extends Controller
             'id' => $connection->id,
             'provider' => $connection->provider,
             'label' => $connection->providerLabel(),
+            'external_account_id' => $connection->external_account_id,
             'external_account_email' => $connection->external_account_email,
             'status' => $connection->status,
             'token_expires_at' => $connection->token_expires_at?->toIso8601String(),

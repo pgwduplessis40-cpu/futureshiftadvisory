@@ -21,6 +21,7 @@ type CalendarConnection = {
     id: string;
     provider: string;
     label: string;
+    external_account_id: string | null;
     external_account_email: string | null;
     status: string;
     token_expires_at: string | null;
@@ -150,7 +151,8 @@ export default function CalendarSettings({
                                             </div>
                                             <p className="text-sm break-words text-muted-foreground">
                                                 {connection.external_account_email ??
-                                                    'No account email returned'}
+                                                    connection.external_account_id ??
+                                                    'Account identity pending next reconnect'}
                                             </p>
                                             <div className="grid gap-1 text-xs text-muted-foreground sm:grid-cols-2">
                                                 <span>

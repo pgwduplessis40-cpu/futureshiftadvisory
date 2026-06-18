@@ -32,6 +32,7 @@ final class CalendarController extends Controller
             ->get();
         $connections = CalendarConnection::query()
             ->forUser($user)
+            ->active()
             ->latest()
             ->get();
 
