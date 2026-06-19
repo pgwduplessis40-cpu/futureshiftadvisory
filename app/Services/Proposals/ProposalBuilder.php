@@ -605,9 +605,13 @@ HTML,
     {
         $clientName = $proposal->client?->legal_name ?? 'Client';
         $proposalDate = $this->proposalDate($proposal);
-        $primaryContact = $proposal->client?->primaryContact?->name ?: 'Client contact';
+        $primaryContact = $proposal->client?->primaryContact?->name ?: $clientName;
         $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
         $feeCalculation = $proposal->feeCalculation;
+        $termMonths = $this->proposalTermMonths($proposal);
+        $monthlyInvestment = $this->proposalMonthlyInvestment($proposal, $termMonths);
+        $improvementPv = $this->proposalImprovementPv($proposal);
+        $expiryDate = $proposal->expires_at?->format('j M Y') ?? 'Not released';
 
         return [
             '{{ proposal_title }}' => $this->escape($this->proposalTitle($proposal)),
@@ -638,22 +642,38 @@ HTML,
             '{{fee_mid}}' => $this->money($feeCalculation?->suggested_mid ?? 0),
             '{{ fee_high }}' => $this->money($feeCalculation?->suggested_high ?? 0),
             '{{fee_high}}' => $this->money($feeCalculation?->suggested_high ?? 0),
+            '{{ monthly_investment }}' => $this->money($monthlyInvestment),
+            '{{monthly_investment}}' => $this->money($monthlyInvestment),
+            '{{ monthly_investment_plain }}' => number_format($monthlyInvestment, 0),
+            '{{monthly_investment_plain}}' => number_format($monthlyInvestment, 0),
+            '{{ engagement_months }}' => (string) $termMonths,
+            '{{engagement_months}}' => (string) $termMonths,
             '{{ roi_ratio }}' => number_format($proposal->roi_ratio, 2),
             '{{roi_ratio}}' => number_format($proposal->roi_ratio, 2),
-            '{{ expires_at }}' => $this->escape($proposal->expires_at?->format('j M Y') ?? 'Not released'),
-            '{{expires_at}}' => $this->escape($proposal->expires_at?->format('j M Y') ?? 'Not released'),
+            '{{ improvement_pv_total }}' => $this->money($improvementPv),
+            '{{improvement_pv_total}}' => $this->money($improvementPv),
+            '{{ improvement_pv_total_plain }}' => number_format($improvementPv, 0),
+            '{{improvement_pv_total_plain}}' => number_format($improvementPv, 0),
+            '{{ expires_at }}' => $this->escape($expiryDate),
+            '{{expires_at}}' => $this->escape($expiryDate),
             '{{ sections }}' => $sections,
             '{{sections}}' => $sections,
             '{{{ sections }}}' => $sections,
             '{{{sections}}}' => $sections,
             '[Business Name]' => $this->escape($clientName),
+            '[Client Name]' => $this->escape($primaryContact),
             '[Report Type]' => 'Proposal',
             '[Date]' => $this->escape($proposalDate),
+            '[Expiry Date]' => $this->escape($expiryDate),
             '[Engagement Period]' => $this->escape('As at '.$proposalDate),
             '[Client Primary Contact]' => $this->escape($primaryContact),
             '[Title]' => 'Primary contact',
             '[Prepared By]' => $this->escape($createdBy),
-        ];
+            '[X,XXX]' => number_format($monthlyInvestment, 0),
+            '[XXX,XXX]' => number_format($improvementPv, 0),
+            '[X]-month engagement' => $termMonths.'-month engagement',
+            '[X]x return' => number_format($proposal->roi_ratio, 2).'x return',
+        ] + $this->proposalTemplateInstructionTokens();
     }
 
     private function proposalTitle(Proposal $proposal): string
@@ -669,6 +689,57 @@ HTML,
     private function money(float|int|string|null $value): string
     {
         return 'NZD '.number_format((float) $value, 0);
+    }
+
+    private function proposalTermMonths(Proposal $proposal): int
+    {
+        $months = data_get($proposal->scope, 'term_months')
+            ?? data_get($proposal->acceptance_terms, 'term_months')
+            ?? data_get($proposal->feeCalculation?->justification, 'retainer.months')
+            ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
+
+        return max(1, (int) (is_numeric($months) ? $months : 6));
+    }
+
+    private function proposalMonthlyInvestment(Proposal $proposal, int $termMonths): float
+    {
+        $monthly = data_get($proposal->feeCalculation?->justification, 'retainer.monthly_fee')
+            ?? data_get($proposal->feeCalculation?->justification, 'monthly_retainer_fee')
+            ?? data_get($proposal->pv_summary, 'monthly_retainer_fee');
+
+        if (is_numeric($monthly) && (float) $monthly > 0) {
+            return (float) $monthly;
+        }
+
+        $mid = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
+
+        return round(((float) $mid) / max(1, $termMonths), 2);
+    }
+
+    private function proposalImprovementPv(Proposal $proposal): float
+    {
+        $value = data_get($proposal->pv_summary, 'improvement_pv_total')
+            ?? $proposal->feeCalculation?->improvement_pv_total
+            ?? 0;
+
+        return (float) $value;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function proposalTemplateInstructionTokens(): array
+    {
+        $emDash = "\u{2014}";
+        $bodyInstruction = 'Arial 9.5pt, Dark Grey. State the finding directly in the first sentence. Evidence follows. Every claim is referenced to the source data.';
+
+        return [
+            '[Body text - '.$bodyInstruction.']' => '',
+            '[Body text '.$emDash.' '.$bodyInstruction.']' => '',
+            '[Key Finding: [Plain English summary of the most important finding in this section. One to two sentences maximum. Written for a business owner, not an accountant.]' => '',
+            '[Specific, actionable recommendations. Each recommendation names the action, expected outcome, and timeframe. No generic advice.]' => '',
+            '[Specific, actionable recommendations. Each recommendation names the action, the expected outcome, and the timeframe. No generic advice.]' => '',
+        ];
     }
 
     private function proposalCss(?Template $template): string
@@ -691,6 +762,27 @@ body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font
 .proposal-panel ul { margin: 0; padding-left: 18px; }
 .proposal-panel li { margin: 0 0 4px; }
 .proposal-muted { color: {$muted}; }
+@media screen {
+  body[data-report-template-source="uploaded-docx"] { background: #eef2f4; padding: 20px 12px; }
+  body[data-report-template-source="uploaded-docx"] > .docx-template-header,
+  body[data-report-template-source="uploaded-docx"] > .uploaded-docx-report-template {
+    background: #fff;
+    box-shadow: 0 12px 30px rgba(15, 23, 42, 0.12);
+    margin-left: auto;
+    margin-right: auto;
+    max-width: 210mm;
+    overflow: hidden;
+    width: min(100%, 210mm);
+  }
+  body[data-report-template-source="uploaded-docx"] > .docx-template-header {
+    box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+    margin-bottom: 0;
+  }
+  body[data-report-template-source="uploaded-docx"] > .uploaded-docx-report-template {
+    min-height: 297mm;
+    padding-bottom: 18mm;
+  }
+}
 CSS;
     }
 

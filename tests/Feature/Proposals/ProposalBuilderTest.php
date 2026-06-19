@@ -198,6 +198,14 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('UPLOADED PROPOSAL TEMPLATE', $this->renderer->html);
         $this->assertStringContainsString('Proposal Client Limited', $this->renderer->html);
         $this->assertStringContainsString('Template-driven proposal scope.', $this->renderer->html);
+        $this->assertStringContainsString('Valid until Not released', $this->renderer->html);
+        $this->assertStringContainsString('$2,500 per month - 6-month engagement', $this->renderer->html);
+        $this->assertStringContainsString('Estimated ROI: 4.20x return', $this->renderer->html);
+        $this->assertStringContainsString('PV of $63,000', $this->renderer->html);
+        $this->assertStringNotContainsString('[Expiry Date]', $this->renderer->html);
+        $this->assertStringNotContainsString('[X,XXX]', $this->renderer->html);
+        $this->assertStringNotContainsString('[XXX,XXX]', $this->renderer->html);
+        $this->assertStringNotContainsString('Body text - Arial 9.5pt', $this->renderer->html);
     }
 
     public function test_generating_proposal_recalls_current_unsigned_client_proposals(): void
@@ -497,6 +505,12 @@ final class ProposalBuilderTest extends TestCase
 <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
   <w:body>
     <w:p><w:r><w:t>UPLOADED PROPOSAL TEMPLATE [Business Name] [Date]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Valid until [Expiry Date]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>$[X,XXX] per month - [X]-month engagement</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Estimated ROI: [X]x return on advisory investment in year 1</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Based on total identified improvement opportunity PV of $[XXX,XXX]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Prepared for [Client Name]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>[Body text - Arial 9.5pt, Dark Grey. State the finding directly in the first sentence. Evidence follows. Every claim is referenced to the source data.]</w:t></w:r></w:p>
     <w:p><w:r><w:t>{{ sections }}</w:t></w:r></w:p>
   </w:body>
 </w:document>
