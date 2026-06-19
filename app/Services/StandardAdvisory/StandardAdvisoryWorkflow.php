@@ -431,6 +431,9 @@ final class StandardAdvisoryWorkflow
             'reviewed_at' => $report->reviewed_at?->toIso8601String(),
             'download_url' => route('advisor.reports.download', $report, absolute: false),
             'review_url' => route('advisor.reports.review', $report, absolute: false),
+            'release_url' => $type === ReportType::Client
+                ? route('advisor.reports.release', $report, absolute: false)
+                : null,
         ];
     }
 

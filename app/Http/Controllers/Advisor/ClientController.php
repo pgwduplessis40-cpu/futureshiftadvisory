@@ -500,6 +500,9 @@ final class ClientController extends Controller
                 'review_status' => $report->review_status,
                 'reviewed_at' => $report->reviewed_at?->toIso8601String(),
                 'review_url' => route('advisor.reports.review', $report, absolute: false),
+                'release_url' => $report->type === ReportType::Client
+                    ? route('advisor.reports.release', $report, absolute: false)
+                    : null,
                 'can_review' => in_array($report->type, [
                     ReportType::Client,
                     ReportType::DueDiligence,

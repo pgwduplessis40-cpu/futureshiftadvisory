@@ -212,6 +212,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('reports/{report}/review', [ReportController::class, 'review'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.review');
+        Route::patch('reports/{report}/release', [ReportController::class, 'release'])
+            ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
+            ->name('reports.release');
         Route::patch('reports/{report}/sections/{reportSection}', [ReportController::class, 'updateSection'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('reports.sections.update');

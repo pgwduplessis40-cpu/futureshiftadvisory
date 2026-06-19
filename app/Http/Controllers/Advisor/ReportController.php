@@ -218,6 +218,31 @@ final class ReportController extends Controller
         return to_route('advisor.clients.show', $report->client)->with('status', 'report-reviewed');
     }
 
+    public function release(Request $request, Report $report, ReportComposer $reports): RedirectResponse
+    {
+        $report->loadMissing('client');
+        Gate::authorize('view', $report->client);
+        abort_unless($report->type === ReportType::Client, 404);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        if (! $reports->usesCurrentTemplate($report)) {
+            $report = $reports->rerenderArtifacts($report);
+        }
+
+        if (! $report->reviewed()) {
+            $report = $reports->markReviewed($report, $user);
+        }
+
+        return to_route('advisor.clients.show', $report->client)
+            ->with('status', 'client-report-released')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Client report released.',
+            ]);
+    }
+
     public function updateSection(
         Request $request,
         Report $report,

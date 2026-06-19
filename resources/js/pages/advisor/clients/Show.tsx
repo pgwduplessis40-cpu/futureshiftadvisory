@@ -516,6 +516,7 @@ type ReportSummary = {
     review_status: string;
     reviewed_at: string | null;
     review_url: string;
+    release_url: string | null;
     can_review: boolean;
     section_count: number;
     revision_count: number;
@@ -660,6 +661,7 @@ type StandardAdvisoryReportSummary = {
     reviewed_at: string | null;
     download_url: string | null;
     review_url: string;
+    release_url: string | null;
 } | null;
 
 type StandardAdvisorySummary = {
@@ -3502,11 +3504,15 @@ function StandardAdvisoryPanel({
 }) {
     const clientReport = summary.reports.client;
     const releaseClientReport = () => {
-        if (!clientReport || clientReport.review_status !== 'pending_review') {
+        if (
+            !clientReport ||
+            clientReport.review_status !== 'pending_review' ||
+            !clientReport.release_url
+        ) {
             return;
         }
 
-        router.patch(clientReport.review_url, {}, { preserveScroll: true });
+        router.patch(clientReport.release_url, {}, { preserveScroll: true });
     };
 
     return (
@@ -3598,6 +3604,7 @@ function StandardAdvisoryPanel({
                                 type="button"
                                 size="sm"
                                 variant="outline"
+                                disabled={!clientReport.release_url}
                                 onClick={releaseClientReport}
                             >
                                 <CheckCircle2
@@ -3755,7 +3762,12 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
     };
 
     const review = (report: ReportSummary) => {
-        router.patch(report.review_url, {}, { preserveScroll: true });
+        const url =
+            report.type === 'client' && report.release_url
+                ? report.release_url
+                : report.review_url;
+
+        router.patch(url, {}, { preserveScroll: true });
     };
 
     return (

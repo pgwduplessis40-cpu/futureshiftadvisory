@@ -801,6 +801,58 @@ HTML,
         Carbon::setTestNow();
     }
 
+    public function test_client_report_release_refreshes_stale_template_and_releases_in_one_action(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('client-report-release-template-refresh@example.test');
+        $this->businessValuation($client, 480000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        Carbon::setTestNow('2026-06-18 09:00:00');
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 1',
+            'body' => '<main data-report-template="release-lower-version">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $oldPdfPath = $report->pdf_path;
+
+        Carbon::setTestNow('2026-06-19 09:00:00');
+        /** @var Template $higherTemplate */
+        $higherTemplate = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 2',
+            'body' => '<main data-report-template="release-higher-version">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 2,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.reports.release', $report))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false))
+            ->assertSessionHas('status', 'client-report-released')
+            ->assertSessionHas('toast.type', 'success');
+
+        $report->refresh();
+
+        $this->assertTrue($report->reviewed());
+        $this->assertSame($advisor->getKey(), $report->reviewed_by_user_id);
+        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(2, data_get($report->metadata, 'template.version'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'report.reviewed',
+            'subject_id' => $report->id,
+        ]);
+
+        Carbon::setTestNow();
+    }
+
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithTeamAndClientUser();
