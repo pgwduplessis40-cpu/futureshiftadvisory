@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal;
 
 use App\Enums\EntrepreneurStage;
+use App\Enums\SurveyAssignmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\AdvisoryReadinessSignal;
@@ -15,6 +16,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
+use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use Illuminate\Http\Request;
@@ -99,6 +101,11 @@ final class EntrepreneurDashboardController extends Controller
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),
+            'surveys' => $profile ? $this->surveyPayload($profile) : [
+                'total_open' => 0,
+                'index_url' => route('portal.entrepreneur.surveys.index', absolute: false),
+                'items' => [],
+            ],
         ]);
     }
 
@@ -165,6 +172,35 @@ final class EntrepreneurDashboardController extends Controller
         return [
             'threads_count' => $threadIds->count(),
             'unread_count' => (int) $unread,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function surveyPayload(EntrepreneurProfile $profile): array
+    {
+        $assignments = SurveyAssignment::query()
+            ->with('survey')
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->latest('activated_at')
+            ->get();
+
+        return [
+            'total_open' => $assignments->count(),
+            'index_url' => route('portal.entrepreneur.surveys.index', absolute: false),
+            'items' => $assignments
+                ->take(3)
+                ->map(fn (SurveyAssignment $assignment): array => [
+                    'id' => $assignment->id,
+                    'survey_title' => $assignment->survey?->title ?? 'Client experience survey',
+                    'status' => $assignment->status?->value,
+                    'due_at' => $assignment->due_at?->toIso8601String(),
+                    'url' => route('portal.entrepreneur.surveys.show', $assignment, absolute: false),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 

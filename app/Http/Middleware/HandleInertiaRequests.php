@@ -53,6 +53,9 @@ class HandleInertiaRequests extends Middleware
             'notificationSummary' => fn () => $request->user() instanceof User
                 ? app(NotificationCenter::class)->summary($request->user())
                 : null,
+            'flash' => [
+                'toast' => fn () => $request->session()->get('toast'),
+            ],
             'portalClient' => fn () => $this->portalClient($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];

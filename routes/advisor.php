@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use App\Enums\Permission;
+use App\Http\Controllers\Admin\SurveyAssignmentController;
 use App\Http\Controllers\Advisor\AccountingConnectionController;
 use App\Http\Controllers\Advisor\AnalysisFeedbackController;
 use App\Http\Controllers\Advisor\BriefingController;
@@ -35,6 +36,7 @@ use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
 use App\Http\Controllers\Advisor\StandardAdvisoryController;
+use App\Http\Controllers\Advisor\SurveyResultController;
 use App\Http\Controllers\Advisor\TemplateController;
 use App\Http\Controllers\Advisor\TestimonialController;
 use App\Http\Controllers\Advisor\VoiceNoteController;
@@ -99,6 +101,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/reports', [ReportController::class, 'store'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('clients.reports.store');
+        Route::get('clients/{client}/surveys', [SurveyResultController::class, 'client'])
+            ->middleware('permission:'.Permission::SURVEYS_VIEW->value)
+            ->name('clients.surveys');
+        Route::post('clients/{client}/survey-assignments', [SurveyAssignmentController::class, 'storeForClient'])
+            ->middleware('permission:'.Permission::SURVEYS_MANAGE->value)
+            ->name('clients.survey-assignments.store');
         Route::post('clients/{client}/standard-advisory/analysis', [StandardAdvisoryController::class, 'runAnalysis'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.standard-advisory.analysis');
@@ -253,6 +261,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.assessments.show');
+        Route::get('entrepreneurs/{entrepreneurProfile}/surveys', [SurveyResultController::class, 'entrepreneur'])
+            ->middleware('permission:'.Permission::SURVEYS_VIEW->value)
+            ->name('entrepreneurs.surveys');
+        Route::post('entrepreneurs/{entrepreneurProfile}/survey-assignments', [SurveyAssignmentController::class, 'storeForEntrepreneur'])
+            ->middleware('permission:'.Permission::SURVEYS_MANAGE->value)
+            ->name('entrepreneurs.survey-assignments.store');
         Route::get('entrepreneurs/{entrepreneurProfile}/documents/{document}', [EntrepreneurDocumentController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.documents.show');
@@ -359,4 +373,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('bulk-communications', [BulkCommunicationController::class, 'store'])
             ->middleware('permission:'.Permission::NOTIFICATIONS_MANAGE->value)
             ->name('bulk-communications.store');
+
+        Route::patch('survey-assignments/{surveyAssignment}/cancel', [SurveyAssignmentController::class, 'cancel'])
+            ->middleware('permission:'.Permission::SURVEYS_MANAGE->value)
+            ->name('survey-assignments.cancel');
     });

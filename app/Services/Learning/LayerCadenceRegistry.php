@@ -28,6 +28,8 @@ final class LayerCadenceRegistry
 
     public const LAYER_NPO_FUNDING_CONCENTRATION_THRESHOLDS = 37;
 
+    public const LAYER_CLIENT_EXPERIENCE_SURVEY = 38;
+
     /**
      * @return Collection<int, array<string, mixed>>
      */
@@ -97,6 +99,12 @@ final class LayerCadenceRegistry
                     'medium' => 25,
                 ],
                 'feeds' => ['npo_value_calculations.funding_risk'],
+            ]),
+            $this->layer(self::LAYER_CLIENT_EXPERIENCE_SURVEY, 'Client experience survey feedback', self::CADENCE_WEEKLY, 90, null, [
+                'module' => 'surveys',
+                'surface' => 'client_experience',
+                'feeds' => ['survey_responses', 'survey_answers'],
+                'governance_gate' => 'survey_feedback_requires_admin_approval',
             ]),
         ]);
     }

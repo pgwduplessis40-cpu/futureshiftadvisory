@@ -6,6 +6,7 @@ import {
     BriefcaseBusiness,
     CalendarDays,
     ClipboardList,
+    ClipboardCheck,
     Database,
     FileText,
     FolderGit2,
@@ -177,6 +178,24 @@ const questionnairesNavItem: NavItem = {
     icon: ClipboardList,
 };
 
+const surveysNavItem: NavItem = {
+    title: 'Surveys',
+    href: '/admin/surveys',
+    icon: ClipboardCheck,
+};
+
+const portalSurveysNavItem: NavItem = {
+    title: 'Feedback',
+    href: '/portal/surveys',
+    icon: ClipboardCheck,
+};
+
+const entrepreneurSurveysNavItem: NavItem = {
+    title: 'Feedback',
+    href: '/portal/entrepreneur/surveys',
+    icon: ClipboardCheck,
+};
+
 const welcomeMessageNavItem: NavItem = {
     title: 'Welcome Message',
     href: '/admin/welcome-message',
@@ -242,6 +261,7 @@ const entrepreneurNavItems: NavItem[] = [
     },
     portalCalendarNavItem,
     portalInspirationNavItem,
+    entrepreneurSurveysNavItem,
     messagesNavItem,
     notificationsNavItem,
 ];
@@ -263,6 +283,7 @@ const clientNavItems: NavItem[] = [
         href: '/portal/wellbeing',
         icon: HeartPulse,
     },
+    portalSurveysNavItem,
     portalInspirationNavItem,
     messagesNavItem,
     notificationsNavItem,
@@ -348,6 +369,7 @@ function mainNavItemsFor(
             auditTrailNavItem,
             referenceDataNavItem,
             questionnairesNavItem,
+            surveysNavItem,
             welcomeMessageNavItem,
             inspirationBoardNavItem,
         ];

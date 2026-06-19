@@ -27,7 +27,7 @@ sign.url = (args: { panelAgreement: string | { id: string } } | [panelAgreement:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelAgreement: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelAgreement: args[0],
@@ -76,7 +76,7 @@ sign.post = (args: { panelAgreement: string | { id: string } } | [panelAgreement
             action: sign.url(args, options),
             method: 'post',
         })
-    
+
     sign.form = signForm
 const agreements = {
     sign: Object.assign(sign, sign),

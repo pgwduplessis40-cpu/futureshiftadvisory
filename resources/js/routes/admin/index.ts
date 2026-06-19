@@ -1,5 +1,6 @@
 import invitations from './invitations'
 import questionnaires from './questionnaires'
+import surveys from './surveys'
 import terms from './terms'
 import serviceRates from './service-rates'
 import integrationHealth from './integration-health'
@@ -15,6 +16,7 @@ import panelMembers from './panel-members'
 const admin = {
     invitations: Object.assign(invitations, invitations),
 questionnaires: Object.assign(questionnaires, questionnaires),
+surveys: Object.assign(surveys, surveys),
 terms: Object.assign(terms, terms),
 serviceRates: Object.assign(serviceRates, serviceRates),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),

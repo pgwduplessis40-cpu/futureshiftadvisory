@@ -6,6 +6,7 @@ import knowledgeDrafts from './knowledge-drafts'
 import goals from './goals'
 import proposals from './proposals'
 import reports from './reports'
+import surveyAssignments from './survey-assignments'
 import standardAdvisory from './standard-advisory'
 import healthRadar from './health-radar'
 import meetings from './meetings'
@@ -91,7 +92,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
@@ -169,7 +170,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
@@ -224,7 +225,7 @@ lookupNzbn.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: lookupNzbn.url(options),
             method: 'post',
         })
-    
+
     lookupNzbn.form = lookupNzbnForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
@@ -279,8 +280,110 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+export const surveys = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: surveys.url(args, options),
+    method: 'get',
+})
+
+surveys.definition = {
+    methods: ["get","head"],
+    url: '/advisor/clients/{client}/surveys',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+surveys.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { client: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { client: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    client: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        client: typeof args.client === 'object'
+                ? args.client.id
+                : args.client,
+                }
+
+    return surveys.definition.url
+            .replace('{client}', parsedArgs.client.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+surveys.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: surveys.url(args, options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+surveys.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: surveys.url(args, options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+    const surveysForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: surveys.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+        surveysForm.get = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: surveys.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:18
+ * @route '/advisor/clients/{client}/surveys'
+ */
+        surveysForm.head = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: surveys.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    surveys.form = surveysForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientEmailController::compose
  * @see app/Http/Controllers/Advisor/ClientEmailController.php:22
@@ -309,7 +412,7 @@ compose.url = (args: { client: string | { id: string } } | [client: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -381,7 +484,7 @@ compose.head = (args: { client: string | { id: string } } | [client: string | { 
                     }),
             method: 'get',
         })
-    
+
     compose.form = composeForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
@@ -411,7 +514,7 @@ show.url = (args: { client: string | { id: string } } | [client: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -483,7 +586,7 @@ show.head = (args: { client: string | { id: string } } | [client: string | { id:
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const clients = {
     index: Object.assign(index, index),
@@ -497,6 +600,8 @@ knowledgeDrafts: Object.assign(knowledgeDrafts, knowledgeDrafts),
 goals: Object.assign(goals, goals),
 proposals: Object.assign(proposals, proposals),
 reports: Object.assign(reports, reports),
+surveys: Object.assign(surveys, surveys),
+surveyAssignments: Object.assign(surveyAssignments, surveyAssignments),
 standardAdvisory: Object.assign(standardAdvisory, standardAdvisory),
 healthRadar: Object.assign(healthRadar, healthRadar),
 meetings: Object.assign(meetings, meetings),

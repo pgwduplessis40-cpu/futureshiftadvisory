@@ -75,6 +75,6 @@ Controller.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     Controller.form = ControllerForm
 export default Controller

@@ -27,7 +27,7 @@ review.url = (args: { preMeetingBrief: string | { id: string } } | [preMeetingBr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { preMeetingBrief: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     preMeetingBrief: args[0],
@@ -86,7 +86,7 @@ review.patch = (args: { preMeetingBrief: string | { id: string } } | [preMeeting
                     }),
             method: 'post',
         })
-    
+
     review.form = reviewForm
 const preMeetingBriefs = {
     review: Object.assign(review, review),

@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, FormEvent, MouseEvent, ReactNode } from 'react';
+import { toast } from 'sonner';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
@@ -708,6 +709,7 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
     const [activeTab, setActiveTab] = useState<ClientDetailTab>(() =>
         initialClientDetailTab(),
     );
+    const [generatingPack, setGeneratingPack] = useState(false);
 
     const lifecycleForm = useForm<LifecycleForm>({
         status: client.status,
@@ -757,7 +759,18 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         router.post(
             client.standard_advisory.generate_pack_url,
             {},
-            { preserveScroll: true },
+            {
+                preserveScroll: true,
+                onStart: () => setGeneratingPack(true),
+                onFinish: () => setGeneratingPack(false),
+                onError: (errors) => {
+                    const message =
+                        errors.standard_advisory ??
+                        'The advisory pack could not be generated.';
+
+                    toast.error(message);
+                },
+            },
         );
     };
 
@@ -856,6 +869,17 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                             >
                                 <Mail className="size-4" aria-hidden="true" />
                                 Email
+                            </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                            <Link
+                                href={`/advisor/clients/${client.id}/surveys`}
+                            >
+                                <ListChecks
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Surveys
                             </Link>
                         </Button>
                         <Button asChild size="sm" variant="outline">
@@ -1067,6 +1091,7 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                     onGeneratePack={
                                         generateStandardAdvisoryPack
                                     }
+                                    generatingPack={generatingPack}
                                 />
                             )}
 
@@ -3468,10 +3493,12 @@ function StandardAdvisoryPanel({
     summary,
     onRunAnalysis,
     onGeneratePack,
+    generatingPack,
 }: {
     summary: StandardAdvisorySummary;
     onRunAnalysis: () => void;
     onGeneratePack: () => void;
+    generatingPack: boolean;
 }) {
     const clientReport = summary.reports.client;
     const releaseClientReport = () => {
@@ -3529,14 +3556,19 @@ function StandardAdvisoryPanel({
                                 <Button
                                     type="button"
                                     size="sm"
-                                    disabled={!summary.can_generate_pack}
+                                    disabled={
+                                        !summary.can_generate_pack ||
+                                        generatingPack
+                                    }
                                     onClick={onGeneratePack}
                                 >
                                     <FileText
                                         className="size-4"
                                         aria-hidden="true"
                                     />
-                                    Generate pack
+                                    {generatingPack
+                                        ? 'Generating...'
+                                        : 'Generate pack'}
                                 </Button>
                             </span>
                         </TooltipTrigger>

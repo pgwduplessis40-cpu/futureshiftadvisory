@@ -3,6 +3,7 @@ import messages from './messages'
 import ideaValidations from './idea-validations'
 import plans from './plans'
 import assessments from './assessments'
+import surveyAssignments from './survey-assignments'
 import documents from './documents'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
@@ -295,6 +296,108 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
     convert.form = convertForm
 /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+export const surveys = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: surveys.url(args, options),
+    method: 'get',
+})
+
+surveys.definition = {
+    methods: ["get","head"],
+    url: '/advisor/entrepreneurs/{entrepreneurProfile}/surveys',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+surveys.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { entrepreneurProfile: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { entrepreneurProfile: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    entrepreneurProfile: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+                ? args.entrepreneurProfile.id
+                : args.entrepreneurProfile,
+                }
+
+    return surveys.definition.url
+            .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+surveys.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: surveys.url(args, options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+surveys.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: surveys.url(args, options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+    const surveysForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: surveys.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+        surveysForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: surveys.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
+ * @see app/Http/Controllers/Advisor/SurveyResultController.php:39
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/surveys'
+ */
+        surveysForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: surveys.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    surveys.form = surveysForm
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
  * @see app/Http/Controllers/Advisor/EntrepreneurController.php:125
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
@@ -405,6 +508,8 @@ ideaValidations: Object.assign(ideaValidations, ideaValidations),
 plans: Object.assign(plans, plans),
 assessments: Object.assign(assessments, assessments),
 convert: Object.assign(convert, convert),
+surveys: Object.assign(surveys, surveys),
+surveyAssignments: Object.assign(surveyAssignments, surveyAssignments),
 documents: Object.assign(documents, documents),
 show: Object.assign(show, show),
 }

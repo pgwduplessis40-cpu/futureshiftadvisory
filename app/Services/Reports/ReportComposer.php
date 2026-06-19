@@ -905,6 +905,13 @@ final class ReportComposer implements ProvidesMethodology
             'version' => $template->version,
             'source_reference' => $template->source_reference,
             'structure_report_type' => data_get($template->structure, 'report_type'),
+            'updated_at' => $template->updated_at?->toIso8601String(),
+            'uploaded_file_document_id' => is_array($uploadedFile)
+                ? ($uploadedFile['document_id'] ?? null)
+                : null,
+            'uploaded_file_sha256' => is_array($uploadedFile)
+                ? ($uploadedFile['sha256'] ?? null)
+                : null,
             'uploaded_file' => is_array($uploadedFile)
                 ? ($uploadedFile['original_name'] ?? null)
                 : null,
@@ -929,13 +936,14 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
-     * @return array{0:int,1:int,2:int,3:int,4:string}
+     * @return array{0:int,1:int,2:int,3:int,4:int,5:string}
      */
     private function templateSelectionRank(Template $template, ReportType $type): array
     {
         return [
             $this->templateSourceRank($template),
             $this->templateSpecificityRank($template, $type),
+            $template->version,
             $template->updated_at?->getTimestamp() ?? 0,
             $template->created_at?->getTimestamp() ?? 0,
             (string) $template->getKey(),

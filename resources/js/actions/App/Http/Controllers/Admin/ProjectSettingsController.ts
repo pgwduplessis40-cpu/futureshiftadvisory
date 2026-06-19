@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
@@ -140,7 +140,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
@@ -205,7 +205,7 @@ reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-    
+
     reset.form = resetForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
@@ -260,7 +260,7 @@ testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: testEmail.url(options),
             method: 'post',
         })
-    
+
     testEmail.form = testEmailForm
 const ProjectSettingsController = { index, update, reset, testEmail }
 

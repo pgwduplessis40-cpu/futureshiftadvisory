@@ -11,6 +11,7 @@ use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use Throwable;
 
 final class StandardAdvisoryController extends Controller
 {
@@ -33,8 +34,22 @@ final class StandardAdvisoryController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
-        $workflow->generateAdvisoryPack($client, $user);
+        try {
+            $workflow->generateAdvisoryPack($client, $user);
+        } catch (Throwable $exception) {
+            report($exception);
 
-        return to_route('advisor.clients.show', $client)->with('status', 'standard-advisory-pack-generated');
+            return to_route('advisor.clients.show', $client)
+                ->withErrors([
+                    'standard_advisory' => 'The advisory pack could not be generated. Check the test environment PDF renderer and logs, then try again.',
+                ]);
+        }
+
+        return to_route('advisor.clients.show', $client)
+            ->with('status', 'standard-advisory-pack-generated')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Advisory pack generated.',
+            ]);
     }
 }

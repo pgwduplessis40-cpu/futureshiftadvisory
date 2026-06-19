@@ -96,6 +96,7 @@ type Props = {
     proposals: ProposalPayload[];
     reports: ReportPayload[];
     messagesUrl: string;
+    surveys: PendingSurveysPayload;
     welcomeMessage: WelcomeMessage;
     inspirationBoard: InspirationPost | null;
 };
@@ -341,6 +342,20 @@ type ReportPayload = {
     download_url: string;
 };
 
+type PendingSurveysPayload = {
+    total_open: number;
+    index_url: string;
+    items: PendingSurvey[];
+};
+
+type PendingSurvey = {
+    id: string;
+    survey_title: string;
+    status: string;
+    due_at: string | null;
+    url: string;
+};
+
 type HealthFindingDimension = {
     dimension: string;
     label: string;
@@ -434,6 +449,7 @@ export default function PortalDashboard({
     proposals,
     reports,
     messagesUrl,
+    surveys,
     welcomeMessage,
     inspirationBoard,
 }: Props) {
@@ -578,6 +594,7 @@ export default function PortalDashboard({
             ).length,
         0,
     );
+    const nextSurvey = surveys.items[0] ?? null;
     const showInformationSection = (
         sectionId: string,
         event: MouseEvent<Element>,
@@ -651,6 +668,20 @@ export default function PortalDashboard({
                                     href={onboardingUrl}
                                     actionLabel="Continue"
                                 />
+                                {surveys.total_open > 0 && nextSurvey ? (
+                                    <StatusPanel
+                                        icon={ClipboardList}
+                                        label="Feedback survey"
+                                        value={`${surveys.total_open} pending`}
+                                        explanation={`Please complete ${nextSurvey.survey_title}. Your feedback helps us understand whether the work delivered was received, accessible, and useful.`}
+                                        href={nextSurvey.url}
+                                        actionLabel={
+                                            surveys.total_open > 1
+                                                ? 'Start first'
+                                                : 'Start'
+                                        }
+                                    />
+                                ) : null}
                                 {standardAdvisory && (
                                     <StatusPanel
                                         icon={FileText}

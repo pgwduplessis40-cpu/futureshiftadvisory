@@ -85,6 +85,17 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 </Link>
                             </Button>
                         ) : null}
+                        <Button asChild size="sm" variant="outline">
+                            <Link
+                                href={`/advisor/entrepreneurs/${entrepreneur.id}/surveys`}
+                            >
+                                <ClipboardCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Surveys
+                            </Link>
+                        </Button>
                         <Button asChild size="sm" variant="ghost">
                             <Link href="/advisor/entrepreneurs">
                                 <ArrowLeft

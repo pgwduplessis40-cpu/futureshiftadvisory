@@ -207,6 +207,12 @@ final class ReportController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
+        if (! $reports->usesCurrentTemplate($report)) {
+            $reports->rerenderArtifacts($report);
+
+            return to_route('advisor.clients.show', $report->client)->with('status', 'report-template-refreshed');
+        }
+
         $reports->markReviewed($report, $user);
 
         return to_route('advisor.clients.show', $report->client)->with('status', 'report-reviewed');

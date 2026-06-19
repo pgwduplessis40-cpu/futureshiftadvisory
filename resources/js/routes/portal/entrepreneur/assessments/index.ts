@@ -27,7 +27,7 @@ show.url = (args: { planAssessment: string | { id: string } } | [planAssessment:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { planAssessment: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     planAssessment: args[0],
@@ -99,7 +99,7 @@ show.head = (args: { planAssessment: string | { id: string } } | [planAssessment
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const assessments = {
     show: Object.assign(show, show),

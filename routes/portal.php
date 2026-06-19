@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\DdBusinessPlanController;
 use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\EntrepreneurPlanController;
+use App\Http\Controllers\Portal\EntrepreneurSurveyController;
 use App\Http\Controllers\Portal\InspirationBoardController;
 use App\Http\Controllers\Portal\MessageController;
 use App\Http\Controllers\Portal\NpoBoardDashboardController;
@@ -16,6 +17,7 @@ use App\Http\Controllers\Portal\NpoImpactMetricController;
 use App\Http\Controllers\Portal\OnboardingController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
 use App\Http\Controllers\Portal\ReportController;
+use App\Http\Controllers\Portal\SurveyController;
 use App\Http\Controllers\Portal\WellbeingController;
 use Illuminate\Support\Facades\Route;
 
@@ -44,6 +46,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/plan/submit', [EntrepreneurPlanController::class, 'submit'])->name('entrepreneur.plan.submit');
         Route::post('entrepreneur/advisory-request', [EntrepreneurPlanController::class, 'requestAdvisory'])->name('entrepreneur.advisory-request.store');
         Route::get('entrepreneur/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])->name('entrepreneur.assessments.show');
+        Route::get('entrepreneur/surveys', [EntrepreneurSurveyController::class, 'index'])->name('entrepreneur.surveys.index');
+        Route::get('entrepreneur/surveys/{surveyAssignment}', [EntrepreneurSurveyController::class, 'show'])->name('entrepreneur.surveys.show');
+        Route::post('entrepreneur/surveys/{surveyAssignment}', [EntrepreneurSurveyController::class, 'submit'])->name('entrepreneur.surveys.submit');
         Route::post('documents', DocumentController::class)->name('documents.store');
         Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
         Route::get('reports/{report}', [ReportController::class, 'show'])->name('reports.show');
@@ -59,6 +64,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('wellbeing', [WellbeingController::class, 'show'])->name('wellbeing.show');
         Route::post('wellbeing', [WellbeingController::class, 'store'])->name('wellbeing.store');
         Route::delete('wellbeing/{wellbeingCheckin}', [WellbeingController::class, 'destroy'])->name('wellbeing.destroy');
+        Route::get('surveys', [SurveyController::class, 'index'])->name('surveys.index');
+        Route::get('surveys/{surveyAssignment}', [SurveyController::class, 'show'])->name('surveys.show');
+        Route::post('surveys/{surveyAssignment}', [SurveyController::class, 'submit'])->name('surveys.submit');
         Route::get('onboarding', [OnboardingController::class, 'redirect'])->name('onboarding.index');
         Route::get('onboarding/{step}', [OnboardingController::class, 'show'])->name('onboarding.step');
         Route::post('onboarding/{step}', [OnboardingController::class, 'store'])->name('onboarding.store');

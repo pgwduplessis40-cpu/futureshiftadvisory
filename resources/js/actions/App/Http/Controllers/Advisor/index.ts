@@ -8,6 +8,7 @@ import KnowledgeController from './KnowledgeController'
 import GoalController from './GoalController'
 import ProposalController from './ProposalController'
 import ReportController from './ReportController'
+import SurveyResultController from './SurveyResultController'
 import StandardAdvisoryController from './StandardAdvisoryController'
 import BusinessHealthController from './BusinessHealthController'
 import MeetingController from './MeetingController'
@@ -44,6 +45,7 @@ KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
 ReportController: Object.assign(ReportController, ReportController),
+SurveyResultController: Object.assign(SurveyResultController, SurveyResultController),
 StandardAdvisoryController: Object.assign(StandardAdvisoryController, StandardAdvisoryController),
 BusinessHealthController: Object.assign(BusinessHealthController, BusinessHealthController),
 MeetingController: Object.assign(MeetingController, MeetingController),

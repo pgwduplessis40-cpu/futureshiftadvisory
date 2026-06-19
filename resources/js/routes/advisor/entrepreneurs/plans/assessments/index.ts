@@ -73,7 +73,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string }, businessPlan
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const assessments = {
     store: Object.assign(store, store),

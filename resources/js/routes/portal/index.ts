@@ -10,10 +10,11 @@ import inspirationBoard from './inspiration-board'
 import messages from './messages'
 import proposals from './proposals'
 import wellbeing from './wellbeing'
+import surveys from './surveys'
 import onboarding from './onboarding'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -28,7 +29,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -37,7 +38,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -46,7 +47,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -56,7 +57,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
     const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -66,7 +67,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
         dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,7 +76,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:62
+ * @see app/Http/Controllers/Portal/DashboardController.php:64
  * @route '/portal'
  */
         dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +88,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     dashboard.form = dashboardForm
 const portal = {
     dashboard: Object.assign(dashboard, dashboard),
@@ -102,6 +103,7 @@ inspirationBoard: Object.assign(inspirationBoard, inspirationBoard),
 messages: Object.assign(messages, messages),
 proposals: Object.assign(proposals, proposals),
 wellbeing: Object.assign(wellbeing, wellbeing),
+surveys: Object.assign(surveys, surveys),
 onboarding: Object.assign(onboarding, onboarding),
 }
 

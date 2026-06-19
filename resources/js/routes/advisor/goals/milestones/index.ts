@@ -27,7 +27,7 @@ store.url = (args: { goal: string | { id: string } } | [goal: string | { id: str
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { goal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     goal: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { goal: string | { id: string } } | [goal: string | { id: st
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const milestones = {
     store: Object.assign(store, store),

@@ -14,6 +14,7 @@ use App\Http\Controllers\Admin\ProjectSettingsController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\ReferenceDataController;
 use App\Http\Controllers\Admin\ServiceRateController;
+use App\Http\Controllers\Admin\SurveyController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Admin\WelcomeMessageController;
 use App\Http\Controllers\Auth\InviteAcceptController;
@@ -56,6 +57,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::put('questionnaires/{questionnaire}', [QuestionnaireController::class, 'update'])->name('questionnaires.update');
             Route::get('questionnaires/{questionnaire}/preview', [QuestionnaireController::class, 'preview'])->name('questionnaires.preview');
             Route::post('questionnaires/{questionnaire}/publish', [QuestionnaireController::class, 'publish'])->name('questionnaires.publish');
+
+            Route::get('surveys', [SurveyController::class, 'index'])->name('surveys.index');
+            Route::post('surveys', [SurveyController::class, 'store'])->name('surveys.store');
+            Route::get('surveys/{survey}/edit', [SurveyController::class, 'edit'])->name('surveys.edit');
+            Route::put('surveys/{survey}', [SurveyController::class, 'update'])->name('surveys.update');
+            Route::post('surveys/{survey}/publish', [SurveyController::class, 'publish'])->name('surveys.publish');
+            Route::post('surveys/{survey}/archive', [SurveyController::class, 'archive'])->name('surveys.archive');
+            Route::get('surveys/{survey}/results', [SurveyController::class, 'results'])->name('surveys.results');
 
             Route::get('terms', [TermsController::class, 'index'])->name('terms.index');
             Route::post('terms', [TermsController::class, 'store'])->name('terms.store');

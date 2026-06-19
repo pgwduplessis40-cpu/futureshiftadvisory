@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Portal;
 use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
+use App\Enums\SurveyAssignmentStatus;
 use App\Http\Controllers\Controller;
 use App\Models\BoardPost;
 use App\Models\BusinessPlan;
@@ -23,6 +24,7 @@ use App\Models\Proposal;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\Scenario;
+use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Board\InspirationBoard;
@@ -100,6 +102,7 @@ final class DashboardController extends Controller
             'proposals' => $this->proposalPayload($client),
             'reports' => $this->reportPayload($client, $npoEngagement),
             'messagesUrl' => route('portal.messages.index', absolute: false),
+            'surveys' => $this->surveyPayload($client),
         ]);
     }
 
@@ -529,6 +532,35 @@ final class DashboardController extends Controller
                 'submitted_at' => $questionnaire?->submitted_at?->toIso8601String(),
                 'answered_questions' => $questionnaire instanceof QuestionnaireResponse ? $questionnaire->answers()->count() : 0,
             ],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function surveyPayload(Client $client): array
+    {
+        $assignments = SurveyAssignment::query()
+            ->with('survey')
+            ->where('client_id', $client->getKey())
+            ->whereIn('status', SurveyAssignmentStatus::activeValues())
+            ->latest('activated_at')
+            ->get();
+
+        return [
+            'total_open' => $assignments->count(),
+            'index_url' => route('portal.surveys.index', absolute: false),
+            'items' => $assignments
+                ->take(3)
+                ->map(fn (SurveyAssignment $assignment): array => [
+                    'id' => $assignment->id,
+                    'survey_title' => $assignment->survey?->title ?? 'Client experience survey',
+                    'status' => $assignment->status?->value,
+                    'due_at' => $assignment->due_at?->toIso8601String(),
+                    'url' => route('portal.surveys.show', $assignment, absolute: false),
+                ])
+                ->values()
+                ->all(),
         ];
     }
 

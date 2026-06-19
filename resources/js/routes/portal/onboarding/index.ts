@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::step
@@ -102,7 +102,7 @@ step.url = (args: { step: string | number } | [step: string | number ] | string 
         args = { step: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     step: args[0],
@@ -172,7 +172,7 @@ step.head = (args: { step: string | number } | [step: string | number ] | string
                     }),
             method: 'get',
         })
-    
+
     step.form = stepForm
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
@@ -199,7 +199,7 @@ store.url = (args: { step: string | number } | [step: string | number ] | string
         args = { step: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     step: args[0],
@@ -246,7 +246,7 @@ store.post = (args: { step: string | number } | [step: string | number ] | strin
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const onboarding = {
     index: Object.assign(index, index),

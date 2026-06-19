@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\MobileApi\ClientController::show
@@ -102,7 +102,7 @@ show.url = (args: { client: string | number } | [client: string | number ] | str
         args = { client: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -172,7 +172,7 @@ show.head = (args: { client: string | number } | [client: string | number ] | st
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const ClientController = { index, show }
 

@@ -20,6 +20,7 @@ import redFlags from './red-flags'
 import analysisFindings from './analysis-findings'
 import testimonials from './testimonials'
 import bulkCommunications from './bulk-communications'
+import surveyAssignments from './survey-assignments'
 const advisor = {
     calendar: Object.assign(calendar, calendar),
 messages: Object.assign(messages, messages),
@@ -43,6 +44,7 @@ redFlags: Object.assign(redFlags, redFlags),
 analysisFindings: Object.assign(analysisFindings, analysisFindings),
 testimonials: Object.assign(testimonials, testimonials),
 bulkCommunications: Object.assign(bulkCommunications, bulkCommunications),
+surveyAssignments: Object.assign(surveyAssignments, surveyAssignments),
 }
 
 export default advisor

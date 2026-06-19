@@ -97,6 +97,20 @@ type EntrepreneurProfile = {
 
 type EntrepreneurDashboardTab = 'actions' | 'information';
 
+type PendingSurveysPayload = {
+    total_open: number;
+    index_url: string;
+    items: PendingSurvey[];
+};
+
+type PendingSurvey = {
+    id: string;
+    survey_title: string;
+    status: string;
+    due_at: string | null;
+    url: string;
+};
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -105,6 +119,7 @@ type Props = {
     documentUploadUrl: string;
     notificationsUrl: string;
     settingsUrl: string;
+    surveys: PendingSurveysPayload;
 };
 
 export default function EntrepreneurDashboard({
@@ -115,6 +130,7 @@ export default function EntrepreneurDashboard({
     documentUploadUrl,
     notificationsUrl,
     settingsUrl,
+    surveys,
 }: Props) {
     const [documents, setDocuments] = useState<UploadedDocument[]>(
         profile?.latest_documents ?? [],
@@ -127,6 +143,7 @@ export default function EntrepreneurDashboard({
         useState<EntrepreneurDashboardTab>('actions');
     const latestAssessment = profile?.latest_plan?.latest_assessment ?? null;
     const readiness = profile?.advisory_readiness_signal ?? null;
+    const nextSurvey = surveys.items[0] ?? null;
 
     const uploadDocument = async () => {
         if (!file) {
@@ -239,6 +256,23 @@ export default function EntrepreneurDashboard({
                                         </Link>
                                     </Button>
                                 </ActionPanel>
+
+                                {surveys.total_open > 0 && nextSurvey ? (
+                                    <ActionPanel
+                                        icon={ClipboardCheck}
+                                        title="Feedback survey"
+                                        value={`${surveys.total_open} pending`}
+                                        explanation={`Please complete ${nextSurvey.survey_title}. Your feedback helps us understand whether the support delivered was received, accessible, and useful.`}
+                                    >
+                                        <Button asChild size="sm">
+                                            <Link href={nextSurvey.url}>
+                                                {surveys.total_open > 1
+                                                    ? 'Start first'
+                                                    : 'Start survey'}
+                                            </Link>
+                                        </Button>
+                                    </ActionPanel>
+                                ) : null}
 
                                 <ActionPanel
                                     icon={FileText}

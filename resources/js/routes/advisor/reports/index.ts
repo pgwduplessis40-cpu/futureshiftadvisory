@@ -28,7 +28,7 @@ download.url = (args: { report: string | { id: string } } | [report: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -100,7 +100,7 @@ download.head = (args: { report: string | { id: string } } | [report: string | {
                     }),
             method: 'get',
         })
-    
+
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::pptx
@@ -130,7 +130,7 @@ pptx.url = (args: { report: string | { id: string } } | [report: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -202,11 +202,11 @@ pptx.head = (args: { report: string | { id: string } } | [report: string | { id:
                     }),
             method: 'get',
         })
-    
+
     pptx.form = pptxForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:188
+ * @see app/Http/Controllers/Advisor/ReportController.php:202
  * @route '/advisor/reports/{report}/review'
  */
 export const review = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -221,7 +221,7 @@ review.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:188
+ * @see app/Http/Controllers/Advisor/ReportController.php:202
  * @route '/advisor/reports/{report}/review'
  */
 review.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -232,7 +232,7 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -254,7 +254,7 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:188
+ * @see app/Http/Controllers/Advisor/ReportController.php:202
  * @route '/advisor/reports/{report}/review'
  */
 review.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -264,7 +264,7 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
 
     /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:188
+ * @see app/Http/Controllers/Advisor/ReportController.php:202
  * @route '/advisor/reports/{report}/review'
  */
     const reviewForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -279,7 +279,7 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
 
             /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
- * @see app/Http/Controllers/Advisor/ReportController.php:188
+ * @see app/Http/Controllers/Advisor/ReportController.php:202
  * @route '/advisor/reports/{report}/review'
  */
         reviewForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -291,7 +291,7 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
                     }),
             method: 'post',
         })
-    
+
     review.form = reviewForm
 const reports = {
     download: Object.assign(download, download),

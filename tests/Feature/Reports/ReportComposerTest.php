@@ -549,6 +549,105 @@ HTML,
         Carbon::setTestNow();
     }
 
+    public function test_advisor_report_download_prefers_higher_active_template_version_over_recent_lower_version(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-active-template-version@example.test');
+        $this->businessValuation($client, 480000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        Carbon::setTestNow('2026-06-18 09:00:00');
+        /** @var Template $lowerTemplate */
+        $lowerTemplate = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 1',
+            'body' => '<main data-report-template="lower-version"><p>{{ template_title }} v{{ template_version }}</p>{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $oldPdfPath = $report->pdf_path;
+        $this->assertSame($lowerTemplate->id, data_get($report->metadata, 'template.id'));
+
+        Carbon::setTestNow('2026-06-19 09:00:00');
+        /** @var Template $higherTemplate */
+        $higherTemplate = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 2',
+            'body' => '<main data-report-template="higher-version"><p>{{ template_title }} v{{ template_version }}</p>{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 2,
+        ]);
+
+        Carbon::setTestNow('2026-06-20 09:00:00');
+        $lowerTemplate->forceFill(['body' => '<main data-report-template="lower-version-touched">{{ sections }}</main>'])->save();
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report));
+
+        $response->assertOk();
+        $report->refresh();
+
+        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(2, data_get($report->metadata, 'template.version'));
+        $this->assertStringContainsString('Report Template VS 2 v2', $response->getContent());
+        $this->assertStringContainsString('data-report-template="higher-version"', $this->renderer->html);
+        $this->assertStringNotContainsString('data-report-template="lower-version-touched"', $this->renderer->html);
+
+        Carbon::setTestNow();
+    }
+
+    public function test_report_review_refreshes_stale_template_instead_of_releasing(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-review-template-refresh@example.test');
+        $this->businessValuation($client, 480000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        Carbon::setTestNow('2026-06-18 09:00:00');
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 1',
+            'body' => '<main data-report-template="release-lower-version">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $oldPdfPath = $report->pdf_path;
+
+        Carbon::setTestNow('2026-06-19 09:00:00');
+        /** @var Template $higherTemplate */
+        $higherTemplate = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 2',
+            'body' => '<main data-report-template="release-higher-version">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 2,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.reports.review', $report))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false))
+            ->assertSessionHas('status', 'report-template-refreshed');
+
+        $report->refresh();
+
+        $this->assertSame('pending_review', $report->review_status);
+        $this->assertNull($report->reviewed_at);
+        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(2, data_get($report->metadata, 'template.version'));
+
+        Carbon::setTestNow();
+    }
+
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithTeamAndClientUser();

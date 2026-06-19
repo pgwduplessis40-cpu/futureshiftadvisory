@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::runAnalysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:17
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:18
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
 export const runAnalysis = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ runAnalysis.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::runAnalysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:17
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:18
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
 runAnalysis.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ runAnalysis.url = (args: { client: string | { id: string } } | [client: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -49,7 +49,7 @@ runAnalysis.url = (args: { client: string | { id: string } } | [client: string |
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::runAnalysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:17
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:18
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
 runAnalysis.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ runAnalysis.post = (args: { client: string | { id: string } } | [client: string 
 
     /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::runAnalysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:17
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:18
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
     const runAnalysisForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,18 +69,18 @@ runAnalysis.post = (args: { client: string | { id: string } } | [client: string 
 
             /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::runAnalysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:17
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:18
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
         runAnalysisForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: runAnalysis.url(args, options),
             method: 'post',
         })
-    
+
     runAnalysis.form = runAnalysisForm
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:29
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:30
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
 export const generatePack = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -95,7 +95,7 @@ generatePack.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:29
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:30
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
 generatePack.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -106,7 +106,7 @@ generatePack.url = (args: { client: string | { id: string } } | [client: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -128,7 +128,7 @@ generatePack.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:29
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:30
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
 generatePack.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -138,7 +138,7 @@ generatePack.post = (args: { client: string | { id: string } } | [client: string
 
     /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:29
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:30
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
     const generatePackForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -148,14 +148,14 @@ generatePack.post = (args: { client: string | { id: string } } | [client: string
 
             /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:29
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:30
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
         generatePackForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: generatePack.url(args, options),
             method: 'post',
         })
-    
+
     generatePack.form = generatePackForm
 const StandardAdvisoryController = { runAnalysis, generatePack }
 

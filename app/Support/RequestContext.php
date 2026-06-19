@@ -120,4 +120,52 @@ final class RequestContext
             [$role, implode(',', $clientIds), $userId, $reportId, $npoEngagementId]
         );
     }
+
+    /**
+     * Temporarily switch the current Postgres session to trusted system scope.
+     *
+     * @template TReturn
+     *
+     * @param  callable(): TReturn  $callback
+     * @return TReturn
+     */
+    public function withSystemContext(callable $callback): mixed
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return $callback();
+        }
+
+        $keys = [
+            'fsa.role',
+            'fsa.client_ids',
+            'fsa.user_id',
+            'fsa.report_id',
+            'fsa.npo_engagement_id',
+        ];
+
+        $previous = [];
+        foreach ($keys as $key) {
+            $previous[$key] = DB::selectOne('SELECT current_setting(?, true) AS value', [$key])?->value;
+        }
+
+        DB::statement(
+            'SELECT fsa_set_request_context(?, ?, ?, ?, ?)',
+            ['system', '', null, null, null],
+        );
+
+        try {
+            return $callback();
+        } finally {
+            DB::statement(
+                'SELECT fsa_set_request_context(?, ?, ?, ?, ?)',
+                [
+                    $previous['fsa.role'] ?: '',
+                    $previous['fsa.client_ids'] ?: '',
+                    $previous['fsa.user_id'] ?: null,
+                    $previous['fsa.report_id'] ?: null,
+                    $previous['fsa.npo_engagement_id'] ?: null,
+                ],
+            );
+        }
+    }
 }

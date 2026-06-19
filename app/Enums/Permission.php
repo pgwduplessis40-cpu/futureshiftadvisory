@@ -50,6 +50,8 @@ enum Permission: string
     case LEARNING_UPDATES_APPROVE = 'learning_updates.approve';
     case ENTREPRENEURS_VIEW = 'entrepreneurs.view';
     case ENTREPRENEURS_ASSESS = 'entrepreneurs.assess';
+    case SURVEYS_MANAGE = 'surveys.manage';
+    case SURVEYS_VIEW = 'surveys.view';
     case BROKER_PORTAL = 'broker.portal';
     case COACH_PORTAL = 'coach.portal';
 
@@ -103,6 +105,7 @@ enum Permission: string
                 self::LEARNING_UPDATES_VIEW,
                 self::ENTREPRENEURS_VIEW,
                 self::ENTREPRENEURS_ASSESS,
+                self::SURVEYS_VIEW,
             ],
 
             User::TYPE_JUNIOR_ADVISOR => [
@@ -118,6 +121,7 @@ enum Permission: string
                 self::REPORTS_VIEW,
                 self::LEARNING_UPDATES_VIEW,
                 self::ENTREPRENEURS_VIEW,
+                self::SURVEYS_VIEW,
             ],
 
             User::TYPE_ENTREPRENEUR_MENTOR => [
@@ -132,6 +136,7 @@ enum Permission: string
                 self::REPORTS_VIEW,
                 self::ENTREPRENEURS_VIEW,
                 self::ENTREPRENEURS_ASSESS,
+                self::SURVEYS_VIEW,
             ],
 
             User::TYPE_CLIENT_PRIMARY => [
