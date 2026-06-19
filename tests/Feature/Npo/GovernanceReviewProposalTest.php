@@ -95,6 +95,9 @@ final class GovernanceReviewProposalTest extends TestCase
         $this->assertTrue($proposal->acceptance_terms['no_retainer_structure']);
         $this->assertEquals(750.0, $proposal->acceptance_terms['conversion_credit']['amount_mid']);
         $this->assertSame($engagement->id, $proposal->pv_summary['npo_engagement_id']);
+
+        $proposal = $builder->rerenderPdf($proposal);
+
         $this->assertStringContainsString('Conversion credit', $this->renderer->html);
         Storage::disk('secure_local')->assertExists($proposal->pdf_path);
 

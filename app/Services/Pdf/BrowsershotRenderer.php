@@ -11,13 +11,16 @@ final class BrowsershotRenderer implements PdfRenderer
     public function render(string $html): string
     {
         [$html, $footer] = $this->extractPdfFooter($html);
+        $timeout = max(1, (int) config('services.browsershot.timeout_seconds', 60));
+
+        @set_time_limit($timeout + 10);
 
         $shot = Browsershot::html($html)
             ->format('A4')
             ->margins(18, 16, $footer === null ? 18 : 32, 16)
             ->showBackground()
             ->noSandbox()
-            ->timeout((int) config('services.browsershot.timeout_seconds', 60));
+            ->timeout($timeout);
 
         $nodeBinary = config('services.browsershot.node_binary');
         if (is_string($nodeBinary) && $nodeBinary !== '') {

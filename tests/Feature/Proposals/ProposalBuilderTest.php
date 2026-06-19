@@ -115,10 +115,8 @@ final class ProposalBuilderTest extends TestCase
             'type' => Consent::TYPE_INSURANCE_REFERRAL,
             'election' => Consent::ELECTION_OPT_IN,
         ]);
-        Storage::disk('secure_local')->assertExists($proposal->pdf_path);
-        $this->assertGreaterThan(100, $proposal->pdf_byte_size);
-        $this->assertStringContainsString('Future Shift Advisory', $this->renderer->html);
-        $this->assertStringContainsString('ROI ratio', $this->renderer->html);
+        $this->assertNull($proposal->pdf_path);
+        $this->assertNull($proposal->pdf_byte_size);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'proposal.generated',
             'client_id' => $client->id,
@@ -141,6 +139,12 @@ final class ProposalBuilderTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/pdf')
             ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $proposal->refresh();
+        Storage::disk('secure_local')->assertExists($proposal->pdf_path);
+        $this->assertGreaterThan(100, $proposal->pdf_byte_size);
+        $this->assertStringContainsString('Future Shift Advisory', $this->renderer->html);
+        $this->assertStringContainsString('ROI ratio', $this->renderer->html);
     }
 
     public function test_proposal_generation_uses_active_uploaded_proposal_template(): void
@@ -175,11 +179,13 @@ final class ProposalBuilderTest extends TestCase
             'created_by_user_id' => $advisor->getKey(),
         ]);
 
-        app(ProposalBuilder::class)->generate($client, $calculation, [
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [
             'scope' => ['summary' => 'Template-driven proposal scope.'],
         ], [
             'created_by_user_id' => $advisor->getKey(),
         ]);
+
+        app(ProposalBuilder::class)->rerenderPdf($proposal);
 
         $this->assertStringContainsString('UPLOADED PROPOSAL TEMPLATE', $this->renderer->html);
         $this->assertStringContainsString('Proposal Client Limited', $this->renderer->html);
@@ -294,7 +300,7 @@ final class ProposalBuilderTest extends TestCase
         $this->assertSame(ProposalStatus::Renewed, $renewed->status);
         $this->assertSame(2, $renewed->version);
         $this->assertSame($expired->id, $renewed->renewed_from_proposal_id);
-        Storage::disk('secure_local')->assertExists($renewed->pdf_path);
+        $this->assertNull($renewed->pdf_path);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'proposal.renewed',
             'subject_id' => $renewed->id,

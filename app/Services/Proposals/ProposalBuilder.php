@@ -69,7 +69,6 @@ final class ProposalBuilder
             ]);
 
             $this->writeConsents($proposal, $input['consents'] ?? []);
-            $this->renderAndStorePdf($proposal->refresh()->load(['client', 'feeCalculation', 'consents']));
 
             $this->audit->record('proposal.generated', subject: $proposal, after: [
                 'client_id' => $client->getKey(),
@@ -171,8 +170,6 @@ final class ProposalBuilder
                     'captured_at' => now(),
                 ]);
             }
-
-            $this->renderAndStorePdf($renewed->refresh()->load(['client', 'feeCalculation', 'consents']));
 
             $this->audit->record('proposal.renewed', subject: $renewed, actor: $actor, after: [
                 'renewed_from_proposal_id' => $proposal->getKey(),
