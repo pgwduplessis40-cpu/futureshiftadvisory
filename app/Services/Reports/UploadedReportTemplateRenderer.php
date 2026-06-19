@@ -23,6 +23,14 @@ final class UploadedReportTemplateRenderer
      */
     public function render(Report $report, Template $template, string $sections, array $tokens, string $css): ?string
     {
+        return $this->renderDocument($report->title, $template, $sections, $tokens, $css);
+    }
+
+    /**
+     * @param  array<string, string>  $tokens
+     */
+    public function renderDocument(string $title, Template $template, string $sections, array $tokens, string $css): ?string
+    {
         if (! $this->supports($template)) {
             return null;
         }
@@ -72,7 +80,7 @@ final class UploadedReportTemplateRenderer
 </body>
 </html>
 HTML,
-            $this->escape($report->title),
+            $this->escape($title),
             $pdfFooter,
             $css,
             $this->docxCss(),

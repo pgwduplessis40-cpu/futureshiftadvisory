@@ -105,7 +105,7 @@ function LeadCard({
 
     return (
         <article className="rounded-md border bg-background p-4">
-            <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_360px]">
+            <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_360px]">
                 <div className="min-w-0 space-y-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0">
@@ -136,23 +136,27 @@ function LeadCard({
                     </div>
 
                     <dl className="grid gap-3 text-sm sm:grid-cols-3">
-                        <div>
+                        <div className="min-w-0">
                             <dt className="text-xs text-muted-foreground">
                                 Email
                             </dt>
-                            <dd>{lead.email}</dd>
+                            <dd className="break-words">{lead.email}</dd>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <dt className="text-xs text-muted-foreground">
                                 Phone
                             </dt>
-                            <dd>{lead.phone ?? 'None'}</dd>
+                            <dd className="break-words">
+                                {lead.phone ?? 'None'}
+                            </dd>
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <dt className="text-xs text-muted-foreground">
                                 Interest
                             </dt>
-                            <dd>{lead.engagement_interest ?? 'Unspecified'}</dd>
+                            <dd className="break-words">
+                                {lead.engagement_interest ?? 'Unspecified'}
+                            </dd>
                         </div>
                     </dl>
 
@@ -217,7 +221,7 @@ function LeadCard({
                             />
                         </div>
 
-                        <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-1 xl:grid-cols-3">
+                        <div className="grid gap-2 sm:grid-cols-3 xl:grid-cols-1">
                             <Button
                                 type="button"
                                 size="sm"

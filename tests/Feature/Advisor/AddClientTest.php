@@ -173,6 +173,15 @@ final class AddClientTest extends TestCase
         $npo = $this->clientForAdvisor($advisor, 'Community Impact Trust', EngagementType::NPO);
 
         $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.index', ['engagement_type' => EngagementType::STANDARD_ADVISORY->value]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('engagementFilter.key', EngagementType::STANDARD_ADVISORY->value)
+                ->where('engagementFilter.label', 'Advisory')
+                ->where('clients.0.id', $standard->id)
+                ->has('clients', 1));
+
+        $this->actingAsMfa($advisor)
             ->get(route('advisor.clients.index', ['engagement_type' => EngagementType::DUE_DILIGENCE->value]))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
@@ -186,7 +195,7 @@ final class AddClientTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('engagementFilter.key', EngagementType::NPO->value)
-                ->where('engagementFilter.label', 'NPO')
+                ->where('engagementFilter.label', 'NPOs')
                 ->where('clients.0.id', $npo->id)
                 ->has('clients', 1));
 

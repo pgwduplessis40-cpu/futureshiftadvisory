@@ -16,6 +16,7 @@ use App\Models\Consent;
 use App\Models\FeeCalculation;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
+use App\Models\Template;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Proposals\ProposalBuilder;
@@ -131,8 +132,121 @@ final class ProposalBuilderTest extends TestCase
                 ->where('client.proposal_store_url', route('advisor.clients.proposals.store', $client, absolute: false))
                 ->where('client.proposals.0.status', ProposalStatus::Draft->value)
                 ->where('client.proposals.0.can_release', true)
+                ->where('client.proposals.0.download_url', route('advisor.proposals.download', $proposal, absolute: false))
                 ->has('client.fee_calculations', 1)
                 ->has('client.proposals', 1));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.proposals.download', $proposal))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function test_proposal_generation_uses_active_uploaded_proposal_template(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is required to build the uploaded proposal template fixture.');
+        }
+
+        [$advisor, $client] = $this->clientWithTeam('proposal-template-advisor@example.test');
+        $calculation = $this->feeCalculation($client, 15000, 4.2);
+        $path = 'templates/proposal-template.docx';
+
+        Storage::disk('secure_local')->put($path, $this->minimalProposalTemplateDocx());
+
+        Template::query()->create([
+            'category' => Template::CATEGORY_PROPOSAL,
+            'title' => 'FSA Uploaded Proposal Template',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'stored_path' => $path,
+                    'extension' => 'docx',
+                    'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'original_name' => 'FSA_Report_Proposal_Template.docx',
+                    'sha256' => hash('sha256', Storage::disk('secure_local')->get($path) ?: ''),
+                ],
+            ],
+            'source_reference' => 'test:proposal-template',
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 2,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        app(ProposalBuilder::class)->generate($client, $calculation, [
+            'scope' => ['summary' => 'Template-driven proposal scope.'],
+        ], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->assertStringContainsString('UPLOADED PROPOSAL TEMPLATE', $this->renderer->html);
+        $this->assertStringContainsString('Proposal Client Limited', $this->renderer->html);
+        $this->assertStringContainsString('Template-driven proposal scope.', $this->renderer->html);
+    }
+
+    public function test_generating_proposal_recalls_current_unsigned_client_proposals(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-recall-advisor@example.test');
+        $draft = $this->storedProposal($client);
+        $released = $this->storedProposal($client);
+        $renewed = $this->storedProposal($client);
+        $awaitingSignature = $this->storedProposal($client);
+        $signed = $this->storedProposal($client);
+
+        $released->forceFill([
+            'status' => ProposalStatus::Released,
+            'released_at' => now(),
+            'released_by_user_id' => $advisor->getKey(),
+            'expires_at' => now()->addDays(30),
+        ])->save();
+        $renewed->forceFill(['status' => ProposalStatus::Renewed])->save();
+        $awaitingSignature->forceFill([
+            'status' => ProposalStatus::Released,
+            'released_at' => now(),
+            'released_by_user_id' => $advisor->getKey(),
+            'expires_at' => now()->addDays(30),
+        ])->save();
+        Proposal::allowSignoffStatusTransition(fn () => $awaitingSignature->forceFill([
+            'status' => ProposalStatus::AwaitingSignature,
+            'awaiting_signature_at' => now(),
+        ])->save());
+        $signed->forceFill([
+            'status' => ProposalStatus::Released,
+            'released_at' => now(),
+            'released_by_user_id' => $advisor->getKey(),
+            'expires_at' => now()->addDays(30),
+        ])->save();
+        Proposal::allowSignoffStatusTransition(function () use ($signed): void {
+            $signed->forceFill([
+                'status' => ProposalStatus::AwaitingSignature,
+                'awaiting_signature_at' => now(),
+            ])->save();
+            $signed->forceFill([
+                'status' => ProposalStatus::Signed,
+                'signed_at' => now(),
+            ])->save();
+        });
+
+        $newProposal = app(ProposalBuilder::class)->generate($client, $this->feeCalculation($client, 18000, 4), [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        foreach ([$draft, $released, $renewed, $awaitingSignature] as $proposal) {
+            $proposal->refresh();
+            $this->assertSame(ProposalStatus::Recalled, $proposal->status);
+            $this->assertSame($advisor->getKey(), $proposal->recalled_by_user_id);
+            $this->assertNull($proposal->expires_at);
+        }
+
+        $this->assertSame(ProposalStatus::Signed, $signed->refresh()->status);
+        $this->assertSame(ProposalStatus::Draft, $newProposal->refresh()->status);
+        $this->assertDatabaseCount('proposals', 6);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'proposal.auto_recalled',
+            'subject_id' => $draft->id,
+        ]);
     }
 
     public function test_release_recall_expiry_command_and_renewal_flow(): void
@@ -355,6 +469,32 @@ final class ProposalBuilderTest extends TestCase
         ]);
 
         return $proposal;
+    }
+
+    private function minimalProposalTemplateDocx(): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'fsa-proposal-template-');
+        $this->assertIsString($path);
+
+        $zip = new \ZipArchive;
+        $this->assertTrue($zip->open($path, \ZipArchive::OVERWRITE));
+        $zip->addFromString('word/document.xml', <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>UPLOADED PROPOSAL TEMPLATE [Business Name] [Date]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>{{ sections }}</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+XML);
+        $this->assertTrue($zip->close());
+
+        $contents = file_get_contents($path);
+        @unlink($path);
+
+        $this->assertIsString($contents);
+
+        return $contents;
     }
 
     private function currentRoleBypassesRls(): bool

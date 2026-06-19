@@ -101,7 +101,7 @@ final class ClientController extends Controller
             $query->where('engagement_type', $engagement->value);
             $engagementFilter = [
                 'key' => $engagement->value,
-                'label' => $engagement->label(),
+                'label' => $this->engagementIndexLabel($engagement),
                 'description' => $engagement->description(),
                 'clear_url' => $this->clientsIndexUrl($request->query(), ['engagement_type']),
             ];
@@ -130,6 +130,15 @@ final class ClientController extends Controller
             'engagementFilter' => $engagementFilter,
             'exposureFilter' => $filter,
         ]);
+    }
+
+    private function engagementIndexLabel(EngagementType $engagement): string
+    {
+        return match ($engagement) {
+            EngagementType::STANDARD_ADVISORY => 'Advisory',
+            EngagementType::NPO => 'NPOs',
+            default => $engagement->label(),
+        };
     }
 
     /**
@@ -469,6 +478,7 @@ final class ClientController extends Controller
                     'release_url' => route('advisor.proposals.release', $proposal, absolute: false),
                     'recall_url' => route('advisor.proposals.recall', $proposal, absolute: false),
                     'renew_url' => route('advisor.proposals.renew', $proposal, absolute: false),
+                    'download_url' => route('advisor.proposals.download', $proposal, absolute: false),
                 ];
             })
             ->values()

@@ -501,6 +501,7 @@ type ProposalSummary = {
     release_url: string;
     recall_url: string;
     renew_url: string;
+    download_url: string | null;
 };
 
 type ReportSummary = {
@@ -3427,6 +3428,25 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
+                                    {proposal.download_url && (
+                                        <Button
+                                            asChild
+                                            size="sm"
+                                            variant="outline"
+                                        >
+                                            <a
+                                                href={proposal.download_url}
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
+                                                <Download
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                View
+                                            </a>
+                                        </Button>
+                                    )}
                                     <Button
                                         type="button"
                                         size="sm"

@@ -12,10 +12,14 @@ use App\Models\FunnelEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
+use App\Services\Audit\AuditWriter;
 use App\Services\Proposals\ProposalBuilder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 
 final class ProposalController extends Controller
@@ -102,5 +106,38 @@ final class ProposalController extends Controller
         $renewed = $proposals->renew($proposal, $user);
 
         return to_route('advisor.clients.show', $renewed->client)->with('status', 'proposal-renewed');
+    }
+
+    public function download(Request $request, Proposal $proposal, ProposalBuilder $proposals, AuditWriter $audit): Response
+    {
+        $proposal->loadMissing('client');
+        Gate::authorize('view', $proposal->client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $proposal = $proposals->rerenderPdf($proposal);
+        $disk = Storage::disk('secure_local');
+
+        $path = $proposal->pdf_path;
+        abort_if($path === null || ! $disk->exists($path), 404);
+
+        $contents = $disk->get($path);
+        abort_if($contents === null, 404);
+
+        $audit->record('proposal.downloaded', subject: $proposal, actor: $user, after: [
+            'client_id' => $proposal->client_id,
+            'version' => $proposal->version,
+        ]);
+
+        $filename = Str::slug('proposal-v'.$proposal->version.'-'.$proposal->client?->legal_name).'.pdf';
+
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($contents),
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
     }
 }

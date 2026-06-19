@@ -38,7 +38,7 @@ import {
     useSidebar,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import type { Auth, NavItem } from '@/types';
+import type { Auth, NavGroup, NavItem } from '@/types';
 
 const dashboardNavItem: NavItem = {
     title: 'Dashboard',
@@ -46,9 +46,9 @@ const dashboardNavItem: NavItem = {
     icon: LayoutGrid,
 };
 
-const clientsNavItem: NavItem = {
-    title: 'Clients',
-    href: '/advisor/clients',
+const advisoryClientsNavItem: NavItem = {
+    title: 'Advisory',
+    href: '/advisor/clients?engagement_type=standard_advisory',
     icon: BriefcaseBusiness,
 };
 
@@ -77,7 +77,7 @@ const dueDiligenceNavItem: NavItem = {
 };
 
 const npoNavItem: NavItem = {
-    title: 'NPO',
+    title: 'NPOs',
     href: '/advisor/clients?engagement_type=npo',
     icon: HeartHandshake,
 };
@@ -203,7 +203,7 @@ const welcomeMessageNavItem: NavItem = {
 };
 
 const inspirationBoardNavItem: NavItem = {
-    title: 'Inspiration Board',
+    title: 'Inspiration',
     href: '/admin/inspiration-board',
     icon: Sparkles,
 };
@@ -213,45 +213,6 @@ const portalInspirationNavItem: NavItem = {
     href: '/portal/inspiration-board',
     icon: Sparkles,
 };
-
-const advisorNavItems: NavItem[] = [
-    dashboardNavItem,
-    advisorCalendarNavItem,
-    clientsNavItem,
-    dueDiligenceNavItem,
-    npoNavItem,
-    entrepreneursNavItem,
-    knowledgeNavItem,
-    templatesNavItem,
-    prospectsNavItem,
-    advisorMessagesNavItem,
-    notificationsNavItem,
-    apiHealthNavItem,
-];
-
-const juniorAdvisorNavItems: NavItem[] = [
-    dashboardNavItem,
-    advisorCalendarNavItem,
-    clientsNavItem,
-    dueDiligenceNavItem,
-    npoNavItem,
-    entrepreneursNavItem,
-    knowledgeNavItem,
-    templatesNavItem,
-    prospectsNavItem,
-    advisorMessagesNavItem,
-    notificationsNavItem,
-];
-
-const mentorNavItems: NavItem[] = [
-    dashboardNavItem,
-    activityCalendarNavItem,
-    entrepreneursNavItem,
-    knowledgeNavItem,
-    templatesNavItem,
-    advisorMessagesNavItem,
-    notificationsNavItem,
-];
 
 const entrepreneurNavItems: NavItem[] = [
     {
@@ -300,25 +261,56 @@ const npoBoardNavItems: NavItem[] = [
     notificationsNavItem,
 ];
 
-const brokerNavItems: NavItem[] = [
-    dashboardNavItem,
-    activityCalendarNavItem,
-    notificationsNavItem,
-];
-
-const coachNavItems: NavItem[] = [
-    dashboardNavItem,
-    activityCalendarNavItem,
-    notificationsNavItem,
-];
-
 const defaultNavItems: NavItem[] = [
     dashboardNavItem,
     activityCalendarNavItem,
     notificationsNavItem,
 ];
 
+const advisorClientNavItems: NavItem[] = [
+    advisoryClientsNavItem,
+    dueDiligenceNavItem,
+    npoNavItem,
+    entrepreneursNavItem,
+];
+
+const advisorCommunicationNavItems: NavItem[] = [
+    advisorMessagesNavItem,
+    notificationsNavItem,
+];
+
+const advisorAdministrationNavItems: NavItem[] = [
+    knowledgeNavItem,
+    templatesNavItem,
+    apiHealthNavItem,
+];
+
+const superAdminCommunicationNavItems: NavItem[] = [
+    advisorMessagesNavItem,
+    notificationsNavItem,
+    inspirationBoardNavItem,
+    welcomeMessageNavItem,
+];
+
+const superAdminAdministrationNavItems: NavItem[] = [
+    knowledgeNavItem,
+    templatesNavItem,
+    apiHealthNavItem,
+    integrationCredentialsNavItem,
+    projectSettingsNavItem,
+    serviceRatesNavItem,
+    termsNavItem,
+    auditTrailNavItem,
+    referenceDataNavItem,
+    questionnairesNavItem,
+    surveysNavItem,
+];
+
 type PortalClient = {
+    engagement_type?: string | null;
+};
+
+type AdvisorPageClient = {
     engagement_type?: string | null;
 };
 
@@ -335,67 +327,126 @@ const footerNavItems: NavItem[] = [
     },
 ];
 
-function mainNavItemsFor(
+function navGroup(
+    title: string,
+    items: NavItem[],
+    options: Pick<NavGroup, 'collapsible' | 'defaultOpen'> = {},
+): NavGroup {
+    return { title, items, ...options };
+}
+
+function internalNavGroups({
+    platformItems,
+    clientItems,
+    communicationItems,
+    calendarItem,
+    administrationItems,
+}: {
+    platformItems: NavItem[];
+    clientItems: NavItem[];
+    communicationItems: NavItem[];
+    calendarItem: NavItem;
+    administrationItems: NavItem[];
+}): NavGroup[] {
+    return [
+        navGroup('Platform', platformItems),
+        navGroup('Clients', clientItems),
+        navGroup('Comms', communicationItems),
+        navGroup('Calendar', [calendarItem]),
+        navGroup('Administration', administrationItems, {
+            collapsible: true,
+            defaultOpen: false,
+        }),
+    ];
+}
+
+function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
-): NavItem[] {
+): NavGroup[] {
     if (userType === 'entrepreneur') {
-        return entrepreneurNavItems;
+        return [navGroup('Portal', entrepreneurNavItems)];
     }
 
     if (userType === 'client_primary' || userType === 'client_team') {
         if (portalClient?.engagement_type === 'due_diligence') {
             return [
-                clientNavItems[0],
-                acquisitionPlanNavItem,
-                ...clientNavItems.slice(1),
+                navGroup('Portal', [
+                    clientNavItems[0],
+                    acquisitionPlanNavItem,
+                    ...clientNavItems.slice(1),
+                ]),
             ];
         }
 
-        return clientNavItems;
+        return [navGroup('Portal', clientNavItems)];
     }
 
     if (userType === 'npo_board_member') {
-        return npoBoardNavItems;
+        return [navGroup('Portal', npoBoardNavItems)];
     }
 
     if (userType === 'super_admin') {
-        return [
-            ...advisorNavItems,
-            integrationCredentialsNavItem,
-            projectSettingsNavItem,
-            serviceRatesNavItem,
-            termsNavItem,
-            auditTrailNavItem,
-            referenceDataNavItem,
-            questionnairesNavItem,
-            surveysNavItem,
-            welcomeMessageNavItem,
-            inspirationBoardNavItem,
-        ];
+        return internalNavGroups({
+            platformItems: [dashboardNavItem, prospectsNavItem],
+            clientItems: advisorClientNavItems,
+            communicationItems: superAdminCommunicationNavItems,
+            calendarItem: advisorCalendarNavItem,
+            administrationItems: superAdminAdministrationNavItems,
+        });
     }
 
     if (userType === 'advisor') {
-        return advisorNavItems;
+        return internalNavGroups({
+            platformItems: [dashboardNavItem, prospectsNavItem],
+            clientItems: advisorClientNavItems,
+            communicationItems: advisorCommunicationNavItems,
+            calendarItem: advisorCalendarNavItem,
+            administrationItems: advisorAdministrationNavItems,
+        });
     }
 
     if (userType === 'junior_advisor') {
-        return juniorAdvisorNavItems;
+        return internalNavGroups({
+            platformItems: [dashboardNavItem, prospectsNavItem],
+            clientItems: advisorClientNavItems,
+            communicationItems: advisorCommunicationNavItems,
+            calendarItem: advisorCalendarNavItem,
+            administrationItems: [knowledgeNavItem, templatesNavItem],
+        });
     }
 
     if (userType === 'entrepreneur_mentor') {
-        return mentorNavItems;
+        return internalNavGroups({
+            platformItems: [dashboardNavItem],
+            clientItems: [entrepreneursNavItem],
+            communicationItems: advisorCommunicationNavItems,
+            calendarItem: activityCalendarNavItem,
+            administrationItems: [knowledgeNavItem, templatesNavItem],
+        });
     }
 
     if (userType === 'broker') {
-        return brokerNavItems;
+        return internalNavGroups({
+            platformItems: [dashboardNavItem],
+            clientItems: [],
+            communicationItems: [notificationsNavItem],
+            calendarItem: activityCalendarNavItem,
+            administrationItems: [],
+        });
     }
 
     if (userType === 'coach') {
-        return coachNavItems;
+        return internalNavGroups({
+            platformItems: [dashboardNavItem],
+            clientItems: [],
+            communicationItems: [notificationsNavItem],
+            calendarItem: activityCalendarNavItem,
+            administrationItems: [],
+        });
     }
 
-    return defaultNavItems;
+    return [navGroup('Platform', defaultNavItems)];
 }
 
 function homeHrefFor(userType?: string | null): NavItem['href'] {
@@ -423,18 +474,18 @@ function canViewInternalFooter(userType?: string | null): boolean {
     );
 }
 
-function navItemsWithClientFilterState(
-    items: NavItem[],
+function navGroupsWithClientFilterState(
+    groups: NavGroup[],
     currentPath: string,
     engagementType: string | null,
-): NavItem[] {
-    const viewingClients = currentPath.startsWith('/advisor/clients');
-
-    return items.map((item) => {
-        if (item.href === clientsNavItem.href) {
+): NavGroup[] {
+    const withState = (item: NavItem): NavItem => {
+        if (item.href === advisoryClientsNavItem.href) {
             return {
                 ...item,
-                isActive: viewingClients && engagementType === null,
+                isActive:
+                    currentPath.startsWith('/advisor/clients') &&
+                    engagementType === 'standard_advisory',
             };
         }
 
@@ -457,11 +508,20 @@ function navItemsWithClientFilterState(
         }
 
         return item;
-    });
+    };
+
+    return groups.map((group) => ({
+        ...group,
+        items: group.items.map(withState),
+    }));
 }
 
 export function AppSidebar() {
-    const page = usePage<{ auth: Auth; portalClient?: PortalClient | null }>();
+    const page = usePage<{
+        auth: Auth;
+        portalClient?: PortalClient | null;
+        client?: AdvisorPageClient | null;
+    }>();
     const { isMobile, setOpenMobile } = useSidebar();
     const { auth } = page.props;
     const userType = auth.user.user_type;
@@ -471,12 +531,13 @@ export function AppSidebar() {
             ? window.location.origin
             : 'http://localhost',
     );
-    const engagementType =
-        currentUrl.pathname === '/advisor/clients'
-            ? currentUrl.searchParams.get('engagement_type')
-            : null;
-    const mainNavItems = navItemsWithClientFilterState(
-        mainNavItemsFor(userType, page.props.portalClient),
+    const engagementType = currentUrl.pathname.startsWith('/advisor/clients')
+        ? (currentUrl.searchParams.get('engagement_type') ??
+          page.props.client?.engagement_type ??
+          null)
+        : null;
+    const mainNavGroups = navGroupsWithClientFilterState(
+        navGroupsFor(userType, page.props.portalClient),
         currentUrl.pathname,
         engagementType,
     );
@@ -513,7 +574,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain groups={mainNavGroups} />
             </SidebarContent>
 
             <SidebarFooter>
