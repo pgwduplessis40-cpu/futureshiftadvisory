@@ -326,7 +326,7 @@ HTML,
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
 
         $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame('uploaded_docx_html_v4', data_get($report->metadata, 'template.render_strategy'));
+        $this->assertSame('uploaded_docx_html_v5', data_get($report->metadata, 'template.render_strategy'));
         $this->assertSame('Uploaded_FSA_Client_Report.docx', data_get($report->metadata, 'template.uploaded_file'));
         $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
         $this->assertStringContainsString('FSA uploaded DOCX report shell', $this->renderer->html);
@@ -380,7 +380,7 @@ HTML,
         $report->refresh();
 
         $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame('uploaded_docx_html_v4', data_get($report->metadata, 'template.render_strategy'));
+        $this->assertSame('uploaded_docx_html_v5', data_get($report->metadata, 'template.render_strategy'));
         $this->assertStringContainsString('Current uploaded DOCX report shell', $this->renderer->html);
         $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
     }
@@ -402,7 +402,7 @@ HTML,
                 ['FUTURE SHIFT ADVISORY | [Business Name] | [Report Type] | [Date]'],
             ],
             [
-                ['Future Shift Advisory | Confidential | [Business Name] | [Date]'],
+                ['Future Shift Advisory | Confidential | [Business Name] | [Date] | Page 3'],
             ],
         ));
 
@@ -427,9 +427,13 @@ HTML,
         app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
 
         $this->assertStringContainsString('class="docx-template-header"', $this->renderer->html);
-        $this->assertStringContainsString('class="docx-template-footer"', $this->renderer->html);
+        $this->assertStringContainsString('<template data-pdf-footer>', $this->renderer->html);
+        $this->assertStringContainsString('class="pdf-footer-bar"', $this->renderer->html);
+        $this->assertStringContainsString('class="pageNumber"', $this->renderer->html);
+        $this->assertStringNotContainsString('class="docx-template-footer"', $this->renderer->html);
+        $this->assertStringNotContainsString('Page 3', $this->renderer->html);
         $this->assertStringContainsString('.docx-template-header { margin-bottom:', $this->renderer->html);
-        $this->assertStringContainsString('.docx-template-footer { margin-top:', $this->renderer->html);
+        $this->assertStringContainsString('template[data-pdf-footer] { display: none; }', $this->renderer->html);
         $this->assertStringNotContainsString('position: fixed', $this->renderer->html);
         $this->assertStringContainsString('Report Client Limited', $this->renderer->html);
         $this->assertStringContainsString('Client Report', $this->renderer->html);

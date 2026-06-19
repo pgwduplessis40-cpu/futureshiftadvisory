@@ -47,6 +47,7 @@ final class UploadedReportTemplateRenderer
         $header = strtr($parts['header'], $tokens);
         $body = strtr($parts['body'], $tokens);
         $footer = strtr($parts['footer'], $tokens);
+        $pdfFooter = $this->pdfFooterTemplate($footer);
 
         if (! $hasSectionsToken) {
             $body .= "\n".'<div class="docx-page-break"></div><main class="report-content">'.$sections.'</main>';
@@ -59,6 +60,7 @@ final class UploadedReportTemplateRenderer
 <head>
 <meta charset="utf-8">
 <title>%s</title>
+%s
 <style>%s
 %s</style>
 </head>
@@ -67,17 +69,16 @@ final class UploadedReportTemplateRenderer
 <div class="uploaded-docx-report-template">
 %s
 </div>
-%s
 </body>
 </html>
 HTML,
             $this->escape($report->title),
+            $pdfFooter,
             $css,
             $this->docxCss(),
             $this->escape((string) $template->getKey()),
             $header === '' ? '' : '<header class="docx-template-header">'.$header.'</header>',
             $body,
-            $footer === '' ? '' : '<footer class="docx-template-footer">'.$footer.'</footer>',
         );
     }
 
@@ -628,14 +629,50 @@ HTML,
         ], true);
     }
 
+    private function pdfFooterTemplate(string $footer): string
+    {
+        $text = trim(preg_replace('/\s+/', ' ', html_entity_decode(strip_tags($footer), ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8')) ?? '');
+        if ($text === '') {
+            return '';
+        }
+
+        $text = preg_replace('/\bPage\s+\d+\b/i', 'Page [[PDF_PAGE_NUMBER]]', $text) ?? $text;
+        if (! str_contains($text, '[[PDF_PAGE_NUMBER]]')) {
+            $text .= ' - Page [[PDF_PAGE_NUMBER]]';
+        }
+
+        $text = str_replace(
+            '[[PDF_PAGE_NUMBER]]',
+            '<span class="pageNumber"></span>',
+            $this->escape($text),
+        );
+
+        return sprintf(
+            <<<'HTML'
+<template data-pdf-footer>
+<style>
+* { box-sizing: border-box; }
+.pdf-footer { color: #9FB0C8; font-family: Arial, sans-serif; font-size: 7.5px; line-height: 1.35; padding: 0 16mm; width: 100%%; }
+.pdf-footer-rule { border-top: 1px solid #B8860B; height: 0; margin: 0 0 3mm; }
+.pdf-footer-bar { background: #1C2B45; min-height: 11mm; padding: 3mm 3mm 2.5mm; width: 100%%; }
+</style>
+<div class="pdf-footer">
+<div class="pdf-footer-rule"></div>
+<div class="pdf-footer-bar">%s</div>
+</div>
+</template>
+HTML,
+            $text,
+        );
+    }
+
     private function docxCss(): string
     {
         return <<<'CSS'
 @page { size: A4; margin: 18mm 25.4mm 18mm; }
 .docx-template-header { margin-bottom: 8mm; }
-.docx-template-footer { margin-top: 10mm; }
-.docx-template-header .docx-template-table,
-.docx-template-footer .docx-template-table { margin: 0; }
+.docx-template-header .docx-template-table { margin: 0; }
+template[data-pdf-footer] { display: none; }
 .uploaded-docx-report-template { background: #fff; }
 .docx-template-block { margin: 0 0 10px; }
 h1.docx-template-block { font-size: 25px; line-height: 1.15; margin-bottom: 14px; }
