@@ -923,7 +923,7 @@ final class ReportComposer implements ProvidesMethodology
     private function templateRenderStrategy(Template $template): string
     {
         if ($this->uploadedTemplates->supports($template)) {
-            return 'uploaded_docx_html_v3';
+            return 'uploaded_docx_html_v4';
         }
 
         if ($this->isTokenizedHtmlTemplate($template)) {

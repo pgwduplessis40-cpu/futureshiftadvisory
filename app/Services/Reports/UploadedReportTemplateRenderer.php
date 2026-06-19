@@ -75,9 +75,9 @@ HTML,
             $css,
             $this->docxCss(),
             $this->escape((string) $template->getKey()),
-            $header === '' ? '' : '<header class="docx-fixed-header">'.$header.'</header>',
+            $header === '' ? '' : '<header class="docx-template-header">'.$header.'</header>',
             $body,
-            $footer === '' ? '' : '<footer class="docx-fixed-footer">'.$footer.'</footer>',
+            $footer === '' ? '' : '<footer class="docx-template-footer">'.$footer.'</footer>',
         );
     }
 
@@ -631,12 +631,12 @@ HTML,
     private function docxCss(): string
     {
         return <<<'CSS'
-@page { size: A4; margin: 37mm 25.4mm 24mm; }
-.docx-fixed-header { left: 25.4mm; position: fixed; right: 25.4mm; top: -26mm; z-index: 2; }
-.docx-fixed-footer { bottom: -16mm; left: 25.4mm; position: fixed; right: 25.4mm; z-index: 2; }
-.docx-fixed-header .docx-template-table,
-.docx-fixed-footer .docx-template-table { margin: 0; }
-.uploaded-docx-report-template { background: #fff; position: relative; z-index: 1; }
+@page { size: A4; margin: 18mm 25.4mm 18mm; }
+.docx-template-header { margin-bottom: 8mm; }
+.docx-template-footer { margin-top: 10mm; }
+.docx-template-header .docx-template-table,
+.docx-template-footer .docx-template-table { margin: 0; }
+.uploaded-docx-report-template { background: #fff; }
 .docx-template-block { margin: 0 0 10px; }
 h1.docx-template-block { font-size: 25px; line-height: 1.15; margin-bottom: 14px; }
 h2.docx-template-block { font-size: 17px; line-height: 1.25; margin: 16px 0 9px; }
