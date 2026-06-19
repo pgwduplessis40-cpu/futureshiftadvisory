@@ -41,6 +41,7 @@ use App\Models\RatingFramework;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\RiskCost;
+use App\Models\Template;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
@@ -93,6 +94,7 @@ final class ReportComposer implements ProvidesMethodology
             $waterfall = $this->waterfalls->forClient($client);
             $valuation = $this->latestValuation($client);
             $proposal = $this->latestProposal($client);
+            $template = $this->activeReportTemplateFor($type);
 
             $clientReleaseGate = $type === ReportType::Client && $this->standardAdvisoryClient($client);
             $reviewStatus = match (true) {
@@ -119,6 +121,7 @@ final class ReportComposer implements ProvidesMethodology
                         ReportType::DueDiligence->value,
                         ReportType::EntrepreneurAssessment->value,
                     ],
+                    'template' => $this->reportTemplateMetadata($template),
                 ],
                 'review_status' => $reviewStatus,
             ]);
@@ -859,6 +862,81 @@ final class ReportComposer implements ProvidesMethodology
             ReportType::Stakeholder => $this->stakeholderSections($client, $findings, $waterfall, $valuation),
             ReportType::Trajectory => $this->trajectorySections($client, $findings),
             default => [],
+        };
+    }
+
+    private function activeReportTemplateFor(ReportType $type): ?Template
+    {
+        return Template::query()
+            ->usable()
+            ->where('category', Template::CATEGORY_REPORT)
+            ->latest('updated_at')
+            ->latest()
+            ->limit(50)
+            ->get()
+            ->first(fn (Template $template): bool => $this->templateAppliesToReportType($template, $type));
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function reportTemplateMetadata(?Template $template): ?array
+    {
+        if (! $template instanceof Template) {
+            return null;
+        }
+
+        $uploadedFile = data_get($template->structure, 'uploaded_file');
+
+        return [
+            'id' => $template->getKey(),
+            'category' => $template->category,
+            'title' => $template->title,
+            'version' => $template->version,
+            'source_reference' => $template->source_reference,
+            'structure_report_type' => data_get($template->structure, 'report_type'),
+            'uploaded_file' => is_array($uploadedFile)
+                ? ($uploadedFile['original_name'] ?? null)
+                : null,
+        ];
+    }
+
+    private function templateTitleMatchesType(Template $template, ReportType $type): bool
+    {
+        return Str::contains(Str::lower($template->title), $this->reportTemplateKeywords($type));
+    }
+
+    private function templateAppliesToReportType(Template $template, ReportType $type): bool
+    {
+        $reportType = data_get($template->structure, 'report_type');
+
+        if (is_string($reportType) && trim($reportType) !== '') {
+            return $reportType === $type->value;
+        }
+
+        return $this->templateTitleMatchesType($template, $type)
+            || $this->isGenericReportTemplate($template);
+    }
+
+    private function isGenericReportTemplate(Template $template): bool
+    {
+        $reportType = data_get($template->structure, 'report_type');
+
+        return (! is_string($reportType) || trim($reportType) === '')
+            && ! Str::contains(Str::lower($template->title), ['client', 'advisor', 'stakeholder', 'trajectory']);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function reportTemplateKeywords(ReportType $type): array
+    {
+        return match ($type) {
+            ReportType::Client => ['client report', 'client'],
+            ReportType::Advisor => ['advisor report', 'advisor'],
+            ReportType::Stakeholder => ['stakeholder report', 'stakeholder'],
+            ReportType::Trajectory => ['business health trajectory report', 'trajectory'],
+            default => [Str::lower($type->label()), Str::of($type->value)->replace('_', ' ')->lower()->toString()],
         };
     }
 
@@ -3633,6 +3711,68 @@ final class ReportComposer implements ProvidesMethodology
             ->sortBy('position')
             ->map(fn (ReportSection $section): string => $this->sectionHtml($section))
             ->implode('');
+        $template = $this->templateForReport($report);
+        $this->syncReportTemplateMetadata($report, $template);
+
+        if ($template instanceof Template && $this->isTokenizedHtmlTemplate($template)) {
+            return $this->htmlFromTemplate($report, $template, $sections);
+        }
+
+        return $this->brandedReportHtml($report, $template, $sections);
+    }
+
+    private function templateForReport(Report $report): ?Template
+    {
+        return $report->type instanceof ReportType
+            ? $this->activeReportTemplateFor($report->type)
+            : null;
+    }
+
+    private function syncReportTemplateMetadata(Report $report, ?Template $template): void
+    {
+        $metadata = $report->metadata ?? [];
+        $templateMetadata = $this->reportTemplateMetadata($template);
+
+        if (($metadata['template'] ?? null) === $templateMetadata) {
+            return;
+        }
+
+        $metadata['template'] = $templateMetadata;
+        $report->forceFill(['metadata' => $metadata])->save();
+    }
+
+    private function isTokenizedHtmlTemplate(Template $template): bool
+    {
+        $body = Str::lower((string) $template->body);
+
+        return Str::contains($body, [
+            '{{ sections',
+            '{{sections',
+            '<html',
+            '<body',
+            '<style',
+            'data-report-template',
+        ]);
+    }
+
+    private function htmlFromTemplate(Report $report, Template $template, string $sections): string
+    {
+        $body = (string) $template->body;
+        $hasSectionsToken = Str::contains($body, [
+            '{{ sections }}',
+            '{{sections}}',
+            '{{{ sections }}}',
+            '{{{sections}}}',
+        ]);
+        $rendered = strtr($body, $this->reportTemplateTokens($report, $template, $sections));
+
+        if (! $hasSectionsToken) {
+            $rendered .= "\n".$sections;
+        }
+
+        if (Str::contains(Str::lower($rendered), '<html')) {
+            return $rendered;
+        }
 
         return sprintf(
             <<<'HTML'
@@ -3641,33 +3781,146 @@ final class ReportComposer implements ProvidesMethodology
 <head>
 <meta charset="utf-8">
 <title>%s</title>
-<style>
-body { color: #17211b; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; margin: 0; }
-.brand { border-bottom: 2px solid #2f6f5e; margin-bottom: 18px; padding-bottom: 12px; }
-.brand h1 { font-size: 22px; margin: 0 0 4px; }
-.brand p { margin: 0; }
-.section { border: 1px solid #d8e2dc; margin-bottom: 16px; padding: 12px; break-inside: avoid; }
-.section h2 { color: #214f44; font-size: 15px; margin: 0 0 6px; }
-.body { white-space: pre-wrap; }
-.note { color: #4b5563; font-size: 10px; margin-top: 6px; }
-.chart { margin-top: 10px; }
-</style>
+<style>%s</style>
 </head>
-<body>
-<header class="brand">
-<h1>Future Shift Advisory</h1>
-<p>%s</p>
-<p>%s</p>
-</header>
+<body data-report-template="%s">
 %s
 </body>
 </html>
 HTML,
             $this->escape($report->title),
-            $this->escape($report->type->label()),
-            $this->escape($report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client'),
-            $sections,
+            $this->reportCss($template),
+            $this->escape((string) $template->getKey()),
+            $rendered,
         );
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function reportTemplateTokens(Report $report, Template $template, string $sections): array
+    {
+        $clientName = $report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client';
+
+        return [
+            '{{ report_title }}' => $this->escape($report->title),
+            '{{report_title}}' => $this->escape($report->title),
+            '{{ report_type }}' => $this->escape($report->type->label()),
+            '{{report_type}}' => $this->escape($report->type->label()),
+            '{{ client_name }}' => $this->escape($clientName),
+            '{{client_name}}' => $this->escape($clientName),
+            '{{ generated_at }}' => $this->escape($report->generated_at?->format('j M Y') ?? now()->format('j M Y')),
+            '{{generated_at}}' => $this->escape($report->generated_at?->format('j M Y') ?? now()->format('j M Y')),
+            '{{ template_title }}' => $this->escape($template->title),
+            '{{template_title}}' => $this->escape($template->title),
+            '{{ template_version }}' => (string) $template->version,
+            '{{template_version}}' => (string) $template->version,
+            '{{ sections }}' => $sections,
+            '{{sections}}' => $sections,
+            '{{{ sections }}}' => $sections,
+            '{{{sections}}}' => $sections,
+        ];
+    }
+
+    private function brandedReportHtml(Report $report, ?Template $template, string $sections): string
+    {
+        $clientName = $report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client';
+        $templateLabel = $template instanceof Template
+            ? sprintf('%s v%d', $template->title, $template->version)
+            : 'System report layout';
+
+        return sprintf(
+            <<<'HTML'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>%s</title>
+<style>%s</style>
+</head>
+<body data-report-template="%s">
+<header class="report-cover">
+<div class="brand-lockup">
+<div class="brand-mark"><span></span><span></span><span></span></div>
+<div>
+<p class="eyebrow">Future Shift Advisory</p>
+<h1>%s</h1>
+<p class="client-name">%s</p>
+</div>
+</div>
+<dl class="report-meta">
+<div><dt>Report type</dt><dd>%s</dd></div>
+<div><dt>Generated</dt><dd>%s</dd></div>
+<div><dt>Template</dt><dd>%s</dd></div>
+</dl>
+</header>
+<main class="report-content">
+%s
+</main>
+<footer class="report-footer">Generated using %s</footer>
+</body>
+</html>
+HTML,
+            $this->escape($report->title),
+            $this->reportCss($template),
+            $template instanceof Template ? $this->escape((string) $template->getKey()) : 'system',
+            $this->escape($report->title),
+            $this->escape($clientName),
+            $this->escape($report->type->label()),
+            $this->escape($report->generated_at?->format('j M Y') ?? now()->format('j M Y')),
+            $this->escape($templateLabel),
+            $sections,
+            $this->escape($templateLabel),
+        );
+    }
+
+    private function reportCss(?Template $template): string
+    {
+        $accent = $this->templateLayoutColor($template, 'accent_color', '#2f6f5e');
+        $accentDark = $this->templateLayoutColor($template, 'accent_dark', '#153f36');
+        $ink = $this->templateLayoutColor($template, 'ink_color', '#17211b');
+        $muted = $this->templateLayoutColor($template, 'muted_color', '#5d6b63');
+        $paper = $this->templateLayoutColor($template, 'paper_color', '#fbfcfb');
+
+        return <<<CSS
+@page { margin: 16mm 15mm 18mm; }
+* { box-sizing: border-box; }
+body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font-size: 11.5px; line-height: 1.55; margin: 0; }
+.report-cover { border-top: 7px solid {$accent}; margin-bottom: 22px; padding-top: 18px; }
+.brand-lockup { align-items: center; display: flex; gap: 14px; }
+.brand-mark { align-items: end; display: inline-flex; gap: 3px; height: 36px; width: 38px; }
+.brand-mark span { background: {$accent}; border-radius: 1px 1px 0 0; display: block; width: 8px; }
+.brand-mark span:nth-child(1) { height: 14px; opacity: .55; }
+.brand-mark span:nth-child(2) { height: 24px; opacity: .78; }
+.brand-mark span:nth-child(3) { height: 34px; }
+.eyebrow { color: {$accentDark}; font-size: 10px; font-weight: 700; letter-spacing: .08em; margin: 0 0 3px; text-transform: uppercase; }
+.report-cover h1 { color: {$ink}; font-size: 25px; line-height: 1.15; margin: 0; }
+.client-name { color: {$muted}; font-size: 12px; margin: 5px 0 0; }
+.report-meta { border-bottom: 1px solid #d7e2dd; border-top: 1px solid #d7e2dd; display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin: 20px 0 0; padding: 10px 0; }
+.report-meta div { min-width: 0; }
+.report-meta dt { color: {$muted}; font-size: 9px; font-weight: 700; margin: 0 0 2px; text-transform: uppercase; }
+.report-meta dd { margin: 0; }
+.report-content { display: grid; gap: 17px; }
+.report-section { background: #fff; border-left: 4px solid {$accent}; break-inside: avoid; padding: 0 0 0 14px; }
+.report-section h2 { color: {$accentDark}; font-size: 16px; line-height: 1.3; margin: 0 0 7px; }
+.section-body { white-space: pre-wrap; }
+.section-body p { margin: 0 0 8px; }
+.chart { margin: 12px 0; }
+.evidence { border-top: 1px solid #e2ebe7; color: {$muted}; font-size: 9.5px; margin-top: 10px; padding-top: 7px; }
+.evidence p { margin: 0 0 3px; }
+.report-footer { border-top: 1px solid #d7e2dd; color: {$muted}; font-size: 9px; margin-top: 24px; padding-top: 8px; text-align: right; }
+CSS;
+    }
+
+    private function templateLayoutColor(?Template $template, string $key, string $default): string
+    {
+        $value = $template instanceof Template ? data_get($template->structure, 'layout.'.$key) : null;
+
+        if (! is_string($value) || ! preg_match('/^#[0-9a-fA-F]{6}$/', $value)) {
+            return $default;
+        }
+
+        return $value;
     }
 
     private function reportSubjectKey(Report $report): string
@@ -3691,15 +3944,18 @@ HTML,
 
         return sprintf(
             <<<'HTML'
-<section class="section">
+<article class="report-section" data-section-key="%s">
 <h2>%s</h2>
-<div class="body">%s</div>
+<div class="section-body">%s</div>
 %s
-<p class="note">%s</p>
-<p class="note">%s</p>
-<p class="note">Sources: %s</p>
-</section>
+<div class="evidence">
+<p>%s</p>
+<p>%s</p>
+<p>Sources: %s</p>
+</div>
+</article>
 HTML,
+            $this->escape($section->key),
             $this->escape($section->title),
             nl2br($this->escape($section->body)),
             $chart,

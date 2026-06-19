@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
+use App\Enums\ReportType;
 use App\Http\Controllers\Controller;
 use App\Models\Document;
 use App\Models\Template;
@@ -62,6 +63,7 @@ final class TemplateController extends Controller
                 ['value' => Template::STATUS_ACTIVE, 'label' => 'Active'],
                 ['value' => Template::STATUS_ARCHIVED, 'label' => 'Archived'],
             ],
+            'reportTypes' => $this->reportTypeOptions(),
             'canManage' => Gate::allows('create', Template::class),
             'indexUrl' => route('advisor.templates.index', absolute: false),
             'storeUrl' => route('advisor.templates.store', absolute: false),
@@ -86,6 +88,7 @@ final class TemplateController extends Controller
             'structure' => [
                 'source_kind' => 'manual',
                 'sections' => [],
+                ...$this->templateStructure($validated),
                 ...$uploadStructure,
             ],
             'source_reference' => 'manual:user:'.$user->getKey(),
@@ -116,6 +119,7 @@ final class TemplateController extends Controller
                 ['value' => Template::STATUS_ACTIVE, 'label' => 'Active'],
                 ['value' => Template::STATUS_ARCHIVED, 'label' => 'Archived'],
             ],
+            'reportTypes' => $this->reportTypeOptions(),
             'canManage' => Gate::allows('update', $template),
             'indexUrl' => route('advisor.templates.index', absolute: false),
         ]);
@@ -144,10 +148,11 @@ final class TemplateController extends Controller
 
         $filename = (string) ($uploadedFile['original_name'] ?? Str::slug($template->title).'.docx');
         $mime = (string) ($uploadedFile['mime_type'] ?? 'application/octet-stream');
+        $disposition = $this->downloadDisposition($request, $mime);
 
         return response($contents, 200, [
             'Content-Type' => $mime,
-            'Content-Disposition' => 'attachment; filename="'.$this->downloadFilename($filename).'"',
+            'Content-Disposition' => $disposition.'; filename="'.$this->downloadFilename($filename).'"',
             'Content-Length' => (string) strlen($contents),
             'X-Content-Type-Options' => 'nosniff',
             'Cache-Control' => 'private, no-store, max-age=0',
@@ -172,8 +177,9 @@ final class TemplateController extends Controller
 
         $template->forceFill([
             ...$this->templateAttributes($validated),
-            'structure' => $uploadStructure === [] ? $structure : [
+            'structure' => [
                 ...$structure,
+                ...$this->templateStructure($validated),
                 ...$uploadStructure,
             ],
             'version' => $template->version + 1,
@@ -209,6 +215,8 @@ final class TemplateController extends Controller
      */
     private function templateSummary(Template $template): array
     {
+        $uploadedFile = $this->uploadedFile($template);
+
         return [
             'id' => $template->id,
             'category' => $template->category,
@@ -218,10 +226,23 @@ final class TemplateController extends Controller
             'status' => $template->status,
             'version' => $template->version,
             'source_reference' => $template->source_reference,
-            'uploaded_file' => $this->uploadedFile($template),
-            'download_url' => $this->uploadedFile($template) === null
+            'uploaded_file' => $uploadedFile === null
+                ? null
+                : [
+                    ...$uploadedFile,
+                    'can_preview' => $this->canPreviewUploadedFile($uploadedFile),
+                ],
+            'report_type' => data_get($template->structure, 'report_type'),
+            'layout' => data_get($template->structure, 'layout', []),
+            'download_url' => $uploadedFile === null
                 ? null
                 : route('advisor.templates.download', $template, absolute: false),
+            'view_url' => $uploadedFile !== null && $this->canPreviewUploadedFile($uploadedFile)
+                ? route('advisor.templates.download', [
+                    'template' => $template,
+                    'disposition' => 'inline',
+                ], false)
+                : null,
             'updated_at' => $template->updated_at?->toIso8601String(),
             'show_url' => route('advisor.templates.show', $template, absolute: false),
             'update_url' => route('advisor.templates.update', $template, absolute: false),
@@ -253,6 +274,8 @@ final class TemplateController extends Controller
             'title' => ['required', 'string', 'max:180'],
             'body' => ['nullable', 'string', 'max:40000'],
             'status' => ['required', 'string', Rule::in(Template::libraryStatuses())],
+            'report_type' => ['nullable', 'string', Rule::in($this->reportTypeValues())],
+            'accent_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
             'file' => ['nullable', 'file', 'mimes:doc,docx,dot,dotx,pdf', 'max:20480'],
         ]);
 
@@ -285,11 +308,62 @@ final class TemplateController extends Controller
     }
 
     /**
-     * Persist an uploaded template file via SecureFileWriter — the single
-     * sanctioned upload path (spec §4): virus scan, encrypted secure_local
-     * storage, Document provenance, and audit. Infected uploads throw
-     * InfectedFileException; unscannable uploads are quarantined by the writer
-     * and rejected here so templates only ever reference clean files.
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function templateStructure(array $validated): array
+    {
+        if (($validated['category'] ?? null) !== Template::CATEGORY_REPORT) {
+            return [];
+        }
+
+        $structure = [];
+        $reportType = trim((string) ($validated['report_type'] ?? ''));
+        $accentColor = trim((string) ($validated['accent_color'] ?? ''));
+
+        if ($reportType !== '') {
+            $structure['report_type'] = $reportType;
+        }
+
+        if ($accentColor !== '') {
+            $structure['layout'] = [
+                'accent_color' => $accentColor,
+            ];
+        }
+
+        return $structure;
+    }
+
+    /**
+     * @return array<int, array{value: string, label: string}>
+     */
+    private function reportTypeOptions(): array
+    {
+        return collect($this->reportTypeValues())
+            ->map(fn (string $type): array => [
+                'value' => $type,
+                'label' => ReportType::from($type)->label(),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function reportTypeValues(): array
+    {
+        return [
+            ReportType::Client->value,
+            ReportType::Advisor->value,
+            ReportType::Stakeholder->value,
+            ReportType::Trajectory->value,
+        ];
+    }
+
+    /**
+     * Persist an uploaded template file via SecureFileWriter - the sanctioned
+     * upload path for scanning, encrypted storage, provenance, and audit.
      *
      * @return array<string, mixed>
      */
@@ -338,6 +412,23 @@ final class TemplateController extends Controller
     private function downloadFilename(string $filename): string
     {
         return str_replace(['\\', '/', '"', "\r", "\n"], '-', $filename);
+    }
+
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function canPreviewUploadedFile(array $uploadedFile): bool
+    {
+        return strtolower((string) ($uploadedFile['mime_type'] ?? '')) === 'application/pdf';
+    }
+
+    private function downloadDisposition(Request $request, string $mime): string
+    {
+        if ($request->query('disposition') !== 'inline') {
+            return 'attachment';
+        }
+
+        return strtolower($mime) === 'application/pdf' ? 'inline' : 'attachment';
     }
 
     private function viewer(Request $request): User

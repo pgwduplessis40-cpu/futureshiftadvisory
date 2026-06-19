@@ -25,6 +25,7 @@ use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\Report;
 use App\Models\ReportSection;
+use App\Models\Template;
 use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Pdf\PdfRenderer;
@@ -33,6 +34,7 @@ use App\Services\Reports\ReportComposer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -135,6 +137,114 @@ final class ReportComposerTest extends TestCase
             $this->assertNotSame('', $section->document_support_note);
             $this->assertStringContainsString('Data quality note:', $section->data_quality_note);
         });
+    }
+
+    public function test_client_report_uses_active_report_template(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('template-report-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Advisor Report Template',
+            'body' => 'Advisor-only template body.',
+            'structure' => ['report_type' => ReportType::Advisor->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        /** @var Template $template */
+        $template = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Client Report Template',
+            'body' => <<<'HTML'
+<main data-report-template="client-template">
+<header class="client-template-header">
+<h1>{{ report_title }}</h1>
+<p>{{ client_name }}</p>
+<p>{{ template_title }} v{{ template_version }}</p>
+</header>
+{{ sections }}
+</main>
+HTML,
+            'structure' => [
+                'report_type' => ReportType::Client->value,
+                'sections' => [
+                    [
+                        'position' => 1,
+                        'heading' => 'Client-facing opening',
+                        'purpose' => 'Frame the advisory report for client review.',
+                    ],
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 3,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+
+        $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(3, data_get($report->metadata, 'template.version'));
+        $this->assertStringContainsString('data-report-template="client-template"', $this->renderer->html);
+        $this->assertStringContainsString('Client Report Template v3', $this->renderer->html);
+        $this->assertStringContainsString('Current valuation range', $this->renderer->html);
+        $this->assertStringNotContainsString('Advisor-only template body', $this->renderer->html);
+    }
+
+    public function test_newest_active_report_template_is_used_instead_of_old_or_archived_templates(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('current-template-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+
+        Carbon::setTestNow('2026-06-18 09:00:00');
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 1',
+            'body' => '<main data-report-template="old-active">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        Carbon::setTestNow('2026-06-18 10:00:00');
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Archived Report Template VS 2',
+            'body' => '<main data-report-template="archived">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ARCHIVED,
+            'version' => 2,
+        ]);
+
+        Carbon::setTestNow('2026-06-19 09:00:00');
+        /** @var Template $template */
+        $template = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 3',
+            'body' => '',
+            'structure' => [
+                'sections' => [],
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'original_name' => 'Report_Template_VS_3.docx',
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 3,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+
+        $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(3, data_get($report->metadata, 'template.version'));
+        $this->assertSame('Report_Template_VS_3.docx', data_get($report->metadata, 'template.uploaded_file'));
+        $this->assertStringContainsString('Report Template VS 3 v3', $this->renderer->html);
+        $this->assertStringNotContainsString('data-report-template="old-active"', $this->renderer->html);
+        $this->assertStringNotContainsString('data-report-template="archived"', $this->renderer->html);
+
+        Carbon::setTestNow();
     }
 
     public function test_advisor_report_includes_waterfall_implementation_plan_and_fee_roi(): void
@@ -320,14 +430,18 @@ final class ReportComposerTest extends TestCase
         ]);
     }
 
-    public function test_advisor_report_download_returns_404_when_pdf_missing(): void
+    public function test_advisor_report_download_rerenders_when_pdf_missing(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-missing@example.test');
         $report = $this->storedReport($client); // no pdf_path set
 
-        $this->actingAsMfa($advisor)
-            ->get(route('advisor.reports.download', $report))
-            ->assertNotFound();
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report));
+
+        $response->assertOk();
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+        $this->assertNotNull($report->refresh()->pdf_path);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
     }
 
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void

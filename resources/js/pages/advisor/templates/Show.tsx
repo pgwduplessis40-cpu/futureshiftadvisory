@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Download, FileText, Save, Upload } from 'lucide-react';
+import { ArrowLeft, Download, Eye, FileText, Save, Upload } from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,7 @@ type Props = {
     template: TemplateDetail;
     categories: TemplateOption[];
     statuses: TemplateOption[];
+    reportTypes: TemplateOption[];
     canManage: boolean;
     indexUrl: string;
 };
@@ -19,6 +20,7 @@ export default function TemplateShow({
     template,
     categories,
     statuses,
+    reportTypes,
     canManage,
     indexUrl,
 }: Props) {
@@ -27,8 +29,11 @@ export default function TemplateShow({
         title: template.title,
         body: template.body,
         status: template.status,
+        report_type: template.report_type ?? '',
+        accent_color: template.layout?.accent_color ?? '#2f6f5e',
         file: null,
     });
+    const selectedFileName = form.data.file?.name ?? null;
 
     const updateTemplate = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -84,27 +89,52 @@ export default function TemplateShow({
                                 {template.creator_name}
                             </Badge>
                         )}
-                        {template.uploaded_file && (
-                            <Badge variant="outline">file</Badge>
+                        <Badge variant="outline">
+                            {template.uploaded_file
+                                ? 'source file'
+                                : 'source missing'}
+                        </Badge>
+                        {template.report_type && (
+                            <Badge variant="outline">
+                                {formatReportType(template.report_type)}
+                            </Badge>
                         )}
                     </div>
 
-                    {template.uploaded_file && (
-                        <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
-                            <div className="min-w-0 text-sm">
-                                <div className="flex items-center gap-2 font-medium">
-                                    <Upload
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {template.uploaded_file.original_name}
-                                </div>
+                    <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-3 sm:flex-row sm:items-center sm:justify-between">
+                        <div className="min-w-0 text-sm">
+                            <div className="flex items-center gap-2 font-medium">
+                                <Upload className="size-4" aria-hidden="true" />
+                                {template.uploaded_file ? (
+                                    template.uploaded_file.original_name
+                                ) : (
+                                    <>No source file attached</>
+                                )}
+                            </div>
+                            {template.uploaded_file && (
                                 <div className="mt-1 text-xs text-muted-foreground">
                                     {formatBytes(
                                         template.uploaded_file.byte_size,
                                     )}
                                 </div>
-                            </div>
+                            )}
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            {template.view_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <a
+                                        href={template.view_url}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        <Eye
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        View source
+                                    </a>
+                                </Button>
+                            )}
                             {template.download_url && (
                                 <Button asChild size="sm" variant="outline">
                                     <a href={template.download_url}>
@@ -117,7 +147,7 @@ export default function TemplateShow({
                                 </Button>
                             )}
                         </div>
-                    )}
+                    </div>
 
                     <div className="prose prose-sm max-w-none text-sm leading-6 whitespace-pre-wrap">
                         {template.body}
@@ -129,7 +159,7 @@ export default function TemplateShow({
                         onSubmit={updateTemplate}
                         className="grid gap-4 rounded-md border bg-background p-4"
                     >
-                        <div className="grid gap-3 lg:grid-cols-[11rem_1fr_9rem]">
+                        <div className="grid gap-3 lg:grid-cols-[11rem_1fr_9rem_10rem_8rem]">
                             <label className="grid gap-1 text-sm">
                                 <span className="text-xs text-muted-foreground">
                                     Category
@@ -197,6 +227,58 @@ export default function TemplateShow({
                                 </select>
                                 <InputError message={form.errors.status} />
                             </label>
+
+                            {form.data.category === 'report' && (
+                                <>
+                                    <label className="grid gap-1 text-sm">
+                                        <span className="text-xs text-muted-foreground">
+                                            Report type
+                                        </span>
+                                        <select
+                                            className="h-9 rounded-md border bg-background px-3"
+                                            value={form.data.report_type}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'report_type',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        >
+                                            <option value="">Generic</option>
+                                            {reportTypes.map((type) => (
+                                                <option
+                                                    key={type.value}
+                                                    value={type.value}
+                                                >
+                                                    {type.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                        <InputError
+                                            message={form.errors.report_type}
+                                        />
+                                    </label>
+
+                                    <label className="grid gap-1 text-sm">
+                                        <span className="text-xs text-muted-foreground">
+                                            Accent
+                                        </span>
+                                        <Input
+                                            type="color"
+                                            value={form.data.accent_color}
+                                            onChange={(event) =>
+                                                form.setData(
+                                                    'accent_color',
+                                                    event.target.value,
+                                                )
+                                            }
+                                        />
+                                        <InputError
+                                            message={form.errors.accent_color}
+                                        />
+                                    </label>
+                                </>
+                            )}
                         </div>
 
                         <label className="grid gap-1 text-sm">
@@ -215,7 +297,9 @@ export default function TemplateShow({
 
                         <label className="grid gap-1 text-sm">
                             <span className="text-xs text-muted-foreground">
-                                Replace uploaded template file
+                                {template.uploaded_file
+                                    ? 'Replace source file'
+                                    : 'Attach source file'}
                             </span>
                             <Input
                                 type="file"
@@ -230,7 +314,12 @@ export default function TemplateShow({
                             <InputError message={form.errors.file} />
                         </label>
 
-                        <div>
+                        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                            <div className="min-h-5 text-xs text-muted-foreground">
+                                {selectedFileName
+                                    ? `Selected file: ${selectedFileName}`
+                                    : 'No source file selected'}
+                            </div>
                             <Button type="submit" disabled={form.processing}>
                                 <Save className="size-4" aria-hidden="true" />
                                 Save
@@ -258,4 +347,8 @@ function formatBytes(bytes: number) {
             maximumFractionDigits: 1,
         }).format(bytes / 1024) + ' KB'
     );
+}
+
+function formatReportType(value: string) {
+    return value.replaceAll('_', ' ');
 }

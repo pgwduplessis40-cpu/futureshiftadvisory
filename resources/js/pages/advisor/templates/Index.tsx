@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Download, FileText, Save, Search, Upload } from 'lucide-react';
+import { Download, Eye, FileText, Save, Search, Upload } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
@@ -20,6 +20,7 @@ type Props = {
     };
     categories: TemplateOption[];
     statuses: TemplateOption[];
+    reportTypes: TemplateOption[];
     canManage: boolean;
     indexUrl: string;
     storeUrl: string;
@@ -30,6 +31,7 @@ export default function TemplateIndex({
     filters,
     categories,
     statuses,
+    reportTypes,
     canManage,
     indexUrl,
     storeUrl,
@@ -40,6 +42,8 @@ export default function TemplateIndex({
         title: '',
         body: '',
         status: 'active',
+        report_type: '',
+        accent_color: '#2f6f5e',
         file: null,
     });
     const selectedFileName = createForm.data.file?.name ?? null;
@@ -138,7 +142,7 @@ export default function TemplateIndex({
                 {canManage && (
                     <form
                         onSubmit={createTemplate}
-                        className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[11rem_1fr_9rem]"
+                        className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[11rem_1fr_9rem_10rem_8rem]"
                     >
                         <label className="grid gap-1 text-sm">
                             <span className="text-xs text-muted-foreground">
@@ -202,7 +206,59 @@ export default function TemplateIndex({
                             <InputError message={createForm.errors.status} />
                         </label>
 
-                        <label className="grid gap-1 text-sm lg:col-span-3">
+                        {createForm.data.category === 'report' && (
+                            <>
+                                <label className="grid gap-1 text-sm">
+                                    <span className="text-xs text-muted-foreground">
+                                        Report type
+                                    </span>
+                                    <select
+                                        className="h-9 rounded-md border bg-background px-3"
+                                        value={createForm.data.report_type}
+                                        onChange={(event) =>
+                                            createForm.setData(
+                                                'report_type',
+                                                event.target.value,
+                                            )
+                                        }
+                                    >
+                                        <option value="">Generic</option>
+                                        {reportTypes.map((type) => (
+                                            <option
+                                                key={type.value}
+                                                value={type.value}
+                                            >
+                                                {type.label}
+                                            </option>
+                                        ))}
+                                    </select>
+                                    <InputError
+                                        message={createForm.errors.report_type}
+                                    />
+                                </label>
+
+                                <label className="grid gap-1 text-sm">
+                                    <span className="text-xs text-muted-foreground">
+                                        Accent
+                                    </span>
+                                    <Input
+                                        type="color"
+                                        value={createForm.data.accent_color}
+                                        onChange={(event) =>
+                                            createForm.setData(
+                                                'accent_color',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={createForm.errors.accent_color}
+                                    />
+                                </label>
+                            </>
+                        )}
+
+                        <label className="grid gap-1 text-sm lg:col-span-5">
                             <span className="text-xs text-muted-foreground">
                                 Body
                             </span>
@@ -219,7 +275,7 @@ export default function TemplateIndex({
                             <InputError message={createForm.errors.body} />
                         </label>
 
-                        <label className="grid gap-1 text-sm lg:col-span-3">
+                        <label className="grid gap-1 text-sm lg:col-span-5">
                             <span className="text-xs text-muted-foreground">
                                 Upload template file
                             </span>
@@ -236,7 +292,7 @@ export default function TemplateIndex({
                             <InputError message={createForm.errors.file} />
                         </label>
 
-                        <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-3">
+                        <div className="flex flex-col gap-3 border-t pt-3 sm:flex-row sm:items-center sm:justify-between lg:col-span-5">
                             <div className="min-h-5 text-xs text-muted-foreground">
                                 {selectedFileName
                                     ? `Selected file: ${selectedFileName}`
@@ -283,11 +339,11 @@ export default function TemplateIndex({
                                             <Badge variant="outline">
                                                 v{template.version}
                                             </Badge>
-                                            {template.uploaded_file && (
-                                                <Badge variant="outline">
-                                                    file
-                                                </Badge>
-                                            )}
+                                            <Badge variant="outline">
+                                                {template.uploaded_file
+                                                    ? 'source file'
+                                                    : 'source missing'}
+                                            </Badge>
                                         </div>
                                         <h2 className="mt-3 text-base font-semibold">
                                             <Link href={template.show_url}>
@@ -297,20 +353,43 @@ export default function TemplateIndex({
                                         <p className="mt-2 text-sm text-muted-foreground">
                                             {template.body_excerpt}
                                         </p>
-                                        {template.uploaded_file && (
-                                            <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
-                                                <Upload
-                                                    className="size-3"
-                                                    aria-hidden="true"
-                                                />
-                                                {
-                                                    template.uploaded_file
-                                                        .original_name
-                                                }
-                                            </p>
-                                        )}
+                                        <p className="mt-2 flex items-center gap-2 text-xs text-muted-foreground">
+                                            <Upload
+                                                className="size-3"
+                                                aria-hidden="true"
+                                            />
+                                            {template.uploaded_file ? (
+                                                <>
+                                                    {
+                                                        template.uploaded_file
+                                                            .original_name
+                                                    }
+                                                </>
+                                            ) : (
+                                                <>No source file attached</>
+                                            )}
+                                        </p>
                                     </div>
                                     <div className="flex flex-wrap gap-2">
+                                        {template.view_url && (
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <a
+                                                    href={template.view_url}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                >
+                                                    <Eye
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    View source
+                                                </a>
+                                            </Button>
+                                        )}
                                         {template.download_url && (
                                             <Button
                                                 asChild
@@ -324,6 +403,21 @@ export default function TemplateIndex({
                                                     />
                                                     Download
                                                 </a>
+                                            </Button>
+                                        )}
+                                        {!template.download_url && (
+                                            <Button
+                                                asChild
+                                                size="sm"
+                                                variant="outline"
+                                            >
+                                                <Link href={template.show_url}>
+                                                    <Upload
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    Attach source
+                                                </Link>
                                             </Button>
                                         )}
                                         <Button

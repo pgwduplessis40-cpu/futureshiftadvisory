@@ -12,14 +12,20 @@ export type TemplateSummary = {
     status: string;
     version: number;
     source_reference: string | null;
+    report_type: string | null;
+    layout: {
+        accent_color?: string | null;
+    };
     uploaded_file: {
         original_name: string;
         mime_type: string;
         extension: string;
         byte_size: number;
         uploaded_at: string | null;
+        can_preview: boolean;
     } | null;
     download_url: string | null;
+    view_url: string | null;
     updated_at: string | null;
     show_url: string;
     update_url: string;
@@ -38,5 +44,7 @@ export type TemplateFormData = {
     title: string;
     body: string;
     status: string;
+    report_type: string;
+    accent_color: string;
     file: File | null;
 };
