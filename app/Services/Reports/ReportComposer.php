@@ -754,6 +754,17 @@ final class ReportComposer implements ProvidesMethodology
         return $report->refresh();
     }
 
+    public function usesCurrentTemplate(Report $report): bool
+    {
+        if (! $report->type instanceof ReportType) {
+            return true;
+        }
+
+        return ($report->metadata['template'] ?? null) === $this->reportTemplateMetadata(
+            $this->templateForReport($report),
+        );
+    }
+
     private function usesAdvisorReviewGate(Report $report): bool
     {
         if (in_array($report->type, [
@@ -870,11 +881,10 @@ final class ReportComposer implements ProvidesMethodology
         return Template::query()
             ->usable()
             ->where('category', Template::CATEGORY_REPORT)
-            ->latest('updated_at')
-            ->latest()
-            ->limit(50)
             ->get()
-            ->first(fn (Template $template): bool => $this->templateAppliesToReportType($template, $type));
+            ->filter(fn (Template $template): bool => $this->templateAppliesToReportType($template, $type))
+            ->sort(fn (Template $left, Template $right): int => $this->templateSelectionRank($right, $type) <=> $this->templateSelectionRank($left, $type))
+            ->first();
     }
 
     /**
@@ -916,6 +926,41 @@ final class ReportComposer implements ProvidesMethodology
 
         return $this->templateTitleMatchesType($template, $type)
             || $this->isGenericReportTemplate($template);
+    }
+
+    /**
+     * @return array{0:int,1:int,2:int,3:int,4:string}
+     */
+    private function templateSelectionRank(Template $template, ReportType $type): array
+    {
+        return [
+            $this->templateSourceRank($template),
+            $this->templateSpecificityRank($template, $type),
+            $template->updated_at?->getTimestamp() ?? 0,
+            $template->created_at?->getTimestamp() ?? 0,
+            (string) $template->getKey(),
+        ];
+    }
+
+    private function templateSourceRank(Template $template): int
+    {
+        if (data_get($template->structure, 'source_kind') === 'uploaded_file'
+            || is_array(data_get($template->structure, 'uploaded_file'))) {
+            return 2;
+        }
+
+        return trim((string) $template->body) !== '' ? 1 : 0;
+    }
+
+    private function templateSpecificityRank(Template $template, ReportType $type): int
+    {
+        $reportType = data_get($template->structure, 'report_type');
+
+        if (is_string($reportType) && $reportType === $type->value) {
+            return 2;
+        }
+
+        return $this->templateTitleMatchesType($template, $type) ? 1 : 0;
     }
 
     private function isGenericReportTemplate(Template $template): bool

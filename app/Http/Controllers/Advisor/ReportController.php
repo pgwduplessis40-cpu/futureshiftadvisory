@@ -163,7 +163,11 @@ final class ReportController extends Controller
         $path = $format === 'pptx' ? $report->pptx_path : $report->pdf_path;
         $disk = Storage::disk('secure_local');
 
-        if ($format === 'pdf' && ($path === null || ! $disk->exists($path)) && $reports instanceof ReportComposer) {
+        if ($format === 'pdf' && $reports instanceof ReportComposer && (
+            $path === null
+            || ! $disk->exists($path)
+            || ! $reports->usesCurrentTemplate($report)
+        )) {
             $report = $reports->rerenderArtifacts($report);
             $path = $report->pdf_path;
         }

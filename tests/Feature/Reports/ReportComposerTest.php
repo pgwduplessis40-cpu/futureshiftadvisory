@@ -247,6 +247,48 @@ HTML,
         Carbon::setTestNow();
     }
 
+    public function test_uploaded_active_report_template_beats_live_synced_placeholder_updated_later(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('uploaded-template-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+
+        Carbon::setTestNow('2026-06-19 09:00:00');
+        /** @var Template $template */
+        $template = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS1',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'original_name' => 'FSA_Report_Template.docx',
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        Carbon::setTestNow('2026-06-19 10:00:00');
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'FSA_Report V1',
+            'body' => '<main data-report-template="live-synced-placeholder">{{ sections }}</main>',
+            'structure' => ['report_type' => ReportType::Client->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+
+        $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame('FSA_Report_Template.docx', data_get($report->metadata, 'template.uploaded_file'));
+        $this->assertStringContainsString('Report Template VS1 v1', $this->renderer->html);
+        $this->assertStringNotContainsString('data-report-template="live-synced-placeholder"', $this->renderer->html);
+
+        Carbon::setTestNow();
+    }
+
     public function test_advisor_report_includes_waterfall_implementation_plan_and_fee_roi(): void
     {
         [$advisor, $client] = $this->clientWithTeam('reports-advisor@example.test');
@@ -442,6 +484,69 @@ HTML,
         $this->assertStringStartsWith('%PDF', $response->getContent());
         $this->assertNotNull($report->refresh()->pdf_path);
         Storage::disk('secure_local')->assertExists($report->pdf_path);
+    }
+
+    public function test_advisor_report_download_rerenders_when_template_is_historic(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-historic-template@example.test');
+        $this->businessValuation($client, 480000);
+        $this->analysisFixture($client);
+        $this->proposal($client);
+
+        Carbon::setTestNow('2026-06-18 09:00:00');
+        /** @var Template $historicTemplate */
+        $historicTemplate = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Historic Report Template',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'original_name' => 'Historic_Report_Template.docx',
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $oldPdfPath = $report->pdf_path;
+        $this->assertSame($historicTemplate->id, data_get($report->metadata, 'template.id'));
+
+        Carbon::setTestNow('2026-06-19 09:00:00');
+        $historicTemplate->forceFill(['status' => Template::STATUS_ARCHIVED])->save();
+        /** @var Template $currentTemplate */
+        $currentTemplate = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Current Report Template',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'original_name' => 'Current_Report_Template.docx',
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 2,
+        ]);
+
+        $response = $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report));
+
+        $response->assertOk();
+        $report->refresh();
+
+        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame($currentTemplate->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame(2, data_get($report->metadata, 'template.version'));
+        $this->assertStringContainsString('Current Report Template v2', $response->getContent());
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'report.rerendered',
+            'subject_id' => $report->id,
+        ]);
+
+        Carbon::setTestNow();
     }
 
     public function test_advisor_route_generates_reports_and_portal_shows_client_reports_only(): void
