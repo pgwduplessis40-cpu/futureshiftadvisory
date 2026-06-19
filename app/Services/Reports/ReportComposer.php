@@ -923,7 +923,7 @@ final class ReportComposer implements ProvidesMethodology
     private function templateRenderStrategy(Template $template): string
     {
         if ($this->uploadedTemplates->supports($template)) {
-            return 'uploaded_docx_html_v1';
+            return 'uploaded_docx_html_v2';
         }
 
         if ($this->isTokenizedHtmlTemplate($template)) {
@@ -3774,7 +3774,7 @@ final class ReportComposer implements ProvidesMethodology
 
     private function html(Report $report): string
     {
-        $report->loadMissing(['client', 'entrepreneurProfile', 'sections']);
+        $report->loadMissing(['client.primaryContact', 'entrepreneurProfile', 'sections']);
         $sections = $report->sections
             ->sortBy('position')
             ->map(fn (ReportSection $section): string => $this->sectionHtml($section))
@@ -3883,6 +3883,12 @@ HTML,
     private function reportTemplateTokens(Report $report, Template $template, string $sections): array
     {
         $clientName = $report->client?->legal_name ?? $report->entrepreneurProfile?->name ?? 'Client';
+        $generatedAt = $report->generated_at?->format('j M Y') ?? now()->format('j M Y');
+        $primaryContact = $report->client?->primaryContact?->name ?: 'Client contact';
+        $primaryTitle = $report->client?->primaryContact instanceof User ? 'Primary contact' : 'Client';
+        $engagementPeriod = is_string(data_get($report->metadata, 'engagement_period'))
+            ? (string) data_get($report->metadata, 'engagement_period')
+            : 'As at '.$generatedAt;
 
         return [
             '{{ report_title }}' => $this->escape($report->title),
@@ -3891,8 +3897,8 @@ HTML,
             '{{report_type}}' => $this->escape($report->type->label()),
             '{{ client_name }}' => $this->escape($clientName),
             '{{client_name}}' => $this->escape($clientName),
-            '{{ generated_at }}' => $this->escape($report->generated_at?->format('j M Y') ?? now()->format('j M Y')),
-            '{{generated_at}}' => $this->escape($report->generated_at?->format('j M Y') ?? now()->format('j M Y')),
+            '{{ generated_at }}' => $this->escape($generatedAt),
+            '{{generated_at}}' => $this->escape($generatedAt),
             '{{ template_title }}' => $this->escape($template->title),
             '{{template_title}}' => $this->escape($template->title),
             '{{ template_version }}' => (string) $template->version,
@@ -3901,6 +3907,12 @@ HTML,
             '{{sections}}' => $sections,
             '{{{ sections }}}' => $sections,
             '{{{sections}}}' => $sections,
+            '[Business Name]' => $this->escape($clientName),
+            '[Report Type]' => $this->escape($report->type->label()),
+            '[Date]' => $this->escape($generatedAt),
+            '[Engagement Period]' => $this->escape($engagementPeriod),
+            '[Client Primary Contact]' => $this->escape($primaryContact),
+            '[Title]' => $this->escape($primaryTitle),
         ];
     }
 

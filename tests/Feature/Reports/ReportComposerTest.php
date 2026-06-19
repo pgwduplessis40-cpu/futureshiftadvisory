@@ -326,7 +326,7 @@ HTML,
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
 
         $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame('uploaded_docx_html_v1', data_get($report->metadata, 'template.render_strategy'));
+        $this->assertSame('uploaded_docx_html_v2', data_get($report->metadata, 'template.render_strategy'));
         $this->assertSame('Uploaded_FSA_Client_Report.docx', data_get($report->metadata, 'template.uploaded_file'));
         $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
         $this->assertStringContainsString('FSA uploaded DOCX report shell', $this->renderer->html);
@@ -380,9 +380,62 @@ HTML,
         $report->refresh();
 
         $this->assertNotSame($oldPdfPath, $report->pdf_path);
-        $this->assertSame('uploaded_docx_html_v1', data_get($report->metadata, 'template.render_strategy'));
+        $this->assertSame('uploaded_docx_html_v2', data_get($report->metadata, 'template.render_strategy'));
         $this->assertStringContainsString('Current uploaded DOCX report shell', $this->renderer->html);
         $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
+    }
+
+    public function test_uploaded_docx_report_template_uses_word_page_furniture_and_bracket_tokens(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('uploaded-docx-page-furniture-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+
+        $path = 'documents/template_file/page-furniture-report-template.docx';
+        Storage::disk('secure_local')->put($path, $this->minimalDocx(
+            [
+                ['[Business Name]', 'Title'],
+                ['Strategic Business Analysis'],
+                ['[Engagement Period]'],
+            ],
+            [
+                ['FUTURE SHIFT ADVISORY | [Business Name] | [Report Type] | [Date]'],
+            ],
+            [
+                ['Future Shift Advisory | Confidential | [Business Name] | [Date]'],
+            ],
+        ));
+
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Page Furniture Report Template',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'stored_path' => $path,
+                    'original_name' => 'Page_Furniture_Report_Template.docx',
+                    'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'extension' => 'docx',
+                    'sha256' => hash('sha256', Storage::disk('secure_local')->get($path)),
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+
+        $this->assertStringContainsString('class="docx-fixed-header"', $this->renderer->html);
+        $this->assertStringContainsString('class="docx-fixed-footer"', $this->renderer->html);
+        $this->assertStringContainsString('Report Client Limited', $this->renderer->html);
+        $this->assertStringContainsString('Client Report', $this->renderer->html);
+        $this->assertStringContainsString('As at ', $this->renderer->html);
+        $this->assertStringContainsString('class="docx-page-break"', $this->renderer->html);
+        $this->assertStringContainsString('Current valuation range', $this->renderer->html);
+        $this->assertStringNotContainsString('[Business Name]', $this->renderer->html);
+        $this->assertStringNotContainsString('[Report Type]', $this->renderer->html);
+        $this->assertStringNotContainsString('[Date]', $this->renderer->html);
     }
 
     public function test_advisor_report_includes_waterfall_implementation_plan_and_fee_roi(): void
@@ -827,8 +880,10 @@ HTML,
 
     /**
      * @param  array<int, array{0:string,1?:string}>  $paragraphs
+     * @param  array<int, array{0:string,1?:string}>  $headerParagraphs
+     * @param  array<int, array{0:string,1?:string}>  $footerParagraphs
      */
-    private function minimalDocx(array $paragraphs): string
+    private function minimalDocx(array $paragraphs, array $headerParagraphs = [], array $footerParagraphs = []): string
     {
         $path = tempnam(sys_get_temp_dir(), 'fsa-test-docx-');
         $this->assertIsString($path);
@@ -864,6 +919,12 @@ XML,
                 $paragraphs,
             )),
         ));
+        if ($headerParagraphs !== []) {
+            $zip->addFromString('word/header1.xml', $this->minimalDocxPart($headerParagraphs, 'hdr'));
+        }
+        if ($footerParagraphs !== []) {
+            $zip->addFromString('word/footer1.xml', $this->minimalDocxPart($footerParagraphs, 'ftr'));
+        }
         $zip->close();
 
         $bytes = file_get_contents($path);
@@ -872,6 +933,27 @@ XML,
         $this->assertIsString($bytes);
 
         return $bytes;
+    }
+
+    /**
+     * @param  array<int, array{0:string,1?:string}>  $paragraphs
+     */
+    private function minimalDocxPart(array $paragraphs, string $root): string
+    {
+        return sprintf(
+            <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<w:%s xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  %s
+</w:%s>
+XML,
+            $root,
+            implode("\n", array_map(
+                fn (array $paragraph): string => $this->wordParagraph($paragraph[0], $paragraph[1] ?? null),
+                $paragraphs,
+            )),
+            $root,
+        );
     }
 
     private function wordParagraph(string $text, ?string $style = null): string

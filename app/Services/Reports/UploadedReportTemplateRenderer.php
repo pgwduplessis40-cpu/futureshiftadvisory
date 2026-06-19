@@ -33,20 +33,23 @@ final class UploadedReportTemplateRenderer
         }
 
         try {
-            $body = $this->docxHtml(Storage::disk('secure_local')->get($path));
+            $parts = $this->docxHtmlParts(Storage::disk('secure_local')->get($path));
         } catch (Throwable) {
             return null;
         }
 
-        if ($body === null) {
+        if ($parts === null) {
             return null;
         }
 
-        $hasSectionsToken = $this->containsSectionsToken($body);
-        $rendered = strtr($body, $tokens);
+        $templateHtml = implode("\n", $parts);
+        $hasSectionsToken = $this->containsSectionsToken($templateHtml);
+        $header = strtr($parts['header'], $tokens);
+        $body = strtr($parts['body'], $tokens);
+        $footer = strtr($parts['footer'], $tokens);
 
         if (! $hasSectionsToken) {
-            $rendered .= "\n".'<main class="report-content">'.$sections.'</main>';
+            $body .= "\n".'<div class="docx-page-break"></div><main class="report-content">'.$sections.'</main>';
         }
 
         return sprintf(
@@ -60,9 +63,11 @@ final class UploadedReportTemplateRenderer
 %s</style>
 </head>
 <body data-report-template="%s" data-report-template-source="uploaded-docx">
+%s
 <div class="uploaded-docx-report-template">
 %s
 </div>
+%s
 </body>
 </html>
 HTML,
@@ -70,7 +75,9 @@ HTML,
             $css,
             $this->docxCss(),
             $this->escape((string) $template->getKey()),
-            $rendered,
+            $header === '' ? '' : '<header class="docx-fixed-header">'.$header.'</header>',
+            $body,
+            $footer === '' ? '' : '<footer class="docx-fixed-footer">'.$footer.'</footer>',
         );
     }
 
@@ -89,7 +96,10 @@ HTML,
             || str_ends_with($originalName, '.docx');
     }
 
-    private function docxHtml(string $bytes): ?string
+    /**
+     * @return array{header:string,body:string,footer:string}|null
+     */
+    private function docxHtmlParts(string $bytes): ?array
     {
         if (! class_exists(ZipArchive::class)) {
             return null;
@@ -108,24 +118,25 @@ HTML,
                 return null;
             }
 
-            $parts = $this->documentParts($zip);
+            $parts = $this->documentXmlParts($zip);
             $zip->close();
         } finally {
             @unlink($path);
         }
 
-        $html = trim(implode("\n", array_filter(array_map(
-            fn (string $xml): string => $this->xmlPartHtml($xml),
-            $parts,
-        ))));
+        $html = [
+            'header' => trim(implode("\n", array_map(fn (string $xml): string => $this->xmlPartHtml($xml), $parts['headers']))),
+            'body' => $this->xmlPartHtml($parts['document']),
+            'footer' => trim(implode("\n", array_map(fn (string $xml): string => $this->xmlPartHtml($xml), $parts['footers']))),
+        ];
 
-        return $html === '' ? null : $html;
+        return trim(implode('', $html)) === '' ? null : $html;
     }
 
     /**
-     * @return array<int, string>
+     * @return array{headers:array<int, string>,document:string,footers:array<int, string>}
      */
-    private function documentParts(ZipArchive $zip): array
+    private function documentXmlParts(ZipArchive $zip): array
     {
         $headers = [];
         $footers = [];
@@ -156,9 +167,9 @@ HTML,
         $document = $zip->getFromName('word/document.xml');
 
         return [
-            ...array_values($headers),
-            is_string($document) ? $document : '',
-            ...array_values($footers),
+            'headers' => array_values($headers),
+            'document' => is_string($document) ? $document : '',
+            'footers' => array_values($footers),
         ];
     }
 
@@ -212,9 +223,10 @@ HTML,
     {
         $text = $this->nodeText($paragraph);
         $trimmed = trim(preg_replace('/\s+/', ' ', $text) ?? '');
+        $css = $this->paragraphCss($paragraph);
 
         if ($trimmed === '') {
-            return '';
+            return $this->emptyParagraphHtml($paragraph, $css);
         }
 
         if ($this->isSectionsToken($trimmed)) {
@@ -224,7 +236,12 @@ HTML,
         $tag = $this->paragraphTag($paragraph);
         $content = nl2br($this->escape($text));
 
-        return sprintf('<%1$s class="docx-template-block">%2$s</%1$s>', $tag, $content);
+        return sprintf(
+            '<%1$s class="docx-template-block" style="%2$s">%3$s</%1$s>',
+            $tag,
+            $this->escape($css),
+            $content,
+        );
     }
 
     private function paragraphTag(DOMElement $paragraph): string
@@ -237,15 +254,107 @@ HTML,
 
         return match (true) {
             str_contains($style, 'title'),
-            str_contains($style, 'heading1') => 'h1',
-            str_contains($style, 'heading2') => 'h2',
-            str_contains($style, 'heading3') => 'h3',
+            str_contains($style, 'heading1'),
+            str_contains($style, 'heading 1') => 'h1',
+            str_contains($style, 'heading2'),
+            str_contains($style, 'heading 2') => 'h2',
+            str_contains($style, 'heading3'),
+            str_contains($style, 'heading 3') => 'h3',
             default => 'p',
         };
     }
 
+    private function emptyParagraphHtml(DOMElement $paragraph, string $css): string
+    {
+        if ($this->paragraphBorderCss($paragraph) === '') {
+            return '';
+        }
+
+        return sprintf(
+            '<div class="docx-template-rule" style="%s"></div>',
+            $this->escape($css),
+        );
+    }
+
+    private function paragraphCss(DOMElement $paragraph): string
+    {
+        $css = [];
+        $properties = $this->firstChild($paragraph, 'pPr');
+        if ($properties instanceof DOMElement) {
+            $alignment = $this->firstChild($properties, 'jc')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+            if (is_string($alignment) && $alignment !== '') {
+                $css[] = 'text-align: '.$this->cssAlignment($alignment).';';
+            }
+
+            $spacing = $this->firstChild($properties, 'spacing');
+            if ($spacing instanceof DOMElement) {
+                $before = $this->twipsAttributeToPt($spacing, 'before');
+                $after = $this->twipsAttributeToPt($spacing, 'after');
+
+                if ($before !== null) {
+                    $css[] = 'margin-top: '.$before.'pt;';
+                }
+
+                if ($after !== null) {
+                    $css[] = 'margin-bottom: '.$after.'pt;';
+                }
+            }
+
+            $indent = $this->firstChild($properties, 'ind');
+            if ($indent instanceof DOMElement) {
+                $left = $this->twipsAttributeToPt($indent, 'left');
+                if ($left !== null) {
+                    $css[] = 'margin-left: '.$left.'pt;';
+                }
+            }
+
+            $border = $this->paragraphBorderCss($paragraph);
+            if ($border !== '') {
+                $css[] = $border;
+            }
+        }
+
+        $css[] = $this->firstRunCss($paragraph);
+
+        return trim(implode(' ', array_filter($css)));
+    }
+
+    private function paragraphBorderCss(DOMElement $paragraph): string
+    {
+        $properties = $this->firstChild($paragraph, 'pPr');
+        $borders = $properties instanceof DOMElement ? $this->firstChild($properties, 'pBdr') : null;
+
+        if (! $borders instanceof DOMElement) {
+            return '';
+        }
+
+        $css = [];
+        foreach ($borders->childNodes as $border) {
+            if (! $border instanceof DOMElement) {
+                continue;
+            }
+
+            $side = match ($border->localName) {
+                'top' => 'top',
+                'bottom' => 'bottom',
+                'left' => 'left',
+                'right' => 'right',
+                default => null,
+            };
+
+            if ($side === null) {
+                continue;
+            }
+
+            $css[] = sprintf('border-%s: %s;', $side, $this->borderCss($border));
+        }
+
+        return implode(' ', $css);
+    }
+
     private function tableHtml(DOMElement $table): string
     {
+        $tableStyle = $this->tableCss($table);
         $rows = '';
         foreach ($table->getElementsByTagNameNS(self::WORD_NAMESPACE, 'tr') as $row) {
             if (! $row instanceof DOMElement) {
@@ -259,7 +368,11 @@ HTML,
                 }
 
                 $cellHtml = $this->childrenHtml($cell);
-                $cells .= '<td>'.($cellHtml === '' ? '&nbsp;' : $cellHtml).'</td>';
+                $cells .= sprintf(
+                    '<td style="%s">%s</td>',
+                    $this->escape($this->cellCss($cell)),
+                    $cellHtml === '' ? '&nbsp;' : $cellHtml,
+                );
             }
 
             if ($cells !== '') {
@@ -267,7 +380,200 @@ HTML,
             }
         }
 
-        return $rows === '' ? '' : '<table class="docx-template-table">'.$rows.'</table>';
+        return $rows === '' ? '' : sprintf(
+            '<table class="docx-template-table" style="%s">%s</table>',
+            $this->escape($tableStyle),
+            $rows,
+        );
+    }
+
+    private function tableCss(DOMElement $table): string
+    {
+        $css = [];
+        $properties = $this->firstChild($table, 'tblPr');
+        if (! $properties instanceof DOMElement) {
+            return '';
+        }
+
+        $width = $this->firstChild($properties, 'tblW');
+        if ($width instanceof DOMElement) {
+            $css[] = $this->widthCss($width);
+        }
+
+        $alignment = $this->firstChild($properties, 'jc')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+        if (is_string($alignment) && $alignment !== '') {
+            $css[] = $this->tableAlignmentCss($alignment);
+        }
+
+        $borders = $this->firstChild($properties, 'tblBorders');
+        if ($borders instanceof DOMElement) {
+            $top = $this->firstChild($borders, 'top');
+            if ($top instanceof DOMElement) {
+                $css[] = 'border: '.$this->borderCss($top).';';
+            }
+        }
+
+        return trim(implode(' ', array_filter($css)));
+    }
+
+    private function cellCss(DOMElement $cell): string
+    {
+        $css = [];
+        $properties = $this->firstChild($cell, 'tcPr');
+        if (! $properties instanceof DOMElement) {
+            return '';
+        }
+
+        $width = $this->firstChild($properties, 'tcW');
+        if ($width instanceof DOMElement) {
+            $css[] = $this->widthCss($width);
+        }
+
+        $shading = $this->firstChild($properties, 'shd');
+        if ($shading instanceof DOMElement) {
+            $fill = $this->hexColor($shading->getAttributeNS(self::WORD_NAMESPACE, 'fill'));
+            if ($fill !== null) {
+                $css[] = 'background-color: '.$fill.';';
+            }
+        }
+
+        $verticalAlign = $this->firstChild($properties, 'vAlign')?->getAttributeNS(self::WORD_NAMESPACE, 'val');
+        if (is_string($verticalAlign) && $verticalAlign !== '') {
+            $css[] = 'vertical-align: '.($verticalAlign === 'center' ? 'middle' : $verticalAlign).';';
+        }
+
+        return trim(implode(' ', array_filter($css)));
+    }
+
+    private function widthCss(DOMElement $width): string
+    {
+        $value = $width->getAttributeNS(self::WORD_NAMESPACE, 'w');
+        $type = $width->getAttributeNS(self::WORD_NAMESPACE, 'type');
+
+        if ($value === '' || ! is_numeric($value)) {
+            return '';
+        }
+
+        if ($type === 'pct') {
+            return 'width: '.round(((float) $value) / 50, 2).'%;';
+        }
+
+        $twips = (float) $value;
+        if ($twips >= 9000) {
+            return 'width: 100%;';
+        }
+
+        return 'width: '.round(($twips / 9360) * 100, 2).'%;';
+    }
+
+    private function firstRunCss(DOMElement $paragraph): string
+    {
+        foreach ($paragraph->getElementsByTagNameNS(self::WORD_NAMESPACE, 'r') as $run) {
+            if (! $run instanceof DOMElement || trim($this->nodeText($run)) === '') {
+                continue;
+            }
+
+            $properties = $this->firstChild($run, 'rPr');
+            if (! $properties instanceof DOMElement) {
+                return '';
+            }
+
+            $css = [];
+            if ($this->firstChild($properties, 'b') instanceof DOMElement) {
+                $css[] = 'font-weight: 700;';
+            }
+
+            if ($this->firstChild($properties, 'i') instanceof DOMElement) {
+                $css[] = 'font-style: italic;';
+            }
+
+            if ($this->firstChild($properties, 'caps') instanceof DOMElement) {
+                $css[] = 'text-transform: uppercase;';
+            }
+
+            $color = $this->firstChild($properties, 'color');
+            if ($color instanceof DOMElement) {
+                $hex = $this->hexColor($color->getAttributeNS(self::WORD_NAMESPACE, 'val'));
+                if ($hex !== null) {
+                    $css[] = 'color: '.$hex.';';
+                }
+            }
+
+            $size = $this->firstChild($properties, 'sz');
+            if ($size instanceof DOMElement) {
+                $value = $size->getAttributeNS(self::WORD_NAMESPACE, 'val');
+                if (is_numeric($value)) {
+                    $css[] = 'font-size: '.round(((float) $value) / 2, 2).'pt;';
+                }
+            }
+
+            return trim(implode(' ', $css));
+        }
+
+        return '';
+    }
+
+    private function firstChild(DOMElement $element, string $localName): ?DOMElement
+    {
+        foreach ($element->childNodes as $child) {
+            if ($child instanceof DOMElement && $child->namespaceURI === self::WORD_NAMESPACE && $child->localName === $localName) {
+                return $child;
+            }
+        }
+
+        return null;
+    }
+
+    private function borderCss(DOMElement $border): string
+    {
+        $value = $border->getAttributeNS(self::WORD_NAMESPACE, 'val');
+        if (in_array($value, ['nil', 'none'], true)) {
+            return '0 none transparent';
+        }
+
+        $size = $border->getAttributeNS(self::WORD_NAMESPACE, 'sz');
+        $width = is_numeric($size) ? max(1, round(((float) $size) / 8, 2)) : 1;
+        $color = $this->hexColor($border->getAttributeNS(self::WORD_NAMESPACE, 'color')) ?? '#d7e2dd';
+
+        return $width.'px solid '.$color;
+    }
+
+    private function twipsAttributeToPt(DOMElement $element, string $attribute): ?string
+    {
+        $value = $element->getAttributeNS(self::WORD_NAMESPACE, $attribute);
+        if ($value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return (string) round(((float) $value) / 20, 2);
+    }
+
+    private function cssAlignment(string $alignment): string
+    {
+        return match ($alignment) {
+            'center' => 'center',
+            'right' => 'right',
+            'both' => 'justify',
+            default => 'left',
+        };
+    }
+
+    private function tableAlignmentCss(string $alignment): string
+    {
+        return match ($alignment) {
+            'center' => 'margin-left: auto; margin-right: auto;',
+            'right' => 'margin-left: auto;',
+            default => '',
+        };
+    }
+
+    private function hexColor(string $value): ?string
+    {
+        if ($value === '' || Str::lower($value) === 'auto' || ! preg_match('/^[0-9a-fA-F]{6}$/', $value)) {
+            return null;
+        }
+
+        return '#'.strtoupper($value);
     }
 
     private function nodeText(DOMNode $node): string
@@ -325,14 +631,21 @@ HTML,
     private function docxCss(): string
     {
         return <<<'CSS'
+@page { size: A4; margin: 35mm 25.4mm 30mm; }
+.docx-fixed-header { left: 25.4mm; position: fixed; right: 25.4mm; top: 10mm; }
+.docx-fixed-footer { bottom: 10mm; left: 25.4mm; position: fixed; right: 25.4mm; }
+.docx-fixed-header .docx-template-table,
+.docx-fixed-footer .docx-template-table { margin: 0; }
 .uploaded-docx-report-template { background: #fff; }
 .docx-template-block { margin: 0 0 10px; }
 h1.docx-template-block { font-size: 25px; line-height: 1.15; margin-bottom: 14px; }
 h2.docx-template-block { font-size: 17px; line-height: 1.25; margin: 16px 0 9px; }
 h3.docx-template-block { font-size: 13px; line-height: 1.3; margin: 12px 0 7px; }
-.docx-template-table { border-collapse: collapse; margin: 10px 0 14px; width: 100%; }
+.docx-template-rule { height: 1px; margin: 8px 0; }
+.docx-template-table { border-collapse: collapse; margin: 10px 0 14px; table-layout: fixed; width: 100%; }
 .docx-template-table td { border: 1px solid #d7e2dd; padding: 7px 8px; vertical-align: top; }
 .docx-template-table .docx-template-block { margin-bottom: 5px; }
+.docx-page-break { break-before: page; height: 0; page-break-before: always; }
 CSS;
     }
 
