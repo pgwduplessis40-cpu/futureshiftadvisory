@@ -275,6 +275,11 @@ final class ProposalBuilder
         return $proposal->refresh();
     }
 
+    public function previewHtml(Proposal $proposal): string
+    {
+        return $this->html($proposal->refresh()->load(['client.primaryContact', 'feeCalculation', 'consents', 'createdBy']));
+    }
+
     /**
      * @param  array<string, mixed>  $input
      * @return array<string, mixed>

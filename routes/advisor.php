@@ -194,6 +194,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('proposals/{proposal}/renew', [ProposalController::class, 'renew'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('proposals.renew');
+        Route::get('proposals/{proposal}', [ProposalController::class, 'show'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('proposals.show');
         Route::get('proposals/{proposal}/download', [ProposalController::class, 'download'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('proposals.download');

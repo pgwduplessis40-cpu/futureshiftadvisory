@@ -108,6 +108,29 @@ final class ProposalController extends Controller
         return to_route('advisor.clients.show', $renewed->client)->with('status', 'proposal-renewed');
     }
 
+    public function show(Request $request, Proposal $proposal, ProposalBuilder $proposals, AuditWriter $audit): Response
+    {
+        $proposal->loadMissing('client');
+        Gate::authorize('view', $proposal->client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $html = $proposals->previewHtml($proposal);
+
+        $audit->record('proposal.viewed', subject: $proposal, actor: $user, after: [
+            'client_id' => $proposal->client_id,
+            'version' => $proposal->version,
+            'format' => 'html',
+        ]);
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
     public function download(Request $request, Proposal $proposal, ProposalBuilder $proposals, AuditWriter $audit): Response
     {
         $proposal->loadMissing('client');

@@ -478,6 +478,7 @@ final class ClientController extends Controller
                     'release_url' => route('advisor.proposals.release', $proposal, absolute: false),
                     'recall_url' => route('advisor.proposals.recall', $proposal, absolute: false),
                     'renew_url' => route('advisor.proposals.renew', $proposal, absolute: false),
+                    'view_url' => route('advisor.proposals.show', $proposal, absolute: false),
                     'download_url' => route('advisor.proposals.download', $proposal, absolute: false),
                 ];
             })

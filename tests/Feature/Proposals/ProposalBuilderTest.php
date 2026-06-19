@@ -130,9 +130,17 @@ final class ProposalBuilderTest extends TestCase
                 ->where('client.proposal_store_url', route('advisor.clients.proposals.store', $client, absolute: false))
                 ->where('client.proposals.0.status', ProposalStatus::Draft->value)
                 ->where('client.proposals.0.can_release', true)
+                ->where('client.proposals.0.view_url', route('advisor.proposals.show', $proposal, absolute: false))
                 ->where('client.proposals.0.download_url', route('advisor.proposals.download', $proposal, absolute: false))
                 ->has('client.fee_calculations', 1)
                 ->has('client.proposals', 1));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.proposals.show', $proposal))
+            ->assertOk()
+            ->assertHeader('X-Content-Type-Options', 'nosniff')
+            ->assertSee('Future Shift Advisory', false)
+            ->assertSee('Proposal Client Limited', false);
 
         $this->actingAsMfa($advisor)
             ->get(route('advisor.proposals.download', $proposal))
