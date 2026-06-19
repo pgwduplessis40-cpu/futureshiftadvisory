@@ -81,6 +81,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly AuditWriter $audit,
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
+        private readonly UploadedReportTemplateRenderer $uploadedTemplates,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -905,6 +906,7 @@ final class ReportComposer implements ProvidesMethodology
             'version' => $template->version,
             'source_reference' => $template->source_reference,
             'structure_report_type' => data_get($template->structure, 'report_type'),
+            'render_strategy' => $this->templateRenderStrategy($template),
             'updated_at' => $template->updated_at?->toIso8601String(),
             'uploaded_file_document_id' => is_array($uploadedFile)
                 ? ($uploadedFile['document_id'] ?? null)
@@ -916,6 +918,19 @@ final class ReportComposer implements ProvidesMethodology
                 ? ($uploadedFile['original_name'] ?? null)
                 : null,
         ];
+    }
+
+    private function templateRenderStrategy(Template $template): string
+    {
+        if ($this->uploadedTemplates->supports($template)) {
+            return 'uploaded_docx_html_v1';
+        }
+
+        if ($this->isTokenizedHtmlTemplate($template)) {
+            return 'tokenized_html_v1';
+        }
+
+        return 'branded_html_v1';
     }
 
     private function templateTitleMatchesType(Template $template, ReportType $type): bool
@@ -3769,6 +3784,20 @@ final class ReportComposer implements ProvidesMethodology
 
         if ($template instanceof Template && $this->isTokenizedHtmlTemplate($template)) {
             return $this->htmlFromTemplate($report, $template, $sections);
+        }
+
+        if ($template instanceof Template) {
+            $html = $this->uploadedTemplates->render(
+                $report,
+                $template,
+                $sections,
+                $this->reportTemplateTokens($report, $template, $sections),
+                $this->reportCss($template),
+            );
+
+            if (is_string($html)) {
+                return $html;
+            }
         }
 
         return $this->brandedReportHtml($report, $template, $sections);

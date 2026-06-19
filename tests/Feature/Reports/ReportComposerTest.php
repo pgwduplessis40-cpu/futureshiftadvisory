@@ -39,6 +39,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
+use ZipArchive;
 
 final class ReportComposerTest extends TestCase
 {
@@ -287,6 +288,101 @@ HTML,
         $this->assertStringNotContainsString('data-report-template="live-synced-placeholder"', $this->renderer->html);
 
         Carbon::setTestNow();
+    }
+
+    public function test_uploaded_docx_report_template_renders_file_body_for_client_report_review(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('uploaded-docx-template-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+
+        $path = 'documents/template_file/report-template.docx';
+        Storage::disk('secure_local')->put($path, $this->minimalDocx([
+            ['FSA uploaded DOCX report shell', 'Title'],
+            ['{{ report_title }}'],
+            ['Prepared for {{ client_name }}'],
+            ['{{ sections }}'],
+        ]));
+
+        /** @var Template $template */
+        $template = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Uploaded FSA Client Report',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'stored_path' => $path,
+                    'original_name' => 'Uploaded_FSA_Client_Report.docx',
+                    'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'extension' => 'docx',
+                    'sha256' => hash('sha256', Storage::disk('secure_local')->get($path)),
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+
+        $this->assertSame($template->id, data_get($report->metadata, 'template.id'));
+        $this->assertSame('uploaded_docx_html_v1', data_get($report->metadata, 'template.render_strategy'));
+        $this->assertSame('Uploaded_FSA_Client_Report.docx', data_get($report->metadata, 'template.uploaded_file'));
+        $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
+        $this->assertStringContainsString('FSA uploaded DOCX report shell', $this->renderer->html);
+        $this->assertStringContainsString('Client Report - Report Client Limited', $this->renderer->html);
+        $this->assertStringContainsString('Prepared for Report Client Limited', $this->renderer->html);
+        $this->assertStringContainsString('Current valuation range', $this->renderer->html);
+        $this->assertStringNotContainsString('class="report-cover"', $this->renderer->html);
+    }
+
+    public function test_advisor_report_download_rerenders_existing_uploaded_docx_pdf_without_renderer_marker(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('uploaded-docx-existing-report-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->analysisFixture($client);
+
+        $path = 'documents/template_file/current-report-template.docx';
+        Storage::disk('secure_local')->put($path, $this->minimalDocx([
+            ['Current uploaded DOCX report shell', 'Title'],
+            ['{{ report_title }}'],
+            ['{{ sections }}'],
+        ]));
+
+        Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Current Uploaded FSA Client Report',
+            'body' => '',
+            'structure' => [
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'stored_path' => $path,
+                    'original_name' => 'Current_Uploaded_FSA_Client_Report.docx',
+                    'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'extension' => 'docx',
+                    'sha256' => hash('sha256', Storage::disk('secure_local')->get($path)),
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $oldPdfPath = $report->pdf_path;
+        $metadata = $report->metadata;
+        unset($metadata['template']['render_strategy']);
+        $report->forceFill(['metadata' => $metadata])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.reports.download', $report))
+            ->assertOk();
+
+        $report->refresh();
+
+        $this->assertNotSame($oldPdfPath, $report->pdf_path);
+        $this->assertSame('uploaded_docx_html_v1', data_get($report->metadata, 'template.render_strategy'));
+        $this->assertStringContainsString('Current uploaded DOCX report shell', $this->renderer->html);
+        $this->assertStringContainsString('data-report-template-source="uploaded-docx"', $this->renderer->html);
     }
 
     public function test_advisor_report_includes_waterfall_implementation_plan_and_fee_roi(): void
@@ -727,6 +823,68 @@ HTML,
         $this->assertNotContains($reportB->id, $visibleReportIds);
         $this->assertContains($reportA->id, $visibleSectionReportIds);
         $this->assertNotContains($reportB->id, $visibleSectionReportIds);
+    }
+
+    /**
+     * @param  array<int, array{0:string,1?:string}>  $paragraphs
+     */
+    private function minimalDocx(array $paragraphs): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'fsa-test-docx-');
+        $this->assertIsString($path);
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path, ZipArchive::OVERWRITE));
+        $zip->addFromString('[Content_Types].xml', <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+XML);
+        $zip->addFromString('_rels/.rels', <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>
+XML);
+        $zip->addFromString('word/document.xml', sprintf(
+            <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    %s
+    <w:sectPr/>
+  </w:body>
+</w:document>
+XML,
+            implode("\n", array_map(
+                fn (array $paragraph): string => $this->wordParagraph($paragraph[0], $paragraph[1] ?? null),
+                $paragraphs,
+            )),
+        ));
+        $zip->close();
+
+        $bytes = file_get_contents($path);
+        @unlink($path);
+
+        $this->assertIsString($bytes);
+
+        return $bytes;
+    }
+
+    private function wordParagraph(string $text, ?string $style = null): string
+    {
+        $styleXml = $style === null
+            ? ''
+            : sprintf('<w:pPr><w:pStyle w:val="%s"/></w:pPr>', htmlspecialchars($style, ENT_XML1 | ENT_QUOTES, 'UTF-8'));
+
+        return sprintf(
+            '<w:p>%s<w:r><w:t>%s</w:t></w:r></w:p>',
+            $styleXml,
+            htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8'),
+        );
     }
 
     /**
