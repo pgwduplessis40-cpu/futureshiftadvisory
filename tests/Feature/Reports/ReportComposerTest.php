@@ -549,7 +549,7 @@ HTML,
         Carbon::setTestNow();
     }
 
-    public function test_advisor_report_download_prefers_higher_active_template_version_over_recent_lower_version(): void
+    public function test_advisor_report_download_prefers_newer_active_template_over_older_higher_version(): void
     {
         [$advisor, $client] = $this->clientWithTeam('report-active-template-version@example.test');
         $this->businessValuation($client, 480000);
@@ -564,7 +564,7 @@ HTML,
             'body' => '<main data-report-template="lower-version"><p>{{ template_title }} v{{ template_version }}</p>{{ sections }}</main>',
             'structure' => ['report_type' => ReportType::Client->value],
             'status' => Template::STATUS_ACTIVE,
-            'version' => 1,
+            'version' => 5,
         ]);
 
         $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
@@ -579,11 +579,8 @@ HTML,
             'body' => '<main data-report-template="higher-version"><p>{{ template_title }} v{{ template_version }}</p>{{ sections }}</main>',
             'structure' => ['report_type' => ReportType::Client->value],
             'status' => Template::STATUS_ACTIVE,
-            'version' => 2,
+            'version' => 1,
         ]);
-
-        Carbon::setTestNow('2026-06-20 09:00:00');
-        $lowerTemplate->forceFill(['body' => '<main data-report-template="lower-version-touched">{{ sections }}</main>'])->save();
 
         $response = $this->actingAsMfa($advisor)
             ->get(route('advisor.reports.download', $report));
@@ -593,10 +590,10 @@ HTML,
 
         $this->assertNotSame($oldPdfPath, $report->pdf_path);
         $this->assertSame($higherTemplate->id, data_get($report->metadata, 'template.id'));
-        $this->assertSame(2, data_get($report->metadata, 'template.version'));
-        $this->assertStringContainsString('Report Template VS 2 v2', $response->getContent());
+        $this->assertSame(1, data_get($report->metadata, 'template.version'));
+        $this->assertStringContainsString('Report Template VS 2 v1', $response->getContent());
         $this->assertStringContainsString('data-report-template="higher-version"', $this->renderer->html);
-        $this->assertStringNotContainsString('data-report-template="lower-version-touched"', $this->renderer->html);
+        $this->assertStringNotContainsString('data-report-template="lower-version"', $this->renderer->html);
 
         Carbon::setTestNow();
     }

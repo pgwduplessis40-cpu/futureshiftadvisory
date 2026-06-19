@@ -240,6 +240,46 @@ final class TemplateLibraryTest extends TestCase
             ->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
+    public function test_activating_report_template_archives_overlapping_active_report_templates(): void
+    {
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+
+        $oldGeneric = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Report Template VS 1',
+            'body' => 'Old generic report body.',
+            'structure' => ['sections' => []],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 4,
+        ]);
+
+        $advisorSpecific = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Advisor Report Template',
+            'body' => 'Advisor report body.',
+            'structure' => ['report_type' => ReportType::Advisor->value],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_REPORT,
+                'title' => 'Report Template VS 2',
+                'body' => 'New active report body.',
+                'status' => Template::STATUS_ACTIVE,
+            ])
+            ->assertRedirect();
+
+        $newTemplate = Template::query()
+            ->where('title', 'Report Template VS 2')
+            ->firstOrFail();
+
+        $this->assertSame(Template::STATUS_ARCHIVED, $oldGeneric->refresh()->status);
+        $this->assertSame(Template::STATUS_ARCHIVED, $advisorSpecific->refresh()->status);
+        $this->assertSame(Template::STATUS_ACTIVE, $newTemplate->status);
+    }
+
     public function test_infected_template_upload_is_rejected_and_not_persisted(): void
     {
         Storage::fake('secure_local');

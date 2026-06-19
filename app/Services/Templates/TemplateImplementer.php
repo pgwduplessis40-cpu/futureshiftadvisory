@@ -18,6 +18,7 @@ final class TemplateImplementer
     public function __construct(
         private readonly ApprovalFlow $approvalFlow,
         private readonly AuditWriter $audit,
+        private readonly TemplateActivationService $templateActivation,
     ) {}
 
     public function implement(LearningUpdate $update, ?User $actor = null): LearningUpdateImplementation
@@ -70,6 +71,8 @@ final class TemplateImplementer
                 'status' => Template::STATUS_ACTIVE,
                 'learning_update_implementation_id' => $implementation->getKey(),
             ])->save();
+
+            $this->templateActivation->archiveOverlappingActiveReportTemplates($template);
 
             $implementation->forceFill([
                 'after_state' => [

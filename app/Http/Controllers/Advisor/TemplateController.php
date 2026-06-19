@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Storage\Exceptions\InfectedFileException;
 use App\Services\Storage\SecureFileWriter;
+use App\Services\Templates\TemplateActivationService;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ final class TemplateController extends Controller
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly SecureFileWriter $files,
+        private readonly TemplateActivationService $templateActivation,
     ) {}
 
     public function index(Request $request): Response
@@ -96,6 +98,8 @@ final class TemplateController extends Controller
             'created_by_user_id' => $user->getKey(),
             'learning_update_implementation_id' => null,
         ]);
+
+        $this->templateActivation->archiveOverlappingActiveReportTemplates($template);
 
         $this->audit->record('template.created', subject: $template, actor: $user, after: [
             'template_id' => $template->getKey(),
@@ -184,6 +188,8 @@ final class TemplateController extends Controller
             ],
             'version' => $template->version + 1,
         ])->save();
+
+        $this->templateActivation->archiveOverlappingActiveReportTemplates($template);
 
         $this->audit->record('template.updated', subject: $template, actor: $user, before: $before, after: [
             'category' => $template->category,

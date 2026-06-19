@@ -943,9 +943,9 @@ final class ReportComposer implements ProvidesMethodology
         return [
             $this->templateSourceRank($template),
             $this->templateSpecificityRank($template, $type),
-            $template->version,
             $template->updated_at?->getTimestamp() ?? 0,
             $template->created_at?->getTimestamp() ?? 0,
+            $template->version,
             (string) $template->getKey(),
         ];
     }
