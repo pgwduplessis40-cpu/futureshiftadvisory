@@ -493,7 +493,7 @@ final class ProposalBuilder
             );
 
             if (is_string($html)) {
-                return $html;
+                return $this->polishUploadedProposalHtml($html, $proposal, $sections);
             }
         }
 
@@ -612,6 +612,9 @@ HTML,
         $monthlyInvestment = $this->proposalMonthlyInvestment($proposal, $termMonths);
         $improvementPv = $this->proposalImprovementPv($proposal);
         $expiryDate = $proposal->expires_at?->format('j M Y') ?? 'Not released';
+        $validityLine = $proposal->expires_at === null
+            ? 'Validity period starts on release'
+            : 'Valid until '.$expiryDate;
 
         return [
             '{{ proposal_title }}' => $this->escape($this->proposalTitle($proposal)),
@@ -664,6 +667,7 @@ HTML,
             '[Client Name]' => $this->escape($primaryContact),
             '[Report Type]' => 'Proposal',
             '[Date]' => $this->escape($proposalDate),
+            'Valid until [Expiry Date]' => $this->escape($validityLine),
             '[Expiry Date]' => $this->escape($expiryDate),
             '[Engagement Period]' => $this->escape('As at '.$proposalDate),
             '[Client Primary Contact]' => $this->escape($primaryContact),
@@ -674,6 +678,31 @@ HTML,
             '[X]-month engagement' => $termMonths.'-month engagement',
             '[X]x return' => number_format($proposal->roi_ratio, 2).'x return',
         ] + $this->proposalTemplateInstructionTokens();
+    }
+
+    private function polishUploadedProposalHtml(string $html, Proposal $proposal, string $sections): string
+    {
+        $html = preg_replace(
+            '/\[\s*X\s*\]\s*x\s+return/i',
+            number_format($proposal->roi_ratio, 2).'x return',
+            $html,
+        ) ?? $html;
+
+        $generatedContent = '<main class="report-content proposal-generated-content">'.$sections.'</main>';
+        $reportPlaceholderPattern = '/<[^>]+>\s*1\.\s*Financial Health Assessment\s*<\/[^>]+>.*?(?=<\/div>\s*<\/body>\s*<\/html>)/is';
+
+        if (preg_match($reportPlaceholderPattern, $html) !== 1) {
+            return $html;
+        }
+
+        $html = preg_replace(
+            '/<div class="docx-page-break"><\/div>\s*<main class="report-content">.*?<\/main>/is',
+            '',
+            $html,
+            1,
+        ) ?? $html;
+
+        return preg_replace($reportPlaceholderPattern, $generatedContent, $html, 1) ?? $html;
     }
 
     private function proposalTitle(Proposal $proposal): string
