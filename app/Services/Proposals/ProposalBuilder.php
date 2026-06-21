@@ -87,8 +87,8 @@ final class ProposalBuilder
         $proposal = $proposal->refresh();
         $expiryDays ??= $this->defaultExpiryDays();
 
-        if (! in_array($proposal->status, [ProposalStatus::Draft, ProposalStatus::Renewed, ProposalStatus::Recalled], true)) {
-            throw new InvalidArgumentException('Only draft, renewed, or recalled proposals can be released.');
+        if (! in_array($proposal->status, [ProposalStatus::Draft, ProposalStatus::Renewed], true)) {
+            throw new InvalidArgumentException('Only draft or renewed proposals can be released.');
         }
 
         $this->recallCurrentProposalsForClient($proposal->client, $actor->getKey(), $proposal);

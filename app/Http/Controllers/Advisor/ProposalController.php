@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Advisor;
 
+use App\Enums\ProposalStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Consent;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use InvalidArgumentException;
 
 final class ProposalController extends Controller
 {
@@ -75,8 +77,16 @@ final class ProposalController extends Controller
             'expiry_days' => ['nullable', 'integer', 'min:1', 'max:365'],
         ]);
 
+        if (! in_array($proposal->status, [ProposalStatus::Draft, ProposalStatus::Renewed], true)) {
+            return back()->withErrors(['proposal' => 'Only draft or renewed proposals can be released.']);
+        }
+
         $funnels->enter(FunnelEvent::FLOW_PROPOSAL, 'release', $proposal->client, $user);
-        $proposals->release($proposal, $user, $validated['expiry_days'] ?? null);
+        try {
+            $proposals->release($proposal, $user, $validated['expiry_days'] ?? null);
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['proposal' => $exception->getMessage()]);
+        }
         $funnels->complete(FunnelEvent::FLOW_PROPOSAL, 'release', $proposal->client, $user);
 
         return to_route('advisor.clients.show', $proposal->client)->with('status', 'proposal-released');

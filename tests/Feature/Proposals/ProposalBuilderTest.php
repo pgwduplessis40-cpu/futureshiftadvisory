@@ -27,6 +27,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use InvalidArgumentException;
 use LogicException;
 use Tests\TestCase;
 
@@ -274,6 +275,37 @@ final class ProposalBuilderTest extends TestCase
         ]);
     }
 
+    public function test_recalled_proposals_are_not_releaseable(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-recalled-advisor@example.test');
+        $proposal = $this->storedProposal($client);
+        $proposal->forceFill([
+            'status' => ProposalStatus::Recalled,
+            'recalled_at' => now(),
+            'recalled_by_user_id' => $advisor->getKey(),
+        ])->save();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/clients/Show')
+                ->where('client.proposals.0.status', ProposalStatus::Recalled->value)
+                ->where('client.proposals.0.can_release', false)
+                ->where('client.proposals.0.can_recall', false)
+                ->where('client.proposals.0.can_renew', false));
+
+        $this->actingAsMfa($advisor)
+            ->from(route('advisor.clients.show', $client, absolute: false))
+            ->patch(route('advisor.proposals.release', $proposal), [
+                'expiry_days' => 30,
+            ])
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false))
+            ->assertSessionHasErrors(['proposal' => 'Only draft or renewed proposals can be released.']);
+
+        $this->assertSame(ProposalStatus::Recalled, $proposal->refresh()->status);
+    }
+
     public function test_release_recall_expiry_command_and_renewal_flow(): void
     {
         Config::set('proposals.expiry_days', 12);
@@ -303,7 +335,17 @@ final class ProposalBuilderTest extends TestCase
             'subject_id' => $released->id,
         ]);
 
-        $expiring = $builder->release($recalled, $advisor, 1);
+        try {
+            $builder->release($recalled, $advisor, 1);
+            $this->fail('Recalled proposals must not be releaseable.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame('Only draft or renewed proposals can be released.', $exception->getMessage());
+        }
+
+        $activeProposal = $builder->generate($client, $this->feeCalculation($client, 9000, 2.25), [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $expiring = $builder->release($activeProposal, $advisor, 1);
         $this->travelTo(now()->addDays(2));
 
         $this->artisan('proposals:expire')

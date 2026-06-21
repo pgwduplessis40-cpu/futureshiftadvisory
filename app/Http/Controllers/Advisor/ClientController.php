@@ -472,7 +472,7 @@ final class ClientController extends Controller
                         ? null
                         : max(0, now()->startOfDay()->diffInDays($proposal->expires_at->copy()->startOfDay(), false)),
                     'pdf_byte_size' => $proposal->pdf_byte_size,
-                    'can_release' => in_array($status, [ProposalStatus::Draft, ProposalStatus::Recalled, ProposalStatus::Renewed], true),
+                    'can_release' => in_array($status, [ProposalStatus::Draft, ProposalStatus::Renewed], true),
                     'can_recall' => $status === ProposalStatus::Released,
                     'can_renew' => $status === ProposalStatus::Expired,
                     'release_url' => route('advisor.proposals.release', $proposal, absolute: false),
