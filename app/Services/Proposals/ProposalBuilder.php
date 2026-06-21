@@ -677,13 +677,14 @@ HTML,
             '[XXX,XXX]' => number_format($improvementPv, 0),
             '[X]-month engagement' => $termMonths.'-month engagement',
             '[X]x return' => number_format($proposal->roi_ratio, 2).'x return',
+            '[X]× return' => number_format($proposal->roi_ratio, 2).'x return',
         ] + $this->proposalTemplateInstructionTokens();
     }
 
     private function polishUploadedProposalHtml(string $html, Proposal $proposal, string $sections): string
     {
         $html = preg_replace(
-            '/\[\s*X\s*\]\s*x\s+return/i',
+            '/\[\s*X\s*\]\s*[x×]\s+return/iu',
             number_format($proposal->roi_ratio, 2).'x return',
             $html,
         ) ?? $html;
