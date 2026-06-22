@@ -31,7 +31,7 @@ return [
     |
     | Supported: "smtp", "sendmail", "mailgun", "ses", "ses-v2",
     |            "postmark", "resend", "log", "array",
-    |            "failover", "roundrobin"
+    |            "failover", "roundrobin", "graph"
     |
     */
 
@@ -47,6 +47,18 @@ return [
             'password' => env('MAIL_PASSWORD'),
             'timeout' => null,
             'local_domain' => env('MAIL_EHLO_DOMAIN', parse_url((string) env('APP_URL', 'http://localhost'), PHP_URL_HOST)),
+        ],
+
+        'graph' => [
+            'transport' => 'graph',
+            'tenant' => env('MICROSOFT_GRAPH_MAIL_TENANT', env('MICROSOFT_GRAPH_TENANT', '')),
+            'client_id' => env('MICROSOFT_GRAPH_MAIL_CLIENT_ID', env('MICROSOFT_GRAPH_CLIENT_ID', '')),
+            'client_secret' => env('MICROSOFT_GRAPH_MAIL_CLIENT_SECRET', env('MICROSOFT_GRAPH_CLIENT_SECRET', '')),
+            'from_address' => env('MICROSOFT_GRAPH_MAIL_FROM_ADDRESS', env('MAIL_FROM_ADDRESS')),
+            'base_url' => env('MICROSOFT_GRAPH_MAIL_BASE_URL', 'https://graph.microsoft.com/v1.0'),
+            'token_url' => env('MICROSOFT_GRAPH_MAIL_TOKEN_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token'),
+            'scope' => env('MICROSOFT_GRAPH_MAIL_SCOPE', 'https://graph.microsoft.com/.default'),
+            'timeout' => (int) env('MICROSOFT_GRAPH_MAIL_TIMEOUT', 15),
         ],
 
         'ses' => [

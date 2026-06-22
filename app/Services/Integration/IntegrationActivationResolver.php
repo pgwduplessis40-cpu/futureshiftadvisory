@@ -205,6 +205,7 @@ final class IntegrationActivationResolver
 
         return match ($transport) {
             'smtp' => $this->smtpReady($mailer),
+            'graph' => $this->graphReady($mailer),
             'ses', 'ses-v2' => filled(Config::get('services.ses.key')) && filled(Config::get('services.ses.secret')),
             'postmark' => filled(Config::get('services.postmark.key')),
             'resend' => filled(Config::get('services.resend.key')),
@@ -222,6 +223,17 @@ final class IntegrationActivationResolver
             && ! in_array(Str::lower($host), ['127.0.0.1', 'localhost'], true)
             && filled(Config::get("mail.mailers.{$mailer}.username"))
             && filled(Config::get("mail.mailers.{$mailer}.password"));
+    }
+
+    private function graphReady(string $mailer): bool
+    {
+        $from = Config::get("mail.mailers.{$mailer}.from_address");
+
+        return filled(Config::get("mail.mailers.{$mailer}.tenant"))
+            && filled(Config::get("mail.mailers.{$mailer}.client_id"))
+            && filled(Config::get("mail.mailers.{$mailer}.client_secret"))
+            && is_string($from)
+            && filter_var($from, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     /**

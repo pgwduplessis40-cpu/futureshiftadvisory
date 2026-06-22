@@ -5,6 +5,7 @@ namespace App\Providers;
 use App\Events\NpoEngagementWeightingChanged;
 use App\Listeners\RecomputeNpoScoresForWeightingChange;
 use App\Listeners\SyncRbacAfterMigrations;
+use App\Mail\Transport\MicrosoftGraphTransport;
 use App\Models\AdvisorApiClient;
 use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
@@ -38,6 +39,7 @@ use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Date;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Storage;
@@ -85,6 +87,7 @@ class AppServiceProvider extends ServiceProvider
     {
         Client::observe(ClientLifecycleObserver::class);
         $this->registerSecureLocalDisk();
+        Mail::extend('graph', fn (array $config): MicrosoftGraphTransport => new MicrosoftGraphTransport($config));
         Notification::extend('fsa_database', fn ($app): FsaDatabaseChannel => $app->make(FsaDatabaseChannel::class));
         Event::listen(NpoEngagementWeightingChanged::class, RecomputeNpoScoresForWeightingChange::class);
         Event::listen(MigrationsEnded::class, SyncRbacAfterMigrations::class);

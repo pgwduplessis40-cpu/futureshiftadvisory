@@ -443,6 +443,22 @@ return [
                     'config_path' => 'mail.mailers.smtp.password',
                     'env_fallback_path' => 'MAIL_PASSWORD',
                 ],
+                'graph_tenant' => [
+                    'config_path' => 'mail.mailers.graph.tenant',
+                    'env_fallback_path' => 'MICROSOFT_GRAPH_MAIL_TENANT',
+                ],
+                'graph_client_id' => [
+                    'config_path' => 'mail.mailers.graph.client_id',
+                    'env_fallback_path' => 'MICROSOFT_GRAPH_MAIL_CLIENT_ID',
+                ],
+                'graph_client_secret' => [
+                    'config_path' => 'mail.mailers.graph.client_secret',
+                    'env_fallback_path' => 'MICROSOFT_GRAPH_MAIL_CLIENT_SECRET',
+                ],
+                'graph_from_address' => [
+                    'config_path' => 'mail.mailers.graph.from_address',
+                    'env_fallback_path' => 'MICROSOFT_GRAPH_MAIL_FROM_ADDRESS',
+                ],
                 'ses_key' => [
                     'config_path' => 'services.ses.key',
                     'env_fallback_path' => 'AWS_ACCESS_KEY_ID',
