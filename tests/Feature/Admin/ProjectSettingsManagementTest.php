@@ -13,6 +13,7 @@ use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -179,6 +180,69 @@ final class ProjectSettingsManagementTest extends TestCase
                 && str_contains($decoded, 'Graph mail body')
                 && str_contains($decoded, 'Subject: Graph transport test');
         });
+    }
+
+    public function test_graph_mailer_refreshes_cached_token_once_after_permission_denied(): void
+    {
+        Config::set('mail.default', 'graph');
+        Config::set('mail.mailers.graph', [
+            'transport' => 'graph',
+            'tenant' => 'fsa-test-tenant',
+            'client_id' => 'graph-client-id',
+            'client_secret' => 'graph-client-secret',
+            'from_address' => 'pieter@futureshiftadvisory.nz',
+            'base_url' => 'https://graph.microsoft.com/v1.0',
+            'token_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
+            'scope' => 'https://graph.microsoft.com/.default',
+            'timeout' => 15,
+        ]);
+        Mail::forgetMailers();
+
+        Cache::put(
+            'mail:graph:token:'.sha1('fsa-test-tenant|graph-client-id|https://graph.microsoft.com/.default'),
+            'stale-token',
+            3600,
+        );
+
+        $sendAttempts = 0;
+        $tokenAttempts = 0;
+
+        Http::fake(function ($request) use (&$sendAttempts, &$tokenAttempts) {
+            if ($request->url() === 'https://login.microsoftonline.com/fsa-test-tenant/oauth2/v2.0/token') {
+                $tokenAttempts++;
+
+                return Http::response([
+                    'access_token' => 'fresh-token',
+                    'expires_in' => 3600,
+                ]);
+            }
+
+            if ($request->url() === 'https://graph.microsoft.com/v1.0/users/pieter%40futureshiftadvisory.nz/sendMail') {
+                $sendAttempts++;
+
+                return $sendAttempts === 1
+                    ? Http::response(['error' => ['message' => 'Access is denied.']], 403)
+                    : Http::response('', 202);
+            }
+
+            return Http::response('', 404);
+        });
+
+        Mail::raw(
+            'Graph mail body',
+            fn ($message) => $message
+                ->to('recipient@example.test')
+                ->subject('Graph transport retry test'),
+        );
+
+        $this->assertSame(2, $sendAttempts);
+        $this->assertSame(1, $tokenAttempts);
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://graph.microsoft.com/v1.0/users/pieter%40futureshiftadvisory.nz/sendMail'
+            && $request->hasHeader('Authorization', 'Bearer stale-token'));
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://graph.microsoft.com/v1.0/users/pieter%40futureshiftadvisory.nz/sendMail'
+            && $request->hasHeader('Authorization', 'Bearer fresh-token'));
     }
 
     public function test_project_settings_feed_microsoft_graph_calendar_authorization(): void

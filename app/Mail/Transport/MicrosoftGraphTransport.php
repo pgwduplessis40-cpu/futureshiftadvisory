@@ -24,13 +24,12 @@ final class MicrosoftGraphTransport extends AbstractTransport
     protected function doSend(SentMessage $message): void
     {
         $from = $this->requiredEmail('from_address');
-        $endpoint = $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
+        $response = $this->sendMessage($message, $from);
 
-        $response = Http::withToken($this->accessToken())
-            ->acceptJson()
-            ->timeout($this->timeout())
-            ->withBody(base64_encode($message->toString()), 'text/plain')
-            ->post($endpoint);
+        if (in_array($response->status(), [401, 403], true)) {
+            Cache::forget($this->tokenCacheKey());
+            $response = $this->sendMessage($message, $from, refreshToken: true);
+        }
 
         if (! $response->successful()) {
             throw new TransportException('Microsoft Graph sendMail failed: '.$this->failureMessage($response));
@@ -44,11 +43,22 @@ final class MicrosoftGraphTransport extends AbstractTransport
         return 'graph';
     }
 
-    private function accessToken(): string
+    private function sendMessage(SentMessage $message, string $from, bool $refreshToken = false): Response
     {
-        $cacheKey = 'mail:graph:token:'.sha1($this->tenant().'|'.$this->requiredString('client_id').'|'.$this->scope());
+        $endpoint = $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
+
+        return Http::withToken($this->accessToken($refreshToken))
+            ->acceptJson()
+            ->timeout($this->timeout())
+            ->withBody(base64_encode($message->toString()), 'text/plain')
+            ->post($endpoint);
+    }
+
+    private function accessToken(bool $refresh = false): string
+    {
+        $cacheKey = $this->tokenCacheKey();
         $cached = Cache::get($cacheKey);
-        if (is_string($cached) && $cached !== '') {
+        if (! $refresh && is_string($cached) && $cached !== '') {
             return $cached;
         }
 
@@ -75,6 +85,11 @@ final class MicrosoftGraphTransport extends AbstractTransport
         Cache::put($cacheKey, $token, $ttl);
 
         return $token;
+    }
+
+    private function tokenCacheKey(): string
+    {
+        return 'mail:graph:token:'.sha1($this->tenant().'|'.$this->requiredString('client_id').'|'.$this->scope());
     }
 
     private function tokenUrl(): string
