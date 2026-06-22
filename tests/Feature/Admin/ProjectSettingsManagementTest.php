@@ -13,7 +13,9 @@ use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 use Tests\TestCase;
 
 final class ProjectSettingsManagementTest extends TestCase
@@ -134,6 +136,25 @@ final class ProjectSettingsManagementTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'project_setting.revoked',
         ]);
+    }
+
+    public function test_test_email_returns_provider_failure_as_validation_error(): void
+    {
+        $admin = $this->superAdmin();
+
+        Mail::shouldReceive('raw')
+            ->once()
+            ->andThrow(new RuntimeException('SMTP authentication failed.'));
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.project-settings.index'))
+            ->post(route('admin.project-settings.test-email'), [
+                'recipient' => 'pieter@futureshiftadvisory.nz',
+            ])
+            ->assertRedirect(route('admin.project-settings.index', absolute: false))
+            ->assertSessionHasErrors([
+                'recipient' => 'Email test failed: SMTP authentication failed.',
+            ]);
     }
 
     private function superAdmin(): User

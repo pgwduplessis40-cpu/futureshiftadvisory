@@ -14,6 +14,7 @@ use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 final class ProjectSettingsController extends Controller
 {
@@ -94,14 +95,33 @@ final class ProjectSettingsController extends Controller
             'recipient' => ['required', 'email:rfc', 'max:255'],
         ]);
 
-        Mail::raw(
-            'Future Shift Advisory project email settings test.',
-            fn ($message) => $message
-                ->to((string) $validated['recipient'])
-                ->subject('Future Shift Advisory email test'),
-        );
+        try {
+            Mail::raw(
+                'Future Shift Advisory project email settings test.',
+                fn ($message) => $message
+                    ->to((string) $validated['recipient'])
+                    ->subject('Future Shift Advisory email test'),
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+
+            throw ValidationException::withMessages([
+                'recipient' => 'Email test failed: '.$this->mailFailureMessage($exception),
+            ]);
+        }
 
         return to_route('admin.project-settings.index')->with('status', 'project-settings-test-email-sent');
+    }
+
+    private function mailFailureMessage(Throwable $exception): string
+    {
+        $message = trim((string) preg_replace('/\s+/', ' ', $exception->getMessage()));
+
+        if ($message === '') {
+            return 'the mail provider rejected the request. Check the SMTP credentials and provider configuration.';
+        }
+
+        return mb_substr($message, 0, 500);
     }
 
     /**
