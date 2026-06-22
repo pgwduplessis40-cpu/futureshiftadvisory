@@ -59,7 +59,7 @@ final class ProjectSettingsManagementTest extends TestCase
                     'mail.default' => 'smtp',
                     'mail.mailers.smtp.host' => 'smtp.office365.com',
                     'mail.mailers.smtp.port' => 587,
-                    'mail.mailers.smtp.scheme' => 'tls',
+                    'mail.mailers.smtp.scheme' => 'smtp',
                     'mail.mailers.smtp.username' => 'shared@futureshiftadvisory.nz',
                     'mail.mailers.smtp.password' => 'smtp-secret-1234',
                     'mail.from.address' => 'shared@futureshiftadvisory.nz',
@@ -82,6 +82,7 @@ final class ProjectSettingsManagementTest extends TestCase
         );
         $this->assertSame('smtp', config('mail.default'));
         $this->assertSame('smtp.office365.com', config('mail.mailers.smtp.host'));
+        $this->assertSame('smtp', config('mail.mailers.smtp.scheme'));
         $this->assertSame('smtp-secret-1234', config('mail.mailers.smtp.password'));
         $this->assertDatabaseHas('audit_events', [
             'action' => 'project_setting.secret_set',
@@ -136,6 +137,27 @@ final class ProjectSettingsManagementTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'project_setting.revoked',
         ]);
+    }
+
+    public function test_legacy_smtp_scheme_values_are_mapped_to_supported_mailer_schemes(): void
+    {
+        $admin = $this->superAdmin();
+        $settings = app(ProjectSettings::class);
+        $definitions = $settings->definitionsByKey();
+
+        $settings->set($definitions['mail.mailers.smtp.scheme'], 'tls', $admin);
+
+        $this->assertSame('smtp', config('mail.mailers.smtp.scheme'));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.project-settings.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('groups.0.fields.3.key', 'mail.mailers.smtp.scheme')
+                ->where('groups.0.fields.3.value', 'smtp')
+                ->where('groups.0.fields.3.options.0', 'smtp')
+                ->where('groups.0.fields.3.options.1', 'smtps')
+            );
     }
 
     public function test_test_email_returns_provider_failure_as_validation_error(): void

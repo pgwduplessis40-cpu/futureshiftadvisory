@@ -92,8 +92,8 @@ final class ProjectSettings
             'label' => 'SMTP scheme',
             'type' => self::TYPE_SELECT,
             'config_path' => 'mail.mailers.smtp.scheme',
-            'default' => '',
-            'options' => ['', 'tls', 'ssl'],
+            'default' => 'smtp',
+            'options' => ['smtp', 'smtps', ''],
         ],
         [
             'key' => 'mail.mailers.smtp.username',
@@ -487,6 +487,8 @@ final class ProjectSettings
      */
     private function normaliseForStorage(array $definition, mixed $value): string
     {
+        $value = $this->normaliseSpecialValue($definition, $value);
+
         return match ((string) $definition['type']) {
             self::TYPE_BOOLEAN => filter_var($value, FILTER_VALIDATE_BOOLEAN) ? '1' : '0',
             self::TYPE_INTEGER => (string) (int) $value,
@@ -523,6 +525,8 @@ final class ProjectSettings
      */
     private function uiValue(array $definition, mixed $value): string
     {
+        $value = $this->normaliseSpecialValue($definition, $value);
+
         if (is_array($value)) {
             return collect($value)->map(fn (mixed $item): string => (string) $item)->implode("\n");
         }
@@ -545,6 +549,22 @@ final class ProjectSettings
         }
 
         return trim((string) $value) !== '';
+    }
+
+    /**
+     * @param  array<string, mixed>  $definition
+     */
+    private function normaliseSpecialValue(array $definition, mixed $value): mixed
+    {
+        if (($definition['key'] ?? null) !== 'mail.mailers.smtp.scheme') {
+            return $value;
+        }
+
+        return match (strtolower(trim((string) $value))) {
+            'tls' => 'smtp',
+            'ssl' => 'smtps',
+            default => $value,
+        };
     }
 
     private function withSystemContext(callable $callback): mixed
