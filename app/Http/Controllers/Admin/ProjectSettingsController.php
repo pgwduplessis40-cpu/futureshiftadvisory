@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Services\Audit\AuditWriter;
 use App\Services\Settings\ProjectSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -20,7 +21,10 @@ use Throwable;
 
 final class ProjectSettingsController extends Controller
 {
-    public function __construct(private readonly ProjectSettings $settings) {}
+    public function __construct(
+        private readonly ProjectSettings $settings,
+        private readonly AuditWriter $auditWriter,
+    ) {}
 
     public function index(): Response
     {
@@ -116,11 +120,19 @@ final class ProjectSettingsController extends Controller
         return to_route('admin.project-settings.index')->with('status', 'project-settings-test-email-sent');
     }
 
-    public function testSlackWebhook(): RedirectResponse
+    public function testSlackWebhook(Request $request): RedirectResponse
     {
         $webhookUrl = trim((string) Config::get('logging.channels.slack.url', ''));
+        $actor = $this->actor($request);
 
         if ($webhookUrl === '') {
+            $this->auditWriter->record('project_settings.slack_webhook_test_failed', actor: $actor, after: [
+                'provider' => 'slack',
+                'config_path' => 'logging.channels.slack.url',
+                'configured' => false,
+                'reason' => 'missing_webhook_url',
+            ]);
+
             throw ValidationException::withMessages([
                 'slack_webhook' => 'Slack test failed: add and save a Logging Slack webhook URL first.',
             ]);
@@ -133,16 +145,40 @@ final class ProjectSettingsController extends Controller
         } catch (Throwable $exception) {
             report($exception);
 
+            $this->auditWriter->record('project_settings.slack_webhook_test_failed', actor: $actor, after: [
+                'provider' => 'slack',
+                'config_path' => 'logging.channels.slack.url',
+                'configured' => true,
+                'webhook_last_four' => mb_substr($webhookUrl, -4),
+                'exception' => $exception::class,
+            ]);
+
             throw ValidationException::withMessages([
                 'slack_webhook' => 'Slack test failed: '.$this->providerFailureMessage($exception),
             ]);
         }
 
         if (! $response->successful()) {
+            $this->auditWriter->record('project_settings.slack_webhook_test_failed', actor: $actor, after: [
+                'provider' => 'slack',
+                'config_path' => 'logging.channels.slack.url',
+                'configured' => true,
+                'webhook_last_four' => mb_substr($webhookUrl, -4),
+                'response_status' => $response->status(),
+            ]);
+
             throw ValidationException::withMessages([
                 'slack_webhook' => 'Slack test failed: Slack returned HTTP '.$response->status().'.',
             ]);
         }
+
+        $this->auditWriter->record('project_settings.slack_webhook_test_sent', actor: $actor, after: [
+            'provider' => 'slack',
+            'config_path' => 'logging.channels.slack.url',
+            'configured' => true,
+            'webhook_last_four' => mb_substr($webhookUrl, -4),
+            'response_status' => $response->status(),
+        ]);
 
         return to_route('admin.project-settings.index')
             ->with('status', 'project-settings-test-slack-sent')

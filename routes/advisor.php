@@ -204,6 +204,14 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('partners/coaches/invite', [PartnerPanelController::class, 'storeCoach'])
             ->middleware('permission:'.Permission::REFERRALS_SEND->value)
             ->name('partners.coaches.store');
+        Route::post('partners/{panelMember}/invite/resend', [PartnerPanelController::class, 'resendInvite'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->whereUuid('panelMember')
+            ->name('partners.invite.resend');
+        Route::delete('partners/{panelMember}/invite', [PartnerPanelController::class, 'cancelInvite'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->whereUuid('panelMember')
+            ->name('partners.invite.cancel');
         Route::get('partners/{panelMember}', [PartnerPanelController::class, 'show'])
             ->middleware('permission:'.Permission::REFERRALS_SEND->value)
             ->whereUuid('panelMember')
@@ -306,6 +314,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/invite/resend', [EntrepreneurController::class, 'resendInvite'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.invite.resend');
+        Route::delete('entrepreneurs/{entrepreneurProfile}/invite', [EntrepreneurController::class, 'cancelInvite'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.invite.cancel');
         Route::get('entrepreneurs/{entrepreneurProfile}', [EntrepreneurController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.show');

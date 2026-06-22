@@ -5,14 +5,17 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Advisor;
 
 use App\Http\Controllers\Controller;
+use App\Models\InviteToken;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\Referral;
 use App\Models\User;
+use App\Services\Audit\AuditWriter;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -20,6 +23,8 @@ use Inertia\Response;
 
 final class PartnerPanelController extends Controller
 {
+    public function __construct(private readonly AuditWriter $auditWriter) {}
+
     /**
      * @var array<int, string>
      */
@@ -63,9 +68,107 @@ final class PartnerPanelController extends Controller
         return $this->store($request, $issuer, PanelMember::TYPE_COACH);
     }
 
+    public function resendInvite(Request $request, PanelMember $panelMember, InviteIssuer $issuer): RedirectResponse
+    {
+        $this->assertPartner($panelMember);
+        $panelMember->loadMissing(['inviteToken', 'user']);
+
+        if (! $this->canResendInvite($panelMember)) {
+            return back()->withErrors([
+                'invite' => 'Only pending or cancelled partner invites can be resent.',
+            ]);
+        }
+
+        $actor = $this->actor($request);
+        $email = $this->inviteEmail($panelMember);
+
+        DB::transaction(function () use ($actor, $email, $issuer, $panelMember): void {
+            $previousInvite = $panelMember->inviteToken;
+
+            if ($previousInvite instanceof InviteToken && ! $previousInvite->isAccepted()) {
+                $previousInvite->forceFill([
+                    'expires_at' => now()->subMinute(),
+                ])->save();
+            }
+
+            $issued = $issuer->issue(
+                email: $email,
+                targetUserType: $panelMember->panel_type,
+                targetRole: $panelMember->panel_type,
+                issuedBy: $actor,
+            );
+
+            $application = $panelMember->application ?? [];
+            $panelMember->forceFill([
+                'invite_token_id' => $issued->invite->getKey(),
+                'status' => PanelMember::STATUS_INVITED,
+                'application' => [
+                    ...$application,
+                    'last_invite_resent_at' => now()->toIso8601String(),
+                ],
+            ])->save();
+
+            $this->auditWriter->record('panel.invite_resent', subject: $panelMember, actor: $actor, after: [
+                'panel_member_id' => $panelMember->getKey(),
+                'panel_type' => $panelMember->panel_type,
+                'email' => $email,
+                'previous_invite_token_id' => $previousInvite?->getKey(),
+                'invite_token_id' => $issued->invite->getKey(),
+            ]);
+        });
+
+        return to_route('advisor.partners.show', $panelMember)
+            ->with('status', $panelMember->panel_type.'-invite-resent');
+    }
+
+    public function cancelInvite(Request $request, PanelMember $panelMember): RedirectResponse
+    {
+        $this->assertPartner($panelMember);
+        $panelMember->loadMissing(['inviteToken', 'user']);
+
+        if (! $this->canCancelInvite($panelMember)) {
+            return back()->withErrors([
+                'invite' => 'Only pending partner invites can be cancelled.',
+            ]);
+        }
+
+        $actor = $this->actor($request);
+        $email = $this->inviteEmail($panelMember);
+
+        DB::transaction(function () use ($actor, $email, $panelMember): void {
+            $invite = $panelMember->inviteToken;
+
+            if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
+                $invite->forceFill([
+                    'expires_at' => now()->subMinute(),
+                ])->save();
+            }
+
+            $application = $panelMember->application ?? [];
+            $panelMember->forceFill([
+                'status' => PanelMember::STATUS_CANCELLED,
+                'application' => [
+                    ...$application,
+                    'invite_cancelled_at' => now()->toIso8601String(),
+                    'invite_cancelled_by_user_id' => $actor->getKey(),
+                ],
+            ])->save();
+
+            $this->auditWriter->record('panel.invite_cancelled', subject: $panelMember, actor: $actor, after: [
+                'panel_member_id' => $panelMember->getKey(),
+                'panel_type' => $panelMember->panel_type,
+                'email' => $email,
+                'invite_token_id' => $invite?->getKey(),
+            ]);
+        });
+
+        return to_route('advisor.partners.show', $panelMember)
+            ->with('status', $panelMember->panel_type.'-invite-cancelled');
+    }
+
     public function show(PanelMember $panelMember): Response
     {
-        abort_unless(in_array($panelMember->panel_type, PanelMember::panelTypes(), true), 404);
+        $this->assertPartner($panelMember);
 
         $panelMember->load([
             'user',
@@ -88,6 +191,14 @@ final class PartnerPanelController extends Controller
             'partner' => [
                 ...$this->summary($panelMember),
                 'email' => $panelMember->user?->email ?? $panelMember->inviteToken?->email,
+                'invite_accepted_at' => $panelMember->inviteToken?->accepted_at?->toISOString(),
+                'invite_expires_at' => $panelMember->inviteToken?->expires_at?->toISOString(),
+                'invite_resend_url' => $this->canResendInvite($panelMember)
+                    ? route('advisor.partners.invite.resend', $panelMember, absolute: false)
+                    : null,
+                'invite_cancel_url' => $this->canCancelInvite($panelMember)
+                    ? route('advisor.partners.invite.cancel', $panelMember, absolute: false)
+                    : null,
                 'fsp_number' => $panelMember->fsp_number,
                 'fsp_status' => $panelMember->fsp_status,
                 'fsp_last_checked_at' => $panelMember->fsp_last_checked_at?->toISOString(),
@@ -278,6 +389,43 @@ final class PartnerPanelController extends Controller
             'reverse_referrals_count' => (int) ($member->reverse_referrals_count ?? 0),
             'show_url' => route('advisor.partners.show', $member, absolute: false),
         ];
+    }
+
+    private function actor(Request $request): User
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        return $user;
+    }
+
+    private function assertPartner(PanelMember $panelMember): void
+    {
+        abort_unless(in_array($panelMember->panel_type, PanelMember::panelTypes(), true), 404);
+    }
+
+    private function canResendInvite(PanelMember $panelMember): bool
+    {
+        return $panelMember->user_id === null
+            && $panelMember->user === null
+            && in_array($panelMember->status, [PanelMember::STATUS_INVITED, PanelMember::STATUS_CANCELLED], true)
+            && ! $panelMember->inviteToken?->isAccepted()
+            && filter_var($this->inviteEmail($panelMember), FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function canCancelInvite(PanelMember $panelMember): bool
+    {
+        return $panelMember->user_id === null
+            && $panelMember->user === null
+            && $panelMember->status === PanelMember::STATUS_INVITED
+            && $panelMember->inviteToken instanceof InviteToken
+            && ! $panelMember->inviteToken->isAccepted()
+            && filter_var($this->inviteEmail($panelMember), FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function inviteEmail(PanelMember $panelMember): string
+    {
+        return (string) ($panelMember->user?->email ?? $panelMember->inviteToken?->email);
     }
 
     private function businessName(PanelMember $member): string

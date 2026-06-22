@@ -7,6 +7,7 @@ namespace App\Enums;
 enum EntrepreneurStage: string
 {
     case INVITED = 'invited';
+    case CANCELLED = 'cancelled';
     case ONBOARDING = 'onboarding';
     case READINESS = 'readiness';
     case IDEA_VALIDATION = 'idea_validation';
@@ -25,6 +26,7 @@ enum EntrepreneurStage: string
     {
         return match ($this) {
             self::INVITED => 'Invited',
+            self::CANCELLED => 'Cancelled',
             self::ONBOARDING => 'Onboarding',
             self::READINESS => 'Readiness',
             self::IDEA_VALIDATION => 'Idea validation',

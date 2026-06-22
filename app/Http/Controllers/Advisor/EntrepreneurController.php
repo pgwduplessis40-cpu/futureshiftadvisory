@@ -13,6 +13,7 @@ use App\Models\BusinessPlan;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
+use App\Models\InviteToken;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
@@ -137,6 +138,11 @@ final class EntrepreneurController extends Controller
         }
 
         DB::transaction(function () use ($advisor, $entrepreneurProfile, $issuer): void {
+            $previousInvite = $entrepreneurProfile->inviteToken;
+            if ($previousInvite instanceof InviteToken && ! $previousInvite->isAccepted()) {
+                $previousInvite->forceFill(['expires_at' => now()->subMinute()])->save();
+            }
+
             $issued = $issuer->issue(
                 email: $entrepreneurProfile->email,
                 targetUserType: User::TYPE_ENTREPRENEUR,
@@ -152,12 +158,48 @@ final class EntrepreneurController extends Controller
             $this->auditWriter->record('entrepreneur.invite_resent', subject: $entrepreneurProfile, actor: $advisor, after: [
                 'entrepreneur_profile_id' => $entrepreneurProfile->getKey(),
                 'invite_token_id' => $issued->invite->getKey(),
+                'previous_invite_token_id' => $previousInvite?->getKey(),
                 'email' => $entrepreneurProfile->email,
             ]);
         });
 
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
             ->with('status', 'entrepreneur-invite-resent');
+    }
+
+    public function cancelInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+
+        $advisor = $this->actor($request);
+
+        $entrepreneurProfile->loadMissing(['inviteToken', 'user']);
+
+        if (! $this->canCancelInvite($entrepreneurProfile)) {
+            return back()->withErrors([
+                'invite' => 'Only pending entrepreneur invitations can be cancelled.',
+            ]);
+        }
+
+        DB::transaction(function () use ($advisor, $entrepreneurProfile): void {
+            $invite = $entrepreneurProfile->inviteToken;
+            if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
+                $invite->forceFill(['expires_at' => now()->subMinute()])->save();
+            }
+
+            $entrepreneurProfile->forceFill([
+                'stage' => EntrepreneurStage::CANCELLED,
+            ])->save();
+
+            $this->auditWriter->record('entrepreneur.invite_cancelled', subject: $entrepreneurProfile, actor: $advisor, after: [
+                'entrepreneur_profile_id' => $entrepreneurProfile->getKey(),
+                'invite_token_id' => $invite?->getKey(),
+                'email' => $entrepreneurProfile->email,
+            ]);
+        });
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
+            ->with('status', 'entrepreneur-invite-cancelled');
     }
 
     public function show(Request $request, EntrepreneurProfile $entrepreneurProfile): Response
@@ -182,8 +224,12 @@ final class EntrepreneurController extends Controller
                 'concept_summary' => $entrepreneurProfile->concept_summary,
                 'user_id' => $entrepreneurProfile->user_id,
                 'invite_accepted_at' => $entrepreneurProfile->inviteToken?->accepted_at?->toIso8601String(),
+                'invite_expires_at' => $entrepreneurProfile->inviteToken?->expires_at?->toIso8601String(),
                 'invite_resend_url' => $this->canResendInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.resend', $entrepreneurProfile, absolute: false)
+                    : null,
+                'invite_cancel_url' => $this->canCancelInvite($entrepreneurProfile)
+                    ? route('advisor.entrepreneurs.invite.cancel', $entrepreneurProfile, absolute: false)
                     : null,
                 'created_at' => $entrepreneurProfile->created_at?->toIso8601String(),
                 'latest_plan' => $latestPlan instanceof BusinessPlan
@@ -213,6 +259,16 @@ final class EntrepreneurController extends Controller
         return $profile->user_id === null
             && $profile->user === null
             && $profile->inviteToken?->accepted_at === null
+            && filter_var($profile->email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function canCancelInvite(EntrepreneurProfile $profile): bool
+    {
+        return $profile->user_id === null
+            && $profile->user === null
+            && $profile->stage === EntrepreneurStage::INVITED
+            && $profile->inviteToken instanceof InviteToken
+            && ! $profile->inviteToken->isAccepted()
             && filter_var($profile->email, FILTER_VALIDATE_EMAIL) !== false;
     }
 

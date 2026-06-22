@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { CompletionSummaryBadges } from '@/components/completion-summary-badges';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -94,9 +95,10 @@ function IntegrationCredentialGroup({
     category: string;
     rows: IntegrationRow[];
 }) {
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(false);
     const categoryTitle = category.replaceAll('_', ' ');
     const contentId = `integration-credentials-${category}`;
+    const completed = rows.filter((row) => row.credentials_ready).length;
 
     return (
         <section className="rounded-md border bg-background">
@@ -105,7 +107,12 @@ function IntegrationCredentialGroup({
                     {categoryTitle}
                 </h2>
                 <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant="outline">{rows.length}</Badge>
+                    <CompletionSummaryBadges
+                        total={rows.length}
+                        completed={completed}
+                        itemSingular="integration"
+                        itemPlural="integrations"
+                    />
                     <Button
                         type="button"
                         size="icon"

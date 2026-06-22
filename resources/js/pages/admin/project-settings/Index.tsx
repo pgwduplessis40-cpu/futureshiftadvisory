@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
+import { CompletionSummaryBadges } from '@/components/completion-summary-badges';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -107,8 +108,9 @@ function ProjectSettingsGroupForm({
     const testSlackForm = useForm({
         slack_webhook: '',
     });
-    const [expanded, setExpanded] = useState(true);
+    const [expanded, setExpanded] = useState(false);
     const groupContentId = `project-settings-${group.key}`;
+    const completed = group.fields.filter((field) => field.configured).length;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -164,7 +166,12 @@ function ProjectSettingsGroupForm({
                     </p>
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
-                    <Badge variant="outline">{group.fields.length}</Badge>
+                    <CompletionSummaryBadges
+                        total={group.fields.length}
+                        completed={completed}
+                        itemSingular="setting"
+                        itemPlural="settings"
+                    />
                     <Button
                         type="button"
                         size="icon"

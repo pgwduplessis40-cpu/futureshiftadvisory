@@ -1,5 +1,5 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import { ArrowLeft, RefreshCw, XCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,6 +39,10 @@ type PartnerDetail = {
     email: string | null;
     status: string;
     status_label: string;
+    invite_accepted_at: string | null;
+    invite_expires_at: string | null;
+    invite_resend_url: string | null;
+    invite_cancel_url: string | null;
     industry_label: string;
     regions: string[];
     specialties: string[];
@@ -62,6 +66,32 @@ type PartnerDetail = {
 
 export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
     const heading = `${partner.business_name} - ${partner.panel_label}`;
+    const resendInvite = () => {
+        if (!partner.invite_resend_url) {
+            return;
+        }
+
+        router.post(
+            partner.invite_resend_url,
+            {},
+            { preserveScroll: true },
+        );
+    };
+    const cancelInvite = () => {
+        if (!partner.invite_cancel_url) {
+            return;
+        }
+
+        if (
+            !window.confirm(
+                `Cancel the pending invite for ${partner.contact_name}? The current invite link will stop working.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(partner.invite_cancel_url, { preserveScroll: true });
+    };
 
     return (
         <>
@@ -81,12 +111,45 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                             {partner.email ? ` - ${partner.email}` : ''}
                         </p>
                     </div>
-                    <Button asChild size="sm" variant="outline">
-                        <Link href={partner.back_url}>
-                            <ArrowLeft className="size-4" aria-hidden="true" />
-                            Back
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        {partner.invite_resend_url ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={resendInvite}
+                            >
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Resend invite
+                            </Button>
+                        ) : null}
+                        {partner.invite_cancel_url ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="destructive"
+                                onClick={cancelInvite}
+                            >
+                                <XCircle
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Cancel invite
+                            </Button>
+                        ) : null}
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={partner.back_url}>
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Back
+                            </Link>
+                        </Button>
+                    </div>
                 </header>
 
                 <section className="grid gap-3 md:grid-cols-4">
@@ -121,6 +184,14 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                             <Detail
                                 label="Email"
                                 value={partner.email ?? 'Not supplied'}
+                            />
+                            <Detail
+                                label="Invite accepted"
+                                value={formatDate(partner.invite_accepted_at)}
+                            />
+                            <Detail
+                                label="Invite expires"
+                                value={formatDate(partner.invite_expires_at)}
                             />
                             <Detail
                                 label="Regions"
@@ -319,6 +390,10 @@ function statusVariant(
     }
 
     if (status === 'suspended' || status === 'declined') {
+        return 'destructive';
+    }
+
+    if (status === 'cancelled') {
         return 'destructive';
     }
 

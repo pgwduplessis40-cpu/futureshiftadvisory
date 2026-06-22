@@ -79,6 +79,7 @@ final class AddEntrepreneurTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
+                ->where('entrepreneur.invite_cancel_url', route('advisor.entrepreneurs.invite.cancel', $profile, absolute: false))
             );
 
         $this->actingAsMfa($advisor)
@@ -87,14 +88,66 @@ final class AddEntrepreneurTest extends TestCase
             ->assertSessionHas('status', 'entrepreneur-invite-resent');
 
         $profile->refresh();
+        $issued->invite->refresh();
 
         $this->assertNotSame($issued->invite->id, $profile->invite_token_id);
         $this->assertSame(EntrepreneurStage::INVITED, $profile->stage);
+        $this->assertTrue($issued->invite->isExpired());
         $this->assertDatabaseCount('invite_tokens', 2);
-        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.invite_resent']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.invite_resent',
+            'subject_id' => $profile->id,
+        ]);
     }
 
-    public function test_accepted_entrepreneur_invite_cannot_be_resent(): void
+    public function test_advisor_can_cancel_pending_entrepreneur_invite(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'cancel-founder@example.com',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            issuedBy: $advisor,
+        );
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->id,
+            'invite_token_id' => $issued->invite->id,
+            'name' => 'Cancel Founder',
+            'email' => 'cancel-founder@example.com',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Pending invite to cancel.',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->delete(route('advisor.entrepreneurs.invite.cancel', $profile))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-invite-cancelled');
+
+        $profile->refresh();
+        $issued->invite->refresh();
+
+        $this->assertSame(EntrepreneurStage::CANCELLED, $profile->stage);
+        $this->assertTrue($issued->invite->isExpired());
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.invite_cancelled',
+            'subject_id' => $profile->id,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('entrepreneur.stage', EntrepreneurStage::CANCELLED->value)
+                ->where('entrepreneur.stage_label', 'Cancelled')
+                ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
+                ->where('entrepreneur.invite_cancel_url', null)
+            );
+    }
+
+    public function test_accepted_entrepreneur_invite_cannot_be_resent_or_cancelled(): void
     {
         Mail::fake();
         $this->seed(RoleSeeder::class);
@@ -131,6 +184,7 @@ final class AddEntrepreneurTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->where('entrepreneur.invite_resend_url', null)
+                ->where('entrepreneur.invite_cancel_url', null)
             );
 
         $this->actingAsMfa($advisor)
@@ -139,7 +193,14 @@ final class AddEntrepreneurTest extends TestCase
             ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
             ->assertSessionHasErrors('invite');
 
+        $this->actingAsMfa($advisor)
+            ->from(route('advisor.entrepreneurs.show', $profile))
+            ->delete(route('advisor.entrepreneurs.invite.cancel', $profile))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHasErrors('invite');
+
         $this->assertSame($issued->invite->id, $profile->refresh()->invite_token_id);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
         $this->assertDatabaseCount('invite_tokens', 1);
     }
 

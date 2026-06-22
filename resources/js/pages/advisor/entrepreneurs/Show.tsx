@@ -11,6 +11,7 @@ import {
     RefreshCw,
     TrendingUp,
     UserRoundCheck,
+    XCircle,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
@@ -39,6 +40,28 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
             setCopiedInviteEmail(true);
             window.setTimeout(() => setCopiedInviteEmail(false), 1800);
         });
+    };
+    const resendInvite = () => {
+        if (!entrepreneur.invite_resend_url) {
+            return;
+        }
+
+        router.post(entrepreneur.invite_resend_url, {}, { preserveScroll: true });
+    };
+    const cancelInvite = () => {
+        if (!entrepreneur.invite_cancel_url) {
+            return;
+        }
+
+        if (
+            !window.confirm(
+                `Cancel the pending invite for ${entrepreneur.name}? The current invite link will stop working.`,
+            )
+        ) {
+            return;
+        }
+
+        router.delete(entrepreneur.invite_cancel_url, { preserveScroll: true });
     };
 
     return (
@@ -512,6 +535,12 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                             entrepreneur.invite_accepted_at,
                                         ),
                                     },
+                                    {
+                                        label: 'Expires',
+                                        value: formatDate(
+                                            entrepreneur.invite_expires_at,
+                                        ),
+                                    },
                                 ]}
                             />
                         </div>
@@ -521,6 +550,12 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 label="Accepted"
                                 value={formatDate(
                                     entrepreneur.invite_accepted_at,
+                                )}
+                            />
+                            <Detail
+                                label="Expires"
+                                value={formatDate(
+                                    entrepreneur.invite_expires_at,
                                 )}
                             />
                             <Detail
@@ -547,19 +582,27 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 <Button
                                     type="button"
                                     size="sm"
-                                    onClick={() =>
-                                        router.post(
-                                            entrepreneur.invite_resend_url ?? '',
-                                            {},
-                                            { preserveScroll: true },
-                                        )
-                                    }
+                                    onClick={resendInvite}
                                 >
                                     <RefreshCw
                                         className="size-4"
                                         aria-hidden="true"
                                     />
                                     Resend invite
+                                </Button>
+                            ) : null}
+                            {entrepreneur.invite_cancel_url ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={cancelInvite}
+                                >
+                                    <XCircle
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Cancel invite
                                 </Button>
                             ) : null}
                         </div>

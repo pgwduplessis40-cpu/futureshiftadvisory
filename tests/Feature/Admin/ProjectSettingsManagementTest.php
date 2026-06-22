@@ -348,6 +348,11 @@ final class ProjectSettingsManagementTest extends TestCase
 
         Http::assertSent(fn ($request): bool => $request->url() === 'https://hooks.slack.test/services/fsa-alerts'
             && str_contains((string) $request['text'], 'Future Shift Advisory Slack logging test'));
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'project_settings.slack_webhook_test_sent',
+            'actor_user_key' => (string) $admin->getKey(),
+        ]);
     }
 
     public function test_test_slack_webhook_requires_configured_url(): void
@@ -363,6 +368,11 @@ final class ProjectSettingsManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'slack_webhook' => 'Slack test failed: add and save a Logging Slack webhook URL first.',
             ]);
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'project_settings.slack_webhook_test_failed',
+            'actor_user_key' => (string) $admin->getKey(),
+        ]);
     }
 
     public function test_test_slack_webhook_returns_provider_failure_as_validation_error(): void
@@ -382,6 +392,11 @@ final class ProjectSettingsManagementTest extends TestCase
             ->assertSessionHasErrors([
                 'slack_webhook' => 'Slack test failed: Slack returned HTTP 500.',
             ]);
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'project_settings.slack_webhook_test_failed',
+            'actor_user_key' => (string) $admin->getKey(),
+        ]);
     }
 
     private function superAdmin(): User

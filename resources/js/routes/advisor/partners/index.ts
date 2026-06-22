@@ -1,9 +1,10 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 import brokers from './brokers'
 import coaches from './coaches'
+import invite from './invite'
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
 export const show = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -18,7 +19,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
 show.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -29,7 +30,7 @@ show.url = (args: { panelMember: string | { id: string } } | [panelMember: strin
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -51,7 +52,7 @@ show.url = (args: { panelMember: string | { id: string } } | [panelMember: strin
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
 show.get = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -60,7 +61,7 @@ show.get = (args: { panelMember: string | { id: string } } | [panelMember: strin
 })
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
 show.head = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -70,7 +71,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
 
     /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
     const showForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -80,7 +81,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
 
             /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
         showForm.get = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -89,7 +90,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
         })
             /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:66
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:169
  * @route '/advisor/partners/{panelMember}'
  */
         showForm.head = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -101,11 +102,12 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const partners = {
     brokers: Object.assign(brokers, brokers),
 coaches: Object.assign(coaches, coaches),
+invite: Object.assign(invite, invite),
 show: Object.assign(show, show),
 }
 

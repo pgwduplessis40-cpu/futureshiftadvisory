@@ -25,6 +25,8 @@ final class PanelMember extends Model
 
     public const STATUS_DECLINED = 'declined';
 
+    public const STATUS_CANCELLED = 'cancelled';
+
     public const STATUS_APPROVED_PENDING_AGREEMENT = 'approved_pending_agreement';
 
     public const STATUS_ACTIVE = 'active';

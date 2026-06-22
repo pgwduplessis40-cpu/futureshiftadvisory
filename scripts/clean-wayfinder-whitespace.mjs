@@ -1,9 +1,18 @@
 import { readFile, writeFile } from 'node:fs/promises';
 
 const generatedFiles = [
+    'resources/js/actions/App/Http/Controllers/Admin/ProjectSettingsController.ts',
     'resources/js/actions/App/Http/Controllers/Admin/ReferenceDataController.ts',
-    'resources/js/routes/advisor/entrepreneurs/index.ts',
+    'resources/js/actions/App/Http/Controllers/Advisor/EntrepreneurController.ts',
+    'resources/js/actions/App/Http/Controllers/Advisor/PartnerPanelController.ts',
+    'resources/js/routes/admin/project-settings/index.ts',
     'resources/js/routes/admin/reference-data/index.ts',
+    'resources/js/routes/advisor/entrepreneurs/index.ts',
+    'resources/js/routes/advisor/entrepreneurs/invite/index.ts',
+    'resources/js/routes/advisor/partners/brokers/index.ts',
+    'resources/js/routes/advisor/partners/coaches/index.ts',
+    'resources/js/routes/advisor/partners/index.ts',
+    'resources/js/routes/advisor/partners/invite/index.ts',
     'resources/js/routes/public/index.ts',
 ];
 

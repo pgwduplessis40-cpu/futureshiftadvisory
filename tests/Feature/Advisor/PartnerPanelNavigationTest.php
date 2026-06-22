@@ -7,6 +7,7 @@ namespace Tests\Feature\Advisor;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
 use App\Models\User;
+use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
@@ -60,6 +61,8 @@ final class PartnerPanelNavigationTest extends TestCase
                 ->where('partner.business_name', 'North Shore Broker Partners')
                 ->where('partner.contact_name', 'Aroha Broker')
                 ->where('partner.fsp_number', 'FSP100001')
+                ->where('partner.invite_resend_url', null)
+                ->where('partner.invite_cancel_url', null)
                 ->where('partner.back_url', route('advisor.partners.brokers.index', absolute: false)));
     }
 
@@ -155,6 +158,132 @@ final class PartnerPanelNavigationTest extends TestCase
         $this->assertSame('Founder Coach Studio', data_get($coachMember->application, 'company'));
         $this->assertSame('Mere Coach', data_get($coachMember->application, 'coach_name'));
         $this->assertSame(['Founder resilience'], data_get($coachMember->application, 'specialties'));
+    }
+
+    public function test_super_admin_can_resend_and_cancel_pending_partner_invite(): void
+    {
+        Mail::fake();
+
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'pending-broker@example.test',
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+            issuedBy: $admin,
+        );
+        $member = PanelMember::query()->create([
+            'invite_token_id' => $issued->invite->id,
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_INVITED,
+            'application' => [
+                'company' => 'Pending Broker Partners',
+                'broker_name' => 'Pending Broker',
+                'industry' => 'business insurance',
+            ],
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.partners.show', $member))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('partner.invite_resend_url', route('advisor.partners.invite.resend', $member, absolute: false))
+                ->where('partner.invite_cancel_url', route('advisor.partners.invite.cancel', $member, absolute: false)));
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.partners.invite.resend', $member))
+            ->assertRedirect(route('advisor.partners.show', $member, absolute: false))
+            ->assertSessionHas('status', PanelMember::TYPE_BROKER.'-invite-resent');
+
+        $member->refresh();
+        $issued->invite->refresh();
+        $resentInviteId = $member->invite_token_id;
+
+        $this->assertNotSame($issued->invite->id, $resentInviteId);
+        $this->assertSame(PanelMember::STATUS_INVITED, $member->status);
+        $this->assertTrue($issued->invite->isExpired());
+        $this->assertDatabaseCount('invite_tokens', 2);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.invite_resent',
+            'subject_id' => $member->id,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->delete(route('advisor.partners.invite.cancel', $member))
+            ->assertRedirect(route('advisor.partners.show', $member, absolute: false))
+            ->assertSessionHas('status', PanelMember::TYPE_BROKER.'-invite-cancelled');
+
+        $member->refresh();
+        $resentInvite = InviteToken::query()->findOrFail($resentInviteId);
+
+        $this->assertSame(PanelMember::STATUS_CANCELLED, $member->status);
+        $this->assertTrue($resentInvite->isExpired());
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.invite_cancelled',
+            'subject_id' => $member->id,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.partners.show', $member))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('partner.status', PanelMember::STATUS_CANCELLED)
+                ->where('partner.invite_resend_url', route('advisor.partners.invite.resend', $member, absolute: false))
+                ->where('partner.invite_cancel_url', null));
+    }
+
+    public function test_accepted_partner_invite_cannot_be_resent_or_cancelled(): void
+    {
+        Mail::fake();
+
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $email = 'accepted-broker@example.test';
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: $email,
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+            issuedBy: $admin,
+        );
+        $broker = $this->panelUser(User::TYPE_BROKER, $email);
+        $issued->invite->markAccepted($broker);
+        $member = PanelMember::query()->create([
+            'user_id' => $broker->id,
+            'invite_token_id' => $issued->invite->id,
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_ACTIVE,
+            'application' => [
+                'company' => 'Accepted Broker Partners',
+                'broker_name' => 'Accepted Broker',
+                'industry' => 'life insurance',
+            ],
+            'approved_at' => now(),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.partners.show', $member))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('partner.invite_resend_url', null)
+                ->where('partner.invite_cancel_url', null));
+
+        $this->actingAsMfa($admin)
+            ->from(route('advisor.partners.show', $member))
+            ->post(route('advisor.partners.invite.resend', $member))
+            ->assertRedirect(route('advisor.partners.show', $member, absolute: false))
+            ->assertSessionHasErrors('invite');
+
+        $this->actingAsMfa($admin)
+            ->from(route('advisor.partners.show', $member))
+            ->delete(route('advisor.partners.invite.cancel', $member))
+            ->assertRedirect(route('advisor.partners.show', $member, absolute: false))
+            ->assertSessionHasErrors('invite');
+
+        $this->assertSame($issued->invite->id, $member->refresh()->invite_token_id);
+        $this->assertSame(PanelMember::STATUS_ACTIVE, $member->status);
+        $this->assertDatabaseCount('invite_tokens', 1);
     }
 
     private function superAdmin(): User
