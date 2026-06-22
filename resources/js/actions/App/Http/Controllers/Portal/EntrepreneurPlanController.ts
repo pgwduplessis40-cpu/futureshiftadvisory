@@ -75,7 +75,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::preview
@@ -153,7 +153,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::readiness
@@ -208,7 +208,7 @@ readiness.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: readiness.url(options),
             method: 'post',
         })
-
+    
     readiness.form = readinessForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::ideaValidation
@@ -263,7 +263,7 @@ ideaValidation.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
             action: ideaValidation.url(options),
             method: 'post',
         })
-
+    
     ideaValidation.form = ideaValidationForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::start
@@ -318,7 +318,7 @@ start.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: start.url(options),
             method: 'post',
         })
-
+    
     start.form = startForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::section
@@ -373,7 +373,7 @@ section.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: section.url(options),
             method: 'post',
         })
-
+    
     section.form = sectionForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
@@ -403,7 +403,7 @@ guidance.url = (args: { planSection: string | { id: string } } | [planSection: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { planSection: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     planSection: args[0],
@@ -452,7 +452,7 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
             action: guidance.url(args, options),
             method: 'post',
         })
-
+    
     guidance.form = guidanceForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
@@ -507,7 +507,7 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: submit.url(options),
             method: 'post',
         })
-
+    
     submit.form = submitForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::requestAdvisory
@@ -562,7 +562,7 @@ requestAdvisory.post = (options?: RouteQueryOptions): RouteDefinition<'post'> =>
             action: requestAdvisory.url(options),
             method: 'post',
         })
-
+    
     requestAdvisory.form = requestAdvisoryForm
 const EntrepreneurPlanController = { show, preview, readiness, ideaValidation, start, section, guidance, submit, requestAdvisory }
 

@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::show
@@ -160,7 +160,7 @@ show.url = (args: { template: string | { id: string } } | [template: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { template: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     template: args[0],
@@ -232,7 +232,7 @@ show.head = (args: { template: string | { id: string } } | [template: string | {
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::download
@@ -262,7 +262,7 @@ download.url = (args: { template: string | { id: string } } | [template: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { template: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     template: args[0],
@@ -334,7 +334,7 @@ download.head = (args: { template: string | { id: string } } | [template: string
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Advisor\TemplateController::update
@@ -364,7 +364,7 @@ update.url = (args: { template: string | { id: string } } | [template: string | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { template: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     template: args[0],
@@ -423,7 +423,7 @@ update.patch = (args: { template: string | { id: string } } | [template: string 
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 const templates = {
     index: Object.assign(index, index),

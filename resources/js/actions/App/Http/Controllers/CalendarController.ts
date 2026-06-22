@@ -75,7 +75,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.head = (options?: RouteQueryO
                     }),
             method: 'get',
         })
-
+    
     CalendarController9fbd95225f575cb58f4f4b347a44d932.form = CalendarController9fbd95225f575cb58f4f4b347a44d932Form
     /**
 * @see \App\Http\Controllers\CalendarController::__invoke
@@ -153,7 +153,7 @@ CalendarControllerb779617412a951269ff402230939ace7.head = (options?: RouteQueryO
                     }),
             method: 'get',
         })
-
+    
     CalendarControllerb779617412a951269ff402230939ace7.form = CalendarControllerb779617412a951269ff402230939ace7Form
 
 /**

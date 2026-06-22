@@ -689,7 +689,7 @@ HTML,
             $html,
         ) ?? $html;
 
-        $generatedContent = '<main class="report-content proposal-generated-content">'.$sections.'</main>';
+        $generatedContent = '</div><div class="uploaded-docx-report-template proposal-generated-page"><main class="report-content proposal-generated-content">'.$sections.'</main>';
         $reportPlaceholderPattern = '/<[^>]+>\s*1\.\s*Financial Health Assessment\s*<\/[^>]+>.*?(?=<\/div>\s*<\/body>\s*<\/html>)/is';
 
         if (preg_match($reportPlaceholderPattern, $html) !== 1) {
@@ -792,6 +792,7 @@ body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font
 .proposal-panel ul { margin: 0; padding-left: 18px; }
 .proposal-panel li { margin: 0 0 4px; }
 .proposal-muted { color: {$muted}; }
+.proposal-generated-page { break-before: page; page-break-before: always; }
 @media screen {
   body[data-report-template-source="uploaded-docx"] { background: #eef2f4; padding: 20px 12px; }
   body[data-report-template-source="uploaded-docx"] > .docx-template-header,
@@ -807,10 +808,15 @@ body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font
   body[data-report-template-source="uploaded-docx"] > .docx-template-header {
     box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
     margin-bottom: 0;
+    padding: 18mm 25.4mm 0;
   }
   body[data-report-template-source="uploaded-docx"] > .uploaded-docx-report-template {
     min-height: 297mm;
-    padding-bottom: 18mm;
+    padding: 0 25.4mm 18mm;
+  }
+  body[data-report-template-source="uploaded-docx"] > .proposal-generated-page {
+    margin-top: 20px;
+    padding-top: 18mm;
   }
 }
 CSS;

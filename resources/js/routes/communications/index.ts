@@ -24,7 +24,7 @@ open.url = (args: { token: string | number } | [token: string | number ] | strin
         args = { token: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -94,7 +94,7 @@ open.head = (args: { token: string | number } | [token: string | number ] | stri
                     }),
             method: 'get',
         })
-
+    
     open.form = openForm
 const communications = {
     open: Object.assign(open, open),

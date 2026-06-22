@@ -28,7 +28,7 @@ download.url = (args: { report: string | { id: string } } | [report: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -100,7 +100,7 @@ download.head = (args: { report: string | { id: string } } | [report: string | {
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::pptx
@@ -130,7 +130,7 @@ pptx.url = (args: { report: string | { id: string } } | [report: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -202,7 +202,7 @@ pptx.head = (args: { report: string | { id: string } } | [report: string | { id:
                     }),
             method: 'get',
         })
-
+    
     pptx.form = pptxForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
@@ -232,7 +232,7 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -291,12 +291,102 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
                     }),
             method: 'post',
         })
-
+    
     review.form = reviewForm
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::release
+ * @see app/Http/Controllers/Advisor/ReportController.php:221
+ * @route '/advisor/reports/{report}/release'
+ */
+export const release = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: release.url(args, options),
+    method: 'patch',
+})
+
+release.definition = {
+    methods: ["patch"],
+    url: '/advisor/reports/{report}/release',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::release
+ * @see app/Http/Controllers/Advisor/ReportController.php:221
+ * @route '/advisor/reports/{report}/release'
+ */
+release.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { report: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { report: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    report: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        report: typeof args.report === 'object'
+                ? args.report.id
+                : args.report,
+                }
+
+    return release.definition.url
+            .replace('{report}', parsedArgs.report.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\ReportController::release
+ * @see app/Http/Controllers/Advisor/ReportController.php:221
+ * @route '/advisor/reports/{report}/release'
+ */
+release.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: release.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\ReportController::release
+ * @see app/Http/Controllers/Advisor/ReportController.php:221
+ * @route '/advisor/reports/{report}/release'
+ */
+    const releaseForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: release.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\ReportController::release
+ * @see app/Http/Controllers/Advisor/ReportController.php:221
+ * @route '/advisor/reports/{report}/release'
+ */
+        releaseForm.patch = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: release.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    release.form = releaseForm
 const reports = {
     download: Object.assign(download, download),
 pptx: Object.assign(pptx, pptx),
 review: Object.assign(review, review),
+release: Object.assign(release, release),
 sections: Object.assign(sections, sections),
 }
 

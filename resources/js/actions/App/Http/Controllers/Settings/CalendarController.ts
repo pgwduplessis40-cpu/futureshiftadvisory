@@ -75,7 +75,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::connect
@@ -102,7 +102,7 @@ connect.url = (args: { provider: string | number } | [provider: string | number 
         args = { provider: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -172,7 +172,7 @@ connect.head = (args: { provider: string | number } | [provider: string | number
                     }),
             method: 'get',
         })
-
+    
     connect.form = connectForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::callback
@@ -199,7 +199,7 @@ callback.url = (args: { provider: string | number } | [provider: string | number
         args = { provider: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -269,7 +269,7 @@ callback.head = (args: { provider: string | number } | [provider: string | numbe
                     }),
             method: 'get',
         })
-
+    
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::sync
@@ -299,7 +299,7 @@ sync.url = (args: { calendarConnection: string | { id: string } } | [calendarCon
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { calendarConnection: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     calendarConnection: args[0],
@@ -348,7 +348,7 @@ sync.post = (args: { calendarConnection: string | { id: string } } | [calendarCo
             action: sync.url(args, options),
             method: 'post',
         })
-
+    
     sync.form = syncForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::revoke
@@ -378,7 +378,7 @@ revoke.url = (args: { calendarConnection: string | { id: string } } | [calendarC
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { calendarConnection: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     calendarConnection: args[0],
@@ -437,7 +437,7 @@ revoke.patch = (args: { calendarConnection: string | { id: string } } | [calenda
                     }),
             method: 'post',
         })
-
+    
     revoke.form = revokeForm
 const CalendarController = { edit, connect, callback, sync, revoke }
 

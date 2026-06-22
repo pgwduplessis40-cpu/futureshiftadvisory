@@ -83,7 +83,7 @@ gateIdea.patch = (args: { entrepreneurProfile: string | { id: string }, ideaVali
                     }),
             method: 'post',
         })
-
+    
     gateIdea.form = gateIdeaForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
@@ -159,7 +159,7 @@ assess.post = (args: { entrepreneurProfile: string | { id: string }, businessPla
             action: assess.url(args, options),
             method: 'post',
         })
-
+    
     assess.form = assessForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
@@ -245,7 +245,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
                     }),
             method: 'post',
         })
-
+    
     finalise.form = finaliseForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
@@ -275,7 +275,7 @@ convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -324,7 +324,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
             action: convert.url(args, options),
             method: 'post',
         })
-
+    
     convert.form = convertForm
 const EntrepreneurActionController = { gateIdea, assess, finalise, convert }
 

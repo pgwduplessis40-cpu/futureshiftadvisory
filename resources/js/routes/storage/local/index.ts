@@ -22,7 +22,7 @@ upload.url = (args: { path: string | number } | [path: string | number ] | strin
         args = { path: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     path: args[0],
@@ -76,7 +76,7 @@ upload.put = (args: { path: string | number } | [path: string | number ] | strin
                     }),
             method: 'post',
         })
-
+    
     upload.form = uploadForm
 const local = {
     upload: Object.assign(upload, upload),

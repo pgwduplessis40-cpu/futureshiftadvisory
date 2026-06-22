@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
@@ -140,7 +140,7 @@ markAllRead.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => (
                     }),
             method: 'post',
         })
-
+    
     markAllRead.form = markAllReadForm
 /**
 * @see \App\Http\Controllers\NotificationController::markRead
@@ -167,7 +167,7 @@ markRead.url = (args: { notification: string | number } | [notification: string 
         args = { notification: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     notification: args[0],
@@ -224,7 +224,7 @@ markRead.patch = (args: { notification: string | number } | [notification: strin
                     }),
             method: 'post',
         })
-
+    
     markRead.form = markReadForm
 const notifications = {
     index: Object.assign(index, index),

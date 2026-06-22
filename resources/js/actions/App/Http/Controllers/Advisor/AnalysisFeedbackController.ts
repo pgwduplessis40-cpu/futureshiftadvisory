@@ -27,7 +27,7 @@ store.url = (args: { analysisFinding: string | { id: string } } | [analysisFindi
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { analysisFinding: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     analysisFinding: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { analysisFinding: string | { id: string } } | [analysisFind
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const AnalysisFeedbackController = { store }
 

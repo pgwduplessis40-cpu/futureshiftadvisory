@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Webhook;
 
 use App\Http\Controllers\Controller;
 use App\Services\Audit\AuditWriter;
+use App\Services\Payments\PaymentWebhookReconciler;
 use App\Services\Payments\PaymentWebhookVerifier;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -14,6 +15,7 @@ final class PaymentWebhookController extends Controller
 {
     public function __construct(
         private readonly PaymentWebhookVerifier $verifier,
+        private readonly PaymentWebhookReconciler $reconciler,
         private readonly AuditWriter $audit,
     ) {}
 
@@ -23,6 +25,7 @@ final class PaymentWebhookController extends Controller
             gateway: 'stripe',
             request: $request,
             verifier: fn (): array => $this->verifier->verifyStripe($request),
+            reconciler: fn (array $payload) => $this->reconciler->handleStripe($payload),
         );
     }
 
@@ -37,8 +40,9 @@ final class PaymentWebhookController extends Controller
 
     /**
      * @param  callable(): array{0: bool, 1: string|null}  $verifier
+     * @param  (callable(array<string, mixed>): mixed)|null  $reconciler
      */
-    private function handle(string $gateway, Request $request, callable $verifier): JsonResponse
+    private function handle(string $gateway, Request $request, callable $verifier, ?callable $reconciler = null): JsonResponse
     {
         [$valid, $reason] = $verifier();
 
@@ -60,6 +64,18 @@ final class PaymentWebhookController extends Controller
             'event_type' => is_scalar($payload['type'] ?? null) ? (string) $payload['type'] : null,
             'payload_hash' => hash('sha256', $request->getContent()),
         ]);
+
+        if ($reconciler !== null) {
+            $event = $reconciler($payload);
+
+            $this->audit->record('payment.webhook_recorded', subject: $event, after: [
+                'gateway' => $gateway,
+                'event_id' => $event->event_id,
+                'event_type' => $event->event_type,
+                'status' => $event->status,
+                'payment_id' => $event->payment_id,
+            ]);
+        }
 
         return response()->json(['received' => true], 202);
     }

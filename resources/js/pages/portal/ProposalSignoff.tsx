@@ -1,5 +1,12 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { CheckCircle2, CreditCard, FileText, PenLine } from 'lucide-react';
+import {
+    CheckCircle2,
+    CreditCard,
+    Download,
+    ExternalLink,
+    FileText,
+    PenLine,
+} from 'lucide-react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +28,8 @@ type ProposalPayload = {
     scope_summary: string;
     suggested_mid: number | null;
     roi_ratio: number;
+    view_url: string;
+    download_url: string;
     released_at: string | null;
     awaiting_signature_at: string | null;
     signed_at: string | null;
@@ -81,9 +90,33 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                             </span>
                         </div>
                     </div>
-                    <Button asChild variant="outline">
-                        <Link href="/portal">Back</Link>
-                    </Button>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button asChild variant="outline">
+                            <a
+                                href={proposal.view_url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <ExternalLink
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                View proposal
+                            </a>
+                        </Button>
+                        <Button asChild variant="outline">
+                            <a href={proposal.download_url}>
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Download
+                            </a>
+                        </Button>
+                        <Button asChild variant="outline">
+                            <Link href="/portal">Back</Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <section className="rounded-md border bg-background p-4">
@@ -228,7 +261,40 @@ function CurrentStepPanel({
             </div>
 
             {step.step === 'review' && (
-                <input type="hidden" value={String(form.data.reviewed)} />
+                <div className="grid gap-3 rounded-md border bg-muted/30 p-4 sm:grid-cols-[1fr_auto] sm:items-center">
+                    <div className="space-y-1">
+                        <div className="text-sm font-medium">
+                            Proposal v{proposal.version}
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            Open the proposal before continuing sign-off.
+                        </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <Button type="button" asChild variant="outline">
+                            <a
+                                href={proposal.view_url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <ExternalLink
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                View proposal
+                            </a>
+                        </Button>
+                        <Button type="button" asChild variant="outline">
+                            <a href={proposal.download_url}>
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Download PDF
+                            </a>
+                        </Button>
+                    </div>
+                </div>
             )}
 
             {(step.step === 'insurance_consent' ||

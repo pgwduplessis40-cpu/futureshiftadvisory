@@ -20,6 +20,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     concept_summary: string | null;
     user_id: number | null;
     invite_accepted_at: string | null;
+    invite_resend_url: string | null;
     created_at: string | null;
     documents: EntrepreneurDocument[];
     messages: EntrepreneurMessageSummary;

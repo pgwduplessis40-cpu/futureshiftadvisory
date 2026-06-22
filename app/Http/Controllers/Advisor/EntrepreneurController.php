@@ -122,6 +122,44 @@ final class EntrepreneurController extends Controller
         return to_route('advisor.entrepreneurs.show', $profile)->with('status', 'entrepreneur-invited');
     }
 
+    public function resendInvite(Request $request, EntrepreneurProfile $entrepreneurProfile, InviteIssuer $issuer): RedirectResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+
+        $advisor = $this->actor($request);
+
+        $entrepreneurProfile->loadMissing(['inviteToken', 'user']);
+
+        if (! $this->canResendInvite($entrepreneurProfile)) {
+            return back()->withErrors([
+                'invite' => 'This entrepreneur has already accepted their invitation.',
+            ]);
+        }
+
+        DB::transaction(function () use ($advisor, $entrepreneurProfile, $issuer): void {
+            $issued = $issuer->issue(
+                email: $entrepreneurProfile->email,
+                targetUserType: User::TYPE_ENTREPRENEUR,
+                targetRole: User::TYPE_ENTREPRENEUR,
+                issuedBy: $advisor,
+            );
+
+            $entrepreneurProfile->forceFill([
+                'invite_token_id' => $issued->invite->getKey(),
+                'stage' => EntrepreneurStage::INVITED,
+            ])->save();
+
+            $this->auditWriter->record('entrepreneur.invite_resent', subject: $entrepreneurProfile, actor: $advisor, after: [
+                'entrepreneur_profile_id' => $entrepreneurProfile->getKey(),
+                'invite_token_id' => $issued->invite->getKey(),
+                'email' => $entrepreneurProfile->email,
+            ]);
+        });
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
+            ->with('status', 'entrepreneur-invite-resent');
+    }
+
     public function show(Request $request, EntrepreneurProfile $entrepreneurProfile): Response
     {
         Gate::authorize('view', $entrepreneurProfile);
@@ -144,6 +182,9 @@ final class EntrepreneurController extends Controller
                 'concept_summary' => $entrepreneurProfile->concept_summary,
                 'user_id' => $entrepreneurProfile->user_id,
                 'invite_accepted_at' => $entrepreneurProfile->inviteToken?->accepted_at?->toIso8601String(),
+                'invite_resend_url' => $this->canResendInvite($entrepreneurProfile)
+                    ? route('advisor.entrepreneurs.invite.resend', $entrepreneurProfile, absolute: false)
+                    : null,
                 'created_at' => $entrepreneurProfile->created_at?->toIso8601String(),
                 'latest_plan' => $latestPlan instanceof BusinessPlan
                     ? $this->planProgressSummary($latestPlan, $entrepreneurProfile)
@@ -165,6 +206,14 @@ final class EntrepreneurController extends Controller
         abort_unless($user instanceof User, 403);
 
         return $user;
+    }
+
+    private function canResendInvite(EntrepreneurProfile $profile): bool
+    {
+        return $profile->user_id === null
+            && $profile->user === null
+            && $profile->inviteToken?->accepted_at === null
+            && filter_var($profile->email, FILTER_VALIDATE_EMAIL) !== false;
     }
 
     /**

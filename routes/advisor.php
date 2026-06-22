@@ -30,6 +30,7 @@ use App\Http\Controllers\Advisor\NpoConfigurationController;
 use App\Http\Controllers\Advisor\NpoConversionController;
 use App\Http\Controllers\Advisor\NpoGovernanceReviewController;
 use App\Http\Controllers\Advisor\OffboardingController;
+use App\Http\Controllers\Advisor\PartnerPanelController;
 use App\Http\Controllers\Advisor\PaymentController;
 use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
@@ -185,6 +186,29 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('payments.retry');
 
+        Route::get('partners/brokers', [PartnerPanelController::class, 'brokers'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->name('partners.brokers.index');
+        Route::get('partners/brokers/invite', [PartnerPanelController::class, 'createBroker'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->name('partners.brokers.create');
+        Route::post('partners/brokers/invite', [PartnerPanelController::class, 'storeBroker'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->name('partners.brokers.store');
+        Route::get('partners/coaches', [PartnerPanelController::class, 'coaches'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->name('partners.coaches.index');
+        Route::get('partners/coaches/invite', [PartnerPanelController::class, 'createCoach'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->name('partners.coaches.create');
+        Route::post('partners/coaches/invite', [PartnerPanelController::class, 'storeCoach'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->name('partners.coaches.store');
+        Route::get('partners/{panelMember}', [PartnerPanelController::class, 'show'])
+            ->middleware('permission:'.Permission::REFERRALS_SEND->value)
+            ->whereUuid('panelMember')
+            ->name('partners.show');
+
         Route::patch('proposals/{proposal}/release', [ProposalController::class, 'release'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('proposals.release');
@@ -279,6 +303,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/documents/{document}', [EntrepreneurDocumentController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.documents.show');
+        Route::post('entrepreneurs/{entrepreneurProfile}/invite/resend', [EntrepreneurController::class, 'resendInvite'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.invite.resend');
         Route::get('entrepreneurs/{entrepreneurProfile}', [EntrepreneurController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.show');

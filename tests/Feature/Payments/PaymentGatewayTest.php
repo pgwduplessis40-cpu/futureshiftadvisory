@@ -12,13 +12,17 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\FeeCalculation;
 use App\Models\IntegrationCall;
+use App\Models\Payment;
 use App\Models\PaymentAuthority;
+use App\Models\PaymentSchedule;
+use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\Gateway;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -26,6 +30,8 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 final class PaymentGatewayTest extends TestCase
@@ -39,10 +45,21 @@ final class PaymentGatewayTest extends TestCase
         $this->seed(RoleSeeder::class);
         app(RequestContext::class)->apply('system', []);
         Mail::fake();
+        Storage::fake('secure_local');
+
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return "%PDF-1.4\n".strip_tags($html);
+            }
+        });
 
         Config::set('integrations.payments.primary_gateway', PaymentAuthority::GATEWAY_STRIPE);
         Config::set('integrations.payments.stripe.live', false);
         Config::set('integrations.payments.windcave.live', false);
+        Config::set('integrations.payments.max_attempts', 2);
+        Config::set('integrations.payments.retry_delay_minutes', 45);
     }
 
     public function test_fixture_gateway_charge_succeeds_without_contract_change(): void
@@ -199,6 +216,109 @@ final class PaymentGatewayTest extends TestCase
         ]);
     }
 
+    public function test_stripe_succeeded_webhook_reconciles_pending_payment_and_generates_receipt(): void
+    {
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
+        [$authority] = $this->authority('gateway-webhook-success@example.test');
+        [$schedule, $payment] = $this->pendingPayment($authority, [
+            'amount' => 20,
+            'gateway_ref' => 'pi_webhook_success',
+        ]);
+
+        $this->postStripeWebhook($this->paymentIntentPayload(
+            eventId: 'evt_webhook_success',
+            eventType: 'payment_intent.succeeded',
+            intentId: 'pi_webhook_success',
+            payment: $payment,
+            amountCents: 2000,
+            status: 'succeeded',
+        ))->assertAccepted();
+
+        $payment->refresh();
+
+        $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame(PaymentAuthority::GATEWAY_STRIPE, $payment->gateway);
+        $this->assertSame('pi_webhook_success', $payment->gateway_ref);
+        $this->assertSame(PaymentSchedule::STATUS_COMPLETED, $schedule->refresh()->status);
+        $this->assertNotNull($payment->receipt()->first());
+        $this->assertDatabaseHas('payment_webhook_events', [
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'event_id' => 'evt_webhook_success',
+            'event_type' => 'payment_intent.succeeded',
+            'status' => PaymentWebhookEvent::STATUS_PROCESSED,
+            'payment_id' => $payment->getKey(),
+            'client_id' => $payment->client_id,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'payment.webhook_reconciled',
+            'subject_id' => $payment->getKey(),
+        ]);
+    }
+
+    public function test_stripe_webhook_event_is_idempotent(): void
+    {
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
+        [$authority] = $this->authority('gateway-webhook-idempotent@example.test');
+        [, $payment] = $this->pendingPayment($authority, [
+            'amount' => 20,
+            'gateway_ref' => 'pi_webhook_duplicate',
+        ]);
+        $payload = $this->paymentIntentPayload(
+            eventId: 'evt_webhook_duplicate',
+            eventType: 'payment_intent.succeeded',
+            intentId: 'pi_webhook_duplicate',
+            payment: $payment,
+            amountCents: 2000,
+            status: 'succeeded',
+        );
+
+        $this->postStripeWebhook($payload)->assertAccepted();
+        $this->postStripeWebhook($payload)->assertAccepted();
+
+        $this->assertSame(1, PaymentWebhookEvent::query()->where('event_id', 'evt_webhook_duplicate')->count());
+        $this->assertSame(1, $payment->refresh()->receipt()->count());
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'payment.webhook_duplicate',
+            'subject_id' => $payment->getKey(),
+        ]);
+    }
+
+    public function test_stripe_failed_webhook_marks_payment_retrying(): void
+    {
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
+        [$authority] = $this->authority('gateway-webhook-failure@example.test');
+        [$schedule, $payment] = $this->pendingPayment($authority, [
+            'amount' => 20,
+            'gateway_ref' => null,
+        ]);
+
+        $this->postStripeWebhook($this->paymentIntentPayload(
+            eventId: 'evt_webhook_failed',
+            eventType: 'payment_intent.payment_failed',
+            intentId: 'pi_webhook_failed',
+            payment: $payment,
+            amountCents: 2000,
+            status: 'requires_payment_method',
+            extra: [
+                'last_payment_error' => [
+                    'message' => 'Your card was declined.',
+                ],
+            ],
+        ))->assertAccepted();
+
+        $payment->refresh();
+
+        $this->assertSame(Payment::STATUS_RETRYING, $payment->status);
+        $this->assertSame('pi_webhook_failed', $payment->gateway_ref);
+        $this->assertSame('Your card was declined.', $payment->failed_reason);
+        $this->assertTrue($schedule->refresh()->next_run_at?->greaterThan(now()));
+        $this->assertDatabaseHas('payment_webhook_events', [
+            'event_id' => 'evt_webhook_failed',
+            'status' => PaymentWebhookEvent::STATUS_PROCESSED,
+            'payment_id' => $payment->getKey(),
+        ]);
+    }
+
     /**
      * @return array{0: PaymentAuthority, 1: User}
      */
@@ -283,5 +403,87 @@ final class PaymentGatewayTest extends TestCase
         $user->assignRole(User::TYPE_SUPER_ADMIN);
 
         return $user;
+    }
+
+    /**
+     * @param  array<string, mixed>  $overrides
+     * @return array{0: PaymentSchedule, 1: Payment}
+     */
+    private function pendingPayment(PaymentAuthority $authority, array $overrides = []): array
+    {
+        $schedule = PaymentSchedule::query()->create([
+            'client_id' => $authority->client_id,
+            'proposal_id' => $authority->proposal_id,
+            'payment_authority_id' => $authority->getKey(),
+            'cadence' => $overrides['cadence'] ?? PaymentSchedule::CADENCE_ONE_OFF,
+            'amount' => $overrides['amount'] ?? 20,
+            'currency' => $overrides['currency'] ?? 'NZD',
+            'next_run_at' => now()->subMinute(),
+            'status' => PaymentSchedule::STATUS_ACTIVE,
+        ]);
+
+        $payment = Payment::query()->create([
+            'client_id' => $authority->client_id,
+            'payment_schedule_id' => $schedule->getKey(),
+            'payment_authority_id' => $authority->getKey(),
+            'amount' => $schedule->amount,
+            'currency' => $schedule->currency,
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'gateway_ref' => $overrides['gateway_ref'] ?? 'pi_webhook_fixture',
+            'status' => Payment::STATUS_PENDING,
+            'attempt' => $overrides['attempt'] ?? 1,
+        ]);
+
+        return [$schedule, $payment];
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     * @return array<string, mixed>
+     */
+    private function paymentIntentPayload(
+        string $eventId,
+        string $eventType,
+        string $intentId,
+        Payment $payment,
+        int $amountCents,
+        string $status,
+        array $extra = [],
+    ): array {
+        return [
+            'id' => $eventId,
+            'object' => 'event',
+            'created' => now()->getTimestamp(),
+            'type' => $eventType,
+            'data' => [
+                'object' => [
+                    'id' => $intentId,
+                    'object' => 'payment_intent',
+                    'amount' => $amountCents,
+                    'amount_received' => $eventType === 'payment_intent.succeeded' ? $amountCents : 0,
+                    'currency' => strtolower($payment->currency),
+                    'metadata' => [
+                        'payment_id' => $payment->getKey(),
+                        'payment_schedule_id' => $payment->payment_schedule_id,
+                    ],
+                    'status' => $status,
+                ] + $extra,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function postStripeWebhook(array $payload): TestResponse
+    {
+        $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $timestamp = (string) now()->getTimestamp();
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, 'whsec_test');
+
+        return $this->call('POST', route('webhooks.payments.stripe'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_STRIPE_SIGNATURE' => 't='.$timestamp.',v1='.$signature,
+        ], $body);
     }
 }

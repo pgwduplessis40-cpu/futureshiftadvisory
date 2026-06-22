@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\IntegrationHealthController::refresh
@@ -130,7 +130,7 @@ refresh.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: refresh.url(options),
             method: 'post',
         })
-
+    
     refresh.form = refreshForm
 const integrationHealth = {
     index: Object.assign(index, index),

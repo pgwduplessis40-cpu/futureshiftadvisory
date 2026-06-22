@@ -27,7 +27,7 @@ acknowledge.url = (args: { redFlag: string | { id: string } } | [redFlag: string
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { redFlag: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     redFlag: args[0],
@@ -86,7 +86,7 @@ acknowledge.patch = (args: { redFlag: string | { id: string } } | [redFlag: stri
                     }),
             method: 'post',
         })
-
+    
     acknowledge.form = acknowledgeForm
 /**
 * @see \App\Http\Controllers\Advisor\RedFlagController::resolve
@@ -116,7 +116,7 @@ resolve.url = (args: { redFlag: string | { id: string } } | [redFlag: string | {
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { redFlag: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     redFlag: args[0],
@@ -175,7 +175,7 @@ resolve.patch = (args: { redFlag: string | { id: string } } | [redFlag: string |
                     }),
             method: 'post',
         })
-
+    
     resolve.form = resolveForm
 const RedFlagController = { acknowledge, resolve }
 

@@ -81,7 +81,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     dashboard.form = dashboardForm
 const entrepreneur = {
     dashboard: Object.assign(dashboard, dashboard),

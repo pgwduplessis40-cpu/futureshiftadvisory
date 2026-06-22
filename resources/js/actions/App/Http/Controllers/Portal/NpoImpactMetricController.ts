@@ -52,6 +52,6 @@ NpoImpactMetricController.post = (options?: RouteQueryOptions): RouteDefinition<
             action: NpoImpactMetricController.url(options),
             method: 'post',
         })
-
+    
     NpoImpactMetricController.form = NpoImpactMetricControllerForm
 export default NpoImpactMetricController

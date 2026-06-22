@@ -76,7 +76,7 @@ request.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     request.form = requestForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\NewPasswordController::reset
@@ -103,7 +103,7 @@ reset.url = (args: { token: string | number } | [token: string | number ] | stri
         args = { token: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -173,7 +173,7 @@ reset.head = (args: { token: string | number } | [token: string | number ] | str
                     }),
             method: 'get',
         })
-
+    
     reset.form = resetForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\PasswordResetLinkController::email
@@ -228,7 +228,7 @@ email.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: email.url(options),
             method: 'post',
         })
-
+    
     email.form = emailForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\NewPasswordController::update
@@ -283,7 +283,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: update.url(options),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\ConfirmablePasswordController::confirm
@@ -361,7 +361,7 @@ confirm.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     confirm.form = confirmForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\ConfirmedPasswordStatusController::confirmation
@@ -439,7 +439,7 @@ confirmation.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     confirmation.form = confirmationForm
 const password = {
     request: Object.assign(request, request),

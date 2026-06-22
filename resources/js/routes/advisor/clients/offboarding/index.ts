@@ -27,7 +27,7 @@ create.url = (args: { client: string | { id: string } } | [client: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -99,7 +99,7 @@ create.head = (args: { client: string | { id: string } } | [client: string | { i
                     }),
             method: 'get',
         })
-
+    
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\OffboardingController::store
@@ -129,7 +129,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -178,7 +178,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const offboarding = {
     create: Object.assign(create, create),

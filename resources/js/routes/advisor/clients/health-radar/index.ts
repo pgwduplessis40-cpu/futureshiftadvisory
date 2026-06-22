@@ -24,7 +24,7 @@ recompute.url = (args: { client: string | number } | [client: string | number ] 
         args = { client: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -71,7 +71,7 @@ recompute.post = (args: { client: string | number } | [client: string | number ]
             action: recompute.url(args, options),
             method: 'post',
         })
-
+    
     recompute.form = recomputeForm
 const healthRadar = {
     recompute: Object.assign(recompute, recompute),

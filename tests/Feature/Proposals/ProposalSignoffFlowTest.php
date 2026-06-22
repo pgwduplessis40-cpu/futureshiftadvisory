@@ -239,7 +239,44 @@ final class ProposalSignoffFlowTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/ProposalSignoff')
                 ->where('proposal.id', $proposal->id)
+                ->where('proposal.view_url', route('portal.proposals.show', $proposal, absolute: false))
+                ->where('proposal.download_url', route('portal.proposals.download', $proposal, absolute: false))
                 ->where('signoff.next_step', ProposalSignoffStep::STEP_REVIEW));
+    }
+
+    public function test_portal_client_can_view_and_download_only_their_own_released_proposal(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-preview-advisor@example.test');
+        $proposal = $this->releasedProposal($client, $advisor);
+        [, , $otherClientUser] = $this->clientWithUsers('signoff-preview-other-advisor@example.test', 'Other Signoff Client Limited');
+        [$draftAdvisor, $draftClient, $draftClientUser] = $this->clientWithUsers('signoff-preview-draft-advisor@example.test', 'Draft Signoff Client Limited');
+        $draft = app(ProposalBuilder::class)->generate($draftClient, $this->feeCalculation($draftClient), [], [
+            'created_by_user_id' => $draftAdvisor->getKey(),
+        ]);
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.proposals.show', $proposal))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
+            ->assertSee($client->legal_name);
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.proposals.download', $proposal))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+
+        $this->actingAsMfa($otherClientUser)
+            ->get(route('portal.proposals.show', $proposal))
+            ->assertNotFound();
+
+        $this->actingAsMfa($otherClientUser)
+            ->get(route('portal.proposals.download', $proposal))
+            ->assertNotFound();
+
+        $this->actingAsMfa($draftClientUser)
+            ->get(route('portal.proposals.show', $draft))
+            ->assertNotFound();
     }
 
     public function test_signoff_tables_are_isolated_by_client_rls(): void

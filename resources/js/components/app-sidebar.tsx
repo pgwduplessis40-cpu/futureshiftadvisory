@@ -10,6 +10,7 @@ import {
     Database,
     FileText,
     FolderGit2,
+    Handshake,
     HeartHandshake,
     HeartPulse,
     History,
@@ -86,6 +87,18 @@ const entrepreneursNavItem: NavItem = {
     title: 'Entrepreneurs',
     href: '/advisor/entrepreneurs',
     icon: UsersRound,
+};
+
+const brokersNavItem: NavItem = {
+    title: 'Brokers',
+    href: '/advisor/partners/brokers',
+    icon: Handshake,
+};
+
+const coachesNavItem: NavItem = {
+    title: 'Coaches',
+    href: '/advisor/partners/coaches',
+    icon: HeartPulse,
 };
 
 const knowledgeNavItem: NavItem = {
@@ -274,6 +287,8 @@ const advisorClientNavItems: NavItem[] = [
     entrepreneursNavItem,
 ];
 
+const advisorPartnerNavItems: NavItem[] = [brokersNavItem, coachesNavItem];
+
 const advisorCommunicationNavItems: NavItem[] = [
     advisorMessagesNavItem,
     notificationsNavItem,
@@ -340,24 +355,31 @@ function internalNavGroups({
     clientItems,
     communicationItems,
     calendarItem,
+    partnerItems = [],
     administrationItems,
 }: {
     platformItems: NavItem[];
     clientItems: NavItem[];
     communicationItems: NavItem[];
     calendarItem: NavItem;
+    partnerItems?: NavItem[];
     administrationItems: NavItem[];
 }): NavGroup[] {
     return [
-        navGroup('Platform', platformItems),
-        navGroup('Clients', clientItems),
-        navGroup('Comms', communicationItems),
+        platformItems.length > 0 ? navGroup('Platform', platformItems) : null,
+        clientItems.length > 0 ? navGroup('Clients', clientItems) : null,
+        communicationItems.length > 0
+            ? navGroup('Comms', communicationItems)
+            : null,
         navGroup('Calendar', [calendarItem]),
-        navGroup('Administration', administrationItems, {
-            collapsible: true,
-            defaultOpen: false,
-        }),
-    ];
+        partnerItems.length > 0 ? navGroup('Partners', partnerItems) : null,
+        administrationItems.length > 0
+            ? navGroup('Administration', administrationItems, {
+                  collapsible: true,
+                  defaultOpen: false,
+              })
+            : null,
+    ].filter((group): group is NavGroup => group !== null);
 }
 
 function navGroupsFor(
@@ -392,6 +414,7 @@ function navGroupsFor(
             clientItems: advisorClientNavItems,
             communicationItems: superAdminCommunicationNavItems,
             calendarItem: advisorCalendarNavItem,
+            partnerItems: advisorPartnerNavItems,
             administrationItems: superAdminAdministrationNavItems,
         });
     }
@@ -402,6 +425,7 @@ function navGroupsFor(
             clientItems: advisorClientNavItems,
             communicationItems: advisorCommunicationNavItems,
             calendarItem: advisorCalendarNavItem,
+            partnerItems: advisorPartnerNavItems,
             administrationItems: advisorAdministrationNavItems,
         });
     }

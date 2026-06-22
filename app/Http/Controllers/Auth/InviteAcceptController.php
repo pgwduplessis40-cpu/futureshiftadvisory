@@ -8,6 +8,7 @@ use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
+use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Security\MfaChallenger;
@@ -85,6 +86,7 @@ final class InviteAcceptController extends Controller
 
             $invite->markAccepted($user);
             $profile = $this->linkEntrepreneurProfile($invite, $user);
+            $panelMember = $this->linkPanelMember($invite, $user);
 
             $this->auditWriter->record(
                 action: 'invite.accepted',
@@ -96,6 +98,7 @@ final class InviteAcceptController extends Controller
                     'target_role' => $invite->target_role,
                     'mobile_phone_captured' => true,
                     'entrepreneur_profile_id' => $profile?->getKey(),
+                    'panel_member_id' => $panelMember?->getKey(),
                 ],
             );
 
@@ -160,5 +163,27 @@ final class InviteAcceptController extends Controller
         );
 
         return $profile;
+    }
+
+    private function linkPanelMember(InviteToken $invite, User $user): ?PanelMember
+    {
+        if (! in_array($invite->target_user_type, PanelMember::panelTypes(), true)) {
+            return null;
+        }
+
+        $member = PanelMember::query()
+            ->where('invite_token_id', $invite->getKey())
+            ->where('panel_type', $invite->target_user_type)
+            ->first();
+
+        if (! $member instanceof PanelMember || $member->user_id !== null) {
+            return $member;
+        }
+
+        $member->forceFill([
+            'user_id' => $user->getKey(),
+        ])->save();
+
+        return $member->refresh();
     }
 }

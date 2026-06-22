@@ -53,6 +53,96 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.created']);
     }
 
+    public function test_advisor_can_resend_pending_entrepreneur_invite(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'founder@example.com',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            issuedBy: $advisor,
+        );
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->id,
+            'invite_token_id' => $issued->invite->id,
+            'name' => 'Founder Person',
+            'email' => 'founder@example.com',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Specialist onboarding concept.',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
+            );
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.invite.resend', $profile))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-invite-resent');
+
+        $profile->refresh();
+
+        $this->assertNotSame($issued->invite->id, $profile->invite_token_id);
+        $this->assertSame(EntrepreneurStage::INVITED, $profile->stage);
+        $this->assertDatabaseCount('invite_tokens', 2);
+        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.invite_resent']);
+    }
+
+    public function test_accepted_entrepreneur_invite_cannot_be_resent(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'accepted@example.com',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            issuedBy: $advisor,
+        );
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'accepted@example.com',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $issued->invite->forceFill([
+            'accepted_at' => now(),
+            'accepted_by_user_id' => $entrepreneur->id,
+        ])->save();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->id,
+            'invite_token_id' => $issued->invite->id,
+            'user_id' => $entrepreneur->id,
+            'name' => 'Accepted Founder',
+            'email' => 'accepted@example.com',
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Accepted onboarding concept.',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('entrepreneur.invite_resend_url', null)
+            );
+
+        $this->actingAsMfa($advisor)
+            ->from(route('advisor.entrepreneurs.show', $profile))
+            ->post(route('advisor.entrepreneurs.invite.resend', $profile))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHasErrors('invite');
+
+        $this->assertSame($issued->invite->id, $profile->refresh()->invite_token_id);
+        $this->assertDatabaseCount('invite_tokens', 1);
+    }
+
     public function test_accepting_invite_links_profile_and_moves_to_onboarding(): void
     {
         Mail::fake();

@@ -77,7 +77,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
@@ -155,7 +155,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
@@ -210,7 +210,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
@@ -265,7 +265,7 @@ complete.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: complete.url(options),
             method: 'post',
         })
-
+    
     complete.form = completeForm
 const ddPlan = {
     show: Object.assign(show, show),

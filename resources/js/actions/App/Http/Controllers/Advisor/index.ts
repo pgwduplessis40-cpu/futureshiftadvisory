@@ -21,6 +21,7 @@ import NpoConversionController from './NpoConversionController'
 import NpoConfigurationController from './NpoConfigurationController'
 import NpoGovernanceReviewController from './NpoGovernanceReviewController'
 import PaymentController from './PaymentController'
+import PartnerPanelController from './PartnerPanelController'
 import BriefingController from './BriefingController'
 import EntrepreneurController from './EntrepreneurController'
 import EntrepreneurMessageController from './EntrepreneurMessageController'
@@ -58,6 +59,7 @@ NpoConversionController: Object.assign(NpoConversionController, NpoConversionCon
 NpoConfigurationController: Object.assign(NpoConfigurationController, NpoConfigurationController),
 NpoGovernanceReviewController: Object.assign(NpoGovernanceReviewController, NpoGovernanceReviewController),
 PaymentController: Object.assign(PaymentController, PaymentController),
+PartnerPanelController: Object.assign(PartnerPanelController, PartnerPanelController),
 BriefingController: Object.assign(BriefingController, BriefingController),
 EntrepreneurController: Object.assign(EntrepreneurController, EntrepreneurController),
 EntrepreneurMessageController: Object.assign(EntrepreneurMessageController, EntrepreneurMessageController),

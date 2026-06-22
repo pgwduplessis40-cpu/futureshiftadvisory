@@ -59,6 +59,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('messages', [MessageController::class, 'store'])->name('messages.store');
         Route::get('messages/{messageThread}', [MessageController::class, 'show'])->name('messages.show');
         Route::post('messages/{messageThread}', [MessageController::class, 'reply'])->name('messages.reply');
+        Route::get('proposals/{proposal}', [ProposalSignoffController::class, 'viewProposal'])->name('proposals.show');
+        Route::get('proposals/{proposal}/download', [ProposalSignoffController::class, 'download'])->name('proposals.download');
         Route::get('proposals/{proposal}/signoff', [ProposalSignoffController::class, 'show'])->name('proposals.signoff.show');
         Route::post('proposals/{proposal}/signoff/{step}', [ProposalSignoffController::class, 'step'])->name('proposals.signoff.step');
         Route::get('wellbeing', [WellbeingController::class, 'show'])->name('wellbeing.show');

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Auth;
 
 use App\Models\InviteToken;
+use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -69,6 +70,40 @@ final class InviteFlowTest extends TestCase
             'action' => 'invite.accepted',
             'subject_id' => $issued->invite->id,
         ]);
+    }
+
+    public function test_accepting_panel_invite_links_the_panel_member_record(): void
+    {
+        Mail::fake();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'panel-broker@example.com',
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+        );
+
+        $member = PanelMember::query()->create([
+            'invite_token_id' => $issued->invite->getKey(),
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_INVITED,
+            'application' => [
+                'company' => 'Panel Broker Invite',
+                'broker_name' => 'Panel Broker',
+                'industry' => 'Business insurance',
+            ],
+        ]);
+
+        $this->post(route('invite.store', $issued->plainToken), [
+            'name' => 'Panel Broker',
+            'mobile_phone' => '+64 21 123 4567',
+            'password' => 'A-secure-password-123',
+            'password_confirmation' => 'A-secure-password-123',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $user = User::query()->where('email', 'panel-broker@example.com')->firstOrFail();
+
+        $this->assertSame((string) $user->getKey(), (string) $member->refresh()->user_id);
+        $this->assertSame(PanelMember::STATUS_INVITED, $member->status);
     }
 
     public function test_invite_tokens_are_one_shot(): void

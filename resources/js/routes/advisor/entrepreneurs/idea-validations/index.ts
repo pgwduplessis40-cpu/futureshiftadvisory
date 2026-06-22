@@ -83,7 +83,7 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
                     }),
             method: 'post',
         })
-
+    
     gate.form = gateForm
 const ideaValidations = {
     gate: Object.assign(gate, gate),

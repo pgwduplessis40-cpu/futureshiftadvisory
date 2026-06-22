@@ -185,6 +185,6 @@ RedirectController.options = (options?: RouteQueryOptions): RouteDefinition<'opt
                     }),
             method: 'get',
         })
-
+    
     RedirectController.form = RedirectControllerForm
 export default RedirectController

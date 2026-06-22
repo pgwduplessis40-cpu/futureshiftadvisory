@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
@@ -105,7 +105,7 @@ approve.url = (args: { panelMember: string | { id: string } } | [panelMember: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -164,7 +164,7 @@ approve.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
                     }),
             method: 'post',
         })
-
+    
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
@@ -194,7 +194,7 @@ requestInfo.url = (args: { panelMember: string | { id: string } } | [panelMember
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -253,7 +253,7 @@ requestInfo.patch = (args: { panelMember: string | { id: string } } | [panelMemb
                     }),
             method: 'post',
         })
-
+    
     requestInfo.form = requestInfoForm
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
@@ -283,7 +283,7 @@ decline.url = (args: { panelMember: string | { id: string } } | [panelMember: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -342,7 +342,7 @@ decline.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
                     }),
             method: 'post',
         })
-
+    
     decline.form = declineForm
 const panelMembers = {
     index: Object.assign(index, index),

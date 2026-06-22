@@ -4,9 +4,11 @@ import {
     ArrowUpRight,
     CheckCircle2,
     ClipboardCheck,
+    Copy,
     FileText,
     Mail,
     MessageSquare,
+    RefreshCw,
     TrendingUp,
     UserRoundCheck,
 } from 'lucide-react';
@@ -30,6 +32,14 @@ type Props = {
 export default function EntrepreneursShow({ entrepreneur }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const [gateNote, setGateNote] = useState('');
+    const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
+
+    const copyInviteEmail = () => {
+        void navigator.clipboard.writeText(entrepreneur.email).then(() => {
+            setCopiedInviteEmail(true);
+            window.setTimeout(() => setCopiedInviteEmail(false), 1800);
+        });
+    };
 
     return (
         <>
@@ -68,11 +78,14 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 Convert to client
                             </Button>
                         ) : null}
-                        <Button asChild size="sm" variant="outline">
-                            <a href={`mailto:${entrepreneur.email}`}>
-                                <Mail className="size-4" aria-hidden="true" />
-                                Email
-                            </a>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={copyInviteEmail}
+                        >
+                            <Copy className="size-4" aria-hidden="true" />
+                            {copiedInviteEmail ? 'Email copied' : 'Copy email'}
                         </Button>
                         {latestAssessment ? (
                             <Button asChild size="sm" variant="outline">
@@ -516,15 +529,39 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             />
                         </dl>
                         <div className="flex flex-wrap gap-2">
-                            <Button asChild size="sm" variant="outline">
-                                <a href={`mailto:${entrepreneur.email}`}>
-                                    <Mail
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={copyInviteEmail}
+                            >
+                                <Copy
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                {copiedInviteEmail
+                                    ? 'Copied email'
+                                    : 'Copy invite email'}
+                            </Button>
+                            {entrepreneur.invite_resend_url ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={() =>
+                                        router.post(
+                                            entrepreneur.invite_resend_url ?? '',
+                                            {},
+                                            { preserveScroll: true },
+                                        )
+                                    }
+                                >
+                                    <RefreshCw
                                         className="size-4"
                                         aria-hidden="true"
                                     />
-                                    Email invite address
-                                </a>
-                            </Button>
+                                    Resend invite
+                                </Button>
+                            ) : null}
                         </div>
                     </section>
 

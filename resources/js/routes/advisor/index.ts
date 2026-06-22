@@ -4,6 +4,7 @@ import clients from './clients'
 import npoEngagements from './npo-engagements'
 import governanceReviewFindings from './governance-review-findings'
 import payments from './payments'
+import partners from './partners'
 import proposals from './proposals'
 import goals from './goals'
 import milestones from './milestones'
@@ -28,6 +29,7 @@ clients: Object.assign(clients, clients),
 npoEngagements: Object.assign(npoEngagements, npoEngagements),
 governanceReviewFindings: Object.assign(governanceReviewFindings, governanceReviewFindings),
 payments: Object.assign(payments, payments),
+partners: Object.assign(partners, partners),
 proposals: Object.assign(proposals, proposals),
 goals: Object.assign(goals, goals),
 milestones: Object.assign(milestones, milestones),

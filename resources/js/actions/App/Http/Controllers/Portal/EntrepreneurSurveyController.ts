@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
@@ -105,7 +105,7 @@ show.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignm
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { surveyAssignment: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     surveyAssignment: args[0],
@@ -177,7 +177,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
@@ -207,7 +207,7 @@ submit.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { surveyAssignment: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     surveyAssignment: args[0],
@@ -256,7 +256,7 @@ submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssi
             action: submit.url(args, options),
             method: 'post',
         })
-
+    
     submit.form = submitForm
 const EntrepreneurSurveyController = { index, show, submit }
 

@@ -75,7 +75,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::preview
@@ -153,7 +153,7 @@ preview.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
@@ -208,7 +208,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::section
@@ -263,7 +263,7 @@ section.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: section.url(options),
             method: 'post',
         })
-
+    
     section.form = sectionForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
@@ -293,7 +293,7 @@ guidance.url = (args: { planSection: string | { id: string } } | [planSection: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { planSection: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     planSection: args[0],
@@ -342,7 +342,7 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
             action: guidance.url(args, options),
             method: 'post',
         })
-
+    
     guidance.form = guidanceForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::complete
@@ -397,7 +397,7 @@ complete.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: complete.url(options),
             method: 'post',
         })
-
+    
     complete.form = completeForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::requestAdvice
@@ -452,7 +452,7 @@ requestAdvice.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => (
             action: requestAdvice.url(options),
             method: 'post',
         })
-
+    
     requestAdvice.form = requestAdviceForm
 const DdBusinessPlanController = { show, preview, store, section, guidance, complete, requestAdvice }
 
