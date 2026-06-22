@@ -48,6 +48,7 @@ final class ProjectSettingsManagementTest extends TestCase
                 ->where('routes.update', route('admin.project-settings.update', absolute: false))
                 ->where('routes.reset', route('admin.project-settings.reset', absolute: false))
                 ->where('routes.test_email', route('admin.project-settings.test-email', absolute: false))
+                ->where('routes.test_slack', route('admin.project-settings.test-slack', absolute: false))
                 ->where('microsoftRedirectUri', route('calendar.callback', 'microsoft'))
             );
     }
@@ -326,6 +327,60 @@ final class ProjectSettingsManagementTest extends TestCase
             ->assertRedirect(route('admin.project-settings.index', absolute: false))
             ->assertSessionHasErrors([
                 'recipient' => 'Email test failed: SMTP authentication failed.',
+            ]);
+    }
+
+    public function test_test_slack_webhook_posts_to_configured_webhook(): void
+    {
+        $admin = $this->superAdmin();
+
+        Config::set('logging.channels.slack.url', 'https://hooks.slack.test/services/fsa-alerts');
+
+        Http::fake([
+            'https://hooks.slack.test/services/fsa-alerts' => Http::response('ok', 200),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.project-settings.index'))
+            ->post(route('admin.project-settings.test-slack'))
+            ->assertRedirect(route('admin.project-settings.index', absolute: false))
+            ->assertSessionHas('toast.message', 'Slack test alert sent.');
+
+        Http::assertSent(fn ($request): bool => $request->url() === 'https://hooks.slack.test/services/fsa-alerts'
+            && str_contains((string) $request['text'], 'Future Shift Advisory Slack logging test'));
+    }
+
+    public function test_test_slack_webhook_requires_configured_url(): void
+    {
+        $admin = $this->superAdmin();
+
+        Config::set('logging.channels.slack.url', '');
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.project-settings.index'))
+            ->post(route('admin.project-settings.test-slack'))
+            ->assertRedirect(route('admin.project-settings.index', absolute: false))
+            ->assertSessionHasErrors([
+                'slack_webhook' => 'Slack test failed: add and save a Logging Slack webhook URL first.',
+            ]);
+    }
+
+    public function test_test_slack_webhook_returns_provider_failure_as_validation_error(): void
+    {
+        $admin = $this->superAdmin();
+
+        Config::set('logging.channels.slack.url', 'https://hooks.slack.test/services/fsa-alerts');
+
+        Http::fake([
+            'https://hooks.slack.test/services/fsa-alerts' => Http::response('nope', 500),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.project-settings.index'))
+            ->post(route('admin.project-settings.test-slack'))
+            ->assertRedirect(route('admin.project-settings.index', absolute: false))
+            ->assertSessionHasErrors([
+                'slack_webhook' => 'Slack test failed: Slack returned HTTP 500.',
             ]);
     }
 

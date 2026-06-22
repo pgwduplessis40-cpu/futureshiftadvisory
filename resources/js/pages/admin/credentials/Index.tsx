@@ -1,12 +1,15 @@
 import { Head, useForm } from '@inertiajs/react';
 import {
     Ban,
+    ChevronDown,
+    ChevronUp,
     CircleCheck,
     Info,
     KeyRound,
     RotateCw,
     ShieldCheck,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
@@ -73,48 +76,101 @@ export default function IntegrationCredentialIndex({ credentials }: Props) {
                 />
 
                 {Object.entries(grouped).map(([category, rows]) => (
-                    <section
+                    <IntegrationCredentialGroup
                         key={category}
-                        className="space-y-3 rounded-md border bg-background p-4"
-                    >
-                        <h2 className="text-sm font-medium capitalize">
-                            {category.replaceAll('_', ' ')}
-                        </h2>
-                        <div className="overflow-hidden rounded-md border">
-                            <table className="fsa-responsive-table table-fixed md:table-fixed">
-                                <thead className="bg-muted/60 text-left">
-                                    <tr>
-                                        <th className="w-[22%] px-3 py-2 font-medium">
-                                            Integration
-                                        </th>
-                                        <th className="w-[28%] px-3 py-2 font-medium">
-                                            Required keys
-                                        </th>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
-                                            Readiness
-                                        </th>
-                                        <th className="w-[24%] px-3 py-2 font-medium">
-                                            Update
-                                        </th>
-                                        <th className="w-[10%] px-3 py-2 font-medium">
-                                            Live
-                                        </th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {rows.map((row) => (
-                                        <IntegrationRowView
-                                            key={row.integration_key}
-                                            row={row}
-                                        />
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </section>
+                        category={category}
+                        rows={rows}
+                    />
                 ))}
             </div>
         </>
+    );
+}
+
+function IntegrationCredentialGroup({
+    category,
+    rows,
+}: {
+    category: string;
+    rows: IntegrationRow[];
+}) {
+    const [expanded, setExpanded] = useState(true);
+    const categoryTitle = category.replaceAll('_', ' ');
+    const contentId = `integration-credentials-${category}`;
+
+    return (
+        <section className="rounded-md border bg-background">
+            <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-center sm:justify-between">
+                <h2 className="text-sm font-medium capitalize">
+                    {categoryTitle}
+                </h2>
+                <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="outline">{rows.length}</Badge>
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="size-8"
+                        aria-controls={contentId}
+                        aria-expanded={expanded}
+                        aria-label={
+                            expanded
+                                ? `Collapse ${categoryTitle}`
+                                : `Expand ${categoryTitle}`
+                        }
+                        title={
+                            expanded
+                                ? `Collapse ${categoryTitle}`
+                                : `Expand ${categoryTitle}`
+                        }
+                        onClick={() => setExpanded((current) => !current)}
+                    >
+                        {expanded ? (
+                            <ChevronUp className="size-4" aria-hidden="true" />
+                        ) : (
+                            <ChevronDown
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                        )}
+                    </Button>
+                </div>
+            </div>
+
+            <div id={contentId} hidden={!expanded} className="p-4">
+                <div className="overflow-hidden rounded-md border">
+                    <table className="fsa-responsive-table table-fixed md:table-fixed">
+                        <thead className="bg-muted/60 text-left">
+                            <tr>
+                                <th className="w-[22%] px-3 py-2 font-medium">
+                                    Integration
+                                </th>
+                                <th className="w-[28%] px-3 py-2 font-medium">
+                                    Required keys
+                                </th>
+                                <th className="w-[16%] px-3 py-2 font-medium">
+                                    Readiness
+                                </th>
+                                <th className="w-[24%] px-3 py-2 font-medium">
+                                    Update
+                                </th>
+                                <th className="w-[10%] px-3 py-2 font-medium">
+                                    Live
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {rows.map((row) => (
+                                <IntegrationRowView
+                                    key={row.integration_key}
+                                    row={row}
+                                />
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </section>
     );
 }
 

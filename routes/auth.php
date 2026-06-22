@@ -115,6 +115,9 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('project-settings/test-email', [ProjectSettingsController::class, 'testEmail'])
                 ->middleware('require.fresh-step-up')
                 ->name('project-settings.test-email');
+            Route::post('project-settings/test-slack', [ProjectSettingsController::class, 'testSlackWebhook'])
+                ->middleware('require.fresh-step-up')
+                ->name('project-settings.test-slack');
             Route::post('integration-credentials', [IntegrationCredentialController::class, 'store'])
                 ->middleware('require.fresh-step-up')
                 ->name('integration-credentials.store');

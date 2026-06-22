@@ -9,6 +9,8 @@ use App\Models\User;
 use App\Services\Settings\ProjectSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +30,7 @@ final class ProjectSettingsController extends Controller
                 'update' => route('admin.project-settings.update', absolute: false),
                 'reset' => route('admin.project-settings.reset', absolute: false),
                 'test_email' => route('admin.project-settings.test-email', absolute: false),
+                'test_slack' => route('admin.project-settings.test-slack', absolute: false),
             ],
             'microsoftRedirectUri' => route('calendar.callback', 'microsoft'),
         ]);
@@ -113,12 +116,58 @@ final class ProjectSettingsController extends Controller
         return to_route('admin.project-settings.index')->with('status', 'project-settings-test-email-sent');
     }
 
+    public function testSlackWebhook(): RedirectResponse
+    {
+        $webhookUrl = trim((string) Config::get('logging.channels.slack.url', ''));
+
+        if ($webhookUrl === '') {
+            throw ValidationException::withMessages([
+                'slack_webhook' => 'Slack test failed: add and save a Logging Slack webhook URL first.',
+            ]);
+        }
+
+        try {
+            $response = Http::timeout(10)->post($webhookUrl, [
+                'text' => 'Future Shift Advisory Slack logging test. If you can see this, operational alerts are connected.',
+            ]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            throw ValidationException::withMessages([
+                'slack_webhook' => 'Slack test failed: '.$this->providerFailureMessage($exception),
+            ]);
+        }
+
+        if (! $response->successful()) {
+            throw ValidationException::withMessages([
+                'slack_webhook' => 'Slack test failed: Slack returned HTTP '.$response->status().'.',
+            ]);
+        }
+
+        return to_route('admin.project-settings.index')
+            ->with('status', 'project-settings-test-slack-sent')
+            ->with('toast', [
+                'type' => 'success',
+                'message' => 'Slack test alert sent.',
+            ]);
+    }
+
     private function mailFailureMessage(Throwable $exception): string
     {
+        return $this->providerFailureMessage(
+            $exception,
+            'the mail provider rejected the request. Check the credentials and provider configuration.',
+        );
+    }
+
+    private function providerFailureMessage(
+        Throwable $exception,
+        string $fallback = 'the provider rejected the request. Check the credentials and provider configuration.',
+    ): string {
         $message = trim((string) preg_replace('/\s+/', ' ', $exception->getMessage()));
 
         if ($message === '') {
-            return 'the mail provider rejected the request. Check the SMTP credentials and provider configuration.';
+            return $fallback;
         }
 
         return mb_substr($message, 0, 500);

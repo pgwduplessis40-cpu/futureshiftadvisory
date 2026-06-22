@@ -1,5 +1,7 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
+    ChevronDown,
+    ChevronUp,
     Copy,
     KeyRound,
     Mail,
@@ -8,6 +10,7 @@ import {
     Send,
     Settings2,
 } from 'lucide-react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
@@ -46,6 +49,7 @@ type Props = {
         update: string;
         reset: string;
         test_email: string;
+        test_slack: string;
     };
     microsoftRedirectUri: string;
 };
@@ -100,6 +104,11 @@ function ProjectSettingsGroupForm({
     const testEmailForm = useForm({
         recipient: '',
     });
+    const testSlackForm = useForm({
+        slack_webhook: '',
+    });
+    const [expanded, setExpanded] = useState(true);
+    const groupContentId = `project-settings-${group.key}`;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -135,6 +144,13 @@ function ProjectSettingsGroupForm({
         });
     }
 
+    function sendTestSlack(event: FormEvent) {
+        event.preventDefault();
+        testSlackForm.post(routes.test_slack, {
+            preserveScroll: true,
+        });
+    }
+
     return (
         <section className="rounded-md border bg-background">
             <div className="flex flex-col gap-3 border-b p-4 sm:flex-row sm:items-start sm:justify-between">
@@ -147,78 +163,133 @@ function ProjectSettingsGroupForm({
                         {group.description}
                     </p>
                 </div>
-                <Badge variant="outline">{group.fields.length}</Badge>
+                <div className="flex shrink-0 items-center gap-2">
+                    <Badge variant="outline">{group.fields.length}</Badge>
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        className="size-8"
+                        aria-controls={groupContentId}
+                        aria-expanded={expanded}
+                        aria-label={
+                            expanded
+                                ? `Collapse ${group.title}`
+                                : `Expand ${group.title}`
+                        }
+                        title={
+                            expanded
+                                ? `Collapse ${group.title}`
+                                : `Expand ${group.title}`
+                        }
+                        onClick={() => setExpanded((current) => !current)}
+                    >
+                        {expanded ? (
+                            <ChevronUp className="size-4" aria-hidden="true" />
+                        ) : (
+                            <ChevronDown
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                        )}
+                    </Button>
+                </div>
             </div>
 
-            <form onSubmit={submit} className="space-y-4 p-4">
-                {group.key === 'microsoft_graph' ? (
-                    <RedirectUriPanel value={microsoftRedirectUri} />
+            <div id={groupContentId} hidden={!expanded}>
+                <form onSubmit={submit} className="space-y-4 p-4">
+                    {group.key === 'microsoft_graph' ? (
+                        <RedirectUriPanel value={microsoftRedirectUri} />
+                    ) : null}
+
+                    <div className="grid gap-4 lg:grid-cols-2">
+                        {group.fields.map((field) => (
+                            <SettingFieldControl
+                                key={field.key}
+                                field={field}
+                                value={form.data.settings[field.key] ?? ''}
+                                disabled={form.processing}
+                                onChange={(value) =>
+                                    form.setData(
+                                        'settings',
+                                        setFieldValue(
+                                            form.data.settings,
+                                            field.key,
+                                            value,
+                                        ),
+                                    )
+                                }
+                                onReset={() => resetField(field)}
+                            />
+                        ))}
+                    </div>
+
+                    <InputError message={form.errors.settings} />
+
+                    <div className="flex justify-end">
+                        <Button type="submit" disabled={form.processing}>
+                            <Save className="size-4" aria-hidden="true" />
+                            Save
+                        </Button>
+                    </div>
+                </form>
+
+                {group.key === 'email_delivery' ? (
+                    <form
+                        onSubmit={sendTestEmail}
+                        className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-end"
+                    >
+                        <div className="grid min-w-0 flex-1 gap-2">
+                            <Label htmlFor="test_email_recipient">
+                                Test recipient
+                            </Label>
+                            <Input
+                                id="test_email_recipient"
+                                type="email"
+                                value={testEmailForm.data.recipient}
+                                onChange={(event) =>
+                                    testEmailForm.setData(
+                                        'recipient',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={testEmailForm.errors.recipient}
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={testEmailForm.processing}
+                        >
+                            <Send className="size-4" aria-hidden="true" />
+                            Send test
+                        </Button>
+                    </form>
                 ) : null}
 
-                <div className="grid gap-4 lg:grid-cols-2">
-                    {group.fields.map((field) => (
-                        <SettingFieldControl
-                            key={field.key}
-                            field={field}
-                            value={form.data.settings[field.key] ?? ''}
-                            disabled={form.processing}
-                            onChange={(value) =>
-                                form.setData(
-                                    'settings',
-                                    setFieldValue(
-                                        form.data.settings,
-                                        field.key,
-                                        value,
-                                    ),
-                                )
-                            }
-                            onReset={() => resetField(field)}
-                        />
-                    ))}
-                </div>
-
-                <InputError message={form.errors.settings} />
-
-                <div className="flex justify-end">
-                    <Button type="submit" disabled={form.processing}>
-                        <Save className="size-4" aria-hidden="true" />
-                        Save
-                    </Button>
-                </div>
-            </form>
-
-            {group.key === 'email_delivery' ? (
-                <form
-                    onSubmit={sendTestEmail}
-                    className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-end"
-                >
-                    <div className="grid min-w-0 flex-1 gap-2">
-                        <Label htmlFor="test_email_recipient">
-                            Test recipient
-                        </Label>
-                        <Input
-                            id="test_email_recipient"
-                            type="email"
-                            value={testEmailForm.data.recipient}
-                            onChange={(event) =>
-                                testEmailForm.setData(
-                                    'recipient',
-                                    event.target.value,
-                                )
-                            }
-                        />
-                        <InputError message={testEmailForm.errors.recipient} />
-                    </div>
-                    <Button
-                        type="submit"
-                        variant="outline"
-                        disabled={testEmailForm.processing}
+                {group.key === 'logging_slack' ? (
+                    <form
+                        onSubmit={sendTestSlack}
+                        className="flex flex-col gap-3 border-t p-4 sm:flex-row sm:items-center sm:justify-end"
                     >
-                        <Send className="size-4" aria-hidden="true" />
-                        Send test
-                    </Button>
-                </form>
-            ) : null}
+                        <div className="min-w-0 flex-1">
+                            <InputError
+                                message={testSlackForm.errors.slack_webhook}
+                            />
+                        </div>
+                        <Button
+                            type="submit"
+                            variant="outline"
+                            disabled={testSlackForm.processing}
+                        >
+                            <Send className="size-4" aria-hidden="true" />
+                            Send test
+                        </Button>
+                    </form>
+                ) : null}
+            </div>
         </section>
     );
 }
