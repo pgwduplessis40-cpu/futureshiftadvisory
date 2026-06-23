@@ -26,6 +26,7 @@ final class AdvisoryReadiness implements ProvidesMethodology
 
     public function __construct(
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurMilestones $milestones,
     ) {}
 
     public function evaluate(BusinessPlan $plan, ?User $actor = null): ?AdvisoryReadinessSignal
@@ -69,6 +70,7 @@ final class AdvisoryReadiness implements ProvidesMethodology
                 'score' => $score,
                 'advisor_notified_at' => $signal->advisor_notified_at?->toIso8601String(),
             ]);
+            $this->milestones->awardAdvisoryReady($signal->refresh()->load('entrepreneurProfile', 'planAssessment.ratingFramework.criteria'));
 
             return $signal->refresh();
         });

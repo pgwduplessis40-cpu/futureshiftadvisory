@@ -18,6 +18,8 @@ use App\Models\ReadinessAssessment;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
@@ -39,6 +41,8 @@ use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 final class EntrepreneurPlanController extends Controller
 {
     private const ADVISORY_REQUEST_SUBJECT = 'Advisory conversion request';
+
+    private const GAMIFICATION_DISABLE_REQUEST_SUBJECT = 'Gamification disable request';
 
     private const READINESS_FIELDS = [
         'concept_clarity' => 'Concept clarity',
@@ -144,6 +148,8 @@ final class EntrepreneurPlanController extends Controller
         private readonly MessageThreadService $messages,
         private readonly PdfRenderer $pdf,
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurMilestones $milestones,
+        private readonly EntrepreneurGamification $gamification,
     ) {}
 
     public function show(Request $request): Response
@@ -164,6 +170,7 @@ final class EntrepreneurPlanController extends Controller
             'planTemplate' => $this->planTemplatePayload(),
             'reports' => $this->reportPayloads($profile),
             'advisoryRequest' => $this->advisoryRequestPayload($profile, $plan),
+            'gamification' => $this->gamificationPayload($profile, $plan),
             'urls' => [
                 'dashboard' => route('portal.entrepreneur.dashboard', absolute: false),
                 'readiness' => route('portal.entrepreneur.readiness.store', absolute: false),
@@ -331,6 +338,7 @@ final class EntrepreneurPlanController extends Controller
 
         $plan->forceFill([
             'status' => BusinessPlan::STATUS_SUBMITTED,
+            'submitted_at' => $plan->submitted_at ?? now(),
             'founding_advisory_payload' => $this->sharedPlans->foundingPayload($plan),
         ])->save();
         $profile->forceFill(['stage' => EntrepreneurStage::SUBMITTED])->save();
@@ -339,6 +347,7 @@ final class EntrepreneurPlanController extends Controller
             'entrepreneur_profile_id' => $profile->getKey(),
             'completed_requirements' => $completion['completed'],
         ]);
+        $this->milestones->awardPlanSubmitted($plan->refresh()->load('entrepreneurProfile'));
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-submitted');
     }
@@ -682,6 +691,27 @@ final class EntrepreneurPlanController extends Controller
             'request_url' => route('portal.entrepreneur.advisory-request.store', absolute: false),
             'thread_url' => $thread instanceof MessageThread ? route('portal.messages.show', $thread, absolute: false) : null,
             'blockers' => $signal instanceof AdvisoryReadinessSignal ? [] : ['Finalised advisory readiness is not available yet.'],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function gamificationPayload(EntrepreneurProfile $profile, ?BusinessPlan $plan): array
+    {
+        $thread = MessageThread::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->where('subject', self::GAMIFICATION_DISABLE_REQUEST_SUBJECT)
+            ->latest('last_activity_at')
+            ->first();
+
+        return [
+            ...$this->gamification->payload($profile, $plan instanceof BusinessPlan ? $plan : null),
+            'disable_request_url' => route('portal.entrepreneur.gamification.disable-request', absolute: false),
+            'disable_request_requested' => $thread instanceof MessageThread,
+            'disable_request_thread_url' => $thread instanceof MessageThread
+                ? route('portal.messages.show', $thread, absolute: false)
+                : null,
         ];
     }
 

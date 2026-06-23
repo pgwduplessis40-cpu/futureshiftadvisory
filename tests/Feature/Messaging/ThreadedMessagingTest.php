@@ -289,6 +289,83 @@ final class ThreadedMessagingTest extends TestCase
                 ->has('selectedThread.messages', 1));
     }
 
+    public function test_advisor_can_disable_gamification_from_disable_request_thread(): void
+    {
+        $advisor = $this->advisor();
+        $entrepreneur = $this->entrepreneurUser();
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+            'name' => 'Gamification Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Founder wants gamification off.',
+            'gamification_on' => true,
+            'current_streak' => 4,
+            'last_active_at' => now(),
+        ]);
+        $thread = MessageThread::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'created_by_user_id' => $entrepreneur->getKey(),
+            'subject' => 'Gamification disable request',
+            'last_activity_at' => now(),
+        ]);
+        MessageThreadParticipant::query()->create([
+            'thread_id' => $thread->getKey(),
+            'user_id' => $advisor->getKey(),
+        ]);
+        MessageThreadParticipant::query()->create([
+            'thread_id' => $thread->getKey(),
+            'user_id' => $entrepreneur->getKey(),
+        ]);
+        Message::query()->create([
+            'thread_id' => $thread->getKey(),
+            'sender_user_id' => $entrepreneur->getKey(),
+            'body' => 'I would like to request that gamification be disabled for my entrepreneur portal.',
+            'sent_at' => now(),
+        ]);
+
+        $actionUrl = route('advisor.entrepreneurs.messages.gamification.disable', [$profile, $thread], absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.show', [$profile, $thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.actions.0.id', 'disable-gamification')
+                ->where('selectedThread.actions.0.label', 'Disable gamification')
+                ->where('selectedThread.actions.0.url', $actionUrl)
+                ->where('selectedThread.actions.0.method', 'patch')
+                ->where('selectedThread.actions.0.disabled', false));
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.entrepreneurs.messages.gamification.disable', [$profile, $thread]))
+            ->assertRedirect(route('advisor.entrepreneurs.messages.show', [$profile, $thread]))
+            ->assertSessionHas('status', 'entrepreneur-gamification-disabled');
+
+        $profile->refresh();
+        $this->assertFalse($profile->gamification_on);
+        $this->assertSame(0, $profile->current_streak);
+        $this->assertNull($profile->last_active_at);
+        $this->assertDatabaseHas('messages', [
+            'thread_id' => $thread->getKey(),
+            'sender_user_id' => $advisor->getKey(),
+            'body' => 'Gamification has been disabled for your entrepreneur portal.',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'gamification.disabled',
+            'subject_id' => $profile->getKey(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.messages.show', [$profile, $thread]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('selectedThread.actions.0.id', 'gamification-disabled')
+                ->where('selectedThread.actions.0.label', 'Gamification disabled')
+                ->where('selectedThread.actions.0.disabled', true)
+                ->has('selectedThread.messages', 2));
+    }
+
     public function test_message_threads_are_scoped_by_client_rls(): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {

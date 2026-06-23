@@ -19,6 +19,7 @@ use App\Models\MessageThreadParticipant;
 use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
+use App\Services\Entrepreneurs\EntrepreneurGamification;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,7 +28,10 @@ final class EntrepreneurDashboardController extends Controller
 {
     use BuildsEntrepreneurAssessmentPayload;
 
-    public function __construct(private readonly InspirationBoard $inspirationBoard) {}
+    public function __construct(
+        private readonly InspirationBoard $inspirationBoard,
+        private readonly EntrepreneurGamification $gamification,
+    ) {}
 
     public function __invoke(Request $request): Response
     {
@@ -106,6 +110,12 @@ final class EntrepreneurDashboardController extends Controller
                 'index_url' => route('portal.entrepreneur.surveys.index', absolute: false),
                 'items' => [],
             ],
+            'gamification' => $profile
+                ? [
+                    ...$this->gamification->payload($profile, $latestPlan instanceof BusinessPlan ? $latestPlan : null),
+                    'seen_url' => route('portal.entrepreneur.gamification.seen', absolute: false),
+                ]
+                : ['enabled' => false],
         ]);
     }
 

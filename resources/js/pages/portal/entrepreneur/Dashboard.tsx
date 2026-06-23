@@ -1,12 +1,14 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     Bell,
     ClipboardCheck,
     Eye,
     FileText,
+    Flame,
     Hourglass,
     MessageSquare,
     Settings,
+    Trophy,
     Upload,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -111,6 +113,38 @@ type PendingSurvey = {
     url: string;
 };
 
+type GamificationPayload = {
+    enabled: boolean;
+    seen_url?: string;
+    current_level?: {
+        stage: string;
+        stage_label: string;
+        phase: number | null;
+        label: string;
+    };
+    plan_completion?: {
+        total: number;
+        completed: number;
+        percent: number;
+    };
+    current_streak?: number;
+    last_active_at?: string | null;
+    new_badge_count?: number;
+    badges?: {
+        id: string;
+        key: string;
+        label: string;
+        earned_at: string | null;
+        earned_at_estimated: boolean;
+        seen_at: string | null;
+    }[];
+    next_milestone?: {
+        key: string;
+        label: string;
+        progress_percent: number;
+    } | null;
+};
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -120,6 +154,7 @@ type Props = {
     notificationsUrl: string;
     settingsUrl: string;
     surveys: PendingSurveysPayload;
+    gamification: GamificationPayload;
 };
 
 export default function EntrepreneurDashboard({
@@ -131,6 +166,7 @@ export default function EntrepreneurDashboard({
     notificationsUrl,
     settingsUrl,
     surveys,
+    gamification,
 }: Props) {
     const [documents, setDocuments] = useState<UploadedDocument[]>(
         profile?.latest_documents ?? [],
@@ -230,6 +266,10 @@ export default function EntrepreneurDashboard({
 
                 {inspirationBoard ? (
                     <InspirationCard post={inspirationBoard} />
+                ) : null}
+
+                {gamification.enabled ? (
+                    <GamificationPanel gamification={gamification} />
                 ) : null}
 
                 <DashboardTabList
@@ -890,6 +930,104 @@ function DashboardTabButton({
         >
             {children}
         </button>
+    );
+}
+
+function GamificationPanel({
+    gamification,
+}: {
+    gamification: GamificationPayload;
+}) {
+    const badges = gamification.badges ?? [];
+    const newBadgeCount = gamification.new_badge_count ?? 0;
+    const markSeen = () => {
+        if (!gamification.seen_url) {
+            return;
+        }
+
+        router.post(gamification.seen_url, {}, { preserveScroll: true });
+    };
+
+    return (
+        <section className="space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Trophy className="size-4" aria-hidden="true" />
+                    <h2 className="text-base font-semibold">Journey</h2>
+                </div>
+                {newBadgeCount > 0 ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={markSeen}
+                    >
+                        {newBadgeCount === 1
+                            ? 'Mark badge seen'
+                            : 'Mark badges seen'}
+                    </Button>
+                ) : null}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-3">
+                <div className="rounded-md border bg-background p-4">
+                    <div className="text-xs text-muted-foreground">Level</div>
+                    <div className="mt-2 text-sm font-medium">
+                        {gamification.current_level?.label ?? '-'}
+                    </div>
+                </div>
+                <div className="rounded-md border bg-background p-4">
+                    <div className="text-xs text-muted-foreground">
+                        Plan completion
+                    </div>
+                    <div className="mt-2 text-sm font-medium">
+                        {gamification.plan_completion?.percent ?? 0}%
+                    </div>
+                    <div className="mt-3 h-2 overflow-hidden rounded-full bg-muted">
+                        <div
+                            className="h-full rounded-full bg-emerald-500"
+                            style={{
+                                width: `${Math.min(100, Math.max(0, gamification.plan_completion?.percent ?? 0))}%`,
+                            }}
+                        />
+                    </div>
+                </div>
+                <div className="rounded-md border bg-background p-4">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                        <Flame className="size-3.5" aria-hidden="true" />
+                        Streak
+                    </div>
+                    <div className="mt-2 text-sm font-medium">
+                        {gamification.current_streak ?? 0} days
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                        Last active {formatDate(gamification.last_active_at ?? null)}
+                    </div>
+                </div>
+            </div>
+
+            {badges.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                    {badges.map((badge) => (
+                        <Badge
+                            key={badge.id}
+                            variant={badge.seen_at ? 'secondary' : 'default'}
+                            title={
+                                badge.earned_at_estimated
+                                    ? `${formatDate(badge.earned_at)} estimated`
+                                    : formatDate(badge.earned_at)
+                            }
+                        >
+                            {badge.label}
+                        </Badge>
+                    ))}
+                </div>
+            ) : gamification.next_milestone ? (
+                <div className="text-sm text-muted-foreground">
+                    Next: {gamification.next_milestone.label}
+                </div>
+            ) : null}
+        </section>
     );
 }
 

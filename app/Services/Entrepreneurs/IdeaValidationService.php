@@ -26,6 +26,7 @@ final class IdeaValidationService implements ProvidesMethodology
     public function __construct(
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurMilestones $milestones,
     ) {}
 
     /**
@@ -124,6 +125,7 @@ final class IdeaValidationService implements ProvidesMethodology
                 'entrepreneur_profile_id' => $validation->entrepreneur_profile_id,
                 'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             ]);
+            $this->milestones->awardIdeaValidated($validation->refresh()->load('entrepreneurProfile'));
 
             return $validation->refresh();
         });

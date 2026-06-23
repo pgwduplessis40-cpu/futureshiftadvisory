@@ -32,6 +32,7 @@ final class Assessment implements ProvidesMethodology
         private readonly PlanDocuments $documents,
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurMilestones $milestones,
     ) {}
 
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
@@ -157,6 +158,7 @@ final class Assessment implements ProvidesMethodology
             'status' => BusinessPlan::STATUS_FINALISED,
             'completed_at' => now(),
         ])->save();
+        $this->milestones->awardAssessmentFinalised($assessment->refresh()->load('businessPlan.entrepreneurProfile', 'ratingFramework.criteria'));
 
         return $assessment->refresh();
     }

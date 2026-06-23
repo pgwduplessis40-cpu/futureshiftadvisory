@@ -1,7 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
+import gamification from './gamification'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 export const index = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +17,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 index.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +50,7 @@ index.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 index.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +59,7 @@ index.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 index.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +69,7 @@ index.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
     const indexForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +79,7 @@ index.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
         indexForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +88,7 @@ index.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:27
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:32
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
         indexForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -103,7 +104,7 @@ index.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:64
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:69
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 export const store = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -118,7 +119,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:64
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:69
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -151,7 +152,7 @@ store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:64
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:69
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
 store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -161,7 +162,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:64
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:69
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
     const storeForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -171,7 +172,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:64
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:69
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages'
  */
         storeForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -182,7 +183,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 export const show = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -197,7 +198,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 show.url = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -227,7 +228,7 @@ show.url = (args: { entrepreneurProfile: string | { id: string }, messageThread:
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 show.get = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -236,7 +237,7 @@ show.get = (args: { entrepreneurProfile: string | { id: string }, messageThread:
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 show.head = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -246,7 +247,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, messageThread
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
     const showForm = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -256,7 +257,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, messageThread
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
         showForm.get = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -265,7 +266,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, messageThread
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:45
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:50
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
         showForm.head = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -281,7 +282,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, messageThread
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:83
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:88
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 export const reply = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -296,7 +297,7 @@ reply.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:83
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:88
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 reply.url = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -326,7 +327,7 @@ reply.url = (args: { entrepreneurProfile: string | { id: string }, messageThread
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:83
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:88
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
 reply.post = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -336,7 +337,7 @@ reply.post = (args: { entrepreneurProfile: string | { id: string }, messageThrea
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:83
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:88
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
     const replyForm = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -346,7 +347,7 @@ reply.post = (args: { entrepreneurProfile: string | { id: string }, messageThrea
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
- * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:83
+ * @see app/Http/Controllers/Advisor/EntrepreneurMessageController.php:88
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/messages/{messageThread}'
  */
         replyForm.post = (args: { entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } } | [entrepreneurProfile: string | { id: string }, messageThread: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -360,6 +361,7 @@ const messages = {
 store: Object.assign(store, store),
 show: Object.assign(show, show),
 reply: Object.assign(reply, reply),
+gamification: Object.assign(gamification, gamification),
 }
 
 export default messages

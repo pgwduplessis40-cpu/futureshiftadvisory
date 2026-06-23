@@ -287,6 +287,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/messages/{messageThread}', [EntrepreneurMessageController::class, 'reply'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.messages.reply');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/messages/{messageThread}/gamification/disable', [EntrepreneurMessageController::class, 'disableGamification'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.messages.gamification.disable');
         Route::patch('entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate', [EntrepreneurActionController::class, 'gateIdea'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.idea-validations.gate');
@@ -299,6 +302,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/{entrepreneurProfile}/convert', [EntrepreneurActionController::class, 'convert'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.convert');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/gamification', [EntrepreneurActionController::class, 'setGamification'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.gamification.update');
         Route::get('entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.assessments.show');

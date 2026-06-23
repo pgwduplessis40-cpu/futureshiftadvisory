@@ -24,6 +24,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
+use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -43,6 +44,7 @@ final class EntrepreneurController extends Controller
         private readonly AdvisorEntrepreneurCapacity $capacity,
         private readonly AuditWriter $auditWriter,
         private readonly InviteIssuer $inviteIssuer,
+        private readonly EntrepreneurGamification $gamification,
     ) {}
 
     public function index(Request $request): Response
@@ -247,6 +249,11 @@ final class EntrepreneurController extends Controller
                 'conversion' => $this->conversionSummary($entrepreneurProfile, $latestPlan),
                 'documents' => $this->latestDocuments($entrepreneurProfile),
                 'messages' => $this->messageSummary($entrepreneurProfile, $viewer),
+                'gamification' => [
+                    ...$this->gamification->payload($entrepreneurProfile, $latestPlan instanceof BusinessPlan ? $latestPlan : null),
+                    'enabled' => (bool) $entrepreneurProfile->gamification_on,
+                    'toggle_url' => route('advisor.entrepreneurs.gamification.update', $entrepreneurProfile, absolute: false),
+                ],
             ],
         ]);
     }

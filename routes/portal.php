@@ -8,6 +8,7 @@ use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardCont
 use App\Http\Controllers\Portal\DdBusinessPlanController;
 use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
+use App\Http\Controllers\Portal\EntrepreneurGamificationController;
 use App\Http\Controllers\Portal\EntrepreneurPlanController;
 use App\Http\Controllers\Portal\EntrepreneurSurveyController;
 use App\Http\Controllers\Portal\InspirationBoardController;
@@ -45,6 +46,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/plan/sections/{planSection}/guidance', [EntrepreneurPlanController::class, 'guidance'])->name('entrepreneur.plan.sections.guidance');
         Route::post('entrepreneur/plan/submit', [EntrepreneurPlanController::class, 'submit'])->name('entrepreneur.plan.submit');
         Route::post('entrepreneur/advisory-request', [EntrepreneurPlanController::class, 'requestAdvisory'])->name('entrepreneur.advisory-request.store');
+        Route::post('entrepreneur/gamification/disable-request', [EntrepreneurGamificationController::class, 'requestDisable'])->name('entrepreneur.gamification.disable-request');
+        Route::post('entrepreneur/gamification/seen', [EntrepreneurGamificationController::class, 'seen'])->name('entrepreneur.gamification.seen');
         Route::get('entrepreneur/assessments/{planAssessment}', [EntrepreneurAssessmentController::class, 'show'])->name('entrepreneur.assessments.show');
         Route::get('entrepreneur/surveys', [EntrepreneurSurveyController::class, 'index'])->name('entrepreneur.surveys.index');
         Route::get('entrepreneur/surveys/{surveyAssignment}', [EntrepreneurSurveyController::class, 'show'])->name('entrepreneur.surveys.show');

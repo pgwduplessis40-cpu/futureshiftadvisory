@@ -40,6 +40,7 @@ final class BusinessPlan extends Model
     protected $casts = [
         'current_phase' => 'integer',
         'founding_advisory_payload' => 'array',
+        'submitted_at' => 'datetime',
         'completed_at' => 'datetime',
         'living_plan_next_update_at' => 'datetime',
         'living_plan_last_prompted_at' => 'datetime',

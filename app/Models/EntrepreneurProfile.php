@@ -18,6 +18,9 @@ final class EntrepreneurProfile extends Model
 
     protected $casts = [
         'stage' => EntrepreneurStage::class,
+        'gamification_on' => 'boolean',
+        'current_streak' => 'integer',
+        'last_active_at' => 'datetime',
     ];
 
     /**
@@ -74,6 +77,22 @@ final class EntrepreneurProfile extends Model
     public function advisoryReadinessSignals(): HasMany
     {
         return $this->hasMany(AdvisoryReadinessSignal::class);
+    }
+
+    /**
+     * @return HasMany<EntrepreneurMilestoneAward>
+     */
+    public function milestoneAwards(): HasMany
+    {
+        return $this->hasMany(EntrepreneurMilestoneAward::class);
+    }
+
+    /**
+     * @return HasMany<EntrepreneurStreakEvent>
+     */
+    public function streakEvents(): HasMany
+    {
+        return $this->hasMany(EntrepreneurStreakEvent::class);
     }
 
     /**

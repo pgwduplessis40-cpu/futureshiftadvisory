@@ -29,6 +29,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     created_at: string | null;
     documents: EntrepreneurDocument[];
     messages: EntrepreneurMessageSummary;
+    gamification: EntrepreneurGamificationPayload;
     latest_plan: {
         id: string;
         title: string;
@@ -89,6 +90,38 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         client_id: string | null;
         convert_url: string;
     };
+};
+
+export type EntrepreneurGamificationPayload = {
+    enabled: boolean;
+    toggle_url: string;
+    current_level?: {
+        stage: string;
+        stage_label: string;
+        phase: number | null;
+        label: string;
+    };
+    plan_completion?: {
+        total: number;
+        completed: number;
+        percent: number;
+    };
+    current_streak?: number;
+    last_active_at?: string | null;
+    new_badge_count?: number;
+    badges?: {
+        id: string;
+        key: string;
+        label: string;
+        earned_at: string | null;
+        earned_at_estimated: boolean;
+        seen_at: string | null;
+    }[];
+    next_milestone?: {
+        key: string;
+        label: string;
+        progress_percent: number;
+    } | null;
 };
 
 export type EntrepreneurDocument = {

@@ -1,6 +1,8 @@
-import { Link, useForm } from '@inertiajs/react';
+import { Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
+    Ban,
+    CheckCircle2,
     Inbox,
     Mail,
     MessageSquare,
@@ -17,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
+import type { RequestPayload } from '@inertiajs/core';
 
 export type MessagingClient = {
     id: string;
@@ -45,6 +48,17 @@ export type SelectedThread = {
         user_type: string;
     }>;
     messages: ThreadMessage[];
+    actions?: ThreadAction[];
+};
+
+export type ThreadAction = {
+    id: string;
+    label: string;
+    url: string;
+    method: 'post' | 'patch';
+    variant?: 'default' | 'secondary' | 'outline' | 'destructive';
+    disabled?: boolean;
+    data?: RequestPayload;
 };
 
 export type ThreadMessage = {
@@ -97,6 +111,9 @@ export function ThreadedMessaging({
 }: Props) {
     const [createUploadKey, setCreateUploadKey] = useState(0);
     const [replyUploadKey, setReplyUploadKey] = useState(0);
+    const [processingAction, setProcessingAction] = useState<string | null>(
+        null,
+    );
     const createForm = useForm<MessageForm>({
         subject: '',
         body: '',
@@ -135,6 +152,26 @@ export function ThreadedMessaging({
                 setReplyUploadKey((key) => key + 1);
             },
         });
+    };
+
+    const runThreadAction = (action: ThreadAction) => {
+        if (action.disabled || processingAction) {
+            return;
+        }
+
+        setProcessingAction(action.id);
+        const options = {
+            preserveScroll: true,
+            onFinish: () => setProcessingAction(null),
+        };
+
+        if (action.method === 'patch') {
+            router.patch(action.url, action.data ?? {}, options);
+
+            return;
+        }
+
+        router.post(action.url, action.data ?? {}, options);
     };
 
     return (
@@ -282,9 +319,48 @@ export function ThreadedMessaging({
                                                 .join(', ')}
                                         </p>
                                     </div>
-                                    <Badge variant="secondary">
-                                        {selectedThread.messages.length}
-                                    </Badge>
+                                    <div className="flex flex-wrap items-center justify-end gap-2">
+                                        {selectedThread.actions?.map(
+                                            (action) => (
+                                                <Button
+                                                    key={action.id}
+                                                    type="button"
+                                                    size="sm"
+                                                    variant={
+                                                        action.variant ??
+                                                        'outline'
+                                                    }
+                                                    disabled={
+                                                        action.disabled ||
+                                                        processingAction ===
+                                                            action.id
+                                                    }
+                                                    onClick={() =>
+                                                        runThreadAction(action)
+                                                    }
+                                                >
+                                                    {action.disabled ? (
+                                                        <CheckCircle2
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                    ) : (
+                                                        <Ban
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                    )}
+                                                    {processingAction ===
+                                                    action.id
+                                                        ? 'Actioning'
+                                                        : action.label}
+                                                </Button>
+                                            ),
+                                        )}
+                                        <Badge variant="secondary">
+                                            {selectedThread.messages.length}
+                                        </Badge>
+                                    </div>
                                 </div>
                             </div>
 

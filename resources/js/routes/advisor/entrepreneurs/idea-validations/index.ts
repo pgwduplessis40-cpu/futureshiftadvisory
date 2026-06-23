@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:26
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
 export const gate = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ gate.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:26
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
 gate.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ gate.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:26
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
 gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -56,7 +56,7 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:26
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
     const gateForm = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -71,7 +71,7 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:26
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
         gateForm.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

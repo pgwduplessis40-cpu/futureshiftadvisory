@@ -3,6 +3,7 @@ import NpoBoardDashboardController from './NpoBoardDashboardController'
 import DdBusinessPlanController from './DdBusinessPlanController'
 import EntrepreneurDashboardController from './EntrepreneurDashboardController'
 import EntrepreneurPlanController from './EntrepreneurPlanController'
+import EntrepreneurGamificationController from './EntrepreneurGamificationController'
 import EntrepreneurAssessmentController from './EntrepreneurAssessmentController'
 import EntrepreneurSurveyController from './EntrepreneurSurveyController'
 import ReportController from './ReportController'
@@ -19,6 +20,7 @@ NpoBoardDashboardController: Object.assign(NpoBoardDashboardController, NpoBoard
 DdBusinessPlanController: Object.assign(DdBusinessPlanController, DdBusinessPlanController),
 EntrepreneurDashboardController: Object.assign(EntrepreneurDashboardController, EntrepreneurDashboardController),
 EntrepreneurPlanController: Object.assign(EntrepreneurPlanController, EntrepreneurPlanController),
+EntrepreneurGamificationController: Object.assign(EntrepreneurGamificationController, EntrepreneurGamificationController),
 EntrepreneurAssessmentController: Object.assign(EntrepreneurAssessmentController, EntrepreneurAssessmentController),
 EntrepreneurSurveyController: Object.assign(EntrepreneurSurveyController, EntrepreneurSurveyController),
 ReportController: Object.assign(ReportController, ReportController),

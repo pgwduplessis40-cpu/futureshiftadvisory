@@ -20,6 +20,8 @@ final class PlanBuilder
         private readonly SharedPlanBuilder $plans,
         private readonly IdeaValidationService $ideaValidations,
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurMilestones $milestones,
+        private readonly EntrepreneurStreak $streak,
     ) {}
 
     public function start(EntrepreneurProfile $profile, User $actor): BusinessPlan
@@ -107,6 +109,9 @@ final class PlanBuilder
                 'phase' => $phaseKey,
                 'dependency_warning' => $warning,
             ]);
+            $section = $section->refresh()->load('businessPlan.entrepreneurProfile');
+            $this->streak->recordSectionSaved($section);
+            $this->milestones->awardCompletedPhases($plan->refresh()->load('entrepreneurProfile', 'phases', 'sections'));
 
             return $section->refresh();
         });

@@ -6,15 +6,17 @@ import {
     ClipboardCheck,
     Copy,
     FileText,
+    Flame,
     Mail,
     MessageSquare,
     RefreshCw,
     TrendingUp,
+    Trophy,
     UserRoundCheck,
     XCircle,
 } from 'lucide-react';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
 import { Badge } from '@/components/ui/badge';
@@ -32,6 +34,11 @@ type Props = {
 
 export default function EntrepreneursShow({ entrepreneur }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
+    const gamification = entrepreneur.gamification;
+    const [gamificationEnabled, setGamificationEnabled] = useState(
+        gamification.enabled,
+    );
+    const [gamificationPending, setGamificationPending] = useState(false);
     const [gateNote, setGateNote] = useState('');
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const [copiedInviteDraft, setCopiedInviteDraft] = useState(false);
@@ -93,6 +100,26 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
 
         router.delete(entrepreneur.invite_cancel_url, { preserveScroll: true });
     };
+    useEffect(() => {
+        setGamificationEnabled(gamification.enabled);
+    }, [gamification.enabled]);
+
+    const toggleGamification = () => {
+        const nextEnabled = !gamificationEnabled;
+
+        setGamificationEnabled(nextEnabled);
+        setGamificationPending(true);
+
+        router.patch(
+            gamification.toggle_url,
+            { enabled: nextEnabled },
+            {
+                preserveScroll: true,
+                onError: () => setGamificationEnabled(!nextEnabled),
+                onFinish: () => setGamificationPending(false),
+            },
+        );
+    };
 
     return (
         <>
@@ -131,6 +158,24 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 Convert to client
                             </Button>
                         ) : null}
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                                gamificationEnabled ? 'secondary' : 'outline'
+                            }
+                            disabled={gamificationPending}
+                            onClick={toggleGamification}
+                        >
+                            <Flame className="size-4" aria-hidden="true" />
+                            {gamificationPending
+                                ? gamificationEnabled
+                                    ? 'Enabling gamification'
+                                    : 'Disabling gamification'
+                                : gamificationEnabled
+                                  ? 'Gamification enabled'
+                                  : 'Enable gamification'}
+                        </Button>
                         <Button
                             type="button"
                             size="sm"
@@ -426,6 +471,111 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             </div>
                         </div>
                     ) : null}
+                </section>
+
+                <section className="space-y-4 rounded-md border bg-background p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Trophy
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Gamification
+                                </h2>
+                            </div>
+                            <Badge
+                                variant={
+                                    gamificationEnabled
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                            >
+                                {gamificationEnabled
+                                    ? 'Gamification enabled'
+                                    : 'Gamification disabled'}
+                            </Badge>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                                gamificationEnabled ? 'outline' : 'default'
+                            }
+                            disabled={gamificationPending}
+                            onClick={toggleGamification}
+                        >
+                            {gamificationPending
+                                ? gamificationEnabled
+                                    ? 'Enabling'
+                                    : 'Disabling'
+                                : gamificationEnabled
+                                  ? 'Disable gamification'
+                                  : 'Enable gamification'}
+                        </Button>
+                    </div>
+
+                    {gamificationEnabled ? (
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <ActionMetric
+                                label="Journey"
+                                value={gamification.current_level?.label ?? '-'}
+                                hoverTitle="Journey level"
+                                rows={[
+                                    {
+                                        label: 'Stage',
+                                        value:
+                                            gamification.current_level
+                                                ?.stage_label ?? '-',
+                                    },
+                                    {
+                                        label: 'Phase',
+                                        value:
+                                            gamification.current_level?.phase ??
+                                            '-',
+                                    },
+                                ]}
+                            />
+                            <ActionMetric
+                                label="Plan completion"
+                                value={`${gamification.plan_completion?.percent ?? 0}%`}
+                                hoverTitle="Plan completion"
+                                rows={[
+                                    {
+                                        label: 'Completed',
+                                        value: `${gamification.plan_completion?.completed ?? 0}/${gamification.plan_completion?.total ?? 0}`,
+                                    },
+                                    {
+                                        label: 'Next badge',
+                                        value:
+                                            gamification.next_milestone
+                                                ?.label ?? 'Complete',
+                                    },
+                                ]}
+                            />
+                            <ActionMetric
+                                label="Badges"
+                                value={`${gamification.badges?.length ?? 0} earned`}
+                                hoverTitle="Earned badges"
+                                rows={[
+                                    {
+                                        label: 'New',
+                                        value:
+                                            gamification.new_badge_count ?? 0,
+                                    },
+                                    {
+                                        label: 'Streak',
+                                        value: `${gamification.current_streak ?? 0} days`,
+                                    },
+                                ]}
+                            />
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Off for this entrepreneur.
+                        </p>
+                    )}
                 </section>
 
                 <div className="grid gap-6 lg:grid-cols-3">

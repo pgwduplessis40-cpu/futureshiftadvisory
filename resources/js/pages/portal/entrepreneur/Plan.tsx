@@ -8,6 +8,7 @@ import {
     MessageSquare,
     RefreshCw,
     Send,
+    Trophy,
     Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
@@ -152,6 +153,21 @@ type AdvisoryRequestPayload = {
     blockers: string[];
 };
 
+type GamificationPayload = {
+    enabled: boolean;
+    disable_request_url: string;
+    disable_request_requested: boolean;
+    disable_request_thread_url: string | null;
+    current_level?: {
+        label: string;
+    };
+    plan_completion?: {
+        percent: number;
+    };
+    current_streak?: number;
+    new_badge_count?: number;
+};
+
 type Props = {
     profile: ProfilePayload;
     readiness: ReadinessPayload;
@@ -161,6 +177,7 @@ type Props = {
     planTemplate: PlanTemplatePhasePayload[];
     reports: ReportPayload[];
     advisoryRequest: AdvisoryRequestPayload;
+    gamification: GamificationPayload;
     urls: {
         dashboard: string;
         readiness: string;
@@ -186,6 +203,7 @@ export default function EntrepreneurPlan({
     planTemplate,
     reports,
     advisoryRequest,
+    gamification,
     urls,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
@@ -276,6 +294,10 @@ export default function EntrepreneurPlan({
 
     const requestAdvisory = () => {
         router.post(urls.advisoryRequest, {}, { preserveScroll: true });
+    };
+
+    const requestGamificationDisablement = () => {
+        router.post(gamification.disable_request_url, {}, { preserveScroll: true });
     };
 
     const saveSection = async () => {
@@ -373,6 +395,87 @@ export default function EntrepreneurPlan({
                 </div>
 
                 <TabList activeTab={activeTab} onChange={setActiveTab} />
+
+                {gamification.enabled ? (
+                    <section className="rounded-md border bg-background p-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                            <div className="space-y-2">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Trophy
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    <h2 className="text-sm font-medium">
+                                        Gamification enabled
+                                    </h2>
+                                    <Badge
+                                        variant={
+                                            gamification.disable_request_requested
+                                                ? 'secondary'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {gamification.disable_request_requested
+                                            ? 'Disablement requested'
+                                            : 'Active'}
+                                    </Badge>
+                                </div>
+                                <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                    <span>
+                                        {gamification.current_level?.label ??
+                                            'Journey active'}
+                                    </span>
+                                    <span>
+                                        Plan{' '}
+                                        {gamification.plan_completion
+                                            ?.percent ?? 0}
+                                        %
+                                    </span>
+                                    <span>
+                                        Streak{' '}
+                                        {gamification.current_streak ?? 0} days
+                                    </span>
+                                    {(gamification.new_badge_count ?? 0) >
+                                    0 ? (
+                                        <span>
+                                            {gamification.new_badge_count} new
+                                            badges
+                                        </span>
+                                    ) : null}
+                                </div>
+                            </div>
+                            {gamification.disable_request_requested &&
+                            gamification.disable_request_thread_url ? (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link
+                                        href={
+                                            gamification.disable_request_thread_url
+                                        }
+                                    >
+                                        <MessageSquare
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Open request
+                                    </Link>
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={requestGamificationDisablement}
+                                >
+                                    <MessageSquare
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Request disablement
+                                </Button>
+                            )}
+                        </div>
+                    </section>
+                ) : null}
 
                 {activeTab === 'actions' ? (
                     <div className="space-y-6">

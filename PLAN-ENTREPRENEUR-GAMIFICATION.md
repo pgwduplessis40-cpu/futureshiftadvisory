@@ -5,7 +5,100 @@
 **Predecessors:** Phase 1–4 + NPO + entrepreneur module, green on `main`/`featureApp`. Builds on existing entrepreneur scaffolding: `EntrepreneurProfile`, `EntrepreneurStage`, `BusinessPlan` (phases/sections/status), `PlanAssessment` (rounds/grades), `AdvisoryReadinessSignal`, `EntrepreneurActionController`, the entrepreneur portal `Dashboard`, RLS helpers, `AuditWriter`, Spatie `Permission`, Wayfinder.
 **Work orders:** **WO-G1 … WO-G5** (gamification namespace).
 **Sequencing:** G1 (advisor toggle + schema: `entrepreneur_milestone_awards` + immutability trigger, `entrepreneur_streak_events`, profile columns) → G2 (progress service + milestone awarder + streak ledger service) → G3 (portal panel) → G4 (seen-state / "new" toasts) → G5 (advisor preview + polish). Each its own green commit on `featureApp`; `main` fast-forwards only when the suite is green (`-d memory_limit=2048M`).
-**Plan version:** 1.8 — tech-spec anchor (v1.1) + seven code-grounded review passes (v1.2–v1.8).
+**Plan version:** 1.19 — tech-spec anchor (v1.1) + eighteen code-grounded review passes (v1.2–v1.19).
+
+> **v1.19 revision (review pass — INSERT branch).** The `submitted_at` guard was `BEFORE UPDATE`-only, so a
+> mass-assigned `create()` could insert `status='submitted'` + `submitted_at=now()` directly (OLD is null,
+> transition logic never fires). Added a **`BEFORE INSERT`** trigger rejecting any non-null `submitted_at`
+> on create + a direct-insert test (§4, §9).
+
+> **v1.18 revision (review pass — true-transition guard).** The v1.17 guard checked only `NEW.status =
+> 'submitted'`, which a single write setting *both* `status='submitted'` and `submitted_at` on an
+> already-advanced plan could pass. Now the trigger requires the real **`OLD.status` (draft/building/ready)
+> → `NEW.status` (submitted) transition** (§4, §9).
+
+> **v1.17 revision (review pass — initial-set transition guard).** Tightened the v1.16 initial-set guard:
+> "submitted-or-beyond status" still let a stray first-write stamp an already-advanced plan (masking an
+> intended null + estimated award). Now the trigger first-sets `submitted_at` **only on the actual
+> draft→`submitted` transition** (`NEW.status = 'submitted'`); the migration **backfill runs before the
+> trigger is created** so it can still populate already-advanced plans (a controlled path) (§4, §9).
+
+> **v1.16 revision (review pass — spurious submitted_at).** One fix (two layers): an accidental *first*
+> write to `submitted_at` on a draft plan (mass-assignable model) would bypass the null-fallback status
+> check and mis-award `plan_submitted`. Closed both ways — **(1)** the set-once DB trigger now also rejects
+> an *initial* `submitted_at` set unless `status` is submitted-or-beyond (§4); **(2)** the awarder requires
+> the submitted-or-beyond status for `plan_submitted` **regardless** of `submitted_at` being non-null (§5).
+> Tested (§9).
+
+> **v1.15 revision (review pass — explicit awarder hook points).** Two fixes:
+> (P1) **Per-milestone hooks while enabled** — beyond `EntrepreneurPlanSectionSaved` + the `adjustScore`
+> hook, the awarder is now explicitly invoked from each achievement site so an *enabled* profile earns each
+> badge immediately: `idea_validated` ← `gateIdea`/`passAdvisorGate`; `plan_submitted` ← submit;
+> `first_assessment`/`grade_up` ← `Assessment::finalise`; `advisory_ready` ← `AdvisoryReadiness::evaluate`
+> (§5, §9).
+> (P3) **Milestone-table `earned_at`** for `plan_submitted` now notes the estimated-reconcile-time fallback
+> for a null-`submitted_at` plan (§3.4), matching §5.
+
+> **v1.14 revision (review pass — backfill precision).** Three fixes:
+> (P2) **Null-`submitted_at` eligibility enumerated** — the estimated `plan_submitted` award is given only to
+> a plan in `submitted`/`assessing`/`revising`/`finalised`/`launched`/`founding`; `draft`/`building`/`ready`
+> get none (§5, §9).
+> (P2) **Milestone-table wording** — `plan_submitted` no longer reads "awarded once at the submit action"
+> (which conflicts with default-off): the submit action always sets durable `submitted_at`, but the **award
+> row** is inserted at submit *if enabled*, else by enable-time backfill (§3.4).
+> (P3) **Audit backfill SQL** now scopes by **`subject_type` (BusinessPlan morph) + `subject_id`**, not
+> id-only (`AuditWriter` stores `getMorphClass()`; `subject_id` is a string morph id) (§4, §9).
+
+> **v1.13 revision (review pass — estimated-fallback consistency + set-once enforcement).** Three fixes:
+> (P2) the "earliest qualifying" rule's **"never reconciliation time"** now reads "never… *when a durable
+> source timestamp exists*", reconciled with the estimated-fallback path (§5).
+> (P2) `submitted_at` **set-once is now DB-enforced (required, not optional)** — a trigger rejects changing a
+> non-null `submitted_at`, since `BusinessPlan` is mass-assignable and late-enable depends on this column;
+> test direct non-null mutation (§4, §9).
+> (P3) the **§2 enable summary** now states the `plan_submitted`-null estimated fallback, matching §5
+> (previously implied only phases use reconcile time).
+
+> **v1.12 revision (review pass — consistency of the v1.11 `submitted_at` change).** Three fixes:
+> (P2) **Estimated `plan_submitted` threaded through** — a submitted plan with null `submitted_at` now
+> follows the *same* `earned_at_estimated = true` path as phases, generalised across the earned_at note,
+> payload, UI, and tests (not phases-only) (§4.2, §5, §8, §9).
+> (P2) **Stale submitted-rule note rewritten** — it claimed "no `business_plans.submitted_at`; the award row
+> is the record", contradicting §4. Now states `submitted_at` is the durable source, superseding the old
+> award-at-submit/audit-event model (§3.4).
+> (P3) **Model cast** — added `'submitted_at' => 'datetime'` to `BusinessPlan::$casts` (it casts
+> `completed_at` but not the new column) so services get Carbon, not a string (§4, §9).
+> (P1) **Migration backfill** — existing pre-migration plans have `submitted_at = null`, so the migration
+> backfills it from the **earliest `entrepreneur.plan_submitted` audit `occurred_at`** (null → estimated
+> reconcile time) (§4).
+> (P2) **`submitted_at` set-once** — the submit action `forceFill`s, so specify `submitted_at ??= now()` (+
+> optional DB guard) so a resubmit can't move it; test it (§4, §9).
+> (P2) **Estimated dates must be labelled** — the payload exposes `earned_at_estimated`; the tooltip renders
+> a backfilled phase date as an **approximation**, never as a recorded completion date (honesty) (§5, §8, §9).
+
+> **v1.10 revision (review pass — backfill timestamp sources).** Two fixes to the v1.9 backfill:
+> (P1) **`plan_submitted` backfill** used a non-existent `audit_events.created_at` and `audit_event` isn't an
+> evidence type. Replaced with a new immutable **`business_plans.submitted_at`** (evidence `business_plan`),
+> set by the submit action — `audit_events` only has `occurred_at` (verified, migration line 37), so a real
+> column is cleaner (§4, §5).
+> (P2) **`phase_N` backfill** can't be honestly back-dated — `plan_phases`/`plan_sections` have no
+> `completed_at`. A phase already complete at enable is awarded at **reconcile time, flagged
+> `earned_at_estimated`** (we don't fabricate a completion time); phases completing *while enabled* still get
+> an accurate event-time (§4.2, §5, §9).
+
+> **v1.9 revision (review pass — late-enable backfill, FK/test consistency, post-finalise crossing).**
+> Four fixes:
+> (P1) **Enable-after-the-fact** — the toggle defaults off, so milestones may predate it. Enable now runs a
+> **milestone reconcile/backfill** from durable sources, incl. `plan_submitted` ← the durable
+> `entrepreneur.plan_submitted` **audit_event** (verified at `EntrepreneurPlanController` line 338 — no
+> `submitted_at` needed); streaks are forward-only (§2, §5).
+> (P2) **FK vs test contradiction** — `streak_events.plan_section_id` is a plain historical ref, so a section
+> hard-delete leaves a dangling id (not blocked); only profile-delete is blocked (restrict). Test reworded
+> (§9).
+> (P2) **Post-finalise threshold crossing** — `Assessment::adjustScore()` can move a *finalised* assessment's
+> blend (~line 82); award detection now also runs from `adjustScore` on a finalised assessment (§5).
+> (P3) **Method name** — the hook is `Services\Entrepreneurs\PlanBuilder::upsertSection` (~line 73), *not*
+> `saveSection`; capture prior `body`/`completeness_status` before the shared `updateOrCreate` overwrites
+> them (§5).
 
 > **v1.8 revision (review pass — assessment mutability, cascade vs append-only, real event).** Three fixes:
 > (P1) **Finalised assessments aren't immutable in code** — `Assessment::adjustScore()` changes the blend and
@@ -169,9 +262,13 @@ re-homed to the Laravel module as a **per-entrepreneur opt-in**:
   the `advisor.entrepreneurs.show` page. Audited (`gamification.enabled` / `gamification.disabled`).
 - When `false`, the entrepreneur portal shows **no** gamification UI and the progress service returns a
   disabled result — zero behavioural change from today.
-- **On enable, the action recomputes the streak from the ledger** (§4.3 / §5c) — *not* from a cached
-  `last_active_at` — so a stale streak frozen during a disabled stretch cannot resurrect (a gap in
-  `active_day`s yields 0). The enable/disable transition is audited.
+- **On enable, the action runs a milestone reconcile/backfill** (§5) — awards every *already-earned*
+  milestone from durable sources (gated ideas → `advisor_gate_passed_at`, finalised assessments →
+  `finalised_at`, `plan_submitted` → `business_plans.submitted_at`), back-dated to those timestamps. Anything
+  **lacking** a durable source — a phase already complete at enable, **or** a `plan_submitted` whose
+  `submitted_at` is null — is awarded at **reconcile time, flagged `earned_at_estimated`** (§5). **Streaks are forward-only**: past activity while disabled isn't reconstructable,
+  so the streak starts fresh and recomputes from the ledger (§4.3 / §5b) — a stale streak cannot resurrect.
+  The enable/disable transition is audited.
 
 ---
 
@@ -213,7 +310,7 @@ duplicate or fork the formula), then grade it via `RatingFramework::gradeFor()`.
 |---|---|
 | Idea validated | advisor idea-gate passed (`IdeaValidation`, via `EntrepreneurActionController::gateIdea`) |
 | Phase complete ×5 | **all required sections for that phase** first reach `STATUS_COMPLETE` — **awarded once**, `earned_at` captured then (phase-rule note) |
-| Plan submitted | the plan is **submitted** — **awarded once at the submit action**, `earned_at` captured then (submitted-rule note) |
+| Plan submitted | the plan is **submitted** — the submit action always sets durable `submitted_at`; the **award row is inserted once** (at submit if gamification is on, else by the enable-time backfill), `earned_at` = `submitted_at` (or **estimated reconcile time** if a pre-existing plan has null `submitted_at`, §5) (submitted-rule note) |
 | First assessment | a `PlanAssessment` reaches `finalised_at` |
 | Grade up | letter grade improves between two finalised rounds |
 | **Advisory-ready** (capstone) | the readiness threshold is crossed **on a finalised assessment** — evidence is that **finalised `plan_assessment`** (immutable), not the mutable signal (see guard) |
@@ -232,12 +329,14 @@ real progress events.
 > required sections complete" and **persists `earned_at` into the award** (§4.2), evidence
 > `plan_phase` → that phase's id.
 
-> **Submitted-rule note (P1).** `BusinessPlan.status = submitted` is **transient** — it is overwritten to
-> `assessing` (`Assessment::firstPass`), `finalised` (`Assessment::finalise`), then living-plan states, so a
-> badge derived from `status == submitted` would **vanish** after normal progression. Instead the
-> `plan_submitted` badge is **awarded at the submit action** (`EntrepreneurPlanController` submit / its
-> audit event), persisting `earned_at` once; thereafter it is durable regardless of later status. (There is
-> no `business_plans.submitted_at`; the award row *is* the durable record.)
+> **Submitted-rule note (P1).** `BusinessPlan.status = submitted` is **transient** — overwritten to
+> `assessing` (`Assessment::firstPass`), `finalised`, then living-plan states — so a status-derived badge
+> would **vanish** after normal progression. Instead the `plan_submitted` badge is **awarded once**, with
+> `earned_at` taken from the durable **`business_plans.submitted_at`** (the set-once column added in §4). If a
+> pre-existing plan has no `submitted_at` (and no migration-backfill audit row), the award uses an
+> **estimated reconcile time** (`evidence_snapshot.earned_at_estimated = true`), exactly like a backfilled
+> phase. *(Supersedes the earlier "award-at-submit / audit-event / award-row-is-the-record" wording — the
+> durable source is now `submitted_at`.)*
 
 > **Capstone finalised-guard + immutable evidence (P1/P2a).** `AdvisoryReadiness::evaluate()` (a) builds the
 > signal from the latest assessment **by round, without checking `finalised_at`**, and (b) **`updateOrCreate`s
@@ -286,6 +385,58 @@ living-plan), and `plan_phases` / `plan_sections` have **no completion timestamp
 `updated_at`, re-saved by `refreshPhaseStatus` on every section save). So milestones are **awarded once and
 persisted with the moment they were earned**, not re-derived from mutable rows.
 
+> **Two small core-side additions this feature requires** (written by the *core* flows, not by gamification
+> — the §5 write contract still holds):
+> **(1) `business_plans.submitted_at`** (timestampTz nullable) giving `plan_submitted` a durable, accurate
+> timestamp (`audit_events` has only `occurred_at`, and `audit_event` is not an evidence type). Two musts:
+>   - **Set-once + valid-initial-set — DB-enforced (P2).** `BusinessPlan` is mass-assignable (`$guarded =
+>     []`) and `submitted_at` is **durable evidence late-enable depends on before any award row exists** — so
+>     both an accidental *re*-write and an accidental *first* write must be caught. App-level
+>     `submitted_at ??= now()` in the submit action is the happy path, **but a DB guard is required** —
+>     **`BEFORE INSERT` and `BEFORE UPDATE`** triggers (UPDATE-only would miss a direct insert, since a
+>     mass-assigned `create()` can set `status = 'submitted'` + `submitted_at = now()` in one INSERT, where
+>     `OLD` is null and the transition logic never fires):
+>     0. **`BEFORE INSERT`** — RAISE if `NEW.submitted_at IS NOT NULL`. A plan is always *created* with
+>        `submitted_at = null` (entrepreneur plans start `draft`); it is only set later by the submit
+>        transition. (The migration runs before the trigger, so the backfill UPDATE is unaffected.)
+>     The **`BEFORE UPDATE`** trigger RAISEs on:
+>     1. **changing a non-null value** — `OLD.submitted_at IS NOT NULL AND NEW.submitted_at IS DISTINCT FROM
+>        OLD.submitted_at` (immutable once set); **and**
+>     2. **an initial set that is not a real submit *transition*** — RAISE if `NEW.submitted_at IS NOT NULL AND
+>        OLD.submitted_at IS NULL AND NOT (OLD.status IN ('draft','building','ready') AND NEW.status =
+>        'submitted')`. Checking only `NEW.status = 'submitted'` is **insufficient**: one stray write could set
+>        *both* `status = 'submitted'` and `submitted_at = now()` on an old `assessing`/`finalised` plan and
+>        slip through. Requiring the **`OLD.status`→`NEW.status` transition** (draft/building/ready →
+>        submitted) blocks that — so an already-advanced plan that should keep `submitted_at = null` (+ an
+>        estimated award) can never be stamped with a fake exact date. (The submit action *is* exactly this
+>        transition, so the happy path passes.)
+>     **Migration ordering (P2).** The backfill UPDATE (below) legitimately sets `submitted_at` on plans
+>     already past `submitted`, which condition 2 would block — so it must run **before this trigger is
+>     created** (same migration: backfill first, then `CREATE TRIGGER`). A controlled path the trigger doesn't
+>     police; no runtime write ever needs that exemption.
+>     Test a second submit, a direct non-null mutation, a stray write on a `draft` plan, **and** a stray write
+>     on an `assessing`/`finalised` plan — the first two leave it unchanged, the last two are rejected.
+>   - **Model cast (P3).** Add **`'submitted_at' => 'datetime'`** to `BusinessPlan::$casts` (it casts
+>     `completed_at` / `living_plan_*` but not this new column — without the cast, services get a raw string
+>     instead of a Carbon instance). Cover it in the implementation checklist / a cast test.
+>   - **Migration backfill (P1/P3).** Plans submitted **before** this migration have `submitted_at = null`, so
+>     late-enable couldn't award `plan_submitted`. The migration backfills it from the **earliest
+>     `entrepreneur.plan_submitted` audit row's `occurred_at`** per plan — scoped by **both** `subject_type`
+>     **and** `subject_id` (`AuditWriter` stores `subject_type = $subject->getMorphClass()` and `subject_id`
+>     is just a string morph id, so id-only is ambiguous):
+>     `UPDATE business_plans bp SET submitted_at = (SELECT min(occurred_at) FROM audit_events ae WHERE
+>     ae.action = 'entrepreneur.plan_submitted' AND ae.subject_type = <BusinessPlan morph class> AND
+>     ae.subject_id = bp.id::text)` — `<BusinessPlan morph class>` = `(new BusinessPlan)->getMorphClass()`
+>     (the FQCN `App\Models\BusinessPlan` unless a `morphMap` alias is registered). If a *submitted-or-beyond*
+>     plan has no such audit row (edge case), leave null → the backfill awards `plan_submitted` at **estimated
+>     reconcile time** (§5). **Run this UPDATE before creating the set-once trigger** (it sets `submitted_at`
+>     on plans already past `submitted`, which the trigger's condition 2 would otherwise block). Test the
+>     migration backfill *and* that the trigger is created after it.
+> **(2)** the **`EntrepreneurPlanSectionSaved`** event from `PlanBuilder::upsertSection` (§5).
+> Both are additive and change no existing behaviour. There is deliberately **no** durable `phase`
+> completion timestamp added — backfilled phase awards accept an estimated `earned_at` (§5) rather than bolt
+> a `completed_at` onto the hot section-save path.
+
 ### 4.1 `entrepreneur_profiles` — new columns (spec §3.3)
 | Column | Type | Notes |
 |---|---|---|
@@ -306,7 +457,7 @@ because `plan_submitted` and `phase_*` are **not** durably re-derivable.
 | `evidence_source_type` | string | `idea_validation` \| `plan_phase` \| `business_plan` \| `plan_assessment`. **`first_assessment` / `grade_up` / `advisory_ready` cite the finalised `plan_assessment`** — never the mutable `advisory_readiness_signal` (P2a, §3.4) |
 | `evidence_source_id` | uuid | the earning row's id |
 | `evidence_snapshot` | jsonb nullable | **frozen scalar facts at award time** — for assessment-evidenced badges: the `weighted_score`, `grade`, and the source `finalised_at`. Because the source assessment is **not** immutable in code (P1 note), the badge reads this snapshot, so a later `adjustScore`/`finalise` can't rewrite what the badge claimed |
-| `earned_at` | timestampTz | set on insert, **never updated**. = the **source row's own timestamp** where one exists (`idea_validated`→`advisor_gate_passed_at`; `first_assessment`/`grade_up`/`advisory_ready`→ the assessment's `finalised_at` **as snapshotted**); else the event moment (`plan_submitted`→submit time, `phase_N`→completion-detection time). **Never reconciliation time** (P2c). A reconcile picks the **earliest qualifying** evidence row (§5) |
+| `earned_at` | timestampTz | set on insert, **never updated**. = the **source row's own timestamp**: `idea_validated`→`advisor_gate_passed_at`; `first_assessment`/`grade_up`/`advisory_ready`→ the assessment's `finalised_at` (snapshotted); `plan_submitted`→`business_plans.submitted_at`; `phase_N`→completion-detection time. **Not reconciliation time** — *except* a **backfilled award with no durable source** (a `phase_N`, **or** a `plan_submitted` whose `submitted_at` is null), which uses reconcile time with `evidence_snapshot.earned_at_estimated = true` (§5). A reconcile picks the **earliest qualifying** evidence row |
 | `seen_at` | timestampTz nullable | drives the "new" toast — the only business field the entrepreneur may change (`updated_at` bumps with it); everything else immutable (§4.2 trigger) |
 | timestamps | | |
 | | | **Singleton (one ever):** `UNIQUE (entrepreneur_profile_id, milestone_key) WHERE milestone_key <> 'grade_up'`. **Repeatable:** `UNIQUE (entrepreneur_profile_id, milestone_key, evidence_source_id) WHERE milestone_key = 'grade_up'`. So a second `idea_validated`/`first_assessment` (multiple evidence rows exist) can't double-award (P2b) |
@@ -385,27 +536,74 @@ The streak's anti-gaming state. One row per *meaningful* section change; `curren
   `current_phase`, `sections`, `assessments.ratingFramework.criteria`), `advisoryReadinessSignals`, **and
   the persisted `entrepreneur_milestone_awards`**, returns a payload: current level (stage **+
   `current_phase`**, §3.1), plan-completion %, **recomputed** grade trajectory (§3.3), earned milestones
-  (each with `evidence_source_type`/`evidence_source_id` + **`earned_at` read from the award row**, not a
-  mutable source), the streak, and the next target. **Returns a disabled result when `gamification_on =
-  false`.** Does **not** write assessments/grades/scores/signals. Unit-tested with fixtures.
-- **`EntrepreneurMilestoneAwarder`** (write, **system context**) — detects newly-achieved milestones and
-  **inserts an award once** (idempotent on the §4.2 singleton/repeatable uniques). For a **singleton**
-  milestone with several qualifying evidence rows (e.g. multiple gated `IdeaValidation`s, or multiple
-  finalised assessments), a reconcile **must pick the *earliest qualifying* row** — `idea_validated` =
-  `min(advisor_gate_passed_at)`, `first_assessment` / `advisory_ready` = the **earliest** finalised
-  assessment (that crossed threshold, for the capstone) — **never** "first/latest returned by the query"
-  (P2-ordering), so `earned_at` reflects the *first* achievement. **`earned_at` = that row's own timestamp**
-  (`advisor_gate_passed_at` / `finalised_at`), else the event moment (`plan_submitted`→submit time;
-  `phase_N`→completion-detection time) — **never reconciliation time** (P2c). It **snapshots** the
-  weighted-score/grade/`finalised_at` into `evidence_snapshot` (§4.2 P1). `phase_N` and `plan_submitted`
-  detection run off the events below / the submit action; capstone & grade-up off the finalise flow. Never
-  writes assessment/scoring tables.
-- **Dispatch mechanism (P2).** `entrepreneur.plan_section_saved` is today only an **audit string**
-  (`AuditWriter::record` in `Services\Entrepreneurs\PlanBuilder` ~line 105) — *not* a dispatched event, so
-  there is nothing to "hook". This plan **adds a real `EntrepreneurPlanSectionSaved` Laravel event**
-  dispatched from that save path (carrying the section + prior/new normalised body), with listeners that run
-  streak detection **and** the awarder's `phase_N` detection. (Equivalently, call the streak/award services
-  inline from `PlanBuilder::saveSection`.) Don't rely on the audit row as an event.
+  (each with `evidence_source_type`/`evidence_source_id` + **`earned_at` read from the award row** + the
+  **`earned_at_estimated`** flag from `evidence_snapshot`, not a mutable source), the streak, and the next
+  target. **Returns a disabled result when `gamification_on = false`.** Does **not** write
+  assessments/grades/scores/signals. Unit-tested with fixtures.
+- **`EntrepreneurMilestoneAwarder`** (write, **system context**) — runs **(i) on enable as a
+  reconcile/backfill** and **(ii) on subsequent achievement events while enabled**; inserts an award once
+  (idempotent on the §4.2 singleton/repeatable uniques).
+  - **Backfill from durable sources (P1/P2).** Because the toggle defaults off, an advisor may enable
+    *after* milestones already happened — so on enable the awarder reconstructs every already-earned award
+    from durable evidence (not the transient `status`), back-dated **where a durable timestamp exists**:
+    - `idea_validated` ← gated `IdeaValidation` (`advisor_gate_passed_at`);
+    - `first_assessment` / `grade_up` / `advisory_ready` ← finalised assessments (`finalised_at`);
+    - **`plan_submitted` ← a new `business_plans.submitted_at`** (evidence type `business_plan`), set once by
+      the **submit action** (which already sets `status = SUBMITTED`, `EntrepreneurPlanController` ~line 333),
+      and migration-backfilled for existing plans (§4). This column is required because `audit_events` has
+      only `occurred_at` (no `created_at`) and `audit_event` is **not** an evidence type.
+      **Status precondition — always (P2).** `plan_submitted` is awarded **only when the plan is
+      submitted-or-beyond** — `status IN (submitted, assessing, revising, finalised, launched, founding)` —
+      *regardless of whether `submitted_at` is non-null*. So even a spuriously-set `submitted_at` on a
+      `draft`/`building`/`ready` plan yields **no** award (defence-in-depth with the §4 DB guard, which
+      shouldn't let that value exist in the first place). When the status qualifies but `submitted_at` is
+      **null**, the award uses **reconcile time** (`earned_at_estimated = true`) — same path as a phase.
+      (Test: no award for a draft plan even with a stray `submitted_at`.)
+    - **`phase_N` has *no* durable completion timestamp** (`plan_phases` / `plan_sections` carry only a
+      churning `updated_at`, no `completed_at`), so a phase already complete at enable is awarded with
+      **`earned_at` = reconcile time, flagged estimated** (`evidence_snapshot.earned_at_estimated = true`) —
+      we don't fabricate a precise completion time we never recorded. Phases that complete **while enabled**
+      are awarded at the detection event with an accurate time.
+    - **General rule:** *any* backfilled award lacking a durable source timestamp sets `earned_at_estimated =
+      true` (not just phases) — the payload/UI/tests treat it uniformly (§8, §9).
+  - **Earliest qualifying (P2-ordering).** For a singleton with several qualifying rows, pick the
+    **earliest** — `idea_validated` = `min(advisor_gate_passed_at)`, `first_assessment` / `advisory_ready` =
+    the earliest finalised (threshold-crossing) assessment — never "first/latest returned". `earned_at` = the
+    source timestamp; **never reconciliation time *when a durable source timestamp exists*** (P2c) — the only
+    exception is the estimated fallback above (a source-less `phase_N` / null-`submitted_at` `plan_submitted`,
+    `earned_at_estimated = true`). **Snapshots** weighted-score/grade/`finalised_at` into `evidence_snapshot`
+    (§4.2 P1).
+  - **Post-finalise score changes (P2).** `Assessment::adjustScore()` can change a *finalised* assessment's
+    blend (`Assessment` ~line 82), newly crossing a grade-up/capstone threshold with **no finalise event**.
+    So award detection must **also run from `adjustScore` when the target assessment is finalised** (dispatch
+    `EntrepreneurAssessmentAdjusted` / call the awarder). The snapshot keeps *existing* badges stable; this
+    catches *new* crossings. (Cleaner core fix: block `adjustScore` after finalise — recommended, out of
+    scope.)
+  - **Hook points while enabled (P1) — one per milestone, not just section-save.** The awarder is invoked
+    (a dispatched event or an inline `system`-context call) from **each** achievement site, so an *enabled*
+    profile earns each badge **immediately** (the §5 backfill only covers milestones that predate enable):
+    - `idea_validated` ← `EntrepreneurActionController::gateIdea` → `IdeaValidationService::passAdvisorGate`;
+    - `plan_submitted` ← `EntrepreneurPlanController::submit` (after it sets `submitted_at`, ~line 332);
+    - `phase_N` ← the **`EntrepreneurPlanSectionSaved`** event (below);
+    - `first_assessment` + `grade_up` ← `Assessment::finalise` (~line 150), plus the `adjustScore` hook above
+      for post-finalise crossings;
+    - `advisory_ready` ← `AdvisoryReadiness::evaluate` (called from `EntrepreneurActionController::finalise`),
+      when the signal crosses on a finalised assessment.
+    Implement each as a small `Entrepreneur*` event with a listener calling the awarder (or an inline call) —
+    don't rely on the existing audit strings. **Test** that an enabled profile earns each of `idea_validated`
+    / `plan_submitted` / `first_assessment` / `grade_up` / `advisory_ready` at its event, not only via
+    enable-time backfill.
+  - Never writes assessment/scoring tables. **Streaks are *not* backfilled** — past per-section activity
+    isn't reconstructable, so a streak starts fresh at enable (honest: no streak for work done while off).
+- **Dispatch mechanism (P2/P3).** `entrepreneur.plan_section_saved` is today only an **audit string**
+  (`AuditWriter::record` in `Services\Entrepreneurs\PlanBuilder::upsertSection` ~line 105) — *not* a
+  dispatched event, so there is nothing to "hook". This plan **adds a real `EntrepreneurPlanSectionSaved`
+  Laravel event** dispatched from **`Services\Entrepreneurs\PlanBuilder::upsertSection`** (~line 73 — *not*
+  `saveSection`), with listeners running streak detection **and** the awarder's `phase_N` detection.
+  **Capture the section's prior `body` + `completeness_status` *before* the shared
+  `Services\Plans\PlanBuilder::upsertSection` `updateOrCreate` overwrites them** — the meaningful-change diff
+  (§3.5) needs the old body. (Equivalently, call the services inline there.) Don't rely on the audit row as
+  an event.
 - **`EntrepreneurStreak`** (write, **system context**) — maintains the `entrepreneur_streak_events` ledger
   (§4.3) and the cached `current_streak`/`last_active_at`:
   - **(a) Meaningful activity → ledger** — on `EntrepreneurPlanSectionSaved` (above): if the save is a
@@ -473,6 +671,11 @@ Reuse shared styling primitives (`page-header`, `section-card`, `empty-state`). 
   **evidence tooltip** on each (honouring "evidence, not assertion"), the grade trajectory, and the next
   milestone. **Honest framing:** a low grade renders as a low grade; copy is **static/templated**
   (no AI-generated praise) and encouraging about *next steps*, never sugar-coating the assessment.
+  - **Estimated dates must be labelled (P2).** The payload carries `earned_at_estimated` per badge; when
+    true — **any** backfilled award with no durable source (a phase, **or** a `plan_submitted` with null
+    `submitted_at`, §5) — the tooltip shows the date as an **approximation** ("≈ around 12 Mar (estimated)")
+    — **never** as if it were the true date. Honesty (§1): we don't present a reconcile time as a recorded
+    fact.
 - **`advisor/entrepreneurs/Show`** — a `Gamification` toggle control + a read-only preview of the
   entrepreneur's panel.
 
@@ -499,9 +702,46 @@ PHPUnit feature + unit; `FakeAiClient` + `NoopScanner` bound. Required:
 - **Snapshot stability**: after a grade-up/capstone award, an `Assessment::adjustScore()` (and a second
   `finalise()` that moves `finalised_at`) does **not** change the badge — it renders the snapshotted
   grade/`weighted_score`/`finalised_at` from `evidence_snapshot`, not the now-changed assessment.
-- **Restrict-on-delete**: hard-deleting an `entrepreneur_profile` (or `plan_section`) that has awards /
-  streak events is **blocked** by the restrict FK / plain historical ref — the append-only trigger is never
-  asked to cascade-delete a row it would refuse.
+- **`submitted_at` set-once (app + DB)**: the first submit sets `business_plans.submitted_at`; a **second
+  submit**, any later status change, **and a direct non-null `UPDATE`** all **leave it unchanged** — the
+  app uses `??= now()` and the **DB trigger rejects** changing a non-null `submitted_at`.
+- **`submitted_at` migration backfill**: a plan submitted *before* the migration gets `submitted_at`
+  populated from the **earliest `entrepreneur.plan_submitted` audit `occurred_at`**; a submitted plan with no
+  such audit row stays null and its `plan_submitted` award is awarded at estimated reconcile time.
+- **Estimated date labelled (UI), any badge**: a backfilled phase **and** a `plan_submitted` with null
+  `submitted_at` each have `earned_at_estimated = true` in the payload and render as an **approximation**
+  ("≈ … estimated"); an award with a durable source (`submitted_at` present, or a real-time phase event) has
+  `earned_at_estimated = false` and renders an exact date.
+- **`submitted_at` cast**: `BusinessPlan::$casts` includes `'submitted_at' => 'datetime'` — the value reads
+  back as a Carbon instance, not a string.
+- **Delete behaviour**: hard-deleting an `entrepreneur_profile` that has awards / streak events is **blocked**
+  (restrict FK) — the append-only trigger is never asked to cascade-delete. A `plan_section` hard-delete is
+  **allowed** and leaves a **historical (dangling) `plan_section_id`** in the streak ledger (plain ref,
+  append-only telemetry) — *not* blocked.
+- **Backfill on enable**: enabling `gamification_on` on a profile whose plan was **already** submitted /
+  assessment finalised awards those milestones **back-dated** to their durable timestamps (`plan_submitted`
+  ← `business_plans.submitted_at`; `first_assessment`/`advisory_ready` ← `finalised_at`). A **phase already
+  complete** at enable is awarded at **reconcile time with `earned_at_estimated = true`** (no durable
+  completion source). The streak starts fresh (not backfilled).
+- **Per-event awarding while enabled**: on an **enabled** profile, each milestone is awarded at *its own
+  event* (not only by enable-backfill) — `idea_validated` at the idea gate, `plan_submitted` at submit,
+  `first_assessment`/`grade_up` at finalise, `advisory_ready` at readiness evaluation, `phase_N` at the
+  section-save event.
+- **`plan_submitted` status-eligibility**: with `submitted_at` null, a plan in `submitted` / `assessing` /
+  `revising` / `finalised` / `launched` / `founding` gets the **estimated** `plan_submitted` award; a
+  `draft` / `building` / `ready` plan gets **none**. And a `draft` plan with a **stray non-null
+  `submitted_at`** still gets **no** award (awarder status precondition), and the DB trigger **rejects**
+  that stray write in the first place — including a single update that sets **both** `status = 'submitted'`
+  and `submitted_at` on an old `assessing`/`finalised` plan (the trigger requires the real
+  draft/building/ready→`submitted` **transition**), **and a direct `INSERT` with a non-null `submitted_at`**
+  (rejected by the `BEFORE INSERT` branch). The **migration backfill runs before** the trigger, so it can
+  still populate already-advanced plans.
+- **Audit backfill scope**: the migration only populates `submitted_at` from a `plan_submitted` audit row
+  that matches **both** `subject_type` (BusinessPlan morph) and `subject_id` — an audit row for a different
+  morph with a colliding id string does not leak in.
+- **Post-finalise crossing**: an `adjustScore()` on a **finalised** assessment that newly crosses the
+  grade-up/capstone threshold **does** produce the award (detection runs off the adjust path), with a
+  fresh `evidence_snapshot`.
 - **Event dispatch**: a meaningful section save **dispatches `EntrepreneurPlanSectionSaved`**, and the
   listeners run streak detection + `phase_N` awarding (asserted via the recorder / the resulting rows) — a
   test confirms it's a real event, not just an audit row.

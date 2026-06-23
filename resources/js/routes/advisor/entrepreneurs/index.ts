@@ -3,12 +3,13 @@ import messages from './messages'
 import ideaValidations from './idea-validations'
 import plans from './plans'
 import assessments from './assessments'
+import gamification from './gamification'
 import surveyAssignments from './survey-assignments'
 import documents from './documents'
 import invite from './invite'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -23,7 +24,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -32,7 +33,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -41,7 +42,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -51,7 +52,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -61,7 +62,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -70,7 +71,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::index
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:48
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:50
  * @route '/advisor/entrepreneurs'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -86,7 +87,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
 export const create = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -101,7 +102,7 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
 create.url = (options?: RouteQueryOptions) => {
@@ -110,7 +111,7 @@ create.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
 create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -119,7 +120,7 @@ create.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
 create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -129,7 +130,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
     const createForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -139,7 +140,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
         createForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -148,7 +149,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:67
  * @route '/advisor/entrepreneurs/create'
  */
         createForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -164,7 +165,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:74
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:76
  * @route '/advisor/entrepreneurs'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -179,7 +180,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:74
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:76
  * @route '/advisor/entrepreneurs'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -188,7 +189,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:74
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:76
  * @route '/advisor/entrepreneurs'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -198,7 +199,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:74
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:76
  * @route '/advisor/entrepreneurs'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -208,7 +209,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:74
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:76
  * @route '/advisor/entrepreneurs'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -219,7 +220,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:88
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:92
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 export const convert = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -234,7 +235,7 @@ convert.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:88
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:92
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -267,7 +268,7 @@ convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:88
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:92
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -277,7 +278,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:88
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:92
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
     const convertForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -287,7 +288,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:88
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:92
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
         convertForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -400,7 +401,7 @@ surveys.head = (args: { entrepreneurProfile: string | { id: string } } | [entrep
     surveys.form = surveysForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 export const show = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -415,7 +416,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 show.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -448,7 +449,7 @@ show.url = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 show.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -457,7 +458,7 @@ show.get = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -467,7 +468,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
     const showForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -477,7 +478,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
         showForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -486,7 +487,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:206
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:208
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
         showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -509,6 +510,7 @@ ideaValidations: Object.assign(ideaValidations, ideaValidations),
 plans: Object.assign(plans, plans),
 assessments: Object.assign(assessments, assessments),
 convert: Object.assign(convert, convert),
+gamification: Object.assign(gamification, gamification),
 surveys: Object.assign(surveys, surveys),
 surveyAssignments: Object.assign(surveyAssignments, surveyAssignments),
 documents: Object.assign(documents, documents),
