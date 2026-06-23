@@ -189,6 +189,28 @@ is never returned by the entrepreneur-visible payload.
 Framework criteria remain hidden while the founder is building. They become
 visible only after the assessment is finalised, ready for the report appendix.
 
+## AI Prompt Isolation
+
+Entrepreneur AI prompts are classified by prompt id in
+`App\Services\Entrepreneurs\EntrepreneurPromptRegistry`.
+
+- Non-examiner prompts (`entrepreneur.plan_guidance` and
+  `entrepreneur.idea_validation`) must not receive rating-framework mechanics:
+  criterion weights, descriptor anchor text, or grade-band cut scores.
+- The examiner prompt (`entrepreneur.plan_score_criterion`) may receive the
+  rubric and plan content, but must not receive coaching content such as
+  guidance body text, NZ-resource recommendations, or gap-fix/next-step
+  suggestions outside the rubric block.
+- Isolation checks scan only system-controlled prompt fields. Founder-authored
+  text such as `section.body`, `sections_text`, `concept_summary`, and `idea`
+  is redacted from the scan so a founder cannot trip the firewall by typing
+  rubric-like or coaching-like language.
+
+`tests/Feature/Entrepreneurs/AiContentIsolationTest.php` enforces this boundary
+in PHPUnit using a recording `AiClient`, sentinel framework values, method
+discipline assertions, founder-text safety checks, and a registry guard that
+fails when a new `entrepreneur.*` prompt id is not classified.
+
 ## WO-89 - Assessment Report and Concept PV
 
 `ReportComposer::composeEntrepreneurAssessment()` builds the founder assessment

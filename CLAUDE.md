@@ -28,7 +28,8 @@ Every document uploaded anywhere on the platform is reviewed for relevance and a
 - **Every action is audit-logged** to the immutable `audit_events` table. Direct `UPDATE`/`DELETE` against that table is rejected by a Postgres trigger.
 - **No PII in raw logs.** All log lines containing user data go through the redaction helper.
 - **All external service calls** go through the resilience layer (`ResilientHttp` + `RetryPolicy` + `CircuitBreaker`). No raw `Http::post` to a third-party hostname.
-- **All AI calls** go through the `AiClient` interface. No code path constructs Anthropic requests directly. The `FakeAiClient` is bound in all tests.
+- **All AI calls** go through the `AiClient` interface. No code path constructs Anthropic requests directly. Tests bind `FakeAiClient`, `RecordingAiClient`, or another non-live `AiClient` double.
+- **Entrepreneur AI prompts stay isolated.** Non-examiner entrepreneur prompts must not receive scoring rubric mechanics, and examiner prompts must not receive coaching content. Keep every `entrepreneur.*` prompt id classified in `EntrepreneurPromptRegistry`; `AiContentIsolationTest` is the CI guard.
 
 ### Process rules
 - **No feature outside the plan.** `PLAN.md` is the source of truth. If you find a gap, raise it in the PR description rather than implementing it.

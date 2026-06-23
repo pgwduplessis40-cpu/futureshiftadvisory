@@ -42,6 +42,7 @@ final class EntrepreneurController extends Controller
     public function __construct(
         private readonly AdvisorEntrepreneurCapacity $capacity,
         private readonly AuditWriter $auditWriter,
+        private readonly InviteIssuer $inviteIssuer,
     ) {}
 
     public function index(Request $request): Response
@@ -70,7 +71,7 @@ final class EntrepreneurController extends Controller
         ]);
     }
 
-    public function store(Request $request, InviteIssuer $issuer): RedirectResponse
+    public function store(Request $request): RedirectResponse
     {
         Gate::authorize('create', EntrepreneurProfile::class);
 
@@ -93,8 +94,8 @@ final class EntrepreneurController extends Controller
         ]);
         $email = (string) $validated['email'];
 
-        $profile = DB::transaction(function () use ($advisor, $email, $issuer, $validated): EntrepreneurProfile {
-            $issued = $issuer->issue(
+        $profile = DB::transaction(function () use ($advisor, $email, $validated): EntrepreneurProfile {
+            $issued = $this->inviteIssuer->issue(
                 email: $email,
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
@@ -123,7 +124,7 @@ final class EntrepreneurController extends Controller
         return to_route('advisor.entrepreneurs.show', $profile)->with('status', 'entrepreneur-invited');
     }
 
-    public function resendInvite(Request $request, EntrepreneurProfile $entrepreneurProfile, InviteIssuer $issuer): RedirectResponse
+    public function resendInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
     {
         Gate::authorize('view', $entrepreneurProfile);
 
@@ -137,13 +138,13 @@ final class EntrepreneurController extends Controller
             ]);
         }
 
-        DB::transaction(function () use ($advisor, $entrepreneurProfile, $issuer): void {
+        DB::transaction(function () use ($advisor, $entrepreneurProfile): void {
             $previousInvite = $entrepreneurProfile->inviteToken;
             if ($previousInvite instanceof InviteToken && ! $previousInvite->isAccepted()) {
                 $previousInvite->forceFill(['expires_at' => now()->subMinute()])->save();
             }
 
-            $issued = $issuer->issue(
+            $issued = $this->inviteIssuer->issue(
                 email: $entrepreneurProfile->email,
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
@@ -217,6 +218,7 @@ final class EntrepreneurController extends Controller
         $latestPlan = $entrepreneurProfile->businessPlans
             ->sortByDesc('updated_at')
             ->first();
+        $inviteDraft = $this->inviteIssuer->draftFor($entrepreneurProfile->inviteToken);
 
         return Inertia::render('advisor/entrepreneurs/Show', [
             'entrepreneur' => [
@@ -225,6 +227,9 @@ final class EntrepreneurController extends Controller
                 'user_id' => $entrepreneurProfile->user_id,
                 'invite_accepted_at' => $entrepreneurProfile->inviteToken?->accepted_at?->toIso8601String(),
                 'invite_expires_at' => $entrepreneurProfile->inviteToken?->expires_at?->toIso8601String(),
+                'invite_accept_url' => $inviteDraft['accept_url'] ?? null,
+                'invite_email_subject' => $inviteDraft['subject'] ?? null,
+                'invite_email_body' => $inviteDraft['body'] ?? null,
                 'invite_resend_url' => $this->canResendInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.resend', $entrepreneurProfile, absolute: false)
                     : null,

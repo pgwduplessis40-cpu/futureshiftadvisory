@@ -23,7 +23,10 @@
       "Bash(grep -nE \"insert-only \\\\\\(status transitions|approved_by_user_id|columns: .dataset., .indicator., .value|api_key. / .secret.|Stripe/Windcave need|status\\\\` \\\\\\(\\\\`pending\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
       "Bash(grep -nE \"Incorporated Societies, PPSR|Whisper today|reads on approval|reads \\\\\\(no table\\\\\\)|integrations.\\\\.\\\\{key\\\\}|config\\\\\\('integrations\\\\.…'\\\\\\)\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
       "Bash(grep -nE \"No code path reads a raw key except the resolver\\\\.$|reads a raw key except the resolver\\\\.\\\\\"|services\\\\.whisper\\\\.live.*Live\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
-      "Bash(grep -nE \"flag on\\\\b|flag-gated|FEATURE_STATS_NZ_LIVE|with the flag on|flag\\\\.\\\\*\\\\*$\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)"
+      "Bash(grep -nE \"flag on\\\\b|flag-gated|FEATURE_STATS_NZ_LIVE|with the flag on|flag\\\\.\\\\*\\\\*$\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
+      "Read(//tmp/v24x/**)",
+      "Bash(python -c ' *)",
+      "Bash(php -r ' *)"
     ]
   }
 }

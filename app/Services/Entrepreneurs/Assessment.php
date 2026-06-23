@@ -164,7 +164,7 @@ final class Assessment implements ProvidesMethodology
     private function scoreCriterion(RatingCriterion $criterion, BusinessPlan $plan, string $sectionsText): array
     {
         $prompt = new PromptEnvelope(
-            id: 'entrepreneur.plan_score_criterion',
+            id: EntrepreneurPromptRegistry::PLAN_SCORE_CRITERION,
             version: '2026-05-23',
             task: 'Score one entrepreneur business-plan criterion honestly against the current rating framework.',
             body: 'Return an honest first-pass score and rationale. Do not flatter weak evidence.',

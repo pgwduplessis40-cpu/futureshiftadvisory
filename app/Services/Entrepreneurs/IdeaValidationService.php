@@ -36,7 +36,7 @@ final class IdeaValidationService implements ProvidesMethodology
         return DB::transaction(function () use ($profile, $payload, $actor): IdeaValidation {
             $pastPattern = $this->pastPlanPattern($profile, $payload);
             $prompt = new PromptEnvelope(
-                id: 'entrepreneur.idea_validation',
+                id: EntrepreneurPromptRegistry::IDEA_VALIDATION,
                 version: '2026-05-23',
                 task: 'Evaluate entrepreneur concept viability against prior plan patterns without overstating certainty.',
                 body: 'Assess problem, customer, solution, value proposition, demand, and revenue model. Return practical risks and cite past plan pattern context.',

@@ -23,7 +23,10 @@ use Inertia\Response;
 
 final class PartnerPanelController extends Controller
 {
-    public function __construct(private readonly AuditWriter $auditWriter) {}
+    public function __construct(
+        private readonly AuditWriter $auditWriter,
+        private readonly InviteIssuer $inviteIssuer,
+    ) {}
 
     /**
      * @var array<int, string>
@@ -48,9 +51,9 @@ final class PartnerPanelController extends Controller
         return $this->create(PanelMember::TYPE_BROKER);
     }
 
-    public function storeBroker(Request $request, InviteIssuer $issuer): RedirectResponse
+    public function storeBroker(Request $request): RedirectResponse
     {
-        return $this->store($request, $issuer, PanelMember::TYPE_BROKER);
+        return $this->store($request, PanelMember::TYPE_BROKER);
     }
 
     public function coaches(): Response
@@ -63,12 +66,12 @@ final class PartnerPanelController extends Controller
         return $this->create(PanelMember::TYPE_COACH);
     }
 
-    public function storeCoach(Request $request, InviteIssuer $issuer): RedirectResponse
+    public function storeCoach(Request $request): RedirectResponse
     {
-        return $this->store($request, $issuer, PanelMember::TYPE_COACH);
+        return $this->store($request, PanelMember::TYPE_COACH);
     }
 
-    public function resendInvite(Request $request, PanelMember $panelMember, InviteIssuer $issuer): RedirectResponse
+    public function resendInvite(Request $request, PanelMember $panelMember): RedirectResponse
     {
         $this->assertPartner($panelMember);
         $panelMember->loadMissing(['inviteToken', 'user']);
@@ -82,7 +85,7 @@ final class PartnerPanelController extends Controller
         $actor = $this->actor($request);
         $email = $this->inviteEmail($panelMember);
 
-        DB::transaction(function () use ($actor, $email, $issuer, $panelMember): void {
+        DB::transaction(function () use ($actor, $email, $panelMember): void {
             $previousInvite = $panelMember->inviteToken;
 
             if ($previousInvite instanceof InviteToken && ! $previousInvite->isAccepted()) {
@@ -91,7 +94,7 @@ final class PartnerPanelController extends Controller
                 ])->save();
             }
 
-            $issued = $issuer->issue(
+            $issued = $this->inviteIssuer->issue(
                 email: $email,
                 targetUserType: $panelMember->panel_type,
                 targetRole: $panelMember->panel_type,
@@ -186,6 +189,7 @@ final class PartnerPanelController extends Controller
             'referrals as active_referrals_count' => $this->activeReferrals(...),
             'reverseReferrals',
         ]);
+        $inviteDraft = $this->inviteIssuer->draftFor($panelMember->inviteToken);
 
         return Inertia::render('advisor/partners/Show', [
             'partner' => [
@@ -193,6 +197,9 @@ final class PartnerPanelController extends Controller
                 'email' => $panelMember->user?->email ?? $panelMember->inviteToken?->email,
                 'invite_accepted_at' => $panelMember->inviteToken?->accepted_at?->toISOString(),
                 'invite_expires_at' => $panelMember->inviteToken?->expires_at?->toISOString(),
+                'invite_accept_url' => $inviteDraft['accept_url'] ?? null,
+                'invite_email_subject' => $inviteDraft['subject'] ?? null,
+                'invite_email_body' => $inviteDraft['body'] ?? null,
                 'invite_resend_url' => $this->canResendInvite($panelMember)
                     ? route('advisor.partners.invite.resend', $panelMember, absolute: false)
                     : null,
@@ -270,7 +277,7 @@ final class PartnerPanelController extends Controller
         ]);
     }
 
-    private function store(Request $request, InviteIssuer $issuer, string $panelType): RedirectResponse
+    private function store(Request $request, string $panelType): RedirectResponse
     {
         $validated = $request->validate([
             'business_name' => ['required', 'string', 'max:255'],
@@ -294,7 +301,7 @@ final class PartnerPanelController extends Controller
         $email = str($validated['email'])->lower()->trim()->toString();
         $this->ensurePartnerInviteIsNew($panelType, $email);
 
-        $issued = $issuer->issue(
+        $issued = $this->inviteIssuer->issue(
             email: $email,
             targetUserType: $panelType,
             targetRole: $panelType,

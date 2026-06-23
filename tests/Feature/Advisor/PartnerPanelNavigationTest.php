@@ -131,6 +131,7 @@ final class PartnerPanelNavigationTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(User::TYPE_BROKER, $brokerInvite->target_user_type);
+        $this->assertNotEmpty($brokerInvite->token_envelope);
         $this->assertSame(PanelMember::STATUS_INVITED, $brokerMember->status);
         $this->assertSame('Bay Broker Partners', data_get($brokerMember->application, 'company'));
         $this->assertSame('Hemi Broker', data_get($brokerMember->application, 'broker_name'));
@@ -154,10 +155,12 @@ final class PartnerPanelNavigationTest extends TestCase
             ->firstOrFail();
 
         $this->assertSame(User::TYPE_COACH, $coachInvite->target_user_type);
+        $this->assertNotEmpty($coachInvite->token_envelope);
         $this->assertSame(PanelMember::STATUS_INVITED, $coachMember->status);
         $this->assertSame('Founder Coach Studio', data_get($coachMember->application, 'company'));
         $this->assertSame('Mere Coach', data_get($coachMember->application, 'coach_name'));
         $this->assertSame(['Founder resilience'], data_get($coachMember->application, 'specialties'));
+        Mail::assertNothingSent();
     }
 
     public function test_super_admin_can_resend_and_cancel_pending_partner_invite(): void
@@ -188,6 +191,9 @@ final class PartnerPanelNavigationTest extends TestCase
             ->get(route('advisor.partners.show', $member))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
+                ->whereNot('partner.invite_accept_url', null)
+                ->where('partner.invite_email_subject', 'Future Shift Advisory invitation')
+                ->whereNot('partner.invite_email_body', null)
                 ->where('partner.invite_resend_url', route('advisor.partners.invite.resend', $member, absolute: false))
                 ->where('partner.invite_cancel_url', route('advisor.partners.invite.cancel', $member, absolute: false)));
 
@@ -208,6 +214,7 @@ final class PartnerPanelNavigationTest extends TestCase
             'action' => 'panel.invite_resent',
             'subject_id' => $member->id,
         ]);
+        Mail::assertNothingSent();
 
         $this->actingAsMfa($admin)
             ->delete(route('advisor.partners.invite.cancel', $member))

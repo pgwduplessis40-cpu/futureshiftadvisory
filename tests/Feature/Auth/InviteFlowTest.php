@@ -29,13 +29,17 @@ final class InviteFlowTest extends TestCase
 
         $this->assertNotEmpty($issued->plainToken);
         $this->assertStringContainsString($issued->plainToken, $issued->acceptUrl);
+        $this->assertSame('Future Shift Advisory invitation', $issued->emailSubject);
+        $this->assertStringContainsString($issued->acceptUrl, $issued->emailBody);
         $this->assertNotSame($issued->plainToken, $issued->invite->token_hash);
         $this->assertSame(64, strlen($issued->invite->token_hash));
+        $this->assertNotEmpty($issued->invite->token_envelope);
         $this->assertTrue($issued->invite->expires_at->greaterThan(now()->addHours(167)));
         $this->assertDatabaseHas('audit_events', [
             'action' => 'invite.issued',
             'subject_id' => $issued->invite->id,
         ]);
+        Mail::assertNothingSent();
     }
 
     public function test_accepting_invite_creates_user_marks_token_used_and_redirects_to_mfa_setup(): void

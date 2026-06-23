@@ -12,5 +12,7 @@ final readonly class IssuedInvite
         public InviteToken $invite,
         public string $plainToken,
         public string $acceptUrl,
+        public string $emailSubject,
+        public string $emailBody,
     ) {}
 }

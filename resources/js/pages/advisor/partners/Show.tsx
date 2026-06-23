@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, RefreshCw, XCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -41,6 +42,9 @@ type PartnerDetail = {
     status_label: string;
     invite_accepted_at: string | null;
     invite_expires_at: string | null;
+    invite_accept_url: string | null;
+    invite_email_subject: string | null;
+    invite_email_body: string | null;
     invite_resend_url: string | null;
     invite_cancel_url: string | null;
     industry_label: string;
@@ -66,16 +70,43 @@ type PartnerDetail = {
 
 export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
     const heading = `${partner.business_name} - ${partner.panel_label}`;
+    const [copiedInviteDraft, setCopiedInviteDraft] = useState(false);
+    const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+
+    const copyText = (text: string, onCopied: (value: boolean) => void) => {
+        void navigator.clipboard.writeText(text).then(() => {
+            onCopied(true);
+            window.setTimeout(() => onCopied(false), 1800);
+        });
+    };
+    const copyInviteDraft = () => {
+        if (!partner.invite_email_body || !partner.email) {
+            return;
+        }
+
+        copyText(
+            [
+                `To: ${partner.email}`,
+                `Subject: ${partner.invite_email_subject ?? 'Future Shift Advisory invitation'}`,
+                '',
+                partner.invite_email_body,
+            ].join('\n'),
+            setCopiedInviteDraft,
+        );
+    };
+    const copyInviteLink = () => {
+        if (!partner.invite_accept_url) {
+            return;
+        }
+
+        copyText(partner.invite_accept_url, setCopiedInviteLink);
+    };
     const resendInvite = () => {
         if (!partner.invite_resend_url) {
             return;
         }
 
-        router.post(
-            partner.invite_resend_url,
-            {},
-            { preserveScroll: true },
-        );
+        router.post(partner.invite_resend_url, {}, { preserveScroll: true });
     };
     const cancelInvite = () => {
         if (!partner.invite_cancel_url) {
@@ -112,6 +143,31 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {partner.invite_email_body ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={copyInviteDraft}
+                            >
+                                <Copy className="size-4" aria-hidden="true" />
+                                {copiedInviteDraft
+                                    ? 'Draft copied'
+                                    : 'Copy Outlook draft'}
+                            </Button>
+                        ) : null}
+                        {partner.invite_accept_url ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={copyInviteLink}
+                            >
+                                <Copy className="size-4" aria-hidden="true" />
+                                {copiedInviteLink
+                                    ? 'Link copied'
+                                    : 'Copy invite link'}
+                            </Button>
+                        ) : null}
                         {partner.invite_resend_url ? (
                             <Button
                                 type="button"
@@ -179,8 +235,14 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                     <div className="rounded-md border">
                         <SectionHeader title="Partner card" />
                         <dl className="grid gap-3 p-4 text-sm sm:grid-cols-2">
-                            <Detail label="Business" value={partner.business_name} />
-                            <Detail label="Contact" value={partner.contact_name} />
+                            <Detail
+                                label="Business"
+                                value={partner.business_name}
+                            />
+                            <Detail
+                                label="Contact"
+                                value={partner.contact_name}
+                            />
                             <Detail
                                 label="Email"
                                 value={partner.email ?? 'Not supplied'}
@@ -192,6 +254,14 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                             <Detail
                                 label="Invite expires"
                                 value={formatDate(partner.invite_expires_at)}
+                            />
+                            <Detail
+                                label="Invite delivery"
+                                value={
+                                    partner.invite_email_body
+                                        ? 'Manual Outlook send'
+                                        : 'No active link'
+                                }
                             />
                             <Detail
                                 label="Regions"
@@ -216,15 +286,13 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                                     <Detail
                                         label="FSP number"
                                         value={
-                                            partner.fsp_number ??
-                                            'Not supplied'
+                                            partner.fsp_number ?? 'Not supplied'
                                         }
                                     />
                                     <Detail
                                         label="FSP status"
                                         value={
-                                            partner.fsp_status ??
-                                            'Not supplied'
+                                            partner.fsp_status ?? 'Not supplied'
                                         }
                                     />
                                 </>
@@ -323,13 +391,7 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
     );
 }
 
-function Metric({
-    label,
-    children,
-}: {
-    label: string;
-    children: ReactNode;
-}) {
+function Metric({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="rounded-md border px-3 py-3">
             <div className="text-xs text-muted-foreground">{label}</div>

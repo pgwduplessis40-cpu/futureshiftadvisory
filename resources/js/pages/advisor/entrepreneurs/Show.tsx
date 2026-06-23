@@ -34,19 +34,49 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const [gateNote, setGateNote] = useState('');
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
+    const [copiedInviteDraft, setCopiedInviteDraft] = useState(false);
+    const [copiedInviteLink, setCopiedInviteLink] = useState(false);
 
-    const copyInviteEmail = () => {
-        void navigator.clipboard.writeText(entrepreneur.email).then(() => {
-            setCopiedInviteEmail(true);
-            window.setTimeout(() => setCopiedInviteEmail(false), 1800);
+    const copyText = (text: string, onCopied: (value: boolean) => void) => {
+        void navigator.clipboard.writeText(text).then(() => {
+            onCopied(true);
+            window.setTimeout(() => onCopied(false), 1800);
         });
+    };
+    const copyInviteEmail = () =>
+        copyText(entrepreneur.email, setCopiedInviteEmail);
+    const copyInviteDraft = () => {
+        if (!entrepreneur.invite_email_body) {
+            return;
+        }
+
+        copyText(
+            [
+                `To: ${entrepreneur.email}`,
+                `Subject: ${entrepreneur.invite_email_subject ?? 'Future Shift Advisory invitation'}`,
+                '',
+                entrepreneur.invite_email_body,
+            ].join('\n'),
+            setCopiedInviteDraft,
+        );
+    };
+    const copyInviteLink = () => {
+        if (!entrepreneur.invite_accept_url) {
+            return;
+        }
+
+        copyText(entrepreneur.invite_accept_url, setCopiedInviteLink);
     };
     const resendInvite = () => {
         if (!entrepreneur.invite_resend_url) {
             return;
         }
 
-        router.post(entrepreneur.invite_resend_url, {}, { preserveScroll: true });
+        router.post(
+            entrepreneur.invite_resend_url,
+            {},
+            { preserveScroll: true },
+        );
     };
     const cancelInvite = () => {
         if (!entrepreneur.invite_cancel_url) {
@@ -521,7 +551,9 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 label={
                                     entrepreneur.invite_accepted_at
                                         ? 'Accepted'
-                                        : 'Sent'
+                                        : entrepreneur.invite_email_body
+                                          ? 'Manual send'
+                                          : 'No active link'
                                 }
                                 title="Invite status"
                                 rows={[
@@ -540,6 +572,12 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                         value: formatDate(
                                             entrepreneur.invite_expires_at,
                                         ),
+                                    },
+                                    {
+                                        label: 'Delivery',
+                                        value: entrepreneur.invite_email_body
+                                            ? 'Copy the Outlook draft and send it from Outlook'
+                                            : 'Resend to create a fresh invite link',
                                     },
                                 ]}
                             />
@@ -562,18 +600,54 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 label="Created"
                                 value={formatDate(entrepreneur.created_at)}
                             />
+                            <Detail
+                                label="Delivery"
+                                value={
+                                    entrepreneur.invite_email_body
+                                        ? 'Manual Outlook send'
+                                        : 'No active link'
+                                }
+                            />
                         </dl>
                         <div className="flex flex-wrap gap-2">
+                            {entrepreneur.invite_email_body ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={copyInviteDraft}
+                                >
+                                    <Copy
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {copiedInviteDraft
+                                        ? 'Draft copied'
+                                        : 'Copy Outlook draft'}
+                                </Button>
+                            ) : null}
+                            {entrepreneur.invite_accept_url ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={copyInviteLink}
+                                >
+                                    <Copy
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {copiedInviteLink
+                                        ? 'Link copied'
+                                        : 'Copy invite link'}
+                                </Button>
+                            ) : null}
                             <Button
                                 type="button"
                                 size="sm"
                                 variant="outline"
                                 onClick={copyInviteEmail}
                             >
-                                <Copy
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
+                                <Copy className="size-4" aria-hidden="true" />
                                 {copiedInviteEmail
                                     ? 'Copied email'
                                     : 'Copy invite email'}

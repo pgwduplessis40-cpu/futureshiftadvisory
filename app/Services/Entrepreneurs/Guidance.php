@@ -33,7 +33,7 @@ final class Guidance
         $resources = $this->recommendResources($industry, 'startup', $gaps);
         $pastPattern = $this->pastPlanPattern($section, $industry);
         $prompt = new PromptEnvelope(
-            id: 'entrepreneur.plan_guidance',
+            id: EntrepreneurPromptRegistry::PLAN_GUIDANCE,
             version: '2026-05-23',
             task: 'Give section-specific entrepreneur plan guidance with honest predictive scoring and NZ resources.',
             body: 'Identify gaps, risks, and practical next steps. Do not flatter. Cite aggregate past-plan pattern and NZ resource context.',

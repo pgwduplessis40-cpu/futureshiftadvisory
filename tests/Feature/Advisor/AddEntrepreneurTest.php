@@ -50,7 +50,9 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertSame($invite->id, $profile->invite_token_id);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_user_type);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_role);
+        $this->assertNotEmpty($invite->token_envelope);
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.created']);
+        Mail::assertNothingSent();
     }
 
     public function test_advisor_can_resend_pending_entrepreneur_invite(): void
@@ -78,6 +80,9 @@ final class AddEntrepreneurTest extends TestCase
             ->get(route('advisor.entrepreneurs.show', $profile))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
+                ->whereNot('entrepreneur.invite_accept_url', null)
+                ->where('entrepreneur.invite_email_subject', 'Future Shift Advisory invitation')
+                ->whereNot('entrepreneur.invite_email_body', null)
                 ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
                 ->where('entrepreneur.invite_cancel_url', route('advisor.entrepreneurs.invite.cancel', $profile, absolute: false))
             );
@@ -98,6 +103,7 @@ final class AddEntrepreneurTest extends TestCase
             'action' => 'entrepreneur.invite_resent',
             'subject_id' => $profile->id,
         ]);
+        Mail::assertNothingSent();
     }
 
     public function test_advisor_can_cancel_pending_entrepreneur_invite(): void
