@@ -188,6 +188,27 @@ export default function EntrepreneurDashboard({
     const latestAssessment = profile?.latest_plan?.latest_assessment ?? null;
     const readiness = profile?.advisory_readiness_signal ?? null;
     const nextSurvey = surveys.items[0] ?? null;
+    const hasPlan = Boolean(profile?.latest_plan);
+    const journeyPrompt = hasPlan
+        ? {
+              badge: 'Continue',
+              title: 'Continue the business plan',
+              body: 'Keep building the next incomplete plan section, then submit it for advisor assessment when every requirement is complete.',
+              action: 'Open workspace',
+          }
+        : {
+              badge: 'Step 1',
+              title: 'Start with idea validation',
+              body: 'Validate the customer problem, solution, demand, and revenue logic first. The plan sections open after advisor review.',
+              action: 'Start idea validation',
+          };
+    const planActionTitle = hasPlan ? 'Business plan' : 'Idea validation';
+    const planActionValue = hasPlan
+        ? formatLabel(profile?.latest_plan?.status ?? '')
+        : 'Start here';
+    const planActionExplanation = hasPlan
+        ? 'Business plan opens the guided workspace for plan sections, preview, and advisory request.'
+        : 'Idea validation is the first milestone before the business plan sections open.';
 
     const uploadDocument = async () => {
         if (!file) {
@@ -284,6 +305,11 @@ export default function EntrepreneurDashboard({
                     <GamificationPanel gamification={gamification} />
                 ) : null}
 
+                <JourneyPrompt
+                    prompt={journeyPrompt}
+                    planWorkspaceUrl={planWorkspaceUrl}
+                />
+
                 <DashboardTabList
                     activeTab={activeTab}
                     onChange={setActiveTab}
@@ -293,7 +319,7 @@ export default function EntrepreneurDashboard({
                     <>
                         <DashboardSection
                             title="Priority actions"
-                            description="Start with messages, evidence upload, assessment review, and alerts."
+                            description="Start with idea validation, then move into plan evidence, assessment, and advisor messages."
                         >
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                                 <ActionPanel
@@ -328,15 +354,9 @@ export default function EntrepreneurDashboard({
 
                                 <ActionPanel
                                     icon={FileText}
-                                    title="Business plan"
-                                    value={
-                                        profile?.latest_plan
-                                            ? formatLabel(
-                                                  profile.latest_plan.status,
-                                              )
-                                            : 'Not started'
-                                    }
-                                    explanation="Business plan opens the guided workspace for readiness, idea validation, plan sections, preview, and advisory request."
+                                    title={planActionTitle}
+                                    value={planActionValue}
+                                    explanation={planActionExplanation}
                                 >
                                     <Button asChild size="sm" variant="outline">
                                         <Link href={planWorkspaceUrl}>
@@ -344,7 +364,9 @@ export default function EntrepreneurDashboard({
                                                 className="size-4"
                                                 aria-hidden="true"
                                             />
-                                            Open workspace
+                                            {hasPlan
+                                                ? 'Open workspace'
+                                                : 'Start idea validation'}
                                         </Link>
                                     </Button>
                                 </ActionPanel>
@@ -547,9 +569,9 @@ export default function EntrepreneurDashboard({
                                     </dl>
                                 ) : (
                                     <p className="max-w-2xl text-sm text-muted-foreground">
-                                        Your invite is active and the
-                                        entrepreneur module is ready for your
-                                        next step.
+                                        Your invite is active. The next step is
+                                        idea validation, then advisor review,
+                                        then the business plan sections.
                                     </p>
                                 )}
                             </section>
@@ -909,6 +931,39 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
             <div className="mt-4 flex justify-end">
                 <Button variant="ghost" size="sm" onClick={dismiss}>
                     Dismiss
+                </Button>
+            </div>
+        </section>
+    );
+}
+
+function JourneyPrompt({
+    prompt,
+    planWorkspaceUrl,
+}: {
+    prompt: {
+        badge: string;
+        title: string;
+        body: string;
+        action: string;
+    };
+    planWorkspaceUrl: string;
+}) {
+    return (
+        <section className="rounded-md border bg-background p-4">
+            <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div className="space-y-2">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Trophy className="size-4" aria-hidden="true" />
+                        <Badge variant="outline">{prompt.badge}</Badge>
+                        <h2 className="text-sm font-medium">{prompt.title}</h2>
+                    </div>
+                    <p className="max-w-3xl text-sm text-muted-foreground">
+                        {prompt.body}
+                    </p>
+                </div>
+                <Button asChild size="sm">
+                    <Link href={planWorkspaceUrl}>{prompt.action}</Link>
                 </Button>
             </div>
         </section>

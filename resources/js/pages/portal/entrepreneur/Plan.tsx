@@ -247,6 +247,40 @@ export default function EntrepreneurPlan({
                       100,
               )
             : planCompletion.percent;
+    const hasIdeaValidation = Boolean(ideaValidation);
+    const planBuilderUnlocked = Boolean(ideaValidation?.plan_builder_unlocked);
+    const hasPlan = Boolean(plan);
+    const nextSmallWin = !hasIdeaValidation
+        ? {
+              badge: 'Step 1',
+              title: 'Complete idea validation',
+              body: 'Answer the idea validation questions first. Your advisor reviews this before the plan sections open.',
+              action: 'Start idea validation',
+          }
+        : !planBuilderUnlocked
+          ? {
+                badge: 'Step 2',
+                title: 'Advisor review',
+                body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
+                action: null,
+            }
+          : !hasPlan
+            ? {
+                  badge: 'Step 3',
+                  title: 'Start the business plan',
+                  body: 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.',
+                  action: 'Start plan',
+              }
+            : {
+                  badge: `${planCompletion.completed}/${planCompletion.total} sections`,
+                  title: 'Next plan section',
+                  body: selectedRequirement
+                      ? selectedRequirement.complete
+                          ? 'This section is already complete. Choose the next needed section when you are ready.'
+                          : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
+                      : 'Select one requirement and complete that section first.',
+                  action: null,
+              };
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
@@ -570,14 +604,20 @@ export default function EntrepreneurPlan({
                                     title="Idea validation"
                                     value={
                                         ideaValidation
-                                            ? ideaValidation.plan_builder_unlocked
+                                            ? planBuilderUnlocked
                                                 ? 'Advisor approved'
                                                 : 'Awaiting advisor gate'
                                             : 'Not submitted'
                                     }
                                     explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
                                 >
-                                    {ideaValidation?.plan_builder_unlocked ? (
+                                    {!ideaValidation ? (
+                                        <Button asChild size="sm">
+                                            <a href="#idea-validation">
+                                                Start idea validation
+                                            </a>
+                                        </Button>
+                                    ) : planBuilderUnlocked ? (
                                         <Badge variant="secondary">
                                             Builder unlocked
                                         </Badge>
@@ -596,7 +636,9 @@ export default function EntrepreneurPlan({
                                             ? plan.requirements_complete
                                                 ? 'Complete'
                                                 : `${plan.missing_requirements.length} gaps`
-                                            : 'Not started'
+                                            : planBuilderUnlocked
+                                              ? 'Not started'
+                                              : 'Locked'
                                     }
                                     explanation="Plan completion is based on all required business plan sections, not merely one section per phase."
                                 >
@@ -621,9 +663,7 @@ export default function EntrepreneurPlan({
                                             type="button"
                                             size="sm"
                                             onClick={startPlan}
-                                            disabled={
-                                                !ideaValidation?.plan_builder_unlocked
-                                            }
+                                            disabled={!planBuilderUnlocked}
                                         >
                                             <RefreshCw
                                                 className="size-4"
@@ -708,55 +748,72 @@ export default function EntrepreneurPlan({
                             </div>
                         </section>
 
-                        {gamification.enabled ? (
-                            <section className="rounded-md border bg-background p-4">
-                                <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr] lg:items-center">
-                                    <div>
-                                        <div className="flex flex-wrap items-center gap-2">
-                                            <Trophy
-                                                className="size-4"
-                                                aria-hidden="true"
-                                            />
-                                            <h2 className="text-sm font-medium">
-                                                Next small win
-                                            </h2>
-                                            <Badge variant="outline">
-                                                {planCompletion.completed}/
-                                                {planCompletion.total} sections
-                                            </Badge>
-                                        </div>
-                                        <p className="mt-2 text-sm text-muted-foreground">
-                                            {selectedRequirement
-                                                ? selectedRequirement.complete
-                                                    ? 'This section is already complete. Choose the next needed section when you are ready.'
-                                                    : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
-                                                : 'Select one requirement and complete that section first.'}
-                                        </p>
-                                        {gamification.next_milestone ? (
-                                            <p className="mt-1 text-xs text-muted-foreground">
-                                                Next badge:{' '}
-                                                {
-                                                    gamification.next_milestone
-                                                        .label
-                                                }
-                                            </p>
-                                        ) : null}
+                        <section className="rounded-md border bg-background p-4">
+                            <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+                                <div>
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Trophy
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <h2 className="text-sm font-medium">
+                                            {gamification.enabled
+                                                ? 'Next small win'
+                                                : 'Next step'}
+                                        </h2>
+                                        <Badge variant="outline">
+                                            {nextSmallWin.badge}
+                                        </Badge>
                                     </div>
-                                    <div className="space-y-2">
-                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
-                                            <span>Plan progress</span>
-                                            <span>
-                                                {planCompletion.percent}%
-                                            </span>
+                                    <div className="mt-2 text-sm font-medium">
+                                        {nextSmallWin.title}
+                                    </div>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        {nextSmallWin.body}
+                                    </p>
+                                    {nextSmallWin.action ===
+                                    'Start idea validation' ? (
+                                        <div className="mt-3">
+                                            <Button asChild size="sm">
+                                                <a href="#idea-validation">
+                                                    Start idea validation
+                                                </a>
+                                            </Button>
                                         </div>
-                                        <div className="h-2 overflow-hidden rounded-full bg-muted">
-                                            <div
-                                                className="h-full rounded-full bg-emerald-500 transition-all"
-                                                style={{
-                                                    width: `${Math.min(100, Math.max(0, planCompletion.percent))}%`,
-                                                }}
-                                            />
+                                    ) : null}
+                                    {nextSmallWin.action === 'Start plan' ? (
+                                        <div className="mt-3">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={startPlan}
+                                            >
+                                                Start plan
+                                            </Button>
                                         </div>
+                                    ) : null}
+                                    {gamification.enabled &&
+                                    gamification.next_milestone ? (
+                                        <p className="mt-1 text-xs text-muted-foreground">
+                                            Next badge:{' '}
+                                            {gamification.next_milestone.label}
+                                        </p>
+                                    ) : null}
+                                </div>
+                                <div className="space-y-2">
+                                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                        <span>Plan progress</span>
+                                        <span>{planCompletion.percent}%</span>
+                                    </div>
+                                    <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                        <div
+                                            className="h-full rounded-full bg-emerald-500 transition-all"
+                                            style={{
+                                                width: `${Math.min(100, Math.max(0, planCompletion.percent))}%`,
+                                            }}
+                                        />
+                                    </div>
+                                    {gamification.enabled ? (
                                         <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                             <span>
                                                 Streak{' '}
@@ -778,282 +835,41 @@ export default function EntrepreneurPlan({
                                                 </span>
                                             ) : null}
                                         </div>
-                                    </div>
-                                </div>
-                            </section>
-                        ) : null}
-
-                        <section className="space-y-4 rounded-md border bg-background p-4">
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <h2 className="text-sm font-medium">
-                                        Plan requirements
-                                    </h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Complete every required section and
-                                        attach supporting evidence where it
-                                        helps the advisor rely on the plan.
-                                    </p>
-                                </div>
-                                {!plan ? (
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        onClick={startPlan}
-                                        disabled={
-                                            !ideaValidation?.plan_builder_unlocked
-                                        }
-                                    >
-                                        Start plan
-                                    </Button>
-                                ) : null}
-                            </div>
-
-                            <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
-                                <div className="space-y-3">
-                                    {phases.map((phase) => (
-                                        <div
-                                            key={phase.key}
-                                            className="space-y-2"
-                                        >
-                                            <div className="text-xs font-medium text-muted-foreground">
-                                                {phase.title}
-                                            </div>
-                                            {phase.requirements.map(
-                                                (requirement) => (
-                                                    <button
-                                                        key={requirementId(
-                                                            requirement,
-                                                        )}
-                                                        type="button"
-                                                        className={cn(
-                                                            'w-full rounded-md border p-3 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50',
-                                                            selectedRequirement &&
-                                                                requirementId(
-                                                                    requirement,
-                                                                ) ===
-                                                                    requirementId(
-                                                                        selectedRequirement,
-                                                                    ) &&
-                                                                'border-foreground',
-                                                        )}
-                                                        onClick={() =>
-                                                            setSelectedKey(
-                                                                requirementId(
-                                                                    requirement,
-                                                                ),
-                                                            )
-                                                        }
-                                                    >
-                                                        <div className="flex items-start justify-between gap-3">
-                                                            <div>
-                                                                <div className="font-medium">
-                                                                    {
-                                                                        requirement.title
-                                                                    }
-                                                                </div>
-                                                                <p className="mt-1 text-xs text-muted-foreground">
-                                                                    {
-                                                                        requirement.description
-                                                                    }
-                                                                </p>
-                                                            </div>
-                                                            <Badge
-                                                                variant={
-                                                                    requirement.complete
-                                                                        ? 'secondary'
-                                                                        : 'outline'
-                                                                }
-                                                            >
-                                                                {requirement.complete
-                                                                    ? 'Complete'
-                                                                    : 'Needed'}
-                                                            </Badge>
-                                                        </div>
-                                                    </button>
-                                                ),
-                                            )}
-                                        </div>
-                                    ))}
-                                </div>
-
-                                <div className="space-y-4 rounded-md border p-4">
-                                    {selectedRequirement ? (
-                                        <>
-                                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                                <div>
-                                                    <h3 className="text-sm font-medium">
-                                                        Complete requirement
-                                                    </h3>
-                                                    <p className="mt-1 text-sm text-muted-foreground">
-                                                        {
-                                                            selectedRequirement.description
-                                                        }
-                                                    </p>
-                                                </div>
-                                                <div className="flex flex-wrap gap-2">
-                                                    <Button
-                                                        type="button"
-                                                        size="sm"
-                                                        variant="outline"
-                                                        onClick={() =>
-                                                            void assistRequirement()
-                                                        }
-                                                        disabled={
-                                                            !plan ||
-                                                            assistingSection
-                                                        }
-                                                    >
-                                                        <Bot
-                                                            className="size-4"
-                                                            aria-hidden="true"
-                                                        />
-                                                        {assistingSection
-                                                            ? 'Assisting'
-                                                            : 'AI assist'}
-                                                    </Button>
-                                                    {selectedSection ? (
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                router.post(
-                                                                    selectedSection.guidance_url,
-                                                                    {},
-                                                                    {
-                                                                        preserveScroll: true,
-                                                                    },
-                                                                )
-                                                            }
-                                                        >
-                                                            <Bot
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                            Score draft
-                                                        </Button>
-                                                    ) : null}
-                                                </div>
-                                            </div>
-                                            <label className="grid gap-1 text-sm">
-                                                <span>Section title</span>
-                                                <input
-                                                    value={sectionTitle}
-                                                    onChange={(event) =>
-                                                        setSectionTitle(
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    className="h-9 rounded-md border bg-background px-3 text-sm"
-                                                />
-                                            </label>
-                                            <label className="grid gap-1 text-sm">
-                                                <span>Plan detail</span>
-                                                <textarea
-                                                    value={sectionBody}
-                                                    onChange={(event) =>
-                                                        setSectionBody(
-                                                            event.target.value,
-                                                        )
-                                                    }
-                                                    rows={8}
-                                                    className="rounded-md border bg-background px-3 py-2 text-sm"
-                                                    placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
-                                                />
-                                            </label>
-                                            <FileDropzone
-                                                key={supportingKey}
-                                                id="entrepreneur-plan-support"
-                                                files={
-                                                    supportingFile
-                                                        ? [supportingFile]
-                                                        : []
-                                                }
-                                                label="Attach supporting document"
-                                                onFilesChange={(files) =>
-                                                    setSupportingFile(
-                                                        files[0] ?? null,
-                                                    )
-                                                }
-                                            />
-                                            <InputError
-                                                message={
-                                                    sectionError ?? undefined
-                                                }
-                                            />
-                                            {assistantNotice ? (
-                                                <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                                                    <div className="font-medium">
-                                                        AI assistant
-                                                    </div>
-                                                    <p className="mt-1 whitespace-pre-line text-muted-foreground">
-                                                        {assistantNotice}
-                                                    </p>
-                                                </div>
-                                            ) : null}
-                                            {selectedSection?.guidance ? (
-                                                <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                                                    <div className="font-medium">
-                                                        AI guidance
-                                                    </div>
-                                                    <p className="mt-1 text-muted-foreground">
-                                                        {
-                                                            selectedSection
-                                                                .guidance
-                                                                .summary
-                                                        }
-                                                    </p>
-                                                </div>
-                                            ) : null}
-                                            <Button
-                                                type="button"
-                                                size="sm"
-                                                onClick={() =>
-                                                    void saveSection()
-                                                }
-                                                disabled={
-                                                    !plan || savingSection
-                                                }
-                                            >
-                                                <Upload
-                                                    className="size-4"
-                                                    aria-hidden="true"
-                                                />
-                                                {savingSection
-                                                    ? 'Saving'
-                                                    : 'Save requirement'}
-                                            </Button>
-                                        </>
-                                    ) : (
-                                        <p className="text-sm text-muted-foreground">
-                                            Select a requirement to start
-                                            completing the business plan.
-                                        </p>
-                                    )}
+                                    ) : null}
                                 </div>
                             </div>
                         </section>
 
-                        <section className="space-y-4 rounded-md border bg-background p-4">
+                        <section
+                            id="idea-validation"
+                            className="space-y-4 rounded-md border bg-background p-4"
+                        >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
-                                    <h2 className="text-sm font-medium">
-                                        Idea validation
-                                    </h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Capture the customer problem, solution,
-                                        demand, and revenue logic your advisor
-                                        reviews before assessment.
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <Badge variant="outline">Step 1</Badge>
+                                        <h2 className="text-sm font-medium">
+                                            Idea validation
+                                        </h2>
+                                    </div>
+                                    <p className="mt-2 text-sm text-muted-foreground">
+                                        This is the starting point. Capture the
+                                        customer problem, solution, demand, and
+                                        revenue logic before the plan sections
+                                        open.
                                     </p>
                                 </div>
                                 {ideaValidation?.advisor_gate_passed_at ? (
                                     <Badge variant="secondary">
                                         Gate passed
                                     </Badge>
-                                ) : (
+                                ) : ideaValidation ? (
                                     <Badge variant="outline">
                                         Advisor review
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline">
+                                        Not submitted
                                     </Badge>
                                 )}
                             </div>
@@ -1088,10 +904,305 @@ export default function EntrepreneurPlan({
                                 ))}
                                 <div className="lg:col-span-2">
                                     <Button type="submit" size="sm">
-                                        Submit idea validation
+                                        {ideaValidation
+                                            ? 'Update idea validation'
+                                            : 'Submit idea validation'}
                                     </Button>
                                 </div>
                             </form>
+                        </section>
+
+                        <section className="space-y-4 rounded-md border bg-background p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-medium">
+                                        Plan requirements
+                                    </h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Complete every required section and
+                                        attach supporting evidence where it
+                                        helps the advisor rely on the plan.
+                                    </p>
+                                </div>
+                                {!plan ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        onClick={startPlan}
+                                        disabled={
+                                            !ideaValidation?.plan_builder_unlocked
+                                        }
+                                    >
+                                        Start plan
+                                    </Button>
+                                ) : null}
+                            </div>
+
+                            {hasPlan ? (
+                                <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
+                                    <div className="space-y-3">
+                                        {phases.map((phase) => (
+                                            <div
+                                                key={phase.key}
+                                                className="space-y-2"
+                                            >
+                                                <div className="text-xs font-medium text-muted-foreground">
+                                                    {phase.title}
+                                                </div>
+                                                {phase.requirements.map(
+                                                    (requirement) => (
+                                                        <button
+                                                            key={requirementId(
+                                                                requirement,
+                                                            )}
+                                                            type="button"
+                                                            className={cn(
+                                                                'w-full rounded-md border p-3 text-left text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50',
+                                                                selectedRequirement &&
+                                                                    requirementId(
+                                                                        requirement,
+                                                                    ) ===
+                                                                        requirementId(
+                                                                            selectedRequirement,
+                                                                        ) &&
+                                                                    'border-foreground',
+                                                            )}
+                                                            onClick={() =>
+                                                                setSelectedKey(
+                                                                    requirementId(
+                                                                        requirement,
+                                                                    ),
+                                                                )
+                                                            }
+                                                        >
+                                                            <div className="flex items-start justify-between gap-3">
+                                                                <div>
+                                                                    <div className="font-medium">
+                                                                        {
+                                                                            requirement.title
+                                                                        }
+                                                                    </div>
+                                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                                        {
+                                                                            requirement.description
+                                                                        }
+                                                                    </p>
+                                                                </div>
+                                                                <Badge
+                                                                    variant={
+                                                                        requirement.complete
+                                                                            ? 'secondary'
+                                                                            : 'outline'
+                                                                    }
+                                                                >
+                                                                    {requirement.complete
+                                                                        ? 'Complete'
+                                                                        : 'Needed'}
+                                                                </Badge>
+                                                            </div>
+                                                        </button>
+                                                    ),
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+
+                                    <div className="space-y-4 rounded-md border p-4">
+                                        {selectedRequirement ? (
+                                            <>
+                                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                                    <div>
+                                                        <h3 className="text-sm font-medium">
+                                                            Complete requirement
+                                                        </h3>
+                                                        <p className="mt-1 text-sm text-muted-foreground">
+                                                            {
+                                                                selectedRequirement.description
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                void assistRequirement()
+                                                            }
+                                                            disabled={
+                                                                !plan ||
+                                                                assistingSection
+                                                            }
+                                                        >
+                                                            <Bot
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            {assistingSection
+                                                                ? 'Assisting'
+                                                                : 'AI assist'}
+                                                        </Button>
+                                                        {selectedSection ? (
+                                                            <Button
+                                                                type="button"
+                                                                size="sm"
+                                                                variant="outline"
+                                                                onClick={() =>
+                                                                    router.post(
+                                                                        selectedSection.guidance_url,
+                                                                        {},
+                                                                        {
+                                                                            preserveScroll: true,
+                                                                        },
+                                                                    )
+                                                                }
+                                                            >
+                                                                <Bot
+                                                                    className="size-4"
+                                                                    aria-hidden="true"
+                                                                />
+                                                                Score draft
+                                                            </Button>
+                                                        ) : null}
+                                                    </div>
+                                                </div>
+                                                <label className="grid gap-1 text-sm">
+                                                    <span>Section title</span>
+                                                    <input
+                                                        value={sectionTitle}
+                                                        onChange={(event) =>
+                                                            setSectionTitle(
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        className="h-9 rounded-md border bg-background px-3 text-sm"
+                                                    />
+                                                </label>
+                                                <label className="grid gap-1 text-sm">
+                                                    <span>Plan detail</span>
+                                                    <textarea
+                                                        value={sectionBody}
+                                                        onChange={(event) =>
+                                                            setSectionBody(
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                        rows={8}
+                                                        className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                        placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
+                                                    />
+                                                </label>
+                                                <FileDropzone
+                                                    key={supportingKey}
+                                                    id="entrepreneur-plan-support"
+                                                    files={
+                                                        supportingFile
+                                                            ? [supportingFile]
+                                                            : []
+                                                    }
+                                                    label="Attach supporting document"
+                                                    onFilesChange={(files) =>
+                                                        setSupportingFile(
+                                                            files[0] ?? null,
+                                                        )
+                                                    }
+                                                />
+                                                <InputError
+                                                    message={
+                                                        sectionError ??
+                                                        undefined
+                                                    }
+                                                />
+                                                {assistantNotice ? (
+                                                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                                        <div className="font-medium">
+                                                            AI assistant
+                                                        </div>
+                                                        <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                                                            {assistantNotice}
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+                                                {selectedSection?.guidance ? (
+                                                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                                        <div className="font-medium">
+                                                            AI guidance
+                                                        </div>
+                                                        <p className="mt-1 text-muted-foreground">
+                                                            {
+                                                                selectedSection
+                                                                    .guidance
+                                                                    .summary
+                                                            }
+                                                        </p>
+                                                    </div>
+                                                ) : null}
+                                                <Button
+                                                    type="button"
+                                                    size="sm"
+                                                    onClick={() =>
+                                                        void saveSection()
+                                                    }
+                                                    disabled={
+                                                        !plan || savingSection
+                                                    }
+                                                >
+                                                    <Upload
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                    {savingSection
+                                                        ? 'Saving'
+                                                        : 'Save requirement'}
+                                                </Button>
+                                            </>
+                                        ) : (
+                                            <p className="text-sm text-muted-foreground">
+                                                Select a requirement to start
+                                                completing the business plan.
+                                            </p>
+                                        )}
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="rounded-md border border-dashed bg-muted/20 p-4">
+                                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                                        <div>
+                                            <h3 className="text-sm font-medium">
+                                                {planBuilderUnlocked
+                                                    ? 'Plan sections are ready'
+                                                    : hasIdeaValidation
+                                                      ? 'Plan sections are waiting for advisor review'
+                                                      : 'Plan sections unlock after idea validation'}
+                                            </h3>
+                                            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                                                {planBuilderUnlocked
+                                                    ? 'Start the business plan to open the section checklist and AI assist.'
+                                                    : hasIdeaValidation
+                                                      ? 'Your idea validation has been submitted. Your advisor needs to approve it before these sections open.'
+                                                      : 'Complete idea validation first so your advisor can confirm the concept before detailed plan work starts.'}
+                                            </p>
+                                        </div>
+                                        {planBuilderUnlocked ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                onClick={startPlan}
+                                            >
+                                                Start plan
+                                            </Button>
+                                        ) : !hasIdeaValidation ? (
+                                            <Button asChild size="sm">
+                                                <a href="#idea-validation">
+                                                    Start idea validation
+                                                </a>
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            )}
                         </section>
                     </div>
                 ) : (
