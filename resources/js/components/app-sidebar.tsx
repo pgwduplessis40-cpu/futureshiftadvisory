@@ -233,53 +233,35 @@ const portalInspirationNavItem: NavItem = {
     icon: Sparkles,
 };
 
-const entrepreneurNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/portal/entrepreneur',
-        icon: LayoutGrid,
-    },
-    entrepreneurBusinessPlanNavItem,
-    portalCalendarNavItem,
-    portalInspirationNavItem,
-    entrepreneurSurveysNavItem,
-    messagesNavItem,
-    notificationsNavItem,
-];
+const entrepreneurDashboardNavItem: NavItem = {
+    title: 'Dashboard',
+    href: '/portal/entrepreneur',
+    icon: LayoutGrid,
+};
 
-const clientNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/portal',
-        icon: LayoutGrid,
-    },
-    portalCalendarNavItem,
-    {
-        title: 'Onboarding',
-        href: '/portal/onboarding',
-        icon: ClipboardList,
-    },
-    {
-        title: 'Wellbeing',
-        href: '/portal/wellbeing',
-        icon: HeartPulse,
-    },
-    portalSurveysNavItem,
-    portalInspirationNavItem,
-    messagesNavItem,
-    notificationsNavItem,
-];
+const portalDashboardNavItem: NavItem = {
+    title: 'Dashboard',
+    href: '/portal',
+    icon: LayoutGrid,
+};
 
-const npoBoardNavItems: NavItem[] = [
-    {
-        title: 'Dashboard',
-        href: '/portal/npo-board',
-        icon: LayoutGrid,
-    },
-    portalCalendarNavItem,
-    messagesNavItem,
-    notificationsNavItem,
-];
+const npoBoardDashboardNavItem: NavItem = {
+    title: 'Dashboard',
+    href: '/portal/npo-board',
+    icon: LayoutGrid,
+};
+
+const portalOnboardingNavItem: NavItem = {
+    title: 'Onboarding',
+    href: '/portal/onboarding',
+    icon: ClipboardList,
+};
+
+const portalWellbeingNavItem: NavItem = {
+    title: 'Wellbeing',
+    href: '/portal/wellbeing',
+    icon: HeartPulse,
+};
 
 const defaultNavItems: NavItem[] = [
     dashboardNavItem,
@@ -389,30 +371,64 @@ function internalNavGroups({
     ].filter((group): group is NavGroup => group !== null);
 }
 
+function portalNavGroups({
+    platformItems,
+    communicationItems = [messagesNavItem, notificationsNavItem],
+}: {
+    platformItems: NavItem[];
+    communicationItems?: NavItem[];
+}): NavGroup[] {
+    return [
+        navGroup('Platform', platformItems),
+        navGroup('Comms', communicationItems),
+        navGroup('Calendar', [portalCalendarNavItem]),
+    ];
+}
+
 function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
 ): NavGroup[] {
     if (userType === 'entrepreneur') {
-        return [navGroup('Portal', entrepreneurNavItems)];
+        return portalNavGroups({
+            platformItems: [
+                entrepreneurDashboardNavItem,
+                entrepreneurBusinessPlanNavItem,
+                portalInspirationNavItem,
+                entrepreneurSurveysNavItem,
+            ],
+        });
     }
 
     if (userType === 'client_primary' || userType === 'client_team') {
+        const platformItems = [
+            portalDashboardNavItem,
+            portalOnboardingNavItem,
+            portalWellbeingNavItem,
+            portalSurveysNavItem,
+            portalInspirationNavItem,
+        ];
+
         if (portalClient?.engagement_type === 'due_diligence') {
-            return [
-                navGroup('Portal', [
-                    clientNavItems[0],
+            return portalNavGroups({
+                platformItems: [
+                    portalDashboardNavItem,
                     acquisitionPlanNavItem,
-                    ...clientNavItems.slice(1),
-                ]),
-            ];
+                    portalOnboardingNavItem,
+                    portalWellbeingNavItem,
+                    portalSurveysNavItem,
+                    portalInspirationNavItem,
+                ],
+            });
         }
 
-        return [navGroup('Portal', clientNavItems)];
+        return portalNavGroups({ platformItems });
     }
 
     if (userType === 'npo_board_member') {
-        return [navGroup('Portal', npoBoardNavItems)];
+        return portalNavGroups({
+            platformItems: [npoBoardDashboardNavItem],
+        });
     }
 
     if (userType === 'super_admin') {
