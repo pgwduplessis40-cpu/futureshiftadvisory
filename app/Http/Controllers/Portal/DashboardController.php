@@ -585,6 +585,7 @@ final class DashboardController extends Controller
             'cost_per_beneficiary' => $calculation->result['cost_per_beneficiary'] ?? null,
             'benchmark_cost_per_beneficiary' => $calculation->result['benchmark_cost_per_beneficiary'] ?? null,
             'additional_beneficiaries_mid' => $calculation->result['improvement']['additional_beneficiaries_mid'] ?? null,
+            'benchmark_note' => $calculation->result['benchmark_note'] ?? null,
             'rating' => $calculation->rating,
             'calculated_at' => $calculation->calculated_at?->toIso8601String(),
         ];

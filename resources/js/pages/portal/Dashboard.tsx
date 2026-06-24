@@ -259,6 +259,7 @@ type NpoCostPerBeneficiary = {
     cost_per_beneficiary: number | null;
     benchmark_cost_per_beneficiary: number | null;
     additional_beneficiaries_mid: number | null;
+    benchmark_note: string | null;
     rating: string;
     calculated_at: string | null;
 };
@@ -1444,12 +1445,15 @@ function NpoPortalPanel({
                                     Benchmark
                                 </span>
                                 <span className="font-medium">
-                                    {formatCurrency(
-                                        payload.milestone_progress
-                                            .cost_per_beneficiary
-                                            .benchmark_cost_per_beneficiary ??
-                                            0,
-                                    )}
+                                    {payload.milestone_progress
+                                        .cost_per_beneficiary
+                                        .benchmark_cost_per_beneficiary
+                                        ? formatCurrency(
+                                              payload.milestone_progress
+                                                  .cost_per_beneficiary
+                                                  .benchmark_cost_per_beneficiary,
+                                          )
+                                        : 'Pending'}
                                 </span>
                             </div>
                             <div className="flex justify-between gap-3">
@@ -1457,13 +1461,26 @@ function NpoPortalPanel({
                                     Capacity
                                 </span>
                                 <span className="font-medium">
-                                    {formatNumber(
-                                        payload.milestone_progress
-                                            .cost_per_beneficiary
-                                            .additional_beneficiaries_mid ?? 0,
-                                    )}
+                                    {payload.milestone_progress
+                                        .cost_per_beneficiary
+                                        .additional_beneficiaries_mid !== null
+                                        ? formatNumber(
+                                              payload.milestone_progress
+                                                  .cost_per_beneficiary
+                                                  .additional_beneficiaries_mid,
+                                          )
+                                        : 'Pending'}
                                 </span>
                             </div>
+                            {payload.milestone_progress.cost_per_beneficiary
+                                .benchmark_note ? (
+                                <p className="text-xs text-muted-foreground">
+                                    {
+                                        payload.milestone_progress
+                                            .cost_per_beneficiary.benchmark_note
+                                    }
+                                </p>
+                            ) : null}
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">

@@ -74,6 +74,7 @@ final class ReferenceDataFreshness
         $at ??= now();
 
         return collect($this->definitions())
+            ->filter(fn (array $definition): bool => ($definition['monitor_freshness'] ?? true) === true)
             ->map(fn (array $definition): array => $this->task($definition, $at))
             ->sortBy(fn (array $task): array => [
                 $this->statusRank((string) $task['status']),
@@ -165,6 +166,7 @@ final class ReferenceDataFreshness
                 'dataset' => ReferenceDataEntry::DATASET_CPB_BENCHMARK,
                 'label' => 'Cost-per-beneficiary benchmarks',
                 'cadence_days' => 365,
+                'monitor_freshness' => false,
             ],
         ];
     }

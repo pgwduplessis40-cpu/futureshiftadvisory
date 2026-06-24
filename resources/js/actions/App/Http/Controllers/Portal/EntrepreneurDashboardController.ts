@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
 const EntrepreneurDashboardController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ EntrepreneurDashboardController.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
 EntrepreneurDashboardController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ EntrepreneurDashboardController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
 EntrepreneurDashboardController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ EntrepreneurDashboardController.get = (options?: RouteQueryOptions): RouteDefini
 })
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
 EntrepreneurDashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ EntrepreneurDashboardController.head = (options?: RouteQueryOptions): RouteDefin
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
     const EntrepreneurDashboardControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ EntrepreneurDashboardController.head = (options?: RouteQueryOptions): RouteDefin
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
         EntrepreneurDashboardControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ EntrepreneurDashboardController.head = (options?: RouteQueryOptions): RouteDefin
         })
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurDashboardController::__invoke
- * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:38
+ * @see app/Http/Controllers/Portal/EntrepreneurDashboardController.php:40
  * @route '/portal/entrepreneur'
  */
         EntrepreneurDashboardControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

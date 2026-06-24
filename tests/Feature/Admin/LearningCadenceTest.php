@@ -38,8 +38,8 @@ final class LearningCadenceTest extends TestCase
             $registry->definition(LayerCadenceRegistry::LAYER_NPO_FUNDER_DATABASE_UPDATES)['metadata']['governance_gate'],
         );
         $this->assertSame(
-            10,
-            $registry->definition(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS)['metadata']['min_sample_guard']['programmes_per_type'],
+            5,
+            $registry->definition(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS)['metadata']['min_sample_guard']['programme_type_size_band'],
         );
         $this->assertTrue($registry->definition(LayerCadenceRegistry::LAYER_NPO_FUNDING_CONCENTRATION_THRESHOLDS)['metadata']['requires_full_data_justification']);
         $this->assertTrue($definitions->every(fn (array $definition): bool => $definition['governed_candidates_only'] === true));

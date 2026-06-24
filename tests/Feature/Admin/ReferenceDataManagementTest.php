@@ -320,9 +320,9 @@ final class ReferenceDataManagementTest extends TestCase
         $engagement = $this->npoEngagement();
 
         $csv = implode("\n", [
-            'programme_type,size_band,cost_per_beneficiary',
-            'community_services,medium,500',
-            'food_rescue,small,300',
+            'programme_type,size_band,cost_per_beneficiary,sample_size',
+            'community_services,medium,500,5',
+            'food_rescue,small,300,5',
         ]);
 
         $this->actingAsMfa($admin)
@@ -353,7 +353,8 @@ final class ReferenceDataManagementTest extends TestCase
             'beneficiary_count' => 100,
         ]);
 
-        $this->assertEqualsWithDelta(950.0, $approvedOnly->result['benchmark_cost_per_beneficiary'], 0.01);
+        $this->assertNull($approvedOnly->result['benchmark_cost_per_beneficiary']);
+        $this->assertSame('benchmark_pending', $approvedOnly->rating);
 
         $update->forceFill(['effective_date' => now()->subMinute()])->save();
         $this->assertSame(1, app(ApprovalFlow::class)->implementDue(now(), $admin)->count());

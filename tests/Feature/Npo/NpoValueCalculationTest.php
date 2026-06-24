@@ -59,6 +59,7 @@ final class NpoValueCalculationTest extends TestCase
                     'programme_type' => 'food_rescue',
                     'size_band' => 'small',
                     'cost_per_beneficiary' => 500,
+                    'sample_size' => 5,
                 ],
             ],
         ]);
@@ -81,6 +82,39 @@ final class NpoValueCalculationTest extends TestCase
         $this->assertSame(0.15, $calculation->result['projections'][0]['uncertainty']['rate']);
         $this->assertStringContainsString('mission delivery', $calculation->result['mission_framing']);
         $this->assertStringContainsString('+/-15%', $calculation->stable_assumption_disclosure);
+    }
+
+    public function test_cost_per_beneficiary_records_baseline_when_comparable_sample_is_not_ready(): void
+    {
+        Carbon::setTestNow('2026-05-27 10:00:00');
+        [, , $engagement] = $this->npoClient();
+        $benchmark = $this->learningUpdate(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS, [
+            'action' => 'update_cpb_benchmarks',
+            'benchmarks' => [
+                [
+                    'programme_type' => 'food_rescue',
+                    'size_band' => 'small',
+                    'cost_per_beneficiary' => 500,
+                    'sample_size' => 4,
+                ],
+            ],
+        ]);
+        $benchmark->forceFill(['status' => LearningUpdate::STATUS_IMPLEMENTED])->save();
+
+        $calculation = app(NpoValueCalculator::class)->calculateCostPerBeneficiary($engagement, [
+            'programme_type' => 'food_rescue',
+            'programme_expenditure' => 60000,
+            'beneficiary_count' => 80,
+        ]);
+
+        $this->assertEqualsWithDelta(750.0, $calculation->result['cost_per_beneficiary'], 0.01);
+        $this->assertNull($calculation->result['benchmark_cost_per_beneficiary']);
+        $this->assertNull($calculation->result['variance_to_benchmark']);
+        $this->assertSame('benchmark_pending', $calculation->rating);
+        $this->assertSame(0.0, $calculation->projection_mid);
+        $this->assertSame([], $calculation->result['projections']);
+        $this->assertStringContainsString('No official external NZ cost-per-beneficiary benchmark is available', $calculation->result['mission_framing']);
+        $this->assertStringContainsString('pending a sufficient comparable sample', $calculation->source_attributions[0]['claim']);
     }
 
     public function test_funding_risk_rates_concentration_runway_and_layer_37_thresholds(): void

@@ -117,6 +117,7 @@ const samplePayloads: Record<string, string> = {
             programme_type: 'community_services',
             size_band: 'medium',
             cost_per_beneficiary: 875,
+            sample_size: 5,
         },
         null,
         2,

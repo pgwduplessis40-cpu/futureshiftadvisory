@@ -85,8 +85,8 @@ final class LayerCadenceRegistry
                 'module' => 'npo',
                 'surface' => 'cost_per_beneficiary_benchmarks',
                 'min_sample_guard' => [
-                    'programmes_per_type' => 10,
-                    'engagements_per_size_band' => 5,
+                    'comparable_organisations' => 5,
+                    'programme_type_size_band' => 5,
                 ],
                 'feeds' => ['npo_value_calculations.cost_per_beneficiary'],
             ]),

@@ -205,6 +205,17 @@ final class ReferenceDataFreshnessTest extends TestCase
         $this->assertSame('GDP quarterly', $gdp['label'] ?? null);
     }
 
+    public function test_cpb_benchmark_is_not_treated_as_external_missing_reference_data(): void
+    {
+        $dashboard = app(ReferenceDataFreshness::class)->dashboard(now());
+
+        $this->assertContains(
+            ReferenceDataEntry::DATASET_CPB_BENCHMARK,
+            collect(app(ReferenceDataFreshness::class)->recordTargets())->pluck('key')->all(),
+        );
+        $this->assertNull(collect($dashboard['items'])->firstWhere('key', ReferenceDataEntry::DATASET_CPB_BENCHMARK));
+    }
+
     public function test_freshness_command_sends_due_notifications_and_clears_resolved_task(): void
     {
         Carbon::setTestNow('2026-06-01 10:00:00');

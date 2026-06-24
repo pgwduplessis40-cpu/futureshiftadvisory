@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::index
- * @see app/Http/Controllers/Admin/PanelMemberController.php:18
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:20
  * @route '/admin/panel-members'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
- * @see app/Http/Controllers/Admin/PanelMemberController.php:52
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:54
  * @route '/admin/panel-members/{panelMember}/approve'
  */
 export const approve = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ approve.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
- * @see app/Http/Controllers/Admin/PanelMemberController.php:52
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:54
  * @route '/admin/panel-members/{panelMember}/approve'
  */
 approve.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -105,7 +105,7 @@ approve.url = (args: { panelMember: string | { id: string } } | [panelMember: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -127,7 +127,7 @@ approve.url = (args: { panelMember: string | { id: string } } | [panelMember: st
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
- * @see app/Http/Controllers/Admin/PanelMemberController.php:52
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:54
  * @route '/admin/panel-members/{panelMember}/approve'
  */
 approve.patch = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -137,7 +137,7 @@ approve.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
 
     /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
- * @see app/Http/Controllers/Admin/PanelMemberController.php:52
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:54
  * @route '/admin/panel-members/{panelMember}/approve'
  */
     const approveForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -152,7 +152,7 @@ approve.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
 
             /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::approve
- * @see app/Http/Controllers/Admin/PanelMemberController.php:52
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:54
  * @route '/admin/panel-members/{panelMember}/approve'
  */
         approveForm.patch = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -164,11 +164,11 @@ approve.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
                     }),
             method: 'post',
         })
-    
+
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
- * @see app/Http/Controllers/Admin/PanelMemberController.php:65
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:73
  * @route '/admin/panel-members/{panelMember}/request-info'
  */
 export const requestInfo = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -183,7 +183,7 @@ requestInfo.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
- * @see app/Http/Controllers/Admin/PanelMemberController.php:65
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:73
  * @route '/admin/panel-members/{panelMember}/request-info'
  */
 requestInfo.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -194,7 +194,7 @@ requestInfo.url = (args: { panelMember: string | { id: string } } | [panelMember
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -216,7 +216,7 @@ requestInfo.url = (args: { panelMember: string | { id: string } } | [panelMember
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
- * @see app/Http/Controllers/Admin/PanelMemberController.php:65
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:73
  * @route '/admin/panel-members/{panelMember}/request-info'
  */
 requestInfo.patch = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -226,7 +226,7 @@ requestInfo.patch = (args: { panelMember: string | { id: string } } | [panelMemb
 
     /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
- * @see app/Http/Controllers/Admin/PanelMemberController.php:65
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:73
  * @route '/admin/panel-members/{panelMember}/request-info'
  */
     const requestInfoForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -241,7 +241,7 @@ requestInfo.patch = (args: { panelMember: string | { id: string } } | [panelMemb
 
             /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::requestInfo
- * @see app/Http/Controllers/Admin/PanelMemberController.php:65
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:73
  * @route '/admin/panel-members/{panelMember}/request-info'
  */
         requestInfoForm.patch = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -253,11 +253,11 @@ requestInfo.patch = (args: { panelMember: string | { id: string } } | [panelMemb
                     }),
             method: 'post',
         })
-    
+
     requestInfo.form = requestInfoForm
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
- * @see app/Http/Controllers/Admin/PanelMemberController.php:77
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:85
  * @route '/admin/panel-members/{panelMember}/decline'
  */
 export const decline = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -272,7 +272,7 @@ decline.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
- * @see app/Http/Controllers/Admin/PanelMemberController.php:77
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:85
  * @route '/admin/panel-members/{panelMember}/decline'
  */
 decline.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -283,7 +283,7 @@ decline.url = (args: { panelMember: string | { id: string } } | [panelMember: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -305,7 +305,7 @@ decline.url = (args: { panelMember: string | { id: string } } | [panelMember: st
 
 /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
- * @see app/Http/Controllers/Admin/PanelMemberController.php:77
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:85
  * @route '/admin/panel-members/{panelMember}/decline'
  */
 decline.patch = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -315,7 +315,7 @@ decline.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
 
     /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
- * @see app/Http/Controllers/Admin/PanelMemberController.php:77
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:85
  * @route '/admin/panel-members/{panelMember}/decline'
  */
     const declineForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -330,7 +330,7 @@ decline.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
 
             /**
 * @see \App\Http\Controllers\Admin\PanelMemberController::decline
- * @see app/Http/Controllers/Admin/PanelMemberController.php:77
+ * @see app/Http/Controllers/Admin/PanelMemberController.php:85
  * @route '/admin/panel-members/{panelMember}/decline'
  */
         declineForm.patch = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -342,7 +342,7 @@ decline.patch = (args: { panelMember: string | { id: string } } | [panelMember: 
                     }),
             method: 'post',
         })
-    
+
     decline.form = declineForm
 const panelMembers = {
     index: Object.assign(index, index),

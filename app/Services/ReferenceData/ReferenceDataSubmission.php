@@ -206,6 +206,7 @@ final class ReferenceDataSubmission
                     'programme_type' => $this->requiredSlug($row, 'programme_type'),
                     'size_band' => $this->requiredSlug($row, 'size_band'),
                     'cost_per_beneficiary' => $this->requiredFloat($row, 'cost_per_beneficiary'),
+                    'sample_size' => max(0, (int) ($row['sample_size'] ?? $row['comparable_organisations'] ?? $row['n'] ?? 0)),
                 ];
             })
             ->values()

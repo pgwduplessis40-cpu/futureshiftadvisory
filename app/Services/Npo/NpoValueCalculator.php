@@ -38,33 +38,44 @@ final class NpoValueCalculator
         $sizeBand = $this->slug((string) ($input['size_band'] ?? $this->sizeBand($beneficiaryCount)));
         $benchmark = $this->costPerBeneficiaryBenchmark($programmeType, $sizeBand);
         $costPerBeneficiary = round($programmeExpenditure / $beneficiaryCount, 2);
-        $benchmarkCost = (float) $benchmark['cost_per_beneficiary'];
-        $variance = round($costPerBeneficiary - $benchmarkCost, 2);
-        $annualSaving = max(0.0, round($variance * $beneficiaryCount, 2));
-        $additionalBeneficiaries = $costPerBeneficiary > 0
+        $benchmarkCost = is_numeric($benchmark['cost_per_beneficiary'] ?? null)
+            ? (float) $benchmark['cost_per_beneficiary']
+            : null;
+        $hasBenchmark = $benchmarkCost !== null && $benchmarkCost > 0;
+        $variance = $hasBenchmark ? round($costPerBeneficiary - $benchmarkCost, 2) : null;
+        $annualSaving = $hasBenchmark ? max(0.0, round((float) $variance * $beneficiaryCount, 2)) : 0.0;
+        $additionalBeneficiaries = $hasBenchmark && $costPerBeneficiary > 0
             ? round($annualSaving / $costPerBeneficiary, 2)
-            : 0.0;
-        $disclosure = 'Projection keeps programme scope, beneficiary demand, and delivery cost base stable; every projection carries a +/-15% uncertainty range.';
+            : null;
+        $disclosure = $hasBenchmark
+            ? 'Projection keeps programme scope, beneficiary demand, and delivery cost base stable; every projection carries a +/-15% uncertainty range.'
+            : 'No single official NZ cost-per-beneficiary benchmark exists. This calculation records the organisation\'s own cost per beneficiary; FSA platform comparison starts once at least five comparable NZ NPOs exist for the programme type and size band.';
 
         $result = [
             'cost_per_beneficiary' => $costPerBeneficiary,
             'benchmark_cost_per_beneficiary' => $benchmarkCost,
             'variance_to_benchmark' => $variance,
-            'rating' => $this->costPerBeneficiaryRating($costPerBeneficiary, $benchmarkCost),
+            'rating' => $hasBenchmark ? $this->costPerBeneficiaryRating($costPerBeneficiary, $benchmarkCost) : 'benchmark_pending',
             'improvement' => [
                 'annual_saving_mid' => $annualSaving,
                 'additional_beneficiaries_mid' => $additionalBeneficiaries,
             ],
-            'mission_framing' => sprintf(
-                'This programme currently serves each beneficiary for NZD %s against a benchmark of NZD %s; any efficiency gain is framed as capacity for more mission delivery, not profit extraction.',
-                number_format($costPerBeneficiary, 2),
-                number_format($benchmarkCost, 2),
-            ),
+            'mission_framing' => $hasBenchmark
+                ? sprintf(
+                    'This programme currently serves each beneficiary for NZD %s against a benchmark of NZD %s; any efficiency gain is framed as capacity for more mission delivery, not profit extraction.',
+                    number_format($costPerBeneficiary, 2),
+                    number_format($benchmarkCost, 2),
+                )
+                : sprintf(
+                    'This programme currently serves each beneficiary for NZD %s. No official external NZ cost-per-beneficiary benchmark is available; compare against the organisation\'s own trend until the FSA platform has at least five comparable NPOs for this programme category and size band.',
+                    number_format($costPerBeneficiary, 2),
+                ),
             'stable_assumption_disclosure' => $disclosure,
-            'projections' => [
+            'benchmark_note' => $benchmark['benchmark_note'] ?? null,
+            'projections' => $hasBenchmark ? [
                 $this->projection('annual_saving', 'Annual saving / reinvestment capacity', $annualSaving, 'nzd'),
-                $this->projection('additional_beneficiaries', 'Additional beneficiaries served', $additionalBeneficiaries, 'beneficiaries'),
-            ],
+                $this->projection('additional_beneficiaries', 'Additional beneficiaries served', (float) $additionalBeneficiaries, 'beneficiaries'),
+            ] : [],
         ];
 
         return $this->persistCalculation(
@@ -84,7 +95,9 @@ final class NpoValueCalculator
             benchmarkConfig: $benchmark,
             sourceAttributions: [
                 [
-                    'claim' => 'Cost-per-beneficiary benchmark was selected by programme type and size band.',
+                    'claim' => $hasBenchmark
+                        ? 'Cost-per-beneficiary benchmark was selected from implemented FSA platform data by programme type and size band.'
+                        : 'No official external NZ cost-per-beneficiary benchmark is available; FSA platform benchmarking is pending a sufficient comparable sample.',
                     'source_reference' => (string) $benchmark['source_reference'],
                 ],
             ],
@@ -295,46 +308,46 @@ final class NpoValueCalculator
      */
     private function costPerBeneficiaryBenchmark(string $programmeType, string $sizeBand): array
     {
-        $benchmarks = [
-            'community_services' => ['small' => 1200.0, 'medium' => 950.0, 'large' => 800.0],
-            'education' => ['small' => 1400.0, 'medium' => 1100.0, 'large' => 900.0],
-            'health' => ['small' => 1800.0, 'medium' => 1450.0, 'large' => 1200.0],
-        ];
-        $source = 'default_layer_36_seed';
-        $learningUpdateId = null;
+        $minimumSample = $this->minimumCpbComparableSample();
 
         $update = $this->latestImplementedLayerUpdate(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS);
         if ($update instanceof LearningUpdate) {
             foreach ($this->normaliseBenchmarkOverrides((array) data_get($update->proposed_change, 'benchmarks', [])) as $override) {
                 $type = $this->slug((string) $override['programme_type']);
                 $band = $this->slug((string) $override['size_band']);
-                $benchmarks[$type][$band] = (float) $override['cost_per_beneficiary'];
+
+                if ($type === $programmeType && $band === $sizeBand && (int) $override['sample_size'] >= $minimumSample) {
+                    return [
+                        'programme_type' => $programmeType,
+                        'size_band' => $sizeBand,
+                        'cost_per_beneficiary' => (float) $override['cost_per_beneficiary'],
+                        'source' => 'fsa_platform_data',
+                        'learning_update_id' => $update->getKey(),
+                        'sample_size' => (int) $override['sample_size'],
+                        'minimum_sample_size' => $minimumSample,
+                        'source_reference' => "fsa_platform_data:n={$override['sample_size']}:learning_update:{$update->getKey()}",
+                        'benchmark_note' => "FSA platform data, n={$override['sample_size']} comparable organisations.",
+                    ];
+                }
             }
-
-            $source = 'learning_layer_36';
-            $learningUpdateId = $update->getKey();
         }
-
-        $cost = (float) ($benchmarks[$programmeType][$sizeBand]
-            ?? $benchmarks[$programmeType]['medium']
-            ?? $benchmarks['community_services'][$sizeBand]
-            ?? $benchmarks['community_services']['medium']);
 
         return [
             'programme_type' => $programmeType,
             'size_band' => $sizeBand,
-            'cost_per_beneficiary' => $cost,
-            'source' => $source,
-            'learning_update_id' => $learningUpdateId,
-            'source_reference' => $learningUpdateId !== null
-                ? "learning_update:{$learningUpdateId}"
-                : 'layer_36:default_cpb_benchmarks',
+            'cost_per_beneficiary' => null,
+            'source' => 'fsa_platform_pending_sample',
+            'learning_update_id' => $update?->getKey(),
+            'sample_size' => 0,
+            'minimum_sample_size' => $minimumSample,
+            'source_reference' => "fsa_platform_data:pending_minimum_sample:n<{$minimumSample}",
+            'benchmark_note' => "No official external NZ benchmark exists. FSA platform benchmark pending at least {$minimumSample} comparable organisations.",
         ];
     }
 
     /**
      * @param  array<string, mixed>  $raw
-     * @return array<int, array{programme_type:string, size_band:string, cost_per_beneficiary:float}>
+     * @return array<int, array{programme_type:string, size_band:string, cost_per_beneficiary:float, sample_size:int}>
      */
     private function normaliseBenchmarkOverrides(array $raw): array
     {
@@ -349,6 +362,7 @@ final class NpoValueCalculator
                     'programme_type' => (string) $row['programme_type'],
                     'size_band' => (string) $row['size_band'],
                     'cost_per_beneficiary' => (float) $row['cost_per_beneficiary'],
+                    'sample_size' => (int) ($row['sample_size'] ?? $row['comparable_organisations'] ?? $row['n'] ?? 0),
                 ])
                 ->values()
                 ->all();
@@ -365,11 +379,19 @@ final class NpoValueCalculator
                     'programme_type' => (string) $programmeType,
                     'size_band' => (string) $sizeBand,
                     'cost_per_beneficiary' => (float) (is_array($value) ? ($value['cost_per_beneficiary'] ?? 0) : $value),
+                    'sample_size' => (int) (is_array($value) ? ($value['sample_size'] ?? $value['comparable_organisations'] ?? $value['n'] ?? 0) : 0),
                 ];
             }
         }
 
         return array_values(array_filter($rows, fn (array $row): bool => $row['cost_per_beneficiary'] > 0));
+    }
+
+    private function minimumCpbComparableSample(): int
+    {
+        $definition = $this->registry->definition(LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS);
+
+        return max(5, (int) data_get($definition, 'metadata.min_sample_guard.programme_type_size_band', 5));
     }
 
     /**
