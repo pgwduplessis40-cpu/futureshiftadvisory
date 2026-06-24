@@ -1,12 +1,43 @@
-import { Head, Link } from '@inertiajs/react';
+import { Form, Head, Link } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
+import { useEffect, useState } from 'react';
+import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';
+import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
+import { enable } from '@/routes/two-factor';
 
 type Props = {
+    canManageTwoFactor: boolean;
+    hasPendingTwoFactorSetup: boolean;
+    requiresConfirmation: boolean;
     securityUrl: string;
+    twoFactorEnabled: boolean;
 };
 
-export default function MfaSetup({ securityUrl }: Props) {
+export default function MfaSetup({
+    canManageTwoFactor,
+    hasPendingTwoFactorSetup,
+    requiresConfirmation,
+    securityUrl,
+    twoFactorEnabled,
+}: Props) {
+    const {
+        qrCodeSvg,
+        manualSetupKey,
+        clearSetupData,
+        fetchSetupData,
+        errors,
+    } = useTwoFactorAuth();
+    const [showSetupModal, setShowSetupModal] = useState(
+        hasPendingTwoFactorSetup,
+    );
+
+    useEffect(() => {
+        if (hasPendingTwoFactorSetup) {
+            setShowSetupModal(true);
+        }
+    }, [hasPendingTwoFactorSetup]);
+
     return (
         <>
             <Head title="Set up MFA" />
@@ -16,18 +47,55 @@ export default function MfaSetup({ securityUrl }: Props) {
                     <ShieldCheck className="size-6" aria-hidden="true" />
                     <div>
                         <h1 className="text-lg font-semibold">
-                            Multi-factor authentication
+                            Set up two-factor authentication
                         </h1>
                         <p className="text-sm text-muted-foreground">
-                            Set up an authenticator app before continuing.
+                            Use Google Authenticator or another authenticator
+                            app to secure this account.
                         </p>
                     </div>
                 </div>
 
-                <Button asChild>
-                    <Link href={securityUrl}>Open security settings</Link>
-                </Button>
+                {canManageTwoFactor ? (
+                    hasPendingTwoFactorSetup ? (
+                        <Button
+                            type="button"
+                            onClick={() => setShowSetupModal(true)}
+                        >
+                            <ShieldCheck />
+                            Continue 2FA setup
+                        </Button>
+                    ) : (
+                        <Form
+                            {...enable.form()}
+                            onSuccess={() => setShowSetupModal(true)}
+                        >
+                            {({ processing }) => (
+                                <Button type="submit" disabled={processing}>
+                                    <ShieldCheck />
+                                    Enable 2FA
+                                </Button>
+                            )}
+                        </Form>
+                    )
+                ) : (
+                    <Button asChild>
+                        <Link href={securityUrl}>Open security settings</Link>
+                    </Button>
+                )}
             </div>
+
+            <TwoFactorSetupModal
+                isOpen={showSetupModal}
+                onClose={() => setShowSetupModal(false)}
+                requiresConfirmation={requiresConfirmation}
+                twoFactorEnabled={twoFactorEnabled}
+                qrCodeSvg={qrCodeSvg}
+                manualSetupKey={manualSetupKey}
+                clearSetupData={clearSetupData}
+                fetchSetupData={fetchSetupData}
+                errors={errors}
+            />
         </>
     );
 }

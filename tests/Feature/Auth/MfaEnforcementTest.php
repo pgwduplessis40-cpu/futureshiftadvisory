@@ -7,6 +7,7 @@ namespace Tests\Feature\Auth;
 use App\Models\MfaFactor;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Laravel\Fortify\Events\TwoFactorAuthenticationConfirmed;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
@@ -22,6 +23,42 @@ final class MfaEnforcementTest extends TestCase
         $this->actingAs($user)
             ->get(route('dashboard'))
             ->assertRedirect(route('mfa.setup'));
+    }
+
+    public function test_mfa_setup_page_shows_guided_setup_state(): void
+    {
+        $user = User::factory()->create();
+
+        $this->actingAs($user)
+            ->get(route('mfa.setup'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('auth/mfa-setup')
+                ->where('canManageTwoFactor', true)
+                ->where('twoFactorEnabled', false)
+                ->where('hasPendingTwoFactorSetup', false)
+                ->where('requiresConfirmation', true)
+            );
+    }
+
+    public function test_mfa_setup_page_continues_pending_unconfirmed_secret(): void
+    {
+        $user = User::factory()->create([
+            'two_factor_secret' => encrypt('pending-secret'),
+            'two_factor_recovery_codes' => encrypt(json_encode(['recovery-code-1'])),
+            'two_factor_confirmed_at' => null,
+            'mfa_enabled_at' => null,
+            'mfa_method' => null,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('mfa.setup'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('auth/mfa-setup')
+                ->where('twoFactorEnabled', false)
+                ->where('hasPendingTwoFactorSetup', true)
+            );
     }
 
     public function test_mfa_enrolled_user_without_verified_session_is_redirected_to_challenge(): void

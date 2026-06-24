@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Auth;
 
+use App\Enums\EntrepreneurStage;
+use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
 use App\Models\User;
@@ -108,6 +110,50 @@ final class InviteFlowTest extends TestCase
 
         $this->assertSame((string) $user->getKey(), (string) $member->refresh()->user_id);
         $this->assertSame(PanelMember::STATUS_INVITED, $member->status);
+    }
+
+    public function test_entrepreneur_login_reconciles_pending_invite_profile(): void
+    {
+        Mail::fake();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'tania@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+        );
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $issued->invite->getKey(),
+            'name' => 'Tania Hassounia',
+            'email' => 'tania@example.test',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Invite should reconcile on login.',
+        ]);
+        $user = User::factory()->create([
+            'name' => 'Tania Hassounia',
+            'email' => 'tania@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => 'tania@example.test',
+            'password' => 'password',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame($user->getKey(), $profile->refresh()->user_id);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+        $this->assertNotNull($issued->invite->refresh()->accepted_at);
+        $this->assertSame($user->getKey(), $issued->invite->accepted_by_user_id);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.onboarding_started',
+            'subject_id' => $profile->id,
+        ]);
     }
 
     public function test_invite_tokens_are_one_shot(): void

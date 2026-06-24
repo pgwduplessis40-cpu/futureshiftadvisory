@@ -43,6 +43,7 @@ class SecurityController extends Controller implements HasMiddleware
             abort_unless($user instanceof User, 403);
 
             $props['twoFactorEnabled'] = $user->hasEnabledTwoFactorAuthentication();
+            $props['hasPendingTwoFactorSetup'] = $user->two_factor_secret !== null && ! $user->hasEnabledTwoFactorAuthentication();
             $props['requiresConfirmation'] = Features::optionEnabled(Features::twoFactorAuthentication(), 'confirm');
             $props['canDisableTwoFactor'] = $user->user_type !== User::TYPE_ENTREPRENEUR;
         }

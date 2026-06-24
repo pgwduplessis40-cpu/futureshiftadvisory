@@ -16,6 +16,7 @@ import { disable, enable } from '@/routes/two-factor';
 type Props = {
     canManageTwoFactor?: boolean;
     canDisableTwoFactor?: boolean;
+    hasPendingTwoFactorSetup?: boolean;
     requiresConfirmation?: boolean;
     twoFactorEnabled?: boolean;
     passwordRules: string;
@@ -24,6 +25,7 @@ type Props = {
 export default function Security({
     canManageTwoFactor = false,
     canDisableTwoFactor = true,
+    hasPendingTwoFactorSetup = false,
     requiresConfirmation = false,
     twoFactorEnabled = false,
     passwordRules,
@@ -52,6 +54,12 @@ export default function Security({
 
         prevTwoFactorEnabled.current = twoFactorEnabled;
     }, [twoFactorEnabled, clearTwoFactorAuthData]);
+
+    useEffect(() => {
+        if (hasPendingTwoFactorSetup) {
+            setShowSetupModal(true);
+        }
+    }, [hasPendingTwoFactorSetup]);
 
     return (
         <>
@@ -207,7 +215,7 @@ export default function Security({
                             </p>
 
                             <div>
-                                {hasSetupData ? (
+                                {hasPendingTwoFactorSetup || hasSetupData ? (
                                     <Button
                                         onClick={() => setShowSetupModal(true)}
                                     >

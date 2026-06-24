@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import challengeF9272e from './challenge'
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 export const setup = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ setup.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 setup.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ setup.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 setup.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ setup.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 setup.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ setup.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
     const setupForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ setup.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
         setupForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -64,7 +64,7 @@ setup.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::setup
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
         setupForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

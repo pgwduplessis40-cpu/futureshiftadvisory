@@ -158,7 +158,10 @@ function TwoFactorVerificationStep({
                 errors,
             }: {
                 processing: boolean;
-                errors?: { confirmTwoFactorAuthentication?: { code?: string } };
+                errors?: {
+                    code?: string;
+                    confirmTwoFactorAuthentication?: { code?: string };
+                };
             }) => (
                 <>
                     <div
@@ -170,6 +173,7 @@ function TwoFactorVerificationStep({
                                 id="otp"
                                 name="code"
                                 maxLength={OTP_MAX_LENGTH}
+                                value={code}
                                 onChange={setCode}
                                 disabled={processing}
                                 pattern={REGEXP_ONLY_DIGITS}
@@ -189,7 +193,8 @@ function TwoFactorVerificationStep({
                             </InputOTP>
                             <InputError
                                 message={
-                                    errors?.confirmTwoFactorAuthentication?.code
+                                    errors?.confirmTwoFactorAuthentication
+                                        ?.code ?? errors?.code
                                 }
                             />
                         </div>

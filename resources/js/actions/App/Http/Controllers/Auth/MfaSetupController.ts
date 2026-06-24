@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 export const show = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 show.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ show.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 show.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ show.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
 show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
     const showForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
         showForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Auth\MfaSetupController::show
- * @see app/Http/Controllers/Auth/MfaSetupController.php:19
+ * @see app/Http/Controllers/Auth/MfaSetupController.php:24
  * @route '/mfa/setup'
  */
         showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
