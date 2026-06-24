@@ -51,6 +51,71 @@ final class PanelAdminQueueTest extends TestCase
         ]);
     }
 
+    public function test_admin_can_approve_current_broker_application(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $broker = $this->panelUser(User::TYPE_BROKER, 'queue-current-broker@example.test');
+        $member = app(PanelOnboarding::class)->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'Queue Current Brokers Limited',
+            'fsp_number' => 'FSP100001',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.panel-members.approve', $member))
+            ->assertRedirect(route('admin.panel-members.index', absolute: false))
+            ->assertSessionDoesntHaveErrors();
+
+        $member->refresh();
+
+        $this->assertSame(PanelMember::STATUS_APPROVED_PENDING_AGREEMENT, $member->status);
+        $this->assertSame(PanelMember::FSP_STATUS_CURRENT, $member->fsp_status);
+        $this->assertSame(PanelAgreement::STATUS_PENDING_SIGNATURE, $member->agreements()->firstOrFail()->status);
+    }
+
+    public function test_admin_broker_approval_returns_validation_error_when_fsp_is_not_current(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $broker = $this->panelUser(User::TYPE_BROKER, 'queue-lapsed-broker@example.test');
+        $member = app(PanelOnboarding::class)->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'Queue Lapsed Brokers Limited',
+            'fsp_number' => 'FSP999999',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.panel-members.index'))
+            ->patch(route('admin.panel-members.approve', $member))
+            ->assertRedirect(route('admin.panel-members.index', absolute: false))
+            ->assertSessionHasErrors([
+                'approve' => 'Broker FSP registration must be current before approval.',
+            ]);
+
+        $this->assertSame(PanelMember::STATUS_APPLICATION_PENDING, $member->refresh()->status);
+        $this->assertFalse($member->agreements()->exists());
+    }
+
+    public function test_admin_broker_approval_returns_validation_error_when_fsp_is_missing(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $broker = $this->panelUser(User::TYPE_BROKER, 'queue-missing-fsp-broker@example.test');
+        $member = app(PanelOnboarding::class)->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'Queue Missing FSP Brokers Limited',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.panel-members.index'))
+            ->patch(route('admin.panel-members.approve', $member))
+            ->assertRedirect(route('admin.panel-members.index', absolute: false))
+            ->assertSessionHasErrors([
+                'approve' => 'Broker application requires an FSP number.',
+            ]);
+
+        $this->assertSame(PanelMember::STATUS_APPLICATION_PENDING, $member->refresh()->status);
+        $this->assertFalse($member->agreements()->exists());
+    }
+
     public function test_admin_can_request_information_or_decline_panel_application_with_reason(): void
     {
         $this->seed(RoleSeeder::class);

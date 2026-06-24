@@ -1,5 +1,11 @@
-import { Head, router } from '@inertiajs/react';
-import { CheckCircle2, Info, ShieldCheck, XCircle } from 'lucide-react';
+import { Head, router, usePage } from '@inertiajs/react';
+import {
+    AlertTriangle,
+    CheckCircle2,
+    Info,
+    ShieldCheck,
+    XCircle,
+} from 'lucide-react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -31,6 +37,9 @@ export default function PanelMembersIndex({
 }: {
     members: PanelMember[];
 }) {
+    const page = usePage();
+    const errors = page.props.errors as Record<string, string | undefined>;
+
     return (
         <>
             <Head title="Panel applications" />
@@ -61,6 +70,19 @@ export default function PanelMembersIndex({
                     </Tooltip>
                 </header>
 
+                {errors.approve && (
+                    <div
+                        role="alert"
+                        className="flex items-start gap-2 rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2 text-sm text-destructive"
+                    >
+                        <AlertTriangle
+                            className="mt-0.5 size-4 shrink-0"
+                            aria-hidden="true"
+                        />
+                        <span>{errors.approve}</span>
+                    </div>
+                )}
+
                 {members.length === 0 ? (
                     <p className="rounded-md border px-3 py-8 text-sm text-muted-foreground">
                         No panel applications need a decision.
@@ -82,6 +104,9 @@ function PanelMemberCard({ member }: { member: PanelMember }) {
     const canDecide = !['approved_pending_agreement', 'declined'].includes(
         member.status,
     );
+    const brokerMissingFsp =
+        member.panel_type === 'broker' && !member.fsp_number;
+    const canApprove = canDecide && !brokerMissingFsp;
 
     return (
         <article className="grid gap-4 rounded-md border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.55fr)]">
@@ -121,6 +146,12 @@ function PanelMemberCard({ member }: { member: PanelMember }) {
                         {member.review.reason}
                     </p>
                 )}
+                {brokerMissingFsp && (
+                    <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                        Broker approval requires an FSP number. Request more
+                        information before approving this application.
+                    </p>
+                )}
             </div>
 
             <div className="grid gap-3">
@@ -139,7 +170,7 @@ function PanelMemberCard({ member }: { member: PanelMember }) {
                     <Button
                         type="button"
                         size="sm"
-                        disabled={!canDecide}
+                        disabled={!canApprove}
                         onClick={() => router.patch(member.approve_url)}
                     >
                         <CheckCircle2 className="size-4" aria-hidden="true" />

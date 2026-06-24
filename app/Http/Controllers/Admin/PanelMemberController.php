@@ -10,8 +10,10 @@ use App\Models\User;
 use App\Services\Panels\PanelOnboarding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
+use InvalidArgumentException;
 
 final class PanelMemberController extends Controller
 {
@@ -57,7 +59,13 @@ final class PanelMemberController extends Controller
             'terms' => ['nullable', 'array'],
         ]);
 
-        $onboarding->approve($panelMember, $admin, $validated['terms'] ?? []);
+        try {
+            $onboarding->approve($panelMember, $admin, $validated['terms'] ?? []);
+        } catch (InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'approve' => $exception->getMessage(),
+            ]);
+        }
 
         return to_route('admin.panel-members.index')->with('status', 'panel-member-approved');
     }
