@@ -1086,7 +1086,7 @@ function GamificationPanel({
                 <div className="rounded-md border bg-background p-4">
                     <div className="text-xs text-muted-foreground">Level</div>
                     <div className="mt-2 text-sm font-medium">
-                        {gamification.current_level?.label ?? '-'}
+                        {journeyLevelLabel(gamification.current_level)}
                     </div>
                 </div>
                 <div className="rounded-md border bg-background p-4">
@@ -1138,7 +1138,7 @@ function GamificationPanel({
                 </div>
             ) : gamification.next_milestone ? (
                 <div className="text-sm text-muted-foreground">
-                    Next: {gamification.next_milestone.label}
+                    Next: {nextMilestoneLabel(gamification.next_milestone)}
                 </div>
             ) : null}
         </section>
@@ -1173,7 +1173,10 @@ function statusDetails(
     latestAssessment: AssessmentLink | null,
     readiness: NonNullable<EntrepreneurProfile>['advisory_readiness_signal'],
 ) {
-    const stageLabel = profile?.stage_label ?? 'Onboarding';
+    const stageLabel = displayStageLabel(
+        profile?.stage,
+        profile?.stage_label ?? 'Onboarding',
+    );
     const threshold = readiness?.threshold ?? 75;
     const score =
         latestAssessment?.weighted_score ??
@@ -1252,6 +1255,41 @@ function statusDetails(
         className: 'border-slate-200 bg-slate-50 text-slate-700',
         dotClassName: 'bg-slate-400',
     };
+}
+
+function displayStageLabel(
+    stage: string | null | undefined,
+    label: string | null | undefined,
+): string {
+    if (stage === 'onboarding' || label === 'Onboarding') {
+        return 'Getting started';
+    }
+
+    return label ?? '-';
+}
+
+function journeyLevelLabel(
+    level: GamificationPayload['current_level'] | undefined,
+): string {
+    if (!level) {
+        return '-';
+    }
+
+    if (level.stage === 'onboarding') {
+        return level.phase
+            ? `Getting started phase ${level.phase}`
+            : 'Getting started';
+    }
+
+    return level.label;
+}
+
+function nextMilestoneLabel(
+    milestone: NonNullable<GamificationPayload['next_milestone']>,
+): string {
+    return milestone.key === 'idea_validated'
+        ? 'Idea validation'
+        : milestone.label;
 }
 
 function ActionPanel({

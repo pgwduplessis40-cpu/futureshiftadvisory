@@ -145,6 +145,8 @@ type GamificationPayload = {
     disable_request_requested: boolean;
     disable_request_thread_url: string | null;
     current_level?: {
+        stage?: string;
+        phase?: number | null;
         label: string;
     };
     plan_completion?: {
@@ -476,7 +478,11 @@ export default function EntrepreneurPlan({
                             Business plan workspace
                         </h1>
                         <div className="text-sm text-muted-foreground">
-                            {profile.name} / {profile.stage_label}
+                            {profile.name} /{' '}
+                            {displayStageLabel(
+                                profile.stage,
+                                profile.stage_label,
+                            )}
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -530,8 +536,9 @@ export default function EntrepreneurPlan({
                                 </div>
                                 <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                                     <span>
-                                        {gamification.current_level?.label ??
-                                            'Journey active'}
+                                        {journeyLevelLabel(
+                                            gamification.current_level,
+                                        )}
                                     </span>
                                     <span>
                                         Plan{' '}
@@ -796,7 +803,9 @@ export default function EntrepreneurPlan({
                                     gamification.next_milestone ? (
                                         <p className="mt-1 text-xs text-muted-foreground">
                                             Next badge:{' '}
-                                            {gamification.next_milestone.label}
+                                            {nextMilestoneLabel(
+                                                gamification.next_milestone,
+                                            )}
                                         </p>
                                     ) : null}
                                 </div>
@@ -1265,7 +1274,10 @@ export default function EntrepreneurPlan({
                                 <Detail label="Email" value={profile.email} />
                                 <Detail
                                     label="Stage"
-                                    value={profile.stage_label}
+                                    value={displayStageLabel(
+                                        profile.stage,
+                                        profile.stage_label,
+                                    )}
                                 />
                                 <Detail
                                     label="Concept"
@@ -1394,6 +1406,41 @@ function findSection(
 
 function requirementId(requirement: PlanRequirementPayload): string {
     return `${requirement.phase_key}:${requirement.key}`;
+}
+
+function displayStageLabel(
+    stage: string | null | undefined,
+    label: string | null | undefined,
+): string {
+    if (stage === 'onboarding' || label === 'Onboarding') {
+        return 'Getting started';
+    }
+
+    return label ?? '-';
+}
+
+function journeyLevelLabel(
+    level: GamificationPayload['current_level'] | undefined,
+): string {
+    if (!level) {
+        return 'Journey active';
+    }
+
+    if (level.stage === 'onboarding') {
+        return level.phase
+            ? `Getting started phase ${level.phase}`
+            : 'Getting started';
+    }
+
+    return level.label;
+}
+
+function nextMilestoneLabel(
+    milestone: NonNullable<GamificationPayload['next_milestone']>,
+): string {
+    return milestone.label === 'Idea validated'
+        ? 'Idea validation'
+        : milestone.label;
 }
 
 function formatLabel(value: string): string {
