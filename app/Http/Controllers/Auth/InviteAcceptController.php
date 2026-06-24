@@ -18,7 +18,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 use Spatie\Permission\Models\Role;
@@ -95,16 +97,18 @@ final class InviteAcceptController extends Controller
         ]);
 
         $user = DB::transaction(function () use ($invite, $validated): User {
-            $user = User::query()->create([
+            $user = $this->activationUser($invite);
+
+            $user->forceFill([
                 'name' => $validated['name'],
-                'email' => $invite->email,
+                'email' => Str::lower(trim((string) $invite->email)),
                 'mobile_phone' => $validated['mobile_phone'],
                 'email_verified_at' => now(),
                 'password' => $validated['password'],
                 'user_type' => $invite->target_user_type,
                 'primary_role' => $invite->target_role,
                 'last_password_set_at' => now(),
-            ]);
+            ])->save();
 
             if (Role::query()->where('name', $invite->target_role)->where('guard_name', 'web')->exists()) {
                 $user->assignRole($invite->target_role);
@@ -140,6 +144,29 @@ final class InviteAcceptController extends Controller
         ]);
 
         return redirect()->route('mfa.setup');
+    }
+
+    private function activationUser(InviteToken $invite): User
+    {
+        $email = Str::lower(trim((string) $invite->email));
+        $existing = User::query()
+            ->whereRaw('lower(trim(email)) = ?', [$email])
+            ->lockForUpdate()
+            ->first();
+
+        if (! $existing instanceof User) {
+            return new User;
+        }
+
+        $existingUserType = (string) ($existing->user_type ?? '');
+
+        if (! in_array($existingUserType, ['', $invite->target_user_type], true)) {
+            throw ValidationException::withMessages([
+                'email' => 'This invitation email is already attached to a different account type. Ask your advisor to issue a fresh invitation to the correct email address.',
+            ]);
+        }
+
+        return $existing;
     }
 
     private function usableInvite(string $token): InviteToken
@@ -216,10 +243,6 @@ final class InviteAcceptController extends Controller
 
         if (! $profile instanceof EntrepreneurProfile) {
             return null;
-        }
-
-        if ($profile->user_id !== null && (string) $profile->user_id !== (string) $user->getKey()) {
-            return $profile;
         }
 
         $updates = [

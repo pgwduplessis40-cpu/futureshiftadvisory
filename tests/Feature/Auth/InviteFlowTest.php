@@ -196,6 +196,48 @@ final class InviteFlowTest extends TestCase
         $this->assertNotNull($fresh->invite->refresh()->accepted_at);
     }
 
+    public function test_accepting_entrepreneur_invite_reuses_existing_entrepreneur_user(): void
+    {
+        Mail::fake();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'wessel@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+        );
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $existingUser = User::factory()->create([
+            'name' => 'Wessel',
+            'email' => 'wessel@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $issued->invite->getKey(),
+            'name' => 'Wessel',
+            'email' => 'wessel@example.test',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Existing user should be activated from invite without creating a duplicate.',
+        ]);
+
+        $this->post(route('invite.store', $issued->plainToken), [
+            'name' => 'Wessel',
+            'mobile_phone' => '+64 21 123 4567',
+            'password' => 'A-secure-password-123',
+            'password_confirmation' => 'A-secure-password-123',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $this->assertAuthenticatedAs($existingUser->refresh());
+        $this->assertDatabaseCount('users', 2);
+        $this->assertSame((string) $existingUser->getKey(), (string) $profile->refresh()->user_id);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+        $this->assertSame((string) $existingUser->getKey(), (string) $issued->invite->refresh()->accepted_by_user_id);
+    }
+
     public function test_entrepreneur_login_reconciles_pending_invite_profile(): void
     {
         Mail::fake();
