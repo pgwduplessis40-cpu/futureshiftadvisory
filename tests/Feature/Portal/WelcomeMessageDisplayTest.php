@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature\Portal;
 
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\Welcome\WelcomeMessageManager;
@@ -52,6 +54,38 @@ final class WelcomeMessageDisplayTest extends TestCase
                 ->component('portal/Dashboard')
                 ->where('welcomeMessage.has_message', true)
                 ->where('welcomeMessage.version', 1)
+            );
+    }
+
+    public function test_welcome_message_is_provided_to_the_entrepreneur_dashboard(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $user = User::factory()->withTwoFactor()->create([
+            'name' => 'Wessel Du Plessis',
+            'email' => 'wessel@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $user->assignRole(User::TYPE_ENTREPRENEUR);
+
+        EntrepreneurProfile::query()->create([
+            'user_id' => $user->getKey(),
+            'name' => 'Wessel',
+            'email' => $user->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Testing the entrepreneur welcome flow.',
+        ]);
+
+        $this->publishWelcomeMessage();
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/entrepreneur/Dashboard')
+                ->where('welcomeMessage.has_message', true)
+                ->where('welcomeMessage.version', 1)
+                ->has('welcomeMessage.html')
             );
     }
 

@@ -145,6 +145,12 @@ type GamificationPayload = {
     } | null;
 };
 
+type WelcomeMessage = {
+    has_message: boolean;
+    html: string;
+    version: number | null;
+};
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -155,6 +161,7 @@ type Props = {
     settingsUrl: string;
     surveys: PendingSurveysPayload;
     gamification: GamificationPayload;
+    welcomeMessage: WelcomeMessage;
 };
 
 export default function EntrepreneurDashboard({
@@ -167,6 +174,7 @@ export default function EntrepreneurDashboard({
     settingsUrl,
     surveys,
     gamification,
+    welcomeMessage,
 }: Props) {
     const [documents, setDocuments] = useState<UploadedDocument[]>(
         profile?.latest_documents ?? [],
@@ -266,6 +274,10 @@ export default function EntrepreneurDashboard({
 
                 {inspirationBoard ? (
                     <InspirationCard post={inspirationBoard} />
+                ) : null}
+
+                {welcomeMessage.has_message ? (
+                    <WelcomeBanner welcomeMessage={welcomeMessage} />
                 ) : null}
 
                 {gamification.enabled ? (
@@ -857,6 +869,52 @@ function StatusBadge({
     );
 }
 
+function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
+    const storageKey = `fs-entrepreneur-welcome-dismissed-v${welcomeMessage.version ?? 0}`;
+    const [dismissed, setDismissed] = useState<boolean>(() => {
+        if (typeof window === 'undefined') {
+            return false;
+        }
+
+        try {
+            return window.localStorage.getItem(storageKey) === '1';
+        } catch {
+            return false;
+        }
+    });
+
+    if (dismissed) {
+        return null;
+    }
+
+    const dismiss = () => {
+        setDismissed(true);
+
+        try {
+            window.localStorage.setItem(storageKey, '1');
+        } catch {
+            // Dismissal is best-effort if browser storage is unavailable.
+        }
+    };
+
+    return (
+        <section
+            aria-label="Welcome message"
+            className="rounded-md border border-[var(--fs-linen)] bg-[var(--fs-linen)]/50 p-5"
+        >
+            <div
+                className="text-sm leading-relaxed text-foreground [&_a]:text-[var(--fs-admiralty)] [&_a]:underline [&_p]:mb-3 [&_p:last-child]:mb-0 [&_strong]:font-semibold"
+                dangerouslySetInnerHTML={{ __html: welcomeMessage.html }}
+            />
+            <div className="mt-4 flex justify-end">
+                <Button variant="ghost" size="sm" onClick={dismiss}>
+                    Dismiss
+                </Button>
+            </div>
+        </section>
+    );
+}
+
 function DashboardSection({
     title,
     description,
@@ -1001,7 +1059,8 @@ function GamificationPanel({
                         {gamification.current_streak ?? 0} days
                     </div>
                     <div className="mt-1 text-xs text-muted-foreground">
-                        Last active {formatDate(gamification.last_active_at ?? null)}
+                        Last active{' '}
+                        {formatDate(gamification.last_active_at ?? null)}
                     </div>
                 </div>
             </div>

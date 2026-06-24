@@ -2,7 +2,6 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     Bot,
     CheckCircle2,
-    ClipboardCheck,
     Eye,
     FileText,
     MessageSquare,
@@ -12,7 +11,7 @@ import {
     Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent, ReactNode } from 'react';
+import type { ComponentType, FormEvent, ReactNode } from 'react';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -32,19 +31,6 @@ type ProfilePayload = {
     stage: string;
     stage_label: string;
     concept_summary: string | null;
-};
-
-type ReadinessPayload = {
-    completed: boolean;
-    score: number | null;
-    outcome: string | null;
-    assessed_at: string | null;
-    personal_barriers: string[];
-};
-
-type ReadinessField = {
-    key: string;
-    label: string;
 };
 
 type IdeaValidationPayload = {
@@ -170,8 +156,6 @@ type GamificationPayload = {
 
 type Props = {
     profile: ProfilePayload;
-    readiness: ReadinessPayload;
-    readinessFields: ReadinessField[];
     ideaValidation: IdeaValidationPayload;
     plan: BusinessPlanPayload;
     planTemplate: PlanTemplatePhasePayload[];
@@ -180,7 +164,6 @@ type Props = {
     gamification: GamificationPayload;
     urls: {
         dashboard: string;
-        readiness: string;
         ideaValidation: string;
         startPlan: string;
         sectionStore: string;
@@ -196,8 +179,6 @@ type Tab = 'actions' | 'information';
 
 export default function EntrepreneurPlan({
     profile,
-    readiness,
-    readinessFields,
     ideaValidation,
     plan,
     planTemplate,
@@ -207,13 +188,6 @@ export default function EntrepreneurPlan({
     urls,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
-    const [readinessForm, setReadinessForm] = useState<Record<string, string>>(
-        () =>
-            Object.fromEntries(
-                readinessFields.map((field) => [field.key, '3']),
-            ),
-    );
-    const [personalBarriers, setPersonalBarriers] = useState('');
     const [ideaForm, setIdeaForm] = useState({
         problem: ideaValidation?.problem ?? '',
         target_customer: ideaValidation?.target_customer ?? '',
@@ -267,18 +241,6 @@ export default function EntrepreneurPlan({
         /* eslint-enable react-hooks/set-state-in-effect */
     }, [selectedRequirement, plan]);
 
-    const submitReadiness = (event: FormEvent<HTMLFormElement>) => {
-        event.preventDefault();
-        router.post(
-            urls.readiness,
-            {
-                ...readinessForm,
-                personal_barriers: personalBarriers,
-            },
-            { preserveScroll: true },
-        );
-    };
-
     const submitIdea = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
         router.post(urls.ideaValidation, ideaForm, { preserveScroll: true });
@@ -297,7 +259,11 @@ export default function EntrepreneurPlan({
     };
 
     const requestGamificationDisablement = () => {
-        router.post(gamification.disable_request_url, {}, { preserveScroll: true });
+        router.post(
+            gamification.disable_request_url,
+            {},
+            { preserveScroll: true },
+        );
     };
 
     const saveSection = async () => {
@@ -435,8 +401,7 @@ export default function EntrepreneurPlan({
                                         Streak{' '}
                                         {gamification.current_streak ?? 0} days
                                     </span>
-                                    {(gamification.new_badge_count ?? 0) >
-                                    0 ? (
+                                    {(gamification.new_badge_count ?? 0) > 0 ? (
                                         <span>
                                             {gamification.new_badge_count} new
                                             badges
@@ -485,30 +450,13 @@ export default function EntrepreneurPlan({
                                     Priority actions
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Complete readiness, validate the idea, build
-                                    the plan, then request advisory when
+                                    Validate the idea, complete the plan
+                                    requirements, then request advisory when
                                     assessment feedback is ready.
                                 </p>
                             </div>
 
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
-                                <ActionPanel
-                                    icon={ClipboardCheck}
-                                    title="Readiness"
-                                    value={
-                                        readiness.completed
-                                            ? `${readiness.score?.toFixed(1)}/100`
-                                            : 'Not completed'
-                                    }
-                                    explanation="Readiness checks whether the founder has the clarity, capacity, evidence, and support to keep building."
-                                >
-                                    <Badge variant="outline">
-                                        {readiness.outcome
-                                            ? formatLabel(readiness.outcome)
-                                            : 'Needed'}
-                                    </Badge>
-                                </ActionPanel>
-
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                                 <ActionPanel
                                     icon={Bot}
                                     title="Idea validation"
@@ -651,131 +599,6 @@ export default function EntrepreneurPlan({
                                 </ActionPanel>
                             </div>
                         </section>
-
-                        <div className="grid gap-6 xl:grid-cols-[0.95fr_1.4fr]">
-                            <section className="space-y-4 rounded-md border bg-background p-4">
-                                <div>
-                                    <h2 className="text-sm font-medium">
-                                        Readiness assessment
-                                    </h2>
-                                    <p className="mt-1 text-sm text-muted-foreground">
-                                        Rate each area from 0 to 5. The score
-                                        decides whether to proceed, develop
-                                        first, or pause.
-                                    </p>
-                                </div>
-                                <form
-                                    className="space-y-3"
-                                    onSubmit={submitReadiness}
-                                >
-                                    {readinessFields.map((field) => (
-                                        <label
-                                            key={field.key}
-                                            className="grid gap-1 text-sm"
-                                        >
-                                            <span>{field.label}</span>
-                                            <input
-                                                type="number"
-                                                min={0}
-                                                max={5}
-                                                step={1}
-                                                value={
-                                                    readinessForm[field.key] ??
-                                                    '3'
-                                                }
-                                                onChange={(event) =>
-                                                    setReadinessForm(
-                                                        (current) => ({
-                                                            ...current,
-                                                            [field.key]:
-                                                                event.target
-                                                                    .value,
-                                                        }),
-                                                    )
-                                                }
-                                                className="h-9 rounded-md border bg-background px-3 text-sm"
-                                            />
-                                        </label>
-                                    ))}
-                                    <label className="grid gap-1 text-sm">
-                                        <span>Personal barriers</span>
-                                        <textarea
-                                            value={personalBarriers}
-                                            onChange={(event) =>
-                                                setPersonalBarriers(
-                                                    event.target.value,
-                                                )
-                                            }
-                                            rows={3}
-                                            className="rounded-md border bg-background px-3 py-2 text-sm"
-                                            placeholder="Optional: time, confidence, support, runway, wellbeing, or other constraints."
-                                        />
-                                    </label>
-                                    <Button type="submit" size="sm">
-                                        Save readiness
-                                    </Button>
-                                </form>
-                            </section>
-
-                            <section className="space-y-4 rounded-md border bg-background p-4">
-                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                    <div>
-                                        <h2 className="text-sm font-medium">
-                                            Idea validation
-                                        </h2>
-                                        <p className="mt-1 text-sm text-muted-foreground">
-                                            Capture the assumptions your advisor
-                                            must approve before plan building
-                                            opens.
-                                        </p>
-                                    </div>
-                                    {ideaValidation?.advisor_gate_passed_at ? (
-                                        <Badge variant="secondary">
-                                            Gate passed
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline">
-                                            Advisor gate required
-                                        </Badge>
-                                    )}
-                                </div>
-                                <form
-                                    className="grid gap-3 lg:grid-cols-2"
-                                    onSubmit={submitIdea}
-                                >
-                                    {ideaFields.map((field) => (
-                                        <label
-                                            key={field.key}
-                                            className="grid gap-1 text-sm"
-                                        >
-                                            <span>{field.label}</span>
-                                            <textarea
-                                                value={
-                                                    ideaForm[
-                                                        field.key as keyof typeof ideaForm
-                                                    ]
-                                                }
-                                                onChange={(event) =>
-                                                    setIdeaForm((current) => ({
-                                                        ...current,
-                                                        [field.key]:
-                                                            event.target.value,
-                                                    }))
-                                                }
-                                                rows={4}
-                                                className="rounded-md border bg-background px-3 py-2 text-sm"
-                                                placeholder={field.placeholder}
-                                            />
-                                        </label>
-                                    ))}
-                                    <div className="lg:col-span-2">
-                                        <Button type="submit" size="sm">
-                                            Submit idea validation
-                                        </Button>
-                                    </div>
-                                </form>
-                            </section>
-                        </div>
 
                         <section className="space-y-4 rounded-md border bg-background p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -996,6 +819,65 @@ export default function EntrepreneurPlan({
                                 </div>
                             </div>
                         </section>
+
+                        <section className="space-y-4 rounded-md border bg-background p-4">
+                            <div className="flex flex-wrap items-start justify-between gap-3">
+                                <div>
+                                    <h2 className="text-sm font-medium">
+                                        Idea validation
+                                    </h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Capture the customer problem, solution,
+                                        demand, and revenue logic your advisor
+                                        reviews before assessment.
+                                    </p>
+                                </div>
+                                {ideaValidation?.advisor_gate_passed_at ? (
+                                    <Badge variant="secondary">
+                                        Gate passed
+                                    </Badge>
+                                ) : (
+                                    <Badge variant="outline">
+                                        Advisor review
+                                    </Badge>
+                                )}
+                            </div>
+                            <form
+                                className="grid gap-3 lg:grid-cols-2"
+                                onSubmit={submitIdea}
+                            >
+                                {ideaFields.map((field) => (
+                                    <label
+                                        key={field.key}
+                                        className="grid gap-1 text-sm"
+                                    >
+                                        <span>{field.label}</span>
+                                        <textarea
+                                            value={
+                                                ideaForm[
+                                                    field.key as keyof typeof ideaForm
+                                                ]
+                                            }
+                                            onChange={(event) =>
+                                                setIdeaForm((current) => ({
+                                                    ...current,
+                                                    [field.key]:
+                                                        event.target.value,
+                                                }))
+                                            }
+                                            rows={4}
+                                            className="rounded-md border bg-background px-3 py-2 text-sm"
+                                            placeholder={field.placeholder}
+                                        />
+                                    </label>
+                                ))}
+                                <div className="lg:col-span-2">
+                                    <Button type="submit" size="sm">
+                                        Submit idea validation
+                                    </Button>
+                                </div>
+                            </form>
+                        </section>
                     </div>
                 ) : (
                     <div className="grid gap-6 lg:grid-cols-2">
@@ -1123,7 +1005,7 @@ function ActionPanel({
     explanation,
     children,
 }: {
-    icon: typeof ClipboardCheck;
+    icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     title: string;
     value: ReactNode;
     explanation: string;
@@ -1136,7 +1018,7 @@ function ActionPanel({
                     <div className="flex items-start justify-between gap-3">
                         <div>
                             <div className="flex items-center gap-2 text-sm font-medium">
-                                <Icon className="size-4" aria-hidden="true" />
+                                <Icon className="size-4" aria-hidden={true} />
                                 {title}
                             </div>
                             <div className="mt-2 text-sm text-muted-foreground">

@@ -7,6 +7,7 @@ namespace App\Services\Portal\Welcome;
 use App\Enums\EngagementType;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Models\WelcomeMessage;
 use Illuminate\Support\Str;
@@ -25,6 +26,35 @@ final class WelcomeMessageRenderer
     public function renderForClient(Client $client, ?User $contact): array
     {
         return $this->render($this->resolversForClient($client, $contact));
+    }
+
+    /**
+     * Render the active welcome message for an entrepreneur portal profile.
+     *
+     * @return array{has_message: bool, html: string, version: int|null}
+     */
+    public function renderForEntrepreneur(EntrepreneurProfile $profile, ?User $contact): array
+    {
+        return $this->render([
+            'contact_first_name' => static function () use ($contact): string {
+                if (! $contact instanceof User) {
+                    return '';
+                }
+
+                $name = trim((string) $contact->name);
+                $first = trim((string) Str::of($name)->before(' '));
+
+                return $first !== '' ? $first : $name;
+            },
+            'business_name' => static fn (): string => (string) $profile->name,
+            'practice_name' => static fn (): string => self::DEFAULT_PRACTICE_NAME,
+            'advisor_name' => static function () use ($profile): string {
+                $name = $profile->assignedAdvisor?->name;
+
+                return is_string($name) && trim($name) !== '' ? trim($name) : 'your advisory team';
+            },
+            'engagement_type_label' => static fn (): string => 'Entrepreneur Module',
+        ]);
     }
 
     /**

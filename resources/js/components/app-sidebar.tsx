@@ -209,6 +209,12 @@ const entrepreneurSurveysNavItem: NavItem = {
     icon: ClipboardCheck,
 };
 
+const entrepreneurBusinessPlanNavItem: NavItem = {
+    title: 'Business Plan',
+    href: '/portal/entrepreneur/plan',
+    icon: BookOpen,
+};
+
 const welcomeMessageNavItem: NavItem = {
     title: 'Welcome Message',
     href: '/admin/welcome-message',
@@ -233,6 +239,7 @@ const entrepreneurNavItems: NavItem[] = [
         href: '/portal/entrepreneur',
         icon: LayoutGrid,
     },
+    entrepreneurBusinessPlanNavItem,
     portalCalendarNavItem,
     portalInspirationNavItem,
     entrepreneurSurveysNavItem,

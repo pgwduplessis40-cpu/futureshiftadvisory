@@ -21,6 +21,7 @@ use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -33,6 +34,7 @@ final class EntrepreneurDashboardController extends Controller
         private readonly InspirationBoard $inspirationBoard,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly WelcomeMessageRenderer $welcomeMessage,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -120,6 +122,9 @@ final class EntrepreneurDashboardController extends Controller
                     'seen_url' => route('portal.entrepreneur.gamification.seen', absolute: false),
                 ]
                 : ['enabled' => false],
+            'welcomeMessage' => $profile
+                ? $this->welcomeMessage->renderForEntrepreneur($profile, $user)
+                : ['has_message' => false, 'html' => '', 'version' => null],
         ]);
     }
 
