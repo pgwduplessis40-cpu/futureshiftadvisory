@@ -210,6 +210,61 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertDatabaseCount('invite_tokens', 1);
     }
 
+    public function test_accepted_invite_state_is_visible_when_profile_stage_is_still_invited(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'accepted-stale@example.com',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            issuedBy: $advisor,
+        );
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'accepted-stale@example.com',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $issued->invite->markAccepted($entrepreneur);
+
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->id,
+            'invite_token_id' => $issued->invite->id,
+            'name' => 'Accepted Stale Founder',
+            'email' => 'accepted-stale@example.com',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Invite accepted while the workflow stage is still stale.',
+            'gamification_on' => true,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Index')
+                ->where('entrepreneurs.0.id', $profile->id)
+                ->where('entrepreneurs.0.stage', EntrepreneurStage::INVITED->value)
+                ->where('entrepreneurs.0.stage_label', 'Invite accepted')
+            );
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.stage', EntrepreneurStage::INVITED->value)
+                ->where('entrepreneur.stage_label', 'Invite accepted')
+                ->whereNot('entrepreneur.invite_accepted_at', null)
+                ->where('entrepreneur.invite_resend_url', null)
+                ->where('entrepreneur.invite_cancel_url', null)
+                ->where('entrepreneur.gamification.current_level.stage_label', 'Invite accepted')
+                ->where('entrepreneur.gamification.current_level.label', 'Invite accepted')
+            );
+    }
+
     public function test_accepting_invite_links_profile_and_moves_to_onboarding(): void
     {
         Mail::fake();

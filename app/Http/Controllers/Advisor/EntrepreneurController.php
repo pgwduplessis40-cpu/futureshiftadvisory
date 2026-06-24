@@ -317,9 +317,18 @@ final class EntrepreneurController extends Controller
             'name' => $profile->name,
             'email' => $profile->email,
             'stage' => $stage->value,
-            'stage_label' => $stage->label(),
+            'stage_label' => $this->profileStageLabel($profile, $stage),
             'assigned_advisor_name' => $profile->assignedAdvisor?->name,
         ];
+    }
+
+    private function profileStageLabel(EntrepreneurProfile $profile, EntrepreneurStage $stage): string
+    {
+        if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
+            return 'Invite accepted';
+        }
+
+        return $stage->label();
     }
 
     /**

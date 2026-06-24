@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs;
 
+use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurMilestoneAward;
 use App\Models\EntrepreneurProfile;
@@ -79,9 +80,15 @@ final class EntrepreneurGamification
      */
     private function currentLevel(EntrepreneurProfile $profile, ?BusinessPlan $plan): array
     {
+        $profile->loadMissing('inviteToken');
+
         $stage = $profile->stage;
         $stageValue = $stage instanceof \BackedEnum ? (string) $stage->value : (string) $stage;
         $stageLabel = is_object($stage) && method_exists($stage, 'label') ? $stage->label() : $this->label($stageValue);
+
+        if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
+            $stageLabel = 'Invite accepted';
+        }
 
         return [
             'stage' => $stageValue,
