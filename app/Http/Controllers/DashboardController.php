@@ -730,6 +730,77 @@ final class DashboardController extends Controller
                 user: $user,
             ),
             'learning' => $this->learningQueue($user),
+            'approvals' => $this->panelApprovalQueue($user),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function panelApprovalQueue(User $user): array
+    {
+        $base = PanelMember::query()
+            ->with('user')
+            ->where('status', PanelMember::STATUS_APPLICATION_PENDING)
+            ->whereIn('panel_type', PanelMember::panelTypes());
+
+        $typeCounts = (clone $base)
+            ->select('panel_type', DB::raw('count(*) as aggregate'))
+            ->groupBy('panel_type')
+            ->pluck('aggregate', 'panel_type')
+            ->map(fn (mixed $count): int => (int) $count)
+            ->all();
+
+        $reviewUrl = $user->can(Permission::CLIENTS_MANAGE->value)
+            ? route('admin.panel-members.index', absolute: false)
+            : null;
+
+        return [
+            'summary' => [
+                'total' => (int) array_sum($typeCounts),
+                'broker' => (int) ($typeCounts[PanelMember::TYPE_BROKER] ?? 0),
+                'coach' => (int) ($typeCounts[PanelMember::TYPE_COACH] ?? 0),
+            ],
+            'review_url' => $reviewUrl,
+            'items' => (clone $base)
+                ->latest('applied_at')
+                ->latest()
+                ->limit(5)
+                ->get()
+                ->map(fn (PanelMember $member): array => $this->panelApprovalQueueItem($member, $reviewUrl))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function panelApprovalQueueItem(PanelMember $member, ?string $reviewUrl): array
+    {
+        $application = is_array($member->application) ? $member->application : [];
+
+        return [
+            'id' => $member->id,
+            'panel_type' => $member->panel_type,
+            'panel_label' => $member->panel_type === PanelMember::TYPE_BROKER ? 'Broker' : 'Coach',
+            'business_name' => $this->stringFromApplication($application, 'business_name')
+                ?? $this->stringFromApplication($application, 'company')
+                ?? $this->stringFromApplication($application, 'company_name')
+                ?? $this->stringFromApplication($application, 'practice_name')
+                ?? $member->user?->name
+                ?? 'Panel applicant',
+            'contact_name' => $this->stringFromApplication($application, 'broker_name')
+                ?? $this->stringFromApplication($application, 'coach_name')
+                ?? $this->stringFromApplication($application, 'contact_name')
+                ?? $this->stringFromApplication($application, 'name')
+                ?? $member->user?->name
+                ?? 'Unknown contact',
+            'email' => $member->user?->email,
+            'status' => $member->status,
+            'status_label' => $this->stageLabel($member->status),
+            'applied_at' => $member->applied_at?->toIso8601String(),
+            'review_url' => $reviewUrl,
         ];
     }
 

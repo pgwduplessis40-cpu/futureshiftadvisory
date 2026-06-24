@@ -527,6 +527,27 @@ type PanelReferralQueue = {
     }>;
 };
 
+type PanelApprovalQueue = {
+    summary: {
+        total: number;
+        broker: number;
+        coach: number;
+    };
+    review_url: string | null;
+    items: Array<{
+        id: string;
+        panel_type: string;
+        panel_label: string;
+        business_name: string;
+        contact_name: string;
+        email: string | null;
+        status: string;
+        status_label: string;
+        applied_at: string | null;
+        review_url: string | null;
+    }>;
+};
+
 type LearningQueuePayload = {
     summary: {
         detected: number;
@@ -551,6 +572,7 @@ type PanelOperationsPayload = {
     broker: PanelReferralQueue;
     coach: PanelReferralQueue;
     learning: LearningQueuePayload;
+    approvals: PanelApprovalQueue;
 };
 
 type ActionSummaryItem = {
@@ -568,6 +590,7 @@ type ActionSummaryItem = {
 
 const signalPanelTargetIds = new Set([
     'advisor-panel-operations',
+    'advisor-panel-approvals',
     'advisor-broker-referrals',
     'advisor-coach-referrals',
     'advisor-learning-queue',
@@ -1053,6 +1076,8 @@ function buildActionSummaryItems({
         referenceDataTasks.summary.missing +
         referenceDataTasks.summary.overdue +
         referenceDataTasks.summary.due_soon;
+    const brokerApprovalActionCount = panelOperations.approvals.summary.broker;
+    const coachApprovalActionCount = panelOperations.approvals.summary.coach;
 
     return [
         {
@@ -1141,6 +1166,34 @@ function buildActionSummaryItems({
             nextStep:
                 'Open expiring proposals and decide whether to renew, recall, or progress client sign-off.',
             icon: <FileText className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'broker-approvals',
+            label: 'Broker approvals',
+            value: brokerApprovalActionCount,
+            href: '#advisor-panel-approvals',
+            targetId: 'advisor-panel-approvals',
+            tab: 'signals',
+            priority: brokerApprovalActionCount > 0 ? 'warning' : 'neutral',
+            explanation:
+                'Broker approvals count submitted broker applications waiting for advisor or admin review.',
+            nextStep:
+                'Open the partner approval queue, review the broker application, then approve, request more information, or decline it.',
+            icon: <UsersRound className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'coach-approvals',
+            label: 'Coach approvals',
+            value: coachApprovalActionCount,
+            href: '#advisor-panel-approvals',
+            targetId: 'advisor-panel-approvals',
+            tab: 'signals',
+            priority: coachApprovalActionCount > 0 ? 'warning' : 'neutral',
+            explanation:
+                'Coach approvals count submitted coach applications waiting for advisor or admin review.',
+            nextStep:
+                'Open the partner approval queue, review the coach application, then approve, request more information, or decline it.',
+            icon: <HeartHandshake className="size-4" aria-hidden="true" />,
         },
         {
             key: 'npo-funding',
@@ -3087,8 +3140,9 @@ function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
     return (
         <div
             id="advisor-panel-operations"
-            className="grid gap-4 xl:grid-cols-3"
+            className="grid gap-4 xl:grid-cols-2 2xl:grid-cols-4"
         >
+            <PanelApprovalQueuePanel payload={payload.approvals} />
             <PanelReferralQueuePanel
                 id="advisor-broker-referrals"
                 title="Broker referrals"
@@ -3107,6 +3161,95 @@ function PanelOperations({ payload }: { payload: PanelOperationsPayload }) {
             />
             <LearningQueuePanel payload={payload.learning} />
         </div>
+    );
+}
+
+function PanelApprovalQueuePanel({ payload }: { payload: PanelApprovalQueue }) {
+    return (
+        <section
+            id="advisor-panel-approvals"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="flex items-center gap-2">
+                        <UsersRound className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">
+                            Partner approvals
+                        </h2>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Broker and coach applications waiting for review.
+                    </p>
+                </div>
+                <Badge
+                    variant={payload.summary.total > 0 ? 'default' : 'outline'}
+                >
+                    {payload.summary.total} pending
+                </Badge>
+            </div>
+
+            <div className="grid gap-2 sm:grid-cols-3">
+                <PortfolioMetric
+                    label="Total"
+                    value={payload.summary.total.toString()}
+                />
+                <PortfolioMetric
+                    label="Brokers"
+                    value={payload.summary.broker.toString()}
+                />
+                <PortfolioMetric
+                    label="Coaches"
+                    value={payload.summary.coach.toString()}
+                />
+            </div>
+
+            {payload.review_url && (
+                <Button asChild size="sm" variant="outline">
+                    <Link href={payload.review_url}>Open approval queue</Link>
+                </Button>
+            )}
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No partner applications are waiting for approval.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={item.id}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="truncate text-sm font-medium">
+                                        {item.business_name}
+                                    </span>
+                                    <Badge variant="outline">
+                                        {item.panel_label}
+                                    </Badge>
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {item.contact_name} -{' '}
+                                    {formatDate(item.applied_at)}
+                                </div>
+                                {item.email && (
+                                    <div className="mt-1 truncate text-xs text-muted-foreground">
+                                        {item.email}
+                                    </div>
+                                )}
+                            </div>
+                            {item.review_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={item.review_url}>Review</Link>
+                                </Button>
+                            )}
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
     );
 }
 

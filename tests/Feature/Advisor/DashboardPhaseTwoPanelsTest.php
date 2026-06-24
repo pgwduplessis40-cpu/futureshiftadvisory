@@ -45,6 +45,11 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
         $brokerReferral = $this->panelReferral($client, PanelMember::TYPE_BROKER, Referral::STAGE_BROKER_REFERRAL_SENT);
         $this->panelReferral($otherClient, PanelMember::TYPE_BROKER, Referral::STAGE_BROKER_REFERRAL_SENT);
         $coachReferral = $this->panelReferral($client, PanelMember::TYPE_COACH, Referral::STAGE_COACH_ACCEPTED);
+        $brokerApplicant = $this->panelApplicant(
+            PanelMember::TYPE_BROKER,
+            'Pending Broker Limited',
+            'pending-broker@example.test',
+        );
 
         $this->actingAsMfa($advisor)
             ->get(route('dashboard'))
@@ -66,6 +71,13 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 ->where('panelOperations.coach.summary.total', 1)
                 ->where('panelOperations.coach.summary.active', 1)
                 ->where('panelOperations.coach.items.0.id', $coachReferral->id)
+                ->where('panelOperations.approvals.summary.total', 1)
+                ->where('panelOperations.approvals.summary.broker', 1)
+                ->where('panelOperations.approvals.summary.coach', 0)
+                ->where('panelOperations.approvals.review_url', route('admin.panel-members.index', absolute: false))
+                ->where('panelOperations.approvals.items.0.id', $brokerApplicant->id)
+                ->where('panelOperations.approvals.items.0.panel_type', PanelMember::TYPE_BROKER)
+                ->where('panelOperations.approvals.items.0.business_name', 'Pending Broker Limited')
                 ->where('panelOperations.learning.summary.detected', 1)
                 ->where('panelOperations.learning.queue_url', route('admin.learning-updates.index', absolute: false))
                 ->where('panelOperations.learning.items.0.id', $learningUpdate->id));
@@ -183,6 +195,27 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
             'payload' => ['reason' => 'Dashboard panel operations fixture.'],
             'created_by_user_id' => $client->created_by_user_id,
             'sent_at' => now()->subDay(),
+        ]);
+    }
+
+    private function panelApplicant(string $panelType, string $businessName, string $email): PanelMember
+    {
+        $user = User::factory()->withTwoFactor()->create([
+            'email' => $email,
+            'user_type' => $panelType === PanelMember::TYPE_BROKER ? User::TYPE_BROKER : User::TYPE_COACH,
+            'primary_role' => $panelType === PanelMember::TYPE_BROKER ? User::TYPE_BROKER : User::TYPE_COACH,
+        ]);
+        $user->assignRole($user->user_type);
+
+        return PanelMember::query()->create([
+            'user_id' => $user->getKey(),
+            'panel_type' => $panelType,
+            'status' => PanelMember::STATUS_APPLICATION_PENDING,
+            'application' => [
+                'business_name' => $businessName,
+                'contact_name' => 'Pending Applicant',
+            ],
+            'applied_at' => now(),
         ]);
     }
 }
