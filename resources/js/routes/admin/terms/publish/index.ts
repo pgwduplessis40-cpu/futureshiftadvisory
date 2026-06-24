@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
 export const create = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
 create.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ create.url = (args: { termsVersion: string | { id: string } } | [termsVersion: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -49,7 +49,7 @@ create.url = (args: { termsVersion: string | { id: string } } | [termsVersion: s
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
 create.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ create.get = (args: { termsVersion: string | { id: string } } | [termsVersion: s
 })
 /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
 create.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ create.head = (args: { termsVersion: string | { id: string } } | [termsVersion: 
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
     const createForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ create.head = (args: { termsVersion: string | { id: string } } | [termsVersion: 
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
         createForm.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ create.head = (args: { termsVersion: string | { id: string } } | [termsVersion: 
         })
             /**
 * @see \App\Http\Controllers\Admin\TermsController::create
- * @see app/Http/Controllers/Admin/TermsController.php:167
+ * @see app/Http/Controllers/Admin/TermsController.php:182
  * @route '/admin/terms/{termsVersion}/publish'
  */
         createForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -99,5 +99,5 @@ create.head = (args: { termsVersion: string | { id: string } } | [termsVersion: 
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
