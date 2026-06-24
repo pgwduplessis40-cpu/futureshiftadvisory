@@ -29,6 +29,7 @@ use App\Services\Entrepreneurs\Readiness;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Collection;
@@ -179,6 +180,7 @@ final class EntrepreneurPlanController extends Controller
                 'ideaValidation' => route('portal.entrepreneur.idea-validation.store', absolute: false),
                 'startPlan' => route('portal.entrepreneur.plan.start', absolute: false),
                 'sectionStore' => route('portal.entrepreneur.plan.sections.store', absolute: false),
+                'assistRequirement' => route('portal.entrepreneur.plan.requirements.assist', absolute: false),
                 'preview' => route('portal.entrepreneur.plan.preview', absolute: false),
                 'submit' => route('portal.entrepreneur.plan.submit', absolute: false),
                 'documentUpload' => route('portal.documents.store', absolute: false),
@@ -311,6 +313,35 @@ final class EntrepreneurPlanController extends Controller
         }
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-section-saved');
+    }
+
+    public function assistRequirement(Request $request): JsonResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        $validated = $request->validate([
+            'phase_key' => ['required', 'string', Rule::in(array_keys(self::PLAN_REQUIREMENTS))],
+            'requirement_key' => ['required', 'string', 'max:100'],
+            'body' => ['nullable', 'string', 'max:8000'],
+        ]);
+        $phaseKey = (string) $validated['phase_key'];
+        $requirement = [
+            ...$this->requirement($phaseKey, (string) $validated['requirement_key']),
+            'phase_key' => $phaseKey,
+            'phase_title' => self::PLAN_REQUIREMENTS[$phaseKey]['title'],
+        ];
+
+        return response()->json($this->guidance->draftRequirement(
+            plan: $plan,
+            profile: $profile,
+            requirement: $requirement,
+            ideaValidation: $this->latestIdeaValidation($profile),
+            currentDraft: (string) ($validated['body'] ?? ''),
+            actor: $user,
+        ));
     }
 
     public function guidance(Request $request, PlanSection $planSection): RedirectResponse
@@ -467,11 +498,7 @@ final class EntrepreneurPlanController extends Controller
      */
     private function ideaValidationPayload(EntrepreneurProfile $profile): ?array
     {
-        $validation = IdeaValidation::query()
-            ->where('entrepreneur_profile_id', $profile->getKey())
-            ->latest('evaluated_at')
-            ->latest()
-            ->first();
+        $validation = $this->latestIdeaValidation($profile);
 
         if (! $validation instanceof IdeaValidation) {
             return null;
@@ -492,6 +519,15 @@ final class EntrepreneurPlanController extends Controller
             'advisor_gate_note' => $validation->advisor_gate_note,
             'plan_builder_unlocked' => $validation->advisor_gate_passed_at !== null,
         ];
+    }
+
+    private function latestIdeaValidation(EntrepreneurProfile $profile): ?IdeaValidation
+    {
+        return IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->latest('evaluated_at')
+            ->latest()
+            ->first();
     }
 
     /**

@@ -148,10 +148,16 @@ type GamificationPayload = {
         label: string;
     };
     plan_completion?: {
+        total: number;
+        completed: number;
         percent: number;
     };
     current_streak?: number;
     new_badge_count?: number;
+    next_milestone?: {
+        label: string;
+        progress_percent: number;
+    } | null;
 };
 
 type Props = {
@@ -167,6 +173,7 @@ type Props = {
         ideaValidation: string;
         startPlan: string;
         sectionStore: string;
+        assistRequirement: string;
         preview: string;
         submit: string;
         documentUpload: string;
@@ -217,12 +224,37 @@ export default function EntrepreneurPlan({
     const selectedSection = selectedRequirement
         ? findSection(plan, selectedRequirement)
         : null;
+    const completedRequirementCount = requirements.filter(
+        (requirement) => requirement.complete,
+    ).length;
+    const totalRequirementCount = requirements.length;
+    const planCompletion = gamification.plan_completion ?? {
+        total: totalRequirementCount,
+        completed: completedRequirementCount,
+        percent:
+            totalRequirementCount > 0
+                ? Math.round(
+                      (completedRequirementCount / totalRequirementCount) * 100,
+                  )
+                : 0,
+    };
+    const selectedCompletionPercent =
+        totalRequirementCount > 0 && selectedRequirement
+            ? Math.round(
+                  ((completedRequirementCount +
+                      (selectedRequirement.complete ? 0 : 1)) /
+                      totalRequirementCount) *
+                      100,
+              )
+            : planCompletion.percent;
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
     const [supportingKey, setSupportingKey] = useState(0);
     const [sectionError, setSectionError] = useState<string | null>(null);
     const [savingSection, setSavingSection] = useState(false);
+    const [assistingSection, setAssistingSection] = useState(false);
+    const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
 
     useEffect(() => {
         if (!selectedRequirement) {
@@ -238,6 +270,7 @@ export default function EntrepreneurPlan({
         setSupportingFile(null);
         setSupportingKey((key) => key + 1);
         setSectionError(null);
+        setAssistantNotice(null);
         /* eslint-enable react-hooks/set-state-in-effect */
     }, [selectedRequirement, plan]);
 
@@ -264,6 +297,81 @@ export default function EntrepreneurPlan({
             {},
             { preserveScroll: true },
         );
+    };
+
+    const assistRequirement = async () => {
+        if (!selectedRequirement || !plan) {
+            return;
+        }
+
+        setAssistingSection(true);
+        setSectionError(null);
+        setAssistantNotice(null);
+
+        try {
+            const response = await fetch(urls.assistRequirement, {
+                method: 'POST',
+                headers: {
+                    Accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRF-TOKEN': csrfToken(),
+                },
+                body: JSON.stringify({
+                    phase_key: selectedRequirement.phase_key,
+                    requirement_key: selectedRequirement.key,
+                    body: sectionBody,
+                }),
+            });
+
+            if (!response.ok) {
+                setSectionError(
+                    'AI assist could not prepare this requirement yet.',
+                );
+
+                return;
+            }
+
+            const payload = (await response.json()) as {
+                title?: string;
+                draft?: string;
+                summary?: string;
+                checklist?: string[];
+            };
+            const draft = (payload.draft ?? '').trim();
+
+            if (payload.title && !sectionTitle.trim()) {
+                setSectionTitle(payload.title);
+            }
+
+            if (draft) {
+                setSectionBody((current) => {
+                    const existing = current.trim();
+
+                    return existing
+                        ? `${existing}\n\nAI draft to review:\n${draft}`
+                        : draft;
+                });
+            }
+
+            const checklist = (payload.checklist ?? [])
+                .filter((item) => item.trim() !== '')
+                .map((item) => `- ${item}`);
+            const gamificationHint =
+                gamification.enabled && selectedRequirement
+                    ? `Save this one section to move plan progress to ${selectedCompletionPercent}% and keep the journey moving.`
+                    : null;
+            setAssistantNotice(
+                [payload.summary, ...checklist, gamificationHint]
+                    .filter(Boolean)
+                    .join('\n'),
+            );
+        } catch {
+            setSectionError(
+                'AI assist could not prepare this requirement yet.',
+            );
+        } finally {
+            setAssistingSection(false);
+        }
     };
 
     const saveSection = async () => {
@@ -600,6 +708,81 @@ export default function EntrepreneurPlan({
                             </div>
                         </section>
 
+                        {gamification.enabled ? (
+                            <section className="rounded-md border bg-background p-4">
+                                <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr] lg:items-center">
+                                    <div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Trophy
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            <h2 className="text-sm font-medium">
+                                                Next small win
+                                            </h2>
+                                            <Badge variant="outline">
+                                                {planCompletion.completed}/
+                                                {planCompletion.total} sections
+                                            </Badge>
+                                        </div>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {selectedRequirement
+                                                ? selectedRequirement.complete
+                                                    ? 'This section is already complete. Choose the next needed section when you are ready.'
+                                                    : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
+                                                : 'Select one requirement and complete that section first.'}
+                                        </p>
+                                        {gamification.next_milestone ? (
+                                            <p className="mt-1 text-xs text-muted-foreground">
+                                                Next badge:{' '}
+                                                {
+                                                    gamification.next_milestone
+                                                        .label
+                                                }
+                                            </p>
+                                        ) : null}
+                                    </div>
+                                    <div className="space-y-2">
+                                        <div className="flex items-center justify-between text-xs text-muted-foreground">
+                                            <span>Plan progress</span>
+                                            <span>
+                                                {planCompletion.percent}%
+                                            </span>
+                                        </div>
+                                        <div className="h-2 overflow-hidden rounded-full bg-muted">
+                                            <div
+                                                className="h-full rounded-full bg-emerald-500 transition-all"
+                                                style={{
+                                                    width: `${Math.min(100, Math.max(0, planCompletion.percent))}%`,
+                                                }}
+                                            />
+                                        </div>
+                                        <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                            <span>
+                                                Streak{' '}
+                                                {gamification.current_streak ??
+                                                    0}{' '}
+                                                days
+                                            </span>
+                                            {(gamification.new_badge_count ??
+                                                0) > 0 ? (
+                                                <span>
+                                                    {
+                                                        gamification.new_badge_count
+                                                    }{' '}
+                                                    new badge
+                                                    {gamification.new_badge_count ===
+                                                    1
+                                                        ? ''
+                                                        : 's'}
+                                                </span>
+                                            ) : null}
+                                        </div>
+                                    </div>
+                                </div>
+                            </section>
+                        ) : null}
+
                         <section className="space-y-4 rounded-md border bg-background p-4">
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
@@ -708,28 +891,50 @@ export default function EntrepreneurPlan({
                                                         }
                                                     </p>
                                                 </div>
-                                                {selectedSection ? (
+                                                <div className="flex flex-wrap gap-2">
                                                     <Button
                                                         type="button"
                                                         size="sm"
                                                         variant="outline"
                                                         onClick={() =>
-                                                            router.post(
-                                                                selectedSection.guidance_url,
-                                                                {},
-                                                                {
-                                                                    preserveScroll: true,
-                                                                },
-                                                            )
+                                                            void assistRequirement()
+                                                        }
+                                                        disabled={
+                                                            !plan ||
+                                                            assistingSection
                                                         }
                                                     >
                                                         <Bot
                                                             className="size-4"
                                                             aria-hidden="true"
                                                         />
-                                                        Generate guidance
+                                                        {assistingSection
+                                                            ? 'Assisting'
+                                                            : 'AI assist'}
                                                     </Button>
-                                                ) : null}
+                                                    {selectedSection ? (
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                router.post(
+                                                                    selectedSection.guidance_url,
+                                                                    {},
+                                                                    {
+                                                                        preserveScroll: true,
+                                                                    },
+                                                                )
+                                                            }
+                                                        >
+                                                            <Bot
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Score draft
+                                                        </Button>
+                                                    ) : null}
+                                                </div>
                                             </div>
                                             <label className="grid gap-1 text-sm">
                                                 <span>Section title</span>
@@ -777,6 +982,16 @@ export default function EntrepreneurPlan({
                                                     sectionError ?? undefined
                                                 }
                                             />
+                                            {assistantNotice ? (
+                                                <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                                    <div className="font-medium">
+                                                        AI assistant
+                                                    </div>
+                                                    <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                                                        {assistantNotice}
+                                                    </p>
+                                                </div>
+                                            ) : null}
                                             {selectedSection?.guidance ? (
                                                 <div className="rounded-md border bg-muted/30 p-3 text-sm">
                                                     <div className="font-medium">

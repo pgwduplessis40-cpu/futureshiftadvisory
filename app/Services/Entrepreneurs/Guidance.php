@@ -5,14 +5,18 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\NzResource;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use BackedEnum;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 
 final class Guidance
 {
@@ -107,6 +111,117 @@ final class Guidance
     }
 
     /**
+     * @param  array<string, mixed>  $requirement
+     * @return array{title:string,draft:string,summary:string,checklist:array<int, string>,ai_summary:string,model:string,prompt_hash:string,attributions:array<int, array{claim:string, source_reference:string}>,resources:array<int, array<string, mixed>>}
+     */
+    public function draftRequirement(
+        BusinessPlan $plan,
+        EntrepreneurProfile $profile,
+        array $requirement,
+        ?IdeaValidation $ideaValidation,
+        string $currentDraft,
+        User $actor,
+    ): array {
+        $plan->loadMissing('phases.sections');
+        $industry = $this->industry($plan);
+        $gaps = $this->requirementGapTags($requirement, $currentDraft);
+        $resources = $this->recommendResources($industry, 'startup', $gaps);
+        $existingSections = $plan->sections
+            ->sortBy('created_at')
+            ->take(8)
+            ->map(fn (PlanSection $section): array => [
+                'title' => $section->title,
+                'body_excerpt' => Str::limit($section->body, 600, ''),
+                'requirement_key' => data_get($section->metadata, 'requirement_key'),
+            ])
+            ->values()
+            ->all();
+        $sourceReferences = [
+            'business_plan:'.$plan->getKey(),
+            'entrepreneur_profile:'.$profile->getKey(),
+            ...($ideaValidation instanceof IdeaValidation ? ['idea_validation:'.$ideaValidation->getKey()] : []),
+            ...$resources->map(fn (NzResource $resource): string => 'nz_resource:'.$resource->getKey())->all(),
+        ];
+        $prompt = new PromptEnvelope(
+            id: EntrepreneurPromptRegistry::PLAN_REQUIREMENT_ASSIST,
+            version: '2026-06-24',
+            task: 'Draft founder-facing business plan requirement assistance.',
+            body: 'Create concise editable business plan wording for the selected requirement. Use only supplied idea validation, current draft, existing plan sections, and NZ resource context. Mark assumptions clearly and avoid unsupported claims.',
+            input: [
+                'plan_id' => $plan->getKey(),
+                'profile' => [
+                    'name' => $profile->name,
+                    'stage' => $profile->stage instanceof BackedEnum
+                        ? $profile->stage->value
+                        : (string) $profile->stage,
+                    'concept_summary' => $profile->concept_summary,
+                ],
+                'requirement' => [
+                    'phase' => $requirement['phase_title'] ?? null,
+                    'key' => $requirement['key'] ?? null,
+                    'title' => $requirement['title'] ?? null,
+                    'description' => $requirement['description'] ?? null,
+                ],
+                'idea_validation' => $ideaValidation instanceof IdeaValidation ? [
+                    'problem' => $ideaValidation->problem,
+                    'target_customer' => $ideaValidation->target_customer,
+                    'solution' => $ideaValidation->solution,
+                    'value_proposition' => $ideaValidation->value_proposition,
+                    'demand_signal' => $ideaValidation->demand_signal,
+                    'revenue_model' => $ideaValidation->revenue_model,
+                ] : null,
+                'current_draft' => Str::limit($currentDraft, 2500, ''),
+                'existing_sections' => $existingSections,
+                'detected_gaps' => $gaps,
+                'resources' => $resources->pluck('title')->all(),
+            ],
+            dataQualitySummary: [
+                'level' => 'entrepreneur_draft_assist',
+                'message' => 'Draft assistance is based on the founder plan context and must be reviewed before saving.',
+            ],
+            sourceReferences: $sourceReferences,
+        );
+        $response = $this->ai->summarise($prompt);
+        $fallback = $this->fallbackRequirementDraft($profile, $requirement, $ideaValidation, $currentDraft);
+        $aiText = trim($response->text);
+        $draft = $aiText !== '' && ! str_contains(strtolower($aiText), 'ai unavailable')
+            ? $aiText
+            : $fallback;
+        $checklist = $this->requirementChecklist($requirement, $ideaValidation);
+        $payload = [
+            'title' => (string) ($requirement['title'] ?? 'Business plan requirement'),
+            'draft' => $draft,
+            'summary' => 'AI draft added. Review the assumptions, add real evidence, then save the requirement.',
+            'checklist' => $checklist,
+            'ai_summary' => $response->text,
+            'model' => $response->model,
+            'prompt_hash' => $response->promptHash,
+            'attributions' => [
+                ...$response->attributions,
+                ...$resources->map(fn (NzResource $resource): array => [
+                    'claim' => 'NZ resource context considered: '.$resource->title,
+                    'source_reference' => 'nz_resource:'.$resource->getKey(),
+                ])->all(),
+            ],
+            'resources' => $resources->map(fn (NzResource $resource): array => [
+                'id' => $resource->getKey(),
+                'title' => $resource->title,
+                'url' => $resource->url,
+                'gap_tags' => $resource->gap_tags,
+            ])->values()->all(),
+        ];
+
+        $this->audit->record('entrepreneur.plan_requirement_assisted', subject: $plan, actor: $actor, after: [
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'requirement_key' => (string) ($requirement['key'] ?? ''),
+            'resource_count' => count($payload['resources']),
+            'prompt_hash' => $response->promptHash,
+        ]);
+
+        return $payload;
+    }
+
+    /**
      * @param  array<int, string>  $gapTags
      * @return Collection<int, NzResource>
      */
@@ -191,6 +306,114 @@ final class Guidance
         }
 
         return array_values(array_unique($gaps));
+    }
+
+    /**
+     * @param  array<string, mixed>  $requirement
+     * @return array<int, string>
+     */
+    private function requirementGapTags(array $requirement, string $currentDraft): array
+    {
+        $text = strtolower(implode(' ', [
+            (string) ($requirement['title'] ?? ''),
+            (string) ($requirement['description'] ?? ''),
+            $currentDraft,
+        ]));
+        $gaps = ['foundation'];
+
+        foreach ([
+            'market' => ['customer', 'demand', 'market', 'competitor', 'alternative'],
+            'strategy' => ['goal', 'milestone', 'success', 'vision', 'culture'],
+            'financial' => ['revenue', 'price', 'margin', 'cash', 'funding'],
+            'legal' => ['legal', 'privacy', 'contract', 'licence', 'intellectual', 'ip'],
+        ] as $tag => $needles) {
+            if (collect($needles)->contains(fn (string $needle): bool => str_contains($text, $needle))) {
+                $gaps[] = $tag;
+            }
+        }
+
+        return array_values(array_unique($gaps));
+    }
+
+    /**
+     * @param  array<string, mixed>  $requirement
+     */
+    private function fallbackRequirementDraft(
+        EntrepreneurProfile $profile,
+        array $requirement,
+        ?IdeaValidation $ideaValidation,
+        string $currentDraft,
+    ): string {
+        $title = (string) ($requirement['title'] ?? 'Business plan requirement');
+        $description = (string) ($requirement['description'] ?? 'Complete this requirement with clear business context.');
+        $concept = trim((string) ($profile->concept_summary ?: $profile->name));
+        $existingDraft = trim($currentDraft);
+        $ideaLines = $ideaValidation instanceof IdeaValidation
+            ? [
+                'Problem: '.$ideaValidation->problem,
+                'Target customer: '.$ideaValidation->target_customer,
+                'Solution: '.$ideaValidation->solution,
+                'Value proposition: '.$ideaValidation->value_proposition,
+                'Demand evidence: '.$ideaValidation->demand_signal,
+                'Revenue model: '.$ideaValidation->revenue_model,
+            ]
+            : ['Idea validation detail has not been captured yet; add the customer problem, solution, demand evidence, and revenue logic before relying on this section.'];
+
+        return trim(implode("\n", [
+            $title,
+            '',
+            'Starter draft for review',
+            $existingDraft !== ''
+                ? 'Use the current draft below as source material, then tighten it into advisor-ready wording.'
+                : 'Use this as a starting point and replace assumptions with Wessel\'s actual details before saving.',
+            '',
+            'Known context',
+            '- Business concept: '.($concept !== '' ? $concept : 'Add a concise description of the business concept.'),
+            ...array_map(fn (string $line): string => '- '.$line, $ideaLines),
+            '',
+            'What this section needs to cover',
+            '- '.$description,
+            '- Explain the decision, evidence, assumptions, risks, and next action clearly enough for an advisor to rely on it.',
+            '- Attach supporting evidence where it exists, such as customer interviews, quotes, supplier notes, financial workings, or legal documents.',
+            '',
+            'Draft wording',
+            sprintf(
+                '%s should explain how %s will address this requirement. Based on the validated idea, the section should connect the customer problem, the proposed solution, the evidence gathered so far, and the risks still needing advisor review.',
+                $title,
+                $profile->name ?: 'the business',
+            ),
+            'Assumptions to confirm: location, operating model, pricing, delivery capacity, required licences, evidence sources, and any constraints that may change the plan.',
+        ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $requirement
+     * @return array<int, string>
+     */
+    private function requirementChecklist(array $requirement, ?IdeaValidation $ideaValidation): array
+    {
+        $checklist = [
+            'Replace assumptions with the founder\'s actual details.',
+            'Add evidence the advisor can rely on.',
+            'State risks or unknowns plainly.',
+        ];
+
+        if (! $ideaValidation instanceof IdeaValidation) {
+            array_unshift($checklist, 'Complete idea validation context first.');
+        }
+
+        $title = strtolower((string) ($requirement['title'] ?? ''));
+        if (str_contains($title, 'revenue') || str_contains($title, 'funding')) {
+            $checklist[] = 'Include pricing, cost, cash timing, and funding assumptions.';
+        }
+        if (str_contains($title, 'legal') || str_contains($title, 'intellectual')) {
+            $checklist[] = 'Identify licences, contracts, privacy, IP, or compliance obligations.';
+        }
+        if (str_contains($title, 'customer') || str_contains($title, 'market') || str_contains($title, 'apart')) {
+            $checklist[] = 'Name the target customer, alternatives, competitors, and demand signal.';
+        }
+
+        return array_values(array_unique($checklist));
     }
 
     /**

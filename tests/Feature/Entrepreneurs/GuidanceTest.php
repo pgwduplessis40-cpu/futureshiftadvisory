@@ -6,6 +6,7 @@ namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
@@ -72,6 +73,41 @@ final class GuidanceTest extends TestCase
 
         $this->assertTrue($resources->contains('title', 'Retail NZ Startup Guidance'));
         $this->assertFalse($resources->contains('title', 'Inland Revenue New Business Checklist'));
+    }
+
+    public function test_requirement_assist_returns_editable_draft_before_requirement_is_saved(): void
+    {
+        [$advisor, $section] = $this->section(email: 'assist-guidance-founder@example.test');
+        $section->load('businessPlan.entrepreneurProfile');
+        $plan = $section->businessPlan;
+        $profile = $plan->entrepreneurProfile;
+        $ideaValidation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->first();
+
+        $payload = app(Guidance::class)->draftRequirement(
+            plan: $plan,
+            profile: $profile,
+            requirement: [
+                'key' => 'business-type-location',
+                'phase_key' => 'foundation',
+                'phase_title' => 'Foundation',
+                'title' => 'Business type, location, and operating model',
+                'description' => 'Describe the type of business, location, and means of doing business.',
+            ],
+            ideaValidation: $ideaValidation,
+            currentDraft: '',
+            actor: $advisor,
+        );
+
+        $this->assertSame('Business type, location, and operating model', $payload['title']);
+        $this->assertStringContainsString('Starter draft for review', $payload['draft']);
+        $this->assertStringContainsString('Retail operators need clearer planning before launch.', $payload['draft']);
+        $this->assertContains('Add evidence the advisor can rely on.', $payload['checklist']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.plan_requirement_assisted',
+            'subject_id' => $plan->id,
+        ]);
     }
 
     /**
