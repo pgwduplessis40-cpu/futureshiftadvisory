@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\IntegrationHealthSample;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
@@ -95,6 +99,70 @@ final class DashboardTest extends TestCase
                 ->where('integrationHealth.services.0.service', 'nzbn'));
     }
 
+    public function test_advisor_dashboard_surfaces_entrepreneur_idea_and_plan_reviews(): void
+    {
+        $advisor = $this->advisor('entrepreneur-reviews@example.test');
+        $otherAdvisor = $this->advisor('other-entrepreneur-reviews@example.test');
+        $profile = $this->entrepreneurProfileFor($advisor, 'Wessel Du Plessis', 'wessel@example.test');
+        $otherProfile = $this->entrepreneurProfileFor($otherAdvisor, 'Other Founder', 'other-founder@example.test');
+
+        $validation = IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'evaluated_by_user_id' => $profile->user_id,
+            'problem' => 'A clear customer problem.',
+            'target_customer' => 'Early-stage service founders.',
+            'solution' => 'A guided planning workspace.',
+            'value_proposition' => 'Less overwhelm and clearer advisor review.',
+            'demand_signal' => 'Founder requested guided help.',
+            'revenue_model' => 'Subscription and advisory conversion.',
+            'ai_evaluation' => ['summary' => 'Ready for advisor review.'],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subHour(),
+        ]);
+        IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $otherProfile->getKey(),
+            'evaluated_by_user_id' => $otherProfile->user_id,
+            'problem' => 'Other problem.',
+            'target_customer' => 'Other customers.',
+            'solution' => 'Other solution.',
+            'value_proposition' => 'Other proposition.',
+            'demand_signal' => 'Other demand signal.',
+            'revenue_model' => 'Other revenue model.',
+            'ai_evaluation' => ['summary' => 'Other review.'],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subMinutes(30),
+        ]);
+
+        $plan = BusinessPlan::query()->create([
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'title' => 'Wessel launch plan',
+            'source_type' => BusinessPlan::SOURCE_ENTREPRENEUR,
+            'status' => BusinessPlan::STATUS_ASSESSING,
+            'current_phase' => 1,
+            'created_by_user_id' => $profile->user_id,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('entrepreneurReviews.summary.total', 2)
+                ->where('entrepreneurReviews.summary.idea_validations', 1)
+                ->where('entrepreneurReviews.summary.business_plans', 1)
+                ->where('entrepreneurReviews.items.0.id', $validation->id)
+                ->where('entrepreneurReviews.items.0.type', 'idea_validation')
+                ->where('entrepreneurReviews.items.0.label', 'Idea validation')
+                ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Wessel Du Plessis')
+                ->where('entrepreneurReviews.items.0.action_label', 'Review idea')
+                ->where('entrepreneurReviews.items.1.id', $plan->id)
+                ->where('entrepreneurReviews.items.1.type', 'business_plan')
+                ->where('entrepreneurReviews.items.1.label', 'Business plan')
+                ->where('entrepreneurReviews.items.1.entrepreneur_name', 'Wessel Du Plessis')
+                ->where('entrepreneurReviews.items.1.action_label', 'Finalise review')
+                ->has('entrepreneurReviews.items', 2));
+    }
+
     public function test_client_primary_user_still_redirects_to_portal_dashboard(): void
     {
         $clientUser = User::factory()->withTwoFactor()->create([
@@ -127,6 +195,26 @@ final class DashboardTest extends TestCase
         $advisor->assignRole(User::TYPE_ADVISOR);
 
         return $advisor;
+    }
+
+    private function entrepreneurProfileFor(User $advisor, string $name, string $email): EntrepreneurProfile
+    {
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'name' => $name,
+            'email' => $email,
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+
+        return EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => $name,
+            'email' => $email,
+            'stage' => EntrepreneurStage::IDEA_VALIDATION,
+            'gamification_on' => true,
+        ]);
     }
 
     private function clientFor(User $advisor, string $name, string $dataQuality = Client::DATA_QUALITY_MEDIUM): Client

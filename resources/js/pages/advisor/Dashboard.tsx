@@ -11,6 +11,7 @@ import {
     HeartHandshake,
     HeartPulse,
     Inbox,
+    Lightbulb,
     PieChart,
     PlugZap,
     ShieldAlert,
@@ -112,6 +113,26 @@ type PendingTermsPayload = {
 type MessagesPendingPayload = {
     total: number;
     index_url: string;
+};
+
+type EntrepreneurReviewsPayload = {
+    summary: {
+        total: number;
+        idea_validations: number;
+        business_plans: number;
+    };
+    items: Array<{
+        id: string;
+        type: 'idea_validation' | 'business_plan';
+        label: string;
+        entrepreneur_id: string | null;
+        entrepreneur_name: string;
+        entrepreneur_email: string | null;
+        status: string;
+        submitted_at: string | null;
+        detail_url: string | null;
+        action_label: string;
+    }>;
 };
 
 type ProspectInboxPayload = {
@@ -604,6 +625,7 @@ type Props = {
     redFlags: RedFlagsPayload;
     documentVerificationFlags: DocumentVerificationFlag[];
     messagesPending: MessagesPendingPayload;
+    entrepreneurReviews: EntrepreneurReviewsPayload;
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
     integrationHealth: IntegrationHealthPayload;
@@ -628,6 +650,7 @@ export default function AdvisorDashboard({
     redFlags,
     documentVerificationFlags,
     messagesPending,
+    entrepreneurReviews,
     pendingTermsReacceptance,
     prospectInbox,
     integrationHealth,
@@ -651,6 +674,7 @@ export default function AdvisorDashboard({
     const actionItems = buildActionSummaryItems({
         redFlags,
         documentVerificationFlags,
+        entrepreneurReviews,
         pendingTermsReacceptance,
         proposalStatus,
         paymentStatus,
@@ -770,6 +794,9 @@ export default function AdvisorDashboard({
                                 <RedFlagPanel payload={redFlags} />
 
                                 <div className="space-y-4">
+                                    <EntrepreneurReviewPanel
+                                        payload={entrepreneurReviews}
+                                    />
                                     <div id="advisor-documents">
                                         <DocumentVerificationFlagPanel
                                             flags={documentVerificationFlags}
@@ -1046,6 +1073,7 @@ function ActionSummaryCard({
 function buildActionSummaryItems({
     redFlags,
     documentVerificationFlags,
+    entrepreneurReviews,
     pendingTermsReacceptance,
     proposalStatus,
     paymentStatus,
@@ -1057,6 +1085,7 @@ function buildActionSummaryItems({
     Props,
     | 'redFlags'
     | 'documentVerificationFlags'
+    | 'entrepreneurReviews'
     | 'pendingTermsReacceptance'
     | 'proposalStatus'
     | 'paymentStatus'
@@ -1112,6 +1141,40 @@ function buildActionSummaryItems({
                 'Document review flags surface uploaded evidence that needs advisor verification.',
             nextStep:
                 'Open each flagged document, confirm evidence quality, and clear or escalate the flag.',
+            icon: <FileText className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'idea-validation-reviews',
+            label: 'Idea reviews',
+            value: entrepreneurReviews.summary.idea_validations,
+            href: '#advisor-entrepreneur-reviews',
+            targetId: 'advisor-entrepreneur-reviews',
+            tab: 'priorities',
+            priority:
+                entrepreneurReviews.summary.idea_validations > 0
+                    ? 'warning'
+                    : 'neutral',
+            explanation:
+                'Idea reviews are entrepreneur concept validations waiting for advisor gate approval before the plan builder opens.',
+            nextStep:
+                'Open the entrepreneur record, review the submitted idea validation, then approve the builder gate with an advisor note.',
+            icon: <Lightbulb className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'business-plan-reviews',
+            label: 'Plan reviews',
+            value: entrepreneurReviews.summary.business_plans,
+            href: '#advisor-entrepreneur-reviews',
+            targetId: 'advisor-entrepreneur-reviews',
+            tab: 'priorities',
+            priority:
+                entrepreneurReviews.summary.business_plans > 0
+                    ? 'warning'
+                    : 'neutral',
+            explanation:
+                'Plan reviews are entrepreneur business plans submitted for assessment or waiting for final advisor review.',
+            nextStep:
+                'Open the entrepreneur record, run the assessment if needed, then finalise the feedback report.',
             icon: <FileText className="size-4" aria-hidden="true" />,
         },
         {
@@ -2621,6 +2684,88 @@ function PendingTermsReacceptance({
                                 {item.user_email}
                             </div>
                         </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function EntrepreneurReviewPanel({
+    payload,
+}: {
+    payload: EntrepreneurReviewsPayload;
+}) {
+    return (
+        <section
+            id="advisor-entrepreneur-reviews"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Lightbulb className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Entrepreneur reviews
+                    </h2>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.idea_validations > 0
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.idea_validations} idea
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.business_plans > 0
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.business_plans} plan
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No entrepreneur idea or business plan reviews are waiting.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={`${item.type}:${item.id}`}
+                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">
+                                        {item.label}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        {item.status}
+                                    </Badge>
+                                </div>
+                                <div className="mt-2 text-sm font-medium">
+                                    {item.entrepreneur_name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {item.entrepreneur_email ?? 'No email'} -{' '}
+                                    {formatDate(item.submitted_at)}
+                                </div>
+                            </div>
+                            {item.detail_url ? (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={item.detail_url}>
+                                        {item.action_label}
+                                    </Link>
+                                </Button>
+                            ) : null}
+                        </article>
                     ))}
                 </div>
             )}

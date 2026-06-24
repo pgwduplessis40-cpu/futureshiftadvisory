@@ -8,6 +8,7 @@ use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
 use App\Enums\Permission;
 use App\Enums\ProposalStatus;
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
@@ -15,6 +16,7 @@ use App\Models\DocumentVerification;
 use App\Models\EconomicIndicator;
 use App\Models\EntrepreneurProfile;
 use App\Models\ExchangeRate;
+use App\Models\IdeaValidation;
 use App\Models\IntegrationHealthSample;
 use App\Models\LearningUpdate;
 use App\Models\Message;
@@ -647,6 +649,7 @@ final class DashboardController extends Controller
             'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'messagesPending' => $this->messagesPending($user, $clientIds),
+            'entrepreneurReviews' => $this->entrepreneurReviews($user),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
@@ -676,6 +679,122 @@ final class DashboardController extends Controller
                 'methodology_id' => 'funnel.drop_off',
             ],
             'panelOperations' => $this->panelOperations($user, $clientIds),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function entrepreneurReviews(User $user): array
+    {
+        $ideaQuery = IdeaValidation::query()
+            ->with('entrepreneurProfile')
+            ->whereNull('advisor_gate_passed_at')
+            ->whereHas(
+                'entrepreneurProfile',
+                fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
+            );
+        $planQuery = BusinessPlan::query()
+            ->with('entrepreneurProfile')
+            ->where('source_type', BusinessPlan::SOURCE_ENTREPRENEUR)
+            ->whereIn('status', [
+                BusinessPlan::STATUS_SUBMITTED,
+                BusinessPlan::STATUS_ASSESSING,
+            ])
+            ->whereHas(
+                'entrepreneurProfile',
+                fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),
+            );
+
+        $ideaItems = (clone $ideaQuery)
+            ->latest('evaluated_at')
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn (IdeaValidation $validation): array => $this->entrepreneurIdeaReviewItem($validation))
+            ->values()
+            ->all();
+        $planItems = (clone $planQuery)
+            ->latest('submitted_at')
+            ->latest()
+            ->limit(5)
+            ->get()
+            ->map(fn (BusinessPlan $plan): array => $this->entrepreneurPlanReviewItem($plan))
+            ->values()
+            ->all();
+
+        return [
+            'summary' => [
+                'total' => (clone $ideaQuery)->count() + (clone $planQuery)->count(),
+                'idea_validations' => (clone $ideaQuery)->count(),
+                'business_plans' => (clone $planQuery)->count(),
+            ],
+            'items' => [
+                ...$ideaItems,
+                ...$planItems,
+            ],
+        ];
+    }
+
+    /**
+     * @return Builder<EntrepreneurProfile>
+     */
+    private function visibleEntrepreneurQuery(Builder $query, User $user): Builder
+    {
+        if ($user->fsaRole() === User::TYPE_SUPER_ADMIN) {
+            return $query;
+        }
+
+        return $query->where('assigned_advisor_id', $user->getKey());
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function entrepreneurIdeaReviewItem(IdeaValidation $validation): array
+    {
+        $profile = $validation->entrepreneurProfile;
+
+        return [
+            'id' => $validation->id,
+            'type' => 'idea_validation',
+            'label' => 'Idea validation',
+            'entrepreneur_id' => $profile?->id,
+            'entrepreneur_name' => $profile?->name ?? 'Entrepreneur',
+            'entrepreneur_email' => $profile?->email,
+            'status' => 'Awaiting advisor review',
+            'submitted_at' => $validation->evaluated_at?->toIso8601String() ?? $validation->created_at?->toIso8601String(),
+            'detail_url' => $profile instanceof EntrepreneurProfile
+                ? route('advisor.entrepreneurs.show', $profile, absolute: false)
+                : null,
+            'action_label' => 'Review idea',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function entrepreneurPlanReviewItem(BusinessPlan $plan): array
+    {
+        $profile = $plan->entrepreneurProfile;
+
+        return [
+            'id' => $plan->id,
+            'type' => 'business_plan',
+            'label' => 'Business plan',
+            'entrepreneur_id' => $profile?->id,
+            'entrepreneur_name' => $profile?->name ?? 'Entrepreneur',
+            'entrepreneur_email' => $profile?->email,
+            'status' => $plan->status === BusinessPlan::STATUS_SUBMITTED
+                ? 'Submitted for assessment'
+                : 'Assessment in progress',
+            'submitted_at' => $plan->submitted_at?->toIso8601String() ?? $plan->updated_at?->toIso8601String(),
+            'detail_url' => $profile instanceof EntrepreneurProfile
+                ? route('advisor.entrepreneurs.show', $profile, absolute: false)
+                : null,
+            'action_label' => $plan->status === BusinessPlan::STATUS_SUBMITTED
+                ? 'Run assessment'
+                : 'Finalise review',
         ];
     }
 
