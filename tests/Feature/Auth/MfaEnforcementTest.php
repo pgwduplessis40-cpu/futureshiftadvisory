@@ -95,6 +95,77 @@ final class MfaEnforcementTest extends TestCase
         $this->assertNull($user->two_factor_recovery_codes);
     }
 
+    public function test_entrepreneur_login_with_broken_confirmed_two_factor_state_reaches_clean_mfa_setup(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Wessel',
+            'email' => 'wessel-confirmed@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+            'two_factor_secret' => 'invalid-confirmed-secret',
+            'two_factor_recovery_codes' => 'invalid-confirmed-recovery-codes',
+            'two_factor_confirmed_at' => now(),
+            'mfa_enabled_at' => now(),
+            'mfa_method' => User::MFA_METHOD_TOTP,
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => 'wessel-confirmed@example.test',
+            'password' => 'password',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+
+        $this->get(route('mfa.setup'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('auth/mfa-setup')
+                ->where('twoFactorEnabled', false)
+                ->where('hasPendingTwoFactorSetup', false)
+            );
+
+        $user->refresh();
+        $this->assertNull($user->two_factor_secret);
+        $this->assertNull($user->two_factor_recovery_codes);
+        $this->assertNull($user->two_factor_confirmed_at);
+        $this->assertNull($user->mfa_enabled_at);
+        $this->assertNull($user->mfa_method);
+    }
+
+    public function test_broken_confirmed_two_factor_state_is_recovered_for_shared_account_types(): void
+    {
+        foreach ([User::TYPE_ADVISOR, User::TYPE_CLIENT_PRIMARY, User::TYPE_NPO_BOARD_MEMBER] as $userType) {
+            $user = User::factory()->create([
+                'name' => "Broken {$userType}",
+                'email' => "{$userType}@example.test",
+                'user_type' => $userType,
+                'primary_role' => $userType,
+                'two_factor_secret' => 'invalid-confirmed-secret',
+                'two_factor_recovery_codes' => 'invalid-confirmed-recovery-codes',
+                'two_factor_confirmed_at' => now(),
+                'mfa_enabled_at' => now(),
+                'mfa_method' => User::MFA_METHOD_TOTP,
+            ]);
+
+            $this->post(route('login.store'), [
+                'email' => "{$userType}@example.test",
+                'password' => 'password',
+            ])->assertRedirect(route('mfa.setup', absolute: false));
+
+            $this->assertAuthenticatedAs($user);
+
+            $user->refresh();
+            $this->assertNull($user->two_factor_secret);
+            $this->assertNull($user->two_factor_recovery_codes);
+            $this->assertNull($user->two_factor_confirmed_at);
+            $this->assertNull($user->mfa_enabled_at);
+            $this->assertNull($user->mfa_method);
+
+            $this->app['auth']->guard()->logout();
+            $this->flushSession();
+        }
+    }
+
     public function test_mfa_enrolled_user_without_verified_session_is_redirected_to_challenge(): void
     {
         $user = User::factory()->withTwoFactor()->create();

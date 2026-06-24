@@ -6,9 +6,12 @@ use App\Actions\Fortify\CreateNewUser;
 use App\Actions\Fortify\ResetUserPassword;
 use App\Http\Responses\LoginResponse;
 use App\Http\Responses\TwoFactorConfirmedResponse;
+use App\Models\User;
 use App\Services\Security\MfaChallenger;
+use App\Services\Security\TwoFactorStateSanitizer;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\ServiceProvider;
@@ -52,6 +55,24 @@ class FortifyServiceProvider extends ServiceProvider
     {
         Fortify::resetUserPasswordsUsing(ResetUserPassword::class);
         Fortify::createUsersUsing(CreateNewUser::class);
+        Fortify::authenticateUsing(function (Request $request): ?User {
+            $guard = Auth::guard(config('fortify.guard', 'web'));
+            $provider = $guard->getProvider();
+            $credentials = $request->only(Fortify::username(), 'password');
+            $user = $provider?->retrieveByCredentials($credentials);
+
+            if (! $user instanceof User || ! $provider->validateCredentials($user, ['password' => $request->password])) {
+                return null;
+            }
+
+            if (config('hashing.rehash_on_login', true) && method_exists($provider, 'rehashPasswordIfRequired')) {
+                $provider->rehashPasswordIfRequired($user, ['password' => $request->password]);
+            }
+
+            app(TwoFactorStateSanitizer::class)->sanitize($user);
+
+            return $user;
+        });
     }
 
     /**

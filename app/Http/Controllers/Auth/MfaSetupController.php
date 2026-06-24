@@ -8,14 +8,13 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Security\MfaChallenger;
+use App\Services\Security\TwoFactorStateSanitizer;
 use App\Services\Terms\TermsAcceptanceGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 use Laravel\Fortify\Features;
-use Laravel\Fortify\Fortify;
-use Throwable;
 
 final class MfaSetupController extends Controller
 {
@@ -23,6 +22,7 @@ final class MfaSetupController extends Controller
         private readonly MfaChallenger $mfa,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
         private readonly TermsAcceptanceGate $terms,
+        private readonly TwoFactorStateSanitizer $twoFactorState,
     ) {}
 
     public function show(Request $request): Response|RedirectResponse
@@ -30,7 +30,7 @@ final class MfaSetupController extends Controller
         /** @var User $user */
         $user = $request->user();
         $this->entrepreneurInvites->reconcile($user);
-        $this->clearInvalidPendingTwoFactorSetup($user);
+        $this->twoFactorState->sanitize($user);
 
         if ($this->mfa->hasCompletedEnrolment($user)) {
             $inviteFlow = $request->session()->pull('fsa.invite_flow', false);
@@ -53,32 +53,5 @@ final class MfaSetupController extends Controller
             'confirmUrl' => route('two-factor.confirm'),
             'canManageTwoFactor' => Features::canManageTwoFactorAuthentication(),
         ]);
-    }
-
-    private function clearInvalidPendingTwoFactorSetup(User $user): void
-    {
-        if (
-            $user->two_factor_secret === null
-            || $user->two_factor_confirmed_at !== null
-            || $user->mfa_enabled_at !== null
-        ) {
-            return;
-        }
-
-        try {
-            Fortify::currentEncrypter()->decrypt($user->two_factor_secret);
-
-            if ($user->two_factor_recovery_codes !== null) {
-                Fortify::currentEncrypter()->decrypt($user->two_factor_recovery_codes);
-            }
-        } catch (Throwable) {
-            $user->forceFill([
-                'two_factor_secret' => null,
-                'two_factor_recovery_codes' => null,
-                'two_factor_confirmed_at' => null,
-                'mfa_enabled_at' => null,
-                'mfa_method' => null,
-            ])->save();
-        }
     }
 }
