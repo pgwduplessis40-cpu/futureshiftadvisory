@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Download, Pencil, Send } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Pencil, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { TermsVersion } from './types';
@@ -41,6 +41,26 @@ export default function TermsPreview({ version }: Props) {
                     </div>
 
                     <div className="flex gap-2">
+                        <Button asChild size="sm" variant="outline">
+                            <Link href="/admin/terms">
+                                <ArrowLeft
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Back
+                            </Link>
+                        </Button>
+                        {version.source_download_url && (
+                            <Button asChild size="sm" variant="outline">
+                                <a href={version.source_download_url}>
+                                    <FileText
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Source
+                                </a>
+                            </Button>
+                        )}
                         <Button asChild size="sm" variant="outline">
                             <a href={`/admin/terms/${version.id}/download`}>
                                 <Download

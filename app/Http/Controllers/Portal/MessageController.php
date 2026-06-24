@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\EntrepreneurProfile;
 use App\Models\MessageThread;
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Portal\ClientPortalResolver;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,7 @@ final class MessageController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly MessageThreadService $messages,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
     ) {}
 
     public function index(Request $request): Response
@@ -262,6 +264,8 @@ final class MessageController extends Controller
         if ($user->user_type !== User::TYPE_ENTREPRENEUR) {
             return null;
         }
+
+        $this->entrepreneurInvites->reconcile($user);
 
         return EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())

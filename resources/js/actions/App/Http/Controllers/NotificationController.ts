@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\NotificationController::index
- * @see app/Http/Controllers/NotificationController.php:18
+ * @see app/Http/Controllers/NotificationController.php:22
  * @route '/notifications'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
- * @see app/Http/Controllers/NotificationController.php:41
+ * @see app/Http/Controllers/NotificationController.php:45
  * @route '/notifications/read-all'
  */
 export const markAllRead = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ markAllRead.definition = {
 
 /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
- * @see app/Http/Controllers/NotificationController.php:41
+ * @see app/Http/Controllers/NotificationController.php:45
  * @route '/notifications/read-all'
  */
 markAllRead.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ markAllRead.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
- * @see app/Http/Controllers/NotificationController.php:41
+ * @see app/Http/Controllers/NotificationController.php:45
  * @route '/notifications/read-all'
  */
 markAllRead.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -113,7 +113,7 @@ markAllRead.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => (
 
     /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
- * @see app/Http/Controllers/NotificationController.php:41
+ * @see app/Http/Controllers/NotificationController.php:45
  * @route '/notifications/read-all'
  */
     const markAllReadForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -128,7 +128,7 @@ markAllRead.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => (
 
             /**
 * @see \App\Http\Controllers\NotificationController::markAllRead
- * @see app/Http/Controllers/NotificationController.php:41
+ * @see app/Http/Controllers/NotificationController.php:45
  * @route '/notifications/read-all'
  */
         markAllReadForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -140,11 +140,11 @@ markAllRead.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => (
                     }),
             method: 'post',
         })
-    
+
     markAllRead.form = markAllReadForm
 /**
 * @see \App\Http\Controllers\NotificationController::markRead
- * @see app/Http/Controllers/NotificationController.php:29
+ * @see app/Http/Controllers/NotificationController.php:33
  * @route '/notifications/{notification}/read'
  */
 export const markRead = (args: { notification: string | number } | [notification: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -159,7 +159,7 @@ markRead.definition = {
 
 /**
 * @see \App\Http\Controllers\NotificationController::markRead
- * @see app/Http/Controllers/NotificationController.php:29
+ * @see app/Http/Controllers/NotificationController.php:33
  * @route '/notifications/{notification}/read'
  */
 markRead.url = (args: { notification: string | number } | [notification: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -167,7 +167,7 @@ markRead.url = (args: { notification: string | number } | [notification: string 
         args = { notification: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     notification: args[0],
@@ -187,7 +187,7 @@ markRead.url = (args: { notification: string | number } | [notification: string 
 
 /**
 * @see \App\Http\Controllers\NotificationController::markRead
- * @see app/Http/Controllers/NotificationController.php:29
+ * @see app/Http/Controllers/NotificationController.php:33
  * @route '/notifications/{notification}/read'
  */
 markRead.patch = (args: { notification: string | number } | [notification: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -197,7 +197,7 @@ markRead.patch = (args: { notification: string | number } | [notification: strin
 
     /**
 * @see \App\Http\Controllers\NotificationController::markRead
- * @see app/Http/Controllers/NotificationController.php:29
+ * @see app/Http/Controllers/NotificationController.php:33
  * @route '/notifications/{notification}/read'
  */
     const markReadForm = (args: { notification: string | number } | [notification: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -212,7 +212,7 @@ markRead.patch = (args: { notification: string | number } | [notification: strin
 
             /**
 * @see \App\Http\Controllers\NotificationController::markRead
- * @see app/Http/Controllers/NotificationController.php:29
+ * @see app/Http/Controllers/NotificationController.php:33
  * @route '/notifications/{notification}/read'
  */
         markReadForm.patch = (args: { notification: string | number } | [notification: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -224,7 +224,7 @@ markRead.patch = (args: { notification: string | number } | [notification: strin
                     }),
             method: 'post',
         })
-    
+
     markRead.form = markReadForm
 const NotificationController = { index, markAllRead, markRead }
 

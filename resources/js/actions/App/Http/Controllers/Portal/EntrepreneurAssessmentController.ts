@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
 export const show = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
 show.url = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ show.url = (args: { planAssessment: string | { id: string } } | [planAssessment:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { planAssessment: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     planAssessment: args[0],
@@ -49,7 +49,7 @@ show.url = (args: { planAssessment: string | { id: string } } | [planAssessment:
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
 show.get = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ show.get = (args: { planAssessment: string | { id: string } } | [planAssessment:
 })
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
 show.head = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ show.head = (args: { planAssessment: string | { id: string } } | [planAssessment
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
     const showForm = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ show.head = (args: { planAssessment: string | { id: string } } | [planAssessment
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
         showForm.get = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ show.head = (args: { planAssessment: string | { id: string } } | [planAssessment
         })
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurAssessmentController::show
- * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:20
+ * @see app/Http/Controllers/Portal/EntrepreneurAssessmentController.php:23
  * @route '/portal/entrepreneur/assessments/{planAssessment}'
  */
         showForm.head = (args: { planAssessment: string | { id: string } } | [planAssessment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -99,7 +99,7 @@ show.head = (args: { planAssessment: string | { id: string } } | [planAssessment
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const EntrepreneurAssessmentController = { show }
 

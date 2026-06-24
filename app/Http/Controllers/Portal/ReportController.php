@@ -12,6 +12,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\ClientPortalResolver;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -23,6 +24,7 @@ final class ReportController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
     ) {}
 
     public function show(Request $request, Report $report): Response
@@ -62,6 +64,8 @@ final class ReportController extends Controller
 
     private function showEntrepreneurReport(Request $request, Report $report, User $user): Response
     {
+        $this->entrepreneurInvites->reconcile($user);
+
         $profile = EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())
             ->firstOrFail();

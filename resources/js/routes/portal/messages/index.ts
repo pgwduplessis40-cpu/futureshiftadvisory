@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\MessageController::index
- * @see app/Http/Controllers/Portal/MessageController.php:31
+ * @see app/Http/Controllers/Portal/MessageController.php:33
  * @route '/portal/messages'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\MessageController::store
- * @see app/Http/Controllers/Portal/MessageController.php:85
+ * @see app/Http/Controllers/Portal/MessageController.php:87
  * @route '/portal/messages'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::store
- * @see app/Http/Controllers/Portal/MessageController.php:85
+ * @see app/Http/Controllers/Portal/MessageController.php:87
  * @route '/portal/messages'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::store
- * @see app/Http/Controllers/Portal/MessageController.php:85
+ * @see app/Http/Controllers/Portal/MessageController.php:87
  * @route '/portal/messages'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\MessageController::store
- * @see app/Http/Controllers/Portal/MessageController.php:85
+ * @see app/Http/Controllers/Portal/MessageController.php:87
  * @route '/portal/messages'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,18 +123,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\MessageController::store
- * @see app/Http/Controllers/Portal/MessageController.php:85
+ * @see app/Http/Controllers/Portal/MessageController.php:87
  * @route '/portal/messages'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
 export const show = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -149,7 +149,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
 show.url = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -160,7 +160,7 @@ show.url = (args: { messageThread: string | { id: string } } | [messageThread: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { messageThread: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     messageThread: args[0],
@@ -182,7 +182,7 @@ show.url = (args: { messageThread: string | { id: string } } | [messageThread: s
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
 show.get = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -191,7 +191,7 @@ show.get = (args: { messageThread: string | { id: string } } | [messageThread: s
 })
 /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
 show.head = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -201,7 +201,7 @@ show.head = (args: { messageThread: string | { id: string } } | [messageThread: 
 
     /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
     const showForm = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -211,7 +211,7 @@ show.head = (args: { messageThread: string | { id: string } } | [messageThread: 
 
             /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
         showForm.get = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -220,7 +220,7 @@ show.head = (args: { messageThread: string | { id: string } } | [messageThread: 
         })
             /**
 * @see \App\Http\Controllers\Portal\MessageController::show
- * @see app/Http/Controllers/Portal/MessageController.php:57
+ * @see app/Http/Controllers/Portal/MessageController.php:59
  * @route '/portal/messages/{messageThread}'
  */
         showForm.head = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -232,11 +232,11 @@ show.head = (args: { messageThread: string | { id: string } } | [messageThread: 
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
- * @see app/Http/Controllers/Portal/MessageController.php:119
+ * @see app/Http/Controllers/Portal/MessageController.php:121
  * @route '/portal/messages/{messageThread}'
  */
 export const reply = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -251,7 +251,7 @@ reply.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
- * @see app/Http/Controllers/Portal/MessageController.php:119
+ * @see app/Http/Controllers/Portal/MessageController.php:121
  * @route '/portal/messages/{messageThread}'
  */
 reply.url = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -262,7 +262,7 @@ reply.url = (args: { messageThread: string | { id: string } } | [messageThread: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { messageThread: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     messageThread: args[0],
@@ -284,7 +284,7 @@ reply.url = (args: { messageThread: string | { id: string } } | [messageThread: 
 
 /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
- * @see app/Http/Controllers/Portal/MessageController.php:119
+ * @see app/Http/Controllers/Portal/MessageController.php:121
  * @route '/portal/messages/{messageThread}'
  */
 reply.post = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -294,7 +294,7 @@ reply.post = (args: { messageThread: string | { id: string } } | [messageThread:
 
     /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
- * @see app/Http/Controllers/Portal/MessageController.php:119
+ * @see app/Http/Controllers/Portal/MessageController.php:121
  * @route '/portal/messages/{messageThread}'
  */
     const replyForm = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -304,14 +304,14 @@ reply.post = (args: { messageThread: string | { id: string } } | [messageThread:
 
             /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
- * @see app/Http/Controllers/Portal/MessageController.php:119
+ * @see app/Http/Controllers/Portal/MessageController.php:121
  * @route '/portal/messages/{messageThread}'
  */
         replyForm.post = (args: { messageThread: string | { id: string } } | [messageThread: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: reply.url(args, options),
             method: 'post',
         })
-    
+
     reply.form = replyForm
 const messages = {
     index: Object.assign(index, index),

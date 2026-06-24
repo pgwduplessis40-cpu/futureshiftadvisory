@@ -17,6 +17,7 @@ use App\Models\NpoEngagement;
 use App\Models\User;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\PortalOfflineSync;
 use App\Services\Storage\Exceptions\InfectedFileException;
@@ -38,6 +39,7 @@ final class DocumentController extends Controller
         private readonly ClientPortalResolver $clients,
         private readonly SecureFileWriter $writer,
         private readonly PortalOfflineSync $offlineSync,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
     ) {}
 
     public function __invoke(Request $request): JsonResponse
@@ -262,6 +264,8 @@ final class DocumentController extends Controller
             return null;
         }
 
+        $this->entrepreneurInvites->reconcile($user);
+
         return EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())
             ->firstOrFail();
@@ -275,6 +279,8 @@ final class DocumentController extends Controller
         }
 
         if ($user->user_type === User::TYPE_ENTREPRENEUR) {
+            $this->entrepreneurInvites->reconcile($user);
+
             $profile = EntrepreneurProfile::query()
                 ->where('user_id', $user->getKey())
                 ->first();

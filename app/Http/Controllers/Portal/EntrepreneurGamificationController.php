@@ -9,6 +9,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\MessageThread;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Messaging\MessageThreadService;
 use Illuminate\Http\RedirectResponse;
@@ -18,14 +19,11 @@ final class EntrepreneurGamificationController extends Controller
 {
     private const DISABLE_REQUEST_SUBJECT = 'Gamification disable request';
 
+    public function __construct(private readonly EntrepreneurInviteReconciler $entrepreneurInvites) {}
+
     public function seen(Request $request, EntrepreneurMilestones $milestones): RedirectResponse
     {
-        $user = $request->user();
-        abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
-
-        $profile = EntrepreneurProfile::query()
-            ->where('user_id', $user->getKey())
-            ->firstOrFail();
+        $profile = $this->profileFor($request);
 
         $milestones->markSeen($profile);
 
@@ -40,9 +38,7 @@ final class EntrepreneurGamificationController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
 
-        $profile = EntrepreneurProfile::query()
-            ->where('user_id', $user->getKey())
-            ->firstOrFail();
+        $profile = $this->profileFor($request);
 
         if (! $profile->gamification_on) {
             return to_route('portal.entrepreneur.plan.show')
@@ -71,5 +67,17 @@ final class EntrepreneurGamificationController extends Controller
 
         return to_route('portal.entrepreneur.plan.show')
             ->with('status', 'entrepreneur-gamification-disable-requested');
+    }
+
+    private function profileFor(Request $request): EntrepreneurProfile
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+
+        $this->entrepreneurInvites->reconcile($user);
+
+        return EntrepreneurProfile::query()
+            ->where('user_id', $user->getKey())
+            ->firstOrFail();
     }
 }

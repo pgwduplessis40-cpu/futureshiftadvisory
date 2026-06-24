@@ -1,5 +1,5 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { Eye, FileText, Save } from 'lucide-react';
+import { Download, Eye, FileText, Save, Upload } from 'lucide-react';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,6 +30,9 @@ export default function TermsEdit({ version }: Props) {
         reviewer_reference: version.reviewer_reference ?? '',
         clauses: version.clauses,
     });
+    const sourceForm = useForm<{ file: File | null }>({
+        file: null,
+    });
     const materialClauses = form.data.clauses.filter(
         (clause) => clause.material,
     ).length;
@@ -42,6 +45,17 @@ export default function TermsEdit({ version }: Props) {
         const clauses = [...form.data.clauses];
         clauses[index] = { ...clauses[index], [key]: value };
         form.setData('clauses', clauses);
+    };
+    const uploadSourceFile = () => {
+        if (!sourceForm.data.file) {
+            return;
+        }
+
+        sourceForm.post(`/admin/terms/${version.id}/source-file`, {
+            forceFormData: true,
+            preserveScroll: true,
+            onSuccess: () => sourceForm.reset('file'),
+        });
     };
 
     return (
@@ -165,8 +179,10 @@ export default function TermsEdit({ version }: Props) {
                         <Label htmlFor="reviewer_reference">
                             Reviewer reference
                         </Label>
-                        <Input
+                        <textarea
                             id="reviewer_reference"
+                            className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            maxLength={2000}
                             value={form.data.reviewer_reference}
                             onChange={(event) =>
                                 form.setData(
@@ -176,6 +192,59 @@ export default function TermsEdit({ version }: Props) {
                             }
                         />
                         <InputError message={form.errors.reviewer_reference} />
+                    </div>
+
+                    <div className="grid gap-3 rounded-md border p-4 md:col-span-2">
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2 text-sm font-medium">
+                                <FileText
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Source Word document
+                            </div>
+                            {version.source_download_url && (
+                                <Button asChild size="sm" variant="outline">
+                                    <a href={version.source_download_url}>
+                                        <Download
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Download
+                                    </a>
+                                </Button>
+                            )}
+                        </div>
+                        {version.source_file && (
+                            <div className="text-sm text-muted-foreground">
+                                {version.source_file.original_name}
+                            </div>
+                        )}
+                        <div className="flex flex-wrap items-center gap-2">
+                            <Input
+                                type="file"
+                                accept=".doc,.docx"
+                                onChange={(event) =>
+                                    sourceForm.setData(
+                                        'file',
+                                        event.target.files?.[0] ?? null,
+                                    )
+                                }
+                            />
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={uploadSourceFile}
+                                disabled={
+                                    sourceForm.processing ||
+                                    !sourceForm.data.file
+                                }
+                            >
+                                <Upload className="size-4" aria-hidden="true" />
+                                Upload
+                            </Button>
+                        </div>
+                        <InputError message={sourceForm.errors.file} />
                     </div>
                 </div>
 

@@ -35,6 +35,7 @@ use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Panels\Coach\SignalDetector;
@@ -71,10 +72,13 @@ final class DashboardController extends Controller
         GovernanceReviewConversion $npoConversion,
         NpoFunderMonitor $npoFunders,
         ReferenceDataFreshness $referenceDataFreshness,
+        EntrepreneurInviteReconciler $entrepreneurInvites,
     ): Response|RedirectResponse {
         $user = $request->user();
 
         if ($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR) {
+            $entrepreneurInvites->reconcile($user);
+
             return to_route('portal.entrepreneur.dashboard');
         }
 

@@ -72,6 +72,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::put('terms/{termsVersion}', [TermsController::class, 'update'])->name('terms.update');
             Route::get('terms/{termsVersion}/preview', [TermsController::class, 'preview'])->name('terms.preview');
             Route::get('terms/{termsVersion}/download', [TermsController::class, 'download'])->name('terms.download');
+            Route::post('terms/{termsVersion}/source-file', [TermsController::class, 'uploadSourceFile'])->name('terms.source-file.store');
+            Route::get('terms/{termsVersion}/source-file/download', [TermsController::class, 'downloadSourceFile'])->name('terms.source-file.download');
             Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
             Route::post('terms/enforcement/activate', [TermsController::class, 'activateEnforcement'])->name('terms.enforcement.activate');

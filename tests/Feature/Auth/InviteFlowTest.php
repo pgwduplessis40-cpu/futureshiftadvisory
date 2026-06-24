@@ -112,6 +112,50 @@ final class InviteFlowTest extends TestCase
         $this->assertSame(PanelMember::STATUS_INVITED, $member->status);
     }
 
+    public function test_accepting_entrepreneur_invite_links_matching_profile_when_profile_has_stale_invite(): void
+    {
+        Mail::fake();
+
+        $old = app(InviteIssuer::class)->issue(
+            email: 'stale-founder@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+        );
+        $fresh = app(InviteIssuer::class)->issue(
+            email: 'stale-founder@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+        );
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $old->invite->getKey(),
+            'name' => 'Stale Founder',
+            'email' => 'stale-founder@example.test',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Profile still points at an older invite token.',
+        ]);
+
+        $this->post(route('invite.store', $fresh->plainToken), [
+            'name' => 'Stale Founder',
+            'mobile_phone' => '+64 21 123 4567',
+            'password' => 'A-secure-password-123',
+            'password_confirmation' => 'A-secure-password-123',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $user = User::query()->where('email', 'stale-founder@example.test')->firstOrFail();
+
+        $profile->refresh();
+        $this->assertSame((string) $user->getKey(), (string) $profile->user_id);
+        $this->assertSame((string) $fresh->invite->getKey(), (string) $profile->invite_token_id);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+        $this->assertNull($old->invite->refresh()->accepted_at);
+        $this->assertNotNull($fresh->invite->refresh()->accepted_at);
+    }
+
     public function test_entrepreneur_login_reconciles_pending_invite_profile(): void
     {
         Mail::fake();
@@ -248,5 +292,47 @@ final class InviteFlowTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('auth/invite-expired')
                 ->where('email', 'expired@example.com'));
+    }
+
+    public function test_expired_invite_link_recovers_to_newer_usable_invite_for_same_recipient(): void
+    {
+        Mail::fake();
+
+        $old = app(InviteIssuer::class)->issue(
+            email: 'broker-reinvite@example.test',
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+        );
+        $old->invite->forceFill([
+            'expires_at' => now()->subMinute(),
+        ])->save();
+
+        $fresh = app(InviteIssuer::class)->issue(
+            email: 'broker-reinvite@example.test',
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+        );
+
+        $this->get(route('invite.accept', $old->plainToken))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('auth/invite-accept')
+                ->where('email', 'broker-reinvite@example.test')
+                ->where('token', $fresh->plainToken)
+                ->where('expiresAt', $fresh->invite->expires_at?->toIso8601String()));
+
+        $this->post(route('invite.store', $old->plainToken), [
+            'name' => 'Fresh Broker',
+            'mobile_phone' => '+64 21 123 4567',
+            'password' => 'A-secure-password-123',
+            'password_confirmation' => 'A-secure-password-123',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $this->assertNull($old->invite->refresh()->accepted_at);
+        $this->assertNotNull($fresh->invite->refresh()->accepted_at);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'invite.replacement_viewed',
+            'subject_id' => $fresh->invite->id,
+        ]);
     }
 }

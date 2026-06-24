@@ -33,22 +33,38 @@ final class EntrepreneurInviteReconciler
         }
 
         return DB::transaction(function () use ($email, $user): ?EntrepreneurProfile {
+            $acceptedInvite = InviteToken::query()
+                ->whereRaw('lower(email) = ?', [$email])
+                ->where('target_user_type', User::TYPE_ENTREPRENEUR)
+                ->where('accepted_by_user_id', $user->getKey())
+                ->latest('accepted_at')
+                ->latest()
+                ->first();
+
             $profile = EntrepreneurProfile::query()
                 ->with('inviteToken')
                 ->whereNull('user_id')
-                ->where('email', $email)
+                ->whereRaw('lower(email) = ?', [$email])
                 ->where('stage', EntrepreneurStage::INVITED->value)
-                ->whereHas('inviteToken', fn ($query) => $query
-                    ->where('target_user_type', User::TYPE_ENTREPRENEUR)
-                    ->where(function ($query) use ($user): void {
+                ->where(function ($query) use ($acceptedInvite, $user): void {
+                    $query->whereHas('inviteToken', fn ($query) => $query
+                        ->where('target_user_type', User::TYPE_ENTREPRENEUR)
+                        ->where(function ($query) use ($user): void {
+                            $query
+                                ->where(function ($query): void {
+                                    $query
+                                        ->whereNull('accepted_at')
+                                        ->where('expires_at', '>', now());
+                                })
+                                ->orWhere('accepted_by_user_id', $user->getKey());
+                        }));
+
+                    if ($acceptedInvite instanceof InviteToken) {
                         $query
-                            ->where(function ($query): void {
-                                $query
-                                    ->whereNull('accepted_at')
-                                    ->where('expires_at', '>', now());
-                            })
-                            ->orWhere('accepted_by_user_id', $user->getKey());
-                    }))
+                            ->orWhereNull('invite_token_id')
+                            ->orWhere('invite_token_id', '!=', $acceptedInvite->getKey());
+                    }
+                })
                 ->lockForUpdate()
                 ->first();
 
@@ -57,6 +73,11 @@ final class EntrepreneurInviteReconciler
             }
 
             $invite = $profile->inviteToken;
+            if ($acceptedInvite instanceof InviteToken && (string) $invite?->getKey() !== (string) $acceptedInvite->getKey()) {
+                $profile->forceFill(['invite_token_id' => $acceptedInvite->getKey()]);
+                $invite = $acceptedInvite;
+            }
+
             if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
                 $invite->markAccepted($user);
             }

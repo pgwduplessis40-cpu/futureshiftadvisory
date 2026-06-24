@@ -5,18 +5,23 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\Document;
 use App\Models\TermsAcceptance;
 use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\SecureFileWriter;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Services\Terms\TermsPdfFallback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
@@ -65,6 +70,7 @@ final class TermsController extends Controller
                 'material' => false,
                 'notice_period_days' => $source?->notice_period_days ?? 30,
                 'reviewer_reference' => $source?->reviewer_reference,
+                'source_file' => $source?->source_file,
                 'created_by_user_id' => $request->user()?->getAuthIdentifier(),
             ]);
 
@@ -102,7 +108,7 @@ final class TermsController extends Controller
             'title' => ['required', 'string', 'max:255'],
             'material' => ['required', 'boolean'],
             'notice_period_days' => ['required', 'integer', 'min:0', 'max:365'],
-            'reviewer_reference' => ['nullable', 'string', 'max:255'],
+            'reviewer_reference' => ['nullable', 'string', 'max:2000'],
             'clauses' => ['required', 'array', 'size:14'],
             'clauses.*.id' => ['nullable', 'uuid'],
             'clauses.*.clause_number' => ['required', 'integer', 'min:1', 'max:99', 'distinct'],
@@ -179,6 +185,81 @@ final class TermsController extends Controller
         ]);
     }
 
+    public function uploadSourceFile(Request $request, TermsVersion $termsVersion, SecureFileWriter $files): RedirectResponse
+    {
+        Gate::authorize('update', $termsVersion);
+        abort_if($termsVersion->isPublished(), 422, 'Published terms versions are immutable.');
+
+        $request->validate([
+            'file' => ['required', 'file', 'mimes:doc,docx', 'max:20480'],
+        ]);
+
+        $file = $request->file('file');
+        abort_unless($file instanceof UploadedFile, 422);
+
+        try {
+            $document = $files->write($file, $request->user(), Document::CATEGORY_TEMPLATE_FILE);
+        } catch (InfectedFileException) {
+            return back()->withErrors(['file' => 'Upload rejected because malware was detected.']);
+        }
+
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            return back()->withErrors(['file' => 'Upload could not be virus-scanned. Please try again or contact support.']);
+        }
+
+        $termsVersion->forceFill([
+            'source_file' => [
+                'document_id' => (string) $document->getKey(),
+                'stored_path' => $document->stored_path,
+                'original_name' => $document->original_filename,
+                'mime_type' => $document->mime_type ?: 'application/octet-stream',
+                'extension' => strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'docx'),
+                'byte_size' => $document->byte_size,
+                'sha256' => $document->sha256,
+                'uploaded_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $this->auditWriter->record('terms.source_file_uploaded', subject: $termsVersion, actor: $request->user(), after: [
+            'terms_version_id' => $termsVersion->getKey(),
+            'filename' => $document->original_filename,
+            'byte_size' => $document->byte_size,
+        ]);
+
+        return back()->with('status', 'terms-source-file-uploaded');
+    }
+
+    public function downloadSourceFile(Request $request, TermsVersion $termsVersion): HttpResponse
+    {
+        Gate::authorize('view', $termsVersion);
+
+        $sourceFile = $this->sourceFile($termsVersion);
+        abort_if($sourceFile === null, 404);
+
+        $path = (string) ($sourceFile['stored_path'] ?? '');
+        $disk = Storage::disk('secure_local');
+        abort_if($path === '' || ! $disk->exists($path), 404);
+
+        $contents = $disk->get($path);
+        abort_if($contents === null, 404);
+
+        $this->auditWriter->record('terms.source_file_downloaded', subject: $termsVersion, actor: $request->user(), after: [
+            'terms_version_id' => $termsVersion->getKey(),
+            'filename' => $sourceFile['original_name'] ?? null,
+        ]);
+
+        $filename = $this->downloadFilename((string) ($sourceFile['original_name'] ?? 'terms-source.docx'));
+        $mime = (string) ($sourceFile['mime_type'] ?? 'application/octet-stream');
+
+        return response($contents, 200, [
+            'Content-Type' => $mime,
+            'Content-Disposition' => 'attachment; filename="'.$filename.'"',
+            'Content-Length' => (string) strlen($contents),
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
     public function confirmPublish(TermsVersion $termsVersion): Response
     {
         Gate::authorize('publish', $termsVersion);
@@ -196,7 +277,7 @@ final class TermsController extends Controller
         $validated = $request->validate([
             'material' => ['required', 'boolean'],
             'notice_period_days' => ['required', 'integer', 'min:0', 'max:365'],
-            'reviewer_reference' => ['nullable', 'string', 'max:255'],
+            'reviewer_reference' => ['nullable', 'string', 'max:2000'],
         ]);
 
         DB::transaction(function () use ($request, $termsVersion, $validated): void {
@@ -287,6 +368,10 @@ final class TermsController extends Controller
             'reviewer_reference' => $version->reviewer_reference,
             'published_at' => $version->published_at?->toIso8601String(),
             'published_by_user_id' => $version->published_by_user_id,
+            'source_file' => $this->sourceFilePayload($version),
+            'source_download_url' => $this->sourceFile($version) === null
+                ? null
+                : route('admin.terms.source-file.download', $version, absolute: false),
             'clauses_count' => $version->clauses_count,
             'material_clauses_count' => $version->relationLoaded('clauses')
                 ? $version->clauses->where('material', true)->count()
@@ -335,6 +420,38 @@ final class TermsController extends Controller
             ->max() + 1;
 
         return (string) max(1, $next);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function sourceFile(TermsVersion $version): ?array
+    {
+        return is_array($version->source_file) ? $version->source_file : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function sourceFilePayload(TermsVersion $version): ?array
+    {
+        $sourceFile = $this->sourceFile($version);
+
+        if ($sourceFile === null) {
+            return null;
+        }
+
+        return [
+            'original_name' => $sourceFile['original_name'] ?? null,
+            'mime_type' => $sourceFile['mime_type'] ?? null,
+            'byte_size' => $sourceFile['byte_size'] ?? null,
+            'uploaded_at' => $sourceFile['uploaded_at'] ?? null,
+        ];
+    }
+
+    private function downloadFilename(string $filename): string
+    {
+        return str_replace(['\\', '/', '"', "\r", "\n"], '-', $filename);
     }
 
     private function downloadHtml(TermsVersion $version): string

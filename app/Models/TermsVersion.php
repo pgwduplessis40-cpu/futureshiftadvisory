@@ -19,6 +19,7 @@ final class TermsVersion extends Model
         'material' => 'boolean',
         'published_at' => 'datetime',
         'notice_period_days' => 'integer',
+        'source_file' => 'array',
     ];
 
     /**

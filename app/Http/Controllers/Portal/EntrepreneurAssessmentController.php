@@ -9,6 +9,7 @@ use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\EntrepreneurProfile;
 use App\Models\PlanAssessment;
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -17,10 +18,13 @@ final class EntrepreneurAssessmentController extends Controller
 {
     use BuildsEntrepreneurAssessmentPayload;
 
+    public function __construct(private readonly EntrepreneurInviteReconciler $entrepreneurInvites) {}
+
     public function show(Request $request, PlanAssessment $planAssessment): Response
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+        $this->entrepreneurInvites->reconcile($user);
 
         $planAssessment->loadMissing(
             'businessPlan.entrepreneurProfile.assignedAdvisor',

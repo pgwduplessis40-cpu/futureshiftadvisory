@@ -7,7 +7,9 @@ namespace App\Http\Controllers\Portal;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\BoardPost;
+use App\Models\User;
 use App\Services\Board\InspirationBoard;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -18,10 +20,18 @@ use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 
 final class InspirationBoardController extends Controller
 {
-    public function __construct(private readonly InspirationBoard $board) {}
+    public function __construct(
+        private readonly InspirationBoard $board,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+    ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
+        $user = $request->user();
+        if ($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR) {
+            $this->entrepreneurInvites->reconcile($user);
+        }
+
         return Inertia::render('portal/inspiration-board/Index', [
             'posts' => $this->board->feed()
                 ->map(fn (BoardPost $post): array => $this->board->portalPayload($post))

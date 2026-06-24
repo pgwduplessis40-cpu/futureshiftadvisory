@@ -9,6 +9,7 @@ use App\Http\Controllers\Controller;
 use App\Models\EntrepreneurProfile;
 use App\Models\SurveyAssignment;
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Surveys\SurveyResponseRecorder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -18,6 +19,8 @@ use Inertia\Response;
 
 final class EntrepreneurSurveyController extends Controller
 {
+    public function __construct(private readonly EntrepreneurInviteReconciler $entrepreneurInvites) {}
+
     public function index(Request $request): Response
     {
         $profile = $this->profile($request);
@@ -67,6 +70,8 @@ final class EntrepreneurSurveyController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+
+        $this->entrepreneurInvites->reconcile($user);
 
         return EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())

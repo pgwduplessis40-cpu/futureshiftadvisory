@@ -25,6 +25,7 @@ use App\Models\Report;
 use App\Models\ReverseReferral;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\ClientPortalResolver;
 use DateTimeInterface;
 use Illuminate\Http\RedirectResponse;
@@ -36,8 +37,11 @@ use Inertia\Response;
 
 final class CalendarController extends Controller
 {
-    public function __invoke(Request $request, ClientPortalResolver $clients): Response|RedirectResponse
-    {
+    public function __invoke(
+        Request $request,
+        ClientPortalResolver $clients,
+        EntrepreneurInviteReconciler $entrepreneurInvites,
+    ): Response|RedirectResponse {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
@@ -47,7 +51,7 @@ final class CalendarController extends Controller
 
         [$title, $subtitle, $events] = match ($user->user_type) {
             User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM, User::TYPE_NPO_BOARD_MEMBER => $this->clientCalendar($clients->resolveFor($request)),
-            User::TYPE_ENTREPRENEUR => $this->entrepreneurCalendar($user),
+            User::TYPE_ENTREPRENEUR => $this->entrepreneurCalendar($user, $entrepreneurInvites),
             User::TYPE_ENTREPRENEUR_MENTOR => $this->mentorCalendar($user),
             User::TYPE_BROKER => $this->panelCalendar($user, PanelMember::TYPE_BROKER),
             User::TYPE_COACH => $this->panelCalendar($user, PanelMember::TYPE_COACH),
@@ -251,8 +255,10 @@ final class CalendarController extends Controller
     /**
      * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
      */
-    private function entrepreneurCalendar(User $user): array
+    private function entrepreneurCalendar(User $user, EntrepreneurInviteReconciler $entrepreneurInvites): array
     {
+        $entrepreneurInvites->reconcile($user);
+
         $profile = EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())
             ->first();

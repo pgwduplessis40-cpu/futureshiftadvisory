@@ -15,6 +15,13 @@ export type TermsVersion = {
     reviewer_reference: string | null;
     published_at: string | null;
     published_by_user_id: number | null;
+    source_file: {
+        original_name: string;
+        mime_type: string;
+        byte_size: number;
+        uploaded_at: string;
+    } | null;
+    source_download_url: string | null;
     clauses_count?: number;
     material_clauses_count?: number;
     clauses: TermsClause[];

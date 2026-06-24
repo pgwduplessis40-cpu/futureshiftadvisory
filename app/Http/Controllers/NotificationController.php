@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\User;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Notifications\NotificationCenter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -13,7 +14,10 @@ use Inertia\Response;
 
 final class NotificationController extends Controller
 {
-    public function __construct(private readonly NotificationCenter $center) {}
+    public function __construct(
+        private readonly NotificationCenter $center,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+    ) {}
 
     public function index(Request $request): Response
     {
@@ -51,6 +55,10 @@ final class NotificationController extends Controller
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+
+        if ($user->user_type === User::TYPE_ENTREPRENEUR) {
+            $this->entrepreneurInvites->reconcile($user);
+        }
 
         return $user;
     }

@@ -12,9 +12,11 @@ use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Security\MfaChallenger;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rules\Password;
 use Inertia\Inertia;
@@ -28,6 +30,30 @@ final class InviteAcceptController extends Controller
     public function show(string $token): Response
     {
         $invite = $this->inviteForToken($token);
+        $plainToken = $token;
+
+        if (! $invite->isUsable()) {
+            $replacement = $this->replacementInviteFor($invite);
+
+            if ($replacement instanceof InviteToken) {
+                $replacementToken = $this->plainTokenFor($replacement);
+
+                if ($replacementToken !== null) {
+                    $this->auditWriter->record(
+                        action: 'invite.replacement_viewed',
+                        subject: $replacement,
+                        after: [
+                            'expired_invite_token_id' => $invite->getKey(),
+                            'email' => $replacement->email,
+                            'expires_at' => $replacement->expires_at?->toIso8601String(),
+                        ],
+                    );
+
+                    $invite = $replacement;
+                    $plainToken = $replacementToken;
+                }
+            }
+        }
 
         if (! $invite->isUsable()) {
             $this->auditWriter->record(
@@ -49,7 +75,7 @@ final class InviteAcceptController extends Controller
         }
 
         return Inertia::render('auth/invite-accept', [
-            'token' => $token,
+            'token' => $plainToken,
             'email' => $invite->email,
             'targetRole' => $invite->target_role,
             'targetUserType' => $invite->target_user_type,
@@ -120,6 +146,14 @@ final class InviteAcceptController extends Controller
     {
         $invite = $this->inviteForToken($token);
 
+        if (! $invite->isUsable()) {
+            $replacement = $this->replacementInviteFor($invite);
+
+            if ($replacement instanceof InviteToken) {
+                return $replacement;
+            }
+        }
+
         abort_unless($invite->isUsable(), 404);
 
         return $invite;
@@ -132,6 +166,39 @@ final class InviteAcceptController extends Controller
             ->firstOrFail();
     }
 
+    private function replacementInviteFor(InviteToken $invite): ?InviteToken
+    {
+        if ($invite->isAccepted() || ! $invite->isExpired()) {
+            return null;
+        }
+
+        return InviteToken::query()
+            ->whereKeyNot($invite->getKey())
+            ->where('email', $invite->email)
+            ->where('target_role', $invite->target_role)
+            ->where('target_user_type', $invite->target_user_type)
+            ->whereNull('accepted_at')
+            ->where('expires_at', '>', now())
+            ->latest('expires_at')
+            ->latest('created_at')
+            ->first();
+    }
+
+    private function plainTokenFor(InviteToken $invite): ?string
+    {
+        $envelope = $invite->token_envelope ?? null;
+
+        if (! is_string($envelope) || trim($envelope) === '') {
+            return null;
+        }
+
+        try {
+            return Crypt::decryptString($envelope);
+        } catch (DecryptException) {
+            return null;
+        }
+    }
+
     private function linkEntrepreneurProfile(InviteToken $invite, User $user): ?EntrepreneurProfile
     {
         if ($invite->target_user_type !== User::TYPE_ENTREPRENEUR) {
@@ -140,14 +207,25 @@ final class InviteAcceptController extends Controller
 
         $profile = EntrepreneurProfile::query()
             ->where('invite_token_id', $invite->getKey())
-            ->first();
+            ->first()
+            ?? EntrepreneurProfile::query()
+                ->whereNull('user_id')
+                ->whereRaw('lower(email) = ?', [strtolower((string) $invite->email)])
+                ->where('stage', EntrepreneurStage::INVITED->value)
+                ->latest()
+                ->first();
 
-        if (! $profile instanceof EntrepreneurProfile || $profile->user_id !== null) {
+        if (! $profile instanceof EntrepreneurProfile) {
+            return null;
+        }
+
+        if ($profile->user_id !== null && (string) $profile->user_id !== (string) $user->getKey()) {
             return $profile;
         }
 
         $profile->forceFill([
             'user_id' => $user->getKey(),
+            'invite_token_id' => $invite->getKey(),
             'stage' => EntrepreneurStage::ONBOARDING,
         ])->save();
 

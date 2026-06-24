@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activate
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
 export const activate = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ activate.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activate
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
 activate.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ activate.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activate
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
 activate.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ activate.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::activate
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
     const activateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ activate.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::activate
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
         activateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

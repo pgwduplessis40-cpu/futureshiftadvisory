@@ -12,7 +12,9 @@ use App\Services\Pdf\PdfRenderer;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\TermsVersionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use RuntimeException;
 use Tests\TestCase;
@@ -61,6 +63,7 @@ final class TermsVersioningTest extends TestCase
             ])
             ->values()
             ->all();
+        $reviewerReference = rtrim(str_repeat('Acceptance workflow evidence. ', 12));
 
         $this->actingAsMfa($admin)
             ->put(route('admin.terms.update', $draft), [
@@ -68,7 +71,7 @@ final class TermsVersioningTest extends TestCase
                 'title' => 'Updated Terms',
                 'material' => true,
                 'notice_period_days' => 45,
-                'reviewer_reference' => 'Review Firm, 2026-05-21',
+                'reviewer_reference' => $reviewerReference,
                 'clauses' => $clauses,
             ])
             ->assertRedirect(route('admin.terms.edit', $draft, absolute: false));
@@ -77,6 +80,7 @@ final class TermsVersioningTest extends TestCase
 
         $this->assertSame('Updated Terms', $draft->title);
         $this->assertSame(45, $draft->notice_period_days);
+        $this->assertSame($reviewerReference, $draft->reviewer_reference);
         $this->assertSame('Updated clause one body.', $draft->clauses()->where('clause_number', 1)->firstOrFail()->body);
         $this->assertTrue((bool) $draft->clauses()->where('clause_number', 2)->firstOrFail()->material);
     }
@@ -186,6 +190,46 @@ final class TermsVersioningTest extends TestCase
         $this->assertDatabaseHas('audit_events', ['action' => 'terms.downloaded_for_review']);
     }
 
+    public function test_admin_can_upload_and_download_terms_source_word_document(): void
+    {
+        Storage::fake('secure_local');
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $draft = $this->termsVersion('1');
+        $upload = UploadedFile::fake()->create(
+            'Future_Shift_Terms.docx',
+            24,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.terms.source-file.store', $draft), [
+                'file' => $upload,
+            ])
+            ->assertRedirect();
+
+        $draft->refresh();
+        $sourceFile = $draft->source_file;
+
+        $this->assertIsArray($sourceFile);
+        $this->assertSame('Future_Shift_Terms.docx', $sourceFile['original_name']);
+        Storage::disk('secure_local')->assertExists($sourceFile['stored_path']);
+        $this->assertDatabaseHas('audit_events', ['action' => 'terms.source_file_uploaded']);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.edit', $draft))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('version.source_file.original_name', 'Future_Shift_Terms.docx')
+                ->where('version.source_download_url', route('admin.terms.source-file.download', $draft, absolute: false)));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.source-file.download', $draft))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
     public function test_material_publish_sets_prior_active_acceptances_to_expire_and_queues_reacceptance(): void
     {
         $this->seed(RoleSeeder::class);
@@ -199,12 +243,13 @@ final class TermsVersioningTest extends TestCase
             'terms_version_id' => $prior->id,
             'accepted_at' => now()->subDay(),
         ]);
+        $reviewerReference = rtrim(str_repeat('Independent review note. ', 12));
 
         $this->actingAsMfa($admin)
             ->post(route('admin.terms.publish', $draft), [
                 'material' => true,
                 'notice_period_days' => 30,
-                'reviewer_reference' => 'Review Firm',
+                'reviewer_reference' => $reviewerReference,
             ])
             ->assertRedirect(route('admin.terms.preview', $draft, absolute: false));
 
@@ -212,6 +257,7 @@ final class TermsVersioningTest extends TestCase
         $draft->refresh();
 
         $this->assertTrue($draft->material);
+        $this->assertSame($reviewerReference, $draft->reviewer_reference);
         $this->assertNotNull($draft->published_at);
         $this->assertNotNull($acceptance->expires_at);
         $this->assertTrue($acceptance->expires_at->isSameDay($draft->published_at->copy()->addDays(30)));

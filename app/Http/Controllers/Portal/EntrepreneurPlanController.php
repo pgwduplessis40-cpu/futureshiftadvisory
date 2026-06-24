@@ -19,6 +19,7 @@ use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -150,6 +151,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
         private readonly EntrepreneurGamification $gamification,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
     ) {}
 
     public function show(Request $request): Response
@@ -403,6 +405,8 @@ final class EntrepreneurPlanController extends Controller
 
     private function profileFor(User $user): EntrepreneurProfile
     {
+        $this->entrepreneurInvites->reconcile($user);
+
         return EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())
             ->firstOrFail();

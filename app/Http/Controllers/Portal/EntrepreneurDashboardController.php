@@ -20,6 +20,7 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -31,12 +32,15 @@ final class EntrepreneurDashboardController extends Controller
     public function __construct(
         private readonly InspirationBoard $inspirationBoard,
         private readonly EntrepreneurGamification $gamification,
+        private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
     ) {}
 
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
         abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+
+        $this->entrepreneurInvites->reconcile($user);
 
         $profile = EntrepreneurProfile::query()
             ->with([

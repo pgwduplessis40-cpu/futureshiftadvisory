@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\TermsController::index
- * @see app/Http/Controllers/Admin/TermsController.php:34
+ * @see app/Http/Controllers/Admin/TermsController.php:39
  * @route '/admin/terms'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::store
- * @see app/Http/Controllers/Admin/TermsController.php:51
+ * @see app/Http/Controllers/Admin/TermsController.php:56
  * @route '/admin/terms'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::store
- * @see app/Http/Controllers/Admin/TermsController.php:51
+ * @see app/Http/Controllers/Admin/TermsController.php:56
  * @route '/admin/terms'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::store
- * @see app/Http/Controllers/Admin/TermsController.php:51
+ * @see app/Http/Controllers/Admin/TermsController.php:56
  * @route '/admin/terms'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::store
- * @see app/Http/Controllers/Admin/TermsController.php:51
+ * @see app/Http/Controllers/Admin/TermsController.php:56
  * @route '/admin/terms'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::store
- * @see app/Http/Controllers/Admin/TermsController.php:51
+ * @see app/Http/Controllers/Admin/TermsController.php:56
  * @route '/admin/terms'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -134,7 +134,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
 export const edit = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -149,7 +149,7 @@ edit.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
 edit.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -182,7 +182,7 @@ edit.url = (args: { termsVersion: string | { id: string } } | [termsVersion: str
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
 edit.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -191,7 +191,7 @@ edit.get = (args: { termsVersion: string | { id: string } } | [termsVersion: str
 })
 /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
 edit.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -201,7 +201,7 @@ edit.head = (args: { termsVersion: string | { id: string } } | [termsVersion: st
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
     const editForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -211,7 +211,7 @@ edit.head = (args: { termsVersion: string | { id: string } } | [termsVersion: st
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
         editForm.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -220,7 +220,7 @@ edit.head = (args: { termsVersion: string | { id: string } } | [termsVersion: st
         })
             /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
- * @see app/Http/Controllers/Admin/TermsController.php:86
+ * @see app/Http/Controllers/Admin/TermsController.php:92
  * @route '/admin/terms/{termsVersion}/edit'
  */
         editForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -236,7 +236,7 @@ edit.head = (args: { termsVersion: string | { id: string } } | [termsVersion: st
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::update
- * @see app/Http/Controllers/Admin/TermsController.php:95
+ * @see app/Http/Controllers/Admin/TermsController.php:101
  * @route '/admin/terms/{termsVersion}'
  */
 export const update = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -251,7 +251,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::update
- * @see app/Http/Controllers/Admin/TermsController.php:95
+ * @see app/Http/Controllers/Admin/TermsController.php:101
  * @route '/admin/terms/{termsVersion}'
  */
 update.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -284,7 +284,7 @@ update.url = (args: { termsVersion: string | { id: string } } | [termsVersion: s
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::update
- * @see app/Http/Controllers/Admin/TermsController.php:95
+ * @see app/Http/Controllers/Admin/TermsController.php:101
  * @route '/admin/terms/{termsVersion}'
  */
 update.put = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'put'> => ({
@@ -294,7 +294,7 @@ update.put = (args: { termsVersion: string | { id: string } } | [termsVersion: s
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::update
- * @see app/Http/Controllers/Admin/TermsController.php:95
+ * @see app/Http/Controllers/Admin/TermsController.php:101
  * @route '/admin/terms/{termsVersion}'
  */
     const updateForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -309,7 +309,7 @@ update.put = (args: { termsVersion: string | { id: string } } | [termsVersion: s
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::update
- * @see app/Http/Controllers/Admin/TermsController.php:95
+ * @see app/Http/Controllers/Admin/TermsController.php:101
  * @route '/admin/terms/{termsVersion}'
  */
         updateForm.put = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -325,7 +325,7 @@ update.put = (args: { termsVersion: string | { id: string } } | [termsVersion: s
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
 export const preview = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -340,7 +340,7 @@ preview.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
 preview.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -373,7 +373,7 @@ preview.url = (args: { termsVersion: string | { id: string } } | [termsVersion: 
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
 preview.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -382,7 +382,7 @@ preview.get = (args: { termsVersion: string | { id: string } } | [termsVersion: 
 })
 /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
 preview.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -392,7 +392,7 @@ preview.head = (args: { termsVersion: string | { id: string } } | [termsVersion:
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
     const previewForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -402,7 +402,7 @@ preview.head = (args: { termsVersion: string | { id: string } } | [termsVersion:
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
         previewForm.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -411,7 +411,7 @@ preview.head = (args: { termsVersion: string | { id: string } } | [termsVersion:
         })
             /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
- * @see app/Http/Controllers/Admin/TermsController.php:144
+ * @see app/Http/Controllers/Admin/TermsController.php:150
  * @route '/admin/terms/{termsVersion}/preview'
  */
         previewForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -427,7 +427,7 @@ preview.head = (args: { termsVersion: string | { id: string } } | [termsVersion:
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
 export const download = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -442,7 +442,7 @@ download.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
 download.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -475,7 +475,7 @@ download.url = (args: { termsVersion: string | { id: string } } | [termsVersion:
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
 download.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -484,7 +484,7 @@ download.get = (args: { termsVersion: string | { id: string } } | [termsVersion:
 })
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
 download.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -494,7 +494,7 @@ download.head = (args: { termsVersion: string | { id: string } } | [termsVersion
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
     const downloadForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -504,7 +504,7 @@ download.head = (args: { termsVersion: string | { id: string } } | [termsVersion
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
         downloadForm.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -513,7 +513,7 @@ download.head = (args: { termsVersion: string | { id: string } } | [termsVersion
         })
             /**
 * @see \App\Http\Controllers\Admin\TermsController::download
- * @see app/Http/Controllers/Admin/TermsController.php:153
+ * @see app/Http/Controllers/Admin/TermsController.php:159
  * @route '/admin/terms/{termsVersion}/download'
  */
         downloadForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -528,8 +528,189 @@ download.head = (args: { termsVersion: string | { id: string } } | [termsVersion
 
     download.form = downloadForm
 /**
+* @see \App\Http\Controllers\Admin\TermsController::uploadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:188
+ * @route '/admin/terms/{termsVersion}/source-file'
+ */
+export const uploadSourceFile = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: uploadSourceFile.url(args, options),
+    method: 'post',
+})
+
+uploadSourceFile.definition = {
+    methods: ["post"],
+    url: '/admin/terms/{termsVersion}/source-file',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Admin\TermsController::uploadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:188
+ * @route '/admin/terms/{termsVersion}/source-file'
+ */
+uploadSourceFile.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { termsVersion: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { termsVersion: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    termsVersion: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        termsVersion: typeof args.termsVersion === 'object'
+                ? args.termsVersion.id
+                : args.termsVersion,
+                }
+
+    return uploadSourceFile.definition.url
+            .replace('{termsVersion}', parsedArgs.termsVersion.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\TermsController::uploadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:188
+ * @route '/admin/terms/{termsVersion}/source-file'
+ */
+uploadSourceFile.post = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: uploadSourceFile.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\TermsController::uploadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:188
+ * @route '/admin/terms/{termsVersion}/source-file'
+ */
+    const uploadSourceFileForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: uploadSourceFile.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\TermsController::uploadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:188
+ * @route '/admin/terms/{termsVersion}/source-file'
+ */
+        uploadSourceFileForm.post = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: uploadSourceFile.url(args, options),
+            method: 'post',
+        })
+
+    uploadSourceFile.form = uploadSourceFileForm
+/**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+export const downloadSourceFile = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: downloadSourceFile.url(args, options),
+    method: 'get',
+})
+
+downloadSourceFile.definition = {
+    methods: ["get","head"],
+    url: '/admin/terms/{termsVersion}/source-file/download',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+downloadSourceFile.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { termsVersion: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { termsVersion: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    termsVersion: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        termsVersion: typeof args.termsVersion === 'object'
+                ? args.termsVersion.id
+                : args.termsVersion,
+                }
+
+    return downloadSourceFile.definition.url
+            .replace('{termsVersion}', parsedArgs.termsVersion.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+downloadSourceFile.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: downloadSourceFile.url(args, options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+downloadSourceFile.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: downloadSourceFile.url(args, options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+    const downloadSourceFileForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: downloadSourceFile.url(args, options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+        downloadSourceFileForm.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: downloadSourceFile.url(args, options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Admin\TermsController::downloadSourceFile
+ * @see app/Http/Controllers/Admin/TermsController.php:232
+ * @route '/admin/terms/{termsVersion}/source-file/download'
+ */
+        downloadSourceFileForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: downloadSourceFile.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    downloadSourceFile.form = downloadSourceFileForm
+/**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
 export const confirmPublish = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -544,7 +725,7 @@ confirmPublish.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
 confirmPublish.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -577,7 +758,7 @@ confirmPublish.url = (args: { termsVersion: string | { id: string } } | [termsVe
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
 confirmPublish.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -586,7 +767,7 @@ confirmPublish.get = (args: { termsVersion: string | { id: string } } | [termsVe
 })
 /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
 confirmPublish.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -596,7 +777,7 @@ confirmPublish.head = (args: { termsVersion: string | { id: string } } | [termsV
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
     const confirmPublishForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -606,7 +787,7 @@ confirmPublish.head = (args: { termsVersion: string | { id: string } } | [termsV
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
         confirmPublishForm.get = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -615,7 +796,7 @@ confirmPublish.head = (args: { termsVersion: string | { id: string } } | [termsV
         })
             /**
 * @see \App\Http\Controllers\Admin\TermsController::confirmPublish
- * @see app/Http/Controllers/Admin/TermsController.php:182
+ * @see app/Http/Controllers/Admin/TermsController.php:263
  * @route '/admin/terms/{termsVersion}/publish'
  */
         confirmPublishForm.head = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -631,7 +812,7 @@ confirmPublish.head = (args: { termsVersion: string | { id: string } } | [termsV
     confirmPublish.form = confirmPublishForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
- * @see app/Http/Controllers/Admin/TermsController.php:191
+ * @see app/Http/Controllers/Admin/TermsController.php:272
  * @route '/admin/terms/{termsVersion}/publish'
  */
 export const publish = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -646,7 +827,7 @@ publish.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
- * @see app/Http/Controllers/Admin/TermsController.php:191
+ * @see app/Http/Controllers/Admin/TermsController.php:272
  * @route '/admin/terms/{termsVersion}/publish'
  */
 publish.url = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -679,7 +860,7 @@ publish.url = (args: { termsVersion: string | { id: string } } | [termsVersion: 
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
- * @see app/Http/Controllers/Admin/TermsController.php:191
+ * @see app/Http/Controllers/Admin/TermsController.php:272
  * @route '/admin/terms/{termsVersion}/publish'
  */
 publish.post = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -689,7 +870,7 @@ publish.post = (args: { termsVersion: string | { id: string } } | [termsVersion:
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
- * @see app/Http/Controllers/Admin/TermsController.php:191
+ * @see app/Http/Controllers/Admin/TermsController.php:272
  * @route '/admin/terms/{termsVersion}/publish'
  */
     const publishForm = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -699,7 +880,7 @@ publish.post = (args: { termsVersion: string | { id: string } } | [termsVersion:
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
- * @see app/Http/Controllers/Admin/TermsController.php:191
+ * @see app/Http/Controllers/Admin/TermsController.php:272
  * @route '/admin/terms/{termsVersion}/publish'
  */
         publishForm.post = (args: { termsVersion: string | { id: string } } | [termsVersion: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -710,7 +891,7 @@ publish.post = (args: { termsVersion: string | { id: string } } | [termsVersion:
     publish.form = publishForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activateEnforcement
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
 export const activateEnforcement = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -725,7 +906,7 @@ activateEnforcement.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activateEnforcement
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
 activateEnforcement.url = (options?: RouteQueryOptions) => {
@@ -734,7 +915,7 @@ activateEnforcement.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\TermsController::activateEnforcement
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
 activateEnforcement.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -744,7 +925,7 @@ activateEnforcement.post = (options?: RouteQueryOptions): RouteDefinition<'post'
 
     /**
 * @see \App\Http\Controllers\Admin\TermsController::activateEnforcement
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
     const activateEnforcementForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -754,7 +935,7 @@ activateEnforcement.post = (options?: RouteQueryOptions): RouteDefinition<'post'
 
             /**
 * @see \App\Http\Controllers\Admin\TermsController::activateEnforcement
- * @see app/Http/Controllers/Admin/TermsController.php:249
+ * @see app/Http/Controllers/Admin/TermsController.php:330
  * @route '/admin/terms/enforcement/activate'
  */
         activateEnforcementForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -763,6 +944,6 @@ activateEnforcement.post = (options?: RouteQueryOptions): RouteDefinition<'post'
         })
 
     activateEnforcement.form = activateEnforcementForm
-const TermsController = { index, store, edit, update, preview, download, confirmPublish, publish, activateEnforcement }
+const TermsController = { index, store, edit, update, preview, download, uploadSourceFile, downloadSourceFile, confirmPublish, publish, activateEnforcement }
 
 export default TermsController

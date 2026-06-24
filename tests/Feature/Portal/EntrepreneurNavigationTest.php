@@ -6,6 +6,7 @@ namespace Tests\Feature\Portal;
 
 use App\Enums\EntrepreneurStage;
 use App\Models\EntrepreneurProfile;
+use App\Models\InviteToken;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -42,6 +43,49 @@ final class EntrepreneurNavigationTest extends TestCase
             $this->actingAsMfa($entrepreneur)
                 ->get($url)
                 ->assertOk();
+        }
+    }
+
+    public function test_entrepreneur_navigation_recovers_accepted_invite_profile_before_loading_targets(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        foreach ($this->entrepreneurUrls() as $index => $url) {
+            $advisor = User::factory()->create([
+                'user_type' => User::TYPE_ADVISOR,
+                'primary_role' => User::TYPE_ADVISOR,
+            ]);
+            $entrepreneur = User::factory()->withTwoFactor()->create([
+                'email' => "accepted-nav-{$index}@example.test",
+                'user_type' => User::TYPE_ENTREPRENEUR,
+                'primary_role' => User::TYPE_ENTREPRENEUR,
+            ]);
+            $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+            $invite = InviteToken::query()->create([
+                'email' => $entrepreneur->email,
+                'target_role' => User::TYPE_ENTREPRENEUR,
+                'target_user_type' => User::TYPE_ENTREPRENEUR,
+                'token_hash' => InviteToken::hashToken("accepted-nav-token-{$index}"),
+                'expires_at' => now()->addDays(5),
+                'accepted_at' => now(),
+                'accepted_by_user_id' => $entrepreneur->getKey(),
+            ]);
+            $profile = EntrepreneurProfile::query()->create([
+                'assigned_advisor_id' => $advisor->getKey(),
+                'invite_token_id' => $invite->getKey(),
+                'name' => "Accepted Nav {$index}",
+                'email' => strtoupper($entrepreneur->email),
+                'stage' => EntrepreneurStage::INVITED,
+                'concept_summary' => 'Accepted invite should reconcile before portal navigation renders.',
+            ]);
+
+            $this->actingAsMfa($entrepreneur)
+                ->get($url)
+                ->assertOk();
+
+            $profile->refresh();
+            $this->assertSame((string) $entrepreneur->getKey(), (string) $profile->user_id);
+            $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
         }
     }
 

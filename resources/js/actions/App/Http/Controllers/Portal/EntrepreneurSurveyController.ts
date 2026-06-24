@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::index
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:24
  * @route '/portal/entrepreneur/surveys'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 export const show = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 show.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -105,7 +105,7 @@ show.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignm
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { surveyAssignment: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     surveyAssignment: args[0],
@@ -127,7 +127,7 @@ show.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignm
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 show.get = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -136,7 +136,7 @@ show.get = (args: { surveyAssignment: string | { id: string } } | [surveyAssignm
 })
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -146,7 +146,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
     const showForm = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -156,7 +156,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
         showForm.get = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -165,7 +165,7 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
         })
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::show
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:41
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:44
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
         showForm.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -177,11 +177,11 @@ show.head = (args: { surveyAssignment: string | { id: string } } | [surveyAssign
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:53
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:56
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 export const submit = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -196,7 +196,7 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:53
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:56
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 submit.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -207,7 +207,7 @@ submit.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { surveyAssignment: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     surveyAssignment: args[0],
@@ -229,7 +229,7 @@ submit.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:53
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:56
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
 submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -239,7 +239,7 @@ submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssi
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:53
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:56
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
     const submitForm = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -249,14 +249,14 @@ submit.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssi
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurSurveyController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:53
+ * @see app/Http/Controllers/Portal/EntrepreneurSurveyController.php:56
  * @route '/portal/entrepreneur/surveys/{surveyAssignment}'
  */
         submitForm.post = (args: { surveyAssignment: string | { id: string } } | [surveyAssignment: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: submit.url(args, options),
             method: 'post',
         })
-    
+
     submit.form = submitForm
 const EntrepreneurSurveyController = { index, show, submit }
 

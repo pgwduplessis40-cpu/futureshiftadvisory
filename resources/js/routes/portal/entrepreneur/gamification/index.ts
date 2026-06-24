@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::disableRequest
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:35
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:33
  * @route '/portal/entrepreneur/gamification/disable-request'
  */
 export const disableRequest = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ disableRequest.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::disableRequest
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:35
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:33
  * @route '/portal/entrepreneur/gamification/disable-request'
  */
 disableRequest.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ disableRequest.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::disableRequest
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:35
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:33
  * @route '/portal/entrepreneur/gamification/disable-request'
  */
 disableRequest.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ disableRequest.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::disableRequest
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:35
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:33
  * @route '/portal/entrepreneur/gamification/disable-request'
  */
     const disableRequestForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ disableRequest.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::disableRequest
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:35
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:33
  * @route '/portal/entrepreneur/gamification/disable-request'
  */
         disableRequestForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -56,7 +56,7 @@ disableRequest.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
     disableRequest.form = disableRequestForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
  * @route '/portal/entrepreneur/gamification/seen'
  */
 export const seen = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -71,7 +71,7 @@ seen.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
  * @route '/portal/entrepreneur/gamification/seen'
  */
 seen.url = (options?: RouteQueryOptions) => {
@@ -80,7 +80,7 @@ seen.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
  * @route '/portal/entrepreneur/gamification/seen'
  */
 seen.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -90,7 +90,7 @@ seen.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
  * @route '/portal/entrepreneur/gamification/seen'
  */
     const seenForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -100,7 +100,7 @@ seen.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
- * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:21
+ * @see app/Http/Controllers/Portal/EntrepreneurGamificationController.php:24
  * @route '/portal/entrepreneur/gamification/seen'
  */
         seenForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

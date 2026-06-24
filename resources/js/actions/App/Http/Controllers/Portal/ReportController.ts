@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
 export const show = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
 show.url = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ show.url = (args: { report: string | { id: string } } | [report: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -49,7 +49,7 @@ show.url = (args: { report: string | { id: string } } | [report: string | { id: 
 
 /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
 show.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ show.get = (args: { report: string | { id: string } } | [report: string | { id: 
 })
 /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
 show.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ show.head = (args: { report: string | { id: string } } | [report: string | { id:
 
     /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
     const showForm = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ show.head = (args: { report: string | { id: string } } | [report: string | { id:
 
             /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
         showForm.get = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ show.head = (args: { report: string | { id: string } } | [report: string | { id:
         })
             /**
 * @see \App\Http\Controllers\Portal\ReportController::show
- * @see app/Http/Controllers/Portal/ReportController.php:28
+ * @see app/Http/Controllers/Portal/ReportController.php:30
  * @route '/portal/reports/{report}'
  */
         showForm.head = (args: { report: string | { id: string } } | [report: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -99,7 +99,7 @@ show.head = (args: { report: string | { id: string } } | [report: string | { id:
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const ReportController = { show }
 
