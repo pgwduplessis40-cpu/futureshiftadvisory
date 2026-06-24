@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Security\MfaChallenger;
+use App\Services\Terms\TermsAcceptanceGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -19,6 +20,7 @@ final class MfaSetupController extends Controller
     public function __construct(
         private readonly MfaChallenger $mfa,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly TermsAcceptanceGate $terms,
     ) {}
 
     public function show(Request $request): Response|RedirectResponse
@@ -28,9 +30,13 @@ final class MfaSetupController extends Controller
         $this->entrepreneurInvites->reconcile($user);
 
         if ($this->mfa->hasCompletedEnrolment($user)) {
-            return redirect()->route($request->session()->pull('fsa.invite_flow', false)
-                ? 'terms.pending'
-                : 'dashboard');
+            $inviteFlow = $request->session()->pull('fsa.invite_flow', false);
+
+            if ($inviteFlow && ($this->terms->requiresAcceptance($user) || $this->terms->hasDeclinedTermsSuspension($user))) {
+                return redirect()->route('terms.pending');
+            }
+
+            return redirect()->route('dashboard');
         }
 
         $request->session()->put('auth.password_confirmed_at', now()->getTimestamp());

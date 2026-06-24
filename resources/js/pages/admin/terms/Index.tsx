@@ -1,5 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Download, Eye, FilePlus, History, Pencil, Send } from 'lucide-react';
+import {
+    Download,
+    Eye,
+    FilePlus,
+    History,
+    LockKeyhole,
+    Pencil,
+    Send,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -8,13 +16,14 @@ import {
     TooltipContent,
     TooltipTrigger,
 } from '@/components/ui/tooltip';
-import type { TermsVersion } from './types';
+import type { TermsEnforcementState, TermsVersion } from './types';
 
 type Props = {
     versions: TermsVersion[];
+    enforcement: TermsEnforcementState;
 };
 
-export default function TermsIndex({ versions }: Props) {
+export default function TermsIndex({ versions, enforcement }: Props) {
     return (
         <>
             <Head title="Terms versions" />
@@ -39,6 +48,61 @@ export default function TermsIndex({ versions }: Props) {
                         Draft
                     </Button>
                 </div>
+
+                <section className="rounded-md border bg-background p-4">
+                    <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+                        <div className="flex gap-3">
+                            <LockKeyhole
+                                className="mt-0.5 size-4 text-muted-foreground"
+                                aria-hidden="true"
+                            />
+                            <div>
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <h2 className="text-sm font-medium">
+                                        T&C enforcement
+                                    </h2>
+                                    <Badge
+                                        variant={
+                                            enforcement.active
+                                                ? 'default'
+                                                : 'secondary'
+                                        }
+                                    >
+                                        {enforcement.active
+                                            ? 'active'
+                                            : 'inactive'}
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-sm text-muted-foreground">
+                                    {enforcement.active
+                                        ? `Compulsory acceptance was activated${enforcement.activated_at ? ` on ${formatDate(enforcement.activated_at)}` : ''}. It cannot be deactivated.`
+                                        : enforcement.latest_published_version
+                                          ? `Published terms are available, but customers can keep testing until enforcement is activated. Latest published version: ${enforcement.latest_published_version.version}.`
+                                          : 'Publish a terms version before activating compulsory acceptance.'}
+                                </p>
+                            </div>
+                        </div>
+
+                        {!enforcement.active ? (
+                            <Button
+                                size="sm"
+                                type="button"
+                                disabled={!enforcement.can_activate}
+                                onClick={() =>
+                                    router.post(
+                                        '/admin/terms/enforcement/activate',
+                                    )
+                                }
+                            >
+                                <LockKeyhole
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Activate
+                            </Button>
+                        ) : null}
+                    </div>
+                </section>
 
                 <div className="overflow-hidden rounded-md border">
                     <table className="fsa-responsive-table">
@@ -203,6 +267,13 @@ export default function TermsIndex({ versions }: Props) {
             </div>
         </>
     );
+}
+
+function formatDate(value: string): string {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
 }
 
 function ActionTooltip({

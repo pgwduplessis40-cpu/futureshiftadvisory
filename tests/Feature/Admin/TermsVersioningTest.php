@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Models\TermsAcceptance;
+use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
@@ -103,6 +104,44 @@ final class TermsVersioningTest extends TestCase
                         && $publishedPayload['material_clauses_count'] === 5;
                 }),
             );
+    }
+
+    public function test_super_admin_can_activate_terms_enforcement_once_after_publish(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $published = $this->termsVersion('1', published: true);
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('enforcement.active', false)
+                ->where('enforcement.can_activate', true)
+                ->where('enforcement.latest_published_version.version', $published->version),
+            );
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.terms.enforcement.activate'))
+            ->assertRedirect(route('admin.terms.index', absolute: false));
+
+        $this->assertDatabaseHas('terms_enforcements', [
+            'scope' => TermsEnforcement::SCOPE_PLATFORM,
+            'activated_by_user_id' => $admin->id,
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'terms.enforcement_activated']);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('enforcement.active', true)
+                ->where('enforcement.can_activate', false),
+            );
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.terms.enforcement.activate'))
+            ->assertStatus(422);
     }
 
     public function test_terms_edit_payload_supports_whole_document_and_per_clause_classification(): void

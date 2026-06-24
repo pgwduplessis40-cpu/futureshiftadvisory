@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Terms;
 
 use App\Models\TermsAcceptance;
+use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Notifications\TermsDeclinedUrgentNotification;
@@ -23,6 +24,7 @@ final class AcceptanceGateTest extends TestCase
     public function test_mfa_verified_user_without_terms_acceptance_is_redirected_to_gate(): void
     {
         $this->termsVersion('1', publishedAt: now()->subDay(), material: true);
+        $this->activateTermsEnforcement();
         $user = User::factory()->withTwoFactor()->create();
 
         $this->actingAsMfa($user)
@@ -37,6 +39,20 @@ final class AcceptanceGateTest extends TestCase
                 ->where('version.version', '1')
                 ->where('hasDeclined', false),
             );
+    }
+
+    public function test_published_terms_are_not_compulsory_until_enforcement_is_activated(): void
+    {
+        $this->termsVersion('1', publishedAt: now()->subDay(), material: true);
+        $user = User::factory()->withTwoFactor()->create();
+
+        $this->actingAsMfa($user)
+            ->get(route('dashboard'))
+            ->assertOk();
+
+        $this->actingAsMfa($user)
+            ->get(route('terms.pending'))
+            ->assertRedirect(route('dashboard', absolute: false));
     }
 
     public function test_gate_accept_button_is_disabled_until_scroll_end_event(): void
@@ -66,6 +82,7 @@ final class AcceptanceGateTest extends TestCase
         $this->app->instance(PdfRenderer::class, $renderer);
 
         $version = $this->termsVersion('1', publishedAt: now()->subDay(), material: true, clauseBody: 'Exact clause text for PDF proof.');
+        $this->activateTermsEnforcement();
         $user = User::factory()->withTwoFactor()->create();
 
         $this->actingAsMfa($user)
@@ -94,6 +111,7 @@ final class AcceptanceGateTest extends TestCase
     {
         Storage::fake('secure_local');
         $this->termsVersion('1', publishedAt: now()->subDay(), material: true);
+        $this->activateTermsEnforcement();
         $user = User::factory()->withTwoFactor()->create();
 
         $this->actingAsMfa($user)
@@ -109,6 +127,7 @@ final class AcceptanceGateTest extends TestCase
     {
         Notification::fake();
         $version = $this->termsVersion('1', publishedAt: now()->subDay(), material: true);
+        $this->activateTermsEnforcement();
         $user = User::factory()->withTwoFactor()->create();
         $advisor = User::factory()->create([
             'user_type' => User::TYPE_ADVISOR,
@@ -176,6 +195,7 @@ final class AcceptanceGateTest extends TestCase
     {
         $prior = $this->termsVersion('1', publishedAt: now()->subDays(10), material: true);
         $this->termsVersion('2', publishedAt: now()->subDay(), material: true);
+        $this->activateTermsEnforcement();
         $user = User::factory()->withTwoFactor()->create();
         TermsAcceptance::query()->create([
             'user_id' => $user->id,
@@ -201,6 +221,7 @@ final class AcceptanceGateTest extends TestCase
     {
         $prior = $this->termsVersion('1', publishedAt: now()->subDays(10), material: true);
         $this->termsVersion('2', publishedAt: now()->subDay(), material: false);
+        $this->activateTermsEnforcement();
         $user = User::factory()->withTwoFactor()->create();
         TermsAcceptance::query()->create([
             'user_id' => $user->id,
@@ -237,5 +258,13 @@ final class AcceptanceGateTest extends TestCase
         }
 
         return $terms;
+    }
+
+    private function activateTermsEnforcement(): void
+    {
+        TermsEnforcement::query()->create([
+            'scope' => TermsEnforcement::SCOPE_PLATFORM,
+            'activated_at' => now()->subMinute(),
+        ]);
     }
 }

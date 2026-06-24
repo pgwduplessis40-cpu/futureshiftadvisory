@@ -6,6 +6,7 @@ import AdvisorLayout from '@/layouts/AdvisorLayout';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
+import PortalLayout from '@/layouts/PortalLayout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
 import { registerPortalOffline } from '@/lib/portal-offline';
@@ -22,11 +23,11 @@ createInertiaApp({
             case name.startsWith('auth/'):
                 return AuthLayout;
             case name === 'portal/entrepreneur/Dashboard':
-                return AppLayout;
+                return PortalLayout;
             case name.startsWith('portal/messages/'):
-                return AppLayout;
+                return PortalLayout;
             case name.startsWith('portal/'):
-                return AppLayout;
+                return PortalLayout;
             case name.startsWith('advisor/'):
                 return AdvisorLayout;
             case name.startsWith('notifications/'):

@@ -40,8 +40,15 @@ final class EntrepreneurInviteReconciler
                 ->where('stage', EntrepreneurStage::INVITED->value)
                 ->whereHas('inviteToken', fn ($query) => $query
                     ->where('target_user_type', User::TYPE_ENTREPRENEUR)
-                    ->whereNull('accepted_at')
-                    ->where('expires_at', '>', now()))
+                    ->where(function ($query) use ($user): void {
+                        $query
+                            ->where(function ($query): void {
+                                $query
+                                    ->whereNull('accepted_at')
+                                    ->where('expires_at', '>', now());
+                            })
+                            ->orWhere('accepted_by_user_id', $user->getKey());
+                    }))
                 ->lockForUpdate()
                 ->first();
 

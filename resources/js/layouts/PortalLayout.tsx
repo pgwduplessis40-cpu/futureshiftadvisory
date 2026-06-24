@@ -2,6 +2,8 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     BookOpenCheck,
+    CalendarDays,
+    ClipboardCheck,
     ClipboardList,
     HeartPulse,
     LayoutDashboard,
@@ -9,6 +11,7 @@ import {
     Menu,
     MessageSquare,
     Settings,
+    Sparkles,
     X,
 } from 'lucide-react';
 import { useState } from 'react';
@@ -47,6 +50,21 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   icon: BookOpenCheck,
               },
               {
+                  label: 'Calendar',
+                  href: '/portal/calendar',
+                  icon: CalendarDays,
+              },
+              {
+                  label: 'Inspiration',
+                  href: '/portal/inspiration-board',
+                  icon: Sparkles,
+              },
+              {
+                  label: 'Feedback',
+                  href: '/portal/entrepreneur/surveys',
+                  icon: ClipboardCheck,
+              },
+              {
                   label: 'Messages',
                   href: '/portal/messages',
                   icon: MessageSquare,
@@ -69,9 +87,24 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                   icon: ClipboardList,
               },
               {
+                  label: 'Calendar',
+                  href: '/portal/calendar',
+                  icon: CalendarDays,
+              },
+              {
                   label: 'Wellbeing',
                   href: '/portal/wellbeing',
                   icon: HeartPulse,
+              },
+              {
+                  label: 'Feedback',
+                  href: '/portal/surveys',
+                  icon: ClipboardCheck,
+              },
+              {
+                  label: 'Inspiration',
+                  href: '/portal/inspiration-board',
+                  icon: Sparkles,
               },
               {
                   label: 'Messages',

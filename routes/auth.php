@@ -74,6 +74,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('terms/{termsVersion}/download', [TermsController::class, 'download'])->name('terms.download');
             Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
+            Route::post('terms/enforcement/activate', [TermsController::class, 'activateEnforcement'])->name('terms.enforcement.activate');
 
             Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
             Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');

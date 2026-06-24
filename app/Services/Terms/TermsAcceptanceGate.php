@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Services\Terms;
 
 use App\Models\TermsAcceptance;
+use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
+use Illuminate\Support\Facades\Schema;
+use Throwable;
 
 final class TermsAcceptanceGate
 {
@@ -26,6 +29,10 @@ final class TermsAcceptanceGate
 
     public function requiresAcceptance(User $user): bool
     {
+        if (! $this->isEnforced()) {
+            return false;
+        }
+
         $latest = $this->latestPublishedVersion();
         if (! $latest instanceof TermsVersion) {
             return false;
@@ -51,6 +58,38 @@ final class TermsAcceptanceGate
     public function hasDeclinedTermsSuspension(User $user): bool
     {
         return $user->suspended_at !== null && $user->suspended_reason === 'terms_declined';
+    }
+
+    public function isEnforced(): bool
+    {
+        if (! $this->enforcementTableAvailable()) {
+            return false;
+        }
+
+        return TermsEnforcement::query()
+            ->where('scope', TermsEnforcement::SCOPE_PLATFORM)
+            ->exists();
+    }
+
+    public function enforcement(): ?TermsEnforcement
+    {
+        if (! $this->enforcementTableAvailable()) {
+            return null;
+        }
+
+        return TermsEnforcement::query()
+            ->with('activatedBy')
+            ->where('scope', TermsEnforcement::SCOPE_PLATFORM)
+            ->first();
+    }
+
+    private function enforcementTableAvailable(): bool
+    {
+        try {
+            return Schema::hasTable('terms_enforcements');
+        } catch (Throwable) {
+            return false;
+        }
     }
 
     private function activeAcceptanceForVersion(User $user, TermsVersion $version): ?TermsAcceptance

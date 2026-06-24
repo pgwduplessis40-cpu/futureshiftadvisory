@@ -6,9 +6,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\TermsAcceptance;
+use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Terms\TermsAcceptanceGate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -21,7 +23,10 @@ use Inertia\Response;
 
 final class TermsController extends Controller
 {
-    public function __construct(private readonly AuditWriter $auditWriter) {}
+    public function __construct(
+        private readonly AuditWriter $auditWriter,
+        private readonly TermsAcceptanceGate $gate,
+    ) {}
 
     public function index(): Response
     {
@@ -36,6 +41,7 @@ final class TermsController extends Controller
                 ->latest('created_at')
                 ->get()
                 ->map(fn (TermsVersion $version): array => $this->versionPayload($version)),
+            'enforcement' => $this->enforcementPayload(),
         ]);
     }
 
@@ -231,6 +237,33 @@ final class TermsController extends Controller
         return to_route('admin.terms.preview', $termsVersion)->with('status', 'terms-published');
     }
 
+    public function activateEnforcement(Request $request): RedirectResponse
+    {
+        Gate::authorize('publish', TermsVersion::class);
+
+        $latest = $this->gate->latestPublishedVersion();
+        abort_unless($latest instanceof TermsVersion, 422, 'Publish a terms version before activating enforcement.');
+        abort_if($this->gate->isEnforced(), 422, 'Terms enforcement has already been activated.');
+
+        DB::transaction(function () use ($latest, $request): TermsEnforcement {
+            $activation = TermsEnforcement::query()->create([
+                'scope' => TermsEnforcement::SCOPE_PLATFORM,
+                'activated_at' => now(),
+                'activated_by_user_id' => $request->user()?->getAuthIdentifier(),
+            ]);
+
+            $this->auditWriter->record('terms.enforcement_activated', subject: $activation, actor: $request->user(), after: [
+                'latest_terms_version_id' => $latest->getKey(),
+                'latest_terms_version' => $latest->version,
+                'activated_at' => $activation->activated_at?->toIso8601String(),
+            ]);
+
+            return $activation;
+        });
+
+        return to_route('admin.terms.index')->with('status', 'terms-enforcement-activated');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -258,6 +291,30 @@ final class TermsController extends Controller
                     'material' => $clause->material,
                 ])->values()
                 : [],
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function enforcementPayload(): array
+    {
+        $enforcement = $this->gate->enforcement();
+        $latest = $this->gate->latestPublishedVersion();
+
+        return [
+            'active' => $enforcement instanceof TermsEnforcement,
+            'activated_at' => $enforcement?->activated_at?->toIso8601String(),
+            'activated_by' => $enforcement?->activatedBy ? [
+                'id' => $enforcement->activatedBy->id,
+                'name' => $enforcement->activatedBy->name,
+            ] : null,
+            'can_activate' => ! ($enforcement instanceof TermsEnforcement) && $latest instanceof TermsVersion,
+            'latest_published_version' => $latest instanceof TermsVersion ? [
+                'id' => $latest->id,
+                'version' => $latest->version,
+                'published_at' => $latest->published_at?->toIso8601String(),
+            ] : null,
         ];
     }
 

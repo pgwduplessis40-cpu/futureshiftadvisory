@@ -19,3 +19,18 @@ export type TermsVersion = {
     material_clauses_count?: number;
     clauses: TermsClause[];
 };
+
+export type TermsEnforcementState = {
+    active: boolean;
+    activated_at: string | null;
+    activated_by: {
+        id: number;
+        name: string;
+    } | null;
+    can_activate: boolean;
+    latest_published_version: {
+        id: string;
+        version: string;
+        published_at: string | null;
+    } | null;
+};

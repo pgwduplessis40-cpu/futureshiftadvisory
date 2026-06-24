@@ -156,6 +156,49 @@ final class InviteFlowTest extends TestCase
         ]);
     }
 
+    public function test_entrepreneur_login_reconciles_profile_when_invite_is_already_accepted(): void
+    {
+        Mail::fake();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'accepted-founder@example.test',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+        );
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $issued->invite->getKey(),
+            'name' => 'Accepted Founder',
+            'email' => 'accepted-founder@example.test',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Invite was accepted before profile reconciliation.',
+        ]);
+        $user = User::factory()->create([
+            'name' => 'Accepted Founder',
+            'email' => 'accepted-founder@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $issued->invite->markAccepted($user);
+
+        $this->post(route('login.store'), [
+            'email' => 'accepted-founder@example.test',
+            'password' => 'password',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame($user->getKey(), $profile->refresh()->user_id);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.onboarding_started',
+            'subject_id' => $profile->id,
+        ]);
+    }
+
     public function test_invite_tokens_are_one_shot(): void
     {
         Mail::fake();

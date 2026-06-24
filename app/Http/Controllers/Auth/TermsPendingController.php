@@ -134,6 +134,10 @@ final class TermsPendingController extends Controller
         $version = $this->gate->latestPublishedVersion(withClauses: true);
         abort_unless($version instanceof TermsVersion, 404);
 
+        if (! $this->gate->requiresAcceptance($user) && ! $this->gate->hasDeclinedTermsSuspension($user)) {
+            return redirect()->intended(route('dashboard'));
+        }
+
         $declinedAt = now();
         $acceptance = DB::transaction(function () use ($declinedAt, $request, $user, $version): TermsAcceptance {
             $acceptance = TermsAcceptance::query()->create([
