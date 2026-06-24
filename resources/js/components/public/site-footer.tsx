@@ -9,6 +9,7 @@ const LINKEDIN_URL = 'https://www.linkedin.com/company/future-shift-advisory';
 
 export function SiteFooter() {
     const year = new Date().getFullYear();
+    const loginHref = login.url();
 
     return (
         <footer
@@ -98,12 +99,12 @@ export function SiteFooter() {
                                 </a>
                             </li>
                             <li>
-                                <Link
-                                    href={login()}
+                                <a
+                                    href={loginHref}
                                     className="text-[var(--fs-warm-gold)] hover:text-white"
                                 >
                                     Client Login &rarr;
-                                </Link>
+                                </a>
                             </li>
                         </ul>
                     </div>

@@ -11,6 +11,7 @@ export function SiteHeader() {
     const { url } = usePage();
     const [scrolled, setScrolled] = useState(false);
     const [open, setOpen] = useState(false);
+    const loginHref = login.url();
 
     useEffect(() => {
         const onScroll = () => setScrolled(window.scrollY > 8);
@@ -65,12 +66,12 @@ export function SiteHeader() {
                 </nav>
 
                 <div className="hidden items-center gap-3 md:flex">
-                    <Link
-                        href={login()}
+                    <a
+                        href={loginHref}
                         className="text-xs font-medium tracking-wide text-[var(--fs-graphite)] uppercase hover:text-[var(--fs-admiralty)]"
                     >
                         Client Login
-                    </Link>
+                    </a>
                     <Link
                         href="/contact"
                         className="rounded-md bg-[var(--fs-admiralty)] px-4 py-2 text-sm font-medium text-[var(--fs-parchment)] shadow-sm transition-colors hover:bg-[var(--fs-commodore)]"
@@ -112,13 +113,13 @@ export function SiteHeader() {
                             </Link>
                         ))}
                         <div className="mt-3 flex items-center justify-between gap-3 border-t border-[var(--fs-sand)] pt-3">
-                            <Link
-                                href={login()}
+                            <a
+                                href={loginHref}
                                 onClick={() => setOpen(false)}
                                 className="text-xs font-medium tracking-wide text-[var(--fs-graphite)] uppercase"
                             >
                                 Client Login
-                            </Link>
+                            </a>
                             <Link
                                 href="/contact"
                                 onClick={() => setOpen(false)}

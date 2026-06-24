@@ -61,6 +61,40 @@ final class MfaEnforcementTest extends TestCase
             );
     }
 
+    public function test_entrepreneur_login_with_invalid_pending_two_factor_state_reaches_clean_mfa_setup(): void
+    {
+        $user = User::factory()->create([
+            'name' => 'Wessel',
+            'email' => 'wessel@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+            'two_factor_secret' => 'invalid-pending-secret',
+            'two_factor_recovery_codes' => 'invalid-pending-recovery-codes',
+            'two_factor_confirmed_at' => null,
+            'mfa_enabled_at' => null,
+            'mfa_method' => null,
+        ]);
+
+        $this->post(route('login.store'), [
+            'email' => 'wessel@example.test',
+            'password' => 'password',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $this->assertAuthenticatedAs($user);
+
+        $this->get(route('mfa.setup'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('auth/mfa-setup')
+                ->where('twoFactorEnabled', false)
+                ->where('hasPendingTwoFactorSetup', false)
+            );
+
+        $user->refresh();
+        $this->assertNull($user->two_factor_secret);
+        $this->assertNull($user->two_factor_recovery_codes);
+    }
+
     public function test_mfa_enrolled_user_without_verified_session_is_redirected_to_challenge(): void
     {
         $user = User::factory()->withTwoFactor()->create();
