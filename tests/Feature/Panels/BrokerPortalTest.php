@@ -226,6 +226,19 @@ final class BrokerPortalTest extends TestCase
         $this->assertSame(PanelAgreement::STATUS_SIGNED, $agreement->refresh()->status);
         $this->assertSame(PanelMember::STATUS_ACTIVE, $member->refresh()->status);
         $this->assertNotNull($agreement->pdf_path);
+
+        $downloadUrl = route('panel.agreements.download', $agreement, absolute: false);
+        $this->actingAsMfa($broker)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('broker/Dashboard')
+                ->where('dashboard.agreement.downloadUrl', $downloadUrl));
+
+        $download = $this->actingAsMfa($broker)
+            ->get($downloadUrl)
+            ->assertOk();
+        $this->assertStringContainsString('%PDF-1.4', $download->streamedContent());
+
         $this->assertDatabaseHas('audit_events', [
             'action' => 'panel.agreement_signed',
             'subject_id' => $agreement->id,

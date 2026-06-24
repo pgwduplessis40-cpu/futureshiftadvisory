@@ -30,6 +30,11 @@ type NavItem = {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
 };
 
+type NavSection = {
+    label: string;
+    items: NavItem[];
+};
+
 export default function PortalLayout({ children }: { children: ReactNode }) {
     const { auth } = usePage<{ auth: Auth }>().props;
     const { url } = usePage();
@@ -37,84 +42,114 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
     const userType = auth.user.user_type;
     const isEntrepreneur = userType === 'entrepreneur';
     const dashboardHref = isEntrepreneur ? '/portal/entrepreneur' : '/portal';
-    const navItems: NavItem[] = isEntrepreneur
+    const navSections: NavSection[] = isEntrepreneur
         ? [
               {
-                  label: 'Dashboard',
-                  href: dashboardHref,
-                  icon: LayoutDashboard,
+                  label: 'Platform',
+                  items: [
+                      {
+                          label: 'Dashboard',
+                          href: dashboardHref,
+                          icon: LayoutDashboard,
+                      },
+                      {
+                          label: 'Business Plan',
+                          href: '/portal/entrepreneur/plan',
+                          icon: BookOpenCheck,
+                      },
+                      {
+                          label: 'Inspiration',
+                          href: '/portal/inspiration-board',
+                          icon: Sparkles,
+                      },
+                      {
+                          label: 'Feedback',
+                          href: '/portal/entrepreneur/surveys',
+                          icon: ClipboardCheck,
+                      },
+                  ],
               },
               {
-                  label: 'Business Plan',
-                  href: '/portal/entrepreneur/plan',
-                  icon: BookOpenCheck,
+                  label: 'Comms',
+                  items: [
+                      {
+                          label: 'Messages',
+                          href: '/portal/messages',
+                          icon: MessageSquare,
+                      },
+                      {
+                          label: 'Notifications',
+                          href: '/notifications',
+                          icon: Bell,
+                      },
+                  ],
               },
               {
                   label: 'Calendar',
-                  href: '/portal/calendar',
-                  icon: CalendarDays,
-              },
-              {
-                  label: 'Inspiration',
-                  href: '/portal/inspiration-board',
-                  icon: Sparkles,
-              },
-              {
-                  label: 'Feedback',
-                  href: '/portal/entrepreneur/surveys',
-                  icon: ClipboardCheck,
-              },
-              {
-                  label: 'Messages',
-                  href: '/portal/messages',
-                  icon: MessageSquare,
-              },
-              {
-                  label: 'Notifications',
-                  href: '/notifications',
-                  icon: Bell,
+                  items: [
+                      {
+                          label: 'Calendar',
+                          href: '/portal/calendar',
+                          icon: CalendarDays,
+                      },
+                  ],
               },
           ]
         : [
               {
-                  label: 'Dashboard',
-                  href: dashboardHref,
-                  icon: LayoutDashboard,
+                  label: 'Platform',
+                  items: [
+                      {
+                          label: 'Dashboard',
+                          href: dashboardHref,
+                          icon: LayoutDashboard,
+                      },
+                      {
+                          label: 'Onboarding',
+                          href: '/portal/onboarding',
+                          icon: ClipboardList,
+                      },
+                      {
+                          label: 'Wellbeing',
+                          href: '/portal/wellbeing',
+                          icon: HeartPulse,
+                      },
+                      {
+                          label: 'Feedback',
+                          href: '/portal/surveys',
+                          icon: ClipboardCheck,
+                      },
+                      {
+                          label: 'Inspiration',
+                          href: '/portal/inspiration-board',
+                          icon: Sparkles,
+                      },
+                  ],
               },
               {
-                  label: 'Onboarding',
-                  href: '/portal/onboarding',
-                  icon: ClipboardList,
+                  label: 'Comms',
+                  items: [
+                      {
+                          label: 'Messages',
+                          href: '/portal/messages',
+                          icon: MessageSquare,
+                      },
+                      {
+                          label: 'Notifications',
+                          href: '/notifications',
+                          icon: Bell,
+                      },
+                  ],
               },
               {
                   label: 'Calendar',
-                  href: '/portal/calendar',
-                  icon: CalendarDays,
-              },
-              {
-                  label: 'Wellbeing',
-                  href: '/portal/wellbeing',
-                  icon: HeartPulse,
-              },
-              {
-                  label: 'Feedback',
-                  href: '/portal/surveys',
-                  icon: ClipboardCheck,
-              },
-              {
-                  label: 'Inspiration',
-                  href: '/portal/inspiration-board',
-                  icon: Sparkles,
-              },
-              {
-                  label: 'Messages',
-                  href: '/portal/messages',
-                  icon: MessageSquare,
-              },
-              {
-                  label: 'Notifications',
-                  href: '/notifications',
-                  icon: Bell,
+                  items: [
+                      {
+                          label: 'Calendar',
+                          href: '/portal/calendar',
+                          icon: CalendarDays,
+                      },
+                  ],
               },
           ];
 
@@ -150,14 +185,14 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 </div>
 
                 <nav
-                    className="grid gap-1 px-3 py-4"
+                    className="space-y-5 px-3 py-4"
                     aria-label="Portal navigation"
                 >
-                    {navItems.map((item) => (
-                        <PortalNavLink
-                            key={item.href}
-                            item={item}
-                            active={isActive(item.href)}
+                    {navSections.map((section) => (
+                        <PortalNavSection
+                            key={section.label}
+                            section={section}
+                            isActive={isActive}
                         />
                     ))}
                 </nav>
@@ -234,14 +269,14 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                     {open && (
                         <nav
                             id="portal-mobile-nav"
-                            className="grid gap-2 border-t border-[var(--fs-sand)] px-4 py-3"
+                            className="space-y-4 border-t border-[var(--fs-sand)] px-4 py-3"
                             aria-label="Portal mobile navigation"
                         >
-                            {navItems.map((item) => (
-                                <PortalNavLink
-                                    key={item.href}
-                                    item={item}
-                                    active={isActive(item.href)}
+                            {navSections.map((section) => (
+                                <PortalNavSection
+                                    key={section.label}
+                                    section={section}
+                                    isActive={isActive}
                                     onClick={closeMobile}
                                 />
                             ))}
@@ -276,6 +311,34 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                 </main>
             </div>
         </div>
+    );
+}
+
+function PortalNavSection({
+    section,
+    isActive,
+    onClick,
+}: {
+    section: NavSection;
+    isActive: (href: string) => boolean;
+    onClick?: () => void;
+}) {
+    return (
+        <section aria-label={section.label}>
+            <div className="px-3 text-xs font-medium text-muted-foreground">
+                {section.label}
+            </div>
+            <div className="mt-2 grid gap-1">
+                {section.items.map((item) => (
+                    <PortalNavLink
+                        key={item.href}
+                        item={item}
+                        active={isActive(item.href)}
+                        onClick={onClick}
+                    />
+                ))}
+            </div>
+        </section>
     );
 }
 

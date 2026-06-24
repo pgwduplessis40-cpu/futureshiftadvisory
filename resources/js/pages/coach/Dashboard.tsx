@@ -109,6 +109,7 @@ type AgreementSummary = {
     signedAt: string | null;
     pdfByteSize: number | null;
     hasStoredPdf: boolean;
+    downloadUrl: string | null;
     signUrl: string | null;
 };
 
@@ -1017,7 +1018,8 @@ function AgreementDetailDialog({ agreement }: { agreement: AgreementSummary }) {
                 <DialogHeader>
                     <DialogTitle>Panel agreement</DialogTitle>
                     <DialogDescription>
-                        Signature status and stored agreement metadata.
+                        Open the signed agreement PDF or review signature
+                        metadata.
                     </DialogDescription>
                 </DialogHeader>
                 <dl className="grid gap-3 text-sm">
@@ -1049,16 +1051,30 @@ function AgreementDetailDialog({ agreement }: { agreement: AgreementSummary }) {
                         />
                     ) : null}
                 </dl>
-                {agreement.signUrl ? (
+                {agreement.signUrl || agreement.downloadUrl ? (
                     <DialogFooter>
-                        <Button
-                            onClick={() =>
-                                router.post(agreement.signUrl ?? '', {})
-                            }
-                        >
-                            <FileSignature aria-hidden="true" />
-                            Sign agreement
-                        </Button>
+                        {agreement.downloadUrl ? (
+                            <Button variant="outline" asChild>
+                                <a
+                                    href={agreement.downloadUrl}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                >
+                                    <Eye aria-hidden="true" />
+                                    Open agreement PDF
+                                </a>
+                            </Button>
+                        ) : null}
+                        {agreement.signUrl ? (
+                            <Button
+                                onClick={() =>
+                                    router.post(agreement.signUrl ?? '', {})
+                                }
+                            >
+                                <FileSignature aria-hidden="true" />
+                                Sign agreement
+                            </Button>
+                        ) : null}
                     </DialogFooter>
                 ) : null}
             </DialogContent>

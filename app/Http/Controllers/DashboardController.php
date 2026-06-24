@@ -198,6 +198,9 @@ final class DashboardController extends Controller
                 'signedAt' => $agreement->signed_at?->toIso8601String(),
                 'pdfByteSize' => $agreement->pdf_byte_size,
                 'hasStoredPdf' => filled($agreement->pdf_path),
+                'downloadUrl' => filled($agreement->pdf_path)
+                    ? route('panel.agreements.download', $agreement, absolute: false)
+                    : null,
                 'signUrl' => $agreement->status === PanelAgreement::STATUS_PENDING_SIGNATURE
                     ? route('panel.agreements.sign', $agreement, absolute: false)
                     : null,
@@ -445,6 +448,9 @@ final class DashboardController extends Controller
                 'signedAt' => $agreement->signed_at?->toIso8601String(),
                 'pdfByteSize' => $agreement->pdf_byte_size,
                 'hasStoredPdf' => filled($agreement->pdf_path),
+                'downloadUrl' => filled($agreement->pdf_path)
+                    ? route('panel.agreements.download', $agreement, absolute: false)
+                    : null,
                 'signUrl' => $agreement->status === PanelAgreement::STATUS_PENDING_SIGNATURE
                     ? route('panel.agreements.sign', $agreement, absolute: false)
                     : null,

@@ -47,6 +47,8 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
         ->name('panel.application.store');
     Route::post('panel/agreements/{panelAgreement}/sign', [PanelAgreementController::class, 'sign'])
         ->name('panel.agreements.sign');
+    Route::get('panel/agreements/{panelAgreement}/download', [PanelAgreementController::class, 'download'])
+        ->name('panel.agreements.download');
 });
 
 require __DIR__.'/settings.php';
