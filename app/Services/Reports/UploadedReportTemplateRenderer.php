@@ -18,6 +18,47 @@ final class UploadedReportTemplateRenderer
 {
     private const WORD_NAMESPACE = 'http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 
+    public function renderStandaloneFragmentFromBytes(string $bytes): ?string
+    {
+        try {
+            $parts = $this->docxHtmlParts($bytes);
+        } catch (Throwable) {
+            return null;
+        }
+
+        if ($parts === null) {
+            return null;
+        }
+
+        $header = trim($parts['header']);
+        $body = trim($parts['body']);
+        $footer = trim($parts['footer']);
+
+        if ($body === '' && $header === '' && $footer === '') {
+            return null;
+        }
+
+        return sprintf(
+            <<<'HTML'
+<style>%s
+.uploaded-docx-standalone { background: #fff; color: #17211b; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; }
+.uploaded-docx-standalone .docx-template-footer { color: #4b5563; font-size: 10px; margin-top: 18mm; }
+</style>
+<div class="uploaded-docx-standalone">
+%s
+<div class="uploaded-docx-report-template">
+%s
+</div>
+%s
+</div>
+HTML,
+            $this->docxCss(),
+            $header === '' ? '' : '<header class="docx-template-header">'.$header.'</header>',
+            $body,
+            $footer === '' ? '' : '<footer class="docx-template-footer">'.$footer.'</footer>',
+        );
+    }
+
     /**
      * @param  array<string, string>  $tokens
      */

@@ -211,7 +211,6 @@ final class InviteAcceptController extends Controller
             ?? EntrepreneurProfile::query()
                 ->whereNull('user_id')
                 ->whereRaw('lower(email) = ?', [strtolower((string) $invite->email)])
-                ->where('stage', EntrepreneurStage::INVITED->value)
                 ->latest()
                 ->first();
 
@@ -223,11 +222,15 @@ final class InviteAcceptController extends Controller
             return $profile;
         }
 
-        $profile->forceFill([
+        $updates = [
             'user_id' => $user->getKey(),
             'invite_token_id' => $invite->getKey(),
-            'stage' => EntrepreneurStage::ONBOARDING,
-        ])->save();
+        ];
+        if ($profile->stage === EntrepreneurStage::INVITED) {
+            $updates['stage'] = EntrepreneurStage::ONBOARDING;
+        }
+
+        $profile->forceFill($updates)->save();
 
         $this->auditWriter->record(
             action: 'entrepreneur.onboarding_started',
@@ -235,7 +238,9 @@ final class InviteAcceptController extends Controller
             actor: $user,
             after: [
                 'entrepreneur_profile_id' => $profile->getKey(),
-                'stage' => EntrepreneurStage::ONBOARDING->value,
+                'stage' => $profile->stage instanceof EntrepreneurStage
+                    ? $profile->stage->value
+                    : (string) $profile->stage,
                 'user_id' => $user->getKey(),
             ],
         );

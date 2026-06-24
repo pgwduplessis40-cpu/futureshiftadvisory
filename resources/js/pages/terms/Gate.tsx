@@ -112,26 +112,41 @@ export default function TermsGate({
                     className="min-h-0 flex-1 overflow-y-auto rounded-md border bg-background p-5 shadow-xs"
                     data-scroll-end-reached={hasReachedEnd}
                 >
-                    <article className="space-y-6">
-                        {version.clauses.map((clause) => (
-                            <section key={clause.id} className="space-y-2">
-                                <div className="flex flex-wrap items-center gap-2">
-                                    <h2 className="text-base font-semibold">
-                                        Clause {clause.clause_number}:{' '}
-                                        {clause.title}
-                                    </h2>
-                                    {clause.material && (
-                                        <Badge variant="outline">
-                                            material
-                                        </Badge>
-                                    )}
+                    {version.source_preview_html ? (
+                        <article
+                            dangerouslySetInnerHTML={{
+                                __html: version.source_preview_html,
+                            }}
+                        />
+                    ) : (
+                        <article className="space-y-6">
+                            {version.clauses.map((clause) => (
+                                <section key={clause.id} className="space-y-2">
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        <h2 className="text-base font-semibold">
+                                            Clause {clause.clause_number}:{' '}
+                                            {clause.title}
+                                        </h2>
+                                        {clause.material && (
+                                            <Badge variant="outline">
+                                                material
+                                            </Badge>
+                                        )}
+                                    </div>
+                                    <div className="text-sm leading-6 whitespace-pre-wrap text-muted-foreground">
+                                        {clause.body}
+                                    </div>
+                                </section>
+                            ))}
+                            {version.clauses.length === 0 && (
+                                <div className="rounded-md border border-dashed p-6 text-sm text-muted-foreground">
+                                    No terms content is available for this
+                                    version. Contact your advisor before
+                                    accepting.
                                 </div>
-                                <div className="text-sm leading-6 whitespace-pre-wrap text-muted-foreground">
-                                    {clause.body}
-                                </div>
-                            </section>
-                        ))}
-                    </article>
+                            )}
+                        </article>
+                    )}
                 </div>
 
                 <footer className="flex flex-wrap items-center justify-between gap-3 border-t pt-4">

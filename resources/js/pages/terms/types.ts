@@ -11,5 +11,6 @@ export type TermsVersion = {
     version: string;
     title: string;
     published_at: string | null;
+    source_preview_html: string | null;
     clauses: TermsClause[];
 };

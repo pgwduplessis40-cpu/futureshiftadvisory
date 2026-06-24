@@ -18,6 +18,7 @@ use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use RuntimeException;
 use Tests\TestCase;
+use ZipArchive;
 
 final class TermsVersioningTest extends TestCase
 {
@@ -230,6 +231,63 @@ final class TermsVersioningTest extends TestCase
             ->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
+    public function test_terms_preview_and_pdf_download_render_uploaded_docx_source(): void
+    {
+        if (! class_exists(ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is required to build the uploaded terms DOCX fixture.');
+        }
+
+        Storage::fake('secure_local');
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $draft = $this->termsVersion('1');
+        $path = 'terms/source-documents/future-shift-terms.docx';
+        Storage::disk('secure_local')->put($path, $this->minimalDocx([
+            ['Uploaded T&C heading', 'Heading1'],
+            ['These are the uploaded terms that must appear in preview and PDF output.'],
+        ]));
+        $draft->forceFill([
+            'source_file' => [
+                'stored_path' => $path,
+                'original_name' => 'Future_Shift_Terms.docx',
+                'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                'extension' => 'docx',
+                'byte_size' => Storage::disk('secure_local')->size($path),
+                'uploaded_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.preview', $draft))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('version.source_file.original_name', 'Future_Shift_Terms.docx')
+                ->where('version.source_preview_html', fn (?string $html): bool => is_string($html)
+                    && str_contains($html, 'Uploaded T&amp;C heading')
+                    && str_contains($html, 'uploaded terms that must appear')));
+
+        $renderer = new class implements PdfRenderer
+        {
+            public string $html = '';
+
+            public function render(string $html): string
+            {
+                $this->html = $html;
+
+                return '%PDF-1.4 terms source';
+            }
+        };
+        $this->app->instance(PdfRenderer::class, $renderer);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.download', $draft))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringContainsString('Uploaded T&amp;C heading', $renderer->html);
+        $this->assertStringContainsString('uploaded terms that must appear', $renderer->html);
+    }
+
     public function test_material_publish_sets_prior_active_acceptances_to_expire_and_queues_reacceptance(): void
     {
         $this->seed(RoleSeeder::class);
@@ -376,5 +434,67 @@ final class TermsVersioningTest extends TestCase
         }
 
         return $terms;
+    }
+
+    /**
+     * @param  array<int, array{0:string,1?:string}>  $paragraphs
+     */
+    private function minimalDocx(array $paragraphs): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'fsa-test-terms-docx-');
+        $this->assertIsString($path);
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path, ZipArchive::OVERWRITE));
+        $zip->addFromString('[Content_Types].xml', <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+XML);
+        $zip->addFromString('_rels/.rels', <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>
+XML);
+        $zip->addFromString('word/document.xml', sprintf(
+            <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    %s
+    <w:sectPr/>
+  </w:body>
+</w:document>
+XML,
+            implode("\n", array_map(
+                fn (array $paragraph): string => $this->wordParagraph($paragraph[0], $paragraph[1] ?? null),
+                $paragraphs,
+            )),
+        ));
+        $zip->close();
+
+        $bytes = file_get_contents($path);
+        @unlink($path);
+
+        $this->assertIsString($bytes);
+
+        return $bytes;
+    }
+
+    private function wordParagraph(string $text, ?string $style = null): string
+    {
+        $styleXml = $style === null
+            ? ''
+            : sprintf('<w:pPr><w:pStyle w:val="%s"/></w:pPr>', htmlspecialchars($style, ENT_XML1 | ENT_QUOTES, 'UTF-8'));
+
+        return sprintf(
+            '<w:p>%s<w:r><w:t>%s</w:t></w:r></w:p>',
+            $styleXml,
+            htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8'),
+        );
     }
 }

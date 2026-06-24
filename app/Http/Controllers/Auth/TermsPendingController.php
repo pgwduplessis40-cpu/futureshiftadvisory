@@ -13,6 +13,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Terms\SignedAcceptancePdf;
 use App\Services\Terms\TermsAcceptanceGate;
+use App\Services\Terms\TermsDocumentRenderer;
 use App\Services\Terms\TermsPdfFallback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -30,6 +31,7 @@ final class TermsPendingController extends Controller
         private readonly TermsAcceptanceGate $gate,
         private readonly SignedAcceptancePdf $signedPdf,
         private readonly AuditWriter $auditWriter,
+        private readonly TermsDocumentRenderer $documents,
         private readonly TermsPdfFallback $fallbackPdf,
     ) {}
 
@@ -63,7 +65,7 @@ final class TermsPendingController extends Controller
         $version = $this->gate->latestPublishedVersion(withClauses: true);
         abort_unless($version instanceof TermsVersion, 404);
 
-        $html = $this->downloadHtml($version, $user);
+        $html = $this->documents->userDownloadHtml($version, $user);
         try {
             $pdf = $renderer->render($html);
         } catch (Throwable $exception) {
@@ -201,6 +203,7 @@ final class TermsPendingController extends Controller
             'version' => $version->version,
             'title' => $version->title,
             'published_at' => $version->published_at?->toIso8601String(),
+            'source_preview_html' => $this->documents->sourcePreviewHtml($version),
             'clauses' => $version->clauses->map(fn ($clause): array => [
                 'id' => $clause->id,
                 'clause_number' => $clause->clause_number,
@@ -209,31 +212,6 @@ final class TermsPendingController extends Controller
                 'material' => $clause->material,
             ])->values(),
         ];
-    }
-
-    private function downloadHtml(TermsVersion $version, User $user): string
-    {
-        $clauses = $version->clauses
-            ->map(fn ($clause): string => sprintf(
-                '<section><h2>Clause %s: %s%s</h2><p>%s</p></section>',
-                $this->escape((string) $clause->clause_number),
-                $this->escape($clause->title),
-                $clause->material ? ' <span>(material)</span>' : '',
-                nl2br($this->escape($clause->body)),
-            ))
-            ->implode('');
-
-        return '<!doctype html><html><head><meta charset="utf-8"><title>Future Shift Advisory Terms</title>'
-            .'<style>body{font-family:Arial,sans-serif;color:#111827;line-height:1.5}h1{color:#0f172a}h2{font-size:16px;margin-top:22px}p{font-size:12px}.meta{font-size:12px;color:#4b5563}</style>'
-            .'</head><body><h1>'.$this->escape($version->title).'</h1>'
-            .'<p class="meta">Version '.$this->escape($version->version).' downloaded by '.$this->escape($user->email).' on '.now()->toDateTimeString().'.</p>'
-            .$clauses
-            .'</body></html>';
-    }
-
-    private function escape(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     /**

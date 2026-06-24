@@ -22,6 +22,7 @@ export type TermsVersion = {
         uploaded_at: string;
     } | null;
     source_download_url: string | null;
+    source_preview_html: string | null;
     clauses_count?: number;
     material_clauses_count?: number;
     clauses: TermsClause[];

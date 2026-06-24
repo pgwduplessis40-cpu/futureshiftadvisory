@@ -89,6 +89,52 @@ final class EntrepreneurNavigationTest extends TestCase
         }
     }
 
+    public function test_entrepreneur_navigation_repairs_legacy_accepted_invite_without_accepted_user(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'legacy-accepted-founder@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $invite = InviteToken::query()->create([
+            'email' => $entrepreneur->email,
+            'target_role' => User::TYPE_ENTREPRENEUR,
+            'target_user_type' => User::TYPE_ENTREPRENEUR,
+            'token_hash' => InviteToken::hashToken('legacy-accepted-nav-token'),
+            'expires_at' => now()->addDays(5),
+            'accepted_at' => now(),
+            'accepted_by_user_id' => null,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $invite->getKey(),
+            'name' => 'Legacy Accepted Founder',
+            'email' => strtoupper($entrepreneur->email),
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Accepted invite predates accepted_by_user_id capture.',
+        ]);
+
+        foreach ($this->entrepreneurUrls() as $url) {
+            $this->actingAsMfa($entrepreneur)
+                ->get($url)
+                ->assertOk();
+        }
+
+        $profile->refresh();
+        $invite->refresh();
+
+        $this->assertSame((string) $entrepreneur->getKey(), (string) $profile->user_id);
+        $this->assertSame((string) $entrepreneur->getKey(), (string) $invite->accepted_by_user_id);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+    }
+
     /**
      * @return array<int, string>
      */

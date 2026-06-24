@@ -12,7 +12,10 @@ use Illuminate\Http\Request;
 
 final class TermsPdfFallback
 {
-    public function __construct(private readonly SimpleTextPdf $pdf) {}
+    public function __construct(
+        private readonly SimpleTextPdf $pdf,
+        private readonly TermsDocumentRenderer $documents,
+    ) {}
 
     public function reviewDownload(TermsVersion $version): string
     {
@@ -20,7 +23,7 @@ final class TermsPdfFallback
             'Future Shift Advisory',
             'Terms and conditions review copy.',
             'Version '.$version->version.' generated for review on '.now()->toDateTimeString().'.',
-            ...$this->clauseLines($version),
+            ...$this->documents->plainTextLines($version),
         ]);
     }
 
@@ -30,7 +33,7 @@ final class TermsPdfFallback
             'Future Shift Advisory',
             'Terms and conditions download.',
             'Version '.$version->version.' downloaded by '.$user->email.' on '.now()->toDateTimeString().'.',
-            ...$this->clauseLines($version),
+            ...$this->documents->plainTextLines($version),
         ]);
     }
 
@@ -49,22 +52,7 @@ final class TermsPdfFallback
             'Accepted at: '.$acceptedAt->format(DATE_ATOM),
             'IP address: '.($request->ip() ?? ''),
             'User agent: '.((string) $request->userAgent()),
-            ...$this->clauseLines($version),
+            ...$this->documents->plainTextLines($version),
         ]);
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function clauseLines(TermsVersion $version): array
-    {
-        return $version->clauses
-            ->sortBy('clause_number')
-            ->flatMap(fn ($clause): array => [
-                'Clause '.$clause->clause_number.': '.$clause->title.($clause->material ? ' (material)' : ''),
-                (string) $clause->body,
-            ])
-            ->values()
-            ->all();
     }
 }

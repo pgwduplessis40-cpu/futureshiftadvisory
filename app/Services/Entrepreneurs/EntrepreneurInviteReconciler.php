@@ -36,7 +36,12 @@ final class EntrepreneurInviteReconciler
             $acceptedInvite = InviteToken::query()
                 ->whereRaw('lower(email) = ?', [$email])
                 ->where('target_user_type', User::TYPE_ENTREPRENEUR)
-                ->where('accepted_by_user_id', $user->getKey())
+                ->whereNotNull('accepted_at')
+                ->where(function ($query) use ($user): void {
+                    $query
+                        ->where('accepted_by_user_id', $user->getKey())
+                        ->orWhereNull('accepted_by_user_id');
+                })
                 ->latest('accepted_at')
                 ->latest()
                 ->first();
@@ -45,7 +50,6 @@ final class EntrepreneurInviteReconciler
                 ->with('inviteToken')
                 ->whereNull('user_id')
                 ->whereRaw('lower(email) = ?', [$email])
-                ->where('stage', EntrepreneurStage::INVITED->value)
                 ->where(function ($query) use ($acceptedInvite, $user): void {
                     $query->whereHas('inviteToken', fn ($query) => $query
                         ->where('target_user_type', User::TYPE_ENTREPRENEUR)
@@ -56,7 +60,12 @@ final class EntrepreneurInviteReconciler
                                         ->whereNull('accepted_at')
                                         ->where('expires_at', '>', now());
                                 })
-                                ->orWhere('accepted_by_user_id', $user->getKey());
+                                ->orWhere('accepted_by_user_id', $user->getKey())
+                                ->orWhere(function ($query): void {
+                                    $query
+                                        ->whereNotNull('accepted_at')
+                                        ->whereNull('accepted_by_user_id');
+                                });
                         }));
 
                     if ($acceptedInvite instanceof InviteToken) {
@@ -78,14 +87,18 @@ final class EntrepreneurInviteReconciler
                 $invite = $acceptedInvite;
             }
 
-            if ($invite instanceof InviteToken && ! $invite->isAccepted()) {
-                $invite->markAccepted($user);
+            if ($invite instanceof InviteToken) {
+                $this->ensureInviteAcceptedByUser($invite, $user);
             }
 
-            $profile->forceFill([
+            $updates = [
                 'user_id' => $user->getKey(),
-                'stage' => EntrepreneurStage::ONBOARDING,
-            ])->save();
+            ];
+            if ($profile->stage === EntrepreneurStage::INVITED) {
+                $updates['stage'] = EntrepreneurStage::ONBOARDING;
+            }
+
+            $profile->forceFill($updates)->save();
 
             $this->auditWriter->record(
                 action: 'entrepreneur.onboarding_started',
@@ -93,7 +106,9 @@ final class EntrepreneurInviteReconciler
                 actor: $user,
                 after: [
                     'entrepreneur_profile_id' => $profile->getKey(),
-                    'stage' => EntrepreneurStage::ONBOARDING->value,
+                    'stage' => $profile->stage instanceof EntrepreneurStage
+                        ? $profile->stage->value
+                        : (string) $profile->stage,
                     'user_id' => $user->getKey(),
                     'reconciled_from_login' => true,
                 ],
@@ -114,8 +129,8 @@ final class EntrepreneurInviteReconciler
         ])->save();
 
         $invite = $profile->inviteToken;
-        if ($invite instanceof InviteToken && ! $invite->isAccepted() && ! $invite->isExpired()) {
-            $invite->markAccepted($user);
+        if ($invite instanceof InviteToken) {
+            $this->ensureInviteAcceptedByUser($invite, $user);
         }
 
         $this->auditWriter->record(
@@ -131,5 +146,22 @@ final class EntrepreneurInviteReconciler
         );
 
         return $profile->refresh()->load('inviteToken');
+    }
+
+    private function ensureInviteAcceptedByUser(InviteToken $invite, User $user): void
+    {
+        if (! $invite->isAccepted()) {
+            if (! $invite->isExpired()) {
+                $invite->markAccepted($user);
+            }
+
+            return;
+        }
+
+        if ($invite->accepted_by_user_id === null) {
+            $invite->forceFill([
+                'accepted_by_user_id' => $user->getKey(),
+            ])->save();
+        }
     }
 }
