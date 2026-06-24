@@ -9,6 +9,7 @@ use App\Http\Responses\TwoFactorConfirmedResponse;
 use App\Models\User;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\TwoFactorStateSanitizer;
+use App\Support\RequestContext;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -69,7 +70,9 @@ class FortifyServiceProvider extends ServiceProvider
                 $provider->rehashPasswordIfRequired($user, ['password' => $request->password]);
             }
 
-            app(TwoFactorStateSanitizer::class)->sanitize($user);
+            app(RequestContext::class)->withSystemContext(
+                fn () => app(TwoFactorStateSanitizer::class)->sanitize($user)
+            );
 
             return $user;
         });

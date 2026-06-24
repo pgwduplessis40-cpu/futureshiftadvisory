@@ -12,6 +12,7 @@ use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Security\MfaChallenger;
+use App\Support\RequestContext;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -27,7 +28,10 @@ use Spatie\Permission\Models\Role;
 
 final class InviteAcceptController extends Controller
 {
-    public function __construct(private readonly AuditWriter $auditWriter) {}
+    public function __construct(
+        private readonly AuditWriter $auditWriter,
+        private readonly RequestContext $requestContext,
+    ) {}
 
     public function show(string $token): Response
     {
@@ -96,44 +100,46 @@ final class InviteAcceptController extends Controller
             'password' => ['required', 'confirmed', Password::defaults()],
         ]);
 
-        $user = DB::transaction(function () use ($invite, $validated): User {
-            $user = $this->activationUser($invite);
+        $user = $this->requestContext->withSystemContext(
+            fn (): User => DB::transaction(function () use ($invite, $validated): User {
+                $user = $this->activationUser($invite);
 
-            $user->forceFill([
-                'name' => $validated['name'],
-                'email' => Str::lower(trim((string) $invite->email)),
-                'mobile_phone' => $validated['mobile_phone'],
-                'email_verified_at' => now(),
-                'password' => $validated['password'],
-                'user_type' => $invite->target_user_type,
-                'primary_role' => $invite->target_role,
-                'last_password_set_at' => now(),
-            ])->save();
+                $user->forceFill([
+                    'name' => $validated['name'],
+                    'email' => Str::lower(trim((string) $invite->email)),
+                    'mobile_phone' => $validated['mobile_phone'],
+                    'email_verified_at' => now(),
+                    'password' => $validated['password'],
+                    'user_type' => $invite->target_user_type,
+                    'primary_role' => $invite->target_role,
+                    'last_password_set_at' => now(),
+                ])->save();
 
-            if (Role::query()->where('name', $invite->target_role)->where('guard_name', 'web')->exists()) {
-                $user->assignRole($invite->target_role);
-            }
+                if (Role::query()->where('name', $invite->target_role)->where('guard_name', 'web')->exists()) {
+                    $user->assignRole($invite->target_role);
+                }
 
-            $invite->markAccepted($user);
-            $profile = $this->linkEntrepreneurProfile($invite, $user);
-            $panelMember = $this->linkPanelMember($invite, $user);
+                $invite->markAccepted($user);
+                $profile = $this->linkEntrepreneurProfile($invite, $user);
+                $panelMember = $this->linkPanelMember($invite, $user);
 
-            $this->auditWriter->record(
-                action: 'invite.accepted',
-                subject: $invite,
-                actor: $user,
-                after: [
-                    'accepted_by_user_id' => $user->getKey(),
-                    'target_user_type' => $invite->target_user_type,
-                    'target_role' => $invite->target_role,
-                    'mobile_phone_captured' => true,
-                    'entrepreneur_profile_id' => $profile?->getKey(),
-                    'panel_member_id' => $panelMember?->getKey(),
-                ],
-            );
+                $this->auditWriter->record(
+                    action: 'invite.accepted',
+                    subject: $invite,
+                    actor: $user,
+                    after: [
+                        'accepted_by_user_id' => $user->getKey(),
+                        'target_user_type' => $invite->target_user_type,
+                        'target_role' => $invite->target_role,
+                        'mobile_phone_captured' => true,
+                        'entrepreneur_profile_id' => $profile?->getKey(),
+                        'panel_member_id' => $panelMember?->getKey(),
+                    ],
+                );
 
-            return $user;
-        });
+                return $user;
+            })
+        );
 
         Auth::login($user);
         $request->session()->regenerate();

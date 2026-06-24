@@ -10,6 +10,7 @@ use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\TwoFactorStateSanitizer;
 use App\Services\Terms\TermsAcceptanceGate;
+use App\Support\RequestContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -23,14 +24,17 @@ final class MfaSetupController extends Controller
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
         private readonly TermsAcceptanceGate $terms,
         private readonly TwoFactorStateSanitizer $twoFactorState,
+        private readonly RequestContext $requestContext,
     ) {}
 
     public function show(Request $request): Response|RedirectResponse
     {
         /** @var User $user */
         $user = $request->user();
-        $this->entrepreneurInvites->reconcile($user);
-        $this->twoFactorState->sanitize($user);
+        $this->requestContext->withSystemContext(function () use ($user): void {
+            $this->entrepreneurInvites->reconcile($user);
+            $this->twoFactorState->sanitize($user);
+        });
 
         if ($this->mfa->hasCompletedEnrolment($user)) {
             $inviteFlow = $request->session()->pull('fsa.invite_flow', false);

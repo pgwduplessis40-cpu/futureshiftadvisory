@@ -7,6 +7,8 @@ namespace App\Http\Responses;
 use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Security\MfaChallenger;
+use App\Services\Security\TwoFactorStateSanitizer;
+use App\Support\RequestContext;
 use Illuminate\Http\JsonResponse;
 use Laravel\Fortify\Contracts\LoginResponse as LoginResponseContract;
 
@@ -15,6 +17,8 @@ final class LoginResponse implements LoginResponseContract
     public function __construct(
         private readonly MfaChallenger $mfa,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly TwoFactorStateSanitizer $twoFactorState,
+        private readonly RequestContext $requestContext,
     ) {}
 
     public function toResponse($request)
@@ -22,7 +26,10 @@ final class LoginResponse implements LoginResponseContract
         $user = $request->user();
 
         if ($user instanceof User) {
-            $this->entrepreneurInvites->reconcile($user);
+            $this->requestContext->withSystemContext(function () use ($user): void {
+                $this->entrepreneurInvites->reconcile($user);
+                $this->twoFactorState->sanitize($user);
+            });
         }
 
         if (
