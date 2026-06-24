@@ -20,6 +20,7 @@ use App\Services\Panels\PanelOnboarding;
 use App\Services\Panels\ReferralConsentManager;
 use App\Services\Panels\ReferralLifecycle;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Security\InviteIssuer;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -229,6 +230,47 @@ final class BrokerPortalTest extends TestCase
             'action' => 'panel.agreement_signed',
             'subject_id' => $agreement->id,
         ]);
+    }
+
+    public function test_broker_application_reuses_invited_member_for_same_email(): void
+    {
+        $email = 'broker-reuses-invite@example.test';
+        $issued = app(InviteIssuer::class)->issue(
+            email: $email,
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+        );
+        $broker = $this->broker($email);
+        $member = PanelMember::query()->create([
+            'invite_token_id' => $issued->invite->getKey(),
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_INVITED,
+            'application' => [
+                'company' => 'Cornerstone Connect',
+                'broker_name' => 'Rinus Janse van Rensburg',
+                'industry' => 'Life insurance',
+            ],
+        ]);
+
+        $this->actingAsMfa($broker)
+            ->post(route('panel.application.store'), [
+                'company' => 'Cornerstone Connect Limited',
+                'fsp_number' => 'FSP100001',
+                'regions' => 'Hamilton',
+                'specialties' => 'Business insurance',
+            ])
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $member->refresh();
+        $issued->invite->refresh();
+
+        $this->assertDatabaseCount('panel_members', 1);
+        $this->assertSame((string) $broker->getKey(), (string) $member->user_id);
+        $this->assertSame(PanelMember::STATUS_APPLICATION_PENDING, $member->status);
+        $this->assertSame('Cornerstone Connect Limited', $member->application['company']);
+        $this->assertSame(['Business insurance'], $member->application['specialties']);
+        $this->assertSame((string) $broker->getKey(), (string) $issued->invite->accepted_by_user_id);
+        $this->assertNotNull($issued->invite->accepted_at);
     }
 
     public function test_broker_can_update_own_referral_stage_from_dashboard_action(): void

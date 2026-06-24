@@ -38,14 +38,28 @@ final class PanelOnboarding
             throw new InvalidArgumentException('Panel applications must match the user role.');
         }
 
-        $member = PanelMember::query()->updateOrCreate(
-            ['user_id' => $user->getKey(), 'panel_type' => $panelType],
-            [
+        $member = DB::transaction(function () use ($application, $panelType, $user): PanelMember {
+            $member = $this->applicationMember($user, $panelType);
+
+            if (! $member instanceof PanelMember) {
+                $member = new PanelMember([
+                    'panel_type' => $panelType,
+                ]);
+            }
+
+            $member->forceFill([
+                'user_id' => $user->getKey(),
                 'status' => PanelMember::STATUS_APPLICATION_PENDING,
                 'application' => $application,
                 'applied_at' => now(),
-            ],
-        );
+            ])->save();
+
+            $member = $member->refresh()->load('inviteToken');
+            $this->ensureInviteAcceptedByUser($member, $user);
+            $this->supersedeDuplicateInvites($member, $user);
+
+            return $member->refresh();
+        });
 
         $this->audit->record('panel.application_submitted', subject: $member, actor: $user, after: [
             'panel_type' => $panelType,
@@ -53,6 +67,83 @@ final class PanelOnboarding
         ]);
 
         return $member->refresh();
+    }
+
+    private function applicationMember(User $user, string $panelType): ?PanelMember
+    {
+        $member = PanelMember::query()
+            ->where('user_id', $user->getKey())
+            ->where('panel_type', $panelType)
+            ->latest('updated_at')
+            ->first();
+
+        if ($member instanceof PanelMember) {
+            return $member;
+        }
+
+        return PanelMember::query()
+            ->whereNull('user_id')
+            ->where('panel_type', $panelType)
+            ->whereHas('inviteToken', fn ($query) => $query
+                ->where('target_user_type', $panelType)
+                ->whereRaw('lower(email) = ?', [strtolower((string) $user->email)]))
+            ->latest('updated_at')
+            ->first();
+    }
+
+    private function supersedeDuplicateInvites(PanelMember $currentMember, User $user): void
+    {
+        PanelMember::query()
+            ->with('inviteToken')
+            ->whereKeyNot($currentMember->getKey())
+            ->whereNull('user_id')
+            ->where('panel_type', $currentMember->panel_type)
+            ->whereIn('status', [PanelMember::STATUS_INVITED, PanelMember::STATUS_CANCELLED])
+            ->whereHas('inviteToken', fn ($query) => $query
+                ->where('target_user_type', $currentMember->panel_type)
+                ->whereRaw('lower(email) = ?', [strtolower((string) $user->email)]))
+            ->get()
+            ->each(function (PanelMember $duplicate) use ($currentMember): void {
+                $invite = $duplicate->inviteToken;
+                if ($invite !== null && ! $invite->isAccepted()) {
+                    $invite->forceFill([
+                        'expires_at' => now()->subMinute(),
+                    ])->save();
+                }
+
+                $application = $duplicate->application ?? [];
+                $duplicate->forceFill([
+                    'status' => PanelMember::STATUS_CANCELLED,
+                    'application' => [
+                        ...$application,
+                        'superseded_at' => now()->toIso8601String(),
+                        'superseded_by_panel_member_id' => $currentMember->getKey(),
+                    ],
+                ])->save();
+            });
+    }
+
+    private function ensureInviteAcceptedByUser(PanelMember $member, User $user): void
+    {
+        $invite = $member->inviteToken;
+        if ($invite === null) {
+            return;
+        }
+
+        if (! $invite->isAccepted()) {
+            $invite->forceFill([
+                'accepted_at' => now(),
+                'accepted_by_user_id' => $user->getKey(),
+            ])->save();
+
+            return;
+        }
+
+        if ($invite->accepted_by_user_id === null) {
+            $invite->forceFill([
+                'accepted_by_user_id' => $user->getKey(),
+            ])->save();
+        }
     }
 
     /**

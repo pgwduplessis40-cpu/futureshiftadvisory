@@ -112,6 +112,46 @@ final class InviteFlowTest extends TestCase
         $this->assertSame(PanelMember::STATUS_INVITED, $member->status);
     }
 
+    public function test_accepting_panel_invite_links_matching_member_when_member_has_stale_invite(): void
+    {
+        Mail::fake();
+
+        $old = app(InviteIssuer::class)->issue(
+            email: 'stale-panel-broker@example.test',
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+        );
+        $fresh = app(InviteIssuer::class)->issue(
+            email: 'stale-panel-broker@example.test',
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+        );
+        $member = PanelMember::query()->create([
+            'invite_token_id' => $old->invite->getKey(),
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_INVITED,
+            'application' => [
+                'company' => 'Stale Broker Invite',
+                'broker_name' => 'Stale Broker',
+                'industry' => 'Life insurance',
+            ],
+        ]);
+
+        $this->post(route('invite.store', $fresh->plainToken), [
+            'name' => 'Stale Broker',
+            'mobile_phone' => '+64 21 123 4567',
+            'password' => 'A-secure-password-123',
+            'password_confirmation' => 'A-secure-password-123',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $user = User::query()->where('email', 'stale-panel-broker@example.test')->firstOrFail();
+
+        $member->refresh();
+        $this->assertSame((string) $user->getKey(), (string) $member->user_id);
+        $this->assertSame((string) $fresh->invite->getKey(), (string) $member->invite_token_id);
+        $this->assertDatabaseCount('panel_members', 1);
+    }
+
     public function test_accepting_entrepreneur_invite_links_matching_profile_when_profile_has_stale_invite(): void
     {
         Mail::fake();

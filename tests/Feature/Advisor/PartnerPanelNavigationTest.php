@@ -293,6 +293,51 @@ final class PartnerPanelNavigationTest extends TestCase
         $this->assertDatabaseCount('invite_tokens', 1);
     }
 
+    public function test_broker_list_hides_stale_invited_duplicate_for_same_email(): void
+    {
+        Mail::fake();
+
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $email = 'rinus@example.test';
+        $issued = app(InviteIssuer::class)->issue(
+            email: $email,
+            targetUserType: User::TYPE_BROKER,
+            targetRole: User::TYPE_BROKER,
+            issuedBy: $admin,
+        );
+        PanelMember::query()->create([
+            'invite_token_id' => $issued->invite->getKey(),
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_INVITED,
+            'application' => [
+                'company' => 'Cornerstone Connect',
+                'broker_name' => 'Rinus Janse van Rensburg',
+                'industry' => 'Life insurance',
+            ],
+        ]);
+        $broker = $this->panelUser(User::TYPE_BROKER, $email);
+        PanelMember::query()->create([
+            'user_id' => $broker->getKey(),
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_APPLICATION_PENDING,
+            'application' => [
+                'company' => 'Cornerstone Connect Limited',
+                'broker_name' => 'Rinus Janse van Rensburg',
+                'industry' => 'Business insurance',
+            ],
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.partners.brokers.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/partners/Index')
+                ->has('partners', 1)
+                ->where('partners.0.business_name', 'Cornerstone Connect Limited')
+                ->where('partners.0.status', PanelMember::STATUS_APPLICATION_PENDING));
+    }
+
     private function superAdmin(): User
     {
         $user = User::factory()->superAdmin()->withTwoFactor()->create();

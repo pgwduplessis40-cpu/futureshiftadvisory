@@ -15,6 +15,7 @@ use App\Services\Security\InviteIssuer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
@@ -242,7 +243,9 @@ final class PartnerPanelController extends Controller
             ])
             ->where('panel_type', $panelType)
             ->latest('updated_at')
-            ->get()
+            ->get();
+
+        $partners = $this->visiblePanelMembers($partners)
             ->sortBy(fn (PanelMember $member): string => $this->businessName($member))
             ->map(fn (PanelMember $member): array => $this->summary($member))
             ->values();
@@ -258,6 +261,48 @@ final class PartnerPanelController extends Controller
             'createUrl' => $this->createUrl($panelType),
             'partners' => $partners,
         ]);
+    }
+
+    /**
+     * @param  Collection<int, PanelMember>  $members
+     * @return Collection<int, PanelMember>
+     */
+    private function visiblePanelMembers(Collection $members): Collection
+    {
+        return $members
+            ->groupBy(fn (PanelMember $member): string => $this->emailKey($member))
+            ->flatMap(function (Collection $group, string $email): Collection {
+                if ($email === '') {
+                    return $group;
+                }
+
+                $visible = $group->reject(
+                    fn (PanelMember $member): bool => filled(data_get($member->application, 'superseded_by_panel_member_id')),
+                );
+
+                if ($visible->count() <= 1) {
+                    return $visible;
+                }
+
+                $hasCurrentRecord = $visible->contains(
+                    fn (PanelMember $member): bool => $member->user_id !== null
+                        || ! in_array($member->status, [PanelMember::STATUS_INVITED, PanelMember::STATUS_CANCELLED], true),
+                );
+
+                if ($hasCurrentRecord) {
+                    $visible = $visible->reject(
+                        fn (PanelMember $member): bool => $member->user_id === null
+                            && in_array($member->status, [PanelMember::STATUS_INVITED, PanelMember::STATUS_CANCELLED], true),
+                    );
+                }
+
+                if ($visible->isEmpty()) {
+                    return $group->sortByDesc('updated_at')->take(1);
+                }
+
+                return $visible;
+            })
+            ->values();
     }
 
     private function create(string $panelType): Response
@@ -433,6 +478,11 @@ final class PartnerPanelController extends Controller
     private function inviteEmail(PanelMember $panelMember): string
     {
         return (string) ($panelMember->user?->email ?? $panelMember->inviteToken?->email);
+    }
+
+    private function emailKey(PanelMember $panelMember): string
+    {
+        return strtolower(trim($this->inviteEmail($panelMember)));
     }
 
     private function businessName(PanelMember $member): string

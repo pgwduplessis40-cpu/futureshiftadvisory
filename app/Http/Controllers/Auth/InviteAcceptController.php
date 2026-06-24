@@ -257,14 +257,34 @@ final class InviteAcceptController extends Controller
         $member = PanelMember::query()
             ->where('invite_token_id', $invite->getKey())
             ->where('panel_type', $invite->target_user_type)
-            ->first();
+            ->first()
+            ?? PanelMember::query()
+                ->where('panel_type', $invite->target_user_type)
+                ->where(function ($query) use ($invite, $user): void {
+                    $query
+                        ->where('user_id', $user->getKey())
+                        ->orWhere(function ($query) use ($invite): void {
+                            $query
+                                ->whereNull('user_id')
+                                ->whereHas('inviteToken', fn ($inviteQuery) => $inviteQuery
+                                    ->where('target_user_type', $invite->target_user_type)
+                                    ->whereRaw('lower(email) = ?', [strtolower((string) $invite->email)]));
+                        });
+                })
+                ->latest('updated_at')
+                ->first();
 
-        if (! $member instanceof PanelMember || $member->user_id !== null) {
+        if (! $member instanceof PanelMember) {
+            return null;
+        }
+
+        if ($member->user_id !== null && (string) $member->user_id !== (string) $user->getKey()) {
             return $member;
         }
 
         $member->forceFill([
             'user_id' => $user->getKey(),
+            'invite_token_id' => $invite->getKey(),
         ])->save();
 
         return $member->refresh();
