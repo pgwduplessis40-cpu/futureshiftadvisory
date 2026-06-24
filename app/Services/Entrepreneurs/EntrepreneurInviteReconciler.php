@@ -34,7 +34,7 @@ final class EntrepreneurInviteReconciler
 
         return DB::transaction(function () use ($email, $user): ?EntrepreneurProfile {
             $acceptedInvite = InviteToken::query()
-                ->whereRaw('lower(email) = ?', [$email])
+                ->whereRaw('lower(trim(email)) = ?', [$email])
                 ->where('target_user_type', User::TYPE_ENTREPRENEUR)
                 ->whereNotNull('accepted_at')
                 ->where(function ($query) use ($user): void {
@@ -48,34 +48,13 @@ final class EntrepreneurInviteReconciler
 
             $profile = EntrepreneurProfile::query()
                 ->with('inviteToken')
-                ->whereNull('user_id')
-                ->whereRaw('lower(email) = ?', [$email])
-                ->where(function ($query) use ($acceptedInvite, $user): void {
-                    $query->whereHas('inviteToken', fn ($query) => $query
-                        ->where('target_user_type', User::TYPE_ENTREPRENEUR)
-                        ->where(function ($query) use ($user): void {
-                            $query
-                                ->where(function ($query): void {
-                                    $query
-                                        ->whereNull('accepted_at')
-                                        ->where('expires_at', '>', now());
-                                })
-                                ->orWhere('accepted_by_user_id', $user->getKey())
-                                ->orWhere(function ($query): void {
-                                    $query
-                                        ->whereNotNull('accepted_at')
-                                        ->whereNull('accepted_by_user_id');
-                                });
-                        }));
-
-                    if ($acceptedInvite instanceof InviteToken) {
-                        $query
-                            ->orWhereNull('invite_token_id')
-                            ->orWhere('invite_token_id', '!=', $acceptedInvite->getKey());
-                    }
-                })
+                ->whereRaw('lower(trim(email)) = ?', [$email])
                 ->lockForUpdate()
                 ->first();
+
+            if (! $profile instanceof EntrepreneurProfile) {
+                $profile = $this->createMissingProfile($user, $acceptedInvite ?? $this->latestInviteFor($email));
+            }
 
             if (! $profile instanceof EntrepreneurProfile) {
                 return null;
@@ -94,7 +73,7 @@ final class EntrepreneurInviteReconciler
             $updates = [
                 'user_id' => $user->getKey(),
             ];
-            if ($profile->stage === EntrepreneurStage::INVITED) {
+            if (in_array($profile->stage, [EntrepreneurStage::INVITED, EntrepreneurStage::CANCELLED], true)) {
                 $updates['stage'] = EntrepreneurStage::ONBOARDING;
             }
 
@@ -116,6 +95,50 @@ final class EntrepreneurInviteReconciler
 
             return $profile->refresh()->load('inviteToken');
         });
+    }
+
+    private function latestInviteFor(string $email): ?InviteToken
+    {
+        return InviteToken::query()
+            ->whereRaw('lower(trim(email)) = ?', [$email])
+            ->where('target_user_type', User::TYPE_ENTREPRENEUR)
+            ->latest('accepted_at')
+            ->latest('expires_at')
+            ->latest()
+            ->first();
+    }
+
+    private function createMissingProfile(User $user, ?InviteToken $invite): ?EntrepreneurProfile
+    {
+        $advisorId = $this->advisorIdFor($invite);
+        if ($advisorId === null) {
+            return null;
+        }
+
+        return EntrepreneurProfile::query()->create([
+            'user_id' => $user->getKey(),
+            'assigned_advisor_id' => $advisorId,
+            'invite_token_id' => $invite?->getKey(),
+            'name' => $user->name ?: $user->email,
+            'email' => Str::lower(trim((string) $user->email)),
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => null,
+        ]);
+    }
+
+    private function advisorIdFor(?InviteToken $invite): mixed
+    {
+        if ($invite instanceof InviteToken && $invite->issued_by_user_id !== null) {
+            $issuer = User::query()->find($invite->issued_by_user_id);
+            if ($issuer instanceof User && in_array($issuer->user_type, [User::TYPE_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+                return $issuer->getKey();
+            }
+        }
+
+        return User::query()
+            ->whereIn('user_type', [User::TYPE_ADVISOR, User::TYPE_SUPER_ADMIN])
+            ->oldest()
+            ->value('id');
     }
 
     private function ensureOnboardingStage(EntrepreneurProfile $profile, User $user): EntrepreneurProfile
