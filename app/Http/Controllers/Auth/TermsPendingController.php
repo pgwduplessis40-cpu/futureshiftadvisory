@@ -13,6 +13,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Terms\SignedAcceptancePdf;
 use App\Services\Terms\TermsAcceptanceGate;
+use App\Services\Terms\TermsPdfFallback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -21,6 +22,7 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 final class TermsPendingController extends Controller
 {
@@ -28,6 +30,7 @@ final class TermsPendingController extends Controller
         private readonly TermsAcceptanceGate $gate,
         private readonly SignedAcceptancePdf $signedPdf,
         private readonly AuditWriter $auditWriter,
+        private readonly TermsPdfFallback $fallbackPdf,
     ) {}
 
     public function show(Request $request): Response|RedirectResponse
@@ -60,7 +63,13 @@ final class TermsPendingController extends Controller
         $version = $this->gate->latestPublishedVersion(withClauses: true);
         abort_unless($version instanceof TermsVersion, 404);
 
-        $pdf = $renderer->render($this->downloadHtml($version, $user));
+        $html = $this->downloadHtml($version, $user);
+        try {
+            $pdf = $renderer->render($html);
+        } catch (Throwable $exception) {
+            report($exception);
+            $pdf = $this->fallbackPdf->userDownload($version, $user);
+        }
         $filename = Str::slug('future-shift-advisory-terms-'.$version->version).'.pdf';
 
         $this->auditWriter->record('terms.downloaded', subject: $version, actor: $user, after: [

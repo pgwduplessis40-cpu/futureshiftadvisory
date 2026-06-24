@@ -13,12 +13,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use RuntimeException;
+use Throwable;
 
 final class SignedAcceptancePdf
 {
     public function __construct(
         private readonly PdfRenderer $renderer,
         private readonly KeyEnvelope $envelope,
+        private readonly TermsPdfFallback $fallbackPdf,
     ) {}
 
     public function create(
@@ -29,7 +31,13 @@ final class SignedAcceptancePdf
     ): SignedAcceptanceArtifact {
         $termsVersion->loadMissing('clauses');
 
-        $pdf = $this->renderer->render($this->html($termsVersion, $user, $request, $acceptedAt));
+        $html = $this->html($termsVersion, $user, $request, $acceptedAt);
+        try {
+            $pdf = $this->renderer->render($html);
+        } catch (Throwable $exception) {
+            report($exception);
+            $pdf = $this->fallbackPdf->signedAcceptance($termsVersion, $user, $request, $acceptedAt);
+        }
         $path = $this->path($termsVersion, $user, $acceptedAt);
         $written = Storage::disk('secure_local')->put($path, $pdf);
 

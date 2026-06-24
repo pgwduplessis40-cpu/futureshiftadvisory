@@ -15,6 +15,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 use Tests\TestCase;
 
 final class AcceptanceGateTest extends TestCase
@@ -105,6 +106,54 @@ final class AcceptanceGateTest extends TestCase
         $this->assertSame(strlen("%PDF-1.4\nfake signed terms"), $acceptance->signed_pdf_byte_size);
         $this->assertStringContainsString('Exact clause text for PDF proof.', $renderer->html);
         $this->assertDatabaseHas('audit_events', ['action' => 'terms.accepted']);
+    }
+
+    public function test_acceptance_uses_plain_pdf_fallback_when_browser_renderer_fails(): void
+    {
+        Storage::fake('secure_local');
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new RuntimeException('Browser renderer unavailable.');
+            }
+        });
+
+        $this->termsVersion('1', publishedAt: now()->subDay(), material: true);
+        $this->activateTermsEnforcement();
+        $user = User::factory()->withTwoFactor()->create();
+
+        $this->actingAsMfa($user)
+            ->post(route('terms.accept'), [
+                'scroll_end_confirmed' => true,
+            ])
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $acceptance = TermsAcceptance::query()->firstOrFail();
+
+        $this->assertIsString($acceptance->signed_pdf_path);
+        $this->assertStringStartsWith('%PDF-1.4', Storage::disk('secure_local')->get($acceptance->signed_pdf_path));
+    }
+
+    public function test_terms_download_uses_plain_pdf_fallback_when_browser_renderer_fails(): void
+    {
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new RuntimeException('Browser renderer unavailable.');
+            }
+        });
+
+        $this->termsVersion('1', publishedAt: now()->subDay(), material: true);
+        $user = User::factory()->withTwoFactor()->create();
+
+        $response = $this->actingAsMfa($user)
+            ->get(route('terms.download'))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
     }
 
     public function test_acceptance_requires_scroll_end_confirmation(): void

@@ -11,6 +11,7 @@ use App\Models\TermsVersion;
 use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Terms\TermsAcceptanceGate;
+use App\Services\Terms\TermsPdfFallback;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response as HttpResponse;
@@ -20,12 +21,14 @@ use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Throwable;
 
 final class TermsController extends Controller
 {
     public function __construct(
         private readonly AuditWriter $auditWriter,
         private readonly TermsAcceptanceGate $gate,
+        private readonly TermsPdfFallback $fallbackPdf,
     ) {}
 
     public function index(): Response
@@ -152,7 +155,13 @@ final class TermsController extends Controller
         Gate::authorize('view', $termsVersion);
 
         $termsVersion->load('clauses');
-        $pdf = $renderer->render($this->downloadHtml($termsVersion));
+        $html = $this->downloadHtml($termsVersion);
+        try {
+            $pdf = $renderer->render($html);
+        } catch (Throwable $exception) {
+            report($exception);
+            $pdf = $this->fallbackPdf->reviewDownload($termsVersion);
+        }
         $filename = Str::slug('future-shift-advisory-terms-'.$termsVersion->version).'.pdf';
 
         $this->auditWriter->record('terms.downloaded_for_review', subject: $termsVersion, actor: $request->user(), after: [

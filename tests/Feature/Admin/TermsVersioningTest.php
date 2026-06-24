@@ -8,11 +8,13 @@ use App\Models\TermsAcceptance;
 use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Services\Pdf\PdfRenderer;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\TermsVersionSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Inertia\Testing\AssertableInertia as Assert;
+use RuntimeException;
 use Tests\TestCase;
 
 final class TermsVersioningTest extends TestCase
@@ -160,6 +162,28 @@ final class TermsVersioningTest extends TestCase
                 ->where('version.material_clauses_count', 6)
                 ->where('version.clauses.3.material', true),
             );
+    }
+
+    public function test_terms_download_falls_back_to_plain_pdf_when_browser_renderer_fails(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $version = $this->termsVersion('1', published: true);
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                throw new RuntimeException('Browser renderer unavailable.');
+            }
+        });
+
+        $response = $this->actingAsMfa($admin)
+            ->get(route('admin.terms.download', $version))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf');
+
+        $this->assertStringStartsWith('%PDF-1.4', $response->getContent());
+        $this->assertDatabaseHas('audit_events', ['action' => 'terms.downloaded_for_review']);
     }
 
     public function test_material_publish_sets_prior_active_acceptances_to_expire_and_queues_reacceptance(): void
