@@ -38,6 +38,7 @@ final class PlanRequirements
             'requirements' => [
                 ['key' => 'intellectual-property', 'title' => 'Intellectual property'],
                 ['key' => 'legal-environment', 'title' => 'Legal environment'],
+                ['key' => 'systems-software-processes', 'title' => 'What systems/software/processes will be required to run this business if viable?'],
             ],
         ],
         'financial' => [

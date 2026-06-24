@@ -121,6 +121,11 @@ final class EntrepreneurPlanController extends Controller
                     'title' => 'Legal environment',
                     'description' => 'List legal, privacy, compliance, supplier, employment, or industry obligations.',
                 ],
+                [
+                    'key' => 'systems-software-processes',
+                    'title' => 'What systems/software/processes will be required to run this business if viable?',
+                    'description' => 'List the software, operating systems, workflows, responsibilities, suppliers, controls, and implementation gaps needed to run the business if the concept proves viable.',
+                ],
             ],
         ],
         'financial' => [

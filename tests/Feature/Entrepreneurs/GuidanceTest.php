@@ -110,6 +110,35 @@ final class GuidanceTest extends TestCase
         ]);
     }
 
+    public function test_systems_requirement_assist_prompts_for_operating_stack_detail(): void
+    {
+        [$advisor, $section] = $this->section(email: 'systems-assist-guidance-founder@example.test');
+        $section->load('businessPlan.entrepreneurProfile');
+        $plan = $section->businessPlan;
+        $profile = $plan->entrepreneurProfile;
+        $ideaValidation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->first();
+
+        $payload = app(Guidance::class)->draftRequirement(
+            plan: $plan,
+            profile: $profile,
+            requirement: [
+                'key' => 'systems-software-processes',
+                'phase_key' => 'legal_operations',
+                'phase_title' => 'Legal & Operations',
+                'title' => 'What systems/software/processes will be required to run this business if viable?',
+                'description' => 'List the software, operating systems, workflows, responsibilities, suppliers, controls, and implementation gaps needed to run the business if the concept proves viable.',
+            ],
+            ideaValidation: $ideaValidation,
+            currentDraft: '',
+            actor: $advisor,
+        );
+
+        $this->assertSame('What systems/software/processes will be required to run this business if viable?', $payload['title']);
+        $this->assertContains('List the required software, workflows, responsibilities, controls, and implementation gaps.', $payload['checklist']);
+    }
+
     /**
      * @return array{0: User, 1: PlanSection}
      */

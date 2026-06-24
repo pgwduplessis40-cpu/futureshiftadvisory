@@ -13,10 +13,12 @@ use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
+use App\Services\Entrepreneurs\PlanRequirements;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Inertia\Testing\AssertableInertia as Assert;
 use InvalidArgumentException;
 use Tests\TestCase;
 
@@ -92,6 +94,35 @@ final class PlanBuilderTest extends TestCase
             'action' => 'entrepreneur.plan_started',
             'subject_id' => $plan->id,
         ]);
+    }
+
+    public function test_entrepreneur_plan_requirements_include_viable_systems_question(): void
+    {
+        $legalOperations = PlanRequirements::definitions()['legal_operations']['requirements'];
+
+        $this->assertContains(
+            [
+                'key' => 'systems-software-processes',
+                'title' => 'What systems/software/processes will be required to run this business if viable?',
+            ],
+            $legalOperations,
+        );
+    }
+
+    public function test_entrepreneur_plan_workspace_exposes_viable_systems_question(): void
+    {
+        [, $profile] = $this->profile('systems-question-founder@example.test');
+        $entrepreneur = $profile->user()->firstOrFail();
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('planTemplate.3.title', 'Legal & Operations')
+                ->where('planTemplate.3.requirements.2.key', 'systems-software-processes')
+                ->where('planTemplate.3.requirements.2.title', 'What systems/software/processes will be required to run this business if viable?')
+                ->where('planTemplate.3.requirements.2.description', 'List the software, operating systems, workflows, responsibilities, suppliers, controls, and implementation gaps needed to run the business if the concept proves viable.')
+            );
     }
 
     public function test_jump_ahead_dependency_warning_is_stored_on_section_metadata(): void

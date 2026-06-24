@@ -326,6 +326,7 @@ final class Guidance
             'strategy' => ['goal', 'milestone', 'success', 'vision', 'culture'],
             'financial' => ['revenue', 'price', 'margin', 'cash', 'funding'],
             'legal' => ['legal', 'privacy', 'contract', 'licence', 'intellectual', 'ip'],
+            'operations' => ['system', 'systems', 'software', 'process', 'workflow', 'supplier', 'vendor'],
         ] as $tag => $needles) {
             if (collect($needles)->contains(fn (string $needle): bool => str_contains($text, $needle))) {
                 $gaps[] = $tag;
@@ -408,6 +409,9 @@ final class Guidance
         }
         if (str_contains($title, 'legal') || str_contains($title, 'intellectual')) {
             $checklist[] = 'Identify licences, contracts, privacy, IP, or compliance obligations.';
+        }
+        if (str_contains($title, 'system') || str_contains($title, 'software') || str_contains($title, 'process')) {
+            $checklist[] = 'List the required software, workflows, responsibilities, controls, and implementation gaps.';
         }
         if (str_contains($title, 'customer') || str_contains($title, 'market') || str_contains($title, 'apart')) {
             $checklist[] = 'Name the target customer, alternatives, competitors, and demand signal.';
