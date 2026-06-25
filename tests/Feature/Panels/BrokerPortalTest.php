@@ -14,6 +14,8 @@ use App\Models\Referral;
 use App\Models\ReverseReferral;
 use App\Models\User;
 use App\Notifications\BrokerFspLapsedNotification;
+use App\Notifications\PanelApplicationInformationRequestedNotification;
+use App\Notifications\PanelApplicationResubmittedNotification;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Integration\Fsp\Contracts\FspClient;
 use App\Services\Panels\PanelOnboarding;
@@ -313,6 +315,107 @@ final class BrokerPortalTest extends TestCase
             'action' => 'referral.stage_changed',
             'subject_id' => $referral->id,
         ]);
+    }
+
+    public function test_broker_can_update_own_profile_details(): void
+    {
+        $brokerMember = $this->activeBroker('profile-update-broker@example.test');
+        $this->assertSame(PanelMember::FSP_STATUS_CURRENT, $brokerMember->fsp_status);
+
+        $this->actingAsMfa($brokerMember->user)
+            ->patch(route('panel.application.update'), [
+                'company' => 'Updated Broker Limited',
+                'fsp_number' => 'fsp200002',
+                'regions' => 'Christchurch, Dunedin',
+                'specialties' => 'Life insurance, Risk review',
+            ])
+            ->assertRedirect(route('dashboard', absolute: false))
+            ->assertSessionHas('status', 'panel-profile-updated');
+
+        $brokerMember->refresh();
+
+        $this->assertSame('Updated Broker Limited', $brokerMember->application['company']);
+        $this->assertSame('FSP200002', $brokerMember->application['fsp_number']);
+        $this->assertSame('FSP200002', $brokerMember->fsp_number);
+        $this->assertSame(['Christchurch', 'Dunedin'], $brokerMember->application['regions']);
+        $this->assertSame(['Life insurance', 'Risk review'], $brokerMember->application['specialties']);
+        $this->assertSame(PanelMember::FSP_STATUS_UNKNOWN, $brokerMember->fsp_status);
+        $this->assertNull($brokerMember->fsp_last_checked_at);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.profile_updated',
+            'subject_id' => $brokerMember->id,
+        ]);
+
+        $this->actingAsMfa($brokerMember->user)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('broker/Dashboard')
+                ->where('dashboard.panel.company', 'Updated Broker Limited')
+                ->where('dashboard.panel.profileUpdateUrl', route('panel.application.update', absolute: false))
+                ->where('dashboard.panel.fspNumber', 'FSP200002')
+                ->where('dashboard.panel.fspStatus', PanelMember::FSP_STATUS_UNKNOWN)
+                ->where('dashboard.panel.regions.0', 'Christchurch')
+                ->where('dashboard.panel.specialties.1', 'Risk review'));
+    }
+
+    public function test_broker_profile_update_after_information_request_resubmits_application(): void
+    {
+        Notification::fake();
+
+        $advisor = $this->advisor('resubmission-advisor@example.test');
+        $broker = $this->broker('resubmitting-broker@example.test');
+        $member = app(PanelOnboarding::class)->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'Resubmitting Brokers Limited',
+            'fsp_number' => 'FSP100001',
+            'regions' => ['Hamilton'],
+            'specialties' => ['Insurance'],
+        ]);
+
+        app(PanelOnboarding::class)->requestMoreInformation(
+            $member,
+            $advisor,
+            'Please confirm the current FSP number before approval.',
+        );
+
+        Notification::assertSentTo($broker, PanelApplicationInformationRequestedNotification::class);
+
+        $this->actingAsMfa($broker)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('broker/Dashboard')
+                ->where('dashboard.panel.status', PanelMember::STATUS_INFORMATION_REQUESTED)
+                ->where('dashboard.panel.review.reason', 'Please confirm the current FSP number before approval.'));
+
+        $this->actingAsMfa($broker)
+            ->patch(route('panel.application.update'), [
+                'company' => 'Resubmitting Brokers Limited',
+                'fsp_number' => 'fsp200002',
+                'regions' => 'Hamilton, Tauranga',
+                'specialties' => 'Insurance, Kiwisaver',
+            ])
+            ->assertRedirect(route('dashboard', absolute: false))
+            ->assertSessionHas('status', 'panel-application-resubmitted');
+
+        $member->refresh();
+
+        $this->assertSame(PanelMember::STATUS_APPLICATION_PENDING, $member->status);
+        $this->assertSame('resubmitted', $member->application['review']['decision']);
+        $this->assertSame('Please confirm the current FSP number before approval.', $member->application['review']['previous_reason']);
+        $this->assertSame('FSP200002', $member->fsp_number);
+        $this->assertSame(PanelMember::FSP_STATUS_UNKNOWN, $member->fsp_status);
+        Notification::assertSentTo($advisor, PanelApplicationResubmittedNotification::class);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.application_resubmitted',
+            'subject_id' => $member->id,
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('panelOperations.approvals.summary.broker', 1)
+                ->where('panelOperations.approvals.items.0.id', $member->id)
+                ->where('panelOperations.approvals.items.0.status', PanelMember::STATUS_APPLICATION_PENDING));
     }
 
     private function activeBroker(string $email): PanelMember

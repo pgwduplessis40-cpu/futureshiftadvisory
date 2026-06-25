@@ -45,6 +45,8 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
         ->name('coach.referrals.stage');
     Route::post('panel/application', [PanelApplicationController::class, 'store'])
         ->name('panel.application.store');
+    Route::patch('panel/application', [PanelApplicationController::class, 'update'])
+        ->name('panel.application.update');
     Route::post('panel/agreements/{panelAgreement}/sign', [PanelAgreementController::class, 'sign'])
         ->name('panel.agreements.sign');
     Route::get('panel/agreements/{panelAgreement}/download', [PanelAgreementController::class, 'download'])

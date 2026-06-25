@@ -101,12 +101,15 @@ export default function PanelMembersIndex({
 
 function PanelMemberCard({ member }: { member: PanelMember }) {
     const [reason, setReason] = useState(member.review?.reason ?? '');
+    const trimmedReason = reason.trim();
     const canDecide = !['approved_pending_agreement', 'declined'].includes(
         member.status,
     );
+    const awaitingApplicant = member.status === 'information_requested';
     const brokerMissingFsp =
         member.panel_type === 'broker' && !member.fsp_number;
-    const canApprove = canDecide && !brokerMissingFsp;
+    const canApprove = canDecide && !awaitingApplicant && !brokerMissingFsp;
+    const canRequestInfo = canDecide && !awaitingApplicant;
 
     return (
         <article className="grid gap-4 rounded-md border bg-background p-4 lg:grid-cols-[minmax(0,1fr)_minmax(22rem,0.55fr)]">
@@ -152,18 +155,24 @@ function PanelMemberCard({ member }: { member: PanelMember }) {
                         information before approving this application.
                     </p>
                 )}
+                {awaitingApplicant && (
+                    <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
+                        Waiting for the applicant to update and resubmit the
+                        requested information.
+                    </p>
+                )}
             </div>
 
             <div className="grid gap-3">
                 <label className="grid gap-1">
                     <span className="text-xs text-muted-foreground">
-                        Decision note
+                        Missing information to request
                     </span>
                     <textarea
                         className="min-h-24 rounded-md border bg-background px-3 py-2 text-sm"
                         value={reason}
                         onChange={(event) => setReason(event.target.value)}
-                        placeholder="Reason for more information or decline"
+                        placeholder="Tell the broker exactly what is missing, for example: current FSP number, regions served, specialties, or evidence needed."
                     />
                 </label>
                 <div className="flex flex-wrap gap-2">
@@ -180,12 +189,10 @@ function PanelMemberCard({ member }: { member: PanelMember }) {
                         type="button"
                         size="sm"
                         variant="outline"
-                        disabled={!canDecide}
+                        disabled={!canRequestInfo || trimmedReason === ''}
                         onClick={() =>
                             router.patch(member.request_info_url, {
-                                reason:
-                                    reason ||
-                                    'Please provide the missing panel application information.',
+                                reason: trimmedReason,
                             })
                         }
                     >

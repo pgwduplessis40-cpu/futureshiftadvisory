@@ -249,6 +249,29 @@ final class DashboardController extends Controller
             'specialties' => $this->stringListFromApplication($application, 'specialties'),
             'approvedAt' => $member->approved_at?->toIso8601String(),
             'suspendedAt' => $member->suspended_at?->toIso8601String(),
+            'review' => $this->panelApplicationReview($application),
+            'profileUpdateUrl' => route('panel.application.update', absolute: false),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $application
+     * @return array<string, mixed>|null
+     */
+    private function panelApplicationReview(array $application): ?array
+    {
+        $review = $application['review'] ?? null;
+
+        if (! is_array($review)) {
+            return null;
+        }
+
+        return [
+            'decision' => is_string($review['decision'] ?? null) ? $review['decision'] : null,
+            'reason' => is_string($review['reason'] ?? null) ? $review['reason'] : null,
+            'previous_reason' => is_string($review['previous_reason'] ?? null) ? $review['previous_reason'] : null,
+            'decided_at' => is_string($review['decided_at'] ?? null) ? $review['decided_at'] : null,
+            'resubmitted_at' => is_string($review['resubmitted_at'] ?? null) ? $review['resubmitted_at'] : null,
         ];
     }
 

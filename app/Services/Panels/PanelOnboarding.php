@@ -7,11 +7,13 @@ namespace App\Services\Panels;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
+use App\Notifications\PanelApplicationInformationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Panels\Broker\BrokerFspVerifier;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
@@ -205,7 +207,13 @@ final class PanelOnboarding
             'reason' => $reason,
         ]);
 
-        return $member->refresh();
+        $member = $member->refresh()->loadMissing('user');
+
+        if ($member->user instanceof User) {
+            Notification::send($member->user, new PanelApplicationInformationRequestedNotification($member, $reason));
+        }
+
+        return $member;
     }
 
     public function decline(PanelMember $member, User $admin, string $reason): PanelMember

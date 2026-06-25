@@ -6,13 +6,16 @@ import {
     ClipboardCheck,
     Eye,
     FileSignature,
+    Info,
     Mail,
     MessageSquare,
+    Pencil,
+    Save,
     ShieldCheck,
     UsersRound,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { ComponentType, MouseEvent, ReactNode } from 'react';
+import type { ComponentType, FormEvent, MouseEvent, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -68,6 +71,16 @@ type PanelSummary = {
     specialties: string[];
     approvedAt: string | null;
     suspendedAt: string | null;
+    review: PanelReview | null;
+    profileUpdateUrl: string;
+};
+
+type PanelReview = {
+    decision?: string | null;
+    reason?: string | null;
+    previous_reason?: string | null;
+    decided_at?: string | null;
+    resubmitted_at?: string | null;
 };
 
 type ReferralSummary = {
@@ -242,6 +255,15 @@ export default function BrokerDashboard({ dashboard }: Props) {
                     />
                 ) : (
                     <>
+                        {panel.status === 'information_requested' ? (
+                            <InformationRequestedNotice
+                                review={panel.review}
+                                onUpdateProfile={() =>
+                                    jumpToSection('broker-profile')
+                                }
+                            />
+                        ) : null}
+
                         <DashboardTabList
                             activeTab={activeTab}
                             onChange={setActiveTab}
@@ -458,6 +480,34 @@ function sectionCardClass(highlighted: boolean) {
     return cn(
         'scroll-mt-6 rounded-md transition-[box-shadow,background-color] outline-none',
         highlighted && 'bg-primary/5 ring-2 ring-primary/40',
+    );
+}
+
+function InformationRequestedNotice({
+    review,
+    onUpdateProfile,
+}: {
+    review: PanelReview | null;
+    onUpdateProfile: () => void;
+}) {
+    return (
+        <section className="flex flex-col gap-3 rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-amber-950 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+                <Info className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+                <div>
+                    <h2 className="text-sm font-semibold">
+                        FSA requested more information
+                    </h2>
+                    <p className="mt-1 text-sm">
+                        {review?.reason ??
+                            'Update your broker application details and resubmit them for review.'}
+                    </p>
+                </div>
+            </div>
+            <Button type="button" size="sm" onClick={onUpdateProfile}>
+                Update and resubmit
+            </Button>
+        </section>
     );
 }
 
@@ -743,6 +793,23 @@ function BrokerProfile({
     panel: PanelSummary;
     highlighted: boolean;
 }) {
+    const [open, setOpen] = useState(false);
+    const isResubmission = panel.status === 'information_requested';
+    const form = useForm({
+        company: panel.company,
+        fsp_number: panel.fspNumber ?? '',
+        regions: panel.regions.join(', '),
+        specialties: panel.specialties.join(', '),
+    });
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+        form.patch(panel.profileUpdateUrl, {
+            preserveScroll: true,
+            onSuccess: () => setOpen(false),
+        });
+    };
+
     return (
         <Card
             id="broker-profile"
@@ -750,8 +817,95 @@ function BrokerProfile({
             className={sectionCardClass(highlighted)}
         >
             <CardHeader>
-                <CardTitle>Broker profile</CardTitle>
-                <CardDescription>{panel.email}</CardDescription>
+                <div className="flex items-start justify-between gap-3">
+                    <div>
+                        <CardTitle>Broker profile</CardTitle>
+                        <CardDescription>{panel.email}</CardDescription>
+                    </div>
+                    <Dialog open={open} onOpenChange={setOpen}>
+                        <DialogTrigger asChild>
+                            <Button variant="outline" size="sm">
+                                <Pencil aria-hidden="true" />
+                                {isResubmission
+                                    ? 'Update and resubmit'
+                                    : 'Edit profile'}
+                            </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                            <DialogHeader>
+                                <DialogTitle>
+                                    {isResubmission
+                                        ? 'Update and resubmit broker profile'
+                                        : 'Update broker profile'}
+                                </DialogTitle>
+                                <DialogDescription>
+                                    {isResubmission
+                                        ? 'Update the requested details and send the application back to FSA for review.'
+                                        : 'Update the broker details visible in this portal.'}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <form className="grid gap-4" onSubmit={submit}>
+                                {isResubmission && panel.review?.reason ? (
+                                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                                        {panel.review.reason}
+                                    </div>
+                                ) : null}
+                                <Field
+                                    label="Company"
+                                    value={form.data.company}
+                                    error={form.errors.company}
+                                    onChange={(value) =>
+                                        form.setData('company', value)
+                                    }
+                                />
+                                <Field
+                                    label="FSP number"
+                                    value={form.data.fsp_number}
+                                    error={form.errors.fsp_number}
+                                    onChange={(value) =>
+                                        form.setData('fsp_number', value)
+                                    }
+                                />
+                                <Field
+                                    label="Regions"
+                                    value={form.data.regions}
+                                    error={form.errors.regions}
+                                    placeholder="Auckland, Wellington"
+                                    onChange={(value) =>
+                                        form.setData('regions', value)
+                                    }
+                                />
+                                <Field
+                                    label="Specialties"
+                                    value={form.data.specialties}
+                                    error={form.errors.specialties}
+                                    placeholder="Succession, Capital Raise"
+                                    onChange={(value) =>
+                                        form.setData('specialties', value)
+                                    }
+                                />
+                                <DialogFooter>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        onClick={() => setOpen(false)}
+                                    >
+                                        Cancel
+                                    </Button>
+                                    <Button
+                                        type="submit"
+                                        disabled={form.processing}
+                                    >
+                                        <Save aria-hidden="true" />
+                                        {isResubmission
+                                            ? 'Resubmit application'
+                                            : 'Save changes'}
+                                    </Button>
+                                </DialogFooter>
+                            </form>
+                        </DialogContent>
+                    </Dialog>
+                </div>
             </CardHeader>
             <CardContent className="space-y-4">
                 <dl className="grid gap-3 text-sm">
@@ -766,6 +920,12 @@ function BrokerProfile({
                         }
                     />
                 </dl>
+                {isResubmission && panel.review?.reason ? (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-900">
+                        <p className="font-medium">Information requested</p>
+                        <p className="mt-1">{panel.review.reason}</p>
+                    </div>
+                ) : null}
                 <TagList label="Regions" values={panel.regions} />
                 <TagList label="Specialties" values={panel.specialties} />
             </CardContent>
@@ -1299,18 +1459,37 @@ function StatusBadge({
             : status === 'suspended'
               ? 'border-red-200 bg-red-50 text-red-700'
               : 'border-amber-200 bg-amber-50 text-amber-700';
-    const explanation =
-        status === 'active'
-            ? 'Your broker panel agreement is active and your broker portal access is open.'
-            : status === 'suspended'
-              ? 'Your broker panel access is suspended. Contact Future Shift Advisory before acting on referrals.'
-              : `Your broker panel application has been approved${approvedAt ? ` since ${formatDate(approvedAt)}` : ''}. You can work referrals while FSA keeps your panel record under review.`;
+    const explanation = statusExplanation(status, approvedAt);
 
     return (
         <ExplainedBadge className={classes} explanation={explanation}>
             {labelFor(status)}
         </ExplainedBadge>
     );
+}
+
+function statusExplanation(status: string, approvedAt: string | null): string {
+    if (status === 'active') {
+        return 'Your broker panel agreement is active and your broker portal access is open.';
+    }
+
+    if (status === 'suspended') {
+        return 'Your broker panel access is suspended. Contact Future Shift Advisory before acting on referrals.';
+    }
+
+    if (status === 'information_requested') {
+        return 'FSA has requested updated application information. Update the broker profile and resubmit it for review.';
+    }
+
+    if (status === 'application_pending') {
+        return 'Your broker panel application is waiting for FSA review.';
+    }
+
+    if (status === 'approved_pending_agreement') {
+        return `Your broker panel application has been approved${approvedAt ? ` since ${formatDate(approvedAt)}` : ''}. Sign the panel agreement to activate portal access.`;
+    }
+
+    return 'FSA is reviewing your broker panel status.';
 }
 
 function FspBadge({
