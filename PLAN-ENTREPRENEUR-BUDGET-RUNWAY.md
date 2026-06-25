@@ -1,0 +1,720 @@
+# Future Shift Advisory — Budget & Runway Builder Plan
+
+**Source:** `FSA_Budget_Runway_Builder_Spec_v1.0.docx` (Functional Spec v1.0, June 2026) — a new **structured
+financial component** for the entrepreneur Business Plan Builder: launch + operating costs, a 12-month
+revenue/cash-flow forecast, funding reconciliation, runway & break-even, a runway cross-check against the
+self-reported readiness answer, a presentation-only Advisor Cost Impact Line, scoring integration, and three
+charts. Read the spec for exhaustive field/flag/copy detail — this plan maps it onto the **existing Laravel
+entrepreneur module** and is the build brief for **Codex**.
+**Track scope:** additive financial component inside the existing plan flow. It must not weaken existing
+entrepreneur / plan / assessment / gamification behaviour, and it is governed by the **AI Integrity
+Principle** (CLAUDE.md §3) — it exists to replace self-reported runway with *checked arithmetic*.
+**Predecessors:** entrepreneur module (incl. the just-shipped gamification + AI content-isolation guard,
+`7586ba37`). Builds on `PlanRequirements`, `BusinessPlan`/`PlanSection`, `Assessment` +
+`RatingFramework`/`RatingFrameworkManager`, `Guidance`, `ReadinessAssessment`, `FeeCalculator`,
+`EntrepreneurPromptRegistry`, Recharts + Meridian Warm tokens.
+**Multi-concept forward-compat:** `entrepreneur_budgets` keys on `business_plan_id` (unique), so when
+[PLAN-ENTREPRENEUR-MULTI-CONCEPT.md](PLAN-ENTREPRENEUR-MULTI-CONCEPT.md) makes a founder own multiple plans,
+**budget is per-concept for free** — no rework. The only touch-point is the `budget_built` milestone gaining
+an `entrepreneur_concept_id` (per-concept milestones).
+**Work orders:** **WO-B1 … WO-B7** (budget namespace).
+**Sequencing:** B1 (schema + calc engine) → B2 (builder UI + autosave) → B3 (flags + runway cross-check) →
+B4 (advisor cost line) → B5 (charts) → B6 (scoring + framework recalibration) → B7 (AI Assist nudge +
+gamification tie-in). Each its own green commit on `featureApp`; `main` fast-forwards only when green
+(`-d memory_limit=2048M`).
+**Plan version:** 1.15 — owner decisions + fifteen code-grounded review passes. *(Build target: Codex, into the test env, then push to live.)*
+
+> **v1.15 revision (review pass — the weighting contract's output shape + gap/default boundary).** Two fixes:
+> (P1) **Default vs data-gap tightened** — the `complete`/`1.0`/null default fires only on a **valid** score
+> row; a missing/malformed score identity or value stays a **reported data gap** (not a silent full-weight
+> default), resolving the clash with the data-gap rule (§6, B6, §11).
+> (P2) **Helper returns normalised rows, not just an overall score** — payload/report render per-criterion
+> rows from raw `$criterion->weight` ([BuildsEntrepreneurAssessmentPayload:74](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:74)),
+> so the helper must expose `rows[]` (`effective_weight`/`contribution`/`score_source`/`excluded_reason`) that
+> the UI consumes — else an excluded/partial budget criterion shows stale full-weight rows (§6, B6, §11).
+
+> **v1.14 revision (review pass — the weighting contract meets advisor overrides + legacy rows).** Two fixes,
+> both consequences of the v1.13 persisted-metadata contract:
+> (P1) **Advisor overrides keep the AI row's weighting** — `adjustScore()` writes `advisor_scores` with no
+> metadata ([Assessment.php:83-103](app/Services/Entrepreneurs/Assessment.php:83)) and readers prefer it
+> ([AdvisoryReadiness.php:86](app/Services/Entrepreneurs/AdvisoryReadiness.php:86)); the helper merges the
+> advisor **score** with the AI row's **frozen metadata** (single-source, no duplication) (§6, B6, §11).
+> (P2) **Legacy/fixture default** — metadata-less rows (e.g. `TestingSeedDataSeeder`
+> [:1352](database/seeders/TestingSeedDataSeeder.php:1352)) default to `complete`/`1.0`/null, so existing
+> assessments/non-budget criteria are unaffected (no backfill; only budget-behaviour fixtures updated) (§6, B6, §11).
+
+> **v1.13 revision (review pass — persisted weighting contract + seeder identity guard).** Two fixes:
+> (P1) **Persisted score-row contract** — downstream readers recompute from `plan_assessments.ai_scores` (no
+> live budget; [migration:19](database/migrations/2026_05_23_086000_create_plan_assessments_table.php:19),
+> `AdvisoryReadiness::score` [:79-93](app/Services/Entrepreneurs/AdvisoryReadiness.php:79)), so each score row
+> must persist `weight_status`/`effective_weight_multiplier`/`excluded_reason`; the helper renormalises from the
+> snapshot — making excluded≠failed and old rounds replayable (§6, B6, §11).
+> (P2) **Seeder idempotency on identity, not count** — `rating_criteria` has no stable key
+> ([migration:33](database/migrations/2026_05_23_085000_create_rating_framework_tables.php:33)); guard on the
+> budget criterion's `number=12`+name/marker and **never downgrade** a newer (13-criterion) framework (§6, B6, §11).
+
+> **v1.12 revision (review pass — learning-layer readers, seed audit, the one real blocker).** Three fixes:
+> (P1) **Three learning-layer readers added to the shared-helper scope** — `RatingPredictiveValidity::planScore`
+> ([:150](app/Services/Learning/Layers/RatingPredictiveValidity.php:150)), `ConversionOutcomeLearning::planScore`
+> ([:127](app/Services/Learning/Layers/ConversionOutcomeLearning.php:127)), `PlanQualityBenchmarks::score`
+> ([:161](app/Services/Learning/Layers/PlanQualityBenchmarks.php:161)) each do `criteria->sum(score×weight/100)`;
+> reader count is now **ten** (§6, B6, §11).
+> (P2) **Seeder audit** — the direct-create baseline seeder records a **seed-time `AuditWriter` event (system/
+> null actor)**, satisfying the "framework revised → audited" rule (line 207) without a `User` (§6, B6).
+> (P2) **⛔ Real blocker surfaced** — the seeder's criterion #12 descriptors + recalibrated 12-weight set are
+> owner-set rubric values (governed, not inventable). B6's seeder is **marked blocked on §13.2**; its mechanics
+> stay buildable (§6, §13.2, B6).
+
+> **v1.11 revision (review pass — three edge-case seams).** Three fixes:
+> (P2) **`expected_runway_months = 0` is valid** — `nullable integer min:0`; "present" means `!== null`, never
+> truthiness, so a truthful zero reaches the `complete` gate and Flag 1 (§3, §11).
+> (P2) **Missing budget row = `not_started`** — legacy/un-opened plans have no row; treated as `not_started`
+> (incomplete, criterion excluded, scorer null-safe); **no eager backfill**, row created lazily (§3, §11).
+> (P2) **Seeder actor/idempotency** — `BudgetCriterionRevisionSeeder` mirrors `FoundingRatingFrameworkValuesSeeder`:
+> **direct create, no actor**, idempotent early-return, wired into `DatabaseSeeder` + test seed — not the
+> actor-requiring `revise()`/`publish()` (§6, B6).
+
+> **v1.10 revision (review pass — three integration seams traced to code).** Three fixes:
+> (P1) **Scorer must receive the budget data** — `Assessment::scoreCriterion()` + `heuristicScore()` see only
+> `sections_text` today ([:166-218](app/Services/Entrepreneurs/Assessment.php:166)); B6 passes a structured
+> `budget_evidence` block (computed/status/`expected_runway_months`/flags) for the budget criterion, else it
+> scores blind (§6, B6, §11).
+> (P2) **Seeder governance disambiguated** — `BudgetCriterionRevisionSeeder` is an **owner-approved baseline**
+> (direct `revise()`→`publish()` + audit, like `FoundingRatingFrameworkValuesSeeder`), **not**
+> `queueGovernedChange()` (which only *detects*); "nothing self-applies" governs the runtime admin loop (§6, B6).
+> (P2) **Advisor "unresolved" predicate made exact** — `raised === true && resolved !== true`; resolved flags
+> drop off, re-raised reappear unacknowledged; tests added (§5.4, §9, §11, B3).
+
+> **v1.9 revision (review pass — completion path, 12th-criterion rollout, flag re-raise).** Three fixes,
+> each verified against the code:
+> (P1) **Portal completion now covers the controller's own path** — `requirementsPayload()` /
+> `requirementsCompletion()` ([EntrepreneurPlanController.php:623](app/Http/Controllers/Portal/EntrepreneurPlanController.php:623))
+> are PlanSection-only, so budget-runway (no `PlanSection`) would never read complete; B1 must make them (or a
+> consolidated source) budget-`status`-aware, else the checkmark **and submit-gate** stick (§2, §3, B1).
+> (P2) **12th-criterion rollout made install-safe** — `FOUNDING_CRITERIA` stays **11** (budget criterion is
+> governed-revision data); `revise()` must be **extended to add** a criterion (it only updates today); a new
+> `BudgetCriterionRevisionSeeder` + tests give fresh installs/CI the published 12-criterion version while the
+> founding seeds/tests stay 11 (§6, B6).
+> (P3) **Flag re-raise lifecycle specified** — state gains `raised_at`/`resolved_at`; a re-raised resolved
+> flag **nulls `acknowledged_at`** so a stale ack can't hide it; transitions audited; test added (§5.4, §11).
+
+> **v1.8 revision (review pass — propagate v1.7 fully across sections).** Three fixes (all stale carry-overs
+> of v1.7, found by grepping the whole doc):
+> (P2) **§13 weight-formula recap** updated from `/4` to the five-component `/5` gate (was contradicting §6).
+> (P2) **§5 runway capture** re-attributed from B3 to **B2** (matches the WO table; B3 only compares).
+> (P3) **RLS policy syntax** corrected — `FOR INSERT` takes `WITH CHECK` only, `FOR UPDATE` takes
+> `USING` + `WITH CHECK` (per the referenced `entrepreneur_milestone_awards` policies).
+
+> **v1.7 revision (review pass — weight gate + RLS write split + WO ownership).** Four fixes:
+> (P1) **Partial-weight formula now gates on runway** — denominator is the **five** completion components
+> (A–D **+ `expected_runway_months`**), so A–D complete with no runway = 4/5 = 80%, never full; same gate as §3,
+> stated once (§6).
+> (P1) **RLS split read vs write** — separate `FOR SELECT` (owner **+ assigned advisor read**) and
+> `FOR INSERT/UPDATE` (owner/system **only**; advisor excluded) policies, mirroring the award split; test
+> asserts advisor read-but-not-write (§3, §11).
+> (P2) **Runway input moved to B2** — the builder captures/persists `expected_runway_months` (so B2 can reach
+> `complete`); B3 keeps only the comparison (WO table).
+> (P2) **Advisor visibility now an owned deliverable** — explicit `Advisor\EntrepreneurController@show` payload
+> block + read-only render in B3/§9 (was prose-only "advisor-visible").
+
+> **v1.6 revision (review pass — consistency after the v1.5 relocation).** Three fixes:
+> (P2) **CLAUDE.md block runway source corrected** to `entrepreneur_budgets.expected_runway_months` (was
+> still `ReadinessAssessment.responses`) — it's load-bearing for the build (§10).
+> (P2) **`complete` now requires `expected_runway_months`** — a data-complete budget with no runway value
+> can't run the core cross-check, so it stays `partial` (+ named rec), never full weight (§3, §11).
+> (P2) **RLS/auth tests added** — owner access, advisor visibility, cross-entrepreneur denial, no
+> client-scope access, and the through-`business_plans` derivation (§11).
+
+> **v1.5 revision (review pass — RLS drift + runway-storage relocation).** Four fixes:
+> (P1) **RLS derives the owner *through* `business_plans`** (the existing `plan_sections_scope` pattern) —
+> dropped the drift-prone denormalised `entrepreneur_profile_id` key; a bad row can't protect the wrong owner
+> (§3).
+> (P2) **`expected_runway_months` moved to the `entrepreneur_budgets` row** (from `responses.budget_meta`) —
+> **supersedes v1.3/v1.4** — resolving *both* the `Readiness::score()` poisoning and the historical-readiness-row
+> ambiguity; no readiness-controller change needed (§1, §3, §5, §13, B3).
+> (P2) **Consolidation must carry `description`** — `PlanRequirements` has only key/title; the unified source
+> must add `description` or the UI loses it (§1).
+> (P3) Fixed stale **`§16` → `§13`** references.
+
+> **v1.4 revision (review pass — cap bug + Flag-1 consistency).** Three fixes:
+> (P1) **`min(self,12)` cap masked real gaps** (self 18 vs calc 11 → 1). The cap now applies **only to the
+> calc side, only when open-ended**; a finite calc compares uncapped self-reported (§5).
+> (P2) **"always computable" tightened** to "when budget data *and* a canonical `expected_runway_months`
+> exist", with a prompt for missing values (§2 ↔ §5).
+> (P2) **Canonical storage resolved** — always `responses.budget_meta.expected_runway_months`; only the
+> capture *UI* is open; B3 must extend the readiness controller (which drops non-flat fields) (§13, B3).
+
+> **v1.3 revision (review pass — readiness side-effect + formula intent).** Four fixes:
+> (P1) **`expected_runway_months` must not pollute readiness scoring** — `Readiness::score()` averages every
+> *flat numeric* response clamped to 0–5, so store it in **non-scored nested metadata**
+> (`responses.budget_meta.…`) and have `score()` ignore that key (§1, §5).
+> (P1) **Flag 1 is bidirectional per spec §6.1** (`abs(...) > threshold`) — removed the contradictory
+> "safe-direction / optimistic-only" language (§5).
+> (P2) **"5 input groups" → "four input groups (A–D) + computed outputs"** in §8/B2, matching the §6/§13
+> denominator.
+> (P2) **§4.1 tightened** — runway/break-even strings are **displayed**, never stored; `computed` holds
+> numeric + bool only.
+
+> **v1.2 revision (review pass — wider scope + open-ended math).** Four fixes:
+> (P1) **Normalisation helper must be universal** — there are **more than four** score readers; named
+> `Revision`/`Benchmarking`/`EntrepreneurMilestones` too, and require a codebase grep so *no* service computes
+> its own weighted score after B6 (§6, B6).
+> (P1) **Runway "12+" comparison** — store `runway_months` (int) + `runway_open_ended` (bool), never the
+> string; Flag 1: no mismatch when both ≥ 12, else compare capped-at-12 (§3, §5).
+> (P2) **`partial` denominator = 4** (persisted input groups A–D), not 5 — the spec's "five" miscounts the
+> calculated output group (§6, §13).
+> (P2) **§2 "All four flags" → "the three budget flags"** (advisor-line dismissal is a separate nudge, never a
+> scored flag).
+
+> **v1.1 revision (review pass — repo realities).** Four fixes: (P1) **two requirement sources** — update
+> `PlanRequirements` *and* `EntrepreneurPlanController::PLAN_REQUIREMENTS` (or consolidate) + a **structured
+> UI branch** in `Plan.tsx` (it renders every requirement as a prose textarea) (§1, B1/B2). (P1) **runway is a
+> 0–5 score, not months** — add a canonical `expected_runway_months` capture before Flag 1 (§1, §5, §13).
+> (P1) **"excluded, not zero" needs a shared normalisation helper** routed through all four scoring consumers
+> (`Assessment`/payload/`AdvisoryReadiness`/`ReportComposer`), which today default missing scores to 0 (§6,
+> B6). (P2) **3 budget flags + 1 advisor-line nudge state**, not "four flags" (§5, B3). Route shape aligned to
+> the singleton `entrepreneur/plan/…` pattern (§9).
+
+### Locked decisions (owner, this session)
+
+| Decision | Choice | Consequence |
+|---|---|---|
+| **Storage** | **Dedicated `entrepreneur_budgets` table** | One row per `BusinessPlan`; jsonb per input group + a computed snapshot + flag state. Surfaced as a new structured `budget-runway` requirement in the `financial` phase. |
+| **Scoring** | **New 12th `RatingCriterion`, framework recalibrates** | Budget & Runway becomes a criterion in the versioned `RatingFramework`; owner weights are the *starting point* and the system recalibrates (governed, Layer 18) as criteria change — not a one-off hardcode. |
+| **Advisor rate** | **`FeeCalculator` mechanism** | The Advisor Cost Impact Line derives its illustrative figure from the platform's fee mechanism — **presentation-layer only**, never in the budget model or scoring. |
+| **Gamification** | **Optional tie-in behind `gamification_on`** | A `budget_built` milestone + the budget criterion feeding the grade trajectory surface **only when** the advisor has enabled gamification for that entrepreneur. |
+
+---
+
+## 1. Where it plugs in (grounded)
+
+- **Plan structure — TWO requirement sources + a UI branch (P1).** The `financial` phase has two prose
+  requirements (`revenue-model`, `launch-funding`) defined in **both** `PlanRequirements::DEFINITIONS`
+  *(drives completion/scoring)* **and** the duplicate `EntrepreneurPlanController::PLAN_REQUIREMENTS`
+  *(drives the portal UI/template, with `description`)*. Adding `budget-runway` to only one would desync the
+  UI from completion. So: **consolidate to a single source** (preferred — have the controller read
+  `PlanRequirements`) **or** update both, adding `budget-runway` to each. **If consolidating (P2):
+  `PlanRequirements` requirements currently carry only `key`/`title`, while the controller's
+  `PLAN_REQUIREMENTS` also carries `description` — the unified source must add `description` per requirement,
+  or the UI loses them.** And because `resources/js/pages/portal/entrepreneur/Plan.tsx` renders **every**
+  requirement as a prose `<textarea>` section, add a **structured UI branch**: `budget-runway` renders the
+  Budget Builder panel (§8), not a text area. **Both completion paths** must count `budget-runway` complete
+  when the budget row's `status = complete` (it has no prose `PlanSection`): the service
+  `PlanRequirements::completion`/`requirementComplete` **and** the controller's own PlanSection-only
+  `EntrepreneurPlanController::requirementsPayload()` / `requirementsCompletion()`
+  ([EntrepreneurPlanController.php:623](app/Http/Controllers/Portal/EntrepreneurPlanController.php:623)) — or
+  consolidate the controller onto the service. Miss the controller path and the portal checkmark **and the
+  submit-gate** stay stuck on budget-runway forever.
+- **Self-reported runway — a canonical *months* value on the budget row (P1).** The portal readiness flow
+  stores `financial_runway` as a **0–5 *score*** (validated `numeric min:0 max:5`), **not months**; the
+  seeder question is long-text. So there is **no clean self-reported runway-in-months today.** The budget
+  captures a structured **`expected_runway_months`** that Flag 1 reads. **It lives on the
+  `entrepreneur_budgets` row (§3), not in `ReadinessAssessment.responses`** — that avoids both poisoning
+  `Readiness::score()` (which averages every flat numeric response) **and** the historical-readiness-row
+  ambiguity (readiness writes a new row per submission). The readiness 0–5 score is untouched; we don't
+  duplicate it — `expected_runway_months` is a genuinely new value.
+- **Scoring** — `Assessment::firstPass()` iterates `RatingFramework->criteria` and scores each via
+  `scoreCriterion` (AI) weighted by `criterion.weight`. The budget criterion joins that loop (§6).
+- **AI Assist** — `Services\Entrepreneurs\Guidance` (the coach) gets the extra nudge prompt (§7). **Content
+  firewall:** the coach prompt must not carry the budget scoring rubric; the realism scorer (examiner) must
+  not coach — both classified in `EntrepreneurPromptRegistry` (the v1.x AI-isolation guard).
+- **Advisor rate** — `Services\Fees\FeeCalculator::calculate(Client, FeeMethod, …)`. **Wrinkle:** it's keyed
+  on a `Client`, but an entrepreneur is a pre-conversion `EntrepreneurProfile` with no `Client` — §4 / §13.
+- **Charts** — repo uses **Recharts** (`Dashboard.tsx`, `dd/BusinessPlan.tsx`, `components/pv/WaterfallChart.tsx`)
+  + Meridian Warm tokens. No new charting library (spec §7).
+
+---
+
+## 2. Non-negotiables (AI Integrity & spec rules)
+
+- **The runway cross-check is the point.** Flag 1 (self-reported vs calculated runway) is the integrity
+  feature — self-reported claims checked against arithmetic. It is computable when the budget has data **and**
+  a canonical self-reported months value (`expected_runway_months`) exists; where that value is missing
+  (legacy entrepreneurs), the builder **prompts for it** so the check can run — Flag 1 silently not-firing is
+  a last resort, not the design (§5).
+- **Flag-and-acknowledge, never hard-block.** The **three budget flags** (§5) let the entrepreneur continue;
+  acknowledgements are logged with a **timestamp**, visible to the advisor, and feed scoring (§6) —
+  *revising* scores better than *acknowledging*, but acknowledging is never a penalty distinct from not
+  engaging. The **advisor-line dismissal is a separate one-time nudge state, not a budget flag** — it is
+  never scored or "acknowledged" as a flag (§4).
+- **Advisor Cost Impact Line is structurally absent from the model.** It is **presentation-layer only**:
+  `displayed = net_profit_loss − advisor_rate`, computed at render, **never written to the budget object,
+  never in any cost total / runway / break-even, never reaching the scoring engine.** No filtering rule —
+  there is no pathway to filter (spec §4/§5). Never reference its value/visibility/dismissal in any
+  AI-generated *scored* feedback text.
+- **Calculations are server-side and deterministic.** The runway/break-even/cash-flow are computed in PHP
+  (the source of truth for scoring, flags, advisor visibility); the UI may mirror them for instant feedback,
+  but the persisted snapshot + scoring read the server result.
+- **Audit every state change** (budget submitted/recalculated, flag raised/acknowledged, framework revised)
+  via `AuditWriter`; **no PII in logs**; **RLS** (entrepreneur branch) on the budget table.
+- **Governed scoring change.** Adding/reweighting the framework criterion goes through the **governed
+  learning queue (Layer 18, `RatingFrameworkManager::queueGovernedChange`)** + owner approval — never a
+  silent self-modification (CLAUDE.md "No silent learning updates").
+
+---
+
+## 3. Data model — `entrepreneur_budgets`
+
+One row per `BusinessPlan` (entrepreneur-owned). UUID PK, `timestampsTz`.
+
+| Column | Type | Notes |
+|---|---|---|
+| `id` | uuid PK | |
+| `business_plan_id` | FK business_plans cascade, **unique** | one budget per plan; **the only owner link** — RLS derives the owner *through* this (no denormalised profile key, see RLS note) |
+| `expected_runway_months` | unsignedInteger nullable | **canonical self-reported runway in months** — read by Flag 1 (§5). Lives **here**, not in `ReadinessAssessment.responses`, to avoid (a) poisoning `Readiness::score()` and (b) the historical-readiness-row ambiguity (P2); the builder captures it. The readiness 0–5 `financial_runway` score is untouched. **`0` is a valid, truthful answer** (a founder can report zero runway). Validate `nullable integer min:0`; everywhere "has the runway value" is tested — the status resolver, the `complete` gate, and Flag 1 — **"present" means `!== null`, never `filled()`/truthiness**, so `0` is present and reaches the cross-check (a `0` self-report vs a finite/open-ended calc fires the mismatch normally, §5). |
+| `launch_costs` | jsonb | Group A — fixed rows + unlimited `other` rows + `contingency_pct` (spec §3.1) |
+| `monthly_costs` | jsonb | Group B — fixed rows + `other` rows + `include_own_drawings` + `cogs` `{mode: percent\|per_unit, value}` + `ongoing_marketing` (spec §3.2) |
+| `revenue_forecast` | jsonb | Group C — `price_per_unit`, `volume[12]`, `seasonality_note` (spec §3.3) |
+| `funding_sources` | jsonb | Group D — rows `{source, amount, status: committed\|seeking\|conditional}` (spec §3.4) |
+| `computed` | jsonb | **server-computed snapshot** — total launch cost, total monthly fixed, per-month {revenue, variable, gross, net_cash_flow, cumulative}, total funding available, available-after-launch; **`runway_months` (int) + `runway_open_ended` (bool)** and **`break_even_month` (int nullable) + `break_even_reached` (bool)** — store numeric + flag, **never the strings "12+"/"not reached"** (those are display only), so Flag 1 / scoring can compare numerically (§5). Recomputed every save; source of truth |
+| `status` | string | `not_started` \| `partial` \| `complete` (spec §6.5; drives scoring weight). **`complete` requires all four input groups *and* `expected_runway_months`** — without the runway value the core cross-check (Flag 1) can't run, so the budget caps at **`partial`** with a named improvement rec ("add your expected runway so we can cross-check it"). Full weight never applies while the integrity check is impossible (P2). |
+| `flags` | jsonb | per-flag state: `{runway_mismatch, funding_shortfall, no_break_even}` → `{raised:bool, raised_at, acknowledged_at, resolved:bool, resolved_at}`. **Re-raise rule (§5.4):** a resolved flag whose condition returns re-raises as **fresh** — `raised_at` updates, `resolved`/`resolved_at` clear, **and `acknowledged_at` resets to null** so a stale ack can't hide the new raise. Every transition audited. (spec §6) |
+| `advisor_line_nudge_seen_at` | timestampTz nullable | the one-time advisor-impact nudge (spec §6.4) — lifetime once |
+| timestamps | | |
+
+- **No budget row = `not_started` (no eager backfill).** Legacy and not-yet-opened plans have **no**
+  `entrepreneur_budgets` row. **B1 does not backfill** one per existing plan — the row is created lazily on
+  first open/save. A **missing row is treated as `status = not_started`** everywhere: completion (budget-runway
+  incomplete), scoring (criterion **excluded** and renormalised, never zero — §6), and the scorer/heuristic
+  (a null budget → `not_started` `budget_evidence`, no fabricated numbers). Every budget reader must be
+  null-safe on the row, not assume it exists.
+- **`PlanRequirements`** — add `['key' => 'budget-runway', 'title' => 'Budget & runway']` to the `financial`
+  phase, and teach `requirementComplete` to treat `budget-runway` as complete when `status = complete`
+  (it has no prose `PlanSection`; resolve it against the budget row). **Also update the controller's
+  PlanSection-only completion path** — `EntrepreneurPlanController::requirementsPayload()` +
+  `requirementsCompletion()`
+  ([EntrepreneurPlanController.php:623](app/Http/Controllers/Portal/EntrepreneurPlanController.php:623)) — to
+  the same budget-aware rule (or consolidate it onto the service); otherwise the portal checkmark and the
+  submit-gate never see budget-runway complete. Keep revenue-model + launch-funding unchanged.
+- **RLS — derive the owner *through* `business_plans`, never a denormalised key; split read vs write (P1).**
+  A denormalised `entrepreneur_profile_id` could drift (Alice's profile paired with Bob's plan), so every
+  policy joins `business_plans` → `entrepreneur_profiles` on `business_plan_id` — the existing
+  `plan_sections_scope` join shape: `EXISTS (SELECT 1 FROM business_plans bp LEFT JOIN entrepreneur_profiles
+  ep ON ep.id = bp.entrepreneur_profile_id WHERE bp.id = entrepreneur_budgets.business_plan_id AND <subject>)`.
+  After `ENABLE` + `FORCE`, install **separate read/write policies** (mirroring the
+  `entrepreneur_milestone_awards` SELECT/INSERT/UPDATE split):
+  - **`FOR SELECT`** — `<subject>` = `ep.user_id = current` **OR `ep.assigned_advisor_id = current`**
+    (+ super_admin/system). The assigned advisor **reads**.
+  - **`FOR INSERT`** (`WITH CHECK` only — INSERT policies take no `USING`) and **`FOR UPDATE`** (`USING` +
+    `WITH CHECK`) — `<subject>` = `ep.user_id = current` **only** (+ super_admin/system), exactly the
+    `entrepreneur_milestone_awards_insert_system` (WITH CHECK only) vs `_update_seen` (USING + WITH CHECK)
+    split. The assigned advisor is **deliberately excluded from writes** — the budget is the entrepreneur's
+    and the advisor never edits it. Service writes by `EntrepreneurBudget` run in `system` context.
+
+  The owner is always the plan's owner — no drift possible. (If a denormalised profile column is ever added
+  for query convenience, pin it with a composite FK `(business_plan_id, entrepreneur_profile_id)` → a unique
+  on `business_plans(id, entrepreneur_profile_id)` + policy tests.) Admin-config (flag threshold) lives
+  elsewhere.
+- **No `advisor_cost_*` column anywhere** — it is not in the model (spec §4, hard rule).
+
+---
+
+## 4. Calculations & the Advisor Cost Impact Line
+
+### 4.1 Calc engine — `BudgetCalculator` (PHP, deterministic)
+Implements spec §3.1–§3.5 exactly: Total Launch Cost (incl. contingency), Total Monthly Fixed (excl. COGS),
+per-month Revenue/Variable/Gross/Net-Cash-Flow, Total Funding Available (**Committed + Conditional only** —
+Seeking excluded), Available Funding After Launch, **Cumulative Cash Position[12]**, **runway** (first month
+cumulative ≤ 0, else open-ended) and **break-even** (first month net positive *and* stays positive). It
+**stores numeric + bool** — `runway_months`/`runway_open_ended`, `break_even_month`/`break_even_reached`
+(§3) — and the UI **displays** "12+ months" / "Not reached within 12-month forecast"; the strings are never
+persisted. Pure, unit-tested against worked examples.
+
+### 4.2 Advisor Cost Impact Line — presentation only
+- **Source:** `FeeCalculator` (decision 3). **Wrinkle to resolve (§13):** `FeeCalculator::calculate()`
+  needs a `Client`; an entrepreneur has none. Extract a **client-less "entry-level / pre-revenue rate"**
+  path (a method on `FeeCalculator`/`ServiceRateManager` that returns the suggested entry-level monthly rate
+  without a `Client`), or pass a lightweight context — do **not** fabricate a `Client`.
+- **Render:** below the Net Profit/Loss display: *"If you budgeted $Y/month for advisory support, your net
+  position would be $(X−Y)."* Editable (what-if), dismissible. **Computed in the controller/Inertia payload's
+  presentation layer, never persisted to `entrepreneur_budgets`, never in `computed`, never sent to
+  scoring.** Dismiss → one-time nudge (`advisor_line_nudge_seen_at`, lifetime once, spec §6.4).
+- Framing copy verbatim from spec §4.1 / §6.4.
+
+---
+
+## 5. Flags & the runway cross-check (spec §6)
+
+**Three budget flags** (flag-and-acknowledge, advisor-visible, scored per §6) **plus one advisor-line
+nudge state** (not a scored budget flag):
+1. **Runway Mismatch (core).** Trigger compares `expected_runway_months` (self-reported) with the calculated
+   runway, default threshold **1 month** (admin-config). Two rules the data forces:
+   - **Bidirectional, per spec (P1).** The spec (§6.1) is explicit: the trigger is the **absolute
+     difference** `abs(self_reported_months − calculated_months) > threshold` — a gap in *either* direction is
+     "worth a closer look", and the entrepreneur-facing wording is neutral. So the flag is **bidirectional**;
+     do **not** make it optimistic-only.
+   - **Open-ended runway (P1).** The calculator returns a month number **or "12+"** (never drops below 0 in
+     the forecast) — so store calculated runway as an **integer `runway_months` + a `runway_open_ended`
+     bool**, never the literal string "12+". The cap applies **only on the calc side, and only when it is
+     open-ended** — never a blanket `min(self,12)` (that would mask a real gap, e.g. self 18 vs calc 11):
+     - calc **open-ended** (`runway_open_ended = true`): no mismatch when `self_reported ≥ 12` (both
+       open-ended agree); else `abs(self_reported − 12) > threshold` (calc lower-bounded at 12).
+     - calc **finite** (`runway_open_ended = false`): `abs(self_reported − runway_months) > threshold` with
+       **no cap on `self_reported`** — so self 18 vs calc 11 → gap 7 → fires.
+     Display still shows "12+ months (beyond current forecast)".
+   - **Canonical self-reported months — on the budget row (P1).** The readiness `financial_runway` field is
+     a **0–5 score, not months**, so **B2 captures/persists** a structured **`expected_runway_months`** **on
+     the `entrepreneur_budgets` row** (§3) — **not** in `ReadinessAssessment.responses` (B3 only *compares* it
+     to the calc). This deliberately avoids
+     both (a) `Readiness::score()` poisoning (it averages every flat numeric response → a months value would
+     inflate the readiness score) and (b) the historical-readiness-row ambiguity (readiness writes a *new
+     row* each submission, so "which row holds it / carry it forward?" is undefined). The budget row is the
+     single stable home, read directly by Flag 1. Do **not** map the 0–5 score to months or parse the
+     long-text. If absent, the **builder prompts for it**; only if still absent does Flag 1 not fire (no
+     fabricated months). **Never auto-correct** the self-reported value — the entrepreneur owns it.
+2. **Funding Shortfall** — `Total Funding Available (Committed+Conditional) < Total Launch Cost`.
+3. **No Break-Even Within Forecast** — softer tone; break-even "not reached".
+
+Plus: **Advisor-line dismissed** — a one-time *nudge state*, **not** one of the three budget flags, no
+scoring effect (§4); tracked by `advisor_line_nudge_seen_at`.
+
+Flag state + acknowledgement timestamps live in `entrepreneur_budgets.flags`; raising/acknowledging is
+audited. Exact entrepreneur-facing wording + buttons verbatim from spec §6.1–§6.4. Admin threshold stored in
+the existing project/reference settings pattern.
+
+**§5.4 Flag lifecycle (re-raise — B3).** Each flag is a small state machine recomputed on every budget save:
+- **raised** — condition true and not previously raised: set `raised = true`, `raised_at = now`; advisor-visible.
+- **acknowledged** — entrepreneur acknowledges: set `acknowledged_at` (the *raise* stays raised; ack ≠ resolve).
+- **resolved** — condition clears: set `resolved = true`, `resolved_at = now`; keep `raised_at`/`acknowledged_at`
+  as history.
+- **re-raised** — a **resolved** flag's condition returns: treat as a **fresh raise** — bump `raised_at`,
+  clear `resolved`/`resolved_at`, **and null `acknowledged_at`**. This is the load-bearing rule: a stale
+  acknowledgement must **never** suppress a newly re-raised flag (else a fixed-then-broken-again runway looks
+  "handled" to the advisor). `raised_at`/`resolved_at` are **stored on the flag** (not audit-only) so the
+  advisor sees the current timeline at a glance; every transition is **also** audit-logged. Acknowledged is
+  never a distinct scoring penalty; revised > acknowledged (§6).
+- **"Unresolved" — the exact advisor predicate.** The advisor "unresolved flags" panel (§8, B3) filters on
+  **`raised === true && resolved !== true`**. So a resolved flag drops off the advisor panel, and a re-raised
+  flag reappears — **unacknowledged** (per the re-raise rule). Tests assert both directions.
+
+---
+
+## 6. Scoring integration (decision 2 — governed framework recalibration)
+
+- **New criterion.** Budget & Runway becomes a **12th `RatingCriterion`** in the `RatingFramework`. Today
+  `RatingFrameworkManager::assertCompleteFoundingValues()` hard-codes 11 criteria summing to 100 and
+  `revise()` only *updates* existing criteria — so the build must:
+  - extend the manager to **add** a criterion in a new framework version (not just update), and relax the
+    "exactly the 11 founding numbers" assertion to "all current criteria present + weights sum to 100";
+  - keep the **owner-set weights as the starting point** and support **recalibration** — adding the budget
+    criterion re-distributes weight to still total 100, proposed via
+    `RatingFrameworkManager::queueGovernedChange()` (**Layer 18, governed, owner-approved**), then
+    `revise()` → `publish()` a new version. The owner confirms the recalibrated weights; nothing
+    self-applies (CLAUDE.md).
+- **⛔ BLOCKED on owner input (the seeder's *concrete values*, see §13.2).** The seeder's **mechanics** below are
+  fully buildable, but its **data is not inventable**: criterion **#12**'s name, its four grade-band descriptors
+  (exceptional / strong / developing / needs_work), and the **recalibrated 12-criterion weight set summing to
+  100** are owner-set rubric values (governed; CLAUDE.md "nothing self-applies"). Until the owner supplies them,
+  `BudgetCriterionRevisionSeeder` is a **stub** and B6's seeder + its tests are blocked. The rest of B6 (manager
+  add-criterion capability, the shared normalisation helper, scorer evidence, audit) is **not** blocked.
+- **Fresh-install + test rollout — don't leave the criterion runtime-only (P2).** `RatingFramework::FOUNDING_CRITERIA`
+  (the 11-entry constant) is the **immutable founding baseline** and **stays 11** — the budget criterion is
+  **data in a governed revision, not a 12th founding constant**. So the **founding** seeds/tests are correct
+  to remain 11 and must **not** be edited to 12: `RatingFrameworkSeeder` (v1, 11 placeholders),
+  `FoundingRatingFrameworkValuesSeeder` (v2, 11 confirmed values), and
+  `RatingFrameworkTest::test_founding_framework_seeds_eleven...`. A fresh install / CI env must still **end up
+  with the budget criterion**, so add a **new `BudgetCriterionRevisionSeeder`** that publishes a 12-criterion
+  version (recalibrated weights = 100), plus **new tests** asserting 12 criteria, weights = 100, and the budget
+  criterion scores. Without it, fresh installs bootstrap 11 and budget scoring is inert until someone adds the
+  criterion by hand.
+  - **Seeder governance + mechanics (resolves the clash with "nothing self-applies", and the actor/idempotency
+    question, P2):** the seeder is an **owner-approved baseline seed** — committed seed data *is* the owner's
+    approval. **Mirror `FoundingRatingFrameworkValuesSeeder` exactly** ([:13-37](database/seeders/FoundingRatingFrameworkValuesSeeder.php:13)):
+    inside a `DB::transaction`, build the next published version with a **direct `RatingFramework::create([... STATUS_PUBLISHED, production_ready ...])`** + criteria inserts — **not** the manager's `revise()`/`publish()`
+    (those require a `User $actor`; the baseline seeder takes none, exactly as the founding seeder does). So
+    **no actor is needed** and it does **not** call `queueGovernedChange()` (that writes only a
+    `STATUS_DETECTED` candidate and would leave fresh installs on 11).
+    - **Idempotent — guard on the budget-criterion *identity*, never the count (P2).** `rating_criteria` has
+      **no stable key** — only `number` + `name`
+      ([migration:33-46](database/migrations/2026_05_23_085000_create_rating_framework_tables.php:33)) — so a
+      "12 criteria" count guard is wrong: it would skip a *bad* 12-criterion version, and after a future 13th
+      criterion it would re-fire and republish a stale 12-only baseline. Instead: **return early iff the latest
+      published framework already contains the budget criterion** — identity = `number === 12` **and** the
+      expected budget name (and, more robustly, a marker the seeder stamps in the criterion's
+      `industry_variants`/`descriptors`, e.g. `'budget_criterion' => true`, since there's no schema key). And
+      **never downgrade**: the seeder must not publish a version with **fewer** criteria than the latest
+      published — so once a 13th criterion exists (budget already present), it simply skips. Safe to run
+      repeatedly and forward-compatible.
+    - **Wired in:** registered in `DatabaseSeeder` **after** `RatingFrameworkSeeder` + `FoundingRatingFrameworkValuesSeeder`, and in the **test** seed path that today seeds the founding framework, so normal installs and CI both reach 12.
+    - **Audited (closes the gap with the "framework revised → AuditWriter" rule, §10/line 207):** the seeder
+      records a **seed-time `AuditWriter` event with the system/null actor** (`AuditWriter` accepts a null
+      actor) for the published 12-criterion baseline — so the framework-version change is traceable in
+      `audit_events` even though no `User` is involved in the create. (The founding seeder predates this; the
+      budget seeder sets the better precedent rather than copying that omission.)
+    - **"Nothing self-applies" governs the *runtime* loop:** the manager's add-criterion `revise()`→`publish()`
+      (with the owner as `$actor`) + `queueGovernedChange()` is the **admin-UI** path; the seeder is baseline
+      data. Baseline seed ≠ runtime self-application.
+- **What the criterion scores (spec §5.1):** internal consistency (prose vs structured — Revenue Model vs
+  Group C, Launch Funding vs Group D), completeness, **realism of the revenue ramp** (AI-assessed, examiner
+  side), contingency/buffer presence, and **flag resolution** (revised > acknowledged; acknowledged never a
+  distinct penalty).
+- **The scorer must actually *receive* the budget data (P1).** Today `Assessment::scoreCriterion()` feeds the
+  prompt **only `sections_text`** (prose) and `heuristicScore()` keyword-matches that same prose
+  ([Assessment.php:166-218](app/Services/Entrepreneurs/Assessment.php:166)) — so **none** of the structured
+  budget signal reaches scoring; the §5.1 checks above would be impossible. For the budget criterion B6 must
+  **load the `entrepreneur_budgets` row for the plan and pass a structured `budget_evidence` block**
+  (`computed` per-month figures + `runway_months`/`break_even_month`, `status`, `expected_runway_months`,
+  `flags`) into **both** `scoreCriterion()`'s prompt `input` **and** `heuristicScore()` (which must score the
+  budget criterion from completeness/flags, not prose keyword overlap). Examiner-side only — no coaching.
+- **Data-quality weighting (spec §6.5) — needs ONE shared normalisation helper, used everywhere (P1).**
+  `not_started` → criterion **excluded** from the score (**not** zero), named as an improvement rec;
+  `partial` → criterion weight reduced proportionally; `complete` → full weight. **But every weighted-score
+  reader today computes `Σ score × weight/100` with a *missing criterion defaulting to 0*** — and there are
+  **ten** (confirmed by grep): `Assessment::weightedScore` ([:224](app/Services/Entrepreneurs/Assessment.php:224)),
+  `BuildsEntrepreneurAssessmentPayload`, `AdvisoryReadiness::score`, `ReportComposer`, `Revision::weightedScore`
+  (revision deltas/grades), `Benchmarking` (percentiles), `EntrepreneurMilestones` (grade-up snapshots), **plus
+  three learning-layer readers** each doing `criteria->sum(score × weight/100)`:
+  `Learning\Layers\RatingPredictiveValidity::planScore` ([:150](app/Services/Learning/Layers/RatingPredictiveValidity.php:150)),
+  `Learning\Layers\ConversionOutcomeLearning::planScore` ([:127](app/Services/Learning/Layers/ConversionOutcomeLearning.php:127)),
+  and `Learning\Layers\PlanQualityBenchmarks::score` ([:161](app/Services/Learning/Layers/PlanQualityBenchmarks.php:161)).
+  If "excluded" is just an omitted score, *any* of them scoring it `0 × weight` **depresses the grade /
+  skews the learning + benchmark outputs** — the opposite of "not zero". So B6 must introduce a
+  **single shared `effective_weight` / re-normalisation helper** that drops excluded criteria and
+  **renormalises the remaining weights to sum to 100**, then **route *every* reader through it and delete the
+  per-service weighted-score math.** B6 must **grep the codebase** for weighted-score computations
+  (`weightedScore` / criterion-weight sums / `gradeFor` callers) and confirm **none** compute their own after
+  this — a regression test asserts excluded-criterion handling is identical across all readers.
+  - **The helper returns normalised *rows*, not just an overall score (P2).** An overall-only
+    `weightedScore()` leaves per-criterion **UI/report** surfaces computing from **raw** weights —
+    `BuildsEntrepreneurAssessmentPayload` builds each row's `weight`/`contribution` from `$criterion->weight`
+    ([:74-81](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:74)), and
+    `ReportComposer` likewise — so an excluded/partial budget criterion would still render at **full raw
+    weight**, contradicting the renormalised total. So the helper exposes **both**: an `overall` score **and**
+    `rows[]`, each row = `{number, name, raw_weight, effective_weight (post-renormalisation), score,
+    score_source (ai|advisor), contribution (score × effective_weight), weight_status, excluded_reason}`. The
+    payload + report **consume these rows** instead of `$criterion->weight`, so the displayed weights and
+    contributions match the score. Test: an excluded budget criterion renders `effective_weight = 0` /
+    excluded, and the remaining rows' effective weights sum to 100.
+  - **Persisted score-row contract — the weighting must be replayable, not recomputed from the live budget (P1).**
+    Downstream readers recompute from the **persisted** `plan_assessments.ai_scores`/`advisor_scores` jsonb +
+    the framework criteria ([plan_assessments migration:19](database/migrations/2026_05_23_086000_create_plan_assessments_table.php:19);
+    e.g. `AdvisoryReadiness::score` does `score ?? 0` over `criteria` at
+    [:79-93](app/Services/Entrepreneurs/AdvisoryReadiness.php:79)) — they do **not** hold the live
+    `entrepreneur_budgets` row. So at assessment time (when the budget row *is* loaded) each per-criterion entry
+    in `ai_scores` must **persist the weighting decision**: **`weight_status`**
+    (`not_started`\|`partial`\|`complete`), **`effective_weight_multiplier`** (frozen at score time — `1.0`
+    complete, `populated/5` partial, `0` excluded), and **`excluded_reason`** (e.g. `budget_not_started`, else
+    null). `EntrepreneurScoring::weightedScore(framework, scores)` renormalises **from these persisted fields**,
+    so (a) "missing because **excluded**" (`excluded_reason` set → drop + renormalise) is distinguishable from
+    "missing because **scoring failed**" (no entry, no reason → a real data gap, surfaced not silently zeroed),
+    and (b) a **historical round replays its own frozen multipliers** even after the live budget later changes.
+    No new column — `ai_scores` is `jsonb`; extend the row shape. Test: replay an old round, and the
+    excluded-vs-failed distinction.
+    - **Advisor overrides keep the AI row's weighting (P1).** `adjustScore()` writes a separate `advisor_scores`
+      row carrying **only** `criterion_number`/`score`/`note`/audit fields
+      ([Assessment.php:83-103](app/Services/Entrepreneurs/Assessment.php:83)) — **no** weighting metadata — and
+      readers prefer the advisor score over the AI score ([AdvisoryReadiness.php:86-91](app/Services/Entrepreneurs/AdvisoryReadiness.php:86)).
+      So the helper must, per criterion, take the **score value** from `advisor_scores` (when present) but the
+      **frozen weighting metadata from the AI row** (`weight_status`/`effective_weight_multiplier`/`excluded_reason`).
+      Metadata stays **single-source in `ai_scores`** (don't duplicate it into `advisor_scores` — that would
+      drift); an advisor-reviewed budget criterion thus keeps its excluded/partial weighting. Test: override a
+      `not_started`/`partial` budget criterion and assert the multiplier is unchanged.
+    - **Legacy / fixture fallback (P2).** Existing assessments, seeders, and tests have score rows with **no**
+      metadata (e.g. `TestingSeedDataSeeder` legacy `ai_scores` blobs
+      [:1352](database/seeders/TestingSeedDataSeeder.php:1352); `GamificationTest`, `RatingPredictiveValidityTest`
+      fixtures). The helper **defaults missing metadata to `complete` / multiplier `1.0` / `excluded_reason =
+      null`** — i.e. legacy and all non-budget rows score at full weight exactly as today, so the change is
+      backward-compatible and needs no data backfill. Only **fixtures that exercise the new budget behaviour**
+      get explicit metadata.
+      - **Default applies to missing *metadata*, not a missing *score* (P1 — resolves the clash with the
+        data-gap rule).** The `complete`/`1.0`/null default fires **only on an otherwise-valid score row** — one
+        with a present `criterion_number` **and** a numeric `score`. A **missing/malformed score identity or
+        value** (no `criterion_number`, or a non-numeric/absent `score`, with no `excluded_reason`) stays a
+        **scoring data gap** — surfaced, **not** silently defaulted to full weight — **except** explicitly
+        recognised legacy fixture shapes (normalised in the fixture-update step). So "valid score, no metadata →
+        full weight" and "no/garbage score → data gap" never collide; the helper is null-safe (no throw) but a
+        gap is **reported**, not masked.
+  - **`partial` proportion (P1 — denominator = the **five completion components**: input groups A–D **plus
+    `expected_runway_months`**):** effective weight = full × (populated components / **5**). So all five
+    present → `status = complete` → **full** weight; A–D complete but **runway missing** → 4/5 = **80%**, never
+    full. This is the *same* gate as §3 (`complete` requires the runway value), expressed once — the formula
+    can't reach full weight without the runway value, closing the "4/4 = 100%" hole. The *calculated* output
+    group (§6.5's apparent "fifth input") is **not** a component — it has no entrepreneur input — so it never
+    enters the denominator; the runway capture does. One formula, used by the helper, the status resolver, and
+    the tests.
+- **AI realism** uses an **examiner** prompt (e.g. `entrepreneur.budget_realism_score`) — added to
+  `EntrepreneurPromptRegistry` classified **examiner**, so the AI-isolation CI guard covers it; it must not
+  contain coaching, and the coach (§7) must not receive the budget rubric.
+- **Advisor line excluded structurally** — there is no pathway (§2/§4); no filtering rule needed.
+
+---
+
+## 7. AI Assist nudge + gamification tie-in
+
+- **AI Assist nudge (coach, spec §2.1).** `Guidance` adds **one** extra prompt, shown **once per field per
+  entrepreneur**, in the Revenue Model and Launch Funding fields: *"…add the actual numbers to your Budget &
+  Runway Builder and we'll calculate your runway and break-even automatically."* Soft nudge, not a gate. This
+  is a **non-examiner** prompt (no rubric) — already on the no-rubric side of the registry.
+- **Gamification tie-in — behind `gamification_on` (decision 4).** Only when the advisor has enabled
+  gamification for that entrepreneur:
+  - a new **`budget_built` milestone** (awarded when `status` first reaches `complete`) via the existing
+    `EntrepreneurMilestones` awarder (event-driven on budget save; durable award row);
+  - the budget criterion naturally feeds the **grade trajectory** (it's a framework criterion).
+  When `gamification_on = false`, the budget feature works fully but surfaces no milestone/streak effect.
+
+---
+
+## 8. Frontend (Inertia + React 19 + Recharts + Meridian Warm)
+
+- **`portal/entrepreneur` plan workspace** — a **Budget & Runway** panel in the financial phase: the **four
+  input groups (A–D)** (repeatable rows for Other/Funding), autosave, the **computed outputs**, the three
+  charts, the flag dialogs (flag-and-acknowledge), and the dismissible Advisor Cost Impact Line below Net
+  Profit/Loss.
+- **Three charts (spec §7),** Recharts + Meridian Warm tokens (mirror `WaterfallChart.tsx`): Monthly Cash
+  Flow (combo bar+line, break-even marker, $0 line), Runway Comparison (self-reported vs calculated,
+  colour-coded by gap), Launch Cost vs Funding (colour-coded by shortfall).
+- **Advisor view** — the entrepreneur's budget summary + **unresolved flags** surfaced on the advisor's
+  entrepreneur detail page (advisor-visible flags, spec §6).
+
+---
+
+## 9. Routes / controllers / services
+
+Follow the existing **singleton** entrepreneur-portal shape (`entrepreneur/plan/…`, matching
+`entrepreneur.plan.show` / `entrepreneur.plan.sections.store`) — **not** a `{businessPlan}` route-model
+binding. The active `BusinessPlan` is resolved from the **authenticated entrepreneur's profile**
+(`entrepreneurUser()` → `profileFor()`), so there is no foreign-plan IDOR surface and auth matches the rest
+of the portal:
+```
+GET    portal/entrepreneur/plan/budget                            portal.entrepreneur.plan.budget.show
+PUT    portal/entrepreneur/plan/budget                            portal.entrepreneur.plan.budget.update   (autosave; recompute; flags)
+POST   portal/entrepreneur/plan/budget/flags/{flag}/acknowledge   portal.entrepreneur.plan.budget.flags.ack
+POST   portal/entrepreneur/plan/budget/advisor-line/dismiss       portal.entrepreneur.plan.budget.advisor-line.dismiss
+```
+(The budget panel + charts may instead ride the existing `entrepreneur.plan.show` payload rather than a
+separate GET — pick one and be consistent.) Services: `BudgetCalculator` (pure calc), `EntrepreneurBudget`
+(persist + status + flags + audit, system context where it touches RLS), advisor-line resolver
+(FeeCalculator), and the `Assessment` criterion hook. Entrepreneur portal group (entrepreneur RLS, not
+`EnforceClientScope`-client-scoped). Run `php artisan wayfinder:generate --with-form` after route changes.
+
+**Advisor read path (B3, explicit).** No new advisor *write* endpoint — advisors read only (SELECT-only RLS,
+§3). The advisor entrepreneur-detail controller (`Advisor\EntrepreneurController@show`) payload gains a
+`budget` block (summary + computed runway/break-even + **unresolved flags** — the exact filter is
+**`raised === true && resolved !== true`**, §5.4), rendered read-only on the existing advisor detail page. The
+budget summary reaches the advisor through this payload, not a separate advisor budget route.
+
+---
+
+## 10. CLAUDE.md rules block
+
+Add the spec's **§9 "Budget & Runway Builder Rules"** block to `CLAUDE.md` (adapted to repo names:
+`entrepreneur_budgets`; **runway source = `entrepreneur_budgets.expected_runway_months`** (the budget row,
+**not** `ReadinessAssessment.responses` — no readiness-controller change; §3/§5); no `advisor_cost_*`
+column; governed framework recalibration; examiner/coach prompt classification). The advisor-line integrity rule and
+flag-and-acknowledge rule are the load-bearing ones.
+
+---
+
+## 11. Testing (gates stay green)
+
+- **Calc engine** — worked-example unit tests: runway (incl. "12+"), break-even (incl. "not reached"),
+  Committed+Conditional funding (Seeking excluded), contingency, COGS percent-vs-per-unit.
+- **Flags** — runway-mismatch threshold (admin-config), funding shortfall, no-break-even; acknowledge logs a
+  timestamp + is advisor-visible; never hard-blocks.
+- **Flag re-raise lifecycle (§5.4)** — acknowledged → resolved → re-raised **clears `acknowledged_at`** so the
+  flag shows as a fresh, unacknowledged raise to the advisor (a stale ack must not hide it); `raised_at` bumps
+  and `resolved_at` clears; each transition is audited.
+- **Advisor "unresolved" predicate (§5.4)** — the advisor `budget` payload includes a flag iff
+  `raised === true && resolved !== true`: assert a resolved flag **disappears** from the panel and a re-raised
+  flag **reappears unacknowledged**.
+- **Budget evidence reaches the scorer (P1)** — assert the budget criterion's `scoreCriterion()` input **and**
+  `heuristicScore()` receive the `budget_evidence` block (computed/status/`expected_runway_months`/flags), not
+  just `sections_text` — a budget with a funding shortfall scores differently from a clean one.
+- **Advisor line integrity** — assert the advisor figure is **never** persisted to `entrepreneur_budgets`,
+  **never** in `computed`, **never** in the scoring payload; dismiss fires the one-time nudge once ever.
+- **Scoring** — budget criterion contributes; `not_started` excluded (not zero), `partial` reduced weight;
+  revised > acknowledged; framework recalibration is **governed** (queued, owner-approved, new published
+  version) — no silent change.
+- **Shared helper across all ten readers** — one regression test asserts an excluded/partial criterion is
+  handled **identically** by every weighted-score reader, **including the three learning layers**
+  (`RatingPredictiveValidity`, `ConversionOutcomeLearning`, `PlanQualityBenchmarks`) — none compute their own
+  `Σ score × weight/100`, so learning + benchmark outputs don't skew when the budget criterion is excluded.
+- **Replayable weighting + excluded-vs-failed (P1)** — a persisted round renormalises from its **own**
+  `weight_status`/`effective_weight_multiplier`/`excluded_reason` (not the live budget), so an old round's grade
+  is stable after the budget changes; assert an **excluded** criterion (`excluded_reason` set) renormalises
+  while a **failed/absent** score surfaces as a data gap, not a silent zero.
+- **Advisor override keeps weighting (P1)** — adjusting a `not_started`/`partial` budget criterion via
+  `adjustScore()` changes the score value but the helper still applies the **AI row's** frozen multiplier
+  (advisor row carries no metadata).
+- **Legacy default vs data gap (P1/P2)** — a **valid** score row (criterion_number + numeric score) with no
+  metadata defaults to `complete`/`1.0`/null (existing assessments unchanged); a row with a **missing/malformed
+  score** surfaces as a reported **data gap**, not a silent full-weight default (except recognised legacy
+  fixtures).
+- **Normalised rows reach the UI (P2)** — with the budget criterion excluded/partial, the per-criterion
+  **payload + report rows** show the **effective** weight + contribution (and `excluded_reason`), not the raw
+  `$criterion->weight`; the displayed effective weights of the remaining criteria sum to 100.
+- **Seeder identity guard (P2)** — re-running `BudgetCriterionRevisionSeeder` when the budget criterion is
+  already present is a no-op (identity, not count); against a future 13-criterion framework it **does not**
+  republish a 12-only baseline (never downgrade).
+- **AI isolation** — the realism (examiner) prompt and the Assist (coach) prompt are classified in
+  `EntrepreneurPromptRegistry`; the content-firewall test still passes (rubric not in coach, coaching not in
+  examiner).
+- **Gamification gate** — `budget_built` milestone awarded only when `gamification_on`; invisible otherwise.
+- **RLS / auth (the §3 owner-derivation; read/write split)** — the owning entrepreneur can **read and write**
+  their own budget; the **assigned advisor can read but NOT write** it (an advisor INSERT/UPDATE is rejected by
+  the write policy); **entrepreneur B cannot see or write entrepreneur A's** budget (cross-entity denial); an
+  **SME client / client-scope user gets no access** through the entrepreneur routes; and a row whose
+  `business_plan_id` points at another owner's plan is unreachable (the through-`business_plans` derivation,
+  not a denormalised key).
+- **`complete` requires the runway value** — a data-complete budget with **no `expected_runway_months`** stays
+  `partial` (not `complete`/full weight) and emits the named improvement rec.
+- **`expected_runway_months = 0` is present, not missing** — a `0` self-report reaches `complete` (when A–D are
+  also done) and fires Flag 1 against the calc; assert `0` is **not** treated as absent (the resolver uses
+  `!== null`, not truthiness).
+- **No budget row = `not_started`** — a plan with no `entrepreneur_budgets` row reads `not_started`: budget-runway
+  incomplete, criterion **excluded** from scoring (renormalised, not zero), scorer receives `not_started`
+  evidence; no null-deref. (No eager backfill — the row is created on first save.)
+- **No regressions** — entrepreneur plan/assessment/gamification suites stay green. Static gates:
+  `pint --test`, `tsc --noEmit`, ESLint, Prettier.
+
+---
+
+## 12. Work Orders
+
+| WO | Title | Deliverable |
+|---|---|---|
+| **B1** | Schema + calc engine + requirement source | `entrepreneur_budgets` migration (+ RLS); `budget-runway` added to **`PlanRequirements` *and* `EntrepreneurPlanController::PLAN_REQUIREMENTS`** — or consolidate to one source (preferred); `completion`/`requirementComplete` **and the controller's `requirementsPayload()`/`requirementsCompletion()`** count it via budget `status` (or consolidate the controller onto the service — the controller path is PlanSection-only today, [EntrepreneurPlanController.php:623](app/Http/Controllers/Portal/EntrepreneurPlanController.php:623)); `BudgetCalculator` (pure, fully unit-tested); `EntrepreneurBudget` persist/status service. |
+| **B2** | Builder UI (structured branch) + autosave | `Plan.tsx` **structured branch** so `budget-runway` renders the Budget panel (**four input groups A–D** + the **`expected_runway_months` input** — required to reach `complete` per §3 — + computed outputs, repeatable rows, autosave → recompute), **not** a prose `<textarea>`; status indicator. **B2 captures + persists the runway value** on the budget row (PUT autosave); B3 owns only the *comparison* against the calc. |
+| **B3** | Flags + runway cross-check + advisor visibility | **3 budget flags** (flag-and-acknowledge) + advisor-line nudge state; **runway cross-check** of the calc against `entrepreneur_budgets.expected_runway_months` (persisted by B2 — no readiness-controller change); open-ended runway comparison (§5); admin threshold; acknowledgement timestamps. **Advisor visibility (explicit deliverable):** extend the advisor entrepreneur-detail controller (`Advisor\EntrepreneurController`) payload with the budget summary + **unresolved flags** (filter `raised === true && resolved !== true`, §5.4), rendered read-only on the advisor detail page (§8). No advisor write route — advisor RLS is SELECT-only (§3). |
+| **B4** | Advisor Cost Impact Line | FeeCalculator-derived (client-less entry-level rate); presentation-only; editable/dismissible; one-time nudge; integrity tests. |
+| **B5** | Charts | The three Recharts/Meridian-Warm visuals. |
+| **B6** | Scoring + framework recalibration + normalisation | **⛔ seeder values BLOCKED on §13.2** (owner-set criterion #12 descriptors + recalibrated 12-weight set = 100); mechanics below are unblocked. **Add-criterion** governed path on `RatingFrameworkManager` (today `revise()` only *updates* existing criteria — extend it to **add**; relax `assertCompleteFoundingValues` to "all current criteria present + weights = 100"); **`FOUNDING_CRITERIA` stays 11** (budget criterion is revision data, not a founding constant) so founding seeds/tests (`RatingFrameworkSeeder`, `FoundingRatingFrameworkValuesSeeder`, `test_founding_framework_seeds_eleven...`) stay 11; **new `BudgetCriterionRevisionSeeder`** — an **owner-approved baseline seed** that **directly** creates the published **12-criterion** version (weights = 100) mirroring `FoundingRatingFrameworkValuesSeeder` (**no `User` actor** for the create, in a `DB::transaction`), **records a seed-time `AuditWriter` event (system/null actor)** for the version, **idempotent on the budget-criterion *identity*** (`number === 12` + name/marker, **never the count** — `rating_criteria` has no stable key; never downgrade a newer published framework), **wired into `DatabaseSeeder` + the test seed flow**; **not** the manager's `revise()`/`publish()` (those need a `User $actor`) and **not** `queueGovernedChange()` (which only *detects*); the governed queue is the *runtime* admin path (§6); **+ tests** (12 criteria, weights = 100, budget criterion scores; re-running the seeder is a no-op; it does **not** downgrade a 13-criterion framework); **persist the score-row weighting contract** (`weight_status`/`effective_weight_multiplier`/`excluded_reason` in `ai_scores`) so the helper renormalises from the snapshot and old rounds replay — the helper merges the **advisor `score`** with the **AI row's frozen metadata** (advisor overrides keep their weighting; metadata single-source in `ai_scores`), and **defaults missing metadata to `complete`/`1.0`/null** so legacy + non-budget rows are unaffected (no backfill; update only budget-behaviour fixtures); **feed the scorer the structured budget** — `Assessment::scoreCriterion()` **and** `heuristicScore()` get a `budget_evidence` block (computed/status/`expected_runway_months`/flags) for the budget criterion, since today both see only `sections_text` ([Assessment.php:166-218](app/Services/Entrepreneurs/Assessment.php:166)); recalibration via Layer 18 (owner-approved); **one shared `effective_weight`/normalisation helper routed through *every* score reader — ten, confirmed** (`Assessment::weightedScore` [:224](app/Services/Entrepreneurs/Assessment.php:224), payload, `AdvisoryReadiness`, `ReportComposer`, `Revision`, `Benchmarking`, `EntrepreneurMilestones`, **plus the three learning layers** `Learning\Layers\RatingPredictiveValidity::planScore`, `ConversionOutcomeLearning::planScore`, `PlanQualityBenchmarks::score` — grep to confirm none compute their own) so excluded/partial criteria renormalise, not zero (else learning + benchmark outputs skew); the helper returns **normalised rows** (`effective_weight`/`contribution`/`excluded_reason`) consumed by the **payload + report** instead of raw `$criterion->weight` ([BuildsEntrepreneurAssessmentPayload:74](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:74)); the legacy `complete`/`1.0`/null default applies only to a **valid** score row (a missing/malformed score stays a reported **data gap**); examiner realism prompt in registry. |
+| **B7** | AI Assist nudge + gamification tie-in | Coach nudge in revenue/funding fields (once per field); `budget_built` milestone behind `gamification_on`. |
+
+Branch `wo/B1-budget-schema`, etc. PR title leads with the WO ID.
+
+---
+
+## 13. Open decisions / verify before/while building
+
+1. **FeeCalculator without a `Client`** — confirm the cleanest client-less "entry-level pre-revenue rate"
+   path (a `FeeCalculator`/`ServiceRateManager` method, vs. a small dedicated resolver). Don't fabricate a
+   `Client`. *(Affects B4.)*
+2. **⛔ BLOCKER — the criterion #12 rubric values + recalibrated 12-weight set (owner-set, governed).** This
+   blocks `BudgetCriterionRevisionSeeder` (§6, B6). The owner must supply, as committed baseline data:
+   - **criterion #12** — name + number (`12`), and the **four grade-band descriptors**
+     (`exceptional` / `strong` / `developing` / `needs_work`) — same shape as the 11 founding criteria;
+   - **the recalibrated weights for all 12 criteria, summing to exactly 100** (the existing 11 redistribute to
+     make room — owner confirms, nothing self-applies).
+   The **mechanics** are unblocked and buildable now: `assertCompleteFoundingValues` relaxed to "all current
+   criteria present + weights = 100"; **`revise()` extended to add a criterion** (it only updates today);
+   **`FOUNDING_CRITERIA` stays 11** (budget criterion is governed-revision data); the runtime admin path reuses
+   the existing rating-framework revise/confirm flow + governed queue (Layer 18). Only the seeder's **concrete
+   values** wait on the owner. *(Confirm the owner is OK re-confirming weights on each criterion change — their
+   stated intent.)*
+3. **Canonical self-reported runway (P1) — resolved: on the budget row.** `expected_runway_months` is a
+   column on **`entrepreneur_budgets`** (§3), captured by the Budget Builder. This was moved off
+   `ReadinessAssessment.responses` because readiness rows are **append-only history** (new row per
+   submission → "which row / carry forward?" is undefined) and a flat numeric there would poison
+   `Readiness::score()`. **No readiness-controller change is needed.** Only open: the capture UI copy/placement
+   in the builder.
+4. **`partial` weight formula — fixed:** effective weight = full × (populated components / **5**) over the
+   **five completion components** — input groups A–D **+ `expected_runway_months`** — so A–D complete with no
+   runway = 4/5, **never full** (the spec's "five" miscounts the *calculated output* group, which is **not** a
+   component — the runway capture is). Single formula, used by the §6 helper, the status resolver, and the tests.
+
+---
+
+*Aligned with Spec V2.4 §3 (AI Integrity — the runway cross-check replaces self-report with checked
+arithmetic; advisor line structurally absent from scoring) and §4 (RLS, audit). Entrepreneur-module scoped;
+does not alter SME/DD/NPO behaviour. Integrates with the shipped gamification + AI-isolation guard.*
