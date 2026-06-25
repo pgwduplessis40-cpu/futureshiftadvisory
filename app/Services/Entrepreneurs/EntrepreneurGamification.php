@@ -82,9 +82,9 @@ final class EntrepreneurGamification
     {
         $profile->loadMissing('inviteToken');
 
-        $stage = $profile->stage;
-        $stageValue = $stage instanceof \BackedEnum ? (string) $stage->value : (string) $stage;
-        $stageLabel = is_object($stage) && method_exists($stage, 'label') ? $stage->label() : $this->label($stageValue);
+        $stage = $profile->currentStage();
+        $stageValue = $stage->value;
+        $stageLabel = $stage->label();
 
         if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
             $stageLabel = 'Invite accepted';

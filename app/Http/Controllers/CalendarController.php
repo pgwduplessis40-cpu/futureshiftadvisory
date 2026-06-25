@@ -437,7 +437,7 @@ final class CalendarController extends Controller
             title: "Profile created: {$profile->name}",
             startsAt: $profile->created_at,
             kind: 'profile',
-            status: $this->label((string) $profile->stage->value),
+            status: $this->label($profile->currentStageValue()),
             description: $profile->concept_summary,
             href: $profileHref,
         ));

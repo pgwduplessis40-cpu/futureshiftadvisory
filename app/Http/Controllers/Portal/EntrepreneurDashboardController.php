@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Portal;
 
-use App\Enums\EntrepreneurStage;
 use App\Enums\SurveyAssignmentStatus;
 use App\Http\Controllers\Controller;
 use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
@@ -68,12 +67,8 @@ final class EntrepreneurDashboardController extends Controller
                 'id' => $profile->id,
                 'name' => $profile->name,
                 'email' => $profile->email,
-                'stage' => $profile->stage instanceof EntrepreneurStage
-                    ? $profile->stage->value
-                    : (string) $profile->stage,
-                'stage_label' => $profile->stage instanceof EntrepreneurStage
-                    ? $profile->stage->label()
-                    : EntrepreneurStage::from((string) $profile->stage)->label(),
+                'stage' => $profile->currentStageValue(),
+                'stage_label' => $profile->currentStageLabel(),
                 'concept_summary' => $profile->concept_summary,
                 'assigned_advisor' => $profile->assignedAdvisor ? [
                     'id' => $profile->assignedAdvisor->id,

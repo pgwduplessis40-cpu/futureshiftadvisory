@@ -23,6 +23,34 @@ final class EntrepreneurProfile extends Model
         'last_active_at' => 'datetime',
     ];
 
+    public function currentStage(): EntrepreneurStage
+    {
+        return EntrepreneurStage::tryFrom($this->rawStageValue()) ?? EntrepreneurStage::ONBOARDING;
+    }
+
+    public function currentStageValue(): string
+    {
+        return $this->currentStage()->value;
+    }
+
+    public function currentStageLabel(): string
+    {
+        return $this->currentStage()->label();
+    }
+
+    public function ensureStageIsValid(?EntrepreneurStage $fallback = null): EntrepreneurStage
+    {
+        $stage = EntrepreneurStage::tryFrom($this->rawStageValue());
+        if ($stage instanceof EntrepreneurStage) {
+            return $stage;
+        }
+
+        $stage = $fallback ?? EntrepreneurStage::ONBOARDING;
+        $this->forceFill(['stage' => $stage])->save();
+
+        return $stage;
+    }
+
     /**
      * @return BelongsTo<User, EntrepreneurProfile>
      */
@@ -101,5 +129,22 @@ final class EntrepreneurProfile extends Model
     public function conversionOutcomes(): HasMany
     {
         return $this->hasMany(ConversionOutcome::class);
+    }
+
+    private function rawStageValue(): string
+    {
+        $raw = $this->getRawOriginal('stage') ?? $this->getAttributes()['stage'] ?? null;
+
+        if ($raw instanceof EntrepreneurStage) {
+            return $raw->value;
+        }
+
+        if ($raw instanceof \BackedEnum) {
+            return (string) $raw->value;
+        }
+
+        $value = trim((string) $raw);
+
+        return $value !== '' ? $value : EntrepreneurStage::ONBOARDING->value;
     }
 }

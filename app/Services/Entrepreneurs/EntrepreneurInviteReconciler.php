@@ -73,8 +73,10 @@ final class EntrepreneurInviteReconciler
             $updates = [
                 'user_id' => $user->getKey(),
             ];
-            if (in_array($profile->stage, [EntrepreneurStage::INVITED, EntrepreneurStage::CANCELLED], true)) {
+            $stage = $profile->ensureStageIsValid(EntrepreneurStage::ONBOARDING);
+            if (in_array($stage, [EntrepreneurStage::INVITED, EntrepreneurStage::CANCELLED], true)) {
                 $updates['stage'] = EntrepreneurStage::ONBOARDING;
+                $stage = EntrepreneurStage::ONBOARDING;
             }
 
             $profile->forceFill($updates)->save();
@@ -85,9 +87,7 @@ final class EntrepreneurInviteReconciler
                 actor: $user,
                 after: [
                     'entrepreneur_profile_id' => $profile->getKey(),
-                    'stage' => $profile->stage instanceof EntrepreneurStage
-                        ? $profile->stage->value
-                        : (string) $profile->stage,
+                    'stage' => $stage->value,
                     'user_id' => $user->getKey(),
                     'reconciled_from_login' => true,
                 ],
@@ -143,18 +143,19 @@ final class EntrepreneurInviteReconciler
 
     private function ensureOnboardingStage(EntrepreneurProfile $profile, User $user): EntrepreneurProfile
     {
-        if ($profile->stage !== EntrepreneurStage::INVITED) {
+        $stage = $profile->ensureStageIsValid(EntrepreneurStage::ONBOARDING);
+        $invite = $profile->inviteToken;
+        if ($invite instanceof InviteToken) {
+            $this->ensureInviteAcceptedByUser($invite, $user);
+        }
+
+        if (! in_array($stage, [EntrepreneurStage::INVITED, EntrepreneurStage::CANCELLED], true)) {
             return $profile;
         }
 
         $profile->forceFill([
             'stage' => EntrepreneurStage::ONBOARDING,
         ])->save();
-
-        $invite = $profile->inviteToken;
-        if ($invite instanceof InviteToken) {
-            $this->ensureInviteAcceptedByUser($invite, $user);
-        }
 
         $this->auditWriter->record(
             action: 'entrepreneur.onboarding_started',

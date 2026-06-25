@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Enums\EngagementType;
-use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -41,9 +40,7 @@ final class AdvisoryConversion
                     'entrepreneur_profile_id' => $profile->getKey(),
                     'business_plan_id' => $sourcePlan?->getKey(),
                     'concept_summary' => $profile->concept_summary,
-                    'stage_at_conversion' => $profile->stage instanceof EntrepreneurStage
-                        ? $profile->stage->value
-                        : (string) $profile->stage,
+                    'stage_at_conversion' => $profile->currentStageValue(),
                     'founding_advisory_payload' => $sourcePlan?->founding_advisory_payload ?? [],
                     'advisory_readiness_signal_id' => $profile->advisoryReadinessSignals->sortByDesc('surfaced_at')->first()?->id,
                 ],

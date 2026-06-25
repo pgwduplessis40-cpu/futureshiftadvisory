@@ -13,7 +13,6 @@ use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
-use BackedEnum;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -151,9 +150,7 @@ final class Guidance
                 'plan_id' => $plan->getKey(),
                 'profile' => [
                     'name' => $profile->name,
-                    'stage' => $profile->stage instanceof BackedEnum
-                        ? $profile->stage->value
-                        : (string) $profile->stage,
+                    'stage' => $profile->currentStageValue(),
                     'concept_summary' => $profile->concept_summary,
                 ],
                 'requirement' => [

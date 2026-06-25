@@ -278,7 +278,7 @@ final class EntrepreneurController extends Controller
     {
         return $profile->user_id === null
             && $profile->user === null
-            && $profile->stage === EntrepreneurStage::INVITED
+            && $profile->currentStage() === EntrepreneurStage::INVITED
             && $profile->inviteToken instanceof InviteToken
             && ! $profile->inviteToken->isAccepted()
             && filter_var($profile->email, FILTER_VALIDATE_EMAIL) !== false;
@@ -308,9 +308,7 @@ final class EntrepreneurController extends Controller
      */
     private function profileSummary(EntrepreneurProfile $profile): array
     {
-        $stage = $profile->stage instanceof EntrepreneurStage
-            ? $profile->stage
-            : EntrepreneurStage::from((string) $profile->stage);
+        $stage = $profile->currentStage();
 
         return [
             'id' => $profile->id,

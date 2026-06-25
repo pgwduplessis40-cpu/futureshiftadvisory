@@ -464,9 +464,7 @@ final class EntrepreneurPlanController extends Controller
      */
     private function profilePayload(EntrepreneurProfile $profile): array
     {
-        $stage = $profile->stage instanceof EntrepreneurStage
-            ? $profile->stage
-            : EntrepreneurStage::from((string) $profile->stage);
+        $stage = $profile->currentStage();
 
         return [
             'id' => $profile->id,
@@ -859,7 +857,7 @@ HTML,
             $this->escape(now()->format('M j, Y g:i A')),
             $this->previewMetricHtml('Plan status', $this->formatLabel($plan?->status ?? 'not started')),
             $this->previewMetricHtml('Requirements', "{$completed}/{$total} complete"),
-            $this->previewMetricHtml('Stage', $this->formatLabel($profile->stage instanceof EntrepreneurStage ? $profile->stage->value : (string) $profile->stage)),
+            $this->previewMetricHtml('Stage', $this->formatLabel($profile->currentStageValue())),
             $missingHtml === '' ? '' : '<section class="missing"><h2>Open items before finalising</h2><ul>'.$missingHtml.'</ul></section>',
             $phaseHtml,
         );

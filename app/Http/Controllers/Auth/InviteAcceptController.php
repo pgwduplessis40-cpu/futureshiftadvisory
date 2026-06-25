@@ -255,8 +255,10 @@ final class InviteAcceptController extends Controller
             'user_id' => $user->getKey(),
             'invite_token_id' => $invite->getKey(),
         ];
-        if ($profile->stage === EntrepreneurStage::INVITED) {
+        $stage = $profile->ensureStageIsValid(EntrepreneurStage::ONBOARDING);
+        if (in_array($stage, [EntrepreneurStage::INVITED, EntrepreneurStage::CANCELLED], true)) {
             $updates['stage'] = EntrepreneurStage::ONBOARDING;
+            $stage = EntrepreneurStage::ONBOARDING;
         }
 
         $profile->forceFill($updates)->save();
@@ -267,9 +269,7 @@ final class InviteAcceptController extends Controller
             actor: $user,
             after: [
                 'entrepreneur_profile_id' => $profile->getKey(),
-                'stage' => $profile->stage instanceof EntrepreneurStage
-                    ? $profile->stage->value
-                    : (string) $profile->stage,
+                'stage' => $stage->value,
                 'user_id' => $user->getKey(),
             ],
         );
