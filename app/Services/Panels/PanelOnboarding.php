@@ -12,6 +12,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Panels\Broker\BrokerFspVerifier;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
@@ -318,6 +319,9 @@ final class PanelOnboarding
     {
         $baseTerms = [
             'panel_type' => $member->panel_type,
+            'agreement_title' => (string) Config::get('panels.agreements.title', 'Future Shift Advisory panel agreement'),
+            'agreement_introduction' => (string) Config::get('panels.agreements.introduction', ''),
+            'standard_terms' => (string) Config::get('panels.agreements.standard_terms', ''),
             'mutual_referral_terms' => 'No referral fees are payable by either party.',
             'confidentiality' => true,
             'client_consent_required' => true,
@@ -332,6 +336,7 @@ final class PanelOnboarding
                 'lapse_auto_suspends_portal_access' => true,
                 'broker_responsible_for_regulated_advice' => true,
                 'client_consent_required_before_broker_referral' => true,
+                'admin_terms' => (string) Config::get('panels.agreements.broker_terms', ''),
             ];
         }
 
@@ -342,6 +347,7 @@ final class PanelOnboarding
                 'wellbeing_scope_boundary' => 'Coaching support only; no clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.',
                 'client_authorisation_required_for_key_staff' => true,
                 'entrepreneur_referrals_require_profile_link' => true,
+                'admin_terms' => (string) Config::get('panels.agreements.coach_terms', ''),
             ];
         }
 
@@ -366,11 +372,14 @@ final class PanelOnboarding
 
     private function agreementHtml(PanelAgreement $agreement, User $actor): string
     {
-        $terms = collect($agreement->terms ?? [])
+        $agreementTerms = $agreement->terms ?? [];
+        $title = $this->escape((string) ($agreementTerms['agreement_title'] ?? 'Future Shift Advisory panel agreement'));
+        $terms = collect($agreementTerms)
+            ->reject(fn (mixed $_, string $key): bool => in_array($key, ['agreement_title'], true))
             ->map(fn (mixed $value, string $key): string => '<p><strong>'.$this->escape($key).'</strong>: '.$this->escape(is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR)).'</p>')
             ->implode('');
 
-        return '<!doctype html><html><body><h1>Future Shift Advisory panel agreement</h1><p>Signed by '.$this->escape($actor->name).'</p>'.$terms.'</body></html>';
+        return '<!doctype html><html><body><h1>'.$title.'</h1><p>Signed by '.$this->escape($actor->name).'</p>'.$terms.'</body></html>';
     }
 
     private function escape(string $value): string

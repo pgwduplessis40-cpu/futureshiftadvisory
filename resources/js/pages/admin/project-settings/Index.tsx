@@ -108,8 +108,12 @@ function ProjectSettingsGroupForm({
     const testSlackForm = useForm({
         slack_webhook: '',
     });
-    const [expanded, setExpanded] = useState(false);
     const groupContentId = `project-settings-${group.key}`;
+    const [expanded, setExpanded] = useState(
+        () =>
+            typeof window !== 'undefined' &&
+            window.location.hash === `#${groupContentId}`,
+    );
     const completed = group.fields.filter((field) => field.configured).length;
 
     function submit(event: FormEvent) {
@@ -354,10 +358,10 @@ function SettingFieldControl({
                         </option>
                     ))}
                 </select>
-            ) : field.type === 'string_list' ? (
+            ) : field.type === 'string_list' || field.type === 'text' ? (
                 <textarea
                     id={inputId}
-                    rows={4}
+                    rows={field.type === 'text' ? 8 : 4}
                     value={value}
                     disabled={disabled}
                     onChange={(event) => onChange(event.target.value)}

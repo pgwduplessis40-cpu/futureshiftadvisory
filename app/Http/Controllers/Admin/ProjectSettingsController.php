@@ -238,6 +238,7 @@ final class ProjectSettingsController extends Controller
             ProjectSettings::TYPE_URL => ['nullable', 'url', 'max:2048'],
             ProjectSettings::TYPE_SELECT => ['nullable', 'string', Rule::in((array) ($definition['options'] ?? []))],
             ProjectSettings::TYPE_STRING_LIST => ['nullable', 'string', 'max:4000'],
+            ProjectSettings::TYPE_TEXT => ['nullable', 'string', 'max:20000'],
             default => ['nullable', 'string', 'max:2048'],
         };
     }

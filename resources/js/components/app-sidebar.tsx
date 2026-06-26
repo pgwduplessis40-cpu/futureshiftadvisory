@@ -179,6 +179,12 @@ const termsNavItem: NavItem = {
     icon: FileText,
 };
 
+const panelAgreementsNavItem: NavItem = {
+    title: 'Panel Agreements',
+    href: '/admin/project-settings#project-settings-panel_agreements',
+    icon: FileText,
+};
+
 const auditTrailNavItem: NavItem = {
     title: 'Audit Trail',
     href: '/admin/audit-trail',
@@ -304,6 +310,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     projectSettingsNavItem,
     serviceRatesNavItem,
     termsNavItem,
+    panelAgreementsNavItem,
     auditTrailNavItem,
     referenceDataNavItem,
     questionnairesNavItem,

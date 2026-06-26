@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\EntrepreneurStage;
 use App\Enums\Permission;
 use App\Enums\ProposalStatus;
 use App\Models\BusinessPlan;
@@ -674,7 +675,13 @@ final class DashboardController extends Controller
         $funnelAnalytics = $funnels->summary($clientIds);
 
         return [
-            'clientsHealth' => $this->clientsHealth($clientIds, $engagementScorer),
+            'clientsHealth' => $this->clientsHealth(
+                $clientIds,
+                $engagementScorer,
+                $this->visibleEntrepreneurQuery(EntrepreneurProfile::query(), $user)
+                    ->whereIn('stage', EntrepreneurStage::activeCapacityValues())
+                    ->count(),
+            ),
             'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'messagesPending' => $this->messagesPending($user, $clientIds),
@@ -1425,9 +1432,14 @@ final class DashboardController extends Controller
      * @param  array<int, string>|null  $clientIds
      * @return array<string, mixed>
      */
-    private function clientsHealth(?array $clientIds, ClientEngagementScorer $engagementScorer): array
-    {
-        $clients = $this->scopedClientQuery($clientIds)
+    private function clientsHealth(
+        ?array $clientIds,
+        ClientEngagementScorer $engagementScorer,
+        int $entrepreneurWorkspaces = 0,
+    ): array {
+        $query = $this->scopedClientQuery($clientIds);
+        $totalClientWorkspaces = (clone $query)->count();
+        $clients = $query
             ->orderBy('legal_name')
             ->limit(20)
             ->get();
@@ -1451,7 +1463,9 @@ final class DashboardController extends Controller
         return [
             'methodology_id' => 'engagement.score',
             'summary' => [
-                'total' => $clients->count(),
+                'total' => $totalClientWorkspaces + $entrepreneurWorkspaces,
+                'advisory_clients' => $totalClientWorkspaces,
+                'entrepreneurs' => $entrepreneurWorkspaces,
                 'high' => $green,
                 'medium' => $amber,
                 'low' => $red,

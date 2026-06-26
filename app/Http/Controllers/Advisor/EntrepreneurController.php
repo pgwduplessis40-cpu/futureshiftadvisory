@@ -322,6 +322,13 @@ final class EntrepreneurController extends Controller
 
     private function profileStageLabel(EntrepreneurProfile $profile, EntrepreneurStage $stage): string
     {
+        if (
+            in_array($stage, [EntrepreneurStage::INVITED, EntrepreneurStage::ONBOARDING], true)
+            && ($profile->user_id !== null || $profile->user instanceof User || $profile->inviteToken?->isAccepted())
+        ) {
+            return 'Active';
+        }
+
         if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
             return 'Invite accepted';
         }

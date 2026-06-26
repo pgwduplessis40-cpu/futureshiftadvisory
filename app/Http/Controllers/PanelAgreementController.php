@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Enums\Permission;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
@@ -34,7 +35,11 @@ final class PanelAgreementController extends Controller
         $member = $panelAgreement->panelMember;
 
         abort_unless($member instanceof PanelMember, 404);
-        abort_unless((string) $member->user_id === (string) $user->getKey(), 403);
+        abort_unless(
+            (string) $member->user_id === (string) $user->getKey()
+                || $user->can(Permission::CLIENTS_MANAGE->value),
+            403,
+        );
         abort_unless(filled($panelAgreement->pdf_path), 404);
         abort_unless(Storage::disk('secure_local')->exists($panelAgreement->pdf_path), 404);
 

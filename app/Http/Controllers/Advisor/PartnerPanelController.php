@@ -191,6 +191,7 @@ final class PartnerPanelController extends Controller
             'reverseReferrals',
         ]);
         $inviteDraft = $this->inviteIssuer->draftFor($panelMember->inviteToken);
+        $accountOnboarded = $panelMember->user instanceof User;
 
         return Inertia::render('advisor/partners/Show', [
             'partner' => [
@@ -198,6 +199,16 @@ final class PartnerPanelController extends Controller
                 'email' => $panelMember->user?->email ?? $panelMember->inviteToken?->email,
                 'invite_accepted_at' => $panelMember->inviteToken?->accepted_at?->toISOString(),
                 'invite_expires_at' => $panelMember->inviteToken?->expires_at?->toISOString(),
+                'account_status_label' => $accountOnboarded ? 'Account onboarded' : 'Invite pending',
+                'invite_acceptance_label' => $accountOnboarded
+                    ? 'Accepted'
+                    : ($panelMember->inviteToken?->accepted_at?->toISOString() ?? null),
+                'invite_expiry_label' => $accountOnboarded
+                    ? 'No longer applicable'
+                    : ($panelMember->inviteToken?->expires_at?->toISOString() ?? null),
+                'invite_delivery_label' => $accountOnboarded
+                    ? 'Account onboarded'
+                    : ($inviteDraft['accept_url'] ?? null ? 'Manual Outlook send' : 'No active link'),
                 'invite_accept_url' => $inviteDraft['accept_url'] ?? null,
                 'invite_email_subject' => $inviteDraft['subject'] ?? null,
                 'invite_email_body' => $inviteDraft['body'] ?? null,
@@ -602,6 +613,10 @@ final class PartnerPanelController extends Controller
             'status_label' => $this->headline($agreement->status),
             'generated_at' => $agreement->generated_at?->toISOString(),
             'signed_at' => $agreement->signed_at?->toISOString(),
+            'terms' => $agreement->terms ?? [],
+            'download_url' => filled($agreement->pdf_path)
+                ? route('panel.agreements.download', $agreement, absolute: false)
+                : null,
         ];
     }
 

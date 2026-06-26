@@ -33,6 +33,8 @@ final class ProjectSettings
 
     public const TYPE_STRING_LIST = 'string_list';
 
+    public const TYPE_TEXT = 'text';
+
     /**
      * @var array<string, array{title:string, description:string}>
      */
@@ -52,6 +54,10 @@ final class ProjectSettings
         'microsoft_graph' => [
             'title' => 'Microsoft Graph',
             'description' => 'Outlook calendar OAuth and Graph API connection settings.',
+        ],
+        'panel_agreements' => [
+            'title' => 'Panel agreements',
+            'description' => 'Broker and coach agreement wording used when panel applications are approved.',
         ],
     ];
 
@@ -320,6 +326,46 @@ final class ProjectSettings
             'type' => self::TYPE_STRING_LIST,
             'config_path' => 'integrations.calendar.microsoft.scopes',
             'default' => "Calendars.ReadWrite\noffline_access",
+        ],
+        [
+            'key' => 'panels.agreements.title',
+            'group' => 'panel_agreements',
+            'label' => 'Agreement title',
+            'type' => self::TYPE_STRING,
+            'config_path' => 'panels.agreements.title',
+            'default' => 'Future Shift Advisory panel agreement',
+        ],
+        [
+            'key' => 'panels.agreements.introduction',
+            'group' => 'panel_agreements',
+            'label' => 'Agreement introduction',
+            'type' => self::TYPE_TEXT,
+            'config_path' => 'panels.agreements.introduction',
+            'default' => 'This agreement records the operating terms for approved Future Shift Advisory panel partners.',
+        ],
+        [
+            'key' => 'panels.agreements.standard_terms',
+            'group' => 'panel_agreements',
+            'label' => 'Standard terms',
+            'type' => self::TYPE_TEXT,
+            'config_path' => 'panels.agreements.standard_terms',
+            'default' => "Panel partners must protect confidential information, act only within their authorised scope, and obtain client consent before referral information is shared.\nNo referral fees are payable by either party unless separately agreed in writing.",
+        ],
+        [
+            'key' => 'panels.agreements.broker_terms',
+            'group' => 'panel_agreements',
+            'label' => 'Broker terms',
+            'type' => self::TYPE_TEXT,
+            'config_path' => 'panels.agreements.broker_terms',
+            'default' => "Brokers remain responsible for regulated financial advice and must keep FSP registration current.\nA lapsed or non-current FSP status may suspend portal access until resolved.",
+        ],
+        [
+            'key' => 'panels.agreements.coach_terms',
+            'group' => 'panel_agreements',
+            'label' => 'Coach terms',
+            'type' => self::TYPE_TEXT,
+            'config_path' => 'panels.agreements.coach_terms',
+            'default' => "Coaches provide coaching support only and must not provide clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.\nClient authorisation is required before key-staff coaching context is shared.",
         ],
     ];
 

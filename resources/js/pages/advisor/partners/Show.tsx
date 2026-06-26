@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Copy, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, Download, RefreshCw, XCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -11,6 +11,8 @@ type Agreement = {
     status_label: string;
     generated_at: string | null;
     signed_at: string | null;
+    terms: Record<string, unknown>;
+    download_url: string | null;
 };
 
 type ReferralSummary = {
@@ -42,6 +44,10 @@ type PartnerDetail = {
     status_label: string;
     invite_accepted_at: string | null;
     invite_expires_at: string | null;
+    account_status_label: string;
+    invite_acceptance_label: string | null;
+    invite_expiry_label: string | null;
+    invite_delivery_label: string;
     invite_accept_url: string | null;
     invite_email_subject: string | null;
     invite_email_body: string | null;
@@ -248,20 +254,24 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                                 value={partner.email ?? 'Not supplied'}
                             />
                             <Detail
+                                label="Account status"
+                                value={partner.account_status_label}
+                            />
+                            <Detail
                                 label="Invite accepted"
-                                value={formatDate(partner.invite_accepted_at)}
+                                value={formatDisplayDateOrText(
+                                    partner.invite_acceptance_label,
+                                )}
                             />
                             <Detail
                                 label="Invite expires"
-                                value={formatDate(partner.invite_expires_at)}
+                                value={formatDisplayDateOrText(
+                                    partner.invite_expiry_label,
+                                )}
                             />
                             <Detail
                                 label="Invite delivery"
-                                value={
-                                    partner.invite_email_body
-                                        ? 'Manual Outlook send'
-                                        : 'No active link'
-                                }
+                                value={partner.invite_delivery_label}
                             />
                             <Detail
                                 label="Regions"
@@ -319,6 +329,15 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                                 )}
                             />
                         </dl>
+                        {partner.latest_agreement ? (
+                            <AgreementSummary
+                                agreement={partner.latest_agreement}
+                            />
+                        ) : (
+                            <div className="border-t px-4 py-3 text-sm text-muted-foreground">
+                                No panel agreement has been generated yet.
+                            </div>
+                        )}
                     </div>
                 </section>
 
@@ -391,6 +410,55 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
     );
 }
 
+function AgreementSummary({ agreement }: { agreement: Agreement }) {
+    const terms = Object.entries(agreement.terms ?? {}).filter(
+        ([key]) => key !== 'panel_type',
+    );
+
+    return (
+        <div className="space-y-3 border-t p-4 text-sm">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div>
+                    <h3 className="font-medium">Generated agreement</h3>
+                    <p className="text-muted-foreground">
+                        {agreement.status_label}
+                        {agreement.generated_at
+                            ? ` - generated ${formatDate(agreement.generated_at)}`
+                            : ''}
+                    </p>
+                </div>
+                {agreement.download_url ? (
+                    <Button asChild size="sm" variant="outline">
+                        <a href={agreement.download_url}>
+                            <Download className="size-4" aria-hidden="true" />
+                            Download signed PDF
+                        </a>
+                    </Button>
+                ) : null}
+            </div>
+
+            {terms.length > 0 ? (
+                <div className="grid gap-2">
+                    {terms.map(([key, value]) => (
+                        <div key={key} className="rounded-md border p-3">
+                            <div className="text-xs font-medium text-muted-foreground">
+                                {labelForTerm(key)}
+                            </div>
+                            <div className="mt-1 whitespace-pre-line">
+                                {formatTermValue(value)}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            ) : (
+                <div className="text-muted-foreground">
+                    Agreement terms have not been captured.
+                </div>
+            )}
+        </div>
+    );
+}
+
 function Metric({ label, children }: { label: string; children: ReactNode }) {
     return (
         <div className="rounded-md border px-3 py-3">
@@ -442,6 +510,45 @@ function formatDate(value: string | null): string {
         month: 'short',
         year: 'numeric',
     }).format(new Date(value));
+}
+
+function formatDisplayDateOrText(value: string | null): string {
+    if (!value) {
+        return 'Not supplied';
+    }
+
+    return Number.isNaN(new Date(value).getTime()) ? value : formatDate(value);
+}
+
+function labelForTerm(value: string): string {
+    return value
+        .replaceAll('_', ' ')
+        .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+function formatTermValue(value: unknown): string {
+    if (typeof value === 'boolean') {
+        return value ? 'Yes' : 'No';
+    }
+
+    if (Array.isArray(value)) {
+        return value.length > 0 ? value.map(formatTermValue).join(', ') : '-';
+    }
+
+    if (value && typeof value === 'object') {
+        return Object.entries(value)
+            .map(
+                ([key, nestedValue]) =>
+                    `${labelForTerm(key)}: ${formatTermValue(nestedValue)}`,
+            )
+            .join('\n');
+    }
+
+    if (value === null || value === undefined || value === '') {
+        return '-';
+    }
+
+    return String(value);
 }
 
 function statusVariant(
