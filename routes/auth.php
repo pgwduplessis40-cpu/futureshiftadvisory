@@ -10,6 +10,7 @@ use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
+use App\Http\Controllers\Admin\PartnerAgreementController;
 use App\Http\Controllers\Admin\ProjectSettingsController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\ReferenceDataController;
@@ -77,6 +78,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('terms/{termsVersion}/publish', [TermsController::class, 'confirmPublish'])->name('terms.publish.create');
             Route::post('terms/{termsVersion}/publish', [TermsController::class, 'publish'])->name('terms.publish');
             Route::post('terms/enforcement/activate', [TermsController::class, 'activateEnforcement'])->name('terms.enforcement.activate');
+
+            Route::get('partner-agreement', [PartnerAgreementController::class, 'index'])->name('partner-agreement.index');
+            Route::patch('partner-agreement', [PartnerAgreementController::class, 'update'])
+                ->middleware('require.fresh-step-up')
+                ->name('partner-agreement.update');
+            Route::patch('partner-agreement/reset', [PartnerAgreementController::class, 'reset'])
+                ->middleware('require.fresh-step-up')
+                ->name('partner-agreement.reset');
 
             Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
             Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');

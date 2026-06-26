@@ -215,6 +215,7 @@ final class ProjectSettingsController extends Controller
     private function groupDefinitions(): array
     {
         return collect($this->settings->definitionsByKey())
+            ->reject(fn (array $definition): bool => (string) $definition['group'] === ProjectSettings::GROUP_PARTNER_AGREEMENT)
             ->groupBy(fn (array $definition): string => (string) $definition['group'])
             ->all();
     }

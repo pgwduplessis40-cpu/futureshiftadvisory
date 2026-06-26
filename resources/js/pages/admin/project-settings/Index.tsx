@@ -19,6 +19,11 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Tooltip,
+    TooltipContent,
+    TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 type ProjectSettingField = {
     key: string;
@@ -331,16 +336,32 @@ function SettingFieldControl({
                 </div>
                 <div className="flex shrink-0 items-center gap-2">
                     <SourceBadge field={field} />
-                    <Button
-                        type="button"
-                        size="icon"
-                        variant="outline"
-                        disabled={field.source !== 'project' || disabled}
-                        onClick={onReset}
-                        aria-label={`Reset ${field.label}`}
-                    >
-                        <RotateCcw className="size-4" aria-hidden="true" />
-                    </Button>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    disabled={
+                                        field.source !== 'project' || disabled
+                                    }
+                                    onClick={onReset}
+                                    aria-label={`Reset ${field.label} to config default`}
+                                >
+                                    <RotateCcw
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </Button>
+                            </span>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                            {field.source === 'project'
+                                ? `Reset ${field.label} to the application config default.`
+                                : `${field.label} is already using the application config default, so there is nothing to reset.`}
+                        </TooltipContent>
+                    </Tooltip>
                 </div>
             </div>
 
@@ -397,15 +418,34 @@ function SettingFieldControl({
 }
 
 function SourceBadge({ field }: { field: ProjectSettingField }) {
-    if (field.source === 'project') {
-        return <Badge variant="secondary">Project</Badge>;
-    }
+    const content =
+        field.source === 'project'
+            ? 'This setting has been saved in the admin portal and overrides the application config default.'
+            : field.configured
+              ? 'This setting is coming from the application config default. Save a value here to override it.'
+              : 'This setting is not configured yet.';
 
-    if (field.configured) {
-        return <Badge variant="outline">Config</Badge>;
-    }
+    const badge =
+        field.source === 'project' ? (
+            <Badge variant="secondary">Project</Badge>
+        ) : field.configured ? (
+            <Badge variant="outline">Config</Badge>
+        ) : (
+            <Badge variant="outline">Unset</Badge>
+        );
 
-    return <Badge variant="outline">Unset</Badge>;
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span tabIndex={0} className="outline-none">
+                    {badge}
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="left" className="max-w-xs">
+                {content}
+            </TooltipContent>
+        </Tooltip>
+    );
 }
 
 function RedirectUriPanel({ value }: { value: string }) {

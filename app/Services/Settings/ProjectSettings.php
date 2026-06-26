@@ -17,6 +17,8 @@ use Throwable;
 
 final class ProjectSettings
 {
+    public const GROUP_PARTNER_AGREEMENT = 'partner_agreement';
+
     public const TYPE_STRING = 'string';
 
     public const TYPE_SECRET = 'secret';
@@ -55,10 +57,17 @@ final class ProjectSettings
             'title' => 'Microsoft Graph',
             'description' => 'Outlook calendar OAuth and Graph API connection settings.',
         ],
-        'panel_agreements' => [
-            'title' => 'Panel agreements',
-            'description' => 'Broker and coach agreement wording used when panel applications are approved.',
+        self::GROUP_PARTNER_AGREEMENT => [
+            'title' => 'Partner Agreement',
+            'description' => 'Broker and coach agreement wording used when partner applications are approved.',
         ],
+    ];
+
+    private const PROJECT_GROUP_KEYS = [
+        'email_delivery',
+        'slack_notifications',
+        'logging_slack',
+        'microsoft_graph',
     ];
 
     /**
@@ -329,31 +338,31 @@ final class ProjectSettings
         ],
         [
             'key' => 'panels.agreements.title',
-            'group' => 'panel_agreements',
+            'group' => self::GROUP_PARTNER_AGREEMENT,
             'label' => 'Agreement title',
             'type' => self::TYPE_STRING,
             'config_path' => 'panels.agreements.title',
-            'default' => 'Future Shift Advisory panel agreement',
+            'default' => 'Future Shift Advisory partner agreement',
         ],
         [
             'key' => 'panels.agreements.introduction',
-            'group' => 'panel_agreements',
+            'group' => self::GROUP_PARTNER_AGREEMENT,
             'label' => 'Agreement introduction',
             'type' => self::TYPE_TEXT,
             'config_path' => 'panels.agreements.introduction',
-            'default' => 'This agreement records the operating terms for approved Future Shift Advisory panel partners.',
+            'default' => 'This agreement records the operating terms for approved Future Shift Advisory partners.',
         ],
         [
             'key' => 'panels.agreements.standard_terms',
-            'group' => 'panel_agreements',
+            'group' => self::GROUP_PARTNER_AGREEMENT,
             'label' => 'Standard terms',
             'type' => self::TYPE_TEXT,
             'config_path' => 'panels.agreements.standard_terms',
-            'default' => "Panel partners must protect confidential information, act only within their authorised scope, and obtain client consent before referral information is shared.\nNo referral fees are payable by either party unless separately agreed in writing.",
+            'default' => "Partners must protect confidential information, act only within their authorised scope, and obtain client consent before referral information is shared.\nNo referral fees are payable by either party unless separately agreed in writing.",
         ],
         [
             'key' => 'panels.agreements.broker_terms',
-            'group' => 'panel_agreements',
+            'group' => self::GROUP_PARTNER_AGREEMENT,
             'label' => 'Broker terms',
             'type' => self::TYPE_TEXT,
             'config_path' => 'panels.agreements.broker_terms',
@@ -361,7 +370,7 @@ final class ProjectSettings
         ],
         [
             'key' => 'panels.agreements.coach_terms',
-            'group' => 'panel_agreements',
+            'group' => self::GROUP_PARTNER_AGREEMENT,
             'label' => 'Coach terms',
             'type' => self::TYPE_TEXT,
             'config_path' => 'panels.agreements.coach_terms',
@@ -376,9 +385,33 @@ final class ProjectSettings
      */
     public function groupsForUi(): array
     {
+        return $this->groupsForKeys(self::PROJECT_GROUP_KEYS);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function groupForUi(string $groupKey): array
+    {
+        return $this->groupsForKeys([$groupKey])[0] ?? [
+            'key' => $groupKey,
+            'title' => $groupKey,
+            'description' => '',
+            'fields' => [],
+        ];
+    }
+
+    /**
+     * @param  array<int, string>  $groupKeys
+     * @return array<int, array<string, mixed>>
+     */
+    private function groupsForKeys(array $groupKeys): array
+    {
         $settings = $this->storedSettings();
 
-        return collect(self::GROUPS)
+        return collect($groupKeys)
+            ->filter(fn (string $groupKey): bool => array_key_exists($groupKey, self::GROUPS))
+            ->mapWithKeys(fn (string $groupKey): array => [$groupKey => self::GROUPS[$groupKey]])
             ->map(function (array $group, string $groupKey) use ($settings): array {
                 $fields = collect(self::DEFINITIONS)
                     ->where('group', $groupKey)

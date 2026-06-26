@@ -2,14 +2,14 @@
 
 return [
     'agreements' => [
-        'title' => env('PANEL_AGREEMENT_TITLE', 'Future Shift Advisory panel agreement'),
+        'title' => env('PANEL_AGREEMENT_TITLE', 'Future Shift Advisory partner agreement'),
         'introduction' => env(
             'PANEL_AGREEMENT_INTRODUCTION',
-            'This agreement records the operating terms for approved Future Shift Advisory panel partners.',
+            'This agreement records the operating terms for approved Future Shift Advisory partners.',
         ),
         'standard_terms' => env(
             'PANEL_AGREEMENT_STANDARD_TERMS',
-            "Panel partners must protect confidential information, act only within their authorised scope, and obtain client consent before referral information is shared.\nNo referral fees are payable by either party unless separately agreed in writing.",
+            "Partners must protect confidential information, act only within their authorised scope, and obtain client consent before referral information is shared.\nNo referral fees are payable by either party unless separately agreed in writing.",
         ),
         'broker_terms' => env(
             'PANEL_AGREEMENT_BROKER_TERMS',

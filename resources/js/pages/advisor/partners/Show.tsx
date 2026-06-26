@@ -335,7 +335,7 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                             />
                         ) : (
                             <div className="border-t px-4 py-3 text-sm text-muted-foreground">
-                                No panel agreement has been generated yet.
+                                No partner agreement has been generated yet.
                             </div>
                         )}
                     </div>

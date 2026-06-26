@@ -319,7 +319,7 @@ final class PanelOnboarding
     {
         $baseTerms = [
             'panel_type' => $member->panel_type,
-            'agreement_title' => (string) Config::get('panels.agreements.title', 'Future Shift Advisory panel agreement'),
+            'agreement_title' => (string) Config::get('panels.agreements.title', 'Future Shift Advisory partner agreement'),
             'agreement_introduction' => (string) Config::get('panels.agreements.introduction', ''),
             'standard_terms' => (string) Config::get('panels.agreements.standard_terms', ''),
             'mutual_referral_terms' => 'No referral fees are payable by either party.',
@@ -373,7 +373,7 @@ final class PanelOnboarding
     private function agreementHtml(PanelAgreement $agreement, User $actor): string
     {
         $agreementTerms = $agreement->terms ?? [];
-        $title = $this->escape((string) ($agreementTerms['agreement_title'] ?? 'Future Shift Advisory panel agreement'));
+        $title = $this->escape((string) ($agreementTerms['agreement_title'] ?? 'Future Shift Advisory partner agreement'));
         $terms = collect($agreementTerms)
             ->reject(fn (mixed $_, string $key): bool => in_array($key, ['agreement_title'], true))
             ->map(fn (mixed $value, string $key): string => '<p><strong>'.$this->escape($key).'</strong>: '.$this->escape(is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR)).'</p>')
