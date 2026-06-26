@@ -11,6 +11,7 @@ use App\Http\Controllers\Portal\Concerns\BuildsEntrepreneurAssessmentPayload;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Document;
+use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\InviteToken;
@@ -215,6 +216,7 @@ final class EntrepreneurController extends Controller
             'inviteToken',
             'user',
             'businessPlans.assessments.ratingFramework.criteria',
+            'businessPlans.budgetRunway',
             'businessPlans.revisions',
         ]);
         $latestPlan = $entrepreneurProfile->businessPlans
@@ -361,9 +363,11 @@ final class EntrepreneurController extends Controller
                 'overall_grade' => $latestAssessmentPayload['overall_grade'],
                 'weighted_score' => $latestAssessmentPayload['weighted_score'],
                 'finalised_at' => $latestAssessmentPayload['finalised_at'],
+                'rating_framework' => $latestAssessmentPayload['rating_framework'],
                 'url' => route('advisor.entrepreneurs.assessments.show', [$profile, $latestAssessment], absolute: false),
                 'finalise_url' => route('advisor.entrepreneurs.assessments.finalise', [$profile, $latestAssessment], absolute: false),
             ] : null,
+            'budget' => $this->budgetSummary($plan->budgetRunway),
             'assess_url' => route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false),
             'latest_revision' => $latestRevision instanceof PlanRevision ? [
                 'id' => $latestRevision->id,
@@ -374,6 +378,28 @@ final class EntrepreneurController extends Controller
                 'biggest_improvements' => data_get($latestRevision->progress_comparison, 'biggest_improvements', []),
                 'remaining_gaps' => data_get($latestRevision->progress_comparison, 'remaining_gaps', []),
             ] : null,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function budgetSummary(?EntrepreneurBudget $budget): array
+    {
+        $computed = (array) ($budget?->computed ?? []);
+        $activeFlags = collect((array) ($budget?->flags ?? []))
+            ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
+            ->values()
+            ->all();
+
+        return [
+            'status' => $budget?->status ?? EntrepreneurBudget::STATUS_NOT_STARTED,
+            'expected_runway_months' => $budget?->expected_runway_months,
+            'calculated_runway_months' => data_get($computed, 'runway_months'),
+            'runway_open_ended' => (bool) data_get($computed, 'runway_open_ended', false),
+            'break_even_month' => data_get($computed, 'break_even_month'),
+            'available_after_launch' => data_get($computed, 'available_after_launch'),
+            'active_flags' => $activeFlags,
         ];
     }
 

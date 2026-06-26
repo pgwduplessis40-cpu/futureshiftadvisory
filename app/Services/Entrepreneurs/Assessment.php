@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurBudget;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
 use App\Models\PlanSection;
@@ -37,7 +38,7 @@ final class Assessment implements ProvidesMethodology
 
     public function firstPass(BusinessPlan $plan, User $actor): PlanAssessment
     {
-        $plan->loadMissing('sections', 'entrepreneurProfile');
+        $plan->loadMissing('sections', 'entrepreneurProfile', 'budgetRunway');
         foreach ($plan->sections as $section) {
             if ($section instanceof PlanSection) {
                 $this->documents->ensureScoringClear($section);
@@ -45,13 +46,13 @@ final class Assessment implements ProvidesMethodology
         }
 
         $framework = $this->frameworks->published();
-        $sectionsText = $plan->sections->pluck('body')->implode("\n");
+        $sectionsText = trim($plan->sections->pluck('body')->implode("\n")."\n".$this->budgetAssessmentText($plan->budgetRunway));
         $aiScores = $framework->criteria
             ->map(fn (RatingCriterion $criterion): array => $this->scoreCriterion($criterion, $plan, $sectionsText))
             ->values()
             ->all();
         $documentSupport = $this->documentSupport($plan);
-        $weighted = $this->weightedScore($framework, $aiScores);
+        $weighted = AssessmentScoring::weightedScoreForFramework($framework, $aiScores);
 
         return DB::transaction(function () use ($plan, $actor, $framework, $aiScores, $documentSupport, $weighted): PlanAssessment {
             $round = ((int) PlanAssessment::query()->where('business_plan_id', $plan->getKey())->max('round')) + 1;
@@ -98,8 +99,13 @@ final class Assessment implements ProvidesMethodology
             'adjusted_by_user_id' => $advisor->getKey(),
             'adjusted_at' => now()->toIso8601String(),
         ];
+        $assessment->loadMissing('ratingFramework.criteria');
+        $weighted = $assessment->ratingFramework instanceof RatingFramework
+            ? AssessmentScoring::weightedScoreForFramework($assessment->ratingFramework, $assessment->ai_scores ?? [], $advisorScores)
+            : 0.0;
         $assessment->forceFill([
             'advisor_scores' => $advisorScores,
+            'overall_grade' => $assessment->ratingFramework?->gradeFor($weighted) ?? $assessment->overall_grade,
         ])->save();
 
         $this->queueAdjustmentLearning($assessment, $criterionNumber, $score, $note, $advisor);
@@ -150,9 +156,14 @@ final class Assessment implements ProvidesMethodology
 
     public function finalise(PlanAssessment $assessment, User $advisor): PlanAssessment
     {
+        $assessment->loadMissing('ratingFramework.criteria');
+        $weighted = $assessment->ratingFramework instanceof RatingFramework
+            ? AssessmentScoring::weightedScoreForFramework($assessment->ratingFramework, $assessment->ai_scores ?? [], $assessment->advisor_scores ?? [])
+            : 0.0;
         $assessment->forceFill([
             'finalised_at' => now(),
             'finalised_by_user_id' => $advisor->getKey(),
+            'overall_grade' => $assessment->ratingFramework?->gradeFor($weighted) ?? $assessment->overall_grade,
         ])->save();
         $assessment->businessPlan?->forceFill([
             'status' => BusinessPlan::STATUS_FINALISED,
@@ -185,7 +196,7 @@ final class Assessment implements ProvidesMethodology
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
         $response = $this->ai->scoreCriterion($prompt);
-        $base = $this->heuristicScore($criterion, $sectionsText);
+        $base = $this->heuristicScore($criterion, $plan, $sectionsText);
 
         return [
             'criterion_id' => $criterion->getKey(),
@@ -206,8 +217,12 @@ final class Assessment implements ProvidesMethodology
         ];
     }
 
-    private function heuristicScore(RatingCriterion $criterion, string $sectionsText): int
+    private function heuristicScore(RatingCriterion $criterion, BusinessPlan $plan, string $sectionsText): int
     {
+        if (strtolower((string) $criterion->name) === 'budget') {
+            return $this->budgetHeuristicScore($plan->budgetRunway);
+        }
+
         $haystack = strtolower($sectionsText);
         $needles = collect(explode(' ', strtolower($criterion->name)))
             ->map(fn (string $word): string => trim($word))
@@ -218,18 +233,54 @@ final class Assessment implements ProvidesMethodology
         return max(35, min(82, 48 + ($matches * 8) + min(18, (int) floor($wordCount / 25))));
     }
 
-    /**
-     * @param  array<int, array<string, mixed>>  $scores
-     */
-    private function weightedScore(RatingFramework $framework, array $scores): float
+    private function budgetHeuristicScore(?EntrepreneurBudget $budget): int
     {
-        $weights = $framework->criteria->pluck('weight', 'number');
+        if (! $budget instanceof EntrepreneurBudget) {
+            return 35;
+        }
 
-        return round(collect($scores)->sum(function (array $score) use ($weights): float {
-            $weight = (float) $weights->get((int) $score['criterion_number'], 0);
+        $score = match ($budget->status) {
+            EntrepreneurBudget::STATUS_COMPLETE => 70,
+            EntrepreneurBudget::STATUS_PARTIAL => 52,
+            default => 35,
+        };
+        $computed = (array) ($budget->computed ?? []);
+        $activeFlags = collect((array) ($budget->flags ?? []))
+            ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
+            ->count();
 
-            return ((float) $score['score']) * ($weight / 100);
-        }), 2);
+        if (($computed['break_even_reached'] ?? false) === true) {
+            $score += 5;
+        }
+
+        if ($budget->expected_runway_months !== null && is_int($computed['runway_months'] ?? null)) {
+            $score += 5;
+        }
+
+        return max(35, min(88, $score - ($activeFlags * 6)));
+    }
+
+    private function budgetAssessmentText(?EntrepreneurBudget $budget): string
+    {
+        if (! $budget instanceof EntrepreneurBudget) {
+            return '';
+        }
+
+        $computed = (array) ($budget->computed ?? []);
+        $flags = collect((array) ($budget->flags ?? []))
+            ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
+            ->pluck('title')
+            ->implode('; ');
+
+        return sprintf(
+            'Budget status: %s. Expected runway: %s months. Calculated runway: %s months. Break-even month: %s. Available after launch: %s. Active budget warnings: %s.',
+            $budget->status,
+            $budget->expected_runway_months ?? 'not entered',
+            data_get($computed, 'runway_months', 'not calculated'),
+            data_get($computed, 'break_even_month', 'not reached'),
+            data_get($computed, 'available_after_launch', 0),
+            $flags !== '' ? $flags : 'none',
+        );
     }
 
     /**

@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
 use App\Http\Controllers\Admin\ProjectSettingsController;
 use App\Http\Controllers\Admin\QuestionnaireController;
+use App\Http\Controllers\Admin\RatingFrameworkController;
 use App\Http\Controllers\Admin\ReferenceDataController;
 use App\Http\Controllers\Admin\ServiceRateController;
 use App\Http\Controllers\Admin\SurveyController;
@@ -89,6 +90,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
             Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
             Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');
+
+            Route::get('rating-frameworks', [RatingFrameworkController::class, 'index'])->name('rating-frameworks.index');
+            Route::post('rating-frameworks/drafts', [RatingFrameworkController::class, 'storeDraft'])->name('rating-frameworks.drafts.store');
+            Route::post('rating-frameworks/{ratingFramework}/publish', [RatingFrameworkController::class, 'publish'])->name('rating-frameworks.publish');
         });
 
     Route::prefix('admin')

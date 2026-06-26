@@ -31,6 +31,7 @@ final class EntrepreneurAssessmentController extends Controller
                 && (string) $profile->getKey() === (string) $entrepreneurProfile->getKey(),
             404,
         );
+        $plan = $planAssessment->businessPlan;
 
         return Inertia::render('portal/entrepreneur/Assessment', [
             'profile' => [
@@ -47,6 +48,9 @@ final class EntrepreneurAssessmentController extends Controller
             'dashboardUrl' => route('advisor.entrepreneurs.show', $profile, absolute: false),
             'backUrl' => route('advisor.entrepreneurs.show', $profile, absolute: false),
             'backLabel' => 'Entrepreneur',
+            'reassessUrl' => $plan
+                ? route('advisor.entrepreneurs.plans.assessments.store', [$profile, $plan], absolute: false)
+                : null,
         ]);
     }
 }

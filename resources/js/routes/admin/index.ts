@@ -4,6 +4,7 @@ import surveys from './surveys'
 import terms from './terms'
 import partnerAgreement from './partner-agreement'
 import serviceRates from './service-rates'
+import ratingFrameworks from './rating-frameworks'
 import integrationHealth from './integration-health'
 import auditTrail from './audit-trail'
 import integrationCredentials from './integration-credentials'
@@ -21,6 +22,7 @@ surveys: Object.assign(surveys, surveys),
 terms: Object.assign(terms, terms),
 partnerAgreement: Object.assign(partnerAgreement, partnerAgreement),
 serviceRates: Object.assign(serviceRates, serviceRates),
+ratingFrameworks: Object.assign(ratingFrameworks, ratingFrameworks),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),
 auditTrail: Object.assign(auditTrail, auditTrail),
 integrationCredentials: Object.assign(integrationCredentials, integrationCredentials),

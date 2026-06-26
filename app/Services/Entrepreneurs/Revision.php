@@ -218,11 +218,16 @@ final class Revision implements ProvidesMethodology
     private function weightedScore(RatingFramework $framework, Collection $scores): float
     {
         $weights = $framework->criteria->pluck('weight', 'number');
+        $totalWeight = (float) $framework->criteria->sum('weight');
 
-        return round($scores->sum(function (array $row) use ($weights): float {
+        if ($totalWeight <= 0) {
+            return 0.0;
+        }
+
+        return round($scores->sum(function (array $row) use ($weights, $totalWeight): float {
             $weight = (float) $weights->get((int) $row['criterion_number'], (float) ($row['weight'] ?? 0));
 
-            return ((float) $row['score']) * ($weight / 100);
+            return ((float) $row['score']) * ($weight / $totalWeight);
         }), 2);
     }
 

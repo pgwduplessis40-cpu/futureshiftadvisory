@@ -56,16 +56,31 @@ final class RatingFrameworkManager implements ProvidesMethodology
             ]);
             $updatesByNumber = collect($criteriaUpdates)->keyBy('number');
 
+            $createdNumbers = [];
+
             foreach ($framework->criteria as $criterion) {
                 /** @var RatingCriterion $criterion */
                 $update = $updatesByNumber->get($criterion->number, []);
                 $next->criteria()->create([
                     'number' => $criterion->number,
-                    'name' => $criterion->name,
+                    'name' => (string) ($update['name'] ?? $criterion->name),
                     'weight' => (float) ($update['weight'] ?? $criterion->weight),
                     'descriptors' => $update['descriptors'] ?? $criterion->descriptors,
                     'industry_variants' => $update['industry_variants'] ?? $criterion->industry_variants ?? [],
                     'is_placeholder' => (bool) ($update['is_placeholder'] ?? $criterion->is_placeholder),
+                ]);
+                $createdNumbers[] = (int) $criterion->number;
+            }
+
+            foreach ($updatesByNumber->except($createdNumbers)->values() as $update) {
+                $number = (int) $update['number'];
+                $next->criteria()->create([
+                    'number' => $number,
+                    'name' => (string) ($update['name'] ?? RatingFramework::FOUNDING_CRITERIA[$number] ?? 'Criterion '.$number),
+                    'weight' => (float) ($update['weight'] ?? 0),
+                    'descriptors' => $update['descriptors'] ?? [],
+                    'industry_variants' => $update['industry_variants'] ?? [],
+                    'is_placeholder' => (bool) ($update['is_placeholder'] ?? false),
                 ]);
             }
 
@@ -134,7 +149,7 @@ final class RatingFrameworkManager implements ProvidesMethodology
     {
         $numbers = collect($criteriaValues)->pluck('number')->sort()->values()->all();
         if ($numbers !== array_keys(RatingFramework::FOUNDING_CRITERIA)) {
-            throw new InvalidArgumentException('Owner-entered framework values must cover all 11 founding criteria.');
+            throw new InvalidArgumentException('Owner-entered framework values must cover all founding criteria.');
         }
 
         $weightTotal = round((float) collect($criteriaValues)->sum('weight'), 3);

@@ -173,6 +173,12 @@ const serviceRatesNavItem: NavItem = {
     icon: BadgeDollarSign,
 };
 
+const ratingFrameworkNavItem: NavItem = {
+    title: 'Rating Framework',
+    href: '/admin/rating-frameworks',
+    icon: ClipboardCheck,
+};
+
 const termsNavItem: NavItem = {
     title: "T&C's",
     href: '/admin/terms',
@@ -309,6 +315,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     integrationCredentialsNavItem,
     projectSettingsNavItem,
     serviceRatesNavItem,
+    ratingFrameworkNavItem,
     termsNavItem,
     partnerAgreementNavItem,
     auditTrailNavItem,

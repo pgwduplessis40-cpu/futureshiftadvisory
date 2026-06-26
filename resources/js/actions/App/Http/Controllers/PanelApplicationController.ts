@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:19
+ * @see app/Http/Controllers/PanelApplicationController.php:20
  * @route '/panel/application'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:19
+ * @see app/Http/Controllers/PanelApplicationController.php:20
  * @route '/panel/application'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:19
+ * @see app/Http/Controllers/PanelApplicationController.php:20
  * @route '/panel/application'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:19
+ * @see app/Http/Controllers/PanelApplicationController.php:20
  * @route '/panel/application'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,18 +45,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\PanelApplicationController::store
- * @see app/Http/Controllers/PanelApplicationController.php:19
+ * @see app/Http/Controllers/PanelApplicationController.php:20
  * @route '/panel/application'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:35
+ * @see app/Http/Controllers/PanelApplicationController.php:36
  * @route '/panel/application'
  */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -71,7 +71,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:35
+ * @see app/Http/Controllers/PanelApplicationController.php:36
  * @route '/panel/application'
  */
 update.url = (options?: RouteQueryOptions) => {
@@ -80,7 +80,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:35
+ * @see app/Http/Controllers/PanelApplicationController.php:36
  * @route '/panel/application'
  */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -90,7 +90,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:35
+ * @see app/Http/Controllers/PanelApplicationController.php:36
  * @route '/panel/application'
  */
     const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -105,7 +105,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\PanelApplicationController::update
- * @see app/Http/Controllers/PanelApplicationController.php:35
+ * @see app/Http/Controllers/PanelApplicationController.php:36
  * @route '/panel/application'
  */
         updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

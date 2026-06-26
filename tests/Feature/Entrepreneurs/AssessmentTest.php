@@ -38,14 +38,14 @@ final class AssessmentTest extends TestCase
         app(RequestContext::class)->apply('system', []);
     }
 
-    public function test_first_pass_scores_all_eleven_criteria_with_current_framework(): void
+    public function test_first_pass_scores_all_current_framework_criteria(): void
     {
         [$advisor, $plan] = $this->plan();
 
         $assessment = app(Assessment::class)->firstPass($plan, $advisor);
 
         $this->assertInstanceOf(PlanAssessment::class, $assessment);
-        $this->assertCount(11, $assessment->ai_scores);
+        $this->assertCount(12, $assessment->ai_scores);
         $this->assertSame(2, $assessment->ratingFramework->version);
         $this->assertContains($assessment->overall_grade, ['exceptional', 'strong', 'developing', 'needs_work']);
         $this->assertSame(BusinessPlan::STATUS_ASSESSING, $plan->refresh()->status);

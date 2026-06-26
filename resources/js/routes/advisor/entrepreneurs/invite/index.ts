@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resend
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:129
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:130
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
  */
 export const resend = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ resend.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resend
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:129
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:130
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
  */
 resend.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ resend.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resend
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:129
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:130
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
  */
 resend.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ resend.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resend
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:129
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:130
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
  */
     const resendForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ resend.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resend
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:129
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:130
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite/resend'
  */
         resendForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -80,7 +80,7 @@ resend.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
     resend.form = resendForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:173
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:174
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
  */
 export const cancel = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -95,7 +95,7 @@ cancel.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:173
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:174
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
  */
 cancel.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -128,7 +128,7 @@ cancel.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:173
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:174
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
  */
 cancel.delete = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -138,7 +138,7 @@ cancel.delete = (args: { entrepreneurProfile: string | { id: string } } | [entre
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:173
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:174
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
  */
     const cancelForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -153,7 +153,7 @@ cancel.delete = (args: { entrepreneurProfile: string | { id: string } } | [entre
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:173
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:174
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/invite'
  */
         cancelForm.delete = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

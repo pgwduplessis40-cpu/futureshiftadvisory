@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Entrepreneurs;
 
 use App\Models\BusinessPlan;
+use App\Models\EntrepreneurBudget;
 use App\Models\PlanSection;
 use Illuminate\Support\Collection;
 
@@ -46,12 +47,13 @@ final class PlanRequirements
             'requirements' => [
                 ['key' => 'revenue-model', 'title' => 'Revenue model'],
                 ['key' => 'launch-funding', 'title' => 'Launch funding and support'],
+                ['key' => 'budget-runway', 'title' => 'Budget', 'type' => 'budget'],
             ],
         ],
     ];
 
     /**
-     * @return array<string, array{title:string, requirements:array<int, array{key:string, title:string}>}>
+     * @return array<string, array{title:string, requirements:array<int, array{key:string, title:string, type?:string}>}>
      */
     public static function definitions(): array
     {
@@ -75,7 +77,7 @@ final class PlanRequirements
      */
     public static function completion(BusinessPlan $plan): array
     {
-        $plan->loadMissing('sections');
+        $plan->loadMissing('sections', 'budgetRunway');
         $total = 0;
         $completed = 0;
 
@@ -83,7 +85,7 @@ final class PlanRequirements
             foreach ($definition['requirements'] as $requirement) {
                 $total++;
 
-                if (self::requirementComplete($plan->sections, $phaseKey, $requirement['key'])) {
+                if (self::requirementComplete($plan->sections, $plan->budgetRunway, $phaseKey, $requirement)) {
                     $completed++;
                 }
             }
@@ -98,7 +100,7 @@ final class PlanRequirements
 
     public static function phaseComplete(BusinessPlan $plan, string $phaseKey): bool
     {
-        $plan->loadMissing('sections');
+        $plan->loadMissing('sections', 'budgetRunway');
         $definition = self::DEFINITIONS[$phaseKey] ?? null;
 
         if (! is_array($definition)) {
@@ -106,7 +108,7 @@ final class PlanRequirements
         }
 
         foreach ($definition['requirements'] as $requirement) {
-            if (! self::requirementComplete($plan->sections, $phaseKey, $requirement['key'])) {
+            if (! self::requirementComplete($plan->sections, $plan->budgetRunway, $phaseKey, $requirement)) {
                 return false;
             }
         }
@@ -116,9 +118,16 @@ final class PlanRequirements
 
     /**
      * @param  Collection<int, PlanSection>  $sections
+     * @param  array<string, mixed>  $requirement
      */
-    private static function requirementComplete(Collection $sections, string $phaseKey, string $requirementKey): bool
+    private static function requirementComplete(Collection $sections, ?EntrepreneurBudget $budget, string $phaseKey, array $requirement): bool
     {
+        $requirementKey = (string) $requirement['key'];
+
+        if (($requirement['type'] ?? null) === 'budget') {
+            return $budget instanceof EntrepreneurBudget && $budget->status === EntrepreneurBudget::STATUS_COMPLETE;
+        }
+
         return $sections->contains(fn (PlanSection $section): bool => (
             $section->completeness_status === PlanSection::STATUS_COMPLETE
             && (

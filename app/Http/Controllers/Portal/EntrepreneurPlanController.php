@@ -10,6 +10,7 @@ use App\Http\Controllers\Controller;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Document;
+use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\MessageThread;
@@ -18,6 +19,7 @@ use App\Models\ReadinessAssessment;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
@@ -45,6 +47,8 @@ final class EntrepreneurPlanController extends Controller
     private const ADVISORY_REQUEST_SUBJECT = 'Advisory conversion request';
 
     private const GAMIFICATION_DISABLE_REQUEST_SUBJECT = 'Gamification disable request';
+
+    private const BUDGET_UNLOCK_REQUIREMENT_KEY = 'business-type-location';
 
     private const READINESS_FIELDS = [
         'concept_clarity' => 'Concept clarity',
@@ -141,6 +145,12 @@ final class EntrepreneurPlanController extends Controller
                     'title' => 'Launch funding and support',
                     'description' => 'Describe start-up funding, support needed, runway, and financial risk controls.',
                 ],
+                [
+                    'key' => 'budget-runway',
+                    'title' => 'Budget',
+                    'description' => 'Enter launch costs, monthly costs, revenue assumptions, funding sources, and expected runway.',
+                    'type' => 'budget',
+                ],
             ],
         ],
     ];
@@ -155,6 +165,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly MessageThreadService $messages,
         private readonly PdfRenderer $pdf,
         private readonly AuditWriter $audit,
+        private readonly EntrepreneurBudgetService $budgets,
         private readonly EntrepreneurMilestones $milestones,
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
@@ -185,6 +196,9 @@ final class EntrepreneurPlanController extends Controller
                 'ideaValidation' => route('portal.entrepreneur.idea-validation.store', absolute: false),
                 'startPlan' => route('portal.entrepreneur.plan.start', absolute: false),
                 'sectionStore' => route('portal.entrepreneur.plan.sections.store', absolute: false),
+                'budgetUpdate' => route('portal.entrepreneur.plan.budget.update', absolute: false),
+                'budgetFlagAcknowledge' => route('portal.entrepreneur.plan.budget.flags.acknowledge', absolute: false),
+                'budgetAdvisorNudgeDismiss' => route('portal.entrepreneur.plan.budget.advisor-nudge.dismiss', absolute: false),
                 'assistRequirement' => route('portal.entrepreneur.plan.requirements.assist', absolute: false),
                 'preview' => route('portal.entrepreneur.plan.preview', absolute: false),
                 'submit' => route('portal.entrepreneur.plan.submit', absolute: false),
@@ -318,6 +332,84 @@ final class EntrepreneurPlanController extends Controller
         }
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-section-saved');
+    }
+
+    public function budget(Request $request): RedirectResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        if (! $this->budgetUnlocked($plan)) {
+            return to_route('portal.entrepreneur.plan.show')
+                ->with('status', 'entrepreneur-budget-locked')
+                ->with('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model before setting up the budget.');
+        }
+
+        $validated = $request->validate([
+            'expected_runway_months' => ['nullable', 'integer', 'min:0', 'max:60'],
+            'launch_costs' => ['array', 'max:50'],
+            'launch_costs.*.label' => ['nullable', 'string', 'max:180'],
+            'launch_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'launch_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'launch_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
+            'monthly_fixed_costs' => ['array', 'max:50'],
+            'monthly_fixed_costs.*.label' => ['nullable', 'string', 'max:180'],
+            'monthly_fixed_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'monthly_fixed_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'monthly_fixed_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
+            'revenue_forecast' => ['array', 'max:50'],
+            'revenue_forecast.*.label' => ['nullable', 'string', 'max:180'],
+            'revenue_forecast.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'revenue_forecast.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'revenue_forecast.*.month' => ['nullable', 'integer', 'min:1', 'max:12'],
+            'revenue_forecast.*.monthly_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'revenue_forecast.*.variable_cost_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'revenue_forecast.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
+            'funding_sources' => ['array', 'max:50'],
+            'funding_sources.*.label' => ['nullable', 'string', 'max:180'],
+            'funding_sources.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'funding_sources.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'funding_sources.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
+        ]);
+
+        $this->budgets->update($plan, $validated, $user);
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-budget-saved');
+    }
+
+    public function acknowledgeBudgetFlag(Request $request): RedirectResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        $validated = $request->validate([
+            'key' => ['required', 'string', 'max:80'],
+        ]);
+        $budget = $plan->budgetRunway()->first();
+        abort_unless($budget instanceof EntrepreneurBudget, 404);
+
+        $this->budgets->acknowledgeFlag($budget, (string) $validated['key'], $user);
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-budget-flag-acknowledged');
+    }
+
+    public function dismissBudgetAdvisorNudge(Request $request): RedirectResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        $budget = $plan->budgetRunway()->first();
+        abort_unless($budget instanceof EntrepreneurBudget, 404);
+
+        $this->budgets->dismissAdvisorLineNudge($budget, $user);
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-budget-advisor-nudge-dismissed');
     }
 
     public function assistRequirement(Request $request): JsonResponse
@@ -538,7 +630,7 @@ final class EntrepreneurPlanController extends Controller
      */
     private function planPayload(BusinessPlan $plan): array
     {
-        $plan->loadMissing('phases.sections', 'assessments.ratingFramework.criteria');
+        $plan->loadMissing('phases.sections', 'assessments.ratingFramework.criteria', 'budgetRunway');
         $phasesByKey = $plan->phases->keyBy('key');
         $requirements = $this->requirementsPayload($plan);
         $completion = $this->requirementsCompletion($plan, $requirements);
@@ -552,6 +644,7 @@ final class EntrepreneurPlanController extends Controller
             'updated_at' => $plan->updated_at?->toIso8601String(),
             'requirements_complete' => $completion['complete'],
             'missing_requirements' => $completion['missing'],
+            'budget' => $this->budgetPayload($plan->budgetRunway),
             'latest_assessment' => $latestAssessment ? [
                 'id' => $latestAssessment->id,
                 'round' => $latestAssessment->round,
@@ -622,24 +715,28 @@ final class EntrepreneurPlanController extends Controller
      */
     private function requirementsPayload(BusinessPlan $plan): array
     {
+        $plan->loadMissing('budgetRunway');
         $sections = $plan->sections;
+        $budget = $plan->budgetRunway;
 
         return collect(self::PLAN_REQUIREMENTS)
-            ->mapWithKeys(function (array $definition, string $phaseKey) use ($sections): array {
+            ->mapWithKeys(function (array $definition, string $phaseKey) use ($sections, $budget): array {
                 return [
                     $phaseKey => collect($definition['requirements'])
-                        ->map(function (array $requirement) use ($phaseKey, $definition, $sections): array {
+                        ->map(function (array $requirement) use ($phaseKey, $definition, $sections, $budget): array {
                             $section = $sections->first(fn (PlanSection $candidate): bool => (
                                 (string) data_get($candidate->metadata, 'requirement_key') === $requirement['key']
                                 || $candidate->key === 'founder-'.$phaseKey.'-'.$requirement['key']
                             ));
+                            $isBudget = ($requirement['type'] ?? null) === 'budget';
 
                             return [
                                 ...$requirement,
                                 'phase_key' => $phaseKey,
                                 'phase_title' => $definition['title'],
-                                'complete' => $section instanceof PlanSection
-                                    && $section->completeness_status === PlanSection::STATUS_COMPLETE,
+                                'complete' => $isBudget
+                                    ? $budget instanceof EntrepreneurBudget && $budget->status === EntrepreneurBudget::STATUS_COMPLETE
+                                    : $section instanceof PlanSection && $section->completeness_status === PlanSection::STATUS_COMPLETE,
                                 'section_id' => $section?->id,
                                 'section_title' => $section?->title,
                             ];
@@ -649,6 +746,37 @@ final class EntrepreneurPlanController extends Controller
                 ];
             })
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function budgetPayload(?EntrepreneurBudget $budget): array
+    {
+        return [
+            'id' => $budget?->id,
+            'expected_runway_months' => $budget?->expected_runway_months,
+            'status' => $budget?->status ?? EntrepreneurBudget::STATUS_NOT_STARTED,
+            'launch_costs' => $budget?->launch_costs ?? [],
+            'monthly_fixed_costs' => $budget?->monthly_fixed_costs ?? [],
+            'revenue_forecast' => $budget?->revenue_forecast ?? [],
+            'funding_sources' => $budget?->funding_sources ?? [],
+            'computed' => $budget?->computed ?? [
+                'total_launch_costs' => 0,
+                'monthly_fixed_costs' => 0,
+                'total_funding' => 0,
+                'available_after_launch' => 0,
+                'runway_months' => null,
+                'runway_open_ended' => false,
+                'break_even_month' => null,
+                'break_even_reached' => false,
+                'monthly_series' => [],
+                'populated_inputs' => [],
+            ],
+            'flags' => $budget?->flags ?? [],
+            'active_flags' => $budget instanceof EntrepreneurBudget ? $this->budgets->activeFlags($budget) : [],
+            'advisor_line_nudge_seen_at' => $budget?->advisor_line_nudge_seen_at?->toIso8601String(),
+        ];
     }
 
     /**
@@ -674,6 +802,19 @@ final class EntrepreneurPlanController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function budgetUnlocked(BusinessPlan $plan): bool
+    {
+        $plan->loadMissing('sections');
+
+        return $plan->sections->contains(fn (PlanSection $section): bool => (
+            $section->completeness_status === PlanSection::STATUS_COMPLETE
+            && (
+                (string) data_get($section->metadata, 'requirement_key') === self::BUDGET_UNLOCK_REQUIREMENT_KEY
+                || $section->key === 'founder-foundation-'.self::BUDGET_UNLOCK_REQUIREMENT_KEY
+            )
+        ));
     }
 
     /**

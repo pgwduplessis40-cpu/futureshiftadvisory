@@ -1,7 +1,9 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    AlertTriangle,
     ArrowLeft,
     ArrowUpRight,
+    Banknote,
     CheckCircle2,
     ClipboardCheck,
     Copy,
@@ -34,6 +36,11 @@ type Props = {
 
 export default function EntrepreneursShow({ entrepreneur }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
+    const latestAssessmentUsesCurrentRubric =
+        latestAssessment?.rating_framework.is_current ?? true;
+    const canRunAssessment =
+        !!entrepreneur.latest_plan &&
+        (!latestAssessment || !latestAssessmentUsesCurrentRubric);
     const gamification = entrepreneur.gamification;
     const [gamificationEnabled, setGamificationEnabled] = useState(
         gamification.enabled,
@@ -381,7 +388,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     </Link>
                                 </Button>
                             ) : null}
-                            {entrepreneur.latest_plan && !latestAssessment ? (
+                            {canRunAssessment ? (
                                 <Button
                                     type="button"
                                     size="sm"
@@ -395,11 +402,20 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                         )
                                     }
                                 >
-                                    <ClipboardCheck
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Run assessment
+                                    {latestAssessment ? (
+                                        <RefreshCw
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <ClipboardCheck
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    {latestAssessment
+                                        ? 'Run reassessment'
+                                        : 'Run assessment'}
                                 </Button>
                             ) : null}
                             {latestAssessment &&
@@ -434,6 +450,69 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             </Button>
                         </div>
                     </div>
+
+                    {latestAssessment && !latestAssessmentUsesCurrentRubric ? (
+                        <div className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-center">
+                            <div className="flex gap-3">
+                                <AlertTriangle
+                                    className="mt-0.5 size-4 shrink-0"
+                                    aria-hidden="true"
+                                />
+                                <div>
+                                    <p className="font-medium">
+                                        Latest assessment uses an older rubric
+                                    </p>
+                                    <p>
+                                        Round {latestAssessment.round} uses
+                                        {formatRubricVersion(
+                                            latestAssessment.rating_framework
+                                                .version,
+                                        )}{' '}
+                                        with{' '}
+                                        {
+                                            latestAssessment.rating_framework
+                                                .criteria_count
+                                        }{' '}
+                                        criteria. The current published rubric
+                                        is{' '}
+                                        {formatRubricVersion(
+                                            latestAssessment.rating_framework
+                                                .current_version,
+                                        )}{' '}
+                                        with{' '}
+                                        {latestAssessment.rating_framework
+                                            .current_criteria_count ?? '-'}{' '}
+                                        criteria
+                                        {latestAssessment.rating_framework
+                                            .current_has_budget
+                                            ? ', including Budget'
+                                            : ''}
+                                        .
+                                    </p>
+                                </div>
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                onClick={() =>
+                                    router.post(
+                                        entrepreneur.latest_plan
+                                            ?.assess_url ?? '',
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Run reassessment
+                            </Button>
+                        </div>
+                    ) : null}
 
                     {entrepreneur.idea_validation &&
                     !entrepreneur.idea_validation.advisor_gate_passed_at ? (
@@ -517,7 +596,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                     </div>
 
                     {gamificationEnabled ? (
-                        <div className="grid gap-4 md:grid-cols-3">
+                        <div className="grid gap-4 md:grid-cols-4">
                             <ActionMetric
                                 label="Journey"
                                 value={gamification.current_level?.label ?? '-'}
@@ -1012,6 +1091,64 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 ]}
                                 footer="Trajectory compares the latest plan revision against the prior scoring baseline."
                             />
+                            <ActionMetric
+                                label="Budget"
+                                value={formatRunway(
+                                    entrepreneur.latest_plan.budget
+                                        .calculated_runway_months,
+                                    entrepreneur.latest_plan.budget
+                                        .runway_open_ended,
+                                )}
+                                icon={
+                                    <Banknote
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                }
+                                hoverTitle="Budget runway"
+                                rows={[
+                                    {
+                                        label: 'Status',
+                                        value: gradeLabel(
+                                            entrepreneur.latest_plan.budget
+                                                .status,
+                                        ),
+                                    },
+                                    {
+                                        label: 'Expected runway',
+                                        value: formatRunway(
+                                            entrepreneur.latest_plan.budget
+                                                .expected_runway_months,
+                                            false,
+                                        ),
+                                    },
+                                    {
+                                        label: 'After launch',
+                                        value: formatCurrency(
+                                            entrepreneur.latest_plan.budget
+                                                .available_after_launch,
+                                        ),
+                                    },
+                                    {
+                                        label: 'Active warnings',
+                                        value: entrepreneur.latest_plan.budget
+                                            .active_flags.length,
+                                        tone:
+                                            entrepreneur.latest_plan.budget
+                                                .active_flags.length > 0
+                                                ? 'negative'
+                                                : 'muted',
+                                    },
+                                ]}
+                                footer={
+                                    entrepreneur.latest_plan.budget.active_flags
+                                        .length > 0
+                                        ? entrepreneur.latest_plan.budget.active_flags
+                                              .map((flag) => flag.title)
+                                              .join(' ')
+                                        : 'No unresolved budget warnings.'
+                                }
+                            />
                         </div>
 
                         {entrepreneur.latest_plan.latest_revision ? (
@@ -1306,11 +1443,34 @@ function formatDelta(value: number | null | undefined, suffix = ''): string {
     return `${sign}${value.toFixed(1)}${suffix}`;
 }
 
+function formatRubricVersion(value: number | null): string {
+    return value ? `rubric v${value}` : 'the assigned rubric';
+}
+
 function gradeLabel(value: string): string {
     return value
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatCurrency(value: number | null | undefined): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'NZD',
+        maximumFractionDigits: 0,
+    }).format(value ?? 0);
+}
+
+function formatRunway(
+    months: number | null | undefined,
+    openEnded: boolean,
+): string {
+    if (months === null || months === undefined) {
+        return '-';
+    }
+
+    return openEnded ? `${months}+ months` : `${months} months`;
 }
 
 function categoryLabel(value: string): string {

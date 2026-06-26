@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 
 final class BusinessPlan extends Model
 {
@@ -94,6 +95,14 @@ final class BusinessPlan extends Model
     public function sections(): HasMany
     {
         return $this->hasMany(PlanSection::class);
+    }
+
+    /**
+     * @return HasOne<EntrepreneurBudget>
+     */
+    public function budgetRunway(): HasOne
+    {
+        return $this->hasOne(EntrepreneurBudget::class);
     }
 
     /**

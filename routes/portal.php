@@ -45,6 +45,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/plan/requirements/assist', [EntrepreneurPlanController::class, 'assistRequirement'])->name('entrepreneur.plan.requirements.assist');
         Route::post('entrepreneur/plan/sections', [EntrepreneurPlanController::class, 'section'])->name('entrepreneur.plan.sections.store');
         Route::post('entrepreneur/plan/sections/{planSection}/guidance', [EntrepreneurPlanController::class, 'guidance'])->name('entrepreneur.plan.sections.guidance');
+        Route::post('entrepreneur/plan/budget', [EntrepreneurPlanController::class, 'budget'])->name('entrepreneur.plan.budget.update');
+        Route::post('entrepreneur/plan/budget/flags/acknowledge', [EntrepreneurPlanController::class, 'acknowledgeBudgetFlag'])->name('entrepreneur.plan.budget.flags.acknowledge');
+        Route::post('entrepreneur/plan/budget/advisor-nudge/dismiss', [EntrepreneurPlanController::class, 'dismissBudgetAdvisorNudge'])->name('entrepreneur.plan.budget.advisor-nudge.dismiss');
         Route::post('entrepreneur/plan/submit', [EntrepreneurPlanController::class, 'submit'])->name('entrepreneur.plan.submit');
         Route::post('entrepreneur/advisory-request', [EntrepreneurPlanController::class, 'requestAdvisory'])->name('entrepreneur.advisory-request.store');
         Route::post('entrepreneur/gamification/disable-request', [EntrepreneurGamificationController::class, 'requestDisable'])->name('entrepreneur.gamification.disable-request');

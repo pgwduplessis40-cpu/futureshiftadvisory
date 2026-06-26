@@ -1,8 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:231
- * @route '/portal/entrepreneur/readiness'
+* @see \App\Http\Controllers\Admin\RatingFrameworkController::store
+ * @see app/Http/Controllers/Admin/RatingFrameworkController.php:40
+ * @route '/admin/rating-frameworks/drafts'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
@@ -11,22 +11,22 @@ export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => (
 
 store.definition = {
     methods: ["post"],
-    url: '/portal/entrepreneur/readiness',
+    url: '/admin/rating-frameworks/drafts',
 } satisfies RouteDefinition<["post"]>
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:231
- * @route '/portal/entrepreneur/readiness'
+* @see \App\Http\Controllers\Admin\RatingFrameworkController::store
+ * @see app/Http/Controllers/Admin/RatingFrameworkController.php:40
+ * @route '/admin/rating-frameworks/drafts'
  */
 store.url = (options?: RouteQueryOptions) => {
     return store.definition.url + queryParams(options)
 }
 
 /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:231
- * @route '/portal/entrepreneur/readiness'
+* @see \App\Http\Controllers\Admin\RatingFrameworkController::store
+ * @see app/Http/Controllers/Admin/RatingFrameworkController.php:40
+ * @route '/admin/rating-frameworks/drafts'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     url: store.url(options),
@@ -34,9 +34,9 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 })
 
     /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:231
- * @route '/portal/entrepreneur/readiness'
+* @see \App\Http\Controllers\Admin\RatingFrameworkController::store
+ * @see app/Http/Controllers/Admin/RatingFrameworkController.php:40
+ * @route '/admin/rating-frameworks/drafts'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: store.url(options),
@@ -44,9 +44,9 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     })
 
             /**
-* @see \App\Http\Controllers\Portal\EntrepreneurPlanController::store
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:231
- * @route '/portal/entrepreneur/readiness'
+* @see \App\Http\Controllers\Admin\RatingFrameworkController::store
+ * @see app/Http/Controllers/Admin/RatingFrameworkController.php:40
+ * @route '/admin/rating-frameworks/drafts'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
@@ -54,8 +54,8 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
         })
 
     store.form = storeForm
-const readiness = {
+const drafts = {
     store: Object.assign(store, store),
 }
 
-export default readiness
+export default drafts

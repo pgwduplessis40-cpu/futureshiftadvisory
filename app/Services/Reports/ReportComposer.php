@@ -1791,7 +1791,13 @@ final class ReportComposer implements ProvidesMethodology
      */
     private function weightedEntrepreneurScore(RatingFramework $framework, Collection $criteria): float
     {
-        return round($criteria->sum(fn (array $row): float => ((float) $row['score']) * (((float) $row['weight']) / 100)), 2);
+        $totalWeight = (float) $criteria->sum('weight');
+
+        if ($totalWeight <= 0) {
+            return 0.0;
+        }
+
+        return round($criteria->sum(fn (array $row): float => ((float) $row['score']) * (((float) $row['weight']) / $totalWeight)), 2);
     }
 
     private function createEntrepreneurConceptPv(

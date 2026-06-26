@@ -44,9 +44,34 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             overall_grade: string;
             weighted_score: number;
             finalised_at: string | null;
+            rating_framework: {
+                id: string | null;
+                version: number | null;
+                criteria_count: number;
+                published_at: string | null;
+                is_current: boolean;
+                current_version: number | null;
+                current_criteria_count: number | null;
+                current_published_at: string | null;
+                current_has_budget: boolean;
+            };
             url: string;
             finalise_url: string;
         } | null;
+        budget: {
+            status: string;
+            expected_runway_months: number | null;
+            calculated_runway_months: number | null;
+            runway_open_ended: boolean;
+            break_even_month: number | null;
+            available_after_launch: number | null;
+            active_flags: {
+                key: string;
+                title: string;
+                message: string;
+                severity: string;
+            }[];
+        };
         assess_url: string;
         latest_revision: {
             id: string;

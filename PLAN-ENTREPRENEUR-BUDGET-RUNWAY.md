@@ -22,7 +22,79 @@ an `entrepreneur_concept_id` (per-concept milestones).
 B4 (advisor cost line) → B5 (charts) → B6 (scoring + framework recalibration) → B7 (AI Assist nudge +
 gamification tie-in). Each its own green commit on `featureApp`; `main` fast-forwards only when green
 (`-d memory_limit=2048M`).
-**Plan version:** 1.15 — owner decisions + fifteen code-grounded review passes. *(Build target: Codex, into the test env, then push to live.)*
+**Plan version:** 1.23 — admin-maintained rubric + owner budget-rubric weights/descriptors supplied + twenty code-grounded review passes. *(Build target: Codex, into the test env, then push to live.)*
+
+> **v1.23 revision (owner direction — rubric must be admin-maintainable over time).** Add a dedicated Admin
+> rubric management surface for the entrepreneur `RatingFramework`: Admin can view the current published rubric,
+> inspect prior versions, draft changes to criteria/weights/descriptors/grade bands, validate weights = 100, and
+> publish a new version with audit/history. Published frameworks are never edited in place; old assessments keep
+> their original `rating_framework_id`, while new assessments use the latest published version. Layer 18 learning
+> updates may propose changes, but Admin approval/publish remains the business control (§6, §11, B6).
+
+> **v1.22 revision (owner rubric update — Budget descriptors approved).** The owner approved the standard
+> descriptor pattern for criterion #12 **Budget**, so B6 now has concrete production seeder values: name
+> `Budget`, weight `12%`, the 12-weight set from v1.21, and the standard four grade-band descriptors.
+
+> **v1.21 revision (owner rubric update — budget criterion weights supplied).** The owner supplied the official
+> 12-criterion weight set from the rubric image: #12 is **Budget** at **12%**; the existing criteria are reweighted
+> to `8 / 7 / 8 / 8 / 9 / 8 / 8 / 7 / 9 / 8 / 8 / 12`, totaling 100. B6's seeder is no longer blocked on the
+> criterion name or weights. The only remaining rubric confirmation is the **Budget grade-band descriptor text**:
+> either use the same standard descriptor pattern as the current 11 criteria, or provide bespoke
+> `exceptional` / `strong` / `developing` / `needs_work` wording (§6, §13.2, B6).
+
+> **v1.20 revision (review pass — whole-report refusal + advisor gap-resolution).** Two fixes:
+> (P1) **ReportComposer refuses the whole report on gaps** — the report is built around a *required* `PvCalculation`
+> ([:1159](app/Services/Reports/ReportComposer.php:1159)), so the gate sits at the top ([:312-314](app/Services/Reports/ReportComposer.php:312))
+> and creates **no** Report/PV/sections/PDF/audit while `dataGaps` exist — not just "skip the PV" (§6, B6, §11).
+> (P2) **Advisor scoring resolves a gap** — an advisor row (`criterion_number` + numeric `score`) clears a
+> missing-score gap; metadata defaults to `complete`/`1.0`/null when the AI row has none, but **keeps explicit
+> AI excluded/partial metadata** when present (§6, B6, §11).
+
+> **v1.19 revision (review pass — the sentinel's transition + payload override).** Two fixes:
+> (P1) **`finalise()` must do the `incomplete`→band transition** — today it only timestamps + awards milestones
+> ([Assessment.php:151-164](app/Services/Entrepreneurs/Assessment.php:151)); it must recompute a gap-free
+> `ScoringResult`, assert no `dataGaps`, and persist the real band **before** the milestone snapshot
+> ([EntrepreneurMilestones:329](app/Services/Entrepreneurs/EntrepreneurMilestones.php:329)) (§6, B6, §11).
+> (P2) **Payload must not override the sentinel** — `BuildsEntrepreneurAssessmentPayload` recomputes
+> `gradeFor(sum(contribution))` ([:20-27](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:20)),
+> shown on dashboard/advisor cards; it must return `overall_grade='incomplete'` + `dataGaps` when gaps exist so
+> cards match the raw column (§6, B6, §11).
+> **Plus — `overall_grade` write/read map** added to §6 (code-derived): the three column writers, the gated
+> report-content embeddings, and the payload/raw readers — every grade site enumerated and covered, so "missed a
+> grade site" is answered from a grep.
+
+> **v1.18 revision (review pass — the gap state's last two leak paths).** Two fixes:
+> (P1) **Incomplete grade can't leak as authoritative** — `firstPass()` persists `overall_grade = 'incomplete'`
+> (sentinel, not a band) while `dataGaps` exist ([Assessment.php:66](app/Services/Entrepreneurs/Assessment.php:66)),
+> so raw-grade displays (`EntrepreneurDashboardController:85`, `EntrepreneurPlanController:559`) show *Incomplete*
+> rather than a grade computed over dropped criteria (§6, B6, §11).
+> (P2) **ReportComposer reclassified as a write path** — it creates the Concept PV ([:316-320](app/Services/Reports/ReportComposer.php:316))
+> and overwrites `overall_grade`/`concept_pv_calculation_id` ([:322-326](app/Services/Reports/ReportComposer.php:322));
+> it now **skips PV-creation + grade persistence on gaps**, not treated as display (§6, B6, §11).
+
+> **v1.17 revision (review pass — gap gate reaches all consumers; legacy advisor shapes).** Two fixes:
+> (P1) **Data-gap gate generalised beyond `finalise()`** — `LivingPlan::reassess()` runs `AdvisoryReadiness::evaluate()`
+> on a fresh pre-finalise assessment ([LivingPlan.php:89](app/Services/Entrepreneurs/LivingPlan.php:89),
+> [AdvisoryReadiness.php:32](app/Services/Entrepreneurs/AdvisoryReadiness.php:32)), so **every decision consumer**
+> (finalise, readiness evaluate, living-plan reassess, grade-up, benchmarking) skips/blocks on `dataGaps`, not
+> just finalisation (§6, B6, §11).
+> (P2) **Legacy `advisor_scores` migrated too** — the two fixtures also store summary advisor shapes
+> (`{overall, note}`, `TestingSeedDataSeeder:1358` / `GamificationTest:154`); B6 migrates/drops them, and the
+> helper's `criterion_number`-keyed advisor lookup ignores a stray summary blob (§6, B6, §11).
+> **Plus — exhaustive consumer map** added to §6 (code-derived): every weighted-score computer, every decision
+> consumer that gates on `dataGaps` (incl. the newly-spotted `Revision` deltas), every display consumer, **and
+> the explicit exclusions** (`NpoHealthScorer`, `DataQuality*`, unrelated `evaluate()`s) — so "you missed a call
+> site" is now answered from a grep, not reactively.
+
+> **v1.16 revision (review pass — concrete helper contract).** Three fixes:
+> (P1) **Data-gap behaviour made concrete** — the helper returns `ScoringResult { overall, rows[], dataGaps[] }`;
+> a gap criterion is dropped from `overall` (not zeroed) and listed in `dataGaps`; **`Assessment::finalise()`
+> blocks** while gaps remain; readers read `->overall` (drop-in for the float). No more vague "surfaced" (§6, B6, §11).
+> (P2) **Legacy fixtures resolved** — the two **non-canonical** shapes (`TestingSeedDataSeeder:1352` name-keyed,
+> `GamificationTest:153` bare list) are **migrated to canonical rows** in B6; the `complete`/`1.0`/null default
+> covers only canonical-but-metadata-less rows (§6, B6, §11).
+> (P2) **`contribution` formula corrected** — `score × (effective_weight / 100)` (percentages sum to 100),
+> matching `BuildsEntrepreneurAssessmentPayload:81`; not `score × effective_weight` (100× too large) (§6, B6, §11).
 
 > **v1.15 revision (review pass — the weighting contract's output shape + gap/default boundary).** Two fixes:
 > (P1) **Default vs data-gap tightened** — the `complete`/`1.0`/null default fires only on a **valid** score
@@ -401,12 +473,37 @@ the existing project/reference settings pattern.
     `RatingFrameworkManager::queueGovernedChange()` (**Layer 18, governed, owner-approved**), then
     `revise()` → `publish()` a new version. The owner confirms the recalibrated weights; nothing
     self-applies (CLAUDE.md).
-- **⛔ BLOCKED on owner input (the seeder's *concrete values*, see §13.2).** The seeder's **mechanics** below are
-  fully buildable, but its **data is not inventable**: criterion **#12**'s name, its four grade-band descriptors
-  (exceptional / strong / developing / needs_work), and the **recalibrated 12-criterion weight set summing to
-  100** are owner-set rubric values (governed; CLAUDE.md "nothing self-applies"). Until the owner supplies them,
-  `BudgetCriterionRevisionSeeder` is a **stub** and B6's seeder + its tests are blocked. The rest of B6 (manager
-  add-criterion capability, the shared normalisation helper, scorer evidence, audit) is **not** blocked.
+- **Owner-supplied 12-criterion baseline values (v1.21).** The seeder's mechanics below are buildable, and the
+  owner has now supplied the criterion name + recalibrated weights from the rubric image. Criterion **#12** is
+  **Budget** at **12%**; all 12 weights sum to 100:
+  `1 Type of business 8`, `2 Location 7`, `3 Means of doing business 8`, `4 Discuss the industry 8`,
+  `5 What sets the business apart 9`, `6 Describe unique success factors 8`,
+  `7 Mission and Vision statement 8`, `8 Intellectual property 7`, `9 Goals and objectives 9`, `10 Culture 8`,
+  `11 Legal Environment 8`, `12 Budget 12`. The owner has also approved the **standard descriptor pattern** for
+  `Budget`, so the production seeder has concrete descriptor text:
+  - `exceptional`: Budget is specific, evidence-backed, internally consistent, and ready for advisor-supported execution.
+  - `strong`: Budget is clear and mostly evidenced, with only minor advisor follow-up required.
+  - `developing`: Budget is directionally useful but has material gaps or assumptions to test before launch.
+  - `needs_work`: Budget is too vague, unsupported, or inconsistent to rely on for launch decisions.
+- **Admin-maintained rubric over time (v1.23).** The budget seeder is only the baseline. Because the rubric is a
+  business instrument, Admin must be able to **view and maintain** it as the business changes:
+  - Add an Admin rubric page for the entrepreneur `RatingFramework` (e.g. `Admin\RatingFrameworkController` /
+    `admin.rating-frameworks.*`) showing the latest published framework, criteria, weights, descriptors, grade
+    bands, production-ready status, published dates, and prior versions.
+  - Admin can create a **draft revision from the latest published framework**, edit criterion names, weights,
+    descriptors, grade bands, add a new criterion, or mark a criterion inactive/deprecated for future versions.
+    **Never edit a published framework in place.** Publishing creates a new `rating_frameworks.version` with
+    `supersedes_framework_id`; existing assessments keep their original `rating_framework_id` and replay under
+    their historical rubric.
+  - Validation before publish: criterion numbers unique; every active criterion has all grade-band descriptors;
+    active weights sum to exactly 100; grade bands are ordered and cover 0+; a change reason is required; no
+    future published version is downgraded by an older draft.
+  - Governance: reuse/extend `RatingFrameworkManager::revise()` + `publish()` for the Admin path, with audit
+    events for draft creation, publication, and rollback/deprecation. Layer 18 (`Entrepreneur rating framework
+    review`) and `queueGovernedChange()` may propose changes, but they prefill/stage drafts only; Admin approval
+    remains required before the rubric affects new assessments.
+  - Permissions: Admin users with learning/rubric view permission can read current + historical rubrics; publish
+    requires the approval/manage permission and MFA, matching the existing learning-update admin posture.
 - **Fresh-install + test rollout — don't leave the criterion runtime-only (P2).** `RatingFramework::FOUNDING_CRITERIA`
   (the 11-entry constant) is the **immutable founding baseline** and **stays 11** — the budget criterion is
   **data in a governed revision, not a 12th founding constant**. So the **founding** seeds/tests are correct
@@ -474,17 +571,96 @@ the existing project/reference settings pattern.
   per-service weighted-score math.** B6 must **grep the codebase** for weighted-score computations
   (`weightedScore` / criterion-weight sums / `gradeFor` callers) and confirm **none** compute their own after
   this — a regression test asserts excluded-criterion handling is identical across all readers.
+  - **Concrete return contract — a `ScoringResult` value object, not a bare float (P1).** Today readers return
+    a float immediately (e.g. `AdvisoryReadiness::score` returns `round(...)`,
+    [:79-93](app/Services/Entrepreneurs/AdvisoryReadiness.php:79)), so "surfaced data gap" needs a real shape.
+    The helper returns **`ScoringResult { overall: float, rows: [...], dataGaps: [{criterion_number, reason}] }`**:
+    - **`overall`** renormalises over criteria that have a **usable score** *or* an explicit **exclusion**;
+      a **data-gap** criterion (no valid score, no `excluded_reason`) is **dropped from the weighted sum and
+      listed in `dataGaps`** — never silently zeroed, never silently excluded.
+    - **Readers** that only need the number read `->overall` (drop-in for today's float); UI/learning readers
+      may also surface `dataGaps` (a "N criteria unscored" indicator). The helper **never throws** on a gap.
+    - **Enforcement — every *decision* consumer gates on `dataGaps`, not just `finalise()` (P1).** Blocking only
+      finalisation is insufficient: a fresh first-pass assessment is consumed **before** finalisation —
+      `LivingPlan::reassess()` calls `AdvisoryReadiness::evaluate()` on a just-created assessment
+      ([LivingPlan.php:89](app/Services/Entrepreneurs/LivingPlan.php:89)), and `evaluate()` simply takes the
+      latest assessment and scores it against the readiness threshold
+      ([AdvisoryReadiness.php:32-43](app/Services/Entrepreneurs/AdvisoryReadiness.php:32)). So **a partial score
+      could emit a readiness signal**. Rule: any consumer that uses `overall` for a **decision** must
+      **skip/defer while `dataGaps` is non-empty** — concretely `Assessment::finalise()`
+      ([:151](app/Services/Entrepreneurs/Assessment.php:151)) **blocks**, and `AdvisoryReadiness::evaluate()`,
+      `LivingPlan::reassess()`, the grade-up milestone award (`EntrepreneurMilestones`), and `Benchmarking`
+      contribution all **return early / no-op** on gaps. **Pure *display* reads** may render `overall` but must
+      show the "N unscored" indicator — **a report's PV-creation/score-persistence is _not_ display** (see
+      ReportComposer in the consumer map). **And the persisted grade must not look authoritative while gaps
+      exist (P1):** `firstPass()` persists **`overall_grade = 'incomplete'`** (a sentinel, **not** a band) when
+      `dataGaps` is non-empty ([Assessment.php:66](app/Services/Entrepreneurs/Assessment.php:66)), recomputing a
+      real band only once **every** criterion is scored. So screens reading the **raw** column
+      (`EntrepreneurDashboardController:85`, `EntrepreneurPlanController:559`, gamification, survey label) show
+      *Incomplete*, not a misleading grade — no need to rewire each display to recompute.
+      `GRADE_RANK['incomplete'] ?? 0` already keeps it non-promotable for grade-up. Mirrors spec §9
+      (discrepancies pause downstream until resolved).
+      - **`finalise()` performs the sentinel→band transition (P1).** Today `finalise()` only timestamps + awards
+        milestones ([Assessment.php:151-164](app/Services/Entrepreneurs/Assessment.php:151)) — it never recomputes
+        the grade, so a gap resolved on the same assessment would finalise (and `EntrepreneurMilestones` snapshot,
+        [:329](app/Services/Entrepreneurs/EntrepreneurMilestones.php:329)) the stale `incomplete` sentinel. So
+        `finalise()` must **first recompute a gap-free `ScoringResult` from the merged ai+advisor scores, assert
+        `dataGaps` is empty (the gate), and persist the real `overall_grade` band — then** award milestones and
+        permit the report. No path may finalise/milestone/report off the sentinel.
+      - **The payload must not re-derive a band over the sentinel (P2).** `BuildsEntrepreneurAssessmentPayload`
+        today does `gradeFor(round(sum(contribution)))` ([:20-27](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:20)),
+        exposed on the dashboard ([EntrepreneurDashboardController:90](app/Http/Controllers/Portal/EntrepreneurDashboardController.php:90))
+        and advisor detail ([Advisor\EntrepreneurController:354](app/Http/Controllers/Advisor/EntrepreneurController.php:354))
+        — so a card could show a **band** while the raw column shows *Incomplete*. The builder must consume the
+        helper's `ScoringResult` and return **`overall_grade = 'incomplete'` + the `dataGaps` count/rows** when
+        gaps exist, so cards/details match the raw column and carry the "N unscored" indicator.
+      - **`overall_grade` write/read map (code-derived — the complete set, so no grade site is missed).**
+        **Writers** of the column: `Assessment:66` (firstPass → `incomplete` on gaps), `finalise()` (recompute to
+        real band), `ReportComposer:324` (gated on gaps) — the only three. **Report-content grade embeddings**
+        (`ReportComposer:342/366/1723/1831`) are all **downstream of the ReportComposer gap-gate**, so no report
+        renders an incomplete grade. **Payload-derived readers** (`Advisor\EntrepreneurController:354`,
+        `EntrepreneurDashboardController:90`) are correct once the payload returns `incomplete`. **Raw-column
+        readers** (`EntrepreneurDashboardController:85`, `EntrepreneurPlanController:559`, `EntrepreneurMilestones:329`
+        — which only fires post-finalise) see the sentinel or the recomputed band. Every site is covered.
+    - **Consumer map (code-derived, exhaustive — closes the "missed a call site" loop).** From a grep of
+      score/grade consumers:
+      - **Weighted-score *computers* → route through the helper:** `Assessment::weightedScore` (:54/:224),
+        `Revision::weightedScore` (:218), `EntrepreneurMilestones::weightedScore` (:336), `AdvisoryReadiness::score`,
+        the three learning layers, `BuildsEntrepreneurAssessmentPayload` (:20 sums `contribution`, :27 `gradeFor`),
+        `ReportComposer`, `Benchmarking`.
+      - **Decision / write consumers → gate on `dataGaps` (skip/block):** `Assessment::finalise`,
+        `AdvisoryReadiness::evaluate` (:42), `LivingPlan::reassess` (:89), `EntrepreneurMilestones` grade-up (:329),
+        `Revision` deltas (:110-121), the three learning layers (don't train on a gap-containing assessment),
+        **and `ReportComposer` — a *write* path, not display:** it computes the score, **creates the Concept PV
+        artifact** ([:316-320](app/Services/Reports/ReportComposer.php:316)), **overwrites `overall_grade` +
+        `concept_pv_calculation_id`** ([:322-326](app/Services/Reports/ReportComposer.php:322)), and builds the
+        `Report` + sections around a **required** `PvCalculation` ([:1159](app/Services/Reports/ReportComposer.php:1159)).
+        So the gate is **refuse the whole report**, not just the PV: **gate at the top** (right after the
+        plan/profile/framework validation, [:312-314](app/Services/Reports/ReportComposer.php:312)), **before any
+        write** — throw a clear domain error so the transaction creates **no** `PvCalculation`, **no** `Report`,
+        **no** sections, **no** PDF, and **no** audit event while `dataGaps` is non-empty.
+      - **Display consumers → render `overall`/grade (the `incomplete` sentinel when gaps exist) + the "N
+        unscored" indicator, never block:** `BuildsEntrepreneurAssessmentPayload`, `EntrepreneurDashboardController`
+        (:85/:233), `EntrepreneurPlanController` (:559), `EntrepreneurGamification` (:136), `SurveyActivationService`
+        (:210 grade label).
+      - **Explicitly OUT of scope (different subsystems — do *not* reroute):** `NpoHealthScorer::weightedScore`
+        (NPO dimensions — separate lane per CLAUDE.md), `DataQuality{Signal,Scorer}::weightedScore` (data-quality,
+        not the rating framework), and the unrelated `evaluate()` methods (`EnforceSessionSecurity` step-up,
+        `WellbeingCheckinService`, `SurveyResponseRecorder`).
   - **The helper returns normalised *rows*, not just an overall score (P2).** An overall-only
     `weightedScore()` leaves per-criterion **UI/report** surfaces computing from **raw** weights —
     `BuildsEntrepreneurAssessmentPayload` builds each row's `weight`/`contribution` from `$criterion->weight`
     ([:74-81](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:74)), and
     `ReportComposer` likewise — so an excluded/partial budget criterion would still render at **full raw
     weight**, contradicting the renormalised total. So the helper exposes **both**: an `overall` score **and**
-    `rows[]`, each row = `{number, name, raw_weight, effective_weight (post-renormalisation), score,
-    score_source (ai|advisor), contribution (score × effective_weight), weight_status, excluded_reason}`. The
-    payload + report **consume these rows** instead of `$criterion->weight`, so the displayed weights and
-    contributions match the score. Test: an excluded budget criterion renders `effective_weight = 0` /
-    excluded, and the remaining rows' effective weights sum to 100.
+    `rows[]`, each row = `{number, name, raw_weight, effective_weight (post-renormalisation, a percentage of
+    100), score, score_source (ai|advisor), contribution, weight_status, excluded_reason}`. **`contribution =
+    score × (effective_weight / 100)`** — weights are percentages summing to 100, matching the existing formula
+    ([BuildsEntrepreneurAssessmentPayload:81](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:81)
+    `score * (weight / 100)`); **not** `score × effective_weight` (100× too large). The payload + report
+    **consume these rows** instead of `$criterion->weight`, so the displayed weights and contributions match the
+    score. Test: an excluded budget criterion renders `effective_weight = 0` / excluded, and the remaining rows'
+    effective weights sum to 100.
   - **Persisted score-row contract — the weighting must be replayable, not recomputed from the live budget (P1).**
     Downstream readers recompute from the **persisted** `plan_assessments.ai_scores`/`advisor_scores` jsonb +
     the framework criteria ([plan_assessments migration:19](database/migrations/2026_05_23_086000_create_plan_assessments_table.php:19);
@@ -507,15 +683,37 @@ the existing project/reference settings pattern.
       So the helper must, per criterion, take the **score value** from `advisor_scores` (when present) but the
       **frozen weighting metadata from the AI row** (`weight_status`/`effective_weight_multiplier`/`excluded_reason`).
       Metadata stays **single-source in `ai_scores`** (don't duplicate it into `advisor_scores` — that would
-      drift); an advisor-reviewed budget criterion thus keeps its excluded/partial weighting. Test: override a
-      `not_started`/`partial` budget criterion and assert the multiplier is unchanged.
-    - **Legacy / fixture fallback (P2).** Existing assessments, seeders, and tests have score rows with **no**
-      metadata (e.g. `TestingSeedDataSeeder` legacy `ai_scores` blobs
-      [:1352](database/seeders/TestingSeedDataSeeder.php:1352); `GamificationTest`, `RatingPredictiveValidityTest`
-      fixtures). The helper **defaults missing metadata to `complete` / multiplier `1.0` / `excluded_reason =
-      null`** — i.e. legacy and all non-budget rows score at full weight exactly as today, so the change is
-      backward-compatible and needs no data backfill. Only **fixtures that exercise the new budget behaviour**
-      get explicit metadata.
+      drift); an advisor-reviewed budget criterion thus keeps its excluded/partial weighting. **The advisor
+      lookup is keyed by `criterion_number` and ignores any entry lacking it** — so a legacy *summary*
+      `advisor_scores` (`{overall, note}`, see below) can't leak in as a score; the criterion falls back to its
+      AI score. Test: override a `not_started`/`partial` budget criterion and assert the multiplier is unchanged.
+      - **Advisor scoring *resolves a gap* (P2 — the gap criterion has no AI metadata).** A **data-gap**
+        criterion has no usable AI score and no metadata. An `advisor_scores` row with a `criterion_number` +
+        numeric `score` **clears that gap** (the criterion now has a usable value). Metadata resolution:
+        - if the AI row carries **explicit** metadata (`excluded`/`partial`, e.g. the budget criterion) → **keep
+          the AI metadata** (single-source; the override changes the value, not the weighting);
+        - if there is **no** AI metadata (a genuine gap) → **default to `complete`/`1.0`/null** (the legacy
+          default) — the advisor-scored criterion now carries full weight.
+        Test: an advisor score on a gap criterion empties `dataGaps` and the criterion scores at full weight;
+        an advisor score on a `partial` budget criterion keeps the `partial` multiplier.
+    - **Legacy / fixture fallback (P2) — two cases, because some legacy `ai_scores` aren't even canonical rows.**
+      - **(a) Canonical row, no metadata** — a `{criterion_number, score, …}` row missing the new fields
+        **defaults to `complete` / `1.0` / null** (full weight, exactly as today; no backfill). The
+        `RatingPredictiveValidityTest` fixture is this case ([:149](tests/Feature/Learning/RatingPredictiveValidityTest.php:149))
+        — already canonical, just defaults.
+      - **(b) Non-canonical legacy shape → B6 migrates the fixture.** Some existing `ai_scores` are **not**
+        per-criterion rows at all: `TestingSeedDataSeeder` is **name-keyed** (`{problem: 8.6, market: 8.1, …}`,
+        [:1352](database/seeders/TestingSeedDataSeeder.php:1352)) and `GamificationTest` is a **bare list**
+        (`[80.0, 70.0]`, [:153](tests/Feature/Entrepreneurs/GamificationTest.php:153)) — both lacking
+        `criterion_number`/`score`. These would otherwise read as all-data-gaps. **B6 rewrites these two
+        fixtures to the canonical row shape** (they're test/seed data) rather than teaching the helper legacy
+        shapes — so the helper understands exactly **one** row shape. **Migrate their `advisor_scores` too:** the
+        same fixtures store **summary** advisor shapes (`{overall: 8.2, note: …}` at
+        [TestingSeedDataSeeder:1358](database/seeders/TestingSeedDataSeeder.php:1358) and
+        [GamificationTest:154](tests/Feature/Entrepreneurs/GamificationTest.php:154)) — migrate them to canonical
+        per-criterion advisor rows **or drop them** where the test doesn't need an override (the helper's
+        `criterion_number`-keyed lookup already ignores a stray summary blob, but the fixtures shouldn't carry
+        dead non-canonical data). Budget-behaviour fixtures additionally carry explicit metadata.
       - **Default applies to missing *metadata*, not a missing *score* (P1 — resolves the clash with the
         data-gap rule).** The `complete`/`1.0`/null default fires **only on an otherwise-valid score row** — one
         with a present `criterion_number` **and** a numeric `score`. A **missing/malformed score identity or
@@ -625,6 +823,11 @@ flag-and-acknowledge rule are the load-bearing ones.
 - **Scoring** — budget criterion contributes; `not_started` excluded (not zero), `partial` reduced weight;
   revised > acknowledged; framework recalibration is **governed** (queued, owner-approved, new published
   version) — no silent change.
+- **Admin rubric management (v1.23)** — Admin can view the latest published entrepreneur rubric and prior
+  versions; draft edits validate unique criterion numbers, complete descriptors, ordered grade bands, and active
+  weights = 100; publishing creates a new framework version with audit events and leaves prior assessment
+  `rating_framework_id` snapshots unchanged; new assessments use the newly published version. A Layer 18
+  learning update can stage/prefill a draft but cannot change the live rubric until Admin publishes it.
 - **Shared helper across all ten readers** — one regression test asserts an excluded/partial criterion is
   handled **identically** by every weighted-score reader, **including the three learning layers**
   (`RatingPredictiveValidity`, `ConversionOutcomeLearning`, `PlanQualityBenchmarks`) — none compute their own
@@ -636,13 +839,32 @@ flag-and-acknowledge rule are the load-bearing ones.
 - **Advisor override keeps weighting (P1)** — adjusting a `not_started`/`partial` budget criterion via
   `adjustScore()` changes the score value but the helper still applies the **AI row's** frozen multiplier
   (advisor row carries no metadata).
-- **Legacy default vs data gap (P1/P2)** — a **valid** score row (criterion_number + numeric score) with no
+- **Legacy default vs data gap (P1/P2)** — a **canonical** score row (criterion_number + numeric score) with no
   metadata defaults to `complete`/`1.0`/null (existing assessments unchanged); a row with a **missing/malformed
-  score** surfaces as a reported **data gap**, not a silent full-weight default (except recognised legacy
-  fixtures).
-- **Normalised rows reach the UI (P2)** — with the budget criterion excluded/partial, the per-criterion
-  **payload + report rows** show the **effective** weight + contribution (and `excluded_reason`), not the raw
-  `$criterion->weight`; the displayed effective weights of the remaining criteria sum to 100.
+  score** lands in `ScoringResult.dataGaps`. The two non-canonical legacy fixtures (`TestingSeedDataSeeder:1352`,
+  `GamificationTest:153`) are migrated to canonical rows and still pass.
+- **Data-gap contract + all consumers (P1)** — an unscored criterion is **dropped from `overall`** (not zeroed)
+  and listed in `dataGaps`; **`finalise()`, `AdvisoryReadiness::evaluate()`, and `LivingPlan::reassess()` each
+  skip/block** on a gap (assert a fresh gap-containing assessment emits **no** readiness signal); pure display
+  reads return `overall` without throwing.
+- **Incomplete grade not leaked (P1)** — a gap-containing first-pass persists `overall_grade = 'incomplete'`
+  (not a band); assert the dashboard/plan raw-grade reads **and the payload/advisor-detail card** all show
+  *Incomplete* (the payload returns `incomplete`, not a recomputed band), and grade-up does not fire on it.
+- **Finalise transition (P1)** — resolve the gap (advisor scores the criterion), `finalise()` **recomputes and
+  persists the real band before milestones**; assert the finalised assessment's grade is a real band (not
+  `incomplete`) and the milestone snapshot captures the real grade.
+- **ReportComposer refuses the whole report on gaps (P1)** — assert a gap-containing assessment produces **no**
+  `Report`, **no** sections, **no** PDF, **no** `PvCalculation`, and **no** audit event (the transaction persists
+  nothing); once gaps resolve, the PV + real grade + report are written.
+- **Advisor scoring resolves a gap (P2)** — an `advisor_scores` row (`criterion_number` + numeric `score`) on a
+  gap criterion empties `dataGaps` and the criterion scores at **full weight** (no AI metadata → `complete`/`1.0`);
+  on a `partial` budget criterion it keeps the AI `partial` multiplier; finalise then persists a real band.
+- **Legacy advisor shape ignored (P2)** — a summary `advisor_scores` (`{overall, note}`, no `criterion_number`)
+  is **not** read as a score (criterion falls back to its AI score); the two migrated fixtures carry canonical
+  `ai_scores` **and** `advisor_scores` (or none) and still pass.
+- **Normalised rows + contribution math (P2)** — with the budget criterion excluded/partial, the per-criterion
+  **payload + report rows** show the **effective** weight + `excluded_reason`, not raw `$criterion->weight`;
+  **`row.contribution === score × (effective_weight / 100)`**; the remaining rows' effective weights sum to 100.
 - **Seeder identity guard (P2)** — re-running `BudgetCriterionRevisionSeeder` when the budget criterion is
   already present is a no-op (identity, not count); against a future 13-criterion framework it **does not**
   republish a 12-only baseline (never downgrade).
@@ -678,7 +900,7 @@ flag-and-acknowledge rule are the load-bearing ones.
 | **B3** | Flags + runway cross-check + advisor visibility | **3 budget flags** (flag-and-acknowledge) + advisor-line nudge state; **runway cross-check** of the calc against `entrepreneur_budgets.expected_runway_months` (persisted by B2 — no readiness-controller change); open-ended runway comparison (§5); admin threshold; acknowledgement timestamps. **Advisor visibility (explicit deliverable):** extend the advisor entrepreneur-detail controller (`Advisor\EntrepreneurController`) payload with the budget summary + **unresolved flags** (filter `raised === true && resolved !== true`, §5.4), rendered read-only on the advisor detail page (§8). No advisor write route — advisor RLS is SELECT-only (§3). |
 | **B4** | Advisor Cost Impact Line | FeeCalculator-derived (client-less entry-level rate); presentation-only; editable/dismissible; one-time nudge; integrity tests. |
 | **B5** | Charts | The three Recharts/Meridian-Warm visuals. |
-| **B6** | Scoring + framework recalibration + normalisation | **⛔ seeder values BLOCKED on §13.2** (owner-set criterion #12 descriptors + recalibrated 12-weight set = 100); mechanics below are unblocked. **Add-criterion** governed path on `RatingFrameworkManager` (today `revise()` only *updates* existing criteria — extend it to **add**; relax `assertCompleteFoundingValues` to "all current criteria present + weights = 100"); **`FOUNDING_CRITERIA` stays 11** (budget criterion is revision data, not a founding constant) so founding seeds/tests (`RatingFrameworkSeeder`, `FoundingRatingFrameworkValuesSeeder`, `test_founding_framework_seeds_eleven...`) stay 11; **new `BudgetCriterionRevisionSeeder`** — an **owner-approved baseline seed** that **directly** creates the published **12-criterion** version (weights = 100) mirroring `FoundingRatingFrameworkValuesSeeder` (**no `User` actor** for the create, in a `DB::transaction`), **records a seed-time `AuditWriter` event (system/null actor)** for the version, **idempotent on the budget-criterion *identity*** (`number === 12` + name/marker, **never the count** — `rating_criteria` has no stable key; never downgrade a newer published framework), **wired into `DatabaseSeeder` + the test seed flow**; **not** the manager's `revise()`/`publish()` (those need a `User $actor`) and **not** `queueGovernedChange()` (which only *detects*); the governed queue is the *runtime* admin path (§6); **+ tests** (12 criteria, weights = 100, budget criterion scores; re-running the seeder is a no-op; it does **not** downgrade a 13-criterion framework); **persist the score-row weighting contract** (`weight_status`/`effective_weight_multiplier`/`excluded_reason` in `ai_scores`) so the helper renormalises from the snapshot and old rounds replay — the helper merges the **advisor `score`** with the **AI row's frozen metadata** (advisor overrides keep their weighting; metadata single-source in `ai_scores`), and **defaults missing metadata to `complete`/`1.0`/null** so legacy + non-budget rows are unaffected (no backfill; update only budget-behaviour fixtures); **feed the scorer the structured budget** — `Assessment::scoreCriterion()` **and** `heuristicScore()` get a `budget_evidence` block (computed/status/`expected_runway_months`/flags) for the budget criterion, since today both see only `sections_text` ([Assessment.php:166-218](app/Services/Entrepreneurs/Assessment.php:166)); recalibration via Layer 18 (owner-approved); **one shared `effective_weight`/normalisation helper routed through *every* score reader — ten, confirmed** (`Assessment::weightedScore` [:224](app/Services/Entrepreneurs/Assessment.php:224), payload, `AdvisoryReadiness`, `ReportComposer`, `Revision`, `Benchmarking`, `EntrepreneurMilestones`, **plus the three learning layers** `Learning\Layers\RatingPredictiveValidity::planScore`, `ConversionOutcomeLearning::planScore`, `PlanQualityBenchmarks::score` — grep to confirm none compute their own) so excluded/partial criteria renormalise, not zero (else learning + benchmark outputs skew); the helper returns **normalised rows** (`effective_weight`/`contribution`/`excluded_reason`) consumed by the **payload + report** instead of raw `$criterion->weight` ([BuildsEntrepreneurAssessmentPayload:74](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:74)); the legacy `complete`/`1.0`/null default applies only to a **valid** score row (a missing/malformed score stays a reported **data gap**); examiner realism prompt in registry. |
+| **B6** | Scoring + framework recalibration + normalisation | **Owner rubric supplied in v1.22** (`Budget` = criterion #12 at 12%; 12 weights = `8/7/8/8/9/8/8/7/9/8/8/12`, total 100; Budget uses the standard four grade-band descriptors). **Admin rubric management UI (v1.23):** Admin can view current + historical entrepreneur rating-framework versions, create draft revisions, edit criteria/weights/descriptors/grade bands, validate weights = 100, and publish a new audited version; never edit published frameworks in place, and existing assessments keep their historical `rating_framework_id`. **Add-criterion** governed path on `RatingFrameworkManager` (today `revise()` only *updates* existing criteria — extend it to **add**; relax `assertCompleteFoundingValues` to "all current criteria present + weights = 100"); **`FOUNDING_CRITERIA` stays 11** (budget criterion is revision data, not a founding constant) so founding seeds/tests (`RatingFrameworkSeeder`, `FoundingRatingFrameworkValuesSeeder`, `test_founding_framework_seeds_eleven...`) stay 11; **new `BudgetCriterionRevisionSeeder`** — an **owner-approved baseline seed** that **directly** creates the published **12-criterion** version (weights = 100) mirroring `FoundingRatingFrameworkValuesSeeder` (**no `User` actor** for the create, in a `DB::transaction`), **records a seed-time `AuditWriter` event (system/null actor)** for the version, **idempotent on the budget-criterion *identity*** (`number === 12` + name/marker, **never the count** — `rating_criteria` has no stable key; never downgrade a newer published framework), **wired into `DatabaseSeeder` + the test seed flow**; **not** the manager's `revise()`/`publish()` (those need a `User $actor`) and **not** `queueGovernedChange()` (which only *detects*); the governed queue is the *runtime* admin path (§6); **+ tests** (12 criteria, weights = 100, budget criterion scores; re-running the seeder is a no-op; it does **not** downgrade a 13-criterion framework); **persist the score-row weighting contract** (`weight_status`/`effective_weight_multiplier`/`excluded_reason` in `ai_scores`) so the helper renormalises from the snapshot and old rounds replay — the helper merges the **advisor `score`** with the **AI row's frozen metadata** (advisor overrides keep their weighting; metadata single-source in `ai_scores`), and **defaults missing metadata to `complete`/`1.0`/null** so legacy + non-budget rows are unaffected (no backfill; update only budget-behaviour fixtures); **feed the scorer the structured budget** — `Assessment::scoreCriterion()` **and** `heuristicScore()` get a `budget_evidence` block (computed/status/`expected_runway_months`/flags) for the budget criterion, since today both see only `sections_text` ([Assessment.php:166-218](app/Services/Entrepreneurs/Assessment.php:166)); recalibration via Layer 18 (owner-approved); **one shared `effective_weight`/normalisation helper routed through *every* score reader — ten, confirmed** (`Assessment::weightedScore` [:224](app/Services/Entrepreneurs/Assessment.php:224), payload, `AdvisoryReadiness`, `ReportComposer`, `Revision`, `Benchmarking`, `EntrepreneurMilestones`, **plus the three learning layers** `Learning\Layers\RatingPredictiveValidity::planScore`, `ConversionOutcomeLearning::planScore`, `PlanQualityBenchmarks::score` — grep to confirm none compute their own) so excluded/partial criteria renormalise, not zero (else learning + benchmark outputs skew); the helper returns a **`ScoringResult { overall, rows[], dataGaps[] }`** — `rows[]` carry `effective_weight` + **`contribution = score × (effective_weight / 100)`** (consumed by **payload + report** instead of raw `$criterion->weight`, [BuildsEntrepreneurAssessmentPayload:74-81](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:74)), and **`dataGaps[]`** lists unscored criteria; **every *decision/write* consumer skips/blocks while `dataGaps` is non-empty** — `Assessment::finalise()`, `AdvisoryReadiness::evaluate()` ([:32](app/Services/Entrepreneurs/AdvisoryReadiness.php:32)), `LivingPlan::reassess()` ([:89](app/Services/Entrepreneurs/LivingPlan.php:89)), grade-up, `Revision` deltas, learning layers, **and `ReportComposer` — refuse the *whole* report (gate at the top [:312-314](app/Services/Reports/ReportComposer.php:312); create **no** PV/Report/sections/PDF/audit while gaps exist)** — not just `finalise()`; **`firstPass()` persists `overall_grade = 'incomplete'` (sentinel, not a band) while gaps exist** ([:66](app/Services/Entrepreneurs/Assessment.php:66)); **`finalise()` recomputes a gap-free `ScoringResult`, asserts no `dataGaps`, and persists the real band *before* milestones/report** ([:151-164](app/Services/Entrepreneurs/Assessment.php:151)); **the payload returns `overall_grade='incomplete'` + `dataGaps` when gaps exist** (not `gradeFor(sum(contribution))`, [BuildsEntrepreneurAssessmentPayload:20-27](app/Http/Controllers/Portal/Concerns/BuildsEntrepreneurAssessmentPayload.php:20)) so cards/advisor detail match the raw column. The legacy default applies only to a **canonical** row (`criterion_number` + numeric `score`); a missing/malformed score is a reported data gap; **migrate the two non-canonical legacy fixtures — both `ai_scores` and the summary `advisor_scores`** (`TestingSeedDataSeeder:1352/1358`, `GamificationTest:153/154`) — to canonical rows (or drop the override); examiner realism prompt in registry. |
 | **B7** | AI Assist nudge + gamification tie-in | Coach nudge in revenue/funding fields (once per field); `budget_built` milestone behind `gamification_on`. |
 
 Branch `wo/B1-budget-schema`, etc. PR title leads with the WO ID.
@@ -690,18 +912,13 @@ Branch `wo/B1-budget-schema`, etc. PR title leads with the WO ID.
 1. **FeeCalculator without a `Client`** — confirm the cleanest client-less "entry-level pre-revenue rate"
    path (a `FeeCalculator`/`ServiceRateManager` method, vs. a small dedicated resolver). Don't fabricate a
    `Client`. *(Affects B4.)*
-2. **⛔ BLOCKER — the criterion #12 rubric values + recalibrated 12-weight set (owner-set, governed).** This
-   blocks `BudgetCriterionRevisionSeeder` (§6, B6). The owner must supply, as committed baseline data:
-   - **criterion #12** — name + number (`12`), and the **four grade-band descriptors**
-     (`exceptional` / `strong` / `developing` / `needs_work`) — same shape as the 11 founding criteria;
-   - **the recalibrated weights for all 12 criteria, summing to exactly 100** (the existing 11 redistribute to
-     make room — owner confirms, nothing self-applies).
-   The **mechanics** are unblocked and buildable now: `assertCompleteFoundingValues` relaxed to "all current
-   criteria present + weights = 100"; **`revise()` extended to add a criterion** (it only updates today);
-   **`FOUNDING_CRITERIA` stays 11** (budget criterion is governed-revision data); the runtime admin path reuses
-   the existing rating-framework revise/confirm flow + governed queue (Layer 18). Only the seeder's **concrete
-   values** wait on the owner. *(Confirm the owner is OK re-confirming weights on each criterion change — their
-   stated intent.)*
+2. **Resolved — Budget rubric baseline.** The owner supplied the committed criterion name + weights from the
+   rubric image: **#12 Budget = 12%**, with the 12 weights
+   `8 / 7 / 8 / 8 / 9 / 8 / 8 / 7 / 9 / 8 / 8 / 12` totaling 100, and approved the standard descriptor pattern
+   for `Budget`. `BudgetCriterionRevisionSeeder` therefore has concrete production rubric values. The mechanics
+   are unblocked: `assertCompleteFoundingValues` relaxes to "all current criteria present + weights = 100";
+   `revise()` extends to add a criterion; `FOUNDING_CRITERIA` stays 11; the runtime admin path reuses the
+   existing rating-framework revise/confirm flow + governed queue (Layer 18).
 3. **Canonical self-reported runway (P1) — resolved: on the budget row.** `expected_runway_months` is a
    column on **`entrepreneur_budgets`** (§3), captured by the Budget Builder. This was moved off
    `ReadinessAssessment.responses` because readiness rows are **append-only history** (new row per

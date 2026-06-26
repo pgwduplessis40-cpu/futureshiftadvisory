@@ -27,13 +27,13 @@ final class RatingFrameworkTest extends TestCase
         app(RequestContext::class)->apply('system', []);
     }
 
-    public function test_founding_framework_seeds_eleven_placeholder_criteria_and_is_not_production_ready(): void
+    public function test_founding_framework_seeds_placeholder_criteria_and_is_not_production_ready(): void
     {
         $framework = app(RatingFrameworkManager::class)->published();
 
         $this->assertSame(1, $framework->version);
         $this->assertFalse($framework->production_ready);
-        $this->assertCount(11, $framework->criteria);
+        $this->assertCount(12, $framework->criteria);
         $this->assertSame(array_values(RatingFramework::FOUNDING_CRITERIA), $framework->criteria->pluck('name')->all());
         $this->assertTrue($framework->criteria->every(fn ($criterion): bool => $criterion->is_placeholder));
         $this->assertFalse($framework->readinessStatus()['production_ready']);

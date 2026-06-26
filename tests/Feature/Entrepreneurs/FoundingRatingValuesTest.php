@@ -63,7 +63,9 @@ final class FoundingRatingValuesTest extends TestCase
 
         $this->assertSame(2, $ready->version);
         $this->assertTrue($ready->production_ready);
-        $this->assertCount(11, $ready->criteria);
+        $this->assertCount(12, $ready->criteria);
+        $this->assertSame(12.0, (float) $ready->criteria->firstWhere('number', 12)?->weight);
+        $this->assertSame('Budget', $ready->criteria->firstWhere('number', 12)?->name);
         $this->assertTrue($ready->criteria->every(fn ($criterion): bool => ! $criterion->is_placeholder));
     }
 

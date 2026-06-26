@@ -1,5 +1,12 @@
-import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft, ClipboardCheck, FileText, Scale } from 'lucide-react';
+import { Head, Link, router } from '@inertiajs/react';
+import {
+    AlertTriangle,
+    ArrowLeft,
+    ClipboardCheck,
+    FileText,
+    RefreshCw,
+    Scale,
+} from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -22,6 +29,17 @@ type Assessment = {
     threshold: number;
     finalised_at: string | null;
     created_at: string | null;
+    rating_framework: {
+        id: string | null;
+        version: number | null;
+        criteria_count: number;
+        published_at: string | null;
+        is_current: boolean;
+        current_version: number | null;
+        current_criteria_count: number | null;
+        current_published_at: string | null;
+        current_has_budget: boolean;
+    };
     document_support: {
         attached_document_count: number;
         summary: string;
@@ -48,6 +66,7 @@ type Props = {
     assessment: Assessment;
     backUrl: string;
     backLabel?: string;
+    reassessUrl?: string | null;
 };
 
 export default function EntrepreneurAssessment({
@@ -55,7 +74,11 @@ export default function EntrepreneurAssessment({
     assessment,
     backUrl,
     backLabel = 'Dashboard',
+    reassessUrl = null,
 }: Props) {
+    const framework = assessment.rating_framework;
+    const usesOldRubric = framework.is_current === false;
+
     return (
         <>
             <Head title={`Assessment round ${assessment.round}`} />
@@ -85,6 +108,60 @@ export default function EntrepreneurAssessment({
                         {formatLabel(assessment.status)}
                     </Badge>
                 </div>
+
+                {usesOldRubric ? (
+                    <section className="grid gap-3 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-start">
+                        <div className="flex gap-3">
+                            <AlertTriangle
+                                className="mt-0.5 size-4 shrink-0"
+                                aria-hidden="true"
+                            />
+                            <div className="space-y-1">
+                                <h2 className="font-medium">
+                                    This round uses an older rubric
+                                </h2>
+                                <p>
+                                    Round {assessment.round} was scored with{' '}
+                                    {formatRubricVersion(framework.version)} (
+                                    {framework.criteria_count} criteria). The
+                                    current published rubric is{' '}
+                                    {formatRubricVersion(
+                                        framework.current_version,
+                                    )}{' '}
+                                    ({framework.current_criteria_count ?? '-'}{' '}
+                                    criteria
+                                    {framework.current_has_budget
+                                        ? ', including Budget'
+                                        : ''}
+                                    ). Run a new assessment round to apply the
+                                    current rubric; this historical round stays
+                                    unchanged.
+                                </p>
+                            </div>
+                        </div>
+                        {reassessUrl ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                onClick={() =>
+                                    router.post(
+                                        reassessUrl,
+                                        {},
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                <RefreshCw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Run reassessment
+                            </Button>
+                        ) : null}
+                    </section>
+                ) : null}
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex items-center gap-2">
@@ -241,6 +318,10 @@ function formatLabel(value: string): string {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatRubricVersion(value: number | null): string {
+    return value ? `rubric v${value}` : 'the assigned rubric';
 }
 
 EntrepreneurAssessment.layout = {

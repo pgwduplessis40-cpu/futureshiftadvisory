@@ -20,7 +20,7 @@ final class FoundingRatingFrameworkValuesSeeder extends Seeder
                 ->latest('version')
                 ->firstOrFail();
 
-            if ($current->production_ready && $current->criteria->every(fn ($criterion): bool => ! $criterion->is_placeholder)) {
+            if ($this->matchesFoundingRubric($current)) {
                 return;
             }
 
@@ -56,14 +56,15 @@ final class FoundingRatingFrameworkValuesSeeder extends Seeder
             1 => 8.0,
             2 => 7.0,
             3 => 8.0,
-            4 => 10.0,
-            5 => 12.0,
-            6 => 10.0,
+            4 => 8.0,
+            5 => 9.0,
+            6 => 8.0,
             7 => 8.0,
             8 => 7.0,
-            9 => 12.0,
+            9 => 9.0,
             10 => 8.0,
-            11 => 10.0,
+            11 => 8.0,
+            12 => 12.0,
         ];
 
         return array_map(
@@ -88,5 +89,40 @@ final class FoundingRatingFrameworkValuesSeeder extends Seeder
             'developing' => "{$name} is directionally useful but has material gaps or assumptions to test before launch.",
             'needs_work' => "{$name} is too vague, unsupported, or inconsistent to rely on for launch decisions.",
         ];
+    }
+
+    private function matchesFoundingRubric(RatingFramework $framework): bool
+    {
+        if (! $framework->production_ready) {
+            return false;
+        }
+
+        $expected = collect(self::values())->keyBy('number');
+
+        if ($framework->criteria->count() !== $expected->count()) {
+            return false;
+        }
+
+        foreach ($framework->criteria as $criterion) {
+            $value = $expected->get($criterion->number);
+
+            if (! is_array($value)) {
+                return false;
+            }
+
+            if ($criterion->is_placeholder) {
+                return false;
+            }
+
+            if ((string) $criterion->name !== RatingFramework::FOUNDING_CRITERIA[$criterion->number]) {
+                return false;
+            }
+
+            if (abs(((float) $criterion->weight) - ((float) $value['weight'])) > 0.001) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }

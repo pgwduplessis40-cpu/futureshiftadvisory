@@ -1,17 +1,27 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
+    AlertTriangle,
+    Banknote,
     Bot,
     CheckCircle2,
     Eye,
     FileText,
+    Plus,
     MessageSquare,
     RefreshCw,
     Send,
+    Trash2,
     Trophy,
     Upload,
 } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
-import type { ComponentType, FormEvent, ReactNode } from 'react';
+import type {
+    ComponentType,
+    Dispatch,
+    FormEvent,
+    ReactNode,
+    SetStateAction,
+} from 'react';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -60,6 +70,7 @@ type BusinessPlanPayload = {
     updated_at: string | null;
     requirements_complete: boolean;
     missing_requirements: string[];
+    budget: BudgetPayload;
     latest_assessment: {
         id: string;
         round: number;
@@ -92,10 +103,81 @@ type PlanRequirementPayload = {
     phase_title: string;
     title: string;
     description: string;
+    type?: string;
     complete: boolean;
     section_id: string | null;
     section_title?: string | null;
 };
+
+type BudgetRow = {
+    label: string;
+    amount: string | number;
+    quantity?: string | number;
+    month?: string | number;
+    monthly_growth_percent?: string | number;
+    variable_cost_percent?: string | number;
+    confidence?: 'known' | 'estimate' | 'guess';
+    description?: string;
+};
+
+type BudgetPayload = {
+    id: string | null;
+    expected_runway_months: number | null;
+    status: string;
+    launch_costs: BudgetRow[];
+    monthly_fixed_costs: BudgetRow[];
+    revenue_forecast: BudgetRow[];
+    funding_sources: BudgetRow[];
+    computed: {
+        total_launch_costs?: number;
+        monthly_fixed_costs?: number;
+        total_funding?: number;
+        available_after_launch?: number;
+        runway_months?: number | null;
+        runway_open_ended?: boolean;
+        break_even_month?: number | null;
+        break_even_reached?: boolean;
+        monthly_series?: {
+            month: number;
+            revenue: number;
+            variable_costs: number;
+            fixed_costs: number;
+            net_cash_flow: number;
+            cumulative_cash: number;
+        }[];
+        populated_inputs?: Record<string, number>;
+    };
+    flags: BudgetFlag[];
+    active_flags: BudgetFlag[];
+    advisor_line_nudge_seen_at: string | null;
+};
+
+type BudgetFlag = {
+    key: string;
+    title: string;
+    message: string;
+    severity: string;
+    first_raised_at?: string;
+    acknowledged_at?: string | null;
+};
+
+type BudgetFormState = {
+    expected_runway_months: string;
+    launch_costs: BudgetRow[];
+    monthly_fixed_costs: BudgetRow[];
+    revenue_forecast: BudgetRow[];
+    funding_sources: BudgetRow[];
+};
+
+type BudgetSetupMode = 'guided' | 'advanced';
+
+type BudgetGroupKey = keyof Pick<
+    BudgetFormState,
+    | 'launch_costs'
+    | 'monthly_fixed_costs'
+    | 'revenue_forecast'
+    | 'funding_sources'
+>;
 
 type PlanSectionPayload = {
     id: string;
@@ -175,6 +257,9 @@ type Props = {
         ideaValidation: string;
         startPlan: string;
         sectionStore: string;
+        budgetUpdate: string;
+        budgetFlagAcknowledge: string;
+        budgetAdvisorNudgeDismiss: string;
         assistRequirement: string;
         preview: string;
         submit: string;
@@ -291,6 +376,10 @@ export default function EntrepreneurPlan({
     const [savingSection, setSavingSection] = useState(false);
     const [assistingSection, setAssistingSection] = useState(false);
     const [assistantNotice, setAssistantNotice] = useState<string | null>(null);
+    const [budgetForm, setBudgetForm] = useState<BudgetFormState>(() =>
+        budgetToForm(plan?.budget),
+    );
+    const [savingBudget, setSavingBudget] = useState(false);
 
     useEffect(() => {
         if (!selectedRequirement) {
@@ -309,6 +398,10 @@ export default function EntrepreneurPlan({
         setAssistantNotice(null);
         /* eslint-enable react-hooks/set-state-in-effect */
     }, [selectedRequirement, plan]);
+
+    useEffect(() => {
+        setBudgetForm(budgetToForm(plan?.budget));
+    }, [plan?.budget]);
 
     const submitIdea = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -464,6 +557,34 @@ export default function EntrepreneurPlan({
                 preserveScroll: true,
                 onFinish: () => setSavingSection(false),
             },
+        );
+    };
+
+    const saveBudget = () => {
+        if (!plan) {
+            return;
+        }
+
+        setSavingBudget(true);
+        router.post(urls.budgetUpdate, cleanBudgetForm(budgetForm), {
+            preserveScroll: true,
+            onFinish: () => setSavingBudget(false),
+        });
+    };
+
+    const acknowledgeBudgetFlag = (key: string) => {
+        router.post(
+            urls.budgetFlagAcknowledge,
+            { key },
+            { preserveScroll: true },
+        );
+    };
+
+    const dismissBudgetAdvisorNudge = () => {
+        router.post(
+            urls.budgetAdvisorNudgeDismiss,
+            {},
+            { preserveScroll: true },
         );
     };
 
@@ -921,7 +1042,10 @@ export default function EntrepreneurPlan({
                             </form>
                         </section>
 
-                        <section className="space-y-4 rounded-md border bg-background p-4">
+                        <section
+                            id="business-plan-requirements"
+                            className="space-y-4 rounded-md border bg-background p-4"
+                        >
                             <div className="flex flex-wrap items-start justify-between gap-3">
                                 <div>
                                     <h2 className="text-sm font-medium">
@@ -1018,6 +1142,29 @@ export default function EntrepreneurPlan({
 
                                     <div className="space-y-4 rounded-md border p-4">
                                         {selectedRequirement ? (
+                                            selectedRequirement.type ===
+                                                'budget' && plan ? (
+                                                <BudgetEditor
+                                                    budget={plan.budget}
+                                                    form={budgetForm}
+                                                    plan={plan}
+                                                    ideaValidation={
+                                                        ideaValidation
+                                                    }
+                                                    gamification={gamification}
+                                                    saving={savingBudget}
+                                                    onFormChange={
+                                                        setBudgetForm
+                                                    }
+                                                    onSave={saveBudget}
+                                                    onAcknowledgeFlag={
+                                                        acknowledgeBudgetFlag
+                                                    }
+                                                    onDismissAdvisorNudge={
+                                                        dismissBudgetAdvisorNudge
+                                                    }
+                                                />
+                                            ) : (
                                             <>
                                                 <div className="flex flex-wrap items-start justify-between gap-3">
                                                     <div>
@@ -1167,6 +1314,7 @@ export default function EntrepreneurPlan({
                                                         : 'Save requirement'}
                                                 </Button>
                                             </>
+                                            )
                                         ) : (
                                             <p className="text-sm text-muted-foreground">
                                                 Select a requirement to start
@@ -1374,6 +1522,1515 @@ function ActionPanel({
     );
 }
 
+type BudgetTemplateKey =
+    | 'service'
+    | 'consulting'
+    | 'retail'
+    | 'food'
+    | 'online'
+    | 'trades'
+    | 'subscription';
+
+type BudgetTemplate = {
+    title: string;
+    description: string;
+    expected_runway_months: number;
+    launch_costs: BudgetRow[];
+    monthly_fixed_costs: BudgetRow[];
+    revenue_forecast: BudgetRow[];
+    funding_sources: BudgetRow[];
+};
+
+const BUDGET_UNLOCK_REQUIREMENT_KEY = 'business-type-location';
+
+const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
+    service: {
+        title: 'Local service',
+        description: 'A practical service business selling appointments, jobs, or packages.',
+        expected_runway_months: 6,
+        launch_costs: [
+            budgetRow('Website and domain', 500, 'estimate'),
+            budgetRow('Basic equipment', 1200, 'estimate'),
+            budgetRow('Launch marketing', 800, 'guess'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Phone and internet', 120, 'estimate'),
+            budgetRow('Accounting software', 60, 'estimate'),
+            budgetRow('Insurance', 150, 'guess'),
+        ],
+        revenue_forecast: [
+            budgetRow('First customer work', 750, 'guess', {
+                quantity: 2,
+                month: 1,
+                variable_cost_percent: 15,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 3000, 'guess')],
+    },
+    consulting: {
+        title: 'Consulting or coaching',
+        description: 'Advice, coaching, training, or professional services.',
+        expected_runway_months: 4,
+        launch_costs: [
+            budgetRow('Brand and website setup', 900, 'estimate'),
+            budgetRow('Professional templates', 250, 'guess'),
+            budgetRow('Launch outreach', 500, 'guess'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Video meetings and productivity tools', 80, 'estimate'),
+            budgetRow('Accounting software', 60, 'estimate'),
+            budgetRow('Professional insurance', 170, 'guess'),
+        ],
+        revenue_forecast: [
+            budgetRow('Client retainers or sessions', 1200, 'guess', {
+                quantity: 2,
+                month: 1,
+                variable_cost_percent: 5,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 2500, 'guess')],
+    },
+    retail: {
+        title: 'Retail or product sales',
+        description: 'Physical products, stock, inventory, market stall, or shop sales.',
+        expected_runway_months: 6,
+        launch_costs: [
+            budgetRow('Opening stock', 3500, 'guess'),
+            budgetRow('Display, packaging, or signage', 1200, 'estimate'),
+            budgetRow('Point of sale setup', 500, 'estimate'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Ecommerce or POS software', 80, 'estimate'),
+            budgetRow('Storage, stall, or small premises cost', 600, 'guess'),
+            budgetRow('Insurance', 180, 'guess'),
+        ],
+        revenue_forecast: [
+            budgetRow('Product sales', 65, 'guess', {
+                quantity: 80,
+                month: 1,
+                variable_cost_percent: 45,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 6000, 'guess')],
+    },
+    food: {
+        title: 'Food or hospitality',
+        description: 'Food truck, catering, cafe, packaged food, or hospitality launch.',
+        expected_runway_months: 8,
+        launch_costs: [
+            budgetRow('Kitchen gear or fit-out', 6000, 'guess'),
+            budgetRow('Permits and compliance', 900, 'estimate'),
+            budgetRow('Initial ingredients and packaging', 1800, 'guess'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Commercial kitchen or site cost', 1200, 'guess'),
+            budgetRow('Insurance', 220, 'guess'),
+            budgetRow('Utilities and cleaning', 350, 'guess'),
+        ],
+        revenue_forecast: [
+            budgetRow('Average orders', 22, 'guess', {
+                quantity: 300,
+                month: 1,
+                variable_cost_percent: 38,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 9000, 'guess')],
+    },
+    online: {
+        title: 'Online store',
+        description: 'Digital storefront, online product sales, or direct-to-customer sales.',
+        expected_runway_months: 6,
+        launch_costs: [
+            budgetRow('Online store setup', 900, 'estimate'),
+            budgetRow('Opening inventory', 2500, 'guess'),
+            budgetRow('Launch ads and content', 1200, 'guess'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Store platform and apps', 120, 'estimate'),
+            budgetRow('Email and marketing tools', 90, 'estimate'),
+            budgetRow('Storage or fulfilment', 300, 'guess'),
+        ],
+        revenue_forecast: [
+            budgetRow('Online orders', 75, 'guess', {
+                quantity: 60,
+                month: 1,
+                variable_cost_percent: 42,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 5000, 'guess')],
+    },
+    trades: {
+        title: 'Trades or field work',
+        description: 'Hands-on services, mobile work, installation, maintenance, or repairs.',
+        expected_runway_months: 5,
+        launch_costs: [
+            budgetRow('Tools and equipment', 3500, 'guess'),
+            budgetRow('Vehicle setup or signage', 1800, 'guess'),
+            budgetRow('Licences and safety gear', 700, 'estimate'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Vehicle running costs', 500, 'guess'),
+            budgetRow('Insurance', 250, 'guess'),
+            budgetRow('Phone and job management software', 120, 'estimate'),
+        ],
+        revenue_forecast: [
+            budgetRow('Jobs completed', 450, 'guess', {
+                quantity: 8,
+                month: 1,
+                variable_cost_percent: 22,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 5000, 'guess')],
+    },
+    subscription: {
+        title: 'Subscription or membership',
+        description: 'Recurring revenue, memberships, SaaS, community, or content products.',
+        expected_runway_months: 9,
+        launch_costs: [
+            budgetRow('Product or platform setup', 5000, 'guess'),
+            budgetRow('Brand, landing page, and content', 1500, 'guess'),
+            budgetRow('Launch campaign', 1800, 'guess'),
+        ],
+        monthly_fixed_costs: [
+            budgetRow('Hosting and software tools', 350, 'estimate'),
+            budgetRow('Support and admin tools', 180, 'guess'),
+            budgetRow('Content or product maintenance', 700, 'guess'),
+        ],
+        revenue_forecast: [
+            budgetRow('Monthly subscribers or members', 49, 'guess', {
+                quantity: 60,
+                month: 1,
+                monthly_growth_percent: 8,
+                variable_cost_percent: 8,
+            }),
+        ],
+        funding_sources: [budgetRow('Founder cash', 8000, 'guess')],
+    },
+};
+
+function BudgetEditor({
+    budget,
+    form,
+    plan,
+    ideaValidation,
+    gamification,
+    saving,
+    onFormChange,
+    onSave,
+    onAcknowledgeFlag,
+    onDismissAdvisorNudge,
+}: {
+    budget: BudgetPayload;
+    form: BudgetFormState;
+    plan: NonNullable<BusinessPlanPayload>;
+    ideaValidation: IdeaValidationPayload;
+    gamification: GamificationPayload;
+    saving: boolean;
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
+    onSave: () => void;
+    onAcknowledgeFlag: (key: string) => void;
+    onDismissAdvisorNudge: () => void;
+}) {
+    const computed = budget.computed ?? {};
+    const activeFlags = budget.active_flags ?? [];
+    const showAdvisorNudge =
+        activeFlags.length > 0 && !budget.advisor_line_nudge_seen_at;
+    const inferredTemplate = useMemo(
+        () => inferBudgetTemplateKey(plan, ideaValidation),
+        [plan, ideaValidation],
+    );
+    const budgetSource = useMemo(
+        () => budgetPlanSource(plan, BUDGET_UNLOCK_REQUIREMENT_KEY),
+        [plan],
+    );
+    const budgetUnlocked = budgetSource.requirement?.complete === true;
+    const [mode, setMode] = useState<BudgetSetupMode>('guided');
+    const template = budgetTemplates[inferredTemplate];
+
+    const applyTemplate = () => {
+        onFormChange((current) => ({
+            expected_runway_months:
+                current.expected_runway_months ||
+                String(template.expected_runway_months),
+            launch_costs: mergeBudgetRows(
+                current.launch_costs,
+                template.launch_costs,
+            ),
+            monthly_fixed_costs: mergeBudgetRows(
+                current.monthly_fixed_costs,
+                template.monthly_fixed_costs,
+            ),
+            revenue_forecast: mergeBudgetRows(
+                current.revenue_forecast,
+                template.revenue_forecast,
+            ),
+            funding_sources: mergeBudgetRows(
+                current.funding_sources,
+                template.funding_sources,
+            ),
+        }));
+    };
+    const applyPlanClues = () => {
+        const key = inferBudgetTemplateKey(plan, ideaValidation);
+        const suggestions = budgetRowsFromPlan(plan, ideaValidation, key);
+
+        onFormChange((current) => ({
+            expected_runway_months:
+                current.expected_runway_months ||
+                String(suggestions.expected_runway_months),
+            launch_costs: mergeBudgetRows(
+                current.launch_costs,
+                suggestions.launch_costs,
+            ),
+            monthly_fixed_costs: mergeBudgetRows(
+                current.monthly_fixed_costs,
+                suggestions.monthly_fixed_costs,
+            ),
+            revenue_forecast: mergeBudgetRows(
+                current.revenue_forecast,
+                suggestions.revenue_forecast,
+            ),
+            funding_sources: mergeBudgetRows(
+                current.funding_sources,
+                suggestions.funding_sources,
+            ),
+        }));
+    };
+
+    return (
+        <div className="space-y-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div>
+                    <div className="flex items-center gap-2 text-sm font-medium">
+                        <Banknote className="size-4" aria-hidden="true" />
+                        Budget setup assistant
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Start with plain questions and example rows. You can
+                        switch to advanced editing at any time.
+                    </p>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div
+                        className="inline-flex rounded-md border bg-muted/30 p-1"
+                        role="tablist"
+                        aria-label="Budget setup mode"
+                    >
+                        {(['guided', 'advanced'] as BudgetSetupMode[]).map(
+                            (option) => (
+                                <button
+                                    key={option}
+                                    type="button"
+                                    role="tab"
+                                    aria-selected={mode === option}
+                                    className={cn(
+                                        'rounded-sm px-3 py-1.5 text-sm font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                                        mode === option &&
+                                            'bg-background text-foreground shadow-xs',
+                                    )}
+                                    onClick={() => setMode(option)}
+                                >
+                                    {formatLabel(option)}
+                                </button>
+                            ),
+                        )}
+                    </div>
+                    <Badge
+                        variant={
+                            budget.status === 'complete'
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {formatLabel(budget.status)}
+                    </Badge>
+                </div>
+            </div>
+
+            {gamification.enabled ? (
+                <div className="flex flex-wrap items-center gap-2 rounded-md border bg-muted/20 p-3 text-sm">
+                    <Trophy
+                        className="size-4 shrink-0 text-muted-foreground"
+                        aria-hidden="true"
+                    />
+                    <span className="text-muted-foreground">
+                        Budget progress counts toward the Financial phase
+                        milestone once the revenue model and launch funding
+                        requirements are also complete.
+                    </span>
+                </div>
+            ) : null}
+
+            {!budgetUnlocked ? (
+                <section className="grid gap-3 rounded-md border bg-muted/20 p-4 text-sm md:grid-cols-[1fr_auto] md:items-start">
+                    <div className="flex gap-3">
+                        <AlertTriangle
+                            className="mt-0.5 size-4 shrink-0 text-amber-600"
+                            aria-hidden="true"
+                        />
+                        <div className="space-y-1">
+                            <div className="font-medium">
+                                Complete the business setup section first
+                            </div>
+                            <p className="text-muted-foreground">
+                                The budget assistant uses the completed
+                                "Business type, location, and operating model"
+                                requirement to understand what kind of business
+                                this is. Finish that Foundation requirement
+                                first so the budget can reuse the answer instead
+                                of asking the same question again.
+                            </p>
+                        </div>
+                    </div>
+                    <Button type="button" size="sm" variant="outline" asChild>
+                        <a href="#business-plan-requirements">
+                            <FileText className="size-4" aria-hidden="true" />
+                            Go to requirement
+                        </a>
+                    </Button>
+                </section>
+            ) : mode === 'guided' ? (
+                <div className="space-y-4">
+                    <section className="space-y-3 rounded-md border bg-muted/20 p-3">
+                        <div>
+                            <div className="text-sm font-medium">
+                                Plan-based budget starter
+                            </div>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                This uses the completed Foundation requirement
+                                and the rest of the business plan to suggest
+                                starter rows. The numbers are placeholders to
+                                adjust, not a judgement.
+                            </p>
+                        </div>
+                        <div className="grid gap-3 rounded-md border bg-background p-3 text-sm md:grid-cols-3">
+                            <BudgetSourceDetail
+                                label="Plan source"
+                                value={
+                                    budgetSource.section?.title ??
+                                    budgetSource.requirement?.title ??
+                                    'Foundation requirement'
+                                }
+                            />
+                            <BudgetSourceDetail
+                                label="Detected starter"
+                                value={template.title}
+                                helper={template.description}
+                            />
+                            <BudgetSourceDetail
+                                label="Revenue clue"
+                                value={
+                                    ideaValidation?.revenue_model?.trim() ||
+                                    'Use the Revenue model section when available'
+                                }
+                            />
+                        </div>
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3 text-sm">
+                            <span className="text-muted-foreground">
+                                Add starter rows for {template.title.toLowerCase()}
+                                , then adjust the amounts and confidence levels.
+                            </span>
+                            <div className="flex flex-wrap gap-2">
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={applyPlanClues}
+                                >
+                                    <Bot
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Use plan clues
+                                </Button>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={applyTemplate}
+                                >
+                                    <Plus
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Use starter budget
+                                </Button>
+                            </div>
+                        </div>
+                    </section>
+
+                    <label className="grid gap-1 text-sm md:max-w-sm">
+                        <span>
+                            How many months should the business survive before
+                            it supports itself?
+                        </span>
+                        <input
+                            type="number"
+                            min={0}
+                            max={60}
+                            value={form.expected_runway_months}
+                            onChange={(event) =>
+                                onFormChange((current) => ({
+                                    ...current,
+                                    expected_runway_months:
+                                        event.target.value,
+                                }))
+                            }
+                            className="h-9 rounded-md border bg-background px-3 text-sm"
+                            placeholder="Example: 6"
+                        />
+                        <span className="text-xs text-muted-foreground">
+                            A guess is fine. The advisor can help refine it.
+                        </span>
+                    </label>
+
+                    <div className="grid gap-4">
+                        <BudgetRowsEditor
+                            title="What do you need before your first sale?"
+                            helper="Include one-off setup items such as equipment, website, deposits, signage, licences, stock, or launch marketing."
+                            group="launch_costs"
+                            rows={form.launch_costs}
+                            onFormChange={onFormChange}
+                            quickAdds={template.launch_costs}
+                        />
+                        <BudgetRowsEditor
+                            title="What will you pay every month even if sales are slow?"
+                            helper="Include recurring costs such as software, rent, insurance, phone, accounting, subscriptions, or transport."
+                            group="monthly_fixed_costs"
+                            rows={form.monthly_fixed_costs}
+                            onFormChange={onFormChange}
+                            quickAdds={template.monthly_fixed_costs}
+                        />
+                        <BudgetRowsEditor
+                            title="How will money come in?"
+                            helper="Use simple assumptions: monthly customers, sales, jobs, subscriptions, or average orders."
+                            group="revenue_forecast"
+                            rows={form.revenue_forecast}
+                            onFormChange={onFormChange}
+                            quickAdds={template.revenue_forecast}
+                            revenue
+                        />
+                        <BudgetRowsEditor
+                            title="What money can you use to start?"
+                            helper="Include founder cash, confirmed grants, loans, family support, customer deposits, or pre-sales."
+                            group="funding_sources"
+                            rows={form.funding_sources}
+                            onFormChange={onFormChange}
+                            quickAdds={template.funding_sources}
+                        />
+                    </div>
+                </div>
+            ) : (
+                <div className="space-y-4">
+                    <label className="grid max-w-xs gap-1 text-sm">
+                        <span>Expected runway months</span>
+                        <input
+                            type="number"
+                            min={0}
+                            max={60}
+                            value={form.expected_runway_months}
+                            onChange={(event) =>
+                                onFormChange((current) => ({
+                                    ...current,
+                                    expected_runway_months:
+                                        event.target.value,
+                                }))
+                            }
+                            className="h-9 rounded-md border bg-background px-3 text-sm"
+                        />
+                    </label>
+
+                    <div className="grid gap-4">
+                        <BudgetRowsEditor
+                            title="Launch costs"
+                            group="launch_costs"
+                            rows={form.launch_costs}
+                            onFormChange={onFormChange}
+                        />
+                        <BudgetRowsEditor
+                            title="Monthly fixed costs"
+                            group="monthly_fixed_costs"
+                            rows={form.monthly_fixed_costs}
+                            onFormChange={onFormChange}
+                        />
+                        <BudgetRowsEditor
+                            title="Revenue forecast"
+                            group="revenue_forecast"
+                            rows={form.revenue_forecast}
+                            onFormChange={onFormChange}
+                            revenue
+                        />
+                        <BudgetRowsEditor
+                            title="Funding sources"
+                            group="funding_sources"
+                            rows={form.funding_sources}
+                            onFormChange={onFormChange}
+                        />
+                    </div>
+                </div>
+            )}
+
+            {budgetUnlocked ? (
+                <>
+                    <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                        <BudgetMetric
+                            label="Launch costs"
+                            value={formatCurrency(computed.total_launch_costs)}
+                        />
+                        <BudgetMetric
+                            label="Monthly fixed"
+                            value={formatCurrency(
+                                computed.monthly_fixed_costs,
+                            )}
+                        />
+                        <BudgetMetric
+                            label="Funding"
+                            value={formatCurrency(computed.total_funding)}
+                        />
+                        <BudgetMetric
+                            label="Runway"
+                            value={formatRunway(
+                                computed.runway_months,
+                                computed.runway_open_ended,
+                            )}
+                        />
+                    </div>
+
+                    <BudgetMiniChart series={computed.monthly_series ?? []} />
+
+                    <AdvisorBudgetPreview budget={budget} form={form} />
+
+                    {activeFlags.length > 0 ? (
+                        <div className="space-y-2">
+                            {activeFlags.map((flag) => (
+                                <div
+                                    key={flag.key}
+                                    className="flex flex-wrap items-start justify-between gap-3 rounded-md border bg-muted/30 p-3 text-sm"
+                                >
+                                    <div className="flex min-w-0 gap-2">
+                                        <AlertTriangle
+                                            className="mt-0.5 size-4 shrink-0 text-amber-600"
+                                            aria-hidden="true"
+                                        />
+                                        <div>
+                                            <div className="font-medium">
+                                                {flag.title}
+                                            </div>
+                                            <p className="mt-1 text-muted-foreground">
+                                                {flag.message}
+                                            </p>
+                                        </div>
+                                    </div>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={() =>
+                                            onAcknowledgeFlag(flag.key)
+                                        }
+                                    >
+                                        Acknowledge
+                                    </Button>
+                                </div>
+                            ))}
+                        </div>
+                    ) : null}
+
+                    {showAdvisorNudge ? (
+                        <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3 text-sm">
+                            <span className="text-muted-foreground">
+                                Advisor line item: unresolved budget warnings.
+                            </span>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                onClick={onDismissAdvisorNudge}
+                            >
+                                Dismiss
+                            </Button>
+                        </div>
+                    ) : null}
+
+                    <Button
+                        type="button"
+                        size="sm"
+                        onClick={onSave}
+                        disabled={saving}
+                    >
+                        <Upload className="size-4" aria-hidden="true" />
+                        {saving ? 'Saving' : 'Save budget'}
+                    </Button>
+                </>
+            ) : null}
+        </div>
+    );
+}
+
+function BudgetRowsEditor({
+    title,
+    helper,
+    group,
+    rows,
+    onFormChange,
+    quickAdds = [],
+    revenue = false,
+}: {
+    title: string;
+    helper?: string;
+    group: BudgetGroupKey;
+    rows: BudgetRow[];
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
+    quickAdds?: BudgetRow[];
+    revenue?: boolean;
+}) {
+    return (
+        <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-3">
+                <div className="text-sm font-medium">{title}</div>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        onFormChange((current) => ({
+                            ...current,
+                            [group]: [
+                                ...current[group],
+                                blankBudgetRow(revenue),
+                            ],
+                        }))
+                    }
+                >
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add
+                </Button>
+            </div>
+            {helper ? (
+                <p className="text-sm text-muted-foreground">{helper}</p>
+            ) : null}
+            {quickAdds.length > 0 ? (
+                <div className="flex flex-wrap gap-2">
+                    {quickAdds.slice(0, 6).map((row) => (
+                        <Tooltip key={row.label}>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    title={budgetRowDescription(row)}
+                                    onClick={() =>
+                                        onFormChange((current) => ({
+                                            ...current,
+                                            [group]: mergeBudgetRows(
+                                                current[group],
+                                                [row],
+                                            ),
+                                        }))
+                                    }
+                                >
+                                    <Plus
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    {row.label}
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="top" className="max-w-xs">
+                                {budgetRowDescription(row)}
+                            </TooltipContent>
+                        </Tooltip>
+                    ))}
+                </div>
+            ) : null}
+
+            <div className="space-y-2">
+                {rows.map((row, index) => (
+                    <div
+                        key={index}
+                        className={cn(
+                            'grid gap-2',
+                            revenue
+                                ? 'md:grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(78px,0.5fr))_120px_auto]'
+                                : 'md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(92px,0.6fr))_120px_auto]',
+                        )}
+                    >
+                        <BudgetInput
+                            label="Item"
+                            value={row.label}
+                            onChange={(value) =>
+                                updateBudgetRow(
+                                    onFormChange,
+                                    group,
+                                    index,
+                                    { label: value },
+                                )
+                            }
+                        />
+                        <BudgetInput
+                            label="Amount"
+                            type="number"
+                            value={row.amount}
+                            onChange={(value) =>
+                                updateBudgetRow(
+                                    onFormChange,
+                                    group,
+                                    index,
+                                    { amount: value },
+                                )
+                            }
+                        />
+                        <BudgetInput
+                            label="Qty"
+                            type="number"
+                            value={row.quantity ?? 1}
+                            onChange={(value) =>
+                                updateBudgetRow(
+                                    onFormChange,
+                                    group,
+                                    index,
+                                    { quantity: value },
+                                )
+                            }
+                        />
+                        {revenue ? (
+                            <>
+                                <BudgetInput
+                                    label="Start"
+                                    type="number"
+                                    value={row.month ?? 1}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            { month: value },
+                                        )
+                                    }
+                                />
+                                <BudgetInput
+                                    label="Growth %"
+                                    type="number"
+                                    value={row.monthly_growth_percent ?? 0}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            { monthly_growth_percent: value },
+                                        )
+                                    }
+                                />
+                                <BudgetInput
+                                    label="Cost %"
+                                    type="number"
+                                    value={row.variable_cost_percent ?? 0}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            { variable_cost_percent: value },
+                                        )
+                                    }
+                                />
+                            </>
+                        ) : null}
+                        <BudgetConfidenceSelect
+                            value={row.confidence ?? 'estimate'}
+                            onChange={(value) =>
+                                updateBudgetRow(
+                                    onFormChange,
+                                    group,
+                                    index,
+                                    { confidence: value },
+                                )
+                            }
+                        />
+                        <div className="flex items-end">
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                title="Remove row"
+                                onClick={() =>
+                                    onFormChange((current) => ({
+                                        ...current,
+                                        [group]: current[group].filter(
+                                            (_row, rowIndex) =>
+                                                rowIndex !== index,
+                                        ),
+                                    }))
+                                }
+                            >
+                                <Trash2
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function BudgetSourceDetail({
+    label,
+    value,
+    helper,
+}: {
+    label: string;
+    value: string;
+    helper?: string;
+}) {
+    return (
+        <div className="min-w-0">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-1 truncate font-medium">{value}</div>
+            {helper ? (
+                <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">
+                    {helper}
+                </p>
+            ) : null}
+        </div>
+    );
+}
+
+function BudgetInput({
+    label,
+    value,
+    onChange,
+    type = 'text',
+}: {
+    label: string;
+    value: string | number;
+    onChange: (value: string) => void;
+    type?: 'text' | 'number';
+}) {
+    return (
+        <label className="grid gap-1 text-xs">
+            <span className="text-muted-foreground">{label}</span>
+            <input
+                type={type}
+                value={value}
+                min={type === 'number' ? 0 : undefined}
+                onChange={(event) => onChange(event.target.value)}
+                className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
+            />
+        </label>
+    );
+}
+
+function BudgetConfidenceSelect({
+    value,
+    onChange,
+}: {
+    value: NonNullable<BudgetRow['confidence']>;
+    onChange: (value: NonNullable<BudgetRow['confidence']>) => void;
+}) {
+    return (
+        <label className="grid gap-1 text-xs">
+            <span className="text-muted-foreground">Confidence</span>
+            <select
+                value={value}
+                onChange={(event) =>
+                    onChange(
+                        event.target
+                            .value as NonNullable<BudgetRow['confidence']>,
+                    )
+                }
+                className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
+            >
+                <option value="known">Known</option>
+                <option value="estimate">Estimate</option>
+                <option value="guess">Guess</option>
+            </select>
+        </label>
+    );
+}
+
+function BudgetMetric({
+    label,
+    value,
+}: {
+    label: string;
+    value: string;
+}) {
+    return (
+        <div className="rounded-md border bg-background p-3">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-1 text-sm font-medium">{value}</div>
+        </div>
+    );
+}
+
+function AdvisorBudgetPreview({
+    budget,
+    form,
+}: {
+    budget: BudgetPayload;
+    form: BudgetFormState;
+}) {
+    const computed = budget.computed ?? {};
+    const confidence = confidenceSummary(form);
+    const activeFlags = budget.active_flags ?? [];
+
+    return (
+        <section className="space-y-3 rounded-md border bg-background p-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-sm font-medium">
+                    <Eye className="size-4" aria-hidden="true" />
+                    Advisor view
+                </div>
+                <Badge
+                    variant={
+                        budget.status === 'complete' ? 'secondary' : 'outline'
+                    }
+                >
+                    {formatLabel(budget.status)}
+                </Badge>
+            </div>
+            <dl className="grid gap-3 text-sm sm:grid-cols-2">
+                <AdvisorPreviewItem
+                    label="Expected runway"
+                    value={formatRunway(
+                        budget.expected_runway_months,
+                        false,
+                    )}
+                />
+                <AdvisorPreviewItem
+                    label="Calculated runway"
+                    value={formatRunway(
+                        computed.runway_months,
+                        computed.runway_open_ended,
+                    )}
+                />
+                <AdvisorPreviewItem
+                    label="Break-even"
+                    value={
+                        computed.break_even_month
+                            ? `Month ${computed.break_even_month}`
+                            : '-'
+                    }
+                />
+                <AdvisorPreviewItem
+                    label="After launch"
+                    value={formatCurrency(computed.available_after_launch)}
+                />
+                <AdvisorPreviewItem
+                    label="Confidence"
+                    value={`${confidence.known} known, ${confidence.estimate} estimates, ${confidence.guess} guesses`}
+                />
+                <AdvisorPreviewItem
+                    label="Coaching prompts"
+                    value={
+                        activeFlags.length > 0
+                            ? activeFlags.map((flag) => flag.title).join('; ')
+                            : 'None unresolved'
+                    }
+                />
+            </dl>
+        </section>
+    );
+}
+
+function AdvisorPreviewItem({
+    label,
+    value,
+}: {
+    label: string;
+    value: string;
+}) {
+    return (
+        <div className="grid gap-1 rounded-md border bg-muted/20 p-3">
+            <dt className="text-xs text-muted-foreground">{label}</dt>
+            <dd className="text-sm font-medium">{value}</dd>
+        </div>
+    );
+}
+
+function BudgetMiniChart({
+    series,
+}: {
+    series: NonNullable<BudgetPayload['computed']['monthly_series']>;
+}) {
+    if (series.length === 0) {
+        return null;
+    }
+
+    const width = 520;
+    const height = 150;
+    const padding = 18;
+    const values = series.flatMap((point) => [
+        point.revenue,
+        point.cumulative_cash,
+    ]);
+    const max = Math.max(1, ...values.map((value) => Math.abs(value)));
+    const x = (index: number) =>
+        padding +
+        (index / Math.max(1, series.length - 1)) * (width - padding * 2);
+    const y = (value: number) =>
+        height / 2 - (value / max) * ((height - padding * 2) / 2);
+    const revenuePoints = series
+        .map((point, index) => `${x(index)},${y(point.revenue)}`)
+        .join(' ');
+    const cashPoints = series
+        .map((point, index) => `${x(index)},${y(point.cumulative_cash)}`)
+        .join(' ');
+
+    return (
+        <div className="rounded-md border bg-background p-3">
+            <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
+                <span>12-month forecast</span>
+                <span className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-emerald-600" />
+                    Revenue
+                </span>
+                <span className="inline-flex items-center gap-1">
+                    <span className="size-2 rounded-full bg-sky-600" />
+                    Cash
+                </span>
+            </div>
+            <svg
+                role="img"
+                aria-label="Budget forecast"
+                viewBox={`0 0 ${width} ${height}`}
+                className="h-40 w-full"
+            >
+                <line
+                    x1={padding}
+                    x2={width - padding}
+                    y1={height / 2}
+                    y2={height / 2}
+                    stroke="currentColor"
+                    strokeOpacity="0.2"
+                />
+                <polyline
+                    points={revenuePoints}
+                    fill="none"
+                    stroke="rgb(5 150 105)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+                <polyline
+                    points={cashPoints}
+                    fill="none"
+                    stroke="rgb(2 132 199)"
+                    strokeWidth="3"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                />
+            </svg>
+        </div>
+    );
+}
+
+function budgetRow(
+    label: string,
+    amount: number,
+    confidence: NonNullable<BudgetRow['confidence']> = 'estimate',
+    extra: Partial<BudgetRow> = {},
+): BudgetRow {
+    return {
+        label,
+        amount,
+        quantity: extra.quantity ?? 1,
+        confidence,
+        ...extra,
+    };
+}
+
+const budgetRowDescriptions: Record<string, string> = {
+    'product or platform setup':
+        'The one-off cost to build or configure what customers will use: a prototype, app, website platform, booking system, payment setup, member portal, no-code tools, or integrations.',
+    'brand, landing page, and content':
+        'The basics that make the offer credible online: naming, logo or visual identity, landing page copy, images, explainer content, and simple sales material.',
+    'launch campaign':
+        'The first push to get attention and early customers, such as ads, email outreach, social content, flyers, launch event costs, or promotional offers.',
+    'hosting and software tools':
+        'Monthly tools needed to keep the product or platform running, such as hosting, domain services, email tools, subscriptions, plugins, or workflow software.',
+    'support and admin tools':
+        'Tools or services used to help customers and manage operations, such as helpdesk, booking, CRM, payment admin, document storage, or scheduling.',
+    'content or product maintenance':
+        'Ongoing work needed to keep the product useful, such as updates, new content, bug fixes, community moderation, or small contractor help.',
+    'monthly subscribers or members':
+        'Expected recurring customers. Amount is the monthly price per subscriber or member, and Qty is the number of paying people expected that month.',
+    'founder cash':
+        'Money the founder can realistically contribute to start the business. It can be changed later if the amount is only a guess.',
+    'website and domain':
+        'One-off setup for a basic website, domain name, email domain, landing page, or simple online presence.',
+    'basic equipment':
+        'Practical items needed before serving customers, such as laptop, tools, furniture, devices, packaging equipment, or starter supplies.',
+    'launch marketing':
+        'Initial marketing spend to help people discover the business, such as ads, flyers, photography, launch content, or promotional discounts.',
+    'brand and website setup':
+        'Initial brand and online setup, such as logo, colours, simple website, domain, email, profile pages, and basic sales copy.',
+    'professional templates':
+        'Reusable documents needed to deliver the service, such as proposals, agreements, onboarding forms, session notes, checklists, or reports.',
+    'launch outreach':
+        'Initial effort to reach potential customers, such as email campaigns, calls, networking events, direct messages, or introductory offers.',
+    'opening stock':
+        'Inventory needed before sales can start. This can include finished goods, raw materials, samples, or minimum order quantities.',
+    'display, packaging, or signage':
+        'Items that help present and sell products, such as packaging, labels, shelves, displays, market stall setup, or signs.',
+    'point of sale setup':
+        'Tools for taking payments and tracking sales, such as card reader, POS software, barcode labels, receipt printer, or payment setup.',
+    'online store setup':
+        'One-off setup for an ecommerce store, product pages, payment gateway, checkout, shipping rules, and basic integrations.',
+    'opening inventory':
+        'Initial products or materials needed to start selling online.',
+    'launch ads and content':
+        'Initial paid or organic content used to drive traffic, such as social ads, videos, photos, product copy, or influencer samples.',
+    'tools and equipment':
+        'Tools, safety gear, devices, or specialist equipment needed to deliver the work.',
+    'vehicle setup or signage':
+        'Vehicle-related setup, such as signage, storage, racks, fit-out, registration changes, or initial road-ready costs.',
+    'licences and safety gear':
+        'Required licences, certifications, compliance items, protective gear, or safety setup before work begins.',
+};
+
+function budgetRowDescription(row: BudgetRow): string {
+    const label = budgetRowLabel(row);
+
+    return (
+        row.description ??
+        budgetRowDescriptions[label.toLowerCase()] ??
+        'Add this suggested line to your budget, then adjust the amount and confidence level if needed.'
+    );
+}
+
+function inferBudgetTemplateKey(
+    plan: BusinessPlanPayload,
+    ideaValidation: IdeaValidationPayload,
+): BudgetTemplateKey {
+    const text = budgetSourceText(plan, ideaValidation);
+
+    if (hasAny(text, ['food', 'cafe', 'coffee', 'catering', 'kitchen', 'hospitality', 'restaurant'])) {
+        return 'food';
+    }
+
+    if (hasAny(text, ['subscription', 'membership', 'saas', 'recurring', 'software platform'])) {
+        return 'subscription';
+    }
+
+    if (hasAny(text, ['online store', 'ecommerce', 'e-commerce', 'shopify', 'website sales', 'direct to customer'])) {
+        return 'online';
+    }
+
+    if (hasAny(text, ['retail', 'stock', 'inventory', 'products', 'store', 'shop', 'market stall'])) {
+        return 'retail';
+    }
+
+    if (hasAny(text, ['trade', 'tools', 'installation', 'repairs', 'maintenance', 'vehicle', 'site work'])) {
+        return 'trades';
+    }
+
+    if (hasAny(text, ['consulting', 'coaching', 'training', 'advisory', 'workshop', 'mentor'])) {
+        return 'consulting';
+    }
+
+    return 'service';
+}
+
+function budgetRowsFromPlan(
+    plan: BusinessPlanPayload,
+    ideaValidation: IdeaValidationPayload,
+    templateKey: BudgetTemplateKey,
+): BudgetTemplate {
+    const text = budgetSourceText(plan, ideaValidation);
+    const template = budgetTemplates[templateKey];
+    const launchCosts = [...template.launch_costs];
+    const monthlyFixedCosts = [...template.monthly_fixed_costs];
+    const revenueForecast = [...template.revenue_forecast];
+    const fundingSources = [...template.funding_sources];
+
+    if (hasAny(text, ['website', 'domain', 'landing page'])) {
+        launchCosts.push(budgetRow('Website, domain, or landing page', 900, 'guess'));
+    }
+
+    if (hasAny(text, ['marketing', 'ads', 'launch campaign', 'social media'])) {
+        launchCosts.push(budgetRow('Launch marketing campaign', 1200, 'guess'));
+    }
+
+    if (hasAny(text, ['licence', 'license', 'permit', 'compliance', 'legal'])) {
+        launchCosts.push(budgetRow('Licences, permits, or compliance setup', 800, 'guess'));
+    }
+
+    if (hasAny(text, ['software', 'system', 'crm', 'booking', 'accounting'])) {
+        monthlyFixedCosts.push(budgetRow('Software and operating systems', 180, 'estimate'));
+    }
+
+    if (hasAny(text, ['insurance', 'liability'])) {
+        monthlyFixedCosts.push(budgetRow('Insurance', 200, 'guess'));
+    }
+
+    if (hasAny(text, ['rent', 'premises', 'workspace', 'office', 'storage'])) {
+        monthlyFixedCosts.push(budgetRow('Premises, workspace, or storage', 700, 'guess'));
+    }
+
+    if (hasAny(text, ['grant'])) {
+        fundingSources.push(budgetRow('Potential grant funding', 3000, 'guess'));
+    }
+
+    if (hasAny(text, ['loan', 'finance', 'lending'])) {
+        fundingSources.push(budgetRow('Potential loan or finance', 5000, 'guess'));
+    }
+
+    if (hasAny(text, ['pre-sale', 'presale', 'deposit'])) {
+        fundingSources.push(budgetRow('Customer deposits or pre-sales', 1500, 'guess'));
+    }
+
+    const revenueModel = ideaValidation?.revenue_model?.trim();
+    if (revenueModel) {
+        revenueForecast.push(
+            budgetRow(`Revenue from ${revenueModel.slice(0, 90)}`, 500, 'guess', {
+                quantity: 3,
+                month: 1,
+                variable_cost_percent: 20,
+            }),
+        );
+    }
+
+    return {
+        ...template,
+        launch_costs: dedupeBudgetRows(launchCosts),
+        monthly_fixed_costs: dedupeBudgetRows(monthlyFixedCosts),
+        revenue_forecast: dedupeBudgetRows(revenueForecast),
+        funding_sources: dedupeBudgetRows(fundingSources),
+    };
+}
+
+function budgetSourceText(
+    plan: BusinessPlanPayload,
+    ideaValidation: IdeaValidationPayload,
+): string {
+    return [
+        ideaValidation?.problem,
+        ideaValidation?.target_customer,
+        ideaValidation?.solution,
+        ideaValidation?.value_proposition,
+        ideaValidation?.demand_signal,
+        ideaValidation?.revenue_model,
+        ...(plan?.phases ?? []).flatMap((phase) =>
+            phase.sections.flatMap((section) => [
+                section.title,
+                section.body,
+            ]),
+        ),
+    ]
+        .filter(Boolean)
+        .join(' ')
+        .toLowerCase();
+}
+
+function hasAny(text: string, needles: string[]): boolean {
+    return needles.some((needle) => text.includes(needle));
+}
+
+function mergeBudgetRows(currentRows: BudgetRow[], suggestedRows: BudgetRow[]) {
+    return dedupeBudgetRows([
+        ...currentRows
+            .map((row) => normaliseBudgetRow(row))
+            .filter((row) => !isBlankBudgetRow(row)),
+        ...suggestedRows.map((row) => ({
+            ...normaliseBudgetRow(row),
+            confidence: row.confidence ?? 'guess',
+        })),
+    ]);
+}
+
+function dedupeBudgetRows(rows: BudgetRow[]) {
+    const seen = new Set<string>();
+
+    return rows.filter((row) => {
+        const key = budgetRowLabel(row).toLowerCase();
+
+        if (key === '' || seen.has(key)) {
+            return false;
+        }
+
+        seen.add(key);
+
+        return true;
+    });
+}
+
+function isBlankBudgetRow(row: BudgetRow): boolean {
+    return budgetRowLabel(row) === '' && numberFromInput(row.amount) === 0;
+}
+
+function confidenceSummary(form: BudgetFormState) {
+    return [
+        ...form.launch_costs,
+        ...form.monthly_fixed_costs,
+        ...form.revenue_forecast,
+        ...form.funding_sources,
+    ]
+        .filter((row) => !isBlankBudgetRow(row))
+        .reduce(
+            (summary, row) => ({
+                ...summary,
+                [row.confidence ?? 'estimate']:
+                    summary[row.confidence ?? 'estimate'] + 1,
+            }),
+            { known: 0, estimate: 0, guess: 0 },
+        );
+}
+
+function updateBudgetRow(
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>,
+    group: BudgetGroupKey,
+    index: number,
+    patch: Partial<BudgetRow>,
+) {
+    onFormChange((current) => ({
+        ...current,
+        [group]: current[group].map((row, rowIndex) =>
+            rowIndex === index ? { ...row, ...patch } : row,
+        ),
+    }));
+}
+
+function budgetToForm(budget: BudgetPayload | undefined): BudgetFormState {
+    return {
+        expected_runway_months:
+            budget?.expected_runway_months === null ||
+            budget?.expected_runway_months === undefined
+                ? ''
+                : String(budget.expected_runway_months),
+        launch_costs: rowsOrBlank(budget?.launch_costs),
+        monthly_fixed_costs: rowsOrBlank(budget?.monthly_fixed_costs),
+        revenue_forecast: rowsOrBlank(budget?.revenue_forecast, true),
+        funding_sources: rowsOrBlank(budget?.funding_sources),
+    };
+}
+
+function rowsOrBlank(rows: BudgetRow[] | undefined, revenue = false) {
+    return rows && rows.length > 0
+        ? rows.map((row) => normaliseBudgetRow(row, revenue))
+        : [blankBudgetRow(revenue)];
+}
+
+function blankBudgetRow(revenue = false): BudgetRow {
+    return revenue
+        ? {
+              label: '',
+              amount: '',
+              quantity: 1,
+              month: 1,
+              monthly_growth_percent: 0,
+              variable_cost_percent: 0,
+              confidence: 'estimate',
+          }
+        : {
+              label: '',
+              amount: '',
+              quantity: 1,
+              confidence: 'estimate',
+          };
+}
+
+function cleanBudgetForm(form: BudgetFormState) {
+    return {
+        expected_runway_months:
+            form.expected_runway_months === ''
+                ? null
+                : numberFromInput(form.expected_runway_months),
+        launch_costs: cleanBudgetRows(form.launch_costs),
+        monthly_fixed_costs: cleanBudgetRows(form.monthly_fixed_costs),
+        revenue_forecast: cleanBudgetRows(form.revenue_forecast, true),
+        funding_sources: cleanBudgetRows(form.funding_sources),
+    };
+}
+
+function cleanBudgetRows(rows: BudgetRow[], revenue = false) {
+    return rows
+        .filter(
+            (row) =>
+                budgetRowLabel(row) !== '' || numberFromInput(row.amount) > 0,
+        )
+        .map((row) => ({
+            label: budgetRowLabel(row),
+            amount: numberFromInput(row.amount),
+            quantity: numberFromInput(row.quantity ?? 1) || 1,
+            confidence: budgetRowConfidence(row.confidence),
+            ...(revenue
+                ? {
+                      month: numberFromInput(row.month ?? 1) || 1,
+                      monthly_growth_percent: numberFromInput(
+                          row.monthly_growth_percent ?? 0,
+                      ),
+                      variable_cost_percent: numberFromInput(
+                          row.variable_cost_percent ?? 0,
+                      ),
+                  }
+                : {}),
+        }));
+}
+
+function normaliseBudgetRow(row: BudgetRow, revenue = false): BudgetRow {
+    return {
+        label: budgetRowLabel(row),
+        amount: row.amount ?? '',
+        quantity: numberFromInput(row.quantity ?? 1) || 1,
+        confidence: budgetRowConfidence(row.confidence),
+        ...(revenue
+            ? {
+                  month: numberFromInput(row.month ?? 1) || 1,
+                  monthly_growth_percent: numberFromInput(
+                      row.monthly_growth_percent ?? 0,
+                  ),
+                  variable_cost_percent: numberFromInput(
+                      row.variable_cost_percent ?? 0,
+                  ),
+              }
+            : {}),
+    };
+}
+
+function budgetRowLabel(row: BudgetRow): string {
+    return String(row.label ?? '').trim();
+}
+
+function budgetRowConfidence(
+    confidence: BudgetRow['confidence'] | null | undefined,
+): NonNullable<BudgetRow['confidence']> {
+    return confidence === 'known' || confidence === 'guess'
+        ? confidence
+        : 'estimate';
+}
+
+function numberFromInput(value: string | number | null | undefined): number {
+    const parsed =
+        typeof value === 'number'
+            ? value
+            : Number.parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
+
+    return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function formatCurrency(value: number | null | undefined): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency: 'NZD',
+        maximumFractionDigits: 0,
+    }).format(value ?? 0);
+}
+
+function formatRunway(
+    months: number | null | undefined,
+    openEnded: boolean | undefined,
+): string {
+    if (months === null || months === undefined) {
+        return '-';
+    }
+
+    return openEnded ? `${months}+ months` : `${months} months`;
+}
+
 function Detail({
     label,
     value,
@@ -1402,6 +3059,24 @@ function findSection(
                     section.id === requirement.section_id,
             ) ?? null
     );
+}
+
+function budgetPlanSource(
+    plan: BusinessPlanPayload,
+    requirementKey: string,
+): {
+    requirement: PlanRequirementPayload | null;
+    section: PlanSectionPayload | null;
+} {
+    const requirement =
+        plan?.phases
+            .flatMap((phase) => phase.requirements)
+            .find((row) => row.key === requirementKey) ?? null;
+
+    return {
+        requirement,
+        section: requirement ? findSection(plan, requirement) : null,
+    };
 }
 
 function requirementId(requirement: PlanRequirementPayload): string {

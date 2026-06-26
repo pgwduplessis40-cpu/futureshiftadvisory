@@ -335,20 +335,7 @@ final class EntrepreneurMilestones
 
     private function weightedScore(PlanAssessment $assessment): float
     {
-        $assessment->loadMissing('ratingFramework.criteria');
-        $weights = $assessment->ratingFramework?->criteria?->pluck('weight', 'number') ?? collect();
-        $aiScores = $this->scoresByCriterion($assessment->ai_scores);
-        $advisorScores = $this->scoresByCriterion($assessment->advisor_scores);
-
-        return round(($assessment->ratingFramework?->criteria ?? collect())->sum(function ($criterion) use ($weights, $aiScores, $advisorScores): float {
-            $advisor = $advisorScores->get($criterion->number);
-            $ai = $aiScores->get($criterion->number, []);
-            $score = is_array($advisor) && is_numeric($advisor['score'] ?? null)
-                ? (float) $advisor['score']
-                : (float) ($ai['score'] ?? 0);
-
-            return $score * (((float) $weights->get($criterion->number, 0)) / 100);
-        }), 2);
+        return AssessmentScoring::weightedScore($assessment);
     }
 
     private function scoresByCriterion(mixed $scores): Collection

@@ -29,6 +29,7 @@ final class RatingFramework extends Model
         9 => 'Goals and objectives',
         10 => 'Culture',
         11 => 'Legal Environment',
+        12 => 'Budget',
     ];
 
     public const DEFAULT_GRADE_BANDS = [

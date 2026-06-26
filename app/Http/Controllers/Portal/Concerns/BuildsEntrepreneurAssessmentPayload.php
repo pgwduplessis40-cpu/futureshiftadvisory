@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Portal\Concerns;
 
 use App\Models\PlanAssessment;
+use App\Models\RatingFramework;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
+use App\Services\Entrepreneurs\AssessmentScoring;
 
 trait BuildsEntrepreneurAssessmentPayload
 {
@@ -16,9 +18,13 @@ trait BuildsEntrepreneurAssessmentPayload
     {
         $assessment->loadMissing('businessPlan', 'ratingFramework.criteria');
 
-        $criteria = $this->assessmentCriteriaPayload($assessment);
+        $criteria = AssessmentScoring::criteriaPayload($assessment);
         $weightedScore = round(collect($criteria)->sum('contribution'), 2);
         $framework = $assessment->ratingFramework;
+        $currentFramework = $this->currentPublishedFrameworkFor($framework);
+        $isCurrentFramework = ! $framework instanceof RatingFramework
+            || ! $currentFramework instanceof RatingFramework
+            || (string) $framework->getKey() === (string) $currentFramework->getKey();
 
         return [
             'id' => $assessment->id,
@@ -29,6 +35,19 @@ trait BuildsEntrepreneurAssessmentPayload
             'threshold' => AdvisoryReadiness::THRESHOLD,
             'finalised_at' => $assessment->finalised_at?->toIso8601String(),
             'created_at' => $assessment->created_at?->toIso8601String(),
+            'rating_framework' => [
+                'id' => $framework?->id,
+                'version' => $framework?->version,
+                'criteria_count' => $framework?->criteria->count() ?? count($criteria),
+                'published_at' => $framework?->published_at?->toIso8601String(),
+                'is_current' => $isCurrentFramework,
+                'current_version' => $currentFramework?->version,
+                'current_criteria_count' => $currentFramework?->criteria->count(),
+                'current_published_at' => $currentFramework?->published_at?->toIso8601String(),
+                'current_has_budget' => $currentFramework?->criteria
+                    ->contains(fn ($criterion): bool => (int) $criterion->number === 12
+                        && strcasecmp((string) $criterion->name, 'Budget') === 0) ?? false,
+            ],
             'document_support' => [
                 'attached_document_count' => (int) data_get($assessment->document_support, 'attached_document_count', 0),
                 'summary' => (string) data_get(
@@ -47,50 +66,6 @@ trait BuildsEntrepreneurAssessmentPayload
     }
 
     /**
-     * @return array<int, array<string, mixed>>
-     */
-    private function assessmentCriteriaPayload(PlanAssessment $assessment): array
-    {
-        $aiScores = collect($assessment->ai_scores ?? [])
-            ->filter(fn (mixed $row): bool => is_array($row))
-            ->keyBy(fn (array $row): int => (int) ($row['criterion_number'] ?? 0));
-        $advisorScores = collect($assessment->advisor_scores ?? [])
-            ->filter(fn (mixed $row): bool => is_array($row))
-            ->keyBy(fn (array $row): int => (int) ($row['criterion_number'] ?? 0));
-        $criteria = $assessment->ratingFramework?->criteria;
-
-        if ($criteria === null) {
-            return [];
-        }
-
-        return $criteria
-            ->map(function ($criterion) use ($aiScores, $advisorScores): array {
-                $advisor = $advisorScores->get($criterion->number);
-                $ai = $aiScores->get($criterion->number);
-                $hasAdvisorScore = is_array($advisor) && is_numeric($advisor['score'] ?? null);
-                $score = $hasAdvisorScore
-                    ? (float) $advisor['score']
-                    : (float) (is_array($ai) && is_numeric($ai['score'] ?? null) ? $ai['score'] : 0);
-                $weight = (float) $criterion->weight;
-
-                return [
-                    'number' => $criterion->number,
-                    'name' => $criterion->name,
-                    'weight' => $weight,
-                    'score' => $score,
-                    'contribution' => round($score * ($weight / 100), 2),
-                    'source' => $hasAdvisorScore ? 'advisor_review' : 'first_pass',
-                    'source_label' => $hasAdvisorScore ? 'Advisor reviewed' : 'First pass',
-                    'rationale' => $hasAdvisorScore
-                        ? (string) ($advisor['note'] ?? '')
-                        : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),
-                ];
-            })
-            ->values()
-            ->all();
-    }
-
-    /**
      * @return array<string, mixed>
      */
     private function entrepreneurVisibleMentorNotes(PlanAssessment $assessment): array
@@ -103,5 +78,21 @@ trait BuildsEntrepreneurAssessmentPayload
         unset($notes['private_advisory']);
 
         return $notes;
+    }
+
+    private function currentPublishedFrameworkFor(?RatingFramework $framework): ?RatingFramework
+    {
+        $query = RatingFramework::query()
+            ->with('criteria')
+            ->where('status', RatingFramework::STATUS_PUBLISHED)
+            ->latest('version');
+
+        if ($framework instanceof RatingFramework) {
+            $query->where('industry_variant', $framework->industry_variant);
+        } else {
+            $query->whereNull('industry_variant');
+        }
+
+        return $query->first();
     }
 }

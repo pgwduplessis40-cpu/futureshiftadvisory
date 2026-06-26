@@ -198,12 +198,22 @@ final class PlanBuilder
      */
     public function foundingPayload(BusinessPlan $plan): array
     {
-        $plan->loadMissing('phases.sections');
+        $plan->loadMissing('phases.sections', 'budgetRunway');
 
         return [
             'business_plan_id' => $plan->id,
             'title' => $plan->title,
             'source_type' => $plan->source_type,
+            'budget' => $plan->budgetRunway ? [
+                'expected_runway_months' => $plan->budgetRunway->expected_runway_months,
+                'status' => $plan->budgetRunway->status,
+                'launch_costs' => $plan->budgetRunway->launch_costs ?? [],
+                'monthly_fixed_costs' => $plan->budgetRunway->monthly_fixed_costs ?? [],
+                'revenue_forecast' => $plan->budgetRunway->revenue_forecast ?? [],
+                'funding_sources' => $plan->budgetRunway->funding_sources ?? [],
+                'computed' => $plan->budgetRunway->computed ?? [],
+                'flags' => $plan->budgetRunway->flags ?? [],
+            ] : null,
             'phases' => $plan->phases
                 ->sortBy('position')
                 ->map(fn (PlanPhase $phase): array => [
