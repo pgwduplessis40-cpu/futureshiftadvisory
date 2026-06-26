@@ -73,6 +73,29 @@ final class PanelAdminQueueTest extends TestCase
         $this->assertSame(PanelAgreement::STATUS_PENDING_SIGNATURE, $member->agreements()->firstOrFail()->status);
     }
 
+    public function test_admin_can_approve_broker_application_with_numeric_fsp_number(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $broker = $this->panelUser(User::TYPE_BROKER, 'queue-numeric-fsp-broker@example.test');
+        $member = app(PanelOnboarding::class)->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'Queue Numeric FSP Brokers Limited',
+            'fsp_number' => '1011267',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.panel-members.approve', $member))
+            ->assertRedirect(route('admin.panel-members.index', absolute: false))
+            ->assertSessionDoesntHaveErrors();
+
+        $member->refresh();
+
+        $this->assertSame(PanelMember::STATUS_APPROVED_PENDING_AGREEMENT, $member->status);
+        $this->assertSame('FSP1011267', $member->fsp_number);
+        $this->assertSame(PanelMember::FSP_STATUS_CURRENT, $member->fsp_status);
+        $this->assertSame('FSP1011267', $member->agreements()->firstOrFail()->terms['broker_clauses']['fsp_number']);
+    }
+
     public function test_admin_broker_approval_returns_validation_error_when_fsp_is_not_current(): void
     {
         $this->seed(RoleSeeder::class);

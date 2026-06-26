@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\BrokerFspLapsedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\Fsp\Contracts\FspClient;
+use App\Support\FspNumber;
 use Illuminate\Support\Facades\Notification;
 use InvalidArgumentException;
 
@@ -137,7 +138,7 @@ final class BrokerFspVerifier
     private function fspNumber(PanelMember $member): string
     {
         $application = $member->application ?? [];
-        $fspNumber = strtoupper(trim((string) ($application['fsp_number'] ?? $member->fsp_number ?? '')));
+        $fspNumber = FspNumber::normalise((string) ($application['fsp_number'] ?? $member->fsp_number ?? ''));
 
         if ($fspNumber === '') {
             throw new InvalidArgumentException('Broker application requires an FSP number.');

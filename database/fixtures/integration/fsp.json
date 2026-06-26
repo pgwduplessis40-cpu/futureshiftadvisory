@@ -7,6 +7,14 @@
         "services": ["fire_and_general_insurance", "life_and_health_insurance"],
         "checked_at": "2026-05-23T00:00:00+12:00"
     },
+    "FSP1011267": {
+        "fsp_number": "FSP1011267",
+        "legal_name": "Cornerstone Connect Limited",
+        "status": "current",
+        "authorised_for_insurance": true,
+        "services": ["life_and_health_insurance", "kiwisaver", "mortgages"],
+        "checked_at": "2026-06-26T00:00:00+12:00"
+    },
     "FSP999999": {
         "fsp_number": "FSP999999",
         "legal_name": "Lapsed Cover Advice Limited",

@@ -6,6 +6,7 @@ namespace App\Services\Integration\Fsp;
 
 use App\Services\Integration\Fixtures\FixtureRepository;
 use App\Services\Integration\Fsp\Contracts\FspClient;
+use App\Support\FspNumber;
 
 final class FakeFspClient implements FspClient
 {
@@ -39,6 +40,6 @@ final class FakeFspClient implements FspClient
 
     private function normalise(string $fspNumber): string
     {
-        return strtoupper(trim($fspNumber));
+        return FspNumber::normalise($fspNumber);
     }
 }

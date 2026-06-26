@@ -9,6 +9,7 @@ use App\Services\Integration\Fsp\Contracts\FspClient;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\Resilience\ResilientHttp;
+use App\Support\FspNumber;
 use Illuminate\Support\Facades\Config;
 
 final class LiveFspClient implements FspClient
@@ -22,7 +23,7 @@ final class LiveFspClient implements FspClient
 
     public function lookup(string $fspNumber): array
     {
-        $fspNumber = strtoupper(trim($fspNumber));
+        $fspNumber = FspNumber::normalise($fspNumber);
 
         if (! $this->live->isLive('fsp')) {
             throw IntegrationDisabledException::forService('fsp');

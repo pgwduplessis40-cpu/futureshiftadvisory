@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\PanelApplicationResubmittedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Panels\PanelOnboarding;
+use App\Support\FspNumber;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Notification;
@@ -193,7 +194,7 @@ final class PanelApplicationController extends Controller
 
     private function normaliseFspNumber(string $value): string
     {
-        return strtoupper(trim($value));
+        return FspNumber::normalise($value);
     }
 
     private function notifyReviewersOfResubmission(PanelMember $member): void
