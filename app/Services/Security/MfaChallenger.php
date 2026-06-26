@@ -64,7 +64,7 @@ final class MfaChallenger
         $this->markChallengePassed($request, $user);
     }
 
-    public function markChallengePassed(Request $request, User $user): void
+    public function markChallengePassed(Request $request, User $user, bool $touchFactor = true): void
     {
         if ($request->hasSession()) {
             $request->session()->put([
@@ -80,10 +80,12 @@ final class MfaChallenger
             ]);
         }
 
-        MfaFactor::query()
-            ->where('user_id', $user->getKey())
-            ->where('type', MfaFactor::TYPE_TOTP)
-            ->update(['last_used_at' => now()]);
+        if ($touchFactor) {
+            MfaFactor::query()
+                ->where('user_id', $user->getKey())
+                ->where('type', MfaFactor::TYPE_TOTP)
+                ->update(['last_used_at' => now()]);
+        }
     }
 
     public function verify(Request $request, User $user): void

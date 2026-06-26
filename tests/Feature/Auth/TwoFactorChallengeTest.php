@@ -3,8 +3,10 @@
 namespace Tests\Feature\Auth;
 
 use App\Models\User;
+use App\Services\Security\MfaChallenger;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Laravel\Fortify\Features;
 use Tests\TestCase;
 
@@ -45,5 +47,46 @@ class TwoFactorChallengeTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('auth/two-factor-challenge'),
             );
+    }
+
+    public function test_two_factor_challenge_marks_mfa_session_after_login(): void
+    {
+        Features::twoFactorAuthentication([
+            'confirm' => true,
+            'confirmPassword' => true,
+        ]);
+
+        $this->app->instance(TwoFactorAuthenticationProvider::class, new class implements TwoFactorAuthenticationProvider
+        {
+            public function generateSecretKey(): string
+            {
+                return 'secret';
+            }
+
+            public function qrCodeUrl($companyName, $companyEmail, $secret): string
+            {
+                return '';
+            }
+
+            public function verify($secret, $code): bool
+            {
+                return $secret === 'secret' && $code === '123456';
+            }
+        });
+
+        $user = User::factory()->withTwoFactor()->create();
+
+        $this
+            ->withSession([
+                'login.id' => $user->getKey(),
+                'login.remember' => false,
+            ])
+            ->post(route('two-factor.login'), [
+                'code' => '123456',
+            ])
+            ->assertRedirect(config('fortify.home'))
+            ->assertSessionHas(MfaChallenger::SESSION_USER_ID, (string) $user->getKey());
+
+        $this->assertAuthenticatedAs($user);
     }
 }
