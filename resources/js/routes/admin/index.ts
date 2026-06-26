@@ -2,6 +2,7 @@ import invitations from './invitations'
 import questionnaires from './questionnaires'
 import surveys from './surveys'
 import terms from './terms'
+import partnerAgreement from './partner-agreement'
 import serviceRates from './service-rates'
 import integrationHealth from './integration-health'
 import auditTrail from './audit-trail'
@@ -18,6 +19,7 @@ const admin = {
 questionnaires: Object.assign(questionnaires, questionnaires),
 surveys: Object.assign(surveys, surveys),
 terms: Object.assign(terms, terms),
+partnerAgreement: Object.assign(partnerAgreement, partnerAgreement),
 serviceRates: Object.assign(serviceRates, serviceRates),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),
 auditTrail: Object.assign(auditTrail, auditTrail),
