@@ -4,6 +4,9 @@ namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
 use App\Enums\ClientStatus;
+use App\Notifications\Auth\PasswordResetLinkNotification;
+use App\Services\Audit\AuditWriter;
+use App\Services\Integration\IntegrationActivationResolver;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
@@ -14,8 +17,10 @@ use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
+use Throwable;
 
 #[Fillable([
     'name',
@@ -276,5 +281,46 @@ class User extends Authenticatable
         return Schema::hasTable(config('permission.table_names.roles', 'roles'))
             && Schema::hasTable(config('permission.table_names.model_has_roles', 'model_has_roles'))
             && $this->hasRole(self::TYPE_NPO_BOARD_MEMBER);
+    }
+
+    public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
+    {
+        try {
+            $this->notify(new PasswordResetLinkNotification($token));
+            $this->recordPasswordResetAudit('auth.password_reset_link_sent');
+        } catch (Throwable $exception) {
+            $this->recordPasswordResetAudit('auth.password_reset_link_failed', [
+                'exception' => $exception::class,
+                'message' => mb_substr($exception->getMessage(), 0, 500),
+            ]);
+
+            throw $exception;
+        }
+    }
+
+    /**
+     * @param  array<string, mixed>  $extra
+     */
+    private function recordPasswordResetAudit(string $action, array $extra = []): void
+    {
+        try {
+            if (! Schema::hasTable('audit_events')) {
+                return;
+            }
+
+            app(AuditWriter::class)->record(
+                action: $action,
+                subject: $this,
+                actor: null,
+                after: array_merge([
+                    'email_hash' => hash('sha256', Str::lower(trim((string) $this->getEmailForPasswordReset()))),
+                    'mailer' => (string) config('mail.default', 'log'),
+                    'mail_from_configured' => filter_var((string) config('mail.from.address'), FILTER_VALIDATE_EMAIL) !== false,
+                    'mail_delivery_ready' => app(IntegrationActivationResolver::class)->readiness('mail_delivery'),
+                ], $extra),
+            );
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 }

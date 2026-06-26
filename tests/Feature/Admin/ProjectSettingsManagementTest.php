@@ -134,6 +134,29 @@ final class ProjectSettingsManagementTest extends TestCase
         $this->assertSame(20, config('mail.mailers.graph.timeout'));
     }
 
+    public function test_graph_sender_is_used_as_mail_from_when_default_from_is_placeholder(): void
+    {
+        $admin = $this->superAdmin();
+        Config::set('mail.from.address', 'hello@example.com');
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.project-settings.update'), [
+                'group' => 'email_delivery',
+                'settings' => [
+                    'mail.default' => 'graph',
+                    'mail.mailers.graph.tenant' => '7a864e37-4fb0-46c9-9a9e-d96335f6be5a',
+                    'mail.mailers.graph.client_id' => '8d134408-8168-4858-9890-d7317389f744',
+                    'mail.mailers.graph.client_secret' => 'graph-secret-9876',
+                    'mail.mailers.graph.from_address' => 'pieter@futureshiftadvisory.nz',
+                ],
+            ])
+            ->assertRedirect(route('admin.project-settings.index', absolute: false));
+
+        $this->assertSame('graph', config('mail.default'));
+        $this->assertSame('pieter@futureshiftadvisory.nz', config('mail.mailers.graph.from_address'));
+        $this->assertSame('pieter@futureshiftadvisory.nz', config('mail.from.address'));
+    }
+
     public function test_graph_mailer_sends_raw_message_through_microsoft_graph(): void
     {
         Config::set('mail.default', 'graph');

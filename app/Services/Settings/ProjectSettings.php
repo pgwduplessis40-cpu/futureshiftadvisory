@@ -375,6 +375,8 @@ final class ProjectSettings
     public function applyRuntimeOverrides(): void
     {
         if (! $this->tableAvailable()) {
+            $this->normaliseMailRuntimeConfig();
+
             return;
         }
 
@@ -399,6 +401,8 @@ final class ProjectSettings
         } catch (Throwable $exception) {
             report($exception);
         }
+
+        $this->normaliseMailRuntimeConfig();
     }
 
     /**
@@ -439,6 +443,7 @@ final class ProjectSettings
         );
 
         Config::set((string) $definition['config_path'], $this->configValue($definition, $storageValue));
+        $this->normaliseMailRuntimeConfig();
 
         return $setting;
     }
@@ -623,6 +628,27 @@ final class ProjectSettings
             'ssl' => 'smtps',
             default => $value,
         };
+    }
+
+    private function normaliseMailRuntimeConfig(): void
+    {
+        if (Str::lower(trim((string) Config::get('mail.default', 'log'))) !== 'graph') {
+            return;
+        }
+
+        $graphFrom = trim((string) Config::get('mail.mailers.graph.from_address', ''));
+        if (filter_var($graphFrom, FILTER_VALIDATE_EMAIL) === false) {
+            return;
+        }
+
+        $mailFrom = trim((string) Config::get('mail.from.address', ''));
+        if (
+            $mailFrom === ''
+            || Str::lower($mailFrom) === 'hello@example.com'
+            || filter_var($mailFrom, FILTER_VALIDATE_EMAIL) === false
+        ) {
+            Config::set('mail.from.address', $graphFrom);
+        }
     }
 
     private function withSystemContext(callable $callback): mixed
