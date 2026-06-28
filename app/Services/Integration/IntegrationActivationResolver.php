@@ -41,6 +41,10 @@ final class IntegrationActivationResolver
         $fields = $this->registry->credentialFields($integrationKey);
 
         foreach ($fields as $field) {
+            if (! $this->credentialRequired($integrationKey, $field)) {
+                continue;
+            }
+
             if (! $this->credentialPresent($integrationKey, $field)) {
                 return false;
             }
@@ -182,6 +186,10 @@ final class IntegrationActivationResolver
     private function environmentCredentialsReady(string $integrationKey): bool
     {
         foreach ($this->registry->credentialFields($integrationKey) as $field) {
+            if (! $this->credentialRequired($integrationKey, $field)) {
+                continue;
+            }
+
             $definition = $this->registry->credential($integrationKey, $field);
             $configPath = $definition['config_path'] ?? null;
             if (! is_string($configPath) || $configPath === '' || ! filled(Config::get($configPath))) {
@@ -190,6 +198,13 @@ final class IntegrationActivationResolver
         }
 
         return true;
+    }
+
+    private function credentialRequired(string $integrationKey, string $field): bool
+    {
+        $definition = $this->registry->credential($integrationKey, $field);
+
+        return ! is_array($definition) || ($definition['required'] ?? true) !== false;
     }
 
     /**

@@ -68,6 +68,14 @@ final class EntrepreneurProfile extends Model
     }
 
     /**
+     * @return BelongsTo<Client, EntrepreneurProfile>
+     */
+    public function client(): BelongsTo
+    {
+        return $this->belongsTo(Client::class);
+    }
+
+    /**
      * @return BelongsTo<InviteToken, EntrepreneurProfile>
      */
     public function inviteToken(): BelongsTo

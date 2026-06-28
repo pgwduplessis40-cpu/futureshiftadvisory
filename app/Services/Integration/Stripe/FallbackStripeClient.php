@@ -10,6 +10,7 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentSetupIntent;
 
 final class FallbackStripeClient implements StripeClient
 {
@@ -17,6 +18,15 @@ final class FallbackStripeClient implements StripeClient
         private readonly LiveStripeClient $live,
         private readonly FakeStripeClient $fake,
     ) {}
+
+    public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
+    {
+        try {
+            return $this->live->createSetupIntent($request);
+        } catch (IntegrationDisabledException) {
+            return $this->fake->createSetupIntent($request);
+        }
+    }
 
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
     {

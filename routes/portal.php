@@ -18,6 +18,7 @@ use App\Http\Controllers\Portal\NpoImpactMetricController;
 use App\Http\Controllers\Portal\OnboardingController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
 use App\Http\Controllers\Portal\ReportController;
+use App\Http\Controllers\Portal\ServiceActivationController;
 use App\Http\Controllers\Portal\SurveyController;
 use App\Http\Controllers\Portal\WellbeingController;
 use Illuminate\Support\Facades\Route;
@@ -27,6 +28,10 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->name('portal.')
     ->group(function (): void {
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::get('service-activations/new/{serviceType}', [ServiceActivationController::class, 'create'])->name('service-activations.create');
+        Route::post('service-activations', [ServiceActivationController::class, 'store'])->name('service-activations.store');
+        Route::get('service-activations/{serviceActivation}', [ServiceActivationController::class, 'show'])->name('service-activations.show');
+        Route::post('service-activations/{serviceActivation}/accept', [ServiceActivationController::class, 'accept'])->name('service-activations.accept');
         Route::get('npo-board', NpoBoardDashboardController::class)->name('npo-board.dashboard');
         Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');
         Route::get('acquisition-plan', [DdBusinessPlanController::class, 'show'])->name('dd-plan.show');
@@ -46,6 +51,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/plan/sections', [EntrepreneurPlanController::class, 'section'])->name('entrepreneur.plan.sections.store');
         Route::post('entrepreneur/plan/sections/{planSection}/guidance', [EntrepreneurPlanController::class, 'guidance'])->name('entrepreneur.plan.sections.guidance');
         Route::post('entrepreneur/plan/budget', [EntrepreneurPlanController::class, 'budget'])->name('entrepreneur.plan.budget.update');
+        Route::get('entrepreneur/plan/budget-pack', [EntrepreneurPlanController::class, 'budgetPack'])->name('entrepreneur.plan.budget-pack.show');
+        Route::get('entrepreneur/plan/budget-pack/pdf', [EntrepreneurPlanController::class, 'budgetPackPdf'])->name('entrepreneur.plan.budget-pack.pdf');
         Route::post('entrepreneur/plan/budget/flags/acknowledge', [EntrepreneurPlanController::class, 'acknowledgeBudgetFlag'])->name('entrepreneur.plan.budget.flags.acknowledge');
         Route::post('entrepreneur/plan/budget/advisor-nudge/dismiss', [EntrepreneurPlanController::class, 'dismissBudgetAdvisorNudge'])->name('entrepreneur.plan.budget.advisor-nudge.dismiss');
         Route::post('entrepreneur/plan/submit', [EntrepreneurPlanController::class, 'submit'])->name('entrepreneur.plan.submit');
@@ -69,6 +76,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('proposals/{proposal}', [ProposalSignoffController::class, 'viewProposal'])->name('proposals.show');
         Route::get('proposals/{proposal}/download', [ProposalSignoffController::class, 'download'])->name('proposals.download');
         Route::get('proposals/{proposal}/signoff', [ProposalSignoffController::class, 'show'])->name('proposals.signoff.show');
+        Route::post('proposals/{proposal}/signoff/payment-setup', [ProposalSignoffController::class, 'paymentSetup'])->name('proposals.signoff.payment-setup');
         Route::post('proposals/{proposal}/signoff/{step}', [ProposalSignoffController::class, 'step'])->name('proposals.signoff.step');
         Route::get('wellbeing', [WellbeingController::class, 'show'])->name('wellbeing.show');
         Route::post('wellbeing', [WellbeingController::class, 'store'])->name('wellbeing.store');

@@ -231,6 +231,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<ServiceActivation>
+     */
+    public function serviceActivations(): HasMany
+    {
+        return $this->hasMany(ServiceActivation::class);
+    }
+
+    /**
      * @return HasMany<NpoEngagement>
      */
     public function npoEngagements(): HasMany

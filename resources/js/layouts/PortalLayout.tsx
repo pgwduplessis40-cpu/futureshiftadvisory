@@ -2,11 +2,13 @@ import { Link, router, usePage } from '@inertiajs/react';
 import {
     Bell,
     BookOpenCheck,
+    BriefcaseBusiness,
     CalendarDays,
     ClipboardCheck,
     ClipboardList,
     HeartPulse,
     LayoutDashboard,
+    Lightbulb,
     LogOut,
     Menu,
     MessageSquare,
@@ -35,9 +37,37 @@ type NavSection = {
     items: NavItem[];
 };
 
+type PortalServiceType = 'due_diligence' | 'entrepreneur';
+
+type PortalServiceOption = {
+    service_type: PortalServiceType;
+    label: string;
+    description: string;
+    available: boolean;
+    start_url: string;
+};
+
+type PortalServiceItem = {
+    id: string;
+    service_type: PortalServiceType;
+    client_label: string;
+    status: string;
+    url: string;
+    workspace_url: string | null;
+};
+
+type PortalServices = {
+    options: PortalServiceOption[];
+    items: PortalServiceItem[];
+};
+
 export default function PortalLayout({ children }: { children: ReactNode }) {
-    const { auth } = usePage<{ auth: Auth }>().props;
-    const { url } = usePage();
+    const page = usePage<{
+        auth: Auth;
+        portalServices?: PortalServices | null;
+    }>();
+    const { auth, portalServices } = page.props;
+    const { url } = page;
     const [open, setOpen] = useState(false);
     const userType = auth.user.user_type;
     const isEntrepreneur = userType === 'entrepreneur';
@@ -125,6 +155,10 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
                           icon: Sparkles,
                       },
                   ],
+              },
+              {
+                  label: 'Services',
+                  items: portalServiceNavItems(portalServices),
               },
               {
                   label: 'Comms',
@@ -312,6 +346,51 @@ export default function PortalLayout({ children }: { children: ReactNode }) {
             </div>
         </div>
     );
+}
+
+function portalServiceNavItems(
+    portalServices?: PortalServices | null,
+): NavItem[] {
+    const fallbackOptions: PortalServiceOption[] = [
+        {
+            service_type: 'due_diligence',
+            label: 'Explore buying a business',
+            description:
+                'Open a DD workspace when you are considering a purchase or investment.',
+            available: true,
+            start_url: '/portal/service-activations/new/due_diligence',
+        },
+        {
+            service_type: 'entrepreneur',
+            label: 'Test a new idea',
+            description:
+                'Open idea validation, business-plan, and budget support inside this portal.',
+            available: true,
+            start_url: '/portal/service-activations/new/entrepreneur',
+        },
+    ];
+    const closedStatuses = new Set(['cancelled', 'closed', 'rejected']);
+    const options =
+        portalServices?.options && portalServices.options.length > 0
+            ? portalServices.options
+            : fallbackOptions;
+
+    return options.map((option) => {
+        const current = portalServices?.items.find(
+            (item) =>
+                item.service_type === option.service_type &&
+                !closedStatuses.has(item.status),
+        );
+
+        return {
+            label: option.label,
+            href: current?.workspace_url ?? current?.url ?? option.start_url,
+            icon:
+                option.service_type === 'due_diligence'
+                    ? BriefcaseBusiness
+                    : Lightbulb,
+        };
+    });
 }
 
 function PortalNavSection({

@@ -23,6 +23,8 @@ final class EconomicIndicator extends Model
 
     public const LIVING_WAGE = 'living_wage';
 
+    public const COMPANY_TAX_RATE = 'company_tax_rate';
+
     protected $guarded = [];
 
     protected $casts = [

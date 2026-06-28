@@ -20,7 +20,7 @@ final class ScheduleBuilder
     public function __construct(private readonly AuditWriter $audit) {}
 
     /**
-     * @param  array{cadence?: string, amount?: int|float|string|null, currency?: string|null, next_run_at?: CarbonInterface|string|null}  $input
+     * @param  array{cadence?: string, amount?: int|float|string|null, currency?: string|null, collection_day?: int|string|null, next_run_at?: CarbonInterface|string|null}  $input
      */
     public function create(Proposal $proposal, PaymentAuthority $authority, array $input, ?User $actor = null): PaymentSchedule
     {
@@ -52,9 +52,10 @@ final class ScheduleBuilder
         }
 
         $amount = $this->normaliseAmount($input['amount'] ?? data_get($proposal->pv_summary, 'fee_suggested_mid'));
-        $nextRunAt = $this->normaliseNextRunAt($cadence, $input['next_run_at'] ?? null);
+        $collectionDay = $this->normaliseCollectionDay($cadence, $input['collection_day'] ?? null);
+        $nextRunAt = $this->normaliseNextRunAt($cadence, $input['next_run_at'] ?? null, $collectionDay);
 
-        return DB::transaction(function () use ($proposal, $authority, $actor, $cadence, $amount, $currency, $nextRunAt): PaymentSchedule {
+        return DB::transaction(function () use ($proposal, $authority, $actor, $cadence, $amount, $currency, $collectionDay, $nextRunAt): PaymentSchedule {
             $schedule = PaymentSchedule::query()->create([
                 'client_id' => $proposal->client_id,
                 'proposal_id' => $proposal->getKey(),
@@ -62,6 +63,7 @@ final class ScheduleBuilder
                 'cadence' => $cadence,
                 'amount' => $amount,
                 'currency' => $currency,
+                'collection_day' => $collectionDay,
                 'next_run_at' => $nextRunAt,
                 'status' => PaymentSchedule::STATUS_ACTIVE,
                 'created_by_user_id' => $actor?->getKey(),
@@ -73,6 +75,7 @@ final class ScheduleBuilder
                 'cadence' => $cadence,
                 'amount' => $amount,
                 'currency' => $currency,
+                'collection_day' => $collectionDay,
                 'next_run_at' => $nextRunAt->toIso8601String(),
             ]);
 
@@ -148,20 +151,60 @@ final class ScheduleBuilder
         return number_format($value, 2, '.', '');
     }
 
-    private function normaliseNextRunAt(string $cadence, CarbonInterface|string|null $value): CarbonInterface
+    private function normaliseCollectionDay(string $cadence, mixed $value): ?int
+    {
+        if ($cadence !== PaymentSchedule::CADENCE_MONTHLY_RETAINER && ($value === null || $value === '')) {
+            return null;
+        }
+
+        $day = is_int($value) || (is_string($value) && ctype_digit($value))
+            ? (int) $value
+            : 1;
+
+        if (! in_array($day, [1, 15], true)) {
+            throw new InvalidArgumentException('Payment collection date must be either the 1st or the 15th of the month.');
+        }
+
+        return $day;
+    }
+
+    private function normaliseNextRunAt(string $cadence, CarbonInterface|string|null $value, ?int $collectionDay): CarbonInterface
     {
         if ($value instanceof CarbonInterface) {
+            if ($collectionDay !== null && (int) $value->day !== $collectionDay) {
+                throw new InvalidArgumentException('Payment schedule next run date must match the agreed collection date.');
+            }
+
             return $value;
         }
 
         if (is_string($value) && trim($value) !== '') {
-            return CarbonImmutable::parse($value);
+            $parsed = CarbonImmutable::parse($value);
+
+            if ($collectionDay !== null && (int) $parsed->day !== $collectionDay) {
+                throw new InvalidArgumentException('Payment schedule next run date must match the agreed collection date.');
+            }
+
+            return $parsed;
         }
 
         if ($cadence === PaymentSchedule::CADENCE_MONTHLY_RETAINER) {
-            return now()->addMonthNoOverflow();
+            return $this->nextMonthlyCollectionDate($collectionDay ?? 1);
         }
 
         return now();
+    }
+
+    private function nextMonthlyCollectionDate(int $collectionDay): CarbonInterface
+    {
+        $candidate = CarbonImmutable::now()
+            ->startOfDay()
+            ->setDay($collectionDay);
+
+        if ($candidate->isPast()) {
+            $candidate = $candidate->addMonthNoOverflow()->setDay($collectionDay);
+        }
+
+        return $candidate;
     }
 }

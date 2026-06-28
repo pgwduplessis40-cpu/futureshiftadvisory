@@ -45,6 +45,7 @@ final class PlanRequirements
         'financial' => [
             'title' => 'Financial',
             'requirements' => [
+                ['key' => 'financial-assumptions', 'title' => 'Financial assumptions'],
                 ['key' => 'revenue-model', 'title' => 'Revenue model'],
                 ['key' => 'launch-funding', 'title' => 'Launch funding and support'],
                 ['key' => 'budget-runway', 'title' => 'Budget', 'type' => 'budget'],

@@ -3,6 +3,7 @@ import QuestionnaireController from './QuestionnaireController'
 import SurveyController from './SurveyController'
 import TermsController from './TermsController'
 import PartnerAgreementController from './PartnerAgreementController'
+import PrinciplesRolesController from './PrinciplesRolesController'
 import ServiceRateController from './ServiceRateController'
 import RatingFrameworkController from './RatingFrameworkController'
 import IntegrationHealthController from './IntegrationHealthController'
@@ -21,6 +22,7 @@ QuestionnaireController: Object.assign(QuestionnaireController, QuestionnaireCon
 SurveyController: Object.assign(SurveyController, SurveyController),
 TermsController: Object.assign(TermsController, TermsController),
 PartnerAgreementController: Object.assign(PartnerAgreementController, PartnerAgreementController),
+PrinciplesRolesController: Object.assign(PrinciplesRolesController, PrinciplesRolesController),
 ServiceRateController: Object.assign(ServiceRateController, ServiceRateController),
 RatingFrameworkController: Object.assign(RatingFrameworkController, RatingFrameworkController),
 IntegrationHealthController: Object.assign(IntegrationHealthController, IntegrationHealthController),

@@ -166,7 +166,8 @@ final class PaymentProcessingTest extends TestCase
         $schedule = $this->schedule($proposal, $authority, $clientUser, [
             'cadence' => PaymentSchedule::CADENCE_MONTHLY_RETAINER,
             'amount' => 900,
-            'next_run_at' => now()->subDay(),
+            'collection_day' => 1,
+            'next_run_at' => now()->startOfMonth(),
         ]);
         Payment::query()->create([
             'client_id' => $client->getKey(),
@@ -299,6 +300,7 @@ final class PaymentProcessingTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
             'type' => PaymentAuthority::TYPE_CARD,
             'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'collection_day' => 1,
         ], $clientUser);
         $flow->complete($proposal, ProposalSignoffStep::STEP_AUTHORITY, [
             'fixture_token' => 'payment-processing-authority-token',
@@ -308,6 +310,12 @@ final class PaymentProcessingTest extends TestCase
             'accepted' => true,
             'ip' => '203.0.113.69',
             'user_agent' => 'Payment processing feature test',
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
         ], $clientUser);
 
         $authority = PaymentAuthority::query()

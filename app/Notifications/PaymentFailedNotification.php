@@ -29,14 +29,20 @@ final class PaymentFailedNotification extends ChannelAwareNotification
     {
         $payment = $this->payment->loadMissing('client');
         $client = $payment->client;
+        $reason = $this->failureReason($payment);
 
-        return (new MailMessage)
+        $message = (new MailMessage)
             ->subject('Payment failed')
             ->line('A scheduled payment attempt failed.')
             ->line('Client: '.($client?->legal_name ?? 'Unknown client'))
             ->line('Amount: '.$payment->currency.' '.$payment->amount)
-            ->line('Attempt: '.$payment->attempt)
-            ->action('Open dashboard', $notifiable instanceof User && $notifiable->user_type === User::TYPE_CLIENT_PRIMARY
+            ->line('Attempt: '.$payment->attempt);
+
+        if ($reason !== null) {
+            $message->line('Reason: '.$reason);
+        }
+
+        return $message->action('Open dashboard', $notifiable instanceof User && $notifiable->user_type === User::TYPE_CLIENT_PRIMARY
                 ? route('portal.dashboard')
                 : ($client ? route('advisor.clients.show', $client) : route('dashboard')));
     }
@@ -48,10 +54,11 @@ final class PaymentFailedNotification extends ChannelAwareNotification
     {
         $payment = $this->payment->loadMissing('client');
         $client = $payment->client;
+        $reason = $this->failureReason($payment);
 
         return [
             'title' => 'Payment failed',
-            'message' => 'A scheduled payment failed for '.($client?->legal_name ?? 'a client').'.',
+            'message' => 'A scheduled payment failed for '.($client?->legal_name ?? 'a client').($reason === null ? '.' : ': '.$reason),
             'url' => $notifiable instanceof User && $notifiable->user_type === User::TYPE_CLIENT_PRIMARY
                 ? route('portal.dashboard', absolute: false)
                 : ($client ? route('advisor.clients.show', $client, absolute: false) : route('dashboard', absolute: false)),
@@ -66,5 +73,12 @@ final class PaymentFailedNotification extends ChannelAwareNotification
             'attempt' => $payment->attempt,
             'failed_reason' => $payment->failed_reason,
         ];
+    }
+
+    private function failureReason(Payment $payment): ?string
+    {
+        $reason = trim((string) $payment->failed_reason);
+
+        return $reason === '' ? null : $reason;
     }
 }

@@ -20,6 +20,7 @@ use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\Gateway;
+use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Pdf\PdfRenderer;
@@ -182,6 +183,44 @@ final class PaymentGatewayTest extends TestCase
         ]);
     }
 
+    public function test_live_stripe_authority_capture_verifies_succeeded_setup_intent(): void
+    {
+        Config::set('integrations.payments.stripe.live', true);
+        Config::set('integrations.payments.stripe.secret', 'sk_test_feature');
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test_feature');
+        Config::set('integrations.retry.attempts', 1);
+        app()->forgetInstance(StripeClient::class);
+
+        Http::fake([
+            'https://api.stripe.com/v1/setup_intents/seti_live_fixture' => Http::response([
+                'id' => 'seti_live_fixture',
+                'status' => 'succeeded',
+                'payment_method' => 'pm_live_fixture',
+                'customer' => 'cus_live_fixture',
+            ], 200),
+        ]);
+
+        $token = app(StripeClient::class)->captureAuthority(new PaymentAuthorityRequest(
+            clientId: 'client-live',
+            proposalId: 'proposal-live',
+            type: PaymentAuthority::TYPE_CARD,
+            gateway: PaymentAuthority::GATEWAY_STRIPE,
+            payload: [
+                'setup_intent_ref' => 'seti_live_fixture',
+                'payment_method_ref' => 'pm_live_fixture',
+                'customer_ref' => 'cus_live_fixture',
+            ],
+        ));
+
+        $this->assertSame('pm_live_fixture', $token->token);
+        $this->assertSame('cus_live_fixture', $token->customerRef);
+        $this->assertSame('seti_live_fixture', $token->metadata['setup_intent_ref']);
+        $this->assertDatabaseHas('integration_calls', [
+            'service' => 'stripe',
+            'status' => IntegrationCall::STATUS_SUCCESS,
+        ]);
+    }
+
     public function test_payment_webhook_signatures_are_verified(): void
     {
         Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
@@ -213,6 +252,34 @@ final class PaymentGatewayTest extends TestCase
         ]);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'payment.webhook_rejected',
+        ]);
+    }
+
+    public function test_stripe_webhook_rejects_missing_secret_missing_signature_and_stale_timestamp(): void
+    {
+        $payload = ['id' => 'evt_signature_edges', 'type' => 'payment_intent.succeeded'];
+        $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $timestamp = (string) now()->getTimestamp();
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, 'whsec_test');
+
+        Config::set('integrations.payments.stripe.webhook_secret', null);
+        $this->call('POST', route('webhooks.payments.stripe'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+            'HTTP_STRIPE_SIGNATURE' => 't='.$timestamp.',v1='.$signature,
+        ], $body)->assertUnauthorized();
+        $this->assertWebhookRejectionReasonRecorded('secret_not_configured');
+
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
+        $this->call('POST', route('webhooks.payments.stripe'), [], [], [], [
+            'CONTENT_TYPE' => 'application/json',
+        ], $body)->assertUnauthorized();
+        $this->assertWebhookRejectionReasonRecorded('signature_missing');
+
+        $staleTimestamp = now()->subMinutes(10)->getTimestamp();
+        $this->postStripeWebhook($payload, $staleTimestamp)->assertUnauthorized();
+        $this->assertWebhookRejectionReasonRecorded('timestamp_out_of_window');
+        $this->assertDatabaseMissing('payment_webhook_events', [
+            'event_id' => 'evt_signature_edges',
         ]);
     }
 
@@ -255,6 +322,57 @@ final class PaymentGatewayTest extends TestCase
         ]);
     }
 
+    public function test_stripe_succeeded_webhook_with_amount_or_currency_mismatch_fails_event_without_succeeding_payment(): void
+    {
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
+        [$authority] = $this->authority('gateway-webhook-mismatch@example.test');
+        [, $amountPayment] = $this->pendingPayment($authority, [
+            'amount' => 20,
+            'gateway_ref' => 'pi_webhook_amount_mismatch',
+        ]);
+        [, $currencyPayment] = $this->pendingPayment($authority, [
+            'amount' => 20,
+            'gateway_ref' => 'pi_webhook_currency_mismatch',
+        ]);
+
+        $this->postStripeWebhook($this->paymentIntentPayload(
+            eventId: 'evt_webhook_amount_mismatch',
+            eventType: 'payment_intent.succeeded',
+            intentId: 'pi_webhook_amount_mismatch',
+            payment: $amountPayment,
+            amountCents: 1900,
+            status: 'succeeded',
+        ))->assertAccepted();
+
+        $currencyPayload = $this->paymentIntentPayload(
+            eventId: 'evt_webhook_currency_mismatch',
+            eventType: 'payment_intent.succeeded',
+            intentId: 'pi_webhook_currency_mismatch',
+            payment: $currencyPayment,
+            amountCents: 2000,
+            status: 'succeeded',
+        );
+        data_set($currencyPayload, 'data.object.currency', 'usd');
+
+        $this->postStripeWebhook($currencyPayload)->assertAccepted();
+
+        $this->assertSame(Payment::STATUS_PENDING, $amountPayment->refresh()->status);
+        $this->assertSame(Payment::STATUS_PENDING, $currencyPayment->refresh()->status);
+        $this->assertDatabaseHas('payment_webhook_events', [
+            'event_id' => 'evt_webhook_amount_mismatch',
+            'status' => PaymentWebhookEvent::STATUS_FAILED,
+            'payment_id' => $amountPayment->getKey(),
+            'failure_reason' => 'amount_mismatch',
+        ]);
+        $this->assertDatabaseHas('payment_webhook_events', [
+            'event_id' => 'evt_webhook_currency_mismatch',
+            'status' => PaymentWebhookEvent::STATUS_FAILED,
+            'payment_id' => $currencyPayment->getKey(),
+            'failure_reason' => 'currency_mismatch',
+        ]);
+        $this->assertSame(2, AuditEvent::query()->where('action', 'payment.webhook_failed')->count());
+    }
+
     public function test_stripe_webhook_event_is_idempotent(): void
     {
         Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
@@ -280,6 +398,35 @@ final class PaymentGatewayTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'payment.webhook_duplicate',
             'subject_id' => $payment->getKey(),
+        ]);
+    }
+
+    public function test_stripe_unsupported_webhook_event_is_recorded_and_ignored(): void
+    {
+        Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test');
+
+        $this->postStripeWebhook([
+            'id' => 'evt_webhook_unsupported',
+            'object' => 'event',
+            'created' => now()->getTimestamp(),
+            'type' => 'charge.refunded',
+            'data' => [
+                'object' => [
+                    'id' => 'ch_webhook_unsupported',
+                    'object' => 'charge',
+                ],
+            ],
+        ])->assertAccepted();
+
+        $this->assertDatabaseHas('payment_webhook_events', [
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'event_id' => 'evt_webhook_unsupported',
+            'event_type' => 'charge.refunded',
+            'status' => PaymentWebhookEvent::STATUS_IGNORED,
+            'failure_reason' => 'unsupported_event_type',
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'payment.webhook_ignored',
         ]);
     }
 
@@ -475,15 +622,25 @@ final class PaymentGatewayTest extends TestCase
     /**
      * @param  array<string, mixed>  $payload
      */
-    private function postStripeWebhook(array $payload): TestResponse
+    private function postStripeWebhook(array $payload, ?int $timestamp = null, string $secret = 'whsec_test'): TestResponse
     {
         $body = json_encode($payload, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
-        $timestamp = (string) now()->getTimestamp();
-        $signature = hash_hmac('sha256', $timestamp.'.'.$body, 'whsec_test');
+        $timestamp = (string) ($timestamp ?? now()->getTimestamp());
+        $signature = hash_hmac('sha256', $timestamp.'.'.$body, $secret);
 
         return $this->call('POST', route('webhooks.payments.stripe'), [], [], [], [
             'CONTENT_TYPE' => 'application/json',
             'HTTP_STRIPE_SIGNATURE' => 't='.$timestamp.',v1='.$signature,
         ], $body);
+    }
+
+    private function assertWebhookRejectionReasonRecorded(string $reason): void
+    {
+        $recorded = AuditEvent::query()
+            ->where('action', 'payment.webhook_rejected')
+            ->get()
+            ->contains(fn (AuditEvent $event): bool => data_get($event->after, 'reason') === $reason);
+
+        $this->assertTrue($recorded, "Expected payment.webhook_rejected audit reason [{$reason}] to be recorded.");
     }
 }

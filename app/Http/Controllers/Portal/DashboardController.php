@@ -24,6 +24,7 @@ use App\Models\Proposal;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\Scenario;
+use App\Models\ServiceActivation;
 use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
@@ -39,6 +40,7 @@ use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
+use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -59,6 +61,7 @@ final class DashboardController extends Controller
         private readonly StandardAdvisoryWorkflow $standardAdvisory,
         private readonly WelcomeMessageRenderer $welcomeMessage,
         private readonly InspirationBoard $inspirationBoard,
+        private readonly ServiceActivationNavigation $serviceActivationNavigation,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -93,6 +96,7 @@ final class DashboardController extends Controller
             'npoPortal' => $npoEngagement instanceof NpoEngagement ? $this->npoPortalPayload($client, $npoEngagement, $goals) : null,
             'ddPlan' => $ddEngagement instanceof DdEngagement ? $this->ddPlanPayload($ddEngagement) : null,
             'postAcquisition' => $postAcquisition instanceof PostAcquisitionMigration ? $this->postAcquisitionPayload($postAcquisition) : null,
+            'serviceActivations' => $this->serviceActivationNavigation->payload($client),
             'standardAdvisory' => $this->standardAdvisory->portalSummary($client),
             'goals' => $goals,
             'documents' => $this->documentPayload($client, $npoEngagement),
@@ -349,7 +353,21 @@ final class DashboardController extends Controller
             : EngagementType::tryFrom((string) $client->engagement_type);
 
         if ($engagementType !== EngagementType::DUE_DILIGENCE) {
-            return null;
+            $activation = ServiceActivation::query()
+                ->where('client_id', $client->getKey())
+                ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->where('status', ServiceActivation::STATUS_ACTIVE)
+                ->whereNotNull('related_dd_engagement_id')
+                ->latest()
+                ->first();
+
+            if (! $activation instanceof ServiceActivation) {
+                return null;
+            }
+
+            return DdEngagement::query()
+                ->whereKey($activation->related_dd_engagement_id)
+                ->first();
         }
 
         return DdEngagement::query()

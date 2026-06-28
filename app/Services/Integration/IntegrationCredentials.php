@@ -180,6 +180,7 @@ final class IntegrationCredentials
                                     'field' => $field,
                                     'config_path' => $credentialDefinition['config_path'] ?? null,
                                     'env_fallback_path' => $credentialDefinition['env_fallback_path'] ?? null,
+                                    'required' => ($credentialDefinition['required'] ?? true) !== false,
                                     'status' => $storedCredential?->status,
                                     'last_four' => $storedCredential?->last_four,
                                     'rotated_at' => $storedCredential?->rotated_at?->toIso8601String(),

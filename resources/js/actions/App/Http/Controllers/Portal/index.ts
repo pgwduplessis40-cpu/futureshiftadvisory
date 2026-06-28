@@ -1,4 +1,5 @@
 import DashboardController from './DashboardController'
+import ServiceActivationController from './ServiceActivationController'
 import NpoBoardDashboardController from './NpoBoardDashboardController'
 import DdBusinessPlanController from './DdBusinessPlanController'
 import EntrepreneurDashboardController from './EntrepreneurDashboardController'
@@ -16,6 +17,7 @@ import SurveyController from './SurveyController'
 import OnboardingController from './OnboardingController'
 const Portal = {
     DashboardController: Object.assign(DashboardController, DashboardController),
+ServiceActivationController: Object.assign(ServiceActivationController, ServiceActivationController),
 NpoBoardDashboardController: Object.assign(NpoBoardDashboardController, NpoBoardDashboardController),
 DdBusinessPlanController: Object.assign(DdBusinessPlanController, DdBusinessPlanController),
 EntrepreneurDashboardController: Object.assign(EntrepreneurDashboardController, EntrepreneurDashboardController),

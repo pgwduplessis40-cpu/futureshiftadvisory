@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
+use App\Http\Controllers\Admin\PrinciplesRolesController;
 use App\Http\Controllers\Admin\ProjectSettingsController;
 use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\RatingFrameworkController;
@@ -88,8 +89,15 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->middleware('require.fresh-step-up')
                 ->name('partner-agreement.reset');
 
+            Route::get('principles-roles', [PrinciplesRolesController::class, 'index'])->name('principles-roles.index');
+            Route::post('principles-roles', [PrinciplesRolesController::class, 'store'])
+                ->middleware('require.fresh-step-up')
+                ->name('principles-roles.store');
+
             Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
             Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');
+            Route::post('service-rates/packages', [ServiceRateController::class, 'storePackage'])->name('service-rates.packages.store');
+            Route::patch('service-rates/packages/{serviceRatePackage}', [ServiceRateController::class, 'togglePackage'])->name('service-rates.packages.toggle');
 
             Route::get('rating-frameworks', [RatingFrameworkController::class, 'index'])->name('rating-frameworks.index');
             Route::post('rating-frameworks/drafts', [RatingFrameworkController::class, 'storeDraft'])->name('rating-frameworks.drafts.store');

@@ -16,6 +16,7 @@ use App\Enums\QuestionnaireSet;
 use App\Enums\ReportType;
 use App\Models\Client;
 use App\Models\ClientFunderAlert;
+use App\Models\Consent;
 use App\Models\Document;
 use App\Models\Funder;
 use App\Models\LearningUpdate;
@@ -23,9 +24,15 @@ use App\Models\NpoComplianceAlert;
 use App\Models\NpoDimensionScore;
 use App\Models\NpoTensionAnalysis;
 use App\Models\NpoValueCalculation;
+use App\Models\PaymentAuthority;
+use App\Models\PaymentSchedule;
+use App\Models\ProposalSignoffStep;
 use App\Models\Questionnaire;
+use App\Models\Template;
 use App\Models\User;
 use App\Services\Learning\LayerCadenceRegistry;
+use App\Services\Pdf\SimpleTextPdf;
+use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Query\Builder;
@@ -81,6 +88,7 @@ final class TestingSeedDataSeeder extends Seeder
 
         DB::transaction(function (): void {
             $this->seedUsers();
+            $this->seedProposalTemplate();
             $this->seedProspectIntake();
             $this->seedClients();
             $this->seedClientDocumentsAndQuestionnaires();
@@ -184,6 +192,131 @@ final class TestingSeedDataSeeder extends Seeder
                 ]);
             }
         }
+    }
+
+    private function seedProposalTemplate(): void
+    {
+        $templateFile = $this->proposalTemplateFile();
+
+        if ($templateFile === null) {
+            return;
+        }
+
+        $this->upsert('templates', [
+            'category' => Template::CATEGORY_PROPOSAL,
+            'title' => 'FSA Proposal Template',
+        ], [
+            'body' => '',
+            'structure' => $this->json([
+                'source_kind' => 'uploaded_file',
+                'sections' => [],
+                'uploaded_file' => [
+                    'stored_path' => $templateFile['path'],
+                    'extension' => 'docx',
+                    'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'original_name' => $templateFile['original_name'],
+                    'byte_size' => $templateFile['byte_size'],
+                    'sha256' => $templateFile['sha256'],
+                    'uploaded_at' => $this->now->toIso8601String(),
+                ],
+                'layout' => [
+                    'accent_color' => '#2f6f5e',
+                    'accent_dark' => '#214f44',
+                    'ink_color' => '#17211b',
+                    'muted_color' => '#5d6b63',
+                    'paper_color' => '#ffffff',
+                ],
+            ]),
+            'source_reference' => 'seed:uploaded-proposal-template',
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+            'created_by_user_id' => $this->users['admin']->getKey(),
+            'learning_update_implementation_id' => null,
+        ]);
+    }
+
+    /**
+     * @return array{path:string, original_name:string, byte_size:int, sha256:string}|null
+     */
+    private function proposalTemplateFile(): ?array
+    {
+        $disk = Storage::disk('secure_local');
+        $uploadedPath = 'documents/template_file/2026/06/acd58311-4264-4c37-b90e-e15721087e71-fsa-proposal-template.docx';
+
+        try {
+            if ($disk->exists($uploadedPath)) {
+                $contents = $disk->get($uploadedPath);
+
+                if (is_string($contents)) {
+                    return [
+                        'path' => $uploadedPath,
+                        'original_name' => 'fsa-proposal-template.docx',
+                        'byte_size' => $disk->size($uploadedPath),
+                        'sha256' => hash('sha256', $contents),
+                    ];
+                }
+            }
+        } catch (\Throwable) {
+            // Fall through to a generated fixture when the local encrypted upload
+            // was written with a different APP_KEY than the current environment.
+        }
+
+        if (! class_exists(\ZipArchive::class)) {
+            return null;
+        }
+
+        $fixturePath = 'documents/template_file/seed/fsa-proposal-template.docx';
+        $contents = $this->minimalProposalTemplateDocx();
+        $disk->put($fixturePath, $contents);
+
+        return [
+            'path' => $fixturePath,
+            'original_name' => 'fsa-proposal-template.docx',
+            'byte_size' => strlen($contents),
+            'sha256' => hash('sha256', $contents),
+        ];
+    }
+
+    private function minimalProposalTemplateDocx(): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'fsa-proposal-template-');
+
+        if (! is_string($path)) {
+            throw new \RuntimeException('Could not create temporary proposal template fixture.');
+        }
+
+        $zip = new \ZipArchive;
+
+        if ($zip->open($path, \ZipArchive::OVERWRITE) !== true) {
+            throw new \RuntimeException('Could not open proposal template fixture archive.');
+        }
+
+        $zip->addFromString('word/document.xml', <<<'XML'
+<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    <w:p><w:r><w:t>UPLOADED PROPOSAL TEMPLATE [Business Name] [Date]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Valid until [Expiry Date]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>$[X,XXX] per month - [X]-month engagement</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Estimated ROI: [X]x return on advisory investment in year 1</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Based on total identified improvement opportunity PV of $[XXX,XXX]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>Prepared for [Client Name]</w:t></w:r></w:p>
+    <w:p><w:r><w:t>1. Financial Health Assessment</w:t></w:r></w:p>
+    <w:p><w:r><w:t>[Body text - Arial 9.5pt, Dark Grey. State the finding directly in the first sentence. Evidence follows. Every claim is referenced to the source data.]</w:t></w:r></w:p>
+  </w:body>
+</w:document>
+XML);
+
+        $zip->close();
+
+        $contents = file_get_contents($path);
+        @unlink($path);
+
+        if (! is_string($contents)) {
+            throw new \RuntimeException('Could not read proposal template fixture archive.');
+        }
+
+        return $contents;
     }
 
     private function seedProspectIntake(): void
@@ -1473,6 +1606,11 @@ final class TestingSeedDataSeeder extends Seeder
             ]),
         ]);
 
+        $signatureEvidencePath = 'seed/proposals/harbour-hive-signature.pdf';
+        $signatureEvidencePdf = $this->signedProposalFixtureContent($this->now->copy()->subDays(4)->addMinutes(10));
+        $signatureEvidenceHashEnvelope = app(KeyEnvelope::class)->encrypt(hash('sha256', $signatureEvidencePdf));
+        Storage::disk('secure_local')->put($signatureEvidencePath, $signatureEvidencePdf);
+
         $this->ids['proposal'] = $this->upsert('proposals', [
             'client_id' => $this->clients['advisory']->getKey(),
             'fee_calculation_id' => $this->ids['fee_calculation'],
@@ -1492,7 +1630,11 @@ final class TestingSeedDataSeeder extends Seeder
                 'risk_cost_pv_total' => 58000,
             ]),
             'roi_ratio' => 6.8750,
-            'acceptance_terms' => $this->json(['payment' => 'monthly_card', 'cancellation_notice_days' => 30]),
+            'acceptance_terms' => $this->json([
+                'payment' => 'monthly_card',
+                'collection_day' => 1,
+                'cancellation_notice_days' => 30,
+            ]),
             'pdf_path' => 'seed/proposals/harbour-hive-v1.pdf',
             'pdf_byte_size' => 240_000,
             'released_at' => $this->now->copy()->subDays(6),
@@ -1506,10 +1648,10 @@ final class TestingSeedDataSeeder extends Seeder
             'awaiting_signature_at' => $this->now->copy()->subDays(5),
             'signed_at' => $this->now->copy()->subDays(4),
             'signed_by_user_id' => $this->users['primary']->getKey(),
-            'signature_evidence_path' => 'seed/proposals/harbour-hive-signature.json',
-            'signature_evidence_sha256_envelope' => hash('sha256', 'seed-proposal-signature'),
-            'signature_envelope_meta' => $this->json(['fixture' => true]),
-            'signature_evidence_byte_size' => 9_600,
+            'signature_evidence_path' => $signatureEvidencePath,
+            'signature_evidence_sha256_envelope' => $signatureEvidenceHashEnvelope,
+            'signature_envelope_meta' => $this->json(app(KeyEnvelope::class)->inspect($signatureEvidenceHashEnvelope)),
+            'signature_evidence_byte_size' => strlen($signatureEvidencePdf),
         ]);
 
         $this->ids['proposal_consent'] = $this->upsert('consents', [
@@ -1525,41 +1667,170 @@ final class TestingSeedDataSeeder extends Seeder
             'revoked_at' => null,
         ]);
 
-        foreach (['released', 'client_signed', 'payment_authorised'] as $index => $step) {
+        $this->ids['proposal_insurance_consent'] = $this->upsert('consents', [
+            'proposal_id' => $this->ids['proposal'],
+            'type' => Consent::TYPE_INSURANCE_REFERRAL,
+        ], [
+            'client_id' => $this->clients['advisory']->getKey(),
+            'election' => Consent::ELECTION_OPT_IN,
+            'evidence' => $this->json([
+                'source' => 'proposal_signoff',
+                'step' => ProposalSignoffStep::STEP_INSURANCE_CONSENT,
+                'fixture' => true,
+            ]),
+            'captured_by_user_id' => $this->users['primary']->getKey(),
+            'revoked_by_user_id' => null,
+            'captured_at' => $this->now->copy()->subDays(5)->addMinutes(10),
+            'revoked_at' => null,
+        ]);
+
+        $this->ids['proposal_coach_consent'] = $this->upsert('consents', [
+            'proposal_id' => $this->ids['proposal'],
+            'type' => Consent::TYPE_COACH_REFERRAL,
+        ], [
+            'client_id' => $this->clients['advisory']->getKey(),
+            'election' => Consent::ELECTION_OPT_OUT,
+            'evidence' => $this->json([
+                'source' => 'proposal_signoff',
+                'step' => ProposalSignoffStep::STEP_COACH_CONSENT,
+                'fixture' => true,
+            ]),
+            'captured_by_user_id' => $this->users['primary']->getKey(),
+            'revoked_by_user_id' => null,
+            'captured_at' => $this->now->copy()->subDays(5)->addMinutes(20),
+            'revoked_at' => null,
+        ]);
+
+        DB::table('proposal_signoff_steps')
+            ->where('proposal_id', $this->ids['proposal'])
+            ->whereIn('step', ['released', 'client_signed', 'payment_authorised'])
+            ->delete();
+
+        foreach ([
+            ProposalSignoffStep::STEP_REVIEW => [
+                'completed_by_user_id' => $this->users['primary']->getKey(),
+                'completed_at' => $this->now->copy()->subDays(5)->addMinutes(5),
+                'payload' => ['reviewed' => true, 'fixture' => true],
+            ],
+            ProposalSignoffStep::STEP_INSURANCE_CONSENT => [
+                'completed_by_user_id' => $this->users['primary']->getKey(),
+                'completed_at' => $this->now->copy()->subDays(5)->addMinutes(10),
+                'payload' => [
+                    'type' => Consent::TYPE_INSURANCE_REFERRAL,
+                    'election' => Consent::ELECTION_OPT_IN,
+                    'consent_id' => $this->ids['proposal_insurance_consent'],
+                    'fixture' => true,
+                ],
+            ],
+            ProposalSignoffStep::STEP_COACH_CONSENT => [
+                'completed_by_user_id' => $this->users['primary']->getKey(),
+                'completed_at' => $this->now->copy()->subDays(5)->addMinutes(20),
+                'payload' => [
+                    'type' => Consent::TYPE_COACH_REFERRAL,
+                    'election' => Consent::ELECTION_OPT_OUT,
+                    'consent_id' => $this->ids['proposal_coach_consent'],
+                    'fixture' => true,
+                ],
+            ],
+            ProposalSignoffStep::STEP_PAYMENT_METHOD => [
+                'completed_by_user_id' => $this->users['primary']->getKey(),
+                'completed_at' => $this->now->copy()->subDays(5)->addMinutes(30),
+                'payload' => [
+                    'type' => PaymentAuthority::TYPE_CARD,
+                    'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+                    'collection_day' => 1,
+                    'fixture' => true,
+                ],
+            ],
+        ] as $step => $data) {
             $this->upsert('proposal_signoff_steps', [
                 'proposal_id' => $this->ids['proposal'],
                 'step' => $step,
             ], [
                 'client_id' => $this->clients['advisory']->getKey(),
-                'completed_by_user_id' => $step === 'released' ? $this->users['advisor']->getKey() : $this->users['primary']->getKey(),
-                'completed_at' => $this->now->copy()->subDays(6 - $index),
-                'payload' => $this->json(['fixture' => true, 'order' => $index + 1]),
+                'completed_by_user_id' => $data['completed_by_user_id'],
+                'completed_at' => $data['completed_at'],
+                'payload' => $this->json($data['payload']),
             ]);
         }
 
         $this->ids['payment_authority'] = $this->upsert('payment_authorities', [
             'client_id' => $this->clients['advisory']->getKey(),
             'proposal_id' => $this->ids['proposal'],
-            'type' => 'card',
-            'gateway' => 'stripe',
+            'type' => PaymentAuthority::TYPE_CARD,
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
         ], [
             'gateway_customer_ref' => 'cus_seed_harbour_hive',
-            'gateway_token_envelope' => encrypt('pm_seed_harbour_hive'),
-            'status' => 'active',
+            'gateway_token_envelope' => app(KeyEnvelope::class)->encrypt(json_encode([
+                'token' => 'pm_seed_harbour_hive',
+                'customer_ref' => 'cus_seed_harbour_hive',
+                'metadata' => [
+                    'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+                    'fixture' => true,
+                    'type' => PaymentAuthority::TYPE_CARD,
+                    'collection_day' => 1,
+                ],
+            ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES)),
+            'status' => PaymentAuthority::STATUS_ACTIVE,
             'authorised_by_user_id' => $this->users['primary']->getKey(),
             'authorised_at' => $this->now->copy()->subDays(4),
             'revoked_at' => null,
         ]);
 
+        foreach ([
+            ProposalSignoffStep::STEP_AUTHORITY => [
+                'completed_at' => $this->now->copy()->subDays(4),
+                'payload' => [
+                    'type' => PaymentAuthority::TYPE_CARD,
+                    'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+                    'collection_day' => 1,
+                    'payment_authority_id' => $this->ids['payment_authority'],
+                    'gateway_customer_ref' => 'cus_seed_harbour_hive',
+                    'fixture' => true,
+                ],
+            ],
+            ProposalSignoffStep::STEP_SIGNATURE => [
+                'completed_at' => $this->now->copy()->subDays(4)->addMinutes(10),
+                'payload' => [
+                    'signature_name' => 'Seed Client Principal',
+                    'signed_by_user_id' => $this->users['primary']->getKey(),
+                    'signature_evidence_path' => $signatureEvidencePath,
+                    'collection_day' => 1,
+                    'identity_verification' => [
+                        'password_verified_at' => $this->now->copy()->subDays(4)->addMinutes(10)->toIso8601String(),
+                        'mfa_required' => false,
+                        'mfa_verified_at' => null,
+                        'mfa_method' => null,
+                    ],
+                    'fixture' => true,
+                ],
+            ],
+            ProposalSignoffStep::STEP_CONFIRMATION => [
+                'completed_at' => $this->now->copy()->subDays(4)->addMinutes(15),
+                'payload' => ['confirmed' => true, 'fixture' => true],
+            ],
+        ] as $step => $data) {
+            $this->upsert('proposal_signoff_steps', [
+                'proposal_id' => $this->ids['proposal'],
+                'step' => $step,
+            ], [
+                'client_id' => $this->clients['advisory']->getKey(),
+                'completed_by_user_id' => $this->users['primary']->getKey(),
+                'completed_at' => $data['completed_at'],
+                'payload' => $this->json($data['payload']),
+            ]);
+        }
+
         $this->ids['payment_schedule'] = $this->upsert('payment_schedules', [
             'client_id' => $this->clients['advisory']->getKey(),
             'proposal_id' => $this->ids['proposal'],
-            'cadence' => 'monthly',
+            'cadence' => PaymentSchedule::CADENCE_MONTHLY_RETAINER,
         ], [
             'payment_authority_id' => $this->ids['payment_authority'],
             'amount' => 4_000,
             'currency' => 'NZD',
-            'next_run_at' => $this->now->copy()->addMonth()->startOfDay(),
+            'collection_day' => 1,
+            'next_run_at' => $this->now->copy()->addMonth()->startOfDay()->setDay(1),
             'status' => 'active',
             'revoked_at' => null,
             'created_by_user_id' => $this->users['advisor']->getKey(),
@@ -3962,6 +4233,32 @@ final class TestingSeedDataSeeder extends Seeder
         }
 
         return $this->upsert('documents', ['stored_path' => $storedPath], $values);
+    }
+
+    private function signedProposalFixtureContent(CarbonInterface $signedAt): string
+    {
+        return app(SimpleTextPdf::class)->render('Future Shift Advisory Proposal v1 - Signed', [
+            'Proposal: Proposal v1',
+            'Client: Harbour Hive Advisory Limited',
+            'Status: signed',
+            'Scope: working capital, operational resilience, and reporting advisory.',
+            'Total proposal: NZD 24,000',
+            'Term: 6 months',
+            'Monthly collection: NZD 4,000 per month',
+            'Collection date: 1st of each month',
+            'Cancellation notice: 30 days',
+            'ROI ratio: 6.88',
+            'Signed proposal certificate',
+            'Signed at: '.$signedAt->format('j M Y, g:i A T'),
+            'Signed by: Seed Client Principal <seed.client.primary@futureshiftadvisory.test>',
+            'Typed signature: Seed Client Principal',
+            'Authorised by signature using password verification before signature.',
+            'Password verified at: '.$signedAt->format('j M Y, g:i A T'),
+            'MFA: not required in this test environment',
+            'Payment authority: tokenised by Stripe; raw card details are not stored by Future Shift Advisory.',
+            'IP address: 127.0.0.1',
+            'User agent: FutureShift testing seed data',
+        ]);
     }
 
     private function fixtureDocumentContent(string $filename, string $key, string $mimeType): string

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
 export const show = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
 show.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
 show.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ show.get = (args: { proposal: string | { id: string } } | [proposal: string | { 
 })
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
 show.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
 
     /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
     const showForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
 
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
         showForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
         })
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:32
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:37
  * @route '/portal/proposals/{proposal}/signoff'
  */
         showForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -102,8 +102,87 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
     
     show.form = showForm
 /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:89
+ * @route '/portal/proposals/{proposal}/signoff/payment-setup'
+ */
+export const paymentSetup = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: paymentSetup.url(args, options),
+    method: 'post',
+})
+
+paymentSetup.definition = {
+    methods: ["post"],
+    url: '/portal/proposals/{proposal}/signoff/payment-setup',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:89
+ * @route '/portal/proposals/{proposal}/signoff/payment-setup'
+ */
+paymentSetup.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { proposal: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { proposal: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    proposal: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        proposal: typeof args.proposal === 'object'
+                ? args.proposal.id
+                : args.proposal,
+                }
+
+    return paymentSetup.definition.url
+            .replace('{proposal}', parsedArgs.proposal.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:89
+ * @route '/portal/proposals/{proposal}/signoff/payment-setup'
+ */
+paymentSetup.post = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: paymentSetup.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:89
+ * @route '/portal/proposals/{proposal}/signoff/payment-setup'
+ */
+    const paymentSetupForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: paymentSetup.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:89
+ * @route '/portal/proposals/{proposal}/signoff/payment-setup'
+ */
+        paymentSetupForm.post = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: paymentSetup.url(args, options),
+            method: 'post',
+        })
+    
+    paymentSetup.form = paymentSetupForm
+/**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:43
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:60
  * @route '/portal/proposals/{proposal}/signoff/{step}'
  */
 export const step = (args: { proposal: string | { id: string }, step: string | number } | [proposal: string | { id: string }, step: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -118,7 +197,7 @@ step.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:43
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:60
  * @route '/portal/proposals/{proposal}/signoff/{step}'
  */
 step.url = (args: { proposal: string | { id: string }, step: string | number } | [proposal: string | { id: string }, step: string | number ], options?: RouteQueryOptions) => {
@@ -146,7 +225,7 @@ step.url = (args: { proposal: string | { id: string }, step: string | number } |
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:43
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:60
  * @route '/portal/proposals/{proposal}/signoff/{step}'
  */
 step.post = (args: { proposal: string | { id: string }, step: string | number } | [proposal: string | { id: string }, step: string | number ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -156,7 +235,7 @@ step.post = (args: { proposal: string | { id: string }, step: string | number } 
 
     /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:43
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:60
  * @route '/portal/proposals/{proposal}/signoff/{step}'
  */
     const stepForm = (args: { proposal: string | { id: string }, step: string | number } | [proposal: string | { id: string }, step: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -166,7 +245,7 @@ step.post = (args: { proposal: string | { id: string }, step: string | number } 
 
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:43
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:60
  * @route '/portal/proposals/{proposal}/signoff/{step}'
  */
         stepForm.post = (args: { proposal: string | { id: string }, step: string | number } | [proposal: string | { id: string }, step: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -177,6 +256,7 @@ step.post = (args: { proposal: string | { id: string }, step: string | number } 
     step.form = stepForm
 const signoff = {
     show: Object.assign(show, show),
+paymentSetup: Object.assign(paymentSetup, paymentSetup),
 step: Object.assign(step, step),
 }
 

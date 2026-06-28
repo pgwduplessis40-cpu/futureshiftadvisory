@@ -10,7 +10,7 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import { useState } from 'react';
-import type { FormEvent } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { CompletionSummaryBadges } from '@/components/completion-summary-badges';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
@@ -345,32 +345,66 @@ function CredentialEditor({
                     />
                     <InputError message={setForm.errors.value} />
                 </div>
-                <Button
-                    type="submit"
-                    size="icon"
-                    disabled={setForm.processing}
-                    aria-label={`Save ${credential.field}`}
-                >
-                    {credential.status === 'active' ? (
-                        <RotateCw className="size-4" aria-hidden="true" />
-                    ) : (
-                        <KeyRound className="size-4" aria-hidden="true" />
-                    )}
-                </Button>
-                <Button
-                    type="button"
-                    size="icon"
-                    variant="outline"
-                    disabled={
-                        credential.status !== 'active' || revokeForm.processing
+                <ActionTooltip
+                    label={
+                        credential.status === 'active'
+                            ? `Rotate ${credential.field} credential`
+                            : `Save ${credential.field} credential`
                     }
-                    onClick={revoke}
-                    aria-label={`Revoke ${credential.field}`}
                 >
-                    <Ban className="size-4" aria-hidden="true" />
-                </Button>
+                    <Button
+                        type="submit"
+                        size="icon"
+                        disabled={setForm.processing}
+                        aria-label={`Save ${credential.field}`}
+                    >
+                        {credential.status === 'active' ? (
+                            <RotateCw className="size-4" aria-hidden="true" />
+                        ) : (
+                            <KeyRound className="size-4" aria-hidden="true" />
+                        )}
+                    </Button>
+                </ActionTooltip>
+                <ActionTooltip
+                    label={
+                        credential.status === 'active'
+                            ? `Revoke ${credential.field} credential`
+                            : `${credential.field} credential is not active`
+                    }
+                >
+                    <Button
+                        type="button"
+                        size="icon"
+                        variant="outline"
+                        disabled={
+                            credential.status !== 'active' ||
+                            revokeForm.processing
+                        }
+                        onClick={revoke}
+                        aria-label={`Revoke ${credential.field}`}
+                    >
+                        <Ban className="size-4" aria-hidden="true" />
+                    </Button>
+                </ActionTooltip>
             </div>
         </form>
+    );
+}
+
+function ActionTooltip({
+    label,
+    children,
+}: {
+    label: string;
+    children: ReactNode;
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span className="inline-flex">{children}</span>
+            </TooltipTrigger>
+            <TooltipContent side="top">{label}</TooltipContent>
+        </Tooltip>
     );
 }
 
@@ -430,39 +464,52 @@ function LiveControl({ row }: { row: IntegrationRow }) {
 
     if (row.effective_live) {
         return (
-            <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                disabled={deactivateForm.processing}
-                onClick={() =>
-                    deactivateForm.patch(
-                        '/admin/integration-credentials/deactivate',
-                        { preserveScroll: true },
-                    )
-                }
-            >
-                <Ban className="size-4" aria-hidden="true" />
-                Off
-            </Button>
+            <ActionTooltip label={`Deactivate ${row.display_name}`}>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    disabled={deactivateForm.processing}
+                    onClick={() =>
+                        deactivateForm.patch(
+                            '/admin/integration-credentials/deactivate',
+                            { preserveScroll: true },
+                        )
+                    }
+                >
+                    <Ban className="size-4" aria-hidden="true" />
+                    Off
+                </Button>
+            </ActionTooltip>
         );
     }
 
     return (
-        <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={!row.credentials_ready || activateForm.processing}
-            onClick={() =>
-                activateForm.patch('/admin/integration-credentials/activate', {
-                    preserveScroll: true,
-                })
+        <ActionTooltip
+            label={
+                row.credentials_ready
+                    ? `Activate ${row.display_name}`
+                    : `Add required credentials before activating ${row.display_name}`
             }
         >
-            <ShieldCheck className="size-4" aria-hidden="true" />
-            On
-        </Button>
+            <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={!row.credentials_ready || activateForm.processing}
+                onClick={() =>
+                    activateForm.patch(
+                        '/admin/integration-credentials/activate',
+                        {
+                            preserveScroll: true,
+                        },
+                    )
+                }
+            >
+                <ShieldCheck className="size-4" aria-hidden="true" />
+                On
+            </Button>
+        </ActionTooltip>
     );
 }
 

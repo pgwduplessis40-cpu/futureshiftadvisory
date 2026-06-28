@@ -311,6 +311,11 @@ return [
             'wiring_status' => 'wired',
             'live_config_path' => 'integrations.payments.stripe.live',
             'credentials' => [
+                'publishable_key' => [
+                    'config_path' => 'integrations.payments.stripe.publishable_key',
+                    'env_fallback_path' => 'STRIPE_PUBLISHABLE_KEY',
+                    'required' => false,
+                ],
                 'secret' => [
                     'config_path' => 'integrations.payments.stripe.secret',
                     'env_fallback_path' => 'STRIPE_SECRET',

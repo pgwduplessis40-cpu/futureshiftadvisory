@@ -34,6 +34,14 @@ final class BudgetRunwayTest extends TestCase
 
         $budget = app(EntrepreneurBudgetService::class)->update($plan, [
             'expected_runway_months' => 8,
+            'forecast_years' => 3,
+            'assumptions' => [
+                'revenue_growth_percent' => 12,
+                'cost_inflation_percent' => 3,
+                'target_gross_profit_percent' => 55,
+                'target_net_profit_before_tax_percent' => 10,
+                'target_net_profit_after_tax_percent' => 7,
+            ],
             'launch_costs' => [
                 ['label' => 'Fit out', 'amount' => 10_000, 'quantity' => 1],
             ],
@@ -50,6 +58,7 @@ final class BudgetRunwayTest extends TestCase
 
         $this->assertSame(EntrepreneurBudget::STATUS_COMPLETE, $budget->status);
         $this->assertSame(8, $budget->expected_runway_months);
+        $this->assertSame(3, $budget->forecast_years);
         $this->assertSame(-5000.0, (float) data_get($budget->computed, 'available_after_launch'));
         $this->assertContains('funding_shortfall', collect($budget->flags)->pluck('key')->all());
     }
@@ -85,6 +94,33 @@ final class BudgetRunwayTest extends TestCase
         $this->actingAs($actor)
             ->post(route('portal.entrepreneur.plan.budget.update'), [
                 'expected_runway_months' => 6,
+                'launch_costs' => [
+                    ['label' => 'Website', 'amount' => 500, 'quantity' => 1],
+                ],
+            ])
+            ->assertRedirect(route('portal.entrepreneur.plan.show'))
+            ->assertSessionHas('status', 'entrepreneur-budget-locked');
+
+        PlanSection::query()->create([
+            'business_plan_id' => $plan->id,
+            'key' => 'founder-financial-financial-assumptions',
+            'title' => 'Financial assumptions',
+            'body' => str_repeat('Revenue grows by ten percent, cost inflation is three percent, and target margins are set for gross and net profit. ', 3),
+            'source_type' => 'founder',
+            'completeness_status' => PlanSection::STATUS_COMPLETE,
+            'metadata' => ['requirement_key' => 'financial-assumptions'],
+        ]);
+
+        $this->actingAs($actor)
+            ->post(route('portal.entrepreneur.plan.budget.update'), [
+                'expected_runway_months' => 6,
+                'assumptions' => [
+                    'revenue_growth_percent' => 10,
+                    'cost_inflation_percent' => 3,
+                    'target_gross_profit_percent' => 55,
+                    'target_net_profit_before_tax_percent' => 10,
+                    'target_net_profit_after_tax_percent' => 7,
+                ],
                 'launch_costs' => [
                     ['label' => 'Website', 'amount' => 500, 'quantity' => 1],
                 ],

@@ -22,10 +22,14 @@ final class EntrepreneurBudget extends Model
 
     protected $casts = [
         'expected_runway_months' => 'integer',
+        'forecast_years' => 'integer',
+        'assumptions' => 'array',
         'launch_costs' => 'array',
         'monthly_fixed_costs' => 'array',
+        'future_costs' => 'array',
         'revenue_forecast' => 'array',
         'funding_sources' => 'array',
+        'funding_scenarios' => 'array',
         'computed' => 'array',
         'flags' => 'array',
         'advisor_line_nudge_seen_at' => 'datetime',

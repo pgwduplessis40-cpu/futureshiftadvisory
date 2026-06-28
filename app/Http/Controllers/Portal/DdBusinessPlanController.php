@@ -17,6 +17,7 @@ use App\Models\PlanSection;
 use App\Models\PostAcquisitionMigration;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
@@ -247,11 +248,26 @@ final class DdBusinessPlanController extends Controller
             ? $client->engagement_type
             : EngagementType::tryFrom((string) $client->engagement_type);
 
-        abort_unless($engagementType === EngagementType::DUE_DILIGENCE, 404);
+        if ($engagementType === EngagementType::DUE_DILIGENCE) {
+            return DdEngagement::query()
+                ->where('client_id', $client->getKey())
+                ->latest()
+                ->firstOrFail();
+        }
+
+        $activation = ServiceActivation::query()
+            ->where('client_id', $client->getKey())
+            ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->whereNotNull('related_dd_engagement_id')
+            ->latest()
+            ->first();
+
+        abort_unless($activation instanceof ServiceActivation, 404);
 
         return DdEngagement::query()
             ->where('client_id', $client->getKey())
-            ->latest()
+            ->whereKey($activation->related_dd_engagement_id)
             ->firstOrFail();
     }
 

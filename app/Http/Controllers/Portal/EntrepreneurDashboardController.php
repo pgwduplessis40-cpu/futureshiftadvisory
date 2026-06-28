@@ -15,6 +15,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
+use App\Models\ServiceActivation;
 use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
@@ -39,7 +40,9 @@ final class EntrepreneurDashboardController extends Controller
     public function __invoke(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+        abort_unless($user instanceof User, 403);
+        $clientActivation = $this->activeEntrepreneurActivationForUser($user);
+        abort_unless($user->user_type === User::TYPE_ENTREPRENEUR || $clientActivation instanceof ServiceActivation, 403);
 
         $this->entrepreneurInvites->reconcile($user);
 
@@ -49,7 +52,11 @@ final class EntrepreneurDashboardController extends Controller
                 'businessPlans.assessments.ratingFramework.criteria',
                 'advisoryReadinessSignals.planAssessment.ratingFramework.criteria',
             ])
-            ->where('user_id', $user->getKey())
+            ->when(
+                $clientActivation instanceof ServiceActivation && $clientActivation->related_entrepreneur_profile_id !== null,
+                fn ($query) => $query->whereKey($clientActivation->related_entrepreneur_profile_id),
+                fn ($query) => $query->where('user_id', $user->getKey()),
+            )
             ->first();
         $latestPlan = $profile?->businessPlans
             ->sortByDesc('updated_at')
@@ -237,5 +244,22 @@ final class EntrepreneurDashboardController extends Controller
                 : null,
             'criteria' => $assessmentPayload['criteria'] ?? [],
         ];
+    }
+
+    private function activeEntrepreneurActivationForUser(User $user): ?ServiceActivation
+    {
+        $clientIds = $user->accessibleClientIds();
+
+        if ($clientIds === []) {
+            return null;
+        }
+
+        return ServiceActivation::query()
+            ->whereIn('client_id', $clientIds)
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->whereNotNull('related_entrepreneur_profile_id')
+            ->latest()
+            ->first();
     }
 }

@@ -147,6 +147,17 @@ const targetPayloads: Record<string, string> = {
         null,
         2,
     ),
+    'economic_indicator:company_tax_rate': JSON.stringify(
+        {
+            indicator: 'company_tax_rate',
+            label: 'Company tax rate',
+            value: 28,
+            unit: 'percent',
+            period_date: '2026-06-01',
+        },
+        null,
+        2,
+    ),
     'economic_indicator:gdp_quarterly': JSON.stringify(
         {
             indicator: 'gdp_quarterly',

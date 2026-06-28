@@ -302,6 +302,7 @@ return [
         'stripe' => [
             'live' => (bool) env('FEATURE_STRIPE_LIVE', false),
             'base_url' => env('STRIPE_BASE_URL', 'https://api.stripe.com'),
+            'publishable_key' => env('STRIPE_PUBLISHABLE_KEY'),
             'secret' => env('STRIPE_SECRET'),
             'webhook_secret' => env('STRIPE_WEBHOOK_SECRET'),
         ],

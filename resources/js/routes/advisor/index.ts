@@ -1,6 +1,7 @@
 import calendar from './calendar'
 import messages from './messages'
 import clients from './clients'
+import serviceActivations from './service-activations'
 import npoEngagements from './npo-engagements'
 import governanceReviewFindings from './governance-review-findings'
 import payments from './payments'
@@ -26,6 +27,7 @@ const advisor = {
     calendar: Object.assign(calendar, calendar),
 messages: Object.assign(messages, messages),
 clients: Object.assign(clients, clients),
+serviceActivations: Object.assign(serviceActivations, serviceActivations),
 npoEngagements: Object.assign(npoEngagements, npoEngagements),
 governanceReviewFindings: Object.assign(governanceReviewFindings, governanceReviewFindings),
 payments: Object.assign(payments, payments),

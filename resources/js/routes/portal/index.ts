@@ -1,4 +1,5 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../wayfinder'
+import serviceActivations from './service-activations'
 import npoBoard from './npo-board'
 import calendar from './calendar'
 import ddPlan from './dd-plan'
@@ -14,7 +15,7 @@ import surveys from './surveys'
 import onboarding from './onboarding'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -29,7 +30,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -38,7 +39,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -47,7 +48,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -57,7 +58,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
     const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -67,7 +68,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
         dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -76,7 +77,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:64
+ * @see app/Http/Controllers/Portal/DashboardController.php:67
  * @route '/portal'
  */
         dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -92,6 +93,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     dashboard.form = dashboardForm
 const portal = {
     dashboard: Object.assign(dashboard, dashboard),
+serviceActivations: Object.assign(serviceActivations, serviceActivations),
 npoBoard: Object.assign(npoBoard, npoBoard),
 calendar: Object.assign(calendar, calendar),
 ddPlan: Object.assign(ddPlan, ddPlan),

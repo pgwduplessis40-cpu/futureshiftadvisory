@@ -17,10 +17,12 @@ import {
     Inbox,
     KeyRound,
     LayoutGrid,
+    Lightbulb,
     MessageSquare,
     PlugZap,
     Scale,
     Settings2,
+    ShieldCheck,
     Sparkles,
     UsersRound,
 } from 'lucide-react';
@@ -173,6 +175,12 @@ const serviceRatesNavItem: NavItem = {
     icon: BadgeDollarSign,
 };
 
+const principlesRolesNavItem: NavItem = {
+    title: 'Principles & Roles',
+    href: '/admin/principles-roles',
+    icon: ShieldCheck,
+};
+
 const ratingFrameworkNavItem: NavItem = {
     title: 'Rating Framework',
     href: '/admin/rating-frameworks',
@@ -314,6 +322,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     apiHealthNavItem,
     integrationCredentialsNavItem,
     projectSettingsNavItem,
+    principlesRolesNavItem,
     serviceRatesNavItem,
     ratingFrameworkNavItem,
     termsNavItem,
@@ -326,6 +335,30 @@ const superAdminAdministrationNavItems: NavItem[] = [
 
 type PortalClient = {
     engagement_type?: string | null;
+};
+
+type PortalServiceType = 'due_diligence' | 'entrepreneur';
+
+type PortalServiceOption = {
+    service_type: PortalServiceType;
+    label: string;
+    description: string;
+    available: boolean;
+    start_url: string;
+};
+
+type PortalServiceItem = {
+    id: string;
+    service_type: PortalServiceType;
+    client_label: string;
+    status: string;
+    url: string;
+    workspace_url: string | null;
+};
+
+type PortalServices = {
+    options: PortalServiceOption[];
+    items: PortalServiceItem[];
 };
 
 type AdvisorPageClient = {
@@ -387,21 +420,70 @@ function internalNavGroups({
 
 function portalNavGroups({
     platformItems,
+    serviceItems = [],
     communicationItems = [messagesNavItem, notificationsNavItem],
 }: {
     platformItems: NavItem[];
+    serviceItems?: NavItem[];
     communicationItems?: NavItem[];
 }): NavGroup[] {
     return [
         navGroup('Platform', platformItems),
+        serviceItems.length > 0 ? navGroup('Services', serviceItems) : null,
         navGroup('Comms', communicationItems),
         navGroup('Calendar', [portalCalendarNavItem]),
+    ].filter((group): group is NavGroup => group !== null);
+}
+
+function portalServiceNavItems(
+    portalServices?: PortalServices | null,
+): NavItem[] {
+    const fallbackOptions: PortalServiceOption[] = [
+        {
+            service_type: 'due_diligence',
+            label: 'Explore buying a business',
+            description:
+                'Open a DD workspace when you are considering a purchase or investment.',
+            available: true,
+            start_url: '/portal/service-activations/new/due_diligence',
+        },
+        {
+            service_type: 'entrepreneur',
+            label: 'Test a new idea',
+            description:
+                'Open idea validation, business-plan, and budget support inside this portal.',
+            available: true,
+            start_url: '/portal/service-activations/new/entrepreneur',
+        },
     ];
+    const closedStatuses = new Set(['cancelled', 'closed', 'rejected']);
+    const options =
+        portalServices?.options && portalServices.options.length > 0
+            ? portalServices.options
+            : fallbackOptions;
+
+    return options.map((option) => {
+        const current = portalServices?.items.find(
+            (item) =>
+                item.service_type === option.service_type &&
+                !closedStatuses.has(item.status),
+        );
+
+        return {
+            title: option.label,
+            href: current?.workspace_url ?? current?.url ?? option.start_url,
+            icon:
+                option.service_type === 'due_diligence'
+                    ? BriefcaseBusiness
+                    : Lightbulb,
+        };
+    });
 }
 
 function navGroupsFor(
     userType?: string | null,
     portalClient?: PortalClient | null,
+    portalServices?: PortalServices | null,
 ): NavGroup[] {
     if (userType === 'entrepreneur') {
         return portalNavGroups({
@@ -415,6 +497,7 @@ function navGroupsFor(
     }
 
     if (userType === 'client_primary' || userType === 'client_team') {
+        const serviceItems = portalServiceNavItems(portalServices);
         const platformItems = [
             portalDashboardNavItem,
             portalOnboardingNavItem,
@@ -433,10 +516,11 @@ function navGroupsFor(
                     portalSurveysNavItem,
                     portalInspirationNavItem,
                 ],
+                serviceItems,
             });
         }
 
-        return portalNavGroups({ platformItems });
+        return portalNavGroups({ platformItems, serviceItems });
     }
 
     if (userType === 'npo_board_member') {
@@ -581,6 +665,7 @@ export function AppSidebar() {
     const page = usePage<{
         auth: Auth;
         portalClient?: PortalClient | null;
+        portalServices?: PortalServices | null;
         client?: AdvisorPageClient | null;
     }>();
     const { isMobile, setOpenMobile } = useSidebar();
@@ -598,7 +683,11 @@ export function AppSidebar() {
           null)
         : null;
     const mainNavGroups = navGroupsWithClientFilterState(
-        navGroupsFor(userType, page.props.portalClient),
+        navGroupsFor(
+            userType,
+            page.props.portalClient,
+            page.props.portalServices,
+        ),
         currentUrl.pathname,
         engagementType,
     );

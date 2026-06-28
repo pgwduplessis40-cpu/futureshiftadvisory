@@ -2,11 +2,13 @@ import { Head, Link } from '@inertiajs/react';
 import {
     Activity,
     Bell,
+    BriefcaseBusiness,
     CalendarClock,
     ClipboardList,
     CircleDollarSign,
     FileText,
     HeartPulse,
+    Lightbulb,
     MessageSquare,
     PieChart,
     Save,
@@ -87,6 +89,7 @@ type Props = {
     npoPortal: NpoPortalPayload | null;
     ddPlan: DdPlanPayload | null;
     postAcquisition: PostAcquisitionPayload | null;
+    serviceActivations: ServiceActivationsPayload;
     standardAdvisory: StandardAdvisoryPortalPayload | null;
     goals: GoalDashboard;
     documents: DocumentPayload[];
@@ -195,6 +198,30 @@ type PostAcquisitionPayload = {
         owner: string | null;
         priority: string;
         status: string;
+    }>;
+};
+
+type ServiceActivationsPayload = {
+    request_url: string;
+    options: Array<{
+        service_type: 'due_diligence' | 'entrepreneur';
+        label: string;
+        description: string;
+        available: boolean;
+        start_url: string;
+    }>;
+    items: Array<{
+        id: string;
+        service_type: 'due_diligence' | 'entrepreneur';
+        client_label: string;
+        status: string;
+        status_label: string;
+        package_label: string | null;
+        fixed_fee: number | null;
+        currency: string;
+        created_at: string | null;
+        url: string;
+        workspace_url: string | null;
     }>;
 };
 
@@ -441,6 +468,7 @@ export default function PortalDashboard({
     npoPortal,
     ddPlan,
     postAcquisition,
+    serviceActivations,
     standardAdvisory,
     goals,
     documents: initialDocuments,
@@ -737,6 +765,35 @@ export default function PortalDashboard({
                                         actionLabel={postAcquisitionActionLabel}
                                     />
                                 )}
+                                {serviceActivations.items
+                                    .slice(0, 2)
+                                    .map((activation) => (
+                                        <StatusPanel
+                                            key={activation.id}
+                                            icon={
+                                                activation.service_type ===
+                                                'due_diligence'
+                                                    ? BriefcaseBusiness
+                                                    : Lightbulb
+                                            }
+                                            label={activation.client_label}
+                                            value={activation.status_label}
+                                            explanation={
+                                                activation.package_label
+                                                    ? `${activation.package_label}${activation.fixed_fee !== null ? ` / ${formatMoney(activation.fixed_fee, activation.currency)}` : ''}`
+                                                    : 'Your advisor will select the package, scope, and price from the active Admin Service Rates table.'
+                                            }
+                                            href={
+                                                activation.workspace_url ??
+                                                activation.url
+                                            }
+                                            actionLabel={
+                                                activation.workspace_url
+                                                    ? 'Open'
+                                                    : 'Review'
+                                            }
+                                        />
+                                    ))}
                                 <StatusPanel
                                     icon={HeartPulse}
                                     label="Wellbeing"
@@ -2332,6 +2389,14 @@ function formatCurrency(value: number): string {
         style: 'currency',
         currency: 'NZD',
         maximumFractionDigits: 0,
+    }).format(value);
+}
+
+function formatMoney(value: number, currency: string): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'currency',
+        currency,
+        maximumFractionDigits: 2,
     }).format(value);
 }
 

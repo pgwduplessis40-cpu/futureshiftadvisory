@@ -12,6 +12,7 @@ use App\Models\ClientTeamMember;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
 use App\Models\PaymentAuthority;
+use App\Models\PaymentSchedule;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\User;
@@ -26,6 +27,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use InvalidArgumentException;
+use Laravel\Fortify\Contracts\TwoFactorAuthenticationProvider;
 use Tests\TestCase;
 
 final class ProposalSignoffFlowTest extends TestCase
@@ -102,6 +104,7 @@ final class ProposalSignoffFlowTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
             'type' => PaymentAuthority::TYPE_CARD,
             'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'collection_day' => 15,
         ], $clientUser);
 
         $this->assertSame(ProposalStatus::Released, $proposal->refresh()->status);
@@ -122,6 +125,12 @@ final class ProposalSignoffFlowTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_SIGNATURE, [
             'signature_name' => 'Client Signer',
             'accepted' => true,
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
             'ip' => '203.0.113.10',
             'user_agent' => 'Feature test',
         ], $clientUser);
@@ -133,6 +142,16 @@ final class ProposalSignoffFlowTest extends TestCase
         $this->assertNotNull($proposal->signature_evidence_sha256_envelope);
         $this->assertIsArray($proposal->signature_envelope_meta);
         Storage::disk('secure_local')->assertExists($proposal->signature_evidence_path);
+        $signedEvidence = Storage::disk('secure_local')->get($proposal->signature_evidence_path);
+        $this->assertStringContainsString('Signed proposal certificate', $signedEvidence);
+        $this->assertStringContainsString('Collectiondate15thofeachmonth', preg_replace('/\s+/', '', $signedEvidence) ?? '');
+        $this->assertDatabaseHas('payment_schedules', [
+            'proposal_id' => $proposal->id,
+            'payment_authority_id' => PaymentAuthority::query()->where('proposal_id', $proposal->id)->value('id'),
+            'cadence' => PaymentSchedule::CADENCE_MONTHLY_RETAINER,
+            'collection_day' => 15,
+            'amount' => '1666.67',
+        ]);
 
         $flow->complete($proposal, ProposalSignoffStep::STEP_CONFIRMATION, [], $clientUser);
 
@@ -166,6 +185,33 @@ final class ProposalSignoffFlowTest extends TestCase
         $this->assertSame(2, $proposal->signoffSteps()->count());
     }
 
+    public function test_completed_payment_method_can_be_reopened_before_authority_capture(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-payment-reopen-advisor@example.test');
+        $proposal = $this->releasedProposal($client, $advisor);
+        $flow = app(SignoffFlow::class);
+
+        $this->completeToPaymentMethod($flow, $proposal, $clientUser);
+
+        $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
+            'type' => PaymentAuthority::TYPE_DIRECT_DEBIT,
+            'gateway' => PaymentAuthority::GATEWAY_WINDCAVE,
+            'collection_day' => 15,
+        ], $clientUser);
+
+        $payload = $flow->payload($proposal->refresh());
+        $paymentMethodStep = collect($payload['steps'])
+            ->firstWhere('step', ProposalSignoffStep::STEP_PAYMENT_METHOD);
+
+        $this->assertSame(4, $proposal->signoffSteps()->count());
+        $this->assertSame(ProposalSignoffStep::STEP_AUTHORITY, $payload['next_step']);
+        $this->assertSame([
+            'type' => PaymentAuthority::TYPE_DIRECT_DEBIT,
+            'gateway' => PaymentAuthority::GATEWAY_WINDCAVE,
+            'collection_day' => 15,
+        ], $paymentMethodStep['payload']);
+    }
+
     public function test_authority_capture_failure_keeps_proposal_pre_signature(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-failure-advisor@example.test');
@@ -196,6 +242,27 @@ final class ProposalSignoffFlowTest extends TestCase
             'action' => 'proposal.authority_capture_failed',
             'subject_id' => $proposal->id,
         ]);
+    }
+
+    public function test_portal_can_start_stripe_card_setup_without_raw_card_details(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-stripe-setup-advisor@example.test');
+        $proposal = $this->releasedProposal($client, $advisor);
+        $this->completeToPaymentMethod(app(SignoffFlow::class), $proposal, $clientUser);
+
+        $this->actingAsMfa($clientUser)
+            ->postJson(route('portal.proposals.signoff.payment-setup', $proposal), [
+                'type' => PaymentAuthority::TYPE_CARD,
+                'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            ])
+            ->assertOk()
+            ->assertJsonStructure([
+                'publishable_key',
+                'client_secret',
+                'setup_intent_ref',
+                'customer_ref',
+            ])
+            ->assertJsonPath('publishable_key', 'pk_test_fixture');
     }
 
     public function test_raw_card_numbers_are_rejected_before_persistence(): void
@@ -241,7 +308,140 @@ final class ProposalSignoffFlowTest extends TestCase
                 ->where('proposal.id', $proposal->id)
                 ->where('proposal.view_url', route('portal.proposals.show', $proposal, absolute: false))
                 ->where('proposal.download_url', route('portal.proposals.download', $proposal, absolute: false))
-                ->where('signoff.next_step', ProposalSignoffStep::STEP_REVIEW));
+                ->where('proposal.payment_terms.currency', 'NZD')
+                ->where('proposal.payment_terms.cadence', 'monthly')
+                ->where('proposal.payment_terms.term_months', 6)
+                ->where('proposal.payment_terms.monthly_amount', 1666.67)
+                ->where('signoff.next_step', ProposalSignoffStep::STEP_REVIEW)
+                ->where('signoff.authority_requires_token', false));
+    }
+
+    public function test_signature_requires_current_password_when_mfa_is_disabled(): void
+    {
+        config(['security.mfa_required' => false]);
+
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-password-advisor@example.test');
+        $proposal = $this->completeToAuthority(app(SignoffFlow::class), $this->releasedProposal($client, $advisor), $clientUser);
+
+        $this->actingAs($clientUser)
+            ->post(route('portal.proposals.signoff.step', [$proposal, ProposalSignoffStep::STEP_SIGNATURE]), [
+                'signature_name' => 'Client Signer',
+                'accepted' => true,
+            ])
+            ->assertSessionHasErrors('current_password');
+
+        $this->assertSame(ProposalStatus::AwaitingSignature, $proposal->refresh()->status);
+
+        $this->actingAs($clientUser)
+            ->post(route('portal.proposals.signoff.step', [$proposal, ProposalSignoffStep::STEP_SIGNATURE]), [
+                'signature_name' => 'Client Signer',
+                'accepted' => true,
+                'current_password' => 'password',
+            ])
+            ->assertRedirect(route('portal.proposals.signoff.show', $proposal));
+
+        $proposal = $proposal->refresh();
+        $this->assertSame(ProposalStatus::Signed, $proposal->status);
+
+        $payload = $proposal->signoffSteps()
+            ->where('step', ProposalSignoffStep::STEP_SIGNATURE)
+            ->firstOrFail()
+            ->payload;
+
+        $this->assertNotNull(data_get($payload, 'identity_verification.password_verified_at'));
+        $this->assertFalse(data_get($payload, 'identity_verification.mfa_required'));
+        $this->assertNull(data_get($payload, 'identity_verification.mfa_verified_at'));
+
+        $signedView = $this->actingAs($clientUser)
+            ->get(route('portal.proposals.show', $proposal));
+
+        $signedView
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $signedViewContent = (string) $signedView->getContent();
+        $this->assertStringStartsWith('%PDF-1.4', $signedViewContent);
+        $this->assertStringContainsString('Signed proposal certificate', $signedViewContent);
+        $this->assertStringContainsString('PasswordVerifiedat', preg_replace('/\s+/', '', $signedViewContent) ?? '');
+        $this->assertStringContainsString('inline;', (string) $signedView->headers->get('Content-Disposition'));
+
+        $signedDownload = $this->actingAs($clientUser)
+            ->get(route('portal.proposals.download', $proposal));
+
+        $signedDownload
+            ->assertOk()
+            ->assertHeader('Content-Type', 'application/pdf')
+            ->assertHeader('X-Content-Type-Options', 'nosniff');
+        $this->assertStringStartsWith('%PDF-1.4', (string) $signedDownload->getContent());
+        $this->assertStringContainsString('attachment;', (string) $signedDownload->headers->get('Content-Disposition'));
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'proposal.portal_signed_viewed',
+            'subject_id' => $proposal->id,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'proposal.portal_signed_downloaded',
+            'subject_id' => $proposal->id,
+        ]);
+    }
+
+    public function test_signature_requires_password_and_mfa_code_when_mfa_is_enabled(): void
+    {
+        config(['security.mfa_required' => true]);
+
+        $this->app->instance(TwoFactorAuthenticationProvider::class, new class implements TwoFactorAuthenticationProvider
+        {
+            public function generateSecretKey(): string
+            {
+                return 'secret';
+            }
+
+            public function qrCodeUrl($companyName, $companyEmail, $secret): string
+            {
+                return '';
+            }
+
+            public function verify($secret, $code): bool
+            {
+                return $secret === 'secret' && $code === '123456';
+            }
+        });
+
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-mfa-advisor@example.test');
+        $proposal = $this->completeToAuthority(app(SignoffFlow::class), $this->releasedProposal($client, $advisor), $clientUser);
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.proposals.signoff.step', [$proposal, ProposalSignoffStep::STEP_SIGNATURE]), [
+                'signature_name' => 'Client Signer',
+                'accepted' => true,
+                'current_password' => 'password',
+            ])
+            ->assertSessionHasErrors('mfa_code');
+
+        $this->actingAsMfa($clientUser)
+            ->post(route('portal.proposals.signoff.step', [$proposal, ProposalSignoffStep::STEP_SIGNATURE]), [
+                'signature_name' => 'Client Signer',
+                'accepted' => true,
+                'current_password' => 'password',
+                'mfa_code' => '123456',
+            ])
+            ->assertRedirect(route('portal.proposals.signoff.show', $proposal));
+
+        $proposal = $proposal->refresh();
+        $payload = $proposal->signoffSteps()
+            ->where('step', ProposalSignoffStep::STEP_SIGNATURE)
+            ->firstOrFail()
+            ->payload;
+
+        $this->assertSame(ProposalStatus::Signed, $proposal->status);
+        $this->assertNotNull(data_get($payload, 'identity_verification.password_verified_at'));
+        $this->assertTrue(data_get($payload, 'identity_verification.mfa_required'));
+        $this->assertNotNull(data_get($payload, 'identity_verification.mfa_verified_at'));
+        $this->assertSame(User::MFA_METHOD_TOTP, data_get($payload, 'identity_verification.mfa_method'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'proposal.signature_identity_verified',
+            'subject_id' => $proposal->id,
+        ]);
     }
 
     public function test_portal_client_can_view_and_download_only_their_own_released_proposal(): void
@@ -394,6 +594,7 @@ final class ProposalSignoffFlowTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
             'type' => PaymentAuthority::TYPE_CARD,
             'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'collection_day' => 1,
         ], $clientUser);
     }
 

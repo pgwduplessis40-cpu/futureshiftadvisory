@@ -116,6 +116,25 @@ final class MfaChallenger
         throw ValidationException::withMessages(['code' => 'The provided two-factor authentication code was invalid.']);
     }
 
+    public function verifyTotpCode(Request $request, User $user, string $code, string $errorKey = 'code'): void
+    {
+        if (! $this->hasCompletedEnrolment($user)) {
+            throw ValidationException::withMessages([$errorKey => 'Two-factor authentication is not enrolled for this account.']);
+        }
+
+        $this->assertNotLocked($request);
+
+        if ($code !== '' && $this->verifyCode($user, $code)) {
+            $this->markChallengePassed($request, $user);
+
+            return;
+        }
+
+        $this->recordFailedAttempt($request);
+
+        throw ValidationException::withMessages([$errorKey => 'The provided two-factor authentication code was invalid.']);
+    }
+
     public function requireStepUp(Request $request, StepUpAssessment $assessment): void
     {
         if ($request->hasSession()) {

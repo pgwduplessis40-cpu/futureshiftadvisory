@@ -36,6 +36,7 @@ use App\Http\Controllers\Advisor\ProposalController;
 use App\Http\Controllers\Advisor\ProspectInboxController;
 use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
+use App\Http\Controllers\Advisor\ServiceActivationController;
 use App\Http\Controllers\Advisor\StandardAdvisoryController;
 use App\Http\Controllers\Advisor\SurveyResultController;
 use App\Http\Controllers\Advisor\TemplateController;
@@ -69,6 +70,15 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients', [ClientController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.index');
+        Route::get('service-activations', [ServiceActivationController::class, 'index'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('service-activations.index');
+        Route::get('service-activations/{serviceActivation}', [ServiceActivationController::class, 'show'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('service-activations.show');
+        Route::post('service-activations/{serviceActivation}/package', [ServiceActivationController::class, 'package'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('service-activations.package');
         Route::get('clients/create', [ClientController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.create');

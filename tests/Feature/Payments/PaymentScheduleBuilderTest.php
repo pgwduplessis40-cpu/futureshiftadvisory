@@ -116,7 +116,8 @@ final class PaymentScheduleBuilderTest extends TestCase
 
         $this->assertSame(PaymentSchedule::CADENCE_MONTHLY_RETAINER, $schedule->cadence);
         $this->assertSame('1200.00', $schedule->amount);
-        $this->assertTrue($schedule->next_run_at?->equalTo(now()->addMonthNoOverflow()));
+        $this->assertSame(1, $schedule->collection_day);
+        $this->assertSame('2026-06-01T00:00:00+00:00', $schedule->next_run_at?->toIso8601String());
     }
 
     public function test_authority_revoke_cascades_to_schedules_and_is_audited(): void
@@ -131,7 +132,7 @@ final class PaymentScheduleBuilderTest extends TestCase
 
         $revoked = $builder->revokeAuthority($authority, $clientUser);
 
-        $this->assertSame(1, $revoked);
+        $this->assertSame(2, $revoked);
         $this->assertSame(PaymentAuthority::STATUS_REVOKED, $authority->refresh()->status);
         $this->assertNotNull($authority->revoked_at);
         $this->assertSame(PaymentSchedule::STATUS_REVOKED, $schedule->refresh()->status);
@@ -183,8 +184,10 @@ final class PaymentScheduleBuilderTest extends TestCase
         $this->assertDatabaseMissing('payment_schedules', [
             'proposal_id' => $awaitingProposal->id,
         ]);
-        $this->assertDatabaseMissing('payment_schedules', [
+        $this->assertDatabaseHas('payment_schedules', [
             'payment_authority_id' => $authorityB->id,
+            'cadence' => PaymentSchedule::CADENCE_MONTHLY_RETAINER,
+            'collection_day' => 1,
         ]);
     }
 
@@ -273,6 +276,12 @@ final class PaymentScheduleBuilderTest extends TestCase
         app(SignoffFlow::class)->complete($proposal, ProposalSignoffStep::STEP_SIGNATURE, [
             'signature_name' => 'Schedule Signer',
             'accepted' => true,
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
             'ip' => '203.0.113.67',
             'user_agent' => 'Schedule feature test',
         ], $clientUser);
@@ -298,6 +307,7 @@ final class PaymentScheduleBuilderTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
             'type' => PaymentAuthority::TYPE_CARD,
             'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'collection_day' => 1,
         ], $clientUser);
         $flow->complete($proposal, ProposalSignoffStep::STEP_AUTHORITY, [
             'fixture_token' => 'schedule-authority-token',

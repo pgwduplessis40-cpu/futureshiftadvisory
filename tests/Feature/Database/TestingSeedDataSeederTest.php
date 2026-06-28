@@ -15,22 +15,34 @@ use App\Models\NpoEngagement;
 use App\Models\NpoSocialEnterpriseScorecard;
 use App\Models\NpoTensionAnalysis;
 use App\Models\NpoValueCalculation;
+use App\Models\PaymentSchedule;
 use App\Models\Proposal;
+use App\Models\ProposalSignoffStep;
 use App\Models\PvCalculation;
 use App\Models\QuestionnaireQuestion;
 use App\Models\Report;
+use App\Models\Template;
 use App\Models\User;
 use App\Services\Pv\PvWaterfallBuilder;
+use App\Services\Storage\KeyEnvelope;
 use Database\Seeders\TestingSeedDataSeeder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 final class TestingSeedDataSeederTest extends TestCase
 {
     use RefreshDatabase;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        Storage::fake('secure_local');
+    }
 
     public function test_testing_seed_data_is_comprehensive_and_idempotent(): void
     {
@@ -46,6 +58,7 @@ final class TestingSeedDataSeederTest extends TestCase
             'business_valuations',
             'improvement_opportunities',
             'risk_costs',
+            'templates',
             'proposals',
             'business_plans',
             'dd_engagements',
@@ -130,6 +143,8 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'payment_schedules');
         $this->assertAtLeast(1, 'payments');
         $this->assertAtLeast(1, 'receipts');
+        $this->assertSeededProposalTemplate();
+        $this->assertSeededProposalSignoffFlow();
 
         $this->assertDatabaseHas('entrepreneur_profiles', [
             'email' => 'seed.entrepreneur@futureshiftadvisory.test',
@@ -306,5 +321,91 @@ final class TestingSeedDataSeederTest extends TestCase
             collect($summit['waterfall'])->contains(fn (array $step): bool => ($step['is_remainder'] ?? false) === true),
             'Expected Summit SaaS to exercise the PV waterfall remainder step.',
         );
+    }
+
+    private function assertSeededProposalTemplate(): void
+    {
+        if (! class_exists(\ZipArchive::class)) {
+            return;
+        }
+
+        $template = DB::table('templates')
+            ->where('category', Template::CATEGORY_PROPOSAL)
+            ->where('status', Template::STATUS_ACTIVE)
+            ->first();
+
+        $this->assertNotNull($template, 'Expected testing seed data to include an active proposal template.');
+
+        $structure = json_decode((string) $template->structure, true);
+        $this->assertSame('uploaded_file', $structure['source_kind'] ?? null);
+        $this->assertNotEmpty($structure['uploaded_file']['stored_path'] ?? null);
+    }
+
+    private function assertSeededProposalSignoffFlow(): void
+    {
+        $proposal = DB::table('proposals')
+            ->join('clients', 'clients.id', '=', 'proposals.client_id')
+            ->where('clients.nzbn', '9429000000010')
+            ->select('proposals.id', 'proposals.signature_evidence_path', 'proposals.signature_evidence_sha256_envelope', 'proposals.signature_evidence_byte_size')
+            ->first();
+
+        $this->assertNotNull($proposal);
+
+        $steps = DB::table('proposal_signoff_steps')
+            ->where('proposal_id', $proposal->id)
+            ->pluck('step')
+            ->all();
+
+        foreach (ProposalSignoffStep::orderedSteps() as $step) {
+            $this->assertContains($step, $steps, "Expected seeded proposal to include signoff step [{$step}].");
+        }
+
+        $this->assertSame(
+            0,
+            DB::table('proposal_signoff_steps')
+                ->where('proposal_id', $proposal->id)
+                ->whereIn('step', ['released', 'client_signed', 'payment_authorised'])
+                ->count(),
+            'Seeded proposal should not use legacy signoff step names.',
+        );
+
+        $this->assertSame('seed/proposals/harbour-hive-signature.pdf', $proposal->signature_evidence_path);
+        $this->assertGreaterThan(0, $proposal->signature_evidence_byte_size);
+        $this->assertTrue(
+            Storage::disk('secure_local')->exists($proposal->signature_evidence_path),
+            'Seeded signed proposal should have retrievable signed PDF evidence.',
+        );
+        $signatureEvidence = Storage::disk('secure_local')->get($proposal->signature_evidence_path);
+        $this->assertStringContainsString('Signed proposal certificate', $signatureEvidence);
+        $this->assertStringContainsString('Signed by: Seed Client Principal', $signatureEvidence);
+        $this->assertStringContainsString('Collection date: 1st of each month', $signatureEvidence);
+        $this->assertSame(
+            hash('sha256', $signatureEvidence),
+            app(KeyEnvelope::class)->decrypt((string) $proposal->signature_evidence_sha256_envelope),
+        );
+
+        $authority = DB::table('payment_authorities')
+            ->where('proposal_id', $proposal->id)
+            ->where('gateway', 'stripe')
+            ->first();
+
+        $this->assertNotNull($authority);
+
+        $tokenPayload = json_decode(
+            app(KeyEnvelope::class)->decrypt((string) $authority->gateway_token_envelope),
+            true,
+            flags: JSON_THROW_ON_ERROR,
+        );
+
+        $this->assertSame('pm_seed_harbour_hive', $tokenPayload['token'] ?? null);
+        $this->assertSame('cus_seed_harbour_hive', $tokenPayload['customer_ref'] ?? null);
+
+        $schedule = DB::table('payment_schedules')
+            ->where('proposal_id', $proposal->id)
+            ->first();
+
+        $this->assertNotNull($schedule);
+        $this->assertSame(PaymentSchedule::CADENCE_MONTHLY_RETAINER, $schedule->cadence);
+        $this->assertSame(1, (int) $schedule->collection_day);
     }
 }

@@ -114,6 +114,7 @@ final class GovernanceReviewProposalTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
             'type' => PaymentAuthority::TYPE_CARD,
             'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'collection_day' => 1,
         ], $clientUser);
         $flow->complete($proposal, ProposalSignoffStep::STEP_AUTHORITY, [
             'fixture_token' => 'governance-review-authority',
@@ -121,6 +122,12 @@ final class GovernanceReviewProposalTest extends TestCase
         $flow->complete($proposal, ProposalSignoffStep::STEP_SIGNATURE, [
             'signature_name' => 'Governance Signer',
             'accepted' => true,
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
             'ip' => '203.0.113.52',
             'user_agent' => 'Governance review test',
         ], $clientUser);

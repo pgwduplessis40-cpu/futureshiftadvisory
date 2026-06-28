@@ -10,25 +10,51 @@ use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
 use App\Services\Payments\PaymentGatewayException;
+use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Arr;
 
 final class FakeStripeClient implements StripeClient
 {
+    public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
+    {
+        if ($this->shouldFail($request)) {
+            throw new PaymentGatewayException('Stripe fixture setup failed.');
+        }
+
+        $hash = substr(hash('sha256', json_encode($request->payload, JSON_THROW_ON_ERROR)), 0, 16);
+
+        return new PaymentSetupIntent(
+            publishableKey: 'pk_test_fixture',
+            clientSecret: 'seti_fixture_'.$hash.'_secret_fixture',
+            setupIntentRef: 'seti_fixture_'.$hash,
+            customerRef: 'cus_stripe_'.substr($request->clientId, 0, 8),
+            metadata: [
+                'fixture' => true,
+            ],
+        );
+    }
+
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
     {
         if ($this->shouldFail($request)) {
             throw new PaymentGatewayException('Stripe fixture authority capture failed.');
         }
 
-        $hash = substr(hash('sha256', json_encode($request->payload, JSON_THROW_ON_ERROR)), 0, 16);
+        $reference = (string) ($request->payload['payment_method_ref']
+            ?? $request->payload['fixture_token']
+            ?? '');
+        $hash = substr(hash('sha256', $reference !== ''
+            ? $reference
+            : json_encode($request->payload, JSON_THROW_ON_ERROR)), 0, 16);
 
         return new PaymentAuthorityToken(
             token: 'tok_stripe_'.$hash,
-            customerRef: 'cus_stripe_'.substr($request->clientId, 0, 8),
+            customerRef: (string) ($request->payload['customer_ref'] ?? 'cus_stripe_'.substr($request->clientId, 0, 8)),
             metadata: [
                 'gateway' => 'stripe',
                 'fixture' => true,
                 'type' => $request->type,
+                'setup_intent_ref' => $request->payload['setup_intent_ref'] ?? null,
             ],
         );
     }

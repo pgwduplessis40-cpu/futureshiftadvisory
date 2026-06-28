@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Notifications\NotificationCenter;
+use App\Services\ServiceActivations\ServiceActivationNavigation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
 
@@ -57,14 +58,12 @@ class HandleInertiaRequests extends Middleware
                 'toast' => fn () => $request->session()->get('toast'),
             ],
             'portalClient' => fn () => $this->portalClient($request),
+            'portalServices' => fn () => $this->portalServices($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
-    private function portalClient(Request $request): ?array
+    private function portalClientModel(Request $request): ?Client
     {
         $user = $request->user();
 
@@ -80,11 +79,19 @@ class HandleInertiaRequests extends Middleware
             return null;
         }
 
-        $client = Client::query()
+        return Client::query()
             ->whereIn('id', $clientIds)
             ->where('status', '!=', ClientStatus::SUSPENDED->value)
             ->latest()
             ->first();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function portalClient(Request $request): ?array
+    {
+        $client = $this->portalClientModel($request);
 
         if (! $client instanceof Client) {
             return null;
@@ -98,5 +105,19 @@ class HandleInertiaRequests extends Middleware
                 ? $client->engagement_type
                 : $client->engagement_type?->value,
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function portalServices(Request $request): ?array
+    {
+        $client = $this->portalClientModel($request);
+
+        if (! $client instanceof Client) {
+            return null;
+        }
+
+        return app(ServiceActivationNavigation::class)->payload($client);
     }
 }

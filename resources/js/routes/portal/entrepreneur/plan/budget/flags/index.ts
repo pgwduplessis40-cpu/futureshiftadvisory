@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::acknowledge
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:382
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:459
  * @route '/portal/entrepreneur/plan/budget/flags/acknowledge'
  */
 export const acknowledge = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ acknowledge.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::acknowledge
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:382
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:459
  * @route '/portal/entrepreneur/plan/budget/flags/acknowledge'
  */
 acknowledge.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ acknowledge.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::acknowledge
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:382
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:459
  * @route '/portal/entrepreneur/plan/budget/flags/acknowledge'
  */
 acknowledge.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ acknowledge.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::acknowledge
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:382
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:459
  * @route '/portal/entrepreneur/plan/budget/flags/acknowledge'
  */
     const acknowledgeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,14 +45,14 @@ acknowledge.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::acknowledge
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:382
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:459
  * @route '/portal/entrepreneur/plan/budget/flags/acknowledge'
  */
         acknowledgeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: acknowledge.url(options),
             method: 'post',
         })
-
+    
     acknowledge.form = acknowledgeForm
 const flags = {
     acknowledge: Object.assign(acknowledge, acknowledge),

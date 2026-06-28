@@ -30,6 +30,10 @@ final class LayerCadenceRegistry
 
     public const LAYER_CLIENT_EXPERIENCE_SURVEY = 38;
 
+    public const LAYER_ENTREPRENEUR_BUDGET_MODEL = 39;
+
+    public const LAYER_SERVICE_ACTIVATION = 40;
+
     /**
      * @return Collection<int, array<string, mixed>>
      */
@@ -105,6 +109,22 @@ final class LayerCadenceRegistry
                 'surface' => 'client_experience',
                 'feeds' => ['survey_responses', 'survey_answers'],
                 'governance_gate' => 'survey_feedback_requires_admin_approval',
+            ]),
+            $this->layer(self::LAYER_ENTREPRENEUR_BUDGET_MODEL, 'Entrepreneur budget model learning', self::CADENCE_WEEKLY, 90, 'learning:entrepreneur-budget-model', [
+                'module' => 'entrepreneur',
+                'surface' => 'budget_model',
+                'feeds' => ['entrepreneur_budgets', 'business_plan_financial_assumptions', 'budget_flags', 'budget_pack_views'],
+                'governance_gate' => 'admin_or_advisor_approval_required',
+                'direct_write_policy' => 'no_auto_budget_or_score_changes',
+                'values_guardrail' => 'honest_accurate_truthful_unbiased',
+            ]),
+            $this->layer(self::LAYER_SERVICE_ACTIVATION, 'Service activation opportunity learning', self::CADENCE_WEEKLY, 90, null, [
+                'module' => 'service_activation',
+                'surface' => 'client_portal_cross_service_workspaces',
+                'feeds' => ['service_activations', 'service_rate_packages', 'client_acceptance_events'],
+                'governance_gate' => 'advisor_or_admin_review_required',
+                'direct_write_policy' => 'no_auto_pricing_scope_or_advice_changes',
+                'values_guardrail' => 'honest_accurate_truthful_unbiased',
             ]),
         ]);
     }

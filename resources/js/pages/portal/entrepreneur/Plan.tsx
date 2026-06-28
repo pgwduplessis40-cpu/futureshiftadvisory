@@ -116,19 +116,56 @@ type BudgetRow = {
     month?: string | number;
     monthly_growth_percent?: string | number;
     variable_cost_percent?: string | number;
+    unit_cost?: string | number;
+    gross_profit_percent?: string | number;
     confidence?: 'known' | 'estimate' | 'guess';
     description?: string;
+};
+
+type BudgetAssumptions = {
+    revenue_growth_percent: string | number;
+    cost_inflation_percent: string | number;
+    target_gross_profit_percent: string | number;
+    target_net_profit_before_tax_percent: string | number;
+    target_net_profit_after_tax_percent: string | number;
+};
+
+type FutureCostRow = BudgetRow & {
+    year?: string | number;
+    recurring?: boolean;
+};
+
+type FundingScenarioRow = {
+    name: string;
+    type: 'bank_loan' | 'investor' | 'mixed';
+    amount: string | number;
+    year?: string | number;
+    interest_rate_percent?: string | number;
+    term_years?: string | number;
+    interest_only_months?: string | number;
+    investor_equity_percent?: string | number;
+    confidence?: 'known' | 'estimate' | 'guess';
 };
 
 type BudgetPayload = {
     id: string | null;
     expected_runway_months: number | null;
+    forecast_years: number;
     status: string;
+    assumptions: Partial<BudgetAssumptions> & {
+        company_tax_rate_percent?: number;
+        company_tax_configured?: boolean;
+        field_labels?: Record<string, string>;
+        missing_fields?: string[];
+    };
     launch_costs: BudgetRow[];
     monthly_fixed_costs: BudgetRow[];
+    future_costs: FutureCostRow[];
     revenue_forecast: BudgetRow[];
     funding_sources: BudgetRow[];
+    funding_scenarios: FundingScenarioRow[];
     computed: {
+        forecast_years?: number;
         total_launch_costs?: number;
         monthly_fixed_costs?: number;
         total_funding?: number;
@@ -136,7 +173,25 @@ type BudgetPayload = {
         runway_months?: number | null;
         runway_open_ended?: boolean;
         break_even_month?: number | null;
+        break_even_year?: number | null;
+        first_profitable_year?: number | null;
+        cash_flow_positive_year?: number | null;
         break_even_reached?: boolean;
+        annual_totals?: {
+            year: number;
+            revenue: number;
+            gross_profit_percent: number | null;
+            net_profit_before_tax_percent: number | null;
+            net_profit_after_tax_percent: number | null;
+        }[];
+        assumptions?: Partial<BudgetAssumptions> & {
+            company_tax_rate_percent?: number;
+            company_tax_configured?: boolean;
+            field_labels?: Record<string, string>;
+            missing_fields?: string[];
+        };
+        missing_assumptions?: string[];
+        explanations?: Record<string, string>;
         monthly_series?: {
             month: number;
             revenue: number;
@@ -150,6 +205,9 @@ type BudgetPayload = {
     flags: BudgetFlag[];
     active_flags: BudgetFlag[];
     advisor_line_nudge_seen_at: string | null;
+    pack_available: boolean;
+    budget_pack_url: string | null;
+    budget_pack_pdf_url: string | null;
 };
 
 type BudgetFlag = {
@@ -163,10 +221,14 @@ type BudgetFlag = {
 
 type BudgetFormState = {
     expected_runway_months: string;
+    forecast_years: string;
+    assumptions: BudgetAssumptions;
     launch_costs: BudgetRow[];
     monthly_fixed_costs: BudgetRow[];
+    future_costs: FutureCostRow[];
     revenue_forecast: BudgetRow[];
     funding_sources: BudgetRow[];
+    funding_scenarios: FundingScenarioRow[];
 };
 
 type BudgetSetupMode = 'guided' | 'advanced';
@@ -175,6 +237,7 @@ type BudgetGroupKey = keyof Pick<
     BudgetFormState,
     | 'launch_costs'
     | 'monthly_fixed_costs'
+    | 'future_costs'
     | 'revenue_forecast'
     | 'funding_sources'
 >;
@@ -258,6 +321,8 @@ type Props = {
         startPlan: string;
         sectionStore: string;
         budgetUpdate: string;
+        budgetPack: string;
+        budgetPackPdf: string;
         budgetFlagAcknowledge: string;
         budgetAdvisorNudgeDismiss: string;
         assistRequirement: string;
@@ -1153,9 +1218,7 @@ export default function EntrepreneurPlan({
                                                     }
                                                     gamification={gamification}
                                                     saving={savingBudget}
-                                                    onFormChange={
-                                                        setBudgetForm
-                                                    }
+                                                    onFormChange={setBudgetForm}
                                                     onSave={saveBudget}
                                                     onAcknowledgeFlag={
                                                         acknowledgeBudgetFlag
@@ -1165,155 +1228,166 @@ export default function EntrepreneurPlan({
                                                     }
                                                 />
                                             ) : (
-                                            <>
-                                                <div className="flex flex-wrap items-start justify-between gap-3">
-                                                    <div>
-                                                        <h3 className="text-sm font-medium">
-                                                            Complete requirement
-                                                        </h3>
-                                                        <p className="mt-1 text-sm text-muted-foreground">
-                                                            {
-                                                                selectedRequirement.description
-                                                            }
-                                                        </p>
-                                                    </div>
-                                                    <div className="flex flex-wrap gap-2">
-                                                        <Button
-                                                            type="button"
-                                                            size="sm"
-                                                            variant="outline"
-                                                            onClick={() =>
-                                                                void assistRequirement()
-                                                            }
-                                                            disabled={
-                                                                !plan ||
-                                                                assistingSection
-                                                            }
-                                                        >
-                                                            <Bot
-                                                                className="size-4"
-                                                                aria-hidden="true"
-                                                            />
-                                                            {assistingSection
-                                                                ? 'Assisting'
-                                                                : 'AI assist'}
-                                                        </Button>
-                                                        {selectedSection ? (
+                                                <>
+                                                    <div className="flex flex-wrap items-start justify-between gap-3">
+                                                        <div>
+                                                            <h3 className="text-sm font-medium">
+                                                                Complete
+                                                                requirement
+                                                            </h3>
+                                                            <p className="mt-1 text-sm text-muted-foreground">
+                                                                {
+                                                                    selectedRequirement.description
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                        <div className="flex flex-wrap gap-2">
                                                             <Button
                                                                 type="button"
                                                                 size="sm"
                                                                 variant="outline"
                                                                 onClick={() =>
-                                                                    router.post(
-                                                                        selectedSection.guidance_url,
-                                                                        {},
-                                                                        {
-                                                                            preserveScroll: true,
-                                                                        },
-                                                                    )
+                                                                    void assistRequirement()
+                                                                }
+                                                                disabled={
+                                                                    !plan ||
+                                                                    assistingSection
                                                                 }
                                                             >
                                                                 <Bot
                                                                     className="size-4"
                                                                     aria-hidden="true"
                                                                 />
-                                                                Score draft
+                                                                {assistingSection
+                                                                    ? 'Assisting'
+                                                                    : 'AI assist'}
                                                             </Button>
-                                                        ) : null}
-                                                    </div>
-                                                </div>
-                                                <label className="grid gap-1 text-sm">
-                                                    <span>Section title</span>
-                                                    <input
-                                                        value={sectionTitle}
-                                                        onChange={(event) =>
-                                                            setSectionTitle(
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        className="h-9 rounded-md border bg-background px-3 text-sm"
-                                                    />
-                                                </label>
-                                                <label className="grid gap-1 text-sm">
-                                                    <span>Plan detail</span>
-                                                    <textarea
-                                                        value={sectionBody}
-                                                        onChange={(event) =>
-                                                            setSectionBody(
-                                                                event.target
-                                                                    .value,
-                                                            )
-                                                        }
-                                                        rows={8}
-                                                        className="rounded-md border bg-background px-3 py-2 text-sm"
-                                                        placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
-                                                    />
-                                                </label>
-                                                <FileDropzone
-                                                    key={supportingKey}
-                                                    id="entrepreneur-plan-support"
-                                                    files={
-                                                        supportingFile
-                                                            ? [supportingFile]
-                                                            : []
-                                                    }
-                                                    label="Attach supporting document"
-                                                    onFilesChange={(files) =>
-                                                        setSupportingFile(
-                                                            files[0] ?? null,
-                                                        )
-                                                    }
-                                                />
-                                                <InputError
-                                                    message={
-                                                        sectionError ??
-                                                        undefined
-                                                    }
-                                                />
-                                                {assistantNotice ? (
-                                                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                                                        <div className="font-medium">
-                                                            AI assistant
+                                                            {selectedSection ? (
+                                                                <Button
+                                                                    type="button"
+                                                                    size="sm"
+                                                                    variant="outline"
+                                                                    onClick={() =>
+                                                                        router.post(
+                                                                            selectedSection.guidance_url,
+                                                                            {},
+                                                                            {
+                                                                                preserveScroll: true,
+                                                                            },
+                                                                        )
+                                                                    }
+                                                                >
+                                                                    <Bot
+                                                                        className="size-4"
+                                                                        aria-hidden="true"
+                                                                    />
+                                                                    Score draft
+                                                                </Button>
+                                                            ) : null}
                                                         </div>
-                                                        <p className="mt-1 whitespace-pre-line text-muted-foreground">
-                                                            {assistantNotice}
-                                                        </p>
                                                     </div>
-                                                ) : null}
-                                                {selectedSection?.guidance ? (
-                                                    <div className="rounded-md border bg-muted/30 p-3 text-sm">
-                                                        <div className="font-medium">
-                                                            AI guidance
-                                                        </div>
-                                                        <p className="mt-1 text-muted-foreground">
-                                                            {
-                                                                selectedSection
-                                                                    .guidance
-                                                                    .summary
+                                                    <label className="grid gap-1 text-sm">
+                                                        <span>
+                                                            Section title
+                                                        </span>
+                                                        <input
+                                                            value={sectionTitle}
+                                                            onChange={(event) =>
+                                                                setSectionTitle(
+                                                                    event.target
+                                                                        .value,
+                                                                )
                                                             }
-                                                        </p>
-                                                    </div>
-                                                ) : null}
-                                                <Button
-                                                    type="button"
-                                                    size="sm"
-                                                    onClick={() =>
-                                                        void saveSection()
-                                                    }
-                                                    disabled={
-                                                        !plan || savingSection
-                                                    }
-                                                >
-                                                    <Upload
-                                                        className="size-4"
-                                                        aria-hidden="true"
+                                                            className="h-9 rounded-md border bg-background px-3 text-sm"
+                                                        />
+                                                    </label>
+                                                    <label className="grid gap-1 text-sm">
+                                                        <span>Plan detail</span>
+                                                        <textarea
+                                                            value={sectionBody}
+                                                            onChange={(event) =>
+                                                                setSectionBody(
+                                                                    event.target
+                                                                        .value,
+                                                                )
+                                                            }
+                                                            rows={8}
+                                                            className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                            placeholder="Add the context, evidence, assumptions, decisions, and risks your advisor should rely on."
+                                                        />
+                                                    </label>
+                                                    <FileDropzone
+                                                        key={supportingKey}
+                                                        id="entrepreneur-plan-support"
+                                                        files={
+                                                            supportingFile
+                                                                ? [
+                                                                      supportingFile,
+                                                                  ]
+                                                                : []
+                                                        }
+                                                        label="Attach supporting document"
+                                                        onFilesChange={(
+                                                            files,
+                                                        ) =>
+                                                            setSupportingFile(
+                                                                files[0] ??
+                                                                    null,
+                                                            )
+                                                        }
                                                     />
-                                                    {savingSection
-                                                        ? 'Saving'
-                                                        : 'Save requirement'}
-                                                </Button>
-                                            </>
+                                                    <InputError
+                                                        message={
+                                                            sectionError ??
+                                                            undefined
+                                                        }
+                                                    />
+                                                    {assistantNotice ? (
+                                                        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                                            <div className="font-medium">
+                                                                AI assistant
+                                                            </div>
+                                                            <p className="mt-1 whitespace-pre-line text-muted-foreground">
+                                                                {
+                                                                    assistantNotice
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+                                                    {selectedSection?.guidance ? (
+                                                        <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                                            <div className="font-medium">
+                                                                AI guidance
+                                                            </div>
+                                                            <p className="mt-1 text-muted-foreground">
+                                                                {
+                                                                    selectedSection
+                                                                        .guidance
+                                                                        .summary
+                                                                }
+                                                            </p>
+                                                        </div>
+                                                    ) : null}
+                                                    <Button
+                                                        type="button"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            void saveSection()
+                                                        }
+                                                        disabled={
+                                                            !plan ||
+                                                            savingSection
+                                                        }
+                                                    >
+                                                        <Upload
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        {savingSection
+                                                            ? 'Saving'
+                                                            : 'Save requirement'}
+                                                    </Button>
+                                                </>
                                             )
                                         ) : (
                                             <p className="text-sm text-muted-foreground">
@@ -1542,11 +1616,13 @@ type BudgetTemplate = {
 };
 
 const BUDGET_UNLOCK_REQUIREMENT_KEY = 'business-type-location';
+const BUDGET_ASSUMPTIONS_REQUIREMENT_KEY = 'financial-assumptions';
 
 const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
     service: {
         title: 'Local service',
-        description: 'A practical service business selling appointments, jobs, or packages.',
+        description:
+            'A practical service business selling appointments, jobs, or packages.',
         expected_runway_months: 6,
         launch_costs: [
             budgetRow('Website and domain', 500, 'estimate'),
@@ -1592,7 +1668,8 @@ const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
     },
     retail: {
         title: 'Retail or product sales',
-        description: 'Physical products, stock, inventory, market stall, or shop sales.',
+        description:
+            'Physical products, stock, inventory, market stall, or shop sales.',
         expected_runway_months: 6,
         launch_costs: [
             budgetRow('Opening stock', 3500, 'guess'),
@@ -1615,7 +1692,8 @@ const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
     },
     food: {
         title: 'Food or hospitality',
-        description: 'Food truck, catering, cafe, packaged food, or hospitality launch.',
+        description:
+            'Food truck, catering, cafe, packaged food, or hospitality launch.',
         expected_runway_months: 8,
         launch_costs: [
             budgetRow('Kitchen gear or fit-out', 6000, 'guess'),
@@ -1638,7 +1716,8 @@ const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
     },
     online: {
         title: 'Online store',
-        description: 'Digital storefront, online product sales, or direct-to-customer sales.',
+        description:
+            'Digital storefront, online product sales, or direct-to-customer sales.',
         expected_runway_months: 6,
         launch_costs: [
             budgetRow('Online store setup', 900, 'estimate'),
@@ -1661,7 +1740,8 @@ const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
     },
     trades: {
         title: 'Trades or field work',
-        description: 'Hands-on services, mobile work, installation, maintenance, or repairs.',
+        description:
+            'Hands-on services, mobile work, installation, maintenance, or repairs.',
         expected_runway_months: 5,
         launch_costs: [
             budgetRow('Tools and equipment', 3500, 'guess'),
@@ -1684,7 +1764,8 @@ const budgetTemplates: Record<BudgetTemplateKey, BudgetTemplate> = {
     },
     subscription: {
         title: 'Subscription or membership',
-        description: 'Recurring revenue, memberships, SaaS, community, or content products.',
+        description:
+            'Recurring revenue, memberships, SaaS, community, or content products.',
         expected_runway_months: 9,
         launch_costs: [
             budgetRow('Product or platform setup', 5000, 'guess'),
@@ -1743,12 +1824,21 @@ function BudgetEditor({
         () => budgetPlanSource(plan, BUDGET_UNLOCK_REQUIREMENT_KEY),
         [plan],
     );
-    const budgetUnlocked = budgetSource.requirement?.complete === true;
+    const assumptionsSource = useMemo(
+        () => budgetPlanSource(plan, BUDGET_ASSUMPTIONS_REQUIREMENT_KEY),
+        [plan],
+    );
+    const budgetUnlocked =
+        budgetSource.requirement?.complete === true &&
+        assumptionsSource.requirement?.complete === true;
     const [mode, setMode] = useState<BudgetSetupMode>('guided');
     const template = budgetTemplates[inferredTemplate];
+    const assumptionLabels = computed.assumptions?.field_labels ?? {};
+    const missingAssumptions = computed.missing_assumptions ?? [];
 
     const applyTemplate = () => {
         onFormChange((current) => ({
+            ...current,
             expected_runway_months:
                 current.expected_runway_months ||
                 String(template.expected_runway_months),
@@ -1763,6 +1853,7 @@ function BudgetEditor({
             revenue_forecast: mergeBudgetRows(
                 current.revenue_forecast,
                 template.revenue_forecast,
+                true,
             ),
             funding_sources: mergeBudgetRows(
                 current.funding_sources,
@@ -1773,8 +1864,14 @@ function BudgetEditor({
     const applyPlanClues = () => {
         const key = inferBudgetTemplateKey(plan, ideaValidation);
         const suggestions = budgetRowsFromPlan(plan, ideaValidation, key);
+        const planAssumptions = budgetAssumptionsFromPlan(plan);
 
         onFormChange((current) => ({
+            ...current,
+            assumptions: mergeBudgetAssumptions(
+                current.assumptions,
+                planAssumptions,
+            ),
             expected_runway_months:
                 current.expected_runway_months ||
                 String(suggestions.expected_runway_months),
@@ -1789,6 +1886,7 @@ function BudgetEditor({
             revenue_forecast: mergeBudgetRows(
                 current.revenue_forecast,
                 suggestions.revenue_forecast,
+                true,
             ),
             funding_sources: mergeBudgetRows(
                 current.funding_sources,
@@ -1811,6 +1909,19 @@ function BudgetEditor({
                     </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
+                    {budget.pack_available && budget.budget_pack_url ? (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            asChild
+                        >
+                            <Link href={budget.budget_pack_url}>
+                                <Eye className="size-4" aria-hidden="true" />
+                                View budget pack
+                            </Link>
+                        </Button>
+                    ) : null}
                     <div
                         className="inline-flex rounded-md border bg-muted/30 p-1"
                         role="tablist"
@@ -1870,15 +1981,16 @@ function BudgetEditor({
                         />
                         <div className="space-y-1">
                             <div className="font-medium">
-                                Complete the business setup section first
+                                Complete the plan assumptions first
                             </div>
                             <p className="text-muted-foreground">
                                 The budget assistant uses the completed
                                 "Business type, location, and operating model"
-                                requirement to understand what kind of business
-                                this is. Finish that Foundation requirement
-                                first so the budget can reuse the answer instead
-                                of asking the same question again.
+                                and "Financial assumptions" requirements to
+                                understand the business model, margins, growth,
+                                funding, and profit targets. Finish those plan
+                                sections first so the budget can reuse the
+                                answers instead of asking twice.
                             </p>
                         </div>
                     </div>
@@ -1927,8 +2039,9 @@ function BudgetEditor({
                         </div>
                         <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-background p-3 text-sm">
                             <span className="text-muted-foreground">
-                                Add starter rows for {template.title.toLowerCase()}
-                                , then adjust the amounts and confidence levels.
+                                Add starter rows for{' '}
+                                {template.title.toLowerCase()}, then adjust the
+                                amounts and confidence levels.
                             </span>
                             <div className="flex flex-wrap gap-2">
                                 <Button
@@ -1959,6 +2072,71 @@ function BudgetEditor({
                         </div>
                     </section>
 
+                    {missingAssumptions.length > 0 ? (
+                        <section className="grid gap-3 rounded-md border bg-amber-50 p-3 text-sm text-amber-950 md:grid-cols-[1fr_auto] md:items-start">
+                            <div>
+                                <div className="font-medium">
+                                    Financial assumptions need more detail
+                                </div>
+                                <p className="mt-1">
+                                    Update the business-plan Financial
+                                    assumptions section for{' '}
+                                    {missingAssumptions
+                                        .map(
+                                            (key) =>
+                                                assumptionLabels[key] ??
+                                                formatLabel(key),
+                                        )
+                                        .join(', ')}
+                                    . The budget can still be saved, but weak
+                                    assumptions affect viability, scoring, and
+                                    funding readiness.
+                                </p>
+                            </div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                asChild
+                            >
+                                <a href="#business-plan-requirements">
+                                    <FileText
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Update assumptions
+                                </a>
+                            </Button>
+                        </section>
+                    ) : null}
+
+                    <section className="grid gap-4 rounded-md border bg-background p-3 md:grid-cols-[220px_minmax(0,1fr)]">
+                        <label className="grid gap-1 text-sm">
+                            <span>Budget horizon</span>
+                            <select
+                                value={form.forecast_years}
+                                onChange={(event) =>
+                                    onFormChange((current) => ({
+                                        ...current,
+                                        forecast_years: event.target.value,
+                                    }))
+                                }
+                                className="h-9 rounded-md border bg-background px-3 text-sm"
+                            >
+                                <option value="3">3 years</option>
+                                <option value="5">5 years</option>
+                            </select>
+                            <span className="text-xs text-muted-foreground">
+                                Choose the horizon required by the bank,
+                                investor, or internal decision.
+                            </span>
+                        </label>
+                        <BudgetAssumptionsEditor
+                            assumptions={form.assumptions}
+                            onFormChange={onFormChange}
+                        />
+                    </section>
+
                     <label className="grid gap-1 text-sm md:max-w-sm">
                         <span>
                             How many months should the business survive before
@@ -1972,8 +2150,7 @@ function BudgetEditor({
                             onChange={(event) =>
                                 onFormChange((current) => ({
                                     ...current,
-                                    expected_runway_months:
-                                        event.target.value,
+                                    expected_runway_months: event.target.value,
                                 }))
                             }
                             className="h-9 rounded-md border bg-background px-3 text-sm"
@@ -2018,27 +2195,57 @@ function BudgetEditor({
                             onFormChange={onFormChange}
                             quickAdds={template.funding_sources}
                         />
+                        <FutureCostsEditor
+                            rows={form.future_costs}
+                            onFormChange={onFormChange}
+                        />
+                        <FundingScenariosEditor
+                            rows={form.funding_scenarios}
+                            onFormChange={onFormChange}
+                        />
                     </div>
                 </div>
             ) : (
                 <div className="space-y-4">
-                    <label className="grid max-w-xs gap-1 text-sm">
-                        <span>Expected runway months</span>
-                        <input
-                            type="number"
-                            min={0}
-                            max={60}
-                            value={form.expected_runway_months}
-                            onChange={(event) =>
-                                onFormChange((current) => ({
-                                    ...current,
-                                    expected_runway_months:
-                                        event.target.value,
-                                }))
-                            }
-                            className="h-9 rounded-md border bg-background px-3 text-sm"
+                    <div className="grid gap-4 md:grid-cols-[220px_220px_minmax(0,1fr)]">
+                        <label className="grid gap-1 text-sm">
+                            <span>Expected runway months</span>
+                            <input
+                                type="number"
+                                min={0}
+                                max={60}
+                                value={form.expected_runway_months}
+                                onChange={(event) =>
+                                    onFormChange((current) => ({
+                                        ...current,
+                                        expected_runway_months:
+                                            event.target.value,
+                                    }))
+                                }
+                                className="h-9 rounded-md border bg-background px-3 text-sm"
+                            />
+                        </label>
+                        <label className="grid gap-1 text-sm">
+                            <span>Budget horizon</span>
+                            <select
+                                value={form.forecast_years}
+                                onChange={(event) =>
+                                    onFormChange((current) => ({
+                                        ...current,
+                                        forecast_years: event.target.value,
+                                    }))
+                                }
+                                className="h-9 rounded-md border bg-background px-3 text-sm"
+                            >
+                                <option value="3">3 years</option>
+                                <option value="5">5 years</option>
+                            </select>
+                        </label>
+                        <BudgetAssumptionsEditor
+                            assumptions={form.assumptions}
+                            onFormChange={onFormChange}
                         />
-                    </label>
+                    </div>
 
                     <div className="grid gap-4">
                         <BudgetRowsEditor
@@ -2066,6 +2273,14 @@ function BudgetEditor({
                             rows={form.funding_sources}
                             onFormChange={onFormChange}
                         />
+                        <FutureCostsEditor
+                            rows={form.future_costs}
+                            onFormChange={onFormChange}
+                        />
+                        <FundingScenariosEditor
+                            rows={form.funding_scenarios}
+                            onFormChange={onFormChange}
+                        />
                     </div>
                 </div>
             )}
@@ -2078,21 +2293,16 @@ function BudgetEditor({
                             value={formatCurrency(computed.total_launch_costs)}
                         />
                         <BudgetMetric
-                            label="Monthly fixed"
-                            value={formatCurrency(
-                                computed.monthly_fixed_costs,
-                            )}
+                            label="Break-even year"
+                            value={formatYear(computed.break_even_year)}
                         />
                         <BudgetMetric
-                            label="Funding"
-                            value={formatCurrency(computed.total_funding)}
+                            label="Profit year"
+                            value={formatYear(computed.first_profitable_year)}
                         />
                         <BudgetMetric
-                            label="Runway"
-                            value={formatRunway(
-                                computed.runway_months,
-                                computed.runway_open_ended,
-                            )}
+                            label="Cash positive"
+                            value={formatYear(computed.cash_flow_positive_year)}
                         />
                     </div>
 
@@ -2251,7 +2461,7 @@ function BudgetRowsEditor({
                         className={cn(
                             'grid gap-2',
                             revenue
-                                ? 'md:grid-cols-[minmax(0,1.2fr)_repeat(5,minmax(78px,0.5fr))_120px_auto]'
+                                ? 'md:grid-cols-[minmax(0,1.2fr)_repeat(7,minmax(72px,0.5fr))_120px_auto]'
                                 : 'md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(92px,0.6fr))_120px_auto]',
                         )}
                     >
@@ -2259,12 +2469,9 @@ function BudgetRowsEditor({
                             label="Item"
                             value={row.label}
                             onChange={(value) =>
-                                updateBudgetRow(
-                                    onFormChange,
-                                    group,
-                                    index,
-                                    { label: value },
-                                )
+                                updateBudgetRow(onFormChange, group, index, {
+                                    label: value,
+                                })
                             }
                         />
                         <BudgetInput
@@ -2272,12 +2479,9 @@ function BudgetRowsEditor({
                             type="number"
                             value={row.amount}
                             onChange={(value) =>
-                                updateBudgetRow(
-                                    onFormChange,
-                                    group,
-                                    index,
-                                    { amount: value },
-                                )
+                                updateBudgetRow(onFormChange, group, index, {
+                                    amount: value,
+                                })
                             }
                         />
                         <BudgetInput
@@ -2285,12 +2489,9 @@ function BudgetRowsEditor({
                             type="number"
                             value={row.quantity ?? 1}
                             onChange={(value) =>
-                                updateBudgetRow(
-                                    onFormChange,
-                                    group,
-                                    index,
-                                    { quantity: value },
-                                )
+                                updateBudgetRow(onFormChange, group, index, {
+                                    quantity: value,
+                                })
                             }
                         />
                         {revenue ? (
@@ -2334,17 +2535,52 @@ function BudgetRowsEditor({
                                         )
                                     }
                                 />
+                                <BudgetInput
+                                    label="Unit cost"
+                                    type="number"
+                                    value={row.unit_cost ?? ''}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            { unit_cost: value },
+                                        )
+                                    }
+                                />
+                                <BudgetInput
+                                    label="GP %"
+                                    type="number"
+                                    value={row.gross_profit_percent ?? ''}
+                                    onChange={(value) =>
+                                        updateBudgetRow(
+                                            onFormChange,
+                                            group,
+                                            index,
+                                            {
+                                                gross_profit_percent: value,
+                                                variable_cost_percent:
+                                                    value === ''
+                                                        ? row.variable_cost_percent
+                                                        : Math.max(
+                                                              0,
+                                                              100 -
+                                                                  numberFromInput(
+                                                                      value,
+                                                                  ),
+                                                          ),
+                                            },
+                                        )
+                                    }
+                                />
                             </>
                         ) : null}
                         <BudgetConfidenceSelect
                             value={row.confidence ?? 'estimate'}
                             onChange={(value) =>
-                                updateBudgetRow(
-                                    onFormChange,
-                                    group,
-                                    index,
-                                    { confidence: value },
-                                )
+                                updateBudgetRow(onFormChange, group, index, {
+                                    confidence: value,
+                                })
                             }
                         />
                         <div className="flex items-end">
@@ -2363,10 +2599,365 @@ function BudgetRowsEditor({
                                     }))
                                 }
                             >
-                                <Trash2
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
+                                <Trash2 className="size-4" aria-hidden="true" />
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function BudgetAssumptionsEditor({
+    assumptions,
+    onFormChange,
+}: {
+    assumptions: BudgetAssumptions;
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
+}) {
+    const fields: {
+        key: keyof BudgetAssumptions;
+        label: string;
+        helper: string;
+    }[] = [
+        {
+            key: 'revenue_growth_percent',
+            label: 'Revenue growth %',
+            helper: 'How annual sales should grow after year one.',
+        },
+        {
+            key: 'cost_inflation_percent',
+            label: 'Cost/CPI %',
+            helper: 'How costs should increase after year one.',
+        },
+        {
+            key: 'target_gross_profit_percent',
+            label: 'Target GP %',
+            helper: 'Sales left after direct product or delivery costs.',
+        },
+        {
+            key: 'target_net_profit_before_tax_percent',
+            label: 'Target NPBT %',
+            helper: 'Profit before company tax.',
+        },
+        {
+            key: 'target_net_profit_after_tax_percent',
+            label: 'Target NPAT %',
+            helper: 'Profit after estimated company tax.',
+        },
+    ];
+
+    return (
+        <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-5">
+            {fields.map((field) => (
+                <label key={field.key} className="grid gap-1 text-xs">
+                    <span className="text-muted-foreground">{field.label}</span>
+                    <input
+                        type="number"
+                        min={0}
+                        max={500}
+                        value={assumptions[field.key]}
+                        onChange={(event) =>
+                            onFormChange((current) => ({
+                                ...current,
+                                assumptions: {
+                                    ...current.assumptions,
+                                    [field.key]: event.target.value,
+                                },
+                            }))
+                        }
+                        className="h-9 rounded-md border bg-background px-2 text-sm"
+                    />
+                    <span className="text-[11px] leading-snug text-muted-foreground">
+                        {field.helper}
+                    </span>
+                </label>
+            ))}
+        </div>
+    );
+}
+
+function FutureCostsEditor({
+    rows,
+    onFormChange,
+}: {
+    rows: FutureCostRow[];
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
+}) {
+    return (
+        <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <div className="text-sm font-medium">
+                        What extra costs might happen in later years?
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Add expansion, equipment replacement, extra staff,
+                        larger premises, or platform upgrades that are not
+                        standard CPI increases.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        onFormChange((current) => ({
+                            ...current,
+                            future_costs: [
+                                ...current.future_costs,
+                                blankFutureCostRow(),
+                            ],
+                        }))
+                    }
+                >
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add
+                </Button>
+            </div>
+            <div className="space-y-2">
+                {rows.map((row, index) => (
+                    <div
+                        key={index}
+                        className="grid gap-2 md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(84px,0.5fr))_120px_120px_auto]"
+                    >
+                        <BudgetInput
+                            label="Item"
+                            value={row.label}
+                            onChange={(value) =>
+                                updateFutureCostRow(onFormChange, index, {
+                                    label: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Amount"
+                            type="number"
+                            value={row.amount}
+                            onChange={(value) =>
+                                updateFutureCostRow(onFormChange, index, {
+                                    amount: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Qty"
+                            type="number"
+                            value={row.quantity ?? 1}
+                            onChange={(value) =>
+                                updateFutureCostRow(onFormChange, index, {
+                                    quantity: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Year"
+                            type="number"
+                            value={row.year ?? 2}
+                            onChange={(value) =>
+                                updateFutureCostRow(onFormChange, index, {
+                                    year: value,
+                                })
+                            }
+                        />
+                        <label className="grid gap-1 text-xs">
+                            <span className="text-muted-foreground">
+                                Recurring
+                            </span>
+                            <select
+                                value={row.recurring ? 'yes' : 'no'}
+                                onChange={(event) =>
+                                    updateFutureCostRow(onFormChange, index, {
+                                        recurring: event.target.value === 'yes',
+                                    })
+                                }
+                                className="h-9 rounded-md border bg-background px-2 text-sm"
+                            >
+                                <option value="no">One-off</option>
+                                <option value="yes">Monthly</option>
+                            </select>
+                        </label>
+                        <BudgetConfidenceSelect
+                            value={budgetRowConfidence(row.confidence)}
+                            onChange={(value) =>
+                                updateFutureCostRow(onFormChange, index, {
+                                    confidence: value,
+                                })
+                            }
+                        />
+                        <div className="flex items-end">
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                title="Remove row"
+                                onClick={() =>
+                                    onFormChange((current) => ({
+                                        ...current,
+                                        future_costs:
+                                            current.future_costs.filter(
+                                                (_row, rowIndex) =>
+                                                    rowIndex !== index,
+                                            ),
+                                    }))
+                                }
+                            >
+                                <Trash2 className="size-4" aria-hidden="true" />
+                            </Button>
+                        </div>
+                    </div>
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function FundingScenariosEditor({
+    rows,
+    onFormChange,
+}: {
+    rows: FundingScenarioRow[];
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
+}) {
+    return (
+        <section className="space-y-2 rounded-md border bg-muted/20 p-3">
+            <div className="flex items-center justify-between gap-3">
+                <div>
+                    <div className="text-sm font-medium">
+                        What funding scenarios should be tested?
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Add bank-loan, investor, or mixed funding options. The
+                        base case still drives scoring.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() =>
+                        onFormChange((current) => ({
+                            ...current,
+                            funding_scenarios: [
+                                ...current.funding_scenarios,
+                                blankFundingScenario(),
+                            ],
+                        }))
+                    }
+                >
+                    <Plus className="size-4" aria-hidden="true" />
+                    Add
+                </Button>
+            </div>
+            <div className="space-y-2">
+                {rows.map((row, index) => (
+                    <div
+                        key={index}
+                        className="grid gap-2 md:grid-cols-[minmax(0,1.2fr)_130px_repeat(5,minmax(76px,0.5fr))_120px_auto]"
+                    >
+                        <BudgetInput
+                            label="Scenario"
+                            value={row.name}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    name: value,
+                                })
+                            }
+                        />
+                        <label className="grid gap-1 text-xs">
+                            <span className="text-muted-foreground">Type</span>
+                            <select
+                                value={row.type}
+                                onChange={(event) =>
+                                    updateFundingScenario(onFormChange, index, {
+                                        type: event.target
+                                            .value as FundingScenarioRow['type'],
+                                    })
+                                }
+                                className="h-9 rounded-md border bg-background px-2 text-sm"
+                            >
+                                <option value="bank_loan">Bank loan</option>
+                                <option value="investor">Investor</option>
+                                <option value="mixed">Mixed</option>
+                            </select>
+                        </label>
+                        <BudgetInput
+                            label="Amount"
+                            type="number"
+                            value={row.amount}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    amount: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Year"
+                            type="number"
+                            value={row.year ?? 1}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    year: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Interest %"
+                            type="number"
+                            value={row.interest_rate_percent ?? 0}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    interest_rate_percent: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Term"
+                            type="number"
+                            value={row.term_years ?? 0}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    term_years: value,
+                                })
+                            }
+                        />
+                        <BudgetInput
+                            label="Equity %"
+                            type="number"
+                            value={row.investor_equity_percent ?? 0}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    investor_equity_percent: value,
+                                })
+                            }
+                        />
+                        <BudgetConfidenceSelect
+                            value={budgetRowConfidence(row.confidence)}
+                            onChange={(value) =>
+                                updateFundingScenario(onFormChange, index, {
+                                    confidence: value,
+                                })
+                            }
+                        />
+                        <div className="flex items-end">
+                            <Button
+                                type="button"
+                                size="icon"
+                                variant="outline"
+                                title="Remove row"
+                                onClick={() =>
+                                    onFormChange((current) => ({
+                                        ...current,
+                                        funding_scenarios:
+                                            current.funding_scenarios.filter(
+                                                (_row, rowIndex) =>
+                                                    rowIndex !== index,
+                                            ),
+                                    }))
+                                }
+                            >
+                                <Trash2 className="size-4" aria-hidden="true" />
                             </Button>
                         </div>
                     </div>
@@ -2437,8 +3028,9 @@ function BudgetConfidenceSelect({
                 value={value}
                 onChange={(event) =>
                     onChange(
-                        event.target
-                            .value as NonNullable<BudgetRow['confidence']>,
+                        event.target.value as NonNullable<
+                            BudgetRow['confidence']
+                        >,
                     )
                 }
                 className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
@@ -2451,13 +3043,7 @@ function BudgetConfidenceSelect({
     );
 }
 
-function BudgetMetric({
-    label,
-    value,
-}: {
-    label: string;
-    value: string;
-}) {
+function BudgetMetric({ label, value }: { label: string; value: string }) {
     return (
         <div className="rounded-md border bg-background p-3">
             <div className="text-xs text-muted-foreground">{label}</div>
@@ -2495,10 +3081,7 @@ function AdvisorBudgetPreview({
             <dl className="grid gap-3 text-sm sm:grid-cols-2">
                 <AdvisorPreviewItem
                     label="Expected runway"
-                    value={formatRunway(
-                        budget.expected_runway_months,
-                        false,
-                    )}
+                    value={formatRunway(budget.expected_runway_months, false)}
                 />
                 <AdvisorPreviewItem
                     label="Calculated runway"
@@ -2508,12 +3091,16 @@ function AdvisorBudgetPreview({
                     )}
                 />
                 <AdvisorPreviewItem
-                    label="Break-even"
-                    value={
-                        computed.break_even_month
-                            ? `Month ${computed.break_even_month}`
-                            : '-'
-                    }
+                    label="Break-even year"
+                    value={formatYear(computed.break_even_year)}
+                />
+                <AdvisorPreviewItem
+                    label="Profit year"
+                    value={formatYear(computed.first_profitable_year)}
+                />
+                <AdvisorPreviewItem
+                    label="Cash positive"
+                    value={formatYear(computed.cash_flow_positive_year)}
                 />
                 <AdvisorPreviewItem
                     label="After launch"
@@ -2708,27 +3295,83 @@ function inferBudgetTemplateKey(
 ): BudgetTemplateKey {
     const text = budgetSourceText(plan, ideaValidation);
 
-    if (hasAny(text, ['food', 'cafe', 'coffee', 'catering', 'kitchen', 'hospitality', 'restaurant'])) {
+    if (
+        hasAny(text, [
+            'food',
+            'cafe',
+            'coffee',
+            'catering',
+            'kitchen',
+            'hospitality',
+            'restaurant',
+        ])
+    ) {
         return 'food';
     }
 
-    if (hasAny(text, ['subscription', 'membership', 'saas', 'recurring', 'software platform'])) {
+    if (
+        hasAny(text, [
+            'subscription',
+            'membership',
+            'saas',
+            'recurring',
+            'software platform',
+        ])
+    ) {
         return 'subscription';
     }
 
-    if (hasAny(text, ['online store', 'ecommerce', 'e-commerce', 'shopify', 'website sales', 'direct to customer'])) {
+    if (
+        hasAny(text, [
+            'online store',
+            'ecommerce',
+            'e-commerce',
+            'shopify',
+            'website sales',
+            'direct to customer',
+        ])
+    ) {
         return 'online';
     }
 
-    if (hasAny(text, ['retail', 'stock', 'inventory', 'products', 'store', 'shop', 'market stall'])) {
+    if (
+        hasAny(text, [
+            'retail',
+            'stock',
+            'inventory',
+            'products',
+            'store',
+            'shop',
+            'market stall',
+        ])
+    ) {
         return 'retail';
     }
 
-    if (hasAny(text, ['trade', 'tools', 'installation', 'repairs', 'maintenance', 'vehicle', 'site work'])) {
+    if (
+        hasAny(text, [
+            'trade',
+            'tools',
+            'installation',
+            'repairs',
+            'maintenance',
+            'vehicle',
+            'site work',
+        ])
+    ) {
         return 'trades';
     }
 
-    if (hasAny(text, ['consulting', 'coaching', 'training', 'advisory', 'workshop', 'mentor'])) {
+    if (
+        hasAny(text, [
+            'consulting',
+            'coaching',
+            'training',
+            'advisory',
+            'workshop',
+            'mentor',
+        ])
+    ) {
         return 'consulting';
     }
 
@@ -2748,7 +3391,9 @@ function budgetRowsFromPlan(
     const fundingSources = [...template.funding_sources];
 
     if (hasAny(text, ['website', 'domain', 'landing page'])) {
-        launchCosts.push(budgetRow('Website, domain, or landing page', 900, 'guess'));
+        launchCosts.push(
+            budgetRow('Website, domain, or landing page', 900, 'guess'),
+        );
     }
 
     if (hasAny(text, ['marketing', 'ads', 'launch campaign', 'social media'])) {
@@ -2756,11 +3401,15 @@ function budgetRowsFromPlan(
     }
 
     if (hasAny(text, ['licence', 'license', 'permit', 'compliance', 'legal'])) {
-        launchCosts.push(budgetRow('Licences, permits, or compliance setup', 800, 'guess'));
+        launchCosts.push(
+            budgetRow('Licences, permits, or compliance setup', 800, 'guess'),
+        );
     }
 
     if (hasAny(text, ['software', 'system', 'crm', 'booking', 'accounting'])) {
-        monthlyFixedCosts.push(budgetRow('Software and operating systems', 180, 'estimate'));
+        monthlyFixedCosts.push(
+            budgetRow('Software and operating systems', 180, 'estimate'),
+        );
     }
 
     if (hasAny(text, ['insurance', 'liability'])) {
@@ -2768,29 +3417,42 @@ function budgetRowsFromPlan(
     }
 
     if (hasAny(text, ['rent', 'premises', 'workspace', 'office', 'storage'])) {
-        monthlyFixedCosts.push(budgetRow('Premises, workspace, or storage', 700, 'guess'));
+        monthlyFixedCosts.push(
+            budgetRow('Premises, workspace, or storage', 700, 'guess'),
+        );
     }
 
     if (hasAny(text, ['grant'])) {
-        fundingSources.push(budgetRow('Potential grant funding', 3000, 'guess'));
+        fundingSources.push(
+            budgetRow('Potential grant funding', 3000, 'guess'),
+        );
     }
 
     if (hasAny(text, ['loan', 'finance', 'lending'])) {
-        fundingSources.push(budgetRow('Potential loan or finance', 5000, 'guess'));
+        fundingSources.push(
+            budgetRow('Potential loan or finance', 5000, 'guess'),
+        );
     }
 
     if (hasAny(text, ['pre-sale', 'presale', 'deposit'])) {
-        fundingSources.push(budgetRow('Customer deposits or pre-sales', 1500, 'guess'));
+        fundingSources.push(
+            budgetRow('Customer deposits or pre-sales', 1500, 'guess'),
+        );
     }
 
     const revenueModel = ideaValidation?.revenue_model?.trim();
     if (revenueModel) {
         revenueForecast.push(
-            budgetRow(`Revenue from ${revenueModel.slice(0, 90)}`, 500, 'guess', {
-                quantity: 3,
-                month: 1,
-                variable_cost_percent: 20,
-            }),
+            budgetRow(
+                `Revenue from ${revenueModel.slice(0, 90)}`,
+                500,
+                'guess',
+                {
+                    quantity: 3,
+                    month: 1,
+                    variable_cost_percent: 20,
+                },
+            ),
         );
     }
 
@@ -2801,6 +3463,92 @@ function budgetRowsFromPlan(
         revenue_forecast: dedupeBudgetRows(revenueForecast),
         funding_sources: dedupeBudgetRows(fundingSources),
     };
+}
+
+function budgetAssumptionsFromPlan(
+    plan: BusinessPlanPayload,
+): Partial<BudgetAssumptions> {
+    const section = plan?.phases
+        .flatMap((phase) => phase.sections)
+        .find(
+            (row) => row.requirement_key === BUDGET_ASSUMPTIONS_REQUIREMENT_KEY,
+        );
+    const text = `${section?.title ?? ''} ${section?.body ?? ''}`.toLowerCase();
+
+    return {
+        revenue_growth_percent: percentNear(text, [
+            'revenue growth',
+            'sales growth',
+            'growth',
+        ]),
+        cost_inflation_percent: percentNear(text, [
+            'cost inflation',
+            'cpi',
+            'inflation',
+        ]),
+        target_gross_profit_percent: percentNear(text, [
+            'gross profit',
+            'gp',
+            'margin',
+        ]),
+        target_net_profit_before_tax_percent: percentNear(text, [
+            'net profit before tax',
+            'npbt',
+            'before tax',
+        ]),
+        target_net_profit_after_tax_percent: percentNear(text, [
+            'net profit after tax',
+            'npat',
+            'after tax',
+        ]),
+    };
+}
+
+function mergeBudgetAssumptions(
+    current: BudgetAssumptions,
+    suggested: Partial<BudgetAssumptions>,
+): BudgetAssumptions {
+    return {
+        revenue_growth_percent:
+            current.revenue_growth_percent ||
+            suggested.revenue_growth_percent ||
+            '',
+        cost_inflation_percent:
+            current.cost_inflation_percent ||
+            suggested.cost_inflation_percent ||
+            '',
+        target_gross_profit_percent:
+            current.target_gross_profit_percent ||
+            suggested.target_gross_profit_percent ||
+            '',
+        target_net_profit_before_tax_percent:
+            current.target_net_profit_before_tax_percent ||
+            suggested.target_net_profit_before_tax_percent ||
+            '',
+        target_net_profit_after_tax_percent:
+            current.target_net_profit_after_tax_percent ||
+            suggested.target_net_profit_after_tax_percent ||
+            '',
+    };
+}
+
+function percentNear(text: string, labels: string[]): number | '' {
+    for (const label of labels) {
+        const escaped = label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const after = new RegExp(
+            `${escaped}[^0-9%]{0,60}(\\d+(?:\\.\\d+)?)\\s*%`,
+        );
+        const before = new RegExp(
+            `(\\d+(?:\\.\\d+)?)\\s*%[^.]{0,60}${escaped}`,
+        );
+        const match = text.match(after) ?? text.match(before);
+
+        if (match?.[1]) {
+            return numberFromInput(match[1]);
+        }
+    }
+
+    return '';
 }
 
 function budgetSourceText(
@@ -2815,10 +3563,7 @@ function budgetSourceText(
         ideaValidation?.demand_signal,
         ideaValidation?.revenue_model,
         ...(plan?.phases ?? []).flatMap((phase) =>
-            phase.sections.flatMap((section) => [
-                section.title,
-                section.body,
-            ]),
+            phase.sections.flatMap((section) => [section.title, section.body]),
         ),
     ]
         .filter(Boolean)
@@ -2830,13 +3575,17 @@ function hasAny(text: string, needles: string[]): boolean {
     return needles.some((needle) => text.includes(needle));
 }
 
-function mergeBudgetRows(currentRows: BudgetRow[], suggestedRows: BudgetRow[]) {
+function mergeBudgetRows(
+    currentRows: BudgetRow[],
+    suggestedRows: BudgetRow[],
+    revenue = false,
+) {
     return dedupeBudgetRows([
         ...currentRows
-            .map((row) => normaliseBudgetRow(row))
+            .map((row) => normaliseBudgetRow(row, revenue))
             .filter((row) => !isBlankBudgetRow(row)),
         ...suggestedRows.map((row) => ({
-            ...normaliseBudgetRow(row),
+            ...normaliseBudgetRow(row, revenue),
             confidence: row.confidence ?? 'guess',
         })),
     ]);
@@ -2863,18 +3612,29 @@ function isBlankBudgetRow(row: BudgetRow): boolean {
 }
 
 function confidenceSummary(form: BudgetFormState) {
-    return [
+    const rows = [
         ...form.launch_costs,
         ...form.monthly_fixed_costs,
+        ...form.future_costs,
         ...form.revenue_forecast,
         ...form.funding_sources,
-    ]
+    ];
+    const scenarioConfidence = form.funding_scenarios
+        .filter(
+            (row) =>
+                String(row.name ?? '').trim() !== '' ||
+                numberFromInput(row.amount) > 0,
+        )
+        .map((row) => row.confidence ?? 'estimate');
+
+    return rows
         .filter((row) => !isBlankBudgetRow(row))
+        .map((row) => row.confidence ?? 'estimate')
+        .concat(scenarioConfidence)
         .reduce(
-            (summary, row) => ({
+            (summary, confidence) => ({
                 ...summary,
-                [row.confidence ?? 'estimate']:
-                    summary[row.confidence ?? 'estimate'] + 1,
+                [confidence]: summary[confidence] + 1,
             }),
             { known: 0, estimate: 0, guess: 0 },
         );
@@ -2894,6 +3654,32 @@ function updateBudgetRow(
     }));
 }
 
+function updateFutureCostRow(
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>,
+    index: number,
+    patch: Partial<FutureCostRow>,
+) {
+    onFormChange((current) => ({
+        ...current,
+        future_costs: current.future_costs.map((row, rowIndex) =>
+            rowIndex === index ? { ...row, ...patch } : row,
+        ),
+    }));
+}
+
+function updateFundingScenario(
+    onFormChange: Dispatch<SetStateAction<BudgetFormState>>,
+    index: number,
+    patch: Partial<FundingScenarioRow>,
+) {
+    onFormChange((current) => ({
+        ...current,
+        funding_scenarios: current.funding_scenarios.map((row, rowIndex) =>
+            rowIndex === index ? { ...row, ...patch } : row,
+        ),
+    }));
+}
+
 function budgetToForm(budget: BudgetPayload | undefined): BudgetFormState {
     return {
         expected_runway_months:
@@ -2901,10 +3687,14 @@ function budgetToForm(budget: BudgetPayload | undefined): BudgetFormState {
             budget?.expected_runway_months === undefined
                 ? ''
                 : String(budget.expected_runway_months),
+        forecast_years: String(budget?.forecast_years ?? 3),
+        assumptions: normaliseBudgetAssumptions(budget?.assumptions),
         launch_costs: rowsOrBlank(budget?.launch_costs),
         monthly_fixed_costs: rowsOrBlank(budget?.monthly_fixed_costs),
+        future_costs: futureRowsOrBlank(budget?.future_costs),
         revenue_forecast: rowsOrBlank(budget?.revenue_forecast, true),
         funding_sources: rowsOrBlank(budget?.funding_sources),
+        funding_scenarios: fundingScenariosOrBlank(budget?.funding_scenarios),
     };
 }
 
@@ -2912,6 +3702,18 @@ function rowsOrBlank(rows: BudgetRow[] | undefined, revenue = false) {
     return rows && rows.length > 0
         ? rows.map((row) => normaliseBudgetRow(row, revenue))
         : [blankBudgetRow(revenue)];
+}
+
+function futureRowsOrBlank(rows: FutureCostRow[] | undefined) {
+    return rows && rows.length > 0
+        ? rows.map((row) => normaliseFutureCostRow(row))
+        : [blankFutureCostRow()];
+}
+
+function fundingScenariosOrBlank(rows: FundingScenarioRow[] | undefined) {
+    return rows && rows.length > 0
+        ? rows.map((row) => normaliseFundingScenario(row))
+        : [blankFundingScenario()];
 }
 
 function blankBudgetRow(revenue = false): BudgetRow {
@@ -2923,6 +3725,8 @@ function blankBudgetRow(revenue = false): BudgetRow {
               month: 1,
               monthly_growth_percent: 0,
               variable_cost_percent: 0,
+              unit_cost: '',
+              gross_profit_percent: '',
               confidence: 'estimate',
           }
         : {
@@ -2933,16 +3737,61 @@ function blankBudgetRow(revenue = false): BudgetRow {
           };
 }
 
+function blankFutureCostRow(): FutureCostRow {
+    return {
+        label: '',
+        amount: '',
+        quantity: 1,
+        year: 2,
+        recurring: false,
+        confidence: 'estimate',
+    };
+}
+
+function blankFundingScenario(): FundingScenarioRow {
+    return {
+        name: '',
+        type: 'bank_loan',
+        amount: '',
+        year: 1,
+        interest_rate_percent: 0,
+        term_years: 5,
+        interest_only_months: 0,
+        investor_equity_percent: 0,
+        confidence: 'estimate',
+    };
+}
+
 function cleanBudgetForm(form: BudgetFormState) {
     return {
         expected_runway_months:
             form.expected_runway_months === ''
                 ? null
                 : numberFromInput(form.expected_runway_months),
+        forecast_years: numberFromInput(form.forecast_years) === 5 ? 5 : 3,
+        assumptions: {
+            revenue_growth_percent: numberFromInput(
+                form.assumptions.revenue_growth_percent,
+            ),
+            cost_inflation_percent: numberFromInput(
+                form.assumptions.cost_inflation_percent,
+            ),
+            target_gross_profit_percent: numberFromInput(
+                form.assumptions.target_gross_profit_percent,
+            ),
+            target_net_profit_before_tax_percent: numberFromInput(
+                form.assumptions.target_net_profit_before_tax_percent,
+            ),
+            target_net_profit_after_tax_percent: numberFromInput(
+                form.assumptions.target_net_profit_after_tax_percent,
+            ),
+        },
         launch_costs: cleanBudgetRows(form.launch_costs),
         monthly_fixed_costs: cleanBudgetRows(form.monthly_fixed_costs),
+        future_costs: cleanFutureCostRows(form.future_costs),
         revenue_forecast: cleanBudgetRows(form.revenue_forecast, true),
         funding_sources: cleanBudgetRows(form.funding_sources),
+        funding_scenarios: cleanFundingScenarios(form.funding_scenarios),
     };
 }
 
@@ -2966,8 +3815,59 @@ function cleanBudgetRows(rows: BudgetRow[], revenue = false) {
                       variable_cost_percent: numberFromInput(
                           row.variable_cost_percent ?? 0,
                       ),
+                      unit_cost: numberFromInput(row.unit_cost ?? 0),
+                      gross_profit_percent:
+                          row.gross_profit_percent === '' ||
+                          row.gross_profit_percent === undefined
+                              ? null
+                              : numberFromInput(row.gross_profit_percent),
                   }
                 : {}),
+        }));
+}
+
+function cleanFutureCostRows(rows: FutureCostRow[]) {
+    return rows
+        .filter(
+            (row) =>
+                budgetRowLabel(row) !== '' || numberFromInput(row.amount) > 0,
+        )
+        .map((row) => ({
+            label: budgetRowLabel(row),
+            amount: numberFromInput(row.amount),
+            quantity: numberFromInput(row.quantity ?? 1) || 1,
+            year: Math.min(5, Math.max(2, numberFromInput(row.year ?? 2) || 2)),
+            recurring: Boolean(row.recurring),
+            confidence: budgetRowConfidence(row.confidence),
+        }));
+}
+
+function cleanFundingScenarios(rows: FundingScenarioRow[]) {
+    return rows
+        .filter(
+            (row) =>
+                String(row.name ?? '').trim() !== '' ||
+                numberFromInput(row.amount) > 0,
+        )
+        .map((row) => ({
+            name: String(row.name ?? '').trim(),
+            type:
+                row.type === 'investor' || row.type === 'mixed'
+                    ? row.type
+                    : 'bank_loan',
+            amount: numberFromInput(row.amount),
+            year: Math.min(5, Math.max(1, numberFromInput(row.year ?? 1) || 1)),
+            interest_rate_percent: numberFromInput(
+                row.interest_rate_percent ?? 0,
+            ),
+            term_years: numberFromInput(row.term_years ?? 0),
+            interest_only_months: numberFromInput(
+                row.interest_only_months ?? 0,
+            ),
+            investor_equity_percent: numberFromInput(
+                row.investor_equity_percent ?? 0,
+            ),
+            confidence: budgetRowConfidence(row.confidence),
         }));
 }
 
@@ -2986,8 +3886,60 @@ function normaliseBudgetRow(row: BudgetRow, revenue = false): BudgetRow {
                   variable_cost_percent: numberFromInput(
                       row.variable_cost_percent ?? 0,
                   ),
+                  unit_cost:
+                      row.unit_cost === undefined || row.unit_cost === null
+                          ? ''
+                          : row.unit_cost,
+                  gross_profit_percent:
+                      row.gross_profit_percent === undefined ||
+                      row.gross_profit_percent === null
+                          ? ''
+                          : row.gross_profit_percent,
               }
             : {}),
+    };
+}
+
+function normaliseFutureCostRow(row: FutureCostRow): FutureCostRow {
+    return {
+        label: budgetRowLabel(row),
+        amount: row.amount ?? '',
+        quantity: numberFromInput(row.quantity ?? 1) || 1,
+        year: Math.min(5, Math.max(2, numberFromInput(row.year ?? 2) || 2)),
+        recurring: Boolean(row.recurring),
+        confidence: budgetRowConfidence(row.confidence),
+    };
+}
+
+function normaliseFundingScenario(row: FundingScenarioRow): FundingScenarioRow {
+    return {
+        name: String(row.name ?? '').trim(),
+        type:
+            row.type === 'investor' || row.type === 'mixed'
+                ? row.type
+                : 'bank_loan',
+        amount: row.amount ?? '',
+        year: Math.min(5, Math.max(1, numberFromInput(row.year ?? 1) || 1)),
+        interest_rate_percent: row.interest_rate_percent ?? 0,
+        term_years: row.term_years ?? 5,
+        interest_only_months: row.interest_only_months ?? 0,
+        investor_equity_percent: row.investor_equity_percent ?? 0,
+        confidence: budgetRowConfidence(row.confidence),
+    };
+}
+
+function normaliseBudgetAssumptions(
+    assumptions: BudgetPayload['assumptions'] | undefined,
+): BudgetAssumptions {
+    return {
+        revenue_growth_percent: assumptions?.revenue_growth_percent ?? '',
+        cost_inflation_percent: assumptions?.cost_inflation_percent ?? '',
+        target_gross_profit_percent:
+            assumptions?.target_gross_profit_percent ?? '',
+        target_net_profit_before_tax_percent:
+            assumptions?.target_net_profit_before_tax_percent ?? '',
+        target_net_profit_after_tax_percent:
+            assumptions?.target_net_profit_after_tax_percent ?? '',
     };
 }
 
@@ -3029,6 +3981,10 @@ function formatRunway(
     }
 
     return openEnded ? `${months}+ months` : `${months} months`;
+}
+
+function formatYear(value: number | null | undefined): string {
+    return value ? `Year ${value}` : 'Not reached';
 }
 
 function Detail({

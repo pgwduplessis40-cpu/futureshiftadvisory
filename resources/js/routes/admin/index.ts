@@ -3,6 +3,7 @@ import questionnaires from './questionnaires'
 import surveys from './surveys'
 import terms from './terms'
 import partnerAgreement from './partner-agreement'
+import principlesRoles from './principles-roles'
 import serviceRates from './service-rates'
 import ratingFrameworks from './rating-frameworks'
 import integrationHealth from './integration-health'
@@ -21,6 +22,7 @@ questionnaires: Object.assign(questionnaires, questionnaires),
 surveys: Object.assign(surveys, surveys),
 terms: Object.assign(terms, terms),
 partnerAgreement: Object.assign(partnerAgreement, partnerAgreement),
+principlesRoles: Object.assign(principlesRoles, principlesRoles),
 serviceRates: Object.assign(serviceRates, serviceRates),
 ratingFrameworks: Object.assign(ratingFrameworks, ratingFrameworks),
 integrationHealth: Object.assign(integrationHealth, integrationHealth),

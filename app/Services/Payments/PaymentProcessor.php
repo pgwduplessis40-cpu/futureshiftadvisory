@@ -99,9 +99,53 @@ final class PaymentProcessor implements ProvidesMethodology
         ?User $actor = null,
         bool $reactivatePausedOnSuccess = false,
     ): array {
-        return DB::transaction(function () use ($schedule, $now, $chargeMetadata, $actor, $reactivatePausedOnSuccess): array {
-            $schedule = $schedule->refresh()->loadMissing(['paymentAuthority', 'proposal', 'client']);
-            $wasPaused = $schedule->status === PaymentSchedule::STATUS_PAUSED;
+        $attempt = $this->openPaymentAttempt($schedule);
+        $schedule = $attempt['schedule'];
+        $payment = $attempt['payment'];
+
+        try {
+            $charge = $this->gateway->charge($schedule->paymentAuthority, $schedule->amount, [
+                'currency' => $schedule->currency,
+                'idempotency_key' => 'payment-'.$payment->getKey().'-attempt-'.$attempt['number'],
+                'metadata' => [
+                    'payment_id' => $payment->getKey(),
+                    'payment_schedule_id' => $schedule->getKey(),
+                    ...$chargeMetadata,
+                ],
+            ], $actor);
+
+            return $this->recordSuccessfulAttempt(
+                payment: $payment,
+                schedule: $schedule,
+                charge: $charge,
+                now: $now,
+                actor: $actor,
+                reactivatePausedOnSuccess: $reactivatePausedOnSuccess,
+                wasPaused: $attempt['was_paused'],
+            );
+        } catch (PaymentGatewayException $e) {
+            return $this->recordFailedAttempt(
+                payment: $payment,
+                schedule: $schedule,
+                exception: $e,
+                now: $now,
+                actor: $actor,
+            );
+        }
+    }
+
+    /**
+     * @return array{schedule: PaymentSchedule, payment: Payment, number: int, was_paused: bool}
+     */
+    private function openPaymentAttempt(PaymentSchedule $schedule): array
+    {
+        return DB::transaction(function () use ($schedule): array {
+            $schedule = PaymentSchedule::query()
+                ->with(['paymentAuthority', 'proposal', 'client'])
+                ->whereKey($schedule->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
             $attempt = ((int) Payment::query()
                 ->where('payment_schedule_id', $schedule->getKey())
                 ->max('attempt')) + 1;
@@ -116,65 +160,117 @@ final class PaymentProcessor implements ProvidesMethodology
                 'attempt' => $attempt,
             ]);
 
-            try {
-                $charge = $this->gateway->charge($schedule->paymentAuthority, $schedule->amount, [
-                    'currency' => $schedule->currency,
-                    'idempotency_key' => 'payment-'.$payment->getKey().'-attempt-'.$attempt,
-                    'metadata' => [
-                        'payment_id' => $payment->getKey(),
-                        'payment_schedule_id' => $schedule->getKey(),
-                        ...$chargeMetadata,
-                    ],
-                ], $actor);
+            return [
+                'schedule' => $schedule,
+                'payment' => $payment,
+                'number' => $attempt,
+                'was_paused' => $schedule->status === PaymentSchedule::STATUS_PAUSED,
+            ];
+        });
+    }
 
-                $payment->forceFill([
-                    'gateway' => $charge->gateway,
-                    'gateway_ref' => $charge->gatewayRef,
-                    'status' => Payment::STATUS_SUCCEEDED,
-                    'failover_from' => $charge->failoverFrom,
-                    'failed_reason' => null,
-                    'processed_at' => $now,
-                ])->save();
+    /**
+     * @return array{status:'succeeded', receipt:bool}
+     */
+    private function recordSuccessfulAttempt(
+        Payment $payment,
+        PaymentSchedule $schedule,
+        PaymentChargeResult $charge,
+        CarbonInterface $now,
+        ?User $actor,
+        bool $reactivatePausedOnSuccess,
+        bool $wasPaused,
+    ): array {
+        return DB::transaction(function () use ($payment, $schedule, $charge, $now, $actor, $reactivatePausedOnSuccess, $wasPaused): array {
+            $payment = Payment::query()
+                ->whereKey($payment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $schedule = PaymentSchedule::query()
+                ->whereKey($schedule->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $wasSucceeded = $payment->status === Payment::STATUS_SUCCEEDED;
 
+            $payment->forceFill([
+                'gateway' => $charge->gateway,
+                'gateway_ref' => $charge->gatewayRef,
+                'status' => Payment::STATUS_SUCCEEDED,
+                'failover_from' => $charge->failoverFrom,
+                'failed_reason' => null,
+                'processed_at' => $payment->processed_at ?? $now,
+            ])->save();
+
+            if (! $wasSucceeded) {
                 $this->advanceSchedule($schedule, $now);
+
                 if ($reactivatePausedOnSuccess && $wasPaused && $schedule->cadence !== PaymentSchedule::CADENCE_ONE_OFF) {
                     $schedule->forceFill([
                         'status' => PaymentSchedule::STATUS_ACTIVE,
                     ])->save();
                 }
+            }
 
+            $receipt = $this->receipts->create($payment->refresh());
+            $this->audit->record('payment.succeeded', subject: $payment, after: [
+                'payment_schedule_id' => $schedule->getKey(),
+                'gateway' => $charge->gateway,
+                'gateway_ref' => $charge->gatewayRef,
+                'failover_from' => $charge->failoverFrom,
+                'receipt_id' => $receipt->getKey(),
+                'webhook_reconciled_first' => $wasSucceeded,
+            ], actor: $actor);
+
+            return ['status' => 'succeeded', 'receipt' => true];
+        });
+    }
+
+    /**
+     * @return array{status:'succeeded'|'retrying'|'failed', receipt:bool}
+     */
+    private function recordFailedAttempt(
+        Payment $payment,
+        PaymentSchedule $schedule,
+        PaymentGatewayException $exception,
+        CarbonInterface $now,
+        ?User $actor,
+    ): array {
+        return DB::transaction(function () use ($payment, $schedule, $exception, $now, $actor): array {
+            $payment = Payment::query()
+                ->whereKey($payment->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+            $schedule = PaymentSchedule::query()
+                ->whereKey($schedule->getKey())
+                ->lockForUpdate()
+                ->firstOrFail();
+
+            if ($payment->status === Payment::STATUS_SUCCEEDED) {
                 $receipt = $this->receipts->create($payment->refresh());
-                $this->audit->record('payment.succeeded', subject: $payment, after: [
-                    'payment_schedule_id' => $schedule->getKey(),
-                    'gateway' => $charge->gateway,
-                    'gateway_ref' => $charge->gatewayRef,
-                    'failover_from' => $charge->failoverFrom,
-                    'receipt_id' => $receipt->getKey(),
-                ], actor: $actor);
 
                 return ['status' => 'succeeded', 'receipt' => true];
-            } catch (PaymentGatewayException $e) {
-                $status = $attempt < $this->maxAttempts()
-                    ? Payment::STATUS_RETRYING
-                    : Payment::STATUS_FAILED;
-
-                $payment->forceFill([
-                    'status' => $status,
-                    'failed_reason' => Str::limit($e->getMessage(), 500, ''),
-                    'processed_at' => $now,
-                ])->save();
-
-                $this->scheduleRetryOrPause($schedule, $now, $status);
-                $this->audit->record('payment.failed', subject: $payment, after: [
-                    'payment_schedule_id' => $schedule->getKey(),
-                    'status' => $status,
-                    'attempt' => $attempt,
-                    'failed_reason' => $payment->failed_reason,
-                ], actor: $actor);
-                $this->notifyFailure($payment->refresh()->loadMissing('client'));
-
-                return ['status' => $status === Payment::STATUS_RETRYING ? 'retrying' : 'failed', 'receipt' => false];
             }
+
+            $status = $payment->attempt < $this->maxAttempts()
+                ? Payment::STATUS_RETRYING
+                : Payment::STATUS_FAILED;
+
+            $payment->forceFill([
+                'status' => $status,
+                'failed_reason' => Str::limit($exception->getMessage(), 500, ''),
+                'processed_at' => $now,
+            ])->save();
+
+            $this->scheduleRetryOrPause($schedule, $now, $status);
+            $this->audit->record('payment.failed', subject: $payment, after: [
+                'payment_schedule_id' => $schedule->getKey(),
+                'status' => $status,
+                'attempt' => $payment->attempt,
+                'failed_reason' => $payment->failed_reason,
+            ], actor: $actor);
+            $this->notifyFailure($payment->refresh()->loadMissing('client'));
+
+            return ['status' => $status === Payment::STATUS_RETRYING ? 'retrying' : 'failed', 'receipt' => false];
         });
     }
 
@@ -188,15 +284,36 @@ final class PaymentProcessor implements ProvidesMethodology
             return;
         }
 
+        $nextRunAt = $this->nextRetainerRunAt($schedule, $now);
+
+        $schedule->forceFill([
+            'next_run_at' => $nextRunAt,
+        ])->save();
+    }
+
+    private function nextRetainerRunAt(PaymentSchedule $schedule, CarbonInterface $now): CarbonInterface
+    {
+        $collectionDay = $schedule->collection_day;
+
+        if (in_array($collectionDay, [1, 15], true)) {
+            $candidate = $now->copy()
+                ->startOfDay()
+                ->setDay($collectionDay);
+
+            while ($candidate <= $now) {
+                $candidate = $candidate->addMonthNoOverflow()->setDay($collectionDay);
+            }
+
+            return $candidate;
+        }
+
         $nextRunAt = $schedule->next_run_at?->copy() ?? $now->copy();
 
         do {
             $nextRunAt = $nextRunAt->addMonthNoOverflow();
         } while ($nextRunAt <= $now);
 
-        $schedule->forceFill([
-            'next_run_at' => $nextRunAt,
-        ])->save();
+        return $nextRunAt;
     }
 
     private function scheduleRetryOrPause(PaymentSchedule $schedule, CarbonInterface $now, string $paymentStatus): void

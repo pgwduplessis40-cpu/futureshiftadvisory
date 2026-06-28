@@ -62,13 +62,39 @@ final class PaymentWebhookReconciler
             return $event;
         }
 
-        $event = PaymentWebhookEvent::query()->create([
+        $inserted = PaymentWebhookEvent::query()->insertOrIgnore([
+            'id' => (string) Str::uuid(),
             'gateway' => $gateway,
             'event_id' => $eventId,
             'event_type' => $eventType,
             'status' => PaymentWebhookEvent::STATUS_RECEIVED,
             'payload_hash' => $payloadHash,
+            'created_at' => now(),
+            'updated_at' => now(),
         ]);
+
+        if ($inserted === 0) {
+            $event = PaymentWebhookEvent::query()
+                ->where('gateway', $gateway)
+                ->where('event_id', $eventId)
+                ->firstOrFail();
+
+            if ($event->processed_at !== null) {
+                $this->audit->record('payment.webhook_duplicate', subject: $event->payment, after: [
+                    'gateway' => $gateway,
+                    'event_id' => $eventId,
+                    'event_type' => $eventType,
+                    'status' => $event->status,
+                ]);
+            }
+
+            return $event;
+        }
+
+        $event = PaymentWebhookEvent::query()
+            ->where('gateway', $gateway)
+            ->where('event_id', $eventId)
+            ->firstOrFail();
 
         $object = data_get($payload, 'data.object');
         if (! is_array($object)) {
@@ -178,10 +204,7 @@ final class PaymentWebhookReconciler
         $paymentId = $this->scalarString(data_get($intent, 'metadata.payment_id'));
 
         if ($paymentId !== null && Str::isUuid($paymentId)) {
-            $payment = Payment::query()
-                ->with('paymentSchedule')
-                ->whereKey($paymentId)
-                ->first();
+            $payment = $this->paymentById($paymentId);
 
             if ($payment instanceof Payment) {
                 return $payment;
@@ -199,6 +222,28 @@ final class PaymentWebhookReconciler
 
             if ($payment instanceof Payment) {
                 return $payment;
+            }
+        }
+
+        return null;
+    }
+
+    private function paymentById(string $paymentId): ?Payment
+    {
+        $attempts = app()->runningUnitTests() ? 1 : 10;
+
+        for ($attempt = 1; $attempt <= $attempts; $attempt++) {
+            $payment = Payment::query()
+                ->with('paymentSchedule')
+                ->whereKey($paymentId)
+                ->first();
+
+            if ($payment instanceof Payment) {
+                return $payment;
+            }
+
+            if ($attempt < $attempts) {
+                usleep(250_000);
             }
         }
 
@@ -243,16 +288,37 @@ final class PaymentWebhookReconciler
             return;
         }
 
+        $nextRunAt = $this->nextRetainerRunAt($schedule, $now);
+
+        $schedule->forceFill([
+            'status' => PaymentSchedule::STATUS_ACTIVE,
+            'next_run_at' => $nextRunAt,
+        ])->save();
+    }
+
+    private function nextRetainerRunAt(PaymentSchedule $schedule, Carbon $now): Carbon
+    {
+        $collectionDay = $schedule->collection_day;
+
+        if (in_array($collectionDay, [1, 15], true)) {
+            $candidate = $now->copy()
+                ->startOfDay()
+                ->setDay($collectionDay);
+
+            while ($candidate <= $now) {
+                $candidate = $candidate->addMonthNoOverflow()->setDay($collectionDay);
+            }
+
+            return $candidate;
+        }
+
         $nextRunAt = $schedule->next_run_at?->copy() ?? $now->copy();
 
         do {
             $nextRunAt = $nextRunAt->addMonthNoOverflow();
         } while ($nextRunAt <= $now);
 
-        $schedule->forceFill([
-            'status' => PaymentSchedule::STATUS_ACTIVE,
-            'next_run_at' => $nextRunAt,
-        ])->save();
+        return $nextRunAt;
     }
 
     private function scheduleRetryOrPause(?PaymentSchedule $schedule, Carbon $now, string $paymentStatus): void

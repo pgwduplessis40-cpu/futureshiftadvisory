@@ -17,8 +17,10 @@ use App\Models\MessageThread;
 use App\Models\PlanSection;
 use App\Models\ReadinessAssessment;
 use App\Models\Report;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\BudgetPackBuilder;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
@@ -49,6 +51,8 @@ final class EntrepreneurPlanController extends Controller
     private const GAMIFICATION_DISABLE_REQUEST_SUBJECT = 'Gamification disable request';
 
     private const BUDGET_UNLOCK_REQUIREMENT_KEY = 'business-type-location';
+
+    private const BUDGET_ASSUMPTIONS_REQUIREMENT_KEY = 'financial-assumptions';
 
     private const READINESS_FIELDS = [
         'concept_clarity' => 'Concept clarity',
@@ -136,6 +140,11 @@ final class EntrepreneurPlanController extends Controller
             'title' => 'Financial',
             'requirements' => [
                 [
+                    'key' => 'financial-assumptions',
+                    'title' => 'Financial assumptions',
+                    'description' => 'Set the planning assumptions for the budget: business model, revenue streams, target gross profit, target net profit before and after tax, revenue growth, cost inflation, funding scenarios, and known future costs.',
+                ],
+                [
                     'key' => 'revenue-model',
                     'title' => 'Revenue model',
                     'description' => 'Explain pricing, margin, cost drivers, cash cycle, and early revenue assumptions.',
@@ -164,6 +173,7 @@ final class EntrepreneurPlanController extends Controller
         private readonly PlanDocuments $documents,
         private readonly MessageThreadService $messages,
         private readonly PdfRenderer $pdf,
+        private readonly BudgetPackBuilder $budgetPack,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurBudgetService $budgets,
         private readonly EntrepreneurMilestones $milestones,
@@ -197,6 +207,8 @@ final class EntrepreneurPlanController extends Controller
                 'startPlan' => route('portal.entrepreneur.plan.start', absolute: false),
                 'sectionStore' => route('portal.entrepreneur.plan.sections.store', absolute: false),
                 'budgetUpdate' => route('portal.entrepreneur.plan.budget.update', absolute: false),
+                'budgetPack' => route('portal.entrepreneur.plan.budget-pack.show', absolute: false),
+                'budgetPackPdf' => route('portal.entrepreneur.plan.budget-pack.pdf', absolute: false),
                 'budgetFlagAcknowledge' => route('portal.entrepreneur.plan.budget.flags.acknowledge', absolute: false),
                 'budgetAdvisorNudgeDismiss' => route('portal.entrepreneur.plan.budget.advisor-nudge.dismiss', absolute: false),
                 'assistRequirement' => route('portal.entrepreneur.plan.requirements.assist', absolute: false),
@@ -220,6 +232,45 @@ final class EntrepreneurPlanController extends Controller
 
         $pdf = $this->pdf->render($this->previewHtml($profile, $plan, $phases));
         $filename = Str::slug($profile->name ?: 'entrepreneur-business-plan').'-preview.pdf';
+
+        return response($pdf, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'no-store, max-age=0',
+        ]);
+    }
+
+    public function budgetPack(Request $request): Response|RedirectResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan, 404);
+
+        if (! $this->budgetUnlocked($plan)) {
+            return to_route('portal.entrepreneur.plan.show')
+                ->with('status', 'entrepreneur-budget-locked')
+                ->with('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model, plus Financial: Financial assumptions before viewing the budget pack.');
+        }
+
+        return Inertia::render('portal/entrepreneur/BudgetPack', [
+            'pack' => $this->budgetPack->payload($profile, $plan),
+            'urls' => [
+                'plan' => route('portal.entrepreneur.plan.show', absolute: false),
+                'pdf' => route('portal.entrepreneur.plan.budget-pack.pdf', absolute: false),
+            ],
+        ]);
+    }
+
+    public function budgetPackPdf(Request $request): SymfonyResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        $plan = $this->latestPlan($profile);
+        abort_unless($plan instanceof BusinessPlan && $this->budgetUnlocked($plan), 404);
+
+        $pdf = $this->pdf->render($this->budgetPack->html($profile, $plan));
+        $filename = Str::slug($profile->name ?: 'entrepreneur').'-budget-pack.pdf';
 
         return response($pdf, 200, [
             'Content-Type' => 'application/pdf',
@@ -344,11 +395,18 @@ final class EntrepreneurPlanController extends Controller
         if (! $this->budgetUnlocked($plan)) {
             return to_route('portal.entrepreneur.plan.show')
                 ->with('status', 'entrepreneur-budget-locked')
-                ->with('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model before setting up the budget.');
+                ->with('entrepreneur_plan_error', 'Complete Foundation: Business type, location, and operating model, plus Financial: Financial assumptions before setting up the budget.');
         }
 
         $validated = $request->validate([
             'expected_runway_months' => ['nullable', 'integer', 'min:0', 'max:60'],
+            'forecast_years' => ['nullable', 'integer', Rule::in([3, 5])],
+            'assumptions' => ['array'],
+            'assumptions.revenue_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
+            'assumptions.cost_inflation_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'assumptions.target_gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'assumptions.target_net_profit_before_tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'assumptions.target_net_profit_after_tax_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'launch_costs' => ['array', 'max:50'],
             'launch_costs.*.label' => ['nullable', 'string', 'max:180'],
             'launch_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
@@ -366,12 +424,31 @@ final class EntrepreneurPlanController extends Controller
             'revenue_forecast.*.month' => ['nullable', 'integer', 'min:1', 'max:12'],
             'revenue_forecast.*.monthly_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
             'revenue_forecast.*.variable_cost_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'revenue_forecast.*.unit_cost' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'revenue_forecast.*.gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'revenue_forecast.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
             'funding_sources' => ['array', 'max:50'],
             'funding_sources.*.label' => ['nullable', 'string', 'max:180'],
             'funding_sources.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'funding_sources.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
             'funding_sources.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
+            'future_costs' => ['array', 'max:50'],
+            'future_costs.*.label' => ['nullable', 'string', 'max:180'],
+            'future_costs.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'future_costs.*.quantity' => ['nullable', 'numeric', 'min:0', 'max:999999'],
+            'future_costs.*.year' => ['nullable', 'integer', 'min:2', 'max:5'],
+            'future_costs.*.recurring' => ['nullable', 'boolean'],
+            'future_costs.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
+            'funding_scenarios' => ['array', 'max:10'],
+            'funding_scenarios.*.name' => ['nullable', 'string', 'max:180'],
+            'funding_scenarios.*.type' => ['nullable', 'string', Rule::in(['bank_loan', 'investor', 'mixed'])],
+            'funding_scenarios.*.amount' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
+            'funding_scenarios.*.year' => ['nullable', 'integer', 'min:1', 'max:5'],
+            'funding_scenarios.*.interest_rate_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'funding_scenarios.*.term_years' => ['nullable', 'integer', 'min:0', 'max:30'],
+            'funding_scenarios.*.interest_only_months' => ['nullable', 'integer', 'min:0', 'max:120'],
+            'funding_scenarios.*.investor_equity_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
+            'funding_scenarios.*.confidence' => ['nullable', 'string', Rule::in(['known', 'estimate', 'guess'])],
         ]);
 
         $this->budgets->update($plan, $validated, $user);
@@ -526,7 +603,12 @@ final class EntrepreneurPlanController extends Controller
     private function entrepreneurUser(Request $request): User
     {
         $user = $request->user();
-        abort_unless($user instanceof User && $user->user_type === User::TYPE_ENTREPRENEUR, 403);
+        abort_unless($user instanceof User, 403);
+        abort_unless(
+            $user->user_type === User::TYPE_ENTREPRENEUR
+            || ($this->activeEntrepreneurActivationForUser($user) instanceof ServiceActivation),
+            403,
+        );
 
         return $user;
     }
@@ -534,10 +616,34 @@ final class EntrepreneurPlanController extends Controller
     private function profileFor(User $user): EntrepreneurProfile
     {
         $this->entrepreneurInvites->reconcile($user);
+        $activation = $this->activeEntrepreneurActivationForUser($user);
+
+        if ($activation instanceof ServiceActivation && $activation->related_entrepreneur_profile_id !== null) {
+            return EntrepreneurProfile::query()
+                ->whereKey($activation->related_entrepreneur_profile_id)
+                ->firstOrFail();
+        }
 
         return EntrepreneurProfile::query()
             ->where('user_id', $user->getKey())
             ->firstOrFail();
+    }
+
+    private function activeEntrepreneurActivationForUser(User $user): ?ServiceActivation
+    {
+        $clientIds = $user->accessibleClientIds();
+
+        if ($clientIds === []) {
+            return null;
+        }
+
+        return ServiceActivation::query()
+            ->whereIn('client_id', $clientIds)
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->whereNotNull('related_entrepreneur_profile_id')
+            ->latest()
+            ->first();
     }
 
     private function latestPlan(EntrepreneurProfile $profile): ?BusinessPlan
@@ -644,7 +750,7 @@ final class EntrepreneurPlanController extends Controller
             'updated_at' => $plan->updated_at?->toIso8601String(),
             'requirements_complete' => $completion['complete'],
             'missing_requirements' => $completion['missing'],
-            'budget' => $this->budgetPayload($plan->budgetRunway),
+            'budget' => $this->budgetPayload($plan, $plan->budgetRunway),
             'latest_assessment' => $latestAssessment ? [
                 'id' => $latestAssessment->id,
                 'round' => $latestAssessment->round,
@@ -751,17 +857,24 @@ final class EntrepreneurPlanController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function budgetPayload(?EntrepreneurBudget $budget): array
+    private function budgetPayload(BusinessPlan $plan, ?EntrepreneurBudget $budget): array
     {
+        $packAvailable = $this->budgetUnlocked($plan);
+
         return [
             'id' => $budget?->id,
             'expected_runway_months' => $budget?->expected_runway_months,
+            'forecast_years' => $budget?->forecast_years ?? 3,
             'status' => $budget?->status ?? EntrepreneurBudget::STATUS_NOT_STARTED,
+            'assumptions' => $budget?->assumptions ?? [],
             'launch_costs' => $budget?->launch_costs ?? [],
             'monthly_fixed_costs' => $budget?->monthly_fixed_costs ?? [],
+            'future_costs' => $budget?->future_costs ?? [],
             'revenue_forecast' => $budget?->revenue_forecast ?? [],
             'funding_sources' => $budget?->funding_sources ?? [],
+            'funding_scenarios' => $budget?->funding_scenarios ?? [],
             'computed' => $budget?->computed ?? [
+                'forecast_years' => 3,
                 'total_launch_costs' => 0,
                 'monthly_fixed_costs' => 0,
                 'total_funding' => 0,
@@ -769,13 +882,22 @@ final class EntrepreneurPlanController extends Controller
                 'runway_months' => null,
                 'runway_open_ended' => false,
                 'break_even_month' => null,
+                'break_even_year' => null,
+                'first_profitable_year' => null,
+                'cash_flow_positive_year' => null,
                 'break_even_reached' => false,
+                'annual_totals' => [],
+                'missing_assumptions' => [],
+                'explanations' => [],
                 'monthly_series' => [],
                 'populated_inputs' => [],
             ],
             'flags' => $budget?->flags ?? [],
             'active_flags' => $budget instanceof EntrepreneurBudget ? $this->budgets->activeFlags($budget) : [],
             'advisor_line_nudge_seen_at' => $budget?->advisor_line_nudge_seen_at?->toIso8601String(),
+            'pack_available' => $packAvailable,
+            'budget_pack_url' => $packAvailable ? route('portal.entrepreneur.plan.budget-pack.show', absolute: false) : null,
+            'budget_pack_pdf_url' => $packAvailable ? route('portal.entrepreneur.plan.budget-pack.pdf', absolute: false) : null,
         ];
     }
 
@@ -808,11 +930,19 @@ final class EntrepreneurPlanController extends Controller
     {
         $plan->loadMissing('sections');
 
+        return $this->requirementComplete($plan, 'foundation', self::BUDGET_UNLOCK_REQUIREMENT_KEY)
+            && $this->requirementComplete($plan, 'financial', self::BUDGET_ASSUMPTIONS_REQUIREMENT_KEY);
+    }
+
+    private function requirementComplete(BusinessPlan $plan, string $phaseKey, string $requirementKey): bool
+    {
+        $plan->loadMissing('sections');
+
         return $plan->sections->contains(fn (PlanSection $section): bool => (
             $section->completeness_status === PlanSection::STATUS_COMPLETE
             && (
-                (string) data_get($section->metadata, 'requirement_key') === self::BUDGET_UNLOCK_REQUIREMENT_KEY
-                || $section->key === 'founder-foundation-'.self::BUDGET_UNLOCK_REQUIREMENT_KEY
+                (string) data_get($section->metadata, 'requirement_key') === $requirementKey
+                || $section->key === 'founder-'.$phaseKey.'-'.$requirementKey
             )
         ));
     }

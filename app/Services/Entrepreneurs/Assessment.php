@@ -249,12 +249,28 @@ final class Assessment implements ProvidesMethodology
             ->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))
             ->count();
 
-        if (($computed['break_even_reached'] ?? false) === true) {
+        if (($computed['break_even_reached'] ?? false) === true || data_get($computed, 'break_even_year') !== null) {
             $score += 5;
+        }
+
+        if (data_get($computed, 'cash_flow_positive_year') !== null) {
+            $score += 5;
+        }
+
+        if (data_get($computed, 'first_profitable_year') !== null) {
+            $score += 3;
         }
 
         if ($budget->expected_runway_months !== null && is_int($computed['runway_months'] ?? null)) {
             $score += 5;
+        }
+
+        if ((array) data_get($computed, 'missing_assumptions', []) !== []) {
+            $score -= 8;
+        }
+
+        if (! (bool) data_get($computed, 'assumptions.company_tax_configured', false)) {
+            $score -= 3;
         }
 
         return max(35, min(88, $score - ($activeFlags * 6)));
@@ -273,11 +289,14 @@ final class Assessment implements ProvidesMethodology
             ->implode('; ');
 
         return sprintf(
-            'Budget status: %s. Expected runway: %s months. Calculated runway: %s months. Break-even month: %s. Available after launch: %s. Active budget warnings: %s.',
+            'Budget status: %s. Forecast horizon: %s years. Expected runway: %s months. Calculated runway: %s months. Break-even year: %s. First profitable year: %s. Cash-flow-positive year: %s. Available after launch: %s. Active budget warnings: %s.',
             $budget->status,
+            $budget->forecast_years ?? data_get($computed, 'forecast_years', 3),
             $budget->expected_runway_months ?? 'not entered',
             data_get($computed, 'runway_months', 'not calculated'),
-            data_get($computed, 'break_even_month', 'not reached'),
+            data_get($computed, 'break_even_year', 'not reached'),
+            data_get($computed, 'first_profitable_year', 'not reached'),
+            data_get($computed, 'cash_flow_positive_year', 'not reached'),
             data_get($computed, 'available_after_launch', 0),
             $flags !== '' ? $flags : 'none',
         );

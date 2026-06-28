@@ -29,6 +29,7 @@ final class PaymentSchedule extends Model
 
     protected $casts = [
         'amount' => 'decimal:2',
+        'collection_day' => 'integer',
         'next_run_at' => 'datetime',
         'revoked_at' => 'datetime',
     ];
