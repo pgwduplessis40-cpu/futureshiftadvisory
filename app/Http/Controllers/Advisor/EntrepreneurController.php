@@ -232,8 +232,11 @@ final class EntrepreneurController extends Controller
                 'invite_accepted_at' => $entrepreneurProfile->inviteToken?->accepted_at?->toIso8601String(),
                 'invite_expires_at' => $entrepreneurProfile->inviteToken?->expires_at?->toIso8601String(),
                 'invite_accept_url' => $inviteDraft['accept_url'] ?? null,
+                'invite_email_to' => $inviteDraft['to'] ?? null,
                 'invite_email_subject' => $inviteDraft['subject'] ?? null,
                 'invite_email_body' => $inviteDraft['body'] ?? null,
+                'invite_outlook_url' => $inviteDraft['outlook_url'] ?? null,
+                'invite_mailto_url' => $inviteDraft['mailto_url'] ?? null,
                 'invite_resend_url' => $this->canResendInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.resend', $entrepreneurProfile, absolute: false)
                     : null,

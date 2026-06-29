@@ -192,8 +192,11 @@ final class PartnerPanelNavigationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->whereNot('partner.invite_accept_url', null)
+                ->where('partner.invite_email_to', 'pending-broker@example.test')
                 ->where('partner.invite_email_subject', 'Future Shift Advisory invitation')
                 ->whereNot('partner.invite_email_body', null)
+                ->whereNot('partner.invite_outlook_url', null)
+                ->whereNot('partner.invite_mailto_url', null)
                 ->where('partner.invite_resend_url', route('advisor.partners.invite.resend', $member, absolute: false))
                 ->where('partner.invite_cancel_url', route('advisor.partners.invite.cancel', $member, absolute: false)));
 

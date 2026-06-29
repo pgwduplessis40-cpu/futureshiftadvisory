@@ -75,7 +75,7 @@ final class GamificationTest extends TestCase
 
     public function test_enable_reconciles_prior_plan_submitted_with_estimated_timestamp(): void
     {
-        [$advisor, , $profile] = $this->profile('reconcile-gamification@example.test');
+        [$advisor, , $profile] = $this->profile('reconcile-gamification@example.test', gamificationOn: false);
         $plan = BusinessPlan::query()->create([
             'entrepreneur_profile_id' => $profile->id,
             'title' => 'Prior submitted plan',
@@ -112,7 +112,7 @@ final class GamificationTest extends TestCase
 
     public function test_enable_reconciles_legacy_numeric_assessment_scores(): void
     {
-        [$advisor, , $profile] = $this->profile('legacy-score-gamification@example.test');
+        [$advisor, , $profile] = $this->profile('legacy-score-gamification@example.test', gamificationOn: false);
         $plan = BusinessPlan::query()->create([
             'entrepreneur_profile_id' => $profile->id,
             'title' => 'Legacy scored plan',
@@ -320,7 +320,7 @@ final class GamificationTest extends TestCase
     /**
      * @return array{0: User, 1: User, 2: EntrepreneurProfile}
      */
-    private function profile(string $email, bool $gamificationOn = false): array
+    private function profile(string $email, bool $gamificationOn = true): array
     {
         $advisor = User::factory()->withTwoFactor()->create([
             'user_type' => User::TYPE_ADVISOR,

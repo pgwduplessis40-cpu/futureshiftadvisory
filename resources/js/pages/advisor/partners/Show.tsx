@@ -1,5 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Copy, Download, RefreshCw, XCircle } from 'lucide-react';
+import {
+    ArrowLeft,
+    Copy,
+    Download,
+    Mail,
+    RefreshCw,
+    XCircle,
+} from 'lucide-react';
 import type { ReactNode } from 'react';
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -49,8 +56,11 @@ type PartnerDetail = {
     invite_expiry_label: string | null;
     invite_delivery_label: string;
     invite_accept_url: string | null;
+    invite_email_to: string | null;
     invite_email_subject: string | null;
     invite_email_body: string | null;
+    invite_outlook_url: string | null;
+    invite_mailto_url: string | null;
     invite_resend_url: string | null;
     invite_cancel_url: string | null;
     industry_label: string;
@@ -78,6 +88,7 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
     const heading = `${partner.business_name} - ${partner.panel_label}`;
     const [copiedInviteDraft, setCopiedInviteDraft] = useState(false);
     const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+    const inviteRecipient = partner.invite_email_to ?? partner.email;
 
     const copyText = (text: string, onCopied: (value: boolean) => void) => {
         void navigator.clipboard.writeText(text).then(() => {
@@ -85,14 +96,25 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
             window.setTimeout(() => onCopied(false), 1800);
         });
     };
+    const openOutlookDraft = () => {
+        if (!partner.invite_outlook_url) {
+            return;
+        }
+
+        window.open(
+            partner.invite_outlook_url,
+            '_blank',
+            'noopener,noreferrer',
+        );
+    };
     const copyInviteDraft = () => {
-        if (!partner.invite_email_body || !partner.email) {
+        if (!partner.invite_email_body || !inviteRecipient) {
             return;
         }
 
         copyText(
             [
-                `To: ${partner.email}`,
+                `To: ${inviteRecipient}`,
                 `Subject: ${partner.invite_email_subject ?? 'Future Shift Advisory invitation'}`,
                 '',
                 partner.invite_email_body,
@@ -149,16 +171,31 @@ export default function PartnerShow({ partner }: { partner: PartnerDetail }) {
                         </p>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
+                        {partner.invite_outlook_url ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={openOutlookDraft}
+                            >
+                                <Mail className="size-4" aria-hidden="true" />
+                                Open Outlook draft
+                            </Button>
+                        ) : null}
                         {partner.invite_email_body ? (
                             <Button
                                 type="button"
                                 size="sm"
+                                variant={
+                                    partner.invite_outlook_url
+                                        ? 'outline'
+                                        : 'default'
+                                }
                                 onClick={copyInviteDraft}
                             >
                                 <Copy className="size-4" aria-hidden="true" />
                                 {copiedInviteDraft
                                     ? 'Draft copied'
-                                    : 'Copy Outlook draft'}
+                                    : 'Copy draft'}
                             </Button>
                         ) : null}
                         {partner.invite_accept_url ? (

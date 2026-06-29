@@ -50,6 +50,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const [copiedInviteDraft, setCopiedInviteDraft] = useState(false);
     const [copiedInviteLink, setCopiedInviteLink] = useState(false);
+    const inviteRecipient = entrepreneur.invite_email_to ?? entrepreneur.email;
 
     const copyText = (text: string, onCopied: (value: boolean) => void) => {
         void navigator.clipboard.writeText(text).then(() => {
@@ -59,6 +60,17 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     };
     const copyInviteEmail = () =>
         copyText(entrepreneur.email, setCopiedInviteEmail);
+    const openOutlookDraft = () => {
+        if (!entrepreneur.invite_outlook_url) {
+            return;
+        }
+
+        window.open(
+            entrepreneur.invite_outlook_url,
+            '_blank',
+            'noopener,noreferrer',
+        );
+    };
     const copyInviteDraft = () => {
         if (!entrepreneur.invite_email_body) {
             return;
@@ -66,7 +78,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
 
         copyText(
             [
-                `To: ${entrepreneur.email}`,
+                `To: ${inviteRecipient}`,
                 `Subject: ${entrepreneur.invite_email_subject ?? 'Future Shift Advisory invitation'}`,
                 '',
                 entrepreneur.invite_email_body,
@@ -498,8 +510,8 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
                                 onClick={() =>
                                     router.post(
-                                        entrepreneur.latest_plan
-                                            ?.assess_url ?? '',
+                                        entrepreneur.latest_plan?.assess_url ??
+                                            '',
                                         {},
                                         { preserveScroll: true },
                                     )
@@ -556,10 +568,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                     <div className="flex flex-wrap items-start justify-between gap-3">
                         <div className="space-y-2">
                             <div className="flex items-center gap-2">
-                                <Trophy
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
+                                <Trophy className="size-4" aria-hidden="true" />
                                 <h2 className="text-sm font-medium">
                                     Gamification
                                 </h2>
@@ -805,7 +814,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     {
                                         label: 'Delivery',
                                         value: entrepreneur.invite_email_body
-                                            ? 'Copy the Outlook draft and send it from Outlook'
+                                            ? 'Open the addressed Outlook draft and send it from Outlook'
                                             : 'Resend to create a fresh invite link',
                                     },
                                 ]}
@@ -839,10 +848,28 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             />
                         </dl>
                         <div className="flex flex-wrap gap-2">
+                            {entrepreneur.invite_outlook_url ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    onClick={openOutlookDraft}
+                                >
+                                    <Mail
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Open Outlook draft
+                                </Button>
+                            ) : null}
                             {entrepreneur.invite_email_body ? (
                                 <Button
                                     type="button"
                                     size="sm"
+                                    variant={
+                                        entrepreneur.invite_outlook_url
+                                            ? 'outline'
+                                            : 'default'
+                                    }
                                     onClick={copyInviteDraft}
                                 >
                                     <Copy
@@ -851,7 +878,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     />
                                     {copiedInviteDraft
                                         ? 'Draft copied'
-                                        : 'Copy Outlook draft'}
+                                        : 'Copy draft'}
                                 </Button>
                             ) : null}
                             {entrepreneur.invite_accept_url ? (

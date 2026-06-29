@@ -17,7 +17,7 @@ return new class extends Migration
         });
 
         Schema::table('entrepreneur_profiles', function (Blueprint $table): void {
-            $table->boolean('gamification_on')->default(false)->after('concept_summary');
+            $table->boolean('gamification_on')->default(true)->after('concept_summary');
             $table->unsignedInteger('current_streak')->default(0)->after('gamification_on');
             $table->timestampTz('last_active_at')->nullable()->after('current_streak');
         });

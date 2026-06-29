@@ -22,8 +22,11 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     invite_accepted_at: string | null;
     invite_expires_at: string | null;
     invite_accept_url: string | null;
+    invite_email_to: string | null;
     invite_email_subject: string | null;
     invite_email_body: string | null;
+    invite_outlook_url: string | null;
+    invite_mailto_url: string | null;
     invite_resend_url: string | null;
     invite_cancel_url: string | null;
     created_at: string | null;

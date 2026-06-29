@@ -63,7 +63,7 @@ final class InviteIssuer
     }
 
     /**
-     * @return array{accept_url: string, subject: string, body: string}|null
+     * @return array{accept_url: string, to: string, subject: string, body: string, outlook_url: string, mailto_url: string}|null
      */
     public function draftFor(?InviteToken $invite, ?string $plainToken = null): ?array
     {
@@ -86,11 +86,16 @@ final class InviteIssuer
         }
 
         $acceptUrl = route('invite.accept', ['token' => $plainToken]);
+        $to = (string) $invite->email;
+        $body = $this->inviteBody($invite, $acceptUrl);
 
         return [
             'accept_url' => $acceptUrl,
+            'to' => $to,
             'subject' => self::INVITE_SUBJECT,
-            'body' => $this->inviteBody($invite, $acceptUrl),
+            'body' => $body,
+            'outlook_url' => $this->outlookComposeUrl($to, self::INVITE_SUBJECT, $body),
+            'mailto_url' => $this->mailtoUrl($to, self::INVITE_SUBJECT, $body),
         ];
     }
 
@@ -133,6 +138,23 @@ final class InviteIssuer
             'Kind regards,',
             'Future Shift Advisory',
         ])."\n";
+    }
+
+    private function outlookComposeUrl(string $to, string $subject, string $body): string
+    {
+        return 'https://outlook.office.com/mail/deeplink/compose?'.http_build_query([
+            'to' => $to,
+            'subject' => $subject,
+            'body' => $body,
+        ], '', '&', PHP_QUERY_RFC3986);
+    }
+
+    private function mailtoUrl(string $to, string $subject, string $body): string
+    {
+        return 'mailto:'.$to.'?'.http_build_query([
+            'subject' => $subject,
+            'body' => $body,
+        ], '', '&', PHP_QUERY_RFC3986);
     }
 
     private function accountLabel(string $targetUserType): string

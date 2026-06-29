@@ -48,6 +48,7 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertSame(EntrepreneurStage::INVITED, $profile->stage);
         $this->assertSame($advisor->id, $profile->assigned_advisor_id);
         $this->assertSame($invite->id, $profile->invite_token_id);
+        $this->assertTrue($profile->gamification_on);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_user_type);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_role);
         $this->assertNotEmpty($invite->token_envelope);
@@ -81,8 +82,11 @@ final class AddEntrepreneurTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->whereNot('entrepreneur.invite_accept_url', null)
+                ->where('entrepreneur.invite_email_to', 'founder@example.com')
                 ->where('entrepreneur.invite_email_subject', 'Future Shift Advisory invitation')
                 ->whereNot('entrepreneur.invite_email_body', null)
+                ->whereNot('entrepreneur.invite_outlook_url', null)
+                ->whereNot('entrepreneur.invite_mailto_url', null)
                 ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
                 ->where('entrepreneur.invite_cancel_url', route('advisor.entrepreneurs.invite.cancel', $profile, absolute: false))
             );
