@@ -13,6 +13,7 @@ export type TemplateSummary = {
     version: number;
     source_reference: string | null;
     report_type: string | null;
+    usage_label: string;
     layout: {
         accent_color?: string | null;
     };

@@ -24,6 +24,9 @@ type Props = {
     canManage: boolean;
     indexUrl: string;
     storeUrl: string;
+    reportTemplateStatus: {
+        hasActiveReportTemplate: boolean;
+    };
 };
 
 export default function TemplateIndex({
@@ -35,6 +38,7 @@ export default function TemplateIndex({
     canManage,
     indexUrl,
     storeUrl,
+    reportTemplateStatus,
 }: Props) {
     const [query, setQuery] = useState(filters.q ?? '');
     const createForm = useForm<TemplateFormData>({
@@ -138,6 +142,13 @@ export default function TemplateIndex({
                         ))}
                     </div>
                 </div>
+
+                {!reportTemplateStatus.hasActiveReportTemplate && (
+                    <div className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-950">
+                        Reports are using the system layout because no active
+                        Report template is configured.
+                    </div>
+                )}
 
                 {canManage && (
                     <form
@@ -327,6 +338,9 @@ export default function TemplateIndex({
                                             <Badge variant="secondary">
                                                 {template.category_label}
                                             </Badge>
+                                            <Badge variant="outline">
+                                                {template.usage_label}
+                                            </Badge>
                                             <Badge
                                                 variant={
                                                     template.status === 'active'
@@ -386,7 +400,7 @@ export default function TemplateIndex({
                                                         className="size-4"
                                                         aria-hidden="true"
                                                     />
-                                                    View source
+                                                    View
                                                 </a>
                                             </Button>
                                         )}
@@ -426,7 +440,7 @@ export default function TemplateIndex({
                                             variant="outline"
                                         >
                                             <Link href={template.show_url}>
-                                                Open
+                                                Details
                                             </Link>
                                         </Button>
                                     </div>

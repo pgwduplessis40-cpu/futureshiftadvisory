@@ -392,6 +392,10 @@ Route::middleware(['auth', 'verified', 'mfa'])
             ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
             ->whereUuid('template')
             ->name('templates.show');
+        Route::get('templates/{template}/preview', [TemplateController::class, 'preview'])
+            ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
+            ->whereUuid('template')
+            ->name('templates.preview');
         Route::get('templates/{template}/download', [TemplateController::class, 'download'])
             ->middleware('permission:'.Permission::TEMPLATE_VIEW->value)
             ->whereUuid('template')

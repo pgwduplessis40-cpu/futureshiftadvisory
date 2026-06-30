@@ -33,6 +33,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
+use ZipArchive;
 
 final class TemplateLibraryTest extends TestCase
 {
@@ -230,7 +231,10 @@ final class TemplateLibraryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('templates.0.category', Template::CATEGORY_PROPOSAL)
+                ->where('templates.0.usage_label', 'Proposal PDFs')
                 ->where('templates.0.uploaded_file.original_name', 'FSA_Report_Proposal_Template.docx')
+                ->where('templates.0.uploaded_file.can_preview', true)
+                ->where('templates.0.view_url', route('advisor.templates.preview', $template, absolute: false))
                 ->where('templates.0.download_url', route('advisor.templates.download', $template, absolute: false)));
 
         $this->actingAsMfa($admin)
@@ -238,6 +242,56 @@ final class TemplateLibraryTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             ->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function test_admin_can_preview_uploaded_docx_template_file(): void
+    {
+        if (! class_exists(ZipArchive::class)) {
+            $this->markTestSkipped('ZipArchive is required to build the uploaded template DOCX fixture.');
+        }
+
+        Storage::fake('secure_local');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+        $path = 'documents/template_file/report-preview-template.docx';
+        Storage::disk('secure_local')->put($path, $this->minimalDocx([
+            ['Uploaded report preview shell', 'Heading1'],
+            ['Prepared for {{ client_name }}'],
+        ]));
+
+        $template = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Client Report Template',
+            'body' => '',
+            'structure' => [
+                'report_type' => ReportType::Client->value,
+                'source_kind' => 'uploaded_file',
+                'uploaded_file' => [
+                    'stored_path' => $path,
+                    'original_name' => 'Client_Report_Template.docx',
+                    'mime_type' => 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                    'extension' => 'docx',
+                    'byte_size' => Storage::disk('secure_local')->size($path),
+                    'sha256' => hash('sha256', Storage::disk('secure_local')->get($path)),
+                    'uploaded_at' => now()->toIso8601String(),
+                ],
+            ],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.index', ['status' => Template::STATUS_ACTIVE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('templates.0.usage_label', 'Client Report PDFs')
+                ->where('templates.0.view_url', route('advisor.templates.preview', $template, absolute: false))
+                ->where('reportTemplateStatus.hasActiveReportTemplate', true));
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.preview', $template))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
+            ->assertSee('Uploaded report preview shell', false);
     }
 
     public function test_activating_report_template_archives_overlapping_active_report_templates(): void
@@ -378,6 +432,68 @@ final class TemplateLibraryTest extends TestCase
         ]);
 
         return $template;
+    }
+
+    /**
+     * @param  array<int, array{0:string,1?:string}>  $paragraphs
+     */
+    private function minimalDocx(array $paragraphs): string
+    {
+        $path = tempnam(sys_get_temp_dir(), 'fsa-test-template-docx-');
+        $this->assertIsString($path);
+
+        $zip = new ZipArchive;
+        $this->assertTrue($zip->open($path, ZipArchive::OVERWRITE));
+        $zip->addFromString('[Content_Types].xml', <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+  <Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+  <Default Extension="xml" ContentType="application/xml"/>
+  <Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>
+XML);
+        $zip->addFromString('_rels/.rels', <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+  <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>
+XML);
+        $zip->addFromString('word/document.xml', sprintf(
+            <<<'XML'
+<?xml version="1.0" encoding="UTF-8"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+  <w:body>
+    %s
+    <w:sectPr/>
+  </w:body>
+</w:document>
+XML,
+            implode("\n", array_map(
+                fn (array $paragraph): string => $this->wordParagraph($paragraph[0], $paragraph[1] ?? null),
+                $paragraphs,
+            )),
+        ));
+        $zip->close();
+
+        $bytes = file_get_contents($path);
+        @unlink($path);
+
+        $this->assertIsString($bytes);
+
+        return $bytes;
+    }
+
+    private function wordParagraph(string $text, ?string $style = null): string
+    {
+        $styleXml = $style === null
+            ? ''
+            : sprintf('<w:pPr><w:pStyle w:val="%s"/></w:pPr>', htmlspecialchars($style, ENT_XML1 | ENT_QUOTES, 'UTF-8'));
+
+        return sprintf(
+            '<w:p>%s<w:r><w:t>%s</w:t></w:r></w:p>',
+            $styleXml,
+            htmlspecialchars($text, ENT_XML1 | ENT_QUOTES, 'UTF-8'),
+        );
     }
 
     private function userWithRole(string $role): User

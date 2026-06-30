@@ -10,6 +10,7 @@ use App\Models\Document;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Reports\UploadedReportTemplateRenderer;
 use App\Services\Storage\Exceptions\InfectedFileException;
 use App\Services\Storage\SecureFileWriter;
 use App\Services\Templates\TemplateActivationService;
@@ -69,6 +70,12 @@ final class TemplateController extends Controller
             'canManage' => Gate::allows('create', Template::class),
             'indexUrl' => route('advisor.templates.index', absolute: false),
             'storeUrl' => route('advisor.templates.store', absolute: false),
+            'reportTemplateStatus' => [
+                'hasActiveReportTemplate' => Template::query()
+                    ->usable()
+                    ->where('category', Template::CATEGORY_REPORT)
+                    ->exists(),
+            ],
         ]);
     }
 
@@ -163,6 +170,49 @@ final class TemplateController extends Controller
         ]);
     }
 
+    public function preview(Request $request, Template $template, UploadedReportTemplateRenderer $renderer): HttpResponse
+    {
+        Gate::authorize('view', $template);
+        abort_if($template->status === Template::STATUS_DRAFT, 404);
+
+        $user = $this->viewer($request);
+        $uploadedFile = $this->uploadedFile($template);
+        abort_if($uploadedFile === null || ! $this->canPreviewUploadedFile($uploadedFile), 404);
+
+        $path = (string) ($uploadedFile['stored_path'] ?? '');
+        $disk = Storage::disk('secure_local');
+        abort_if($path === '' || ! $disk->exists($path), 404);
+
+        $contents = $disk->get($path);
+        abort_if(! is_string($contents) || $contents === '', 404);
+
+        $this->audit->record('template.previewed', subject: $template, actor: $user, after: [
+            'template_id' => $template->getKey(),
+            'filename' => $uploadedFile['original_name'] ?? null,
+        ]);
+
+        if ($this->isPdfUpload($uploadedFile)) {
+            return response($contents, 200, [
+                'Content-Type' => (string) ($uploadedFile['mime_type'] ?? 'application/pdf'),
+                'Content-Disposition' => 'inline; filename="'.$this->downloadFilename((string) ($uploadedFile['original_name'] ?? Str::slug($template->title).'.pdf')).'"',
+                'Content-Length' => (string) strlen($contents),
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store, max-age=0',
+            ]);
+        }
+
+        $fragment = $renderer->renderStandaloneFragmentFromBytes($contents);
+        abort_if($fragment === null, 422, 'Template preview could not be generated.');
+
+        $html = $this->previewHtml($template, $fragment);
+
+        return response($html, 200, [
+            'Content-Type' => 'text/html; charset=UTF-8',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
+    }
+
     public function update(Request $request, Template $template): RedirectResponse
     {
         Gate::authorize('update', $template);
@@ -240,14 +290,12 @@ final class TemplateController extends Controller
                 ],
             'report_type' => data_get($template->structure, 'report_type'),
             'layout' => data_get($template->structure, 'layout', []),
+            'usage_label' => $this->usageLabel($template),
             'download_url' => $uploadedFile === null
                 ? null
                 : route('advisor.templates.download', $template, absolute: false),
             'view_url' => $uploadedFile !== null && $this->canPreviewUploadedFile($uploadedFile)
-                ? route('advisor.templates.download', [
-                    'template' => $template,
-                    'disposition' => 'inline',
-                ], false)
+                ? route('advisor.templates.preview', $template, absolute: false)
                 : null,
             'updated_at' => $template->updated_at?->toIso8601String(),
             'show_url' => route('advisor.templates.show', $template, absolute: false),
@@ -425,7 +473,7 @@ final class TemplateController extends Controller
      */
     private function canPreviewUploadedFile(array $uploadedFile): bool
     {
-        return strtolower((string) ($uploadedFile['mime_type'] ?? '')) === 'application/pdf';
+        return $this->isPdfUpload($uploadedFile) || $this->isDocxUpload($uploadedFile);
     }
 
     private function downloadDisposition(Request $request, string $mime): string
@@ -435,6 +483,64 @@ final class TemplateController extends Controller
         }
 
         return strtolower($mime) === 'application/pdf' ? 'inline' : 'attachment';
+    }
+
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function isPdfUpload(array $uploadedFile): bool
+    {
+        $mimeType = Str::lower((string) ($uploadedFile['mime_type'] ?? ''));
+        $extension = Str::lower((string) ($uploadedFile['extension'] ?? ''));
+        $originalName = Str::lower((string) ($uploadedFile['original_name'] ?? ''));
+
+        return $mimeType === 'application/pdf'
+            || $extension === 'pdf'
+            || Str::endsWith($originalName, '.pdf');
+    }
+
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function isDocxUpload(array $uploadedFile): bool
+    {
+        $mimeType = Str::lower((string) ($uploadedFile['mime_type'] ?? ''));
+        $extension = Str::lower((string) ($uploadedFile['extension'] ?? ''));
+        $originalName = Str::lower((string) ($uploadedFile['original_name'] ?? ''));
+
+        return $extension === 'docx'
+            || str_contains($mimeType, 'wordprocessingml.document')
+            || Str::endsWith($originalName, '.docx');
+    }
+
+    private function previewHtml(Template $template, string $fragment): string
+    {
+        return '<!doctype html><html lang="en-NZ"><head><meta charset="utf-8">'
+            .'<title>'.$this->escape($template->title).'</title>'
+            .'<style>body{background:#eef2f4;margin:0;padding:24px}.template-preview{background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.12);margin:0 auto;max-width:850px;min-height:1100px;padding:34px}</style>'
+            .'</head><body><main class="template-preview">'.$fragment.'</main></body></html>';
+    }
+
+    private function usageLabel(Template $template): string
+    {
+        if ($template->category === Template::CATEGORY_REPORT) {
+            $reportType = data_get($template->structure, 'report_type');
+            $type = is_string($reportType) ? ReportType::tryFrom($reportType) : null;
+
+            return $type instanceof ReportType ? $type->label().' PDFs' : 'All report PDFs';
+        }
+
+        return match ($template->category) {
+            Template::CATEGORY_PROPOSAL => 'Proposal PDFs',
+            Template::CATEGORY_EMAIL => 'Emails',
+            Template::CATEGORY_PLAN_SECTION => 'Plan sections',
+            default => 'Library content',
+        };
+    }
+
+    private function escape(string $value): string
+    {
+        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 
     private function viewer(Request $request): User

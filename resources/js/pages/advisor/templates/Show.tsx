@@ -74,6 +74,7 @@ export default function TemplateShow({
                         <Badge variant="secondary">
                             {template.category_label}
                         </Badge>
+                        <Badge variant="outline">{template.usage_label}</Badge>
                         <Badge
                             variant={
                                 template.status === 'active'
@@ -131,7 +132,7 @@ export default function TemplateShow({
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        View source
+                                        View
                                     </a>
                                 </Button>
                             )}
