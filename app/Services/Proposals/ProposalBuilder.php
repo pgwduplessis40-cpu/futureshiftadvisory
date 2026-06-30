@@ -521,6 +521,7 @@ final class ProposalBuilder
 <h2>Fee</h2>
 <p>Method: %s</p>
 <p>Suggested range: NZD %s - NZD %s - NZD %s</p>
+<p>All proposal rates and amounts are GST exclusive. GST at 15%% is added to any final payment collected.</p>
 <p>ROI ratio: %s</p>
 </section>
 %s
@@ -536,7 +537,7 @@ final class ProposalBuilder
 </section>
 <section class="proposal-panel">
 <h2>Acceptance</h2>
-<p>This proposal is release-controlled. Digital signature and payment collection are managed through the client sign-off flow when enabled.</p>
+<p>This proposal is release-controlled. Digital signature and payment collection are managed through the client sign-off flow when enabled. Quoted amounts are GST exclusive.</p>
 </section>
 HTML,
             $this->escape((string) data_get($proposal->scope, 'summary')),

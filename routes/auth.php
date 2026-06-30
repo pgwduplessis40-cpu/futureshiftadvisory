@@ -17,6 +17,7 @@ use App\Http\Controllers\Admin\QuestionnaireController;
 use App\Http\Controllers\Admin\RatingFrameworkController;
 use App\Http\Controllers\Admin\ReferenceDataController;
 use App\Http\Controllers\Admin\ServiceRateController;
+use App\Http\Controllers\Admin\StaffController;
 use App\Http\Controllers\Admin\SurveyController;
 use App\Http\Controllers\Admin\TermsController;
 use App\Http\Controllers\Admin\WelcomeMessageController;
@@ -53,6 +54,10 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('invitations', [InvitationController::class, 'index'])->name('invitations.index');
             Route::get('invitations/create', [InvitationController::class, 'create'])->name('invitations.create');
             Route::post('invitations', [InvitationController::class, 'store'])->name('invitations.store');
+            Route::get('staff', [StaffController::class, 'index'])->name('staff.index');
+            Route::patch('staff/{user}', [StaffController::class, 'update'])
+                ->middleware('require.fresh-step-up')
+                ->name('staff.update');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');

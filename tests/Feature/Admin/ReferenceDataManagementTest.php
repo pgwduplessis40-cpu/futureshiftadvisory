@@ -19,6 +19,7 @@ use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Models\ValuationMultiple;
 use App\Services\Learning\ApprovalFlow;
+use App\Services\Payments\GstCalculator;
 use App\Services\Npo\NpoValueCalculator;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -100,6 +101,45 @@ final class ReferenceDataManagementTest extends TestCase
         ]);
     }
 
+    public function test_gst_rate_is_ledgered_then_effective_after_implementation(): void
+    {
+        Carbon::setTestNow('2026-06-01 10:00:00');
+        $admin = $this->superAdmin();
+
+        $this->submitJson($admin, ReferenceDataEntry::DATASET_GST_RATE, [
+            'tax_name' => 'GST',
+            'jurisdiction' => 'NZ',
+            'rate_percent' => 12.5,
+        ], source: 'ird-manual');
+
+        $entry = ReferenceDataEntry::query()->firstOrFail();
+        $update = $entry->learningUpdate()->firstOrFail();
+
+        $this->assertSame(ReferenceDataEntry::DATASET_GST_RATE, $entry->dataset);
+        $this->assertSame('ird-manual', $entry->source);
+        $this->assertSame(12.5, $entry->payload['rate_percent']);
+        $this->assertSame(LearningUpdate::STATUS_DETECTED, $update->status);
+        $this->assertSame(15.0, app(GstCalculator::class)->ratePercent());
+
+        $implementation = $this->approveAndImplement($update, $admin);
+
+        $this->assertSame(LearningUpdate::STATUS_IMPLEMENTED, $update->refresh()->status);
+        $this->assertSame(ReferenceDataEntry::class, $implementation->target_type);
+        $this->assertSame($entry->id, $implementation->target_id);
+        $this->assertSame(12.5, app(GstCalculator::class)->ratePercent());
+        $this->assertSame('1125.00', app(GstCalculator::class)->grossFromExclusive(1000));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/reference-data/Index')
+                ->where('currentValues.0.dataset', ReferenceDataEntry::DATASET_GST_RATE)
+                ->where('currentValues.0.label', 'GST rate')
+                ->where('currentValues.0.value', '12.5%')
+                ->where('currentValues.0.source', 'ird-manual'));
+    }
+
     public function test_reference_data_page_exposes_dashboard_record_targets(): void
     {
         $admin = $this->superAdmin();
@@ -110,10 +150,11 @@ final class ReferenceDataManagementTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('admin/reference-data/Index')
                 ->where('recordTargets.0.key', 'economic_indicator:ocr')
-                ->where('recordTargets.2.key', 'economic_indicator:gdp_quarterly')
-                ->where('recordTargets.2.dataset', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR)
-                ->where('recordTargets.2.indicator', EconomicIndicator::GDP_QUARTERLY)
-                ->where('recordTargets.4.key', ReferenceDataEntry::DATASET_VALUATION_MULTIPLE)
+                ->where('recordTargets.4.key', 'economic_indicator:gdp_quarterly')
+                ->where('recordTargets.4.dataset', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR)
+                ->where('recordTargets.4.indicator', EconomicIndicator::GDP_QUARTERLY)
+                ->where('recordTargets.3.key', ReferenceDataEntry::DATASET_GST_RATE)
+                ->where('recordTargets.6.key', ReferenceDataEntry::DATASET_VALUATION_MULTIPLE)
                 ->where('datasets.0', ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR));
     }
 

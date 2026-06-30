@@ -29,6 +29,7 @@ final class PaymentProcessor implements ProvidesMethodology
         private readonly Gateway $gateway,
         private readonly ReceiptGenerator $receipts,
         private readonly AuditWriter $audit,
+        private readonly GstCalculator $gst,
     ) {}
 
     /**
@@ -99,17 +100,21 @@ final class PaymentProcessor implements ProvidesMethodology
         ?User $actor = null,
         bool $reactivatePausedOnSuccess = false,
     ): array {
-        $attempt = $this->openPaymentAttempt($schedule);
+        $chargeAmount = $this->gst->grossFromExclusive($schedule->amount);
+        $attempt = $this->openPaymentAttempt($schedule, $chargeAmount);
         $schedule = $attempt['schedule'];
         $payment = $attempt['payment'];
 
         try {
-            $charge = $this->gateway->charge($schedule->paymentAuthority, $schedule->amount, [
+            $charge = $this->gateway->charge($schedule->paymentAuthority, $payment->amount, [
                 'currency' => $schedule->currency,
                 'idempotency_key' => 'payment-'.$payment->getKey().'-attempt-'.$attempt['number'],
                 'metadata' => [
                     'payment_id' => $payment->getKey(),
                     'payment_schedule_id' => $schedule->getKey(),
+                    'gst_rate_percent' => $this->gst->ratePercent(),
+                    'gst_exclusive_amount' => $schedule->amount,
+                    'gst_amount' => $this->gst->gstFromExclusive($schedule->amount),
                     ...$chargeMetadata,
                 ],
             ], $actor);
@@ -137,9 +142,9 @@ final class PaymentProcessor implements ProvidesMethodology
     /**
      * @return array{schedule: PaymentSchedule, payment: Payment, number: int, was_paused: bool}
      */
-    private function openPaymentAttempt(PaymentSchedule $schedule): array
+    private function openPaymentAttempt(PaymentSchedule $schedule, string $chargeAmount): array
     {
-        return DB::transaction(function () use ($schedule): array {
+        return DB::transaction(function () use ($schedule, $chargeAmount): array {
             $schedule = PaymentSchedule::query()
                 ->with(['paymentAuthority', 'proposal', 'client'])
                 ->whereKey($schedule->getKey())
@@ -154,7 +159,7 @@ final class PaymentProcessor implements ProvidesMethodology
                 'client_id' => $schedule->client_id,
                 'payment_schedule_id' => $schedule->getKey(),
                 'payment_authority_id' => $schedule->payment_authority_id,
-                'amount' => $schedule->amount,
+                'amount' => $chargeAmount,
                 'currency' => $schedule->currency,
                 'status' => Payment::STATUS_PENDING,
                 'attempt' => $attempt,

@@ -18,6 +18,8 @@ final class LayerCadenceRegistry
 
     public const CADENCE_MONTHLY = 'monthly';
 
+    public const LAYER_PROPOSAL_ECONOMICS = 9;
+
     public const LAYER_TEMPLATE_SUGGESTIONS = 33;
 
     public const LAYER_NPO_FUNDER_DATABASE_UPDATES = 34;
@@ -48,7 +50,7 @@ final class LayerCadenceRegistry
             $this->layer(6, 'Client lifecycle signal review', self::CADENCE_DAILY, 30),
             $this->layer(7, 'Red flag accuracy review', self::CADENCE_DAILY, 30),
             $this->layer(8, 'Report wording review', self::CADENCE_WEEKLY, 90),
-            $this->layer(9, 'Proposal economics review', self::CADENCE_WEEKLY, 90),
+            $this->layer(self::LAYER_PROPOSAL_ECONOMICS, 'Proposal economics review', self::CADENCE_WEEKLY, 90),
             $this->layer(10, 'Notification delivery review', self::CADENCE_DAILY, 30),
             $this->layer(11, 'Advisor feedback learning', self::CADENCE_DAILY, 30, 'analysis:feedback-learning'),
             $this->layer(12, 'Economic indicator refresh', self::CADENCE_DAILY, 7, 'economic-indicators:refresh'),

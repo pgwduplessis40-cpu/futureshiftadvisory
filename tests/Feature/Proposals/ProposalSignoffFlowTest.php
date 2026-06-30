@@ -312,6 +312,11 @@ final class ProposalSignoffFlowTest extends TestCase
                 ->where('proposal.payment_terms.cadence', 'monthly')
                 ->where('proposal.payment_terms.term_months', 6)
                 ->where('proposal.payment_terms.monthly_amount', 1666.67)
+                ->where('proposal.payment_terms.monthly_amount_including_gst', 1916.67)
+                ->where('proposal.payment_terms.total_amount', 10000.0)
+                ->where('proposal.payment_terms.total_amount_including_gst', 11500.0)
+                ->where('proposal.payment_terms.gst_rate_percent', 15.0)
+                ->where('proposal.payment_terms.tax_mode', 'gst_exclusive')
                 ->where('signoff.next_step', ProposalSignoffStep::STEP_REVIEW)
                 ->where('signoff.authority_requires_token', false));
     }

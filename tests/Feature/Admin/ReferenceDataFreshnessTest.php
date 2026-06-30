@@ -187,10 +187,12 @@ final class ReferenceDataFreshnessTest extends TestCase
     {
         $targets = app(ReferenceDataFreshness::class)->recordTargets();
 
-        $this->assertCount(7, $targets);
+        $this->assertCount(9, $targets);
         $this->assertSame([
             'economic_indicator:ocr',
             'economic_indicator:cpi_annual',
+            'economic_indicator:company_tax_rate',
+            'gst_rate',
             'economic_indicator:gdp_quarterly',
             'economic_indicator:unemployment_rate',
             'valuation_multiple',

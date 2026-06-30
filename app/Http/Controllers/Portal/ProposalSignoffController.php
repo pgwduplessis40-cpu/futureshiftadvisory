@@ -13,6 +13,7 @@ use App\Models\ProposalSignoffStep;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
+use App\Services\Payments\GstCalculator;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Portal\ClientPortalResolver;
@@ -268,6 +269,7 @@ final class ProposalSignoffController extends Controller
      */
     private function paymentTermsPayload(Proposal $proposal): array
     {
+        $gst = app(GstCalculator::class);
         $termMonths = $this->proposalTermMonths($proposal);
         $monthlyAmount = $this->proposalMonthlyAmount($proposal, $termMonths);
         $totalAmount = $proposal->feeCalculation?->suggested_mid;
@@ -286,7 +288,11 @@ final class ProposalSignoffController extends Controller
             'cadence_label' => 'Monthly',
             'term_months' => $termMonths,
             'monthly_amount' => $monthlyAmount,
+            'monthly_amount_including_gst' => round((float) $gst->grossFromExclusive($monthlyAmount), 2),
             'total_amount' => is_numeric($totalAmount) ? round((float) $totalAmount, 2) : null,
+            'total_amount_including_gst' => is_numeric($totalAmount) ? round((float) $gst->grossFromExclusive((float) $totalAmount), 2) : null,
+            'gst_rate_percent' => $gst->ratePercent(),
+            'tax_mode' => 'gst_exclusive',
             'cancellation_notice_days' => $this->positiveInteger(data_get($proposal->acceptance_terms, 'cancellation_notice_days')),
         ];
     }

@@ -52,7 +52,11 @@ type PaymentTermsPayload = {
     cadence_label: string;
     term_months: number;
     monthly_amount: number;
+    monthly_amount_including_gst: number;
     total_amount: number | null;
+    total_amount_including_gst: number | null;
+    gst_rate_percent: number;
+    tax_mode: 'gst_exclusive';
     cancellation_notice_days: number | null;
 };
 
@@ -150,7 +154,8 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                             <span>{proposal.client_name}</span>
                             <span aria-hidden="true">/</span>
                             <span>
-                                {formatCurrency(proposal.suggested_mid ?? 0)}
+                                {formatCurrency(proposal.suggested_mid ?? 0)} ex
+                                GST
                             </span>
                         </div>
                     </div>
@@ -752,9 +757,9 @@ function ConfirmationSummary({ proposal }: { proposal: ProposalPayload }) {
 
 function PaymentTermsSummary({ terms }: { terms: PaymentTermsPayload }) {
     return (
-        <div className="grid gap-3 rounded-md border bg-muted/30 p-4 md:grid-cols-4">
+        <div className="grid gap-3 rounded-md border bg-muted/30 p-4 md:grid-cols-5">
             <PaymentTermItem
-                label="Total proposal"
+                label="Total proposal ex GST"
                 value={
                     terms.total_amount === null
                         ? 'To be confirmed'
@@ -767,7 +772,15 @@ function PaymentTermsSummary({ terms }: { terms: PaymentTermsPayload }) {
             />
             <PaymentTermItem
                 label={terms.cadence_label}
-                value={`${formatCurrency(terms.monthly_amount)} per month`}
+                value={`${formatCurrency(terms.monthly_amount)} ex GST per month`}
+            />
+            <PaymentTermItem
+                label={`Total incl GST (${formatPercent(terms.gst_rate_percent)})`}
+                value={
+                    terms.total_amount_including_gst === null
+                        ? 'To be confirmed'
+                        : formatCurrency(terms.total_amount_including_gst)
+                }
             />
             <PaymentTermItem
                 label="Cancellation notice"
@@ -1202,7 +1215,9 @@ function PaymentMethodFields({
             <div className="text-sm text-muted-foreground">
                 {gatewayLabel(form.data.gateway)} will be used to store the
                 payment authority and create charges from these agreed terms
-                after sign-off.
+                after sign-off. The agreed amounts are GST exclusive; GST at{' '}
+                {formatPercent(terms.gst_rate_percent)} is added to each final
+                amount collected.
             </div>
             <CollectionDayField
                 value={form.data.collection_day}
@@ -1481,6 +1496,12 @@ function formatCurrency(value: number): string {
         minimumFractionDigits: hasCents ? 2 : 0,
         maximumFractionDigits: hasCents ? 2 : 0,
     }).format(value);
+}
+
+function formatPercent(value: number): string {
+    return `${new Intl.NumberFormat(undefined, {
+        maximumFractionDigits: 2,
+    }).format(value)}%`;
 }
 
 function formatRatio(value: number): string {

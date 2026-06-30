@@ -175,6 +175,12 @@ const serviceRatesNavItem: NavItem = {
     icon: BadgeDollarSign,
 };
 
+const staffNavItem: NavItem = {
+    title: 'Staff',
+    href: '/admin/staff',
+    icon: UsersRound,
+};
+
 const principlesRolesNavItem: NavItem = {
     title: 'Principles & Roles',
     href: '/admin/principles-roles',
@@ -322,6 +328,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     apiHealthNavItem,
     integrationCredentialsNavItem,
     projectSettingsNavItem,
+    staffNavItem,
     principlesRolesNavItem,
     serviceRatesNavItem,
     ratingFrameworkNavItem,

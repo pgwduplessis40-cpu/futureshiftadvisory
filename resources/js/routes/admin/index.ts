@@ -1,4 +1,5 @@
 import invitations from './invitations'
+import staff from './staff'
 import questionnaires from './questionnaires'
 import surveys from './surveys'
 import terms from './terms'
@@ -18,6 +19,7 @@ import learningUpdateImplementations from './learning-update-implementations'
 import panelMembers from './panel-members'
 const admin = {
     invitations: Object.assign(invitations, invitations),
+staff: Object.assign(staff, staff),
 questionnaires: Object.assign(questionnaires, questionnaires),
 surveys: Object.assign(surveys, surveys),
 terms: Object.assign(terms, terms),

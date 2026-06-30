@@ -142,26 +142,50 @@ export default function CoachDashboard({ dashboard }: Props) {
         sectionId: string,
         event?: MouseEvent<HTMLAnchorElement>,
     ) => {
+        const nextTab = coachSectionTabs[sectionId] ?? 'actions';
+
+        if (event && nextTab === activeTab) {
+            highlightSection(sectionId);
+
+            return;
+        }
+
         event?.preventDefault();
-        setActiveTab(coachSectionTabs[sectionId] ?? 'actions');
+        setActiveTab(nextTab);
+        scheduleSectionJump(sectionId);
+    };
 
-        window.setTimeout(() => {
-            const section = document.getElementById(sectionId);
+    const scheduleSectionJump = (sectionId: string) => {
+        let completed = false;
 
-            if (!section) {
-                return;
-            }
-
-            section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-            section.focus({ preventScroll: true });
-            window.history.replaceState(null, '', `#${sectionId}`);
-            setHighlightedSection(sectionId);
+        [0, 50, 150, 300, 600].forEach((delay) => {
             window.setTimeout(() => {
-                setHighlightedSection((current) =>
-                    current === sectionId ? null : current,
-                );
-            }, 1800);
-        }, 0);
+                if (completed) {
+                    return;
+                }
+
+                const section = document.getElementById(sectionId);
+
+                if (!section) {
+                    return;
+                }
+
+                section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                section.focus({ preventScroll: true });
+                window.history.replaceState(null, '', `#${sectionId}`);
+                highlightSection(sectionId);
+                completed = true;
+            }, delay);
+        });
+    };
+
+    const highlightSection = (sectionId: string) => {
+        setHighlightedSection(sectionId);
+        window.setTimeout(() => {
+            setHighlightedSection((current) =>
+                current === sectionId ? null : current,
+            );
+        }, 1800);
     };
 
     const updateReferralStage = (
@@ -560,41 +584,53 @@ function MetricCard({
     actionLabel?: string;
     onJump?: (sectionId: string, event?: MouseEvent<HTMLAnchorElement>) => void;
 }) {
+    const body = (
+        <Card
+            className={cn(
+                'h-full rounded-md transition-colors',
+                href && 'hover:bg-muted/30',
+            )}
+        >
+            <CardHeader className="gap-3">
+                <div className="flex items-center justify-between gap-3">
+                    <CardDescription>{label}</CardDescription>
+                    <Icon
+                        className="size-4 text-muted-foreground"
+                        aria-hidden={true}
+                    />
+                </div>
+                <CardTitle className="text-2xl">{value}</CardTitle>
+            </CardHeader>
+            <CardContent className="flex items-center justify-between gap-3">
+                <p className="text-sm text-muted-foreground">{detail}</p>
+                {href && actionLabel ? (
+                    <span className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-sm font-medium">
+                        {actionLabel}
+                        <ArrowUpRight aria-hidden="true" />
+                    </span>
+                ) : null}
+            </CardContent>
+        </Card>
+    );
+
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <Card className="rounded-md">
-                    <CardHeader className="gap-3">
-                        <div className="flex items-center justify-between gap-3">
-                            <CardDescription>{label}</CardDescription>
-                            <Icon
-                                className="size-4 text-muted-foreground"
-                                aria-hidden={true}
-                            />
-                        </div>
-                        <CardTitle className="text-2xl">{value}</CardTitle>
-                    </CardHeader>
-                    <CardContent className="flex items-center justify-between gap-3">
-                        <p className="text-sm text-muted-foreground">
-                            {detail}
-                        </p>
-                        {href && actionLabel ? (
-                            <Button variant="ghost" size="sm" asChild>
-                                <a
-                                    href={href}
-                                    onClick={(event) => {
-                                        if (href.startsWith('#')) {
-                                            onJump?.(href.slice(1), event);
-                                        }
-                                    }}
-                                >
-                                    {actionLabel}
-                                    <ArrowUpRight aria-hidden="true" />
-                                </a>
-                            </Button>
-                        ) : null}
-                    </CardContent>
-                </Card>
+                {href ? (
+                    <a
+                        href={href}
+                        onClick={(event) => {
+                            if (href.startsWith('#')) {
+                                onJump?.(href.slice(1), event);
+                            }
+                        }}
+                        className="block h-full rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    >
+                        {body}
+                    </a>
+                ) : (
+                    <div>{body}</div>
+                )}
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">
                 {explanation}

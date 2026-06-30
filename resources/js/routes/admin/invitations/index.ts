@@ -157,7 +157,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Admin\InvitationController::store
- * @see app/Http/Controllers/Admin/InvitationController.php:40
+ * @see app/Http/Controllers/Admin/InvitationController.php:41
  * @route '/admin/invitations'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -172,7 +172,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InvitationController::store
- * @see app/Http/Controllers/Admin/InvitationController.php:40
+ * @see app/Http/Controllers/Admin/InvitationController.php:41
  * @route '/admin/invitations'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -181,7 +181,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\InvitationController::store
- * @see app/Http/Controllers/Admin/InvitationController.php:40
+ * @see app/Http/Controllers/Admin/InvitationController.php:41
  * @route '/admin/invitations'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -191,7 +191,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\InvitationController::store
- * @see app/Http/Controllers/Admin/InvitationController.php:40
+ * @see app/Http/Controllers/Admin/InvitationController.php:41
  * @route '/admin/invitations'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -201,7 +201,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\InvitationController::store
- * @see app/Http/Controllers/Admin/InvitationController.php:40
+ * @see app/Http/Controllers/Admin/InvitationController.php:41
  * @route '/admin/invitations'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

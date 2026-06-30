@@ -20,6 +20,8 @@ final class ReferenceDataEntry extends Model
 
     public const DATASET_CPB_BENCHMARK = 'cpb_benchmark';
 
+    public const DATASET_GST_RATE = 'gst_rate';
+
     protected $guarded = [];
 
     protected $casts = [
@@ -37,6 +39,7 @@ final class ReferenceDataEntry extends Model
             self::DATASET_VALUATION_MULTIPLE,
             self::DATASET_INDUSTRY_WACC,
             self::DATASET_CPB_BENCHMARK,
+            self::DATASET_GST_RATE,
         ];
     }
 

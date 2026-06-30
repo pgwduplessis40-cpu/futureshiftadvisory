@@ -93,9 +93,7 @@ export default function ServiceActivationShow({
                             cross-service workspace.
                         </p>
                     </div>
-                    <Badge variant="secondary">
-                        {activation.status_label}
-                    </Badge>
+                    <Badge variant="secondary">{activation.status_label}</Badge>
                 </div>
 
                 <section className="rounded-md border bg-background p-4">
@@ -121,9 +119,7 @@ export default function ServiceActivationShow({
                     className="grid gap-4 rounded-md border bg-background p-4"
                 >
                     <div>
-                        <h2 className="text-sm font-medium">
-                            Select package
-                        </h2>
+                        <h2 className="text-sm font-medium">Select package</h2>
                         <p className="mt-1 text-sm text-muted-foreground">
                             The client can accept the workspace only after you
                             select one active package from Admin Service Rates.
@@ -212,21 +208,21 @@ export default function ServiceActivationShow({
 function packageFee(servicePackage: PackagePayload) {
     if (servicePackage.billing_model === 'fixed_fee') {
         return servicePackage.fixed_fee !== null
-            ? formatMoney(servicePackage.fixed_fee, servicePackage.currency)
+            ? `${formatMoney(servicePackage.fixed_fee, servicePackage.currency)} ex GST`
             : 'Fixed fee not set';
     }
 
     if (servicePackage.billing_model === 'hourly_retainer') {
         const hourly =
             servicePackage.hourly_rate !== null
-                ? formatMoney(servicePackage.hourly_rate, servicePackage.currency)
+                ? `${formatMoney(servicePackage.hourly_rate, servicePackage.currency)} ex GST`
                 : 'Hourly not set';
         const retainer =
             servicePackage.retainer_amount !== null
                 ? formatMoney(
                       servicePackage.retainer_amount,
                       servicePackage.currency,
-                  )
+                  ) + ' ex GST'
                 : 'retainer not set';
 
         return `${hourly} / ${retainer}`;

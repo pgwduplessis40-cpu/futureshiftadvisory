@@ -143,6 +143,12 @@ final class ReferenceDataFreshness
                 'cadence_days' => 365,
             ],
             [
+                'key' => ReferenceDataEntry::DATASET_GST_RATE,
+                'dataset' => ReferenceDataEntry::DATASET_GST_RATE,
+                'label' => 'GST rate',
+                'cadence_days' => 365,
+            ],
+            [
                 'key' => 'economic_indicator:gdp_quarterly',
                 'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
                 'indicator' => EconomicIndicator::GDP_QUARTERLY,

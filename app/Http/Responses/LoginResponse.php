@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Responses;
 
 use App\Models\User;
+use App\Services\Auth\SafeLoginRedirect;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\TwoFactorStateSanitizer;
@@ -19,6 +20,7 @@ final class LoginResponse implements LoginResponseContract
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
         private readonly TwoFactorStateSanitizer $twoFactorState,
         private readonly RequestContext $requestContext,
+        private readonly SafeLoginRedirect $safeRedirect,
     ) {}
 
     public function toResponse($request)
@@ -44,6 +46,10 @@ final class LoginResponse implements LoginResponseContract
             return $request->wantsJson()
                 ? new JsonResponse(['two_factor_setup' => true], 409)
                 : redirect()->route('mfa.setup');
+        }
+
+        if ($user instanceof User) {
+            $this->safeRedirect->clearForbiddenIntendedUrl($request, $user);
         }
 
         return $request->wantsJson()

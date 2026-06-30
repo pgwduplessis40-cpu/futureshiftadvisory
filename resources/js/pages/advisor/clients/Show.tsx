@@ -3325,7 +3325,7 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
 
                     <div className="grid gap-3">
                         <div className="grid gap-2">
-                            <Label htmlFor="proposal_fee">Fee</Label>
+                            <Label htmlFor="proposal_fee">Fee ex GST</Label>
                             <select
                                 id="proposal_fee"
                                 value={form.data.fee_calculation_id}
@@ -3345,7 +3345,8 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         {formatLabel(calculation.method)} -{' '}
                                         {formatCurrency(
                                             calculation.suggested_mid,
-                                        )}
+                                        )}{' '}
+                                        ex GST
                                     </option>
                                 ))}
                             </select>
@@ -3424,7 +3425,7 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         {formatCurrency(
                                             proposal.suggested_mid ?? 0,
                                         )}{' '}
-                                        mid fee
+                                        mid fee ex GST
                                     </div>
                                 </div>
 

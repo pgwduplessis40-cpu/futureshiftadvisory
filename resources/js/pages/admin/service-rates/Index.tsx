@@ -138,13 +138,13 @@ export default function ServiceRatesIndex({
                     eyebrow="Fees"
                     icon={BadgeDollarSign}
                     title="Service rates"
-                    description="Set the hourly rate, NPO discounts, and active workspace packages used by fee calculations and service activation."
+                    description="Set the GST-exclusive hourly rate, NPO discounts, and active workspace packages used by fee calculations and service activation."
                 />
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(360px,1fr)]">
                     <div className="rounded-md border bg-background p-4">
                         <div className="text-sm text-muted-foreground">
-                            Current effective rate
+                            Current effective rate ex GST
                         </div>
                         <div className="mt-2 text-3xl font-semibold">
                             {formatMoney(effectiveRate, effectiveCurrency)}
@@ -196,7 +196,9 @@ export default function ServiceRatesIndex({
                         className="grid gap-4 rounded-md border bg-background p-4"
                     >
                         <div className="grid gap-2">
-                            <Label htmlFor="hourly_rate">Hourly rate</Label>
+                            <Label htmlFor="hourly_rate">
+                                Hourly rate ex GST
+                            </Label>
                             <Input
                                 id="hourly_rate"
                                 type="number"
@@ -401,7 +403,9 @@ export default function ServiceRatesIndex({
 
                         <div className="grid gap-4 sm:grid-cols-3">
                             <div className="grid gap-2">
-                                <Label htmlFor="fixed_fee">Fixed fee</Label>
+                                <Label htmlFor="fixed_fee">
+                                    Fixed fee ex GST
+                                </Label>
                                 <Input
                                     id="fixed_fee"
                                     type="number"
@@ -422,7 +426,7 @@ export default function ServiceRatesIndex({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="hourly_rate">
-                                    Hourly rate
+                                    Hourly rate ex GST
                                 </Label>
                                 <Input
                                     id="hourly_rate"
@@ -444,7 +448,7 @@ export default function ServiceRatesIndex({
 
                             <div className="grid gap-2">
                                 <Label htmlFor="retainer_amount">
-                                    Retainer
+                                    Retainer ex GST
                                 </Label>
                                 <Input
                                     id="retainer_amount"
@@ -460,9 +464,7 @@ export default function ServiceRatesIndex({
                                     }
                                 />
                                 <InputError
-                                    message={
-                                        packageForm.errors.retainer_amount
-                                    }
+                                    message={packageForm.errors.retainer_amount}
                                 />
                             </div>
                         </div>
@@ -477,9 +479,7 @@ export default function ServiceRatesIndex({
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    value={
-                                        packageForm.data.purchase_price_min
-                                    }
+                                    value={packageForm.data.purchase_price_min}
                                     onChange={(event) =>
                                         packageForm.setData(
                                             'purchase_price_min',
@@ -503,9 +503,7 @@ export default function ServiceRatesIndex({
                                     type="number"
                                     min="0"
                                     step="0.01"
-                                    value={
-                                        packageForm.data.purchase_price_max
-                                    }
+                                    value={packageForm.data.purchase_price_max}
                                     onChange={(event) =>
                                         packageForm.setData(
                                             'purchase_price_max',
@@ -538,9 +536,7 @@ export default function ServiceRatesIndex({
                                 className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                             />
                             <InputError
-                                message={
-                                    packageForm.errors.scope_description
-                                }
+                                message={packageForm.errors.scope_description}
                             />
                         </div>
 
@@ -608,8 +604,8 @@ export default function ServiceRatesIndex({
                                                 className="px-3 py-3 text-muted-foreground"
                                                 colSpan={6}
                                             >
-                                                No workspace packages have
-                                                been configured yet.
+                                                No workspace packages have been
+                                                configured yet.
                                             </td>
                                         </tr>
                                     ) : (
@@ -657,7 +653,9 @@ export default function ServiceRatesIndex({
                                                     className="px-3 py-3 text-muted-foreground"
                                                     data-label="Scope"
                                                 >
-                                                    {ratePackage.scope_description}
+                                                    {
+                                                        ratePackage.scope_description
+                                                    }
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
@@ -698,7 +696,7 @@ export default function ServiceRatesIndex({
                             <thead className="bg-muted/60 text-left">
                                 <tr>
                                     <th className="w-[18%] px-3 py-2 font-medium">
-                                        Rate
+                                        Rate ex GST
                                     </th>
                                     <th className="w-[14%] px-3 py-2 font-medium">
                                         Service discount
@@ -822,18 +820,18 @@ function serviceLabel(serviceType: ServiceRatePackage['service_type']) {
 function packageFee(ratePackage: ServiceRatePackage) {
     if (ratePackage.billing_model === 'fixed_fee') {
         return ratePackage.fixed_fee !== null
-            ? formatMoney(ratePackage.fixed_fee, ratePackage.currency)
+            ? `${formatMoney(ratePackage.fixed_fee, ratePackage.currency)} ex GST`
             : 'Fixed fee not set';
     }
 
     if (ratePackage.billing_model === 'hourly_retainer') {
         const hourly =
             ratePackage.hourly_rate !== null
-                ? formatMoney(ratePackage.hourly_rate, ratePackage.currency)
+                ? `${formatMoney(ratePackage.hourly_rate, ratePackage.currency)} ex GST`
                 : 'Hourly not set';
         const retainer =
             ratePackage.retainer_amount !== null
-                ? formatMoney(ratePackage.retainer_amount, ratePackage.currency)
+                ? `${formatMoney(ratePackage.retainer_amount, ratePackage.currency)} ex GST`
                 : 'retainer not set';
 
         return `${hourly} / ${retainer}`;
@@ -852,17 +850,11 @@ function purchaseBand(ratePackage: ServiceRatePackage) {
 
     const min =
         ratePackage.purchase_price_min !== null
-            ? formatMoney(
-                  ratePackage.purchase_price_min,
-                  ratePackage.currency,
-              )
+            ? formatMoney(ratePackage.purchase_price_min, ratePackage.currency)
             : 'No min';
     const max =
         ratePackage.purchase_price_max !== null
-            ? formatMoney(
-                  ratePackage.purchase_price_max,
-                  ratePackage.currency,
-              )
+            ? formatMoney(ratePackage.purchase_price_max, ratePackage.currency)
             : 'No max';
 
     return `${min} to ${max}`;

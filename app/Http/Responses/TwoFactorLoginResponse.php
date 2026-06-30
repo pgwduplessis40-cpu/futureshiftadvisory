@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Responses;
 
 use App\Models\User;
+use App\Services\Auth\SafeLoginRedirect;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Security\MfaChallenger;
 use App\Services\Security\TwoFactorStateSanitizer;
@@ -21,6 +22,7 @@ final class TwoFactorLoginResponse implements TwoFactorLoginResponseContract
         private readonly TwoFactorStateSanitizer $twoFactorState,
         private readonly TermsAcceptanceGate $termsGate,
         private readonly RequestContext $requestContext,
+        private readonly SafeLoginRedirect $safeRedirect,
     ) {}
 
     public function toResponse($request)
@@ -43,6 +45,8 @@ final class TwoFactorLoginResponse implements TwoFactorLoginResponseContract
                     ? new JsonResponse(['terms_required' => true], 409)
                     : redirect()->route('terms.pending');
             }
+
+            $this->safeRedirect->clearForbiddenIntendedUrl($request, $user);
         }
 
         return $request->wantsJson()

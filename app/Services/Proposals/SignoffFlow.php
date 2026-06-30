@@ -716,6 +716,7 @@ CSS;
 <dt>Total proposal</dt><dd>NZD %s</dd>
 <dt>Term</dt><dd>%s months</dd>
 <dt>Monthly collection</dt><dd>NZD %s per month</dd>
+<dt>GST</dt><dd>Amounts are GST exclusive. GST at 15%% is added to each payment collected.</dd>
 <dt>Collection date</dt><dd>%s of each month</dd>
 </dl>
 <h2>Signature</h2>

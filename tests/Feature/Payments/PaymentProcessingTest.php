@@ -108,6 +108,8 @@ final class PaymentProcessingTest extends TestCase
         $receipt = $payment->receipt()->firstOrFail();
 
         $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame('1500.00', $schedule->refresh()->amount);
+        $this->assertSame('1725.00', $payment->amount);
         $this->assertSame(PaymentAuthority::GATEWAY_STRIPE, $payment->gateway);
         $this->assertStringStartsWith('ch_stripe_', (string) $payment->gateway_ref);
         $this->assertSame(PaymentSchedule::STATUS_COMPLETED, $schedule->refresh()->status);
@@ -188,6 +190,7 @@ final class PaymentProcessingTest extends TestCase
         $payment = Payment::query()->where('attempt', 2)->firstOrFail();
         $this->assertSame(['scanned' => 1, 'succeeded' => 1, 'retrying' => 0, 'failed' => 0, 'receipts' => 1], $result);
         $this->assertSame(Payment::STATUS_SUCCEEDED, $payment->status);
+        $this->assertSame('1035.00', $payment->amount);
         $this->assertSame(PaymentAuthority::GATEWAY_WINDCAVE, $payment->gateway);
         $this->assertSame(PaymentAuthority::GATEWAY_STRIPE, $payment->failover_from);
         $this->assertNotNull($payment->receipt()->first());

@@ -40,6 +40,12 @@ final class ReferenceDataProjector
                 'projected' => false,
                 'dataset' => $entry->dataset,
             ],
+            ReferenceDataEntry::DATASET_GST_RATE => [
+                'target_type' => ReferenceDataEntry::class,
+                'target_id' => (string) $entry->getKey(),
+                'projected' => false,
+                'dataset' => $entry->dataset,
+            ],
             default => null,
         };
     }

@@ -34,6 +34,7 @@ final class InvitationController extends Controller
 
         return Inertia::render('admin/invitations/Create', [
             'userTypes' => User::userTypes(),
+            'backUrl' => $this->safeReturnUrl($request->query('return_to')),
         ]);
     }
 
@@ -45,6 +46,7 @@ final class InvitationController extends Controller
             'email' => ['required', 'email'],
             'target_user_type' => ['required', 'string'],
             'target_role' => ['required', 'string', 'max:80'],
+            'return_to' => ['nullable', 'string', 'max:255'],
         ]);
 
         $issuer->issue(
@@ -54,7 +56,19 @@ final class InvitationController extends Controller
             issuedBy: $request->user(),
         );
 
-        return to_route('admin.invitations.index');
+        return redirect($this->safeReturnUrl($validated['return_to'] ?? null));
+    }
+
+    private function safeReturnUrl(mixed $value): string
+    {
+        $path = is_string($value) ? trim($value) : '';
+
+        return in_array($path, [
+            route('admin.staff.index', absolute: false),
+            route('admin.invitations.index', absolute: false),
+        ], true)
+            ? $path
+            : route('admin.invitations.index', absolute: false);
     }
 
     private function authorizeInvites(Request $request): void

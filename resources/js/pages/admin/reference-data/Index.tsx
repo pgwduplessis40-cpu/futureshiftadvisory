@@ -122,6 +122,15 @@ const samplePayloads: Record<string, string> = {
         null,
         2,
     ),
+    gst_rate: JSON.stringify(
+        {
+            tax_name: 'GST',
+            jurisdiction: 'NZ',
+            rate_percent: 15,
+        },
+        null,
+        2,
+    ),
 };
 
 const targetPayloads: Record<string, string> = {
@@ -154,6 +163,15 @@ const targetPayloads: Record<string, string> = {
             value: 28,
             unit: 'percent',
             period_date: '2026-06-01',
+        },
+        null,
+        2,
+    ),
+    gst_rate: JSON.stringify(
+        {
+            tax_name: 'GST',
+            jurisdiction: 'NZ',
+            rate_percent: 15,
         },
         null,
         2,
@@ -265,7 +283,7 @@ export default function ReferenceDataIndex({
                     eyebrow="Governed data"
                     icon={DatabaseZap}
                     title="Reference data"
-                    description="Manually enter governed economic, valuation, and benchmark data that APIs cannot provide."
+                    description="Manually enter governed economic, tax, valuation, and benchmark data that APIs cannot provide."
                 />
 
                 <section className="rounded-md border bg-background p-4">

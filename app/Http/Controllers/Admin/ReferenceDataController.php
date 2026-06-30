@@ -519,6 +519,7 @@ final class ReferenceDataController extends Controller
             ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => trim((string) data_get($payload, 'industry_label', 'Valuation multiple').' / '.(string) data_get($payload, 'metric', '')),
             ReferenceDataEntry::DATASET_INDUSTRY_WACC => (string) data_get($payload, 'industry_label', 'Industry WACC'),
             ReferenceDataEntry::DATASET_CPB_BENCHMARK => 'Cost-per-beneficiary benchmarks',
+            ReferenceDataEntry::DATASET_GST_RATE => (string) data_get($payload, 'tax_name', 'GST').' rate',
             default => Str::headline($entry->dataset),
         };
     }
@@ -532,6 +533,7 @@ final class ReferenceDataController extends Controller
             ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => trim((string) data_get($payload, 'multiple_low', '').'-'.(string) data_get($payload, 'multiple_mid', '').'-'.(string) data_get($payload, 'multiple_high', '')),
             ReferenceDataEntry::DATASET_INDUSTRY_WACC => is_numeric(data_get($payload, 'wacc_rate')) ? round((float) data_get($payload, 'wacc_rate') * 100, 2).'%' : '',
             ReferenceDataEntry::DATASET_CPB_BENCHMARK => count((array) data_get($payload, 'benchmarks', [])).' benchmarks',
+            ReferenceDataEntry::DATASET_GST_RATE => is_numeric(data_get($payload, 'rate_percent')) ? round((float) data_get($payload, 'rate_percent'), 2).'%' : '',
             default => '',
         };
     }
@@ -608,10 +610,27 @@ final class ReferenceDataController extends Controller
                 ->values();
         }
 
+        $gst = $this->whenTableExists('reference_data_entries', fn (): Collection => ReferenceDataEntry::query()
+            ->with('learningUpdate')
+            ->where('dataset', ReferenceDataEntry::DATASET_GST_RATE)
+            ->whereHas('learningUpdate', fn ($query) => $query->where('status', LearningUpdate::STATUS_IMPLEMENTED))
+            ->latest('as_at')
+            ->latest()
+            ->limit(1)
+            ->get()
+            ->map(fn (ReferenceDataEntry $entry): array => [
+                'dataset' => ReferenceDataEntry::DATASET_GST_RATE,
+                'label' => (string) data_get($entry->payload, 'tax_name', 'GST').' rate',
+                'value' => is_numeric(data_get($entry->payload, 'rate_percent')) ? round((float) data_get($entry->payload, 'rate_percent'), 2).'%' : '',
+                'as_at' => $entry->as_at?->toDateString(),
+                'source' => $entry->source,
+            ]));
+
         return $economic
             ->concat($valuation)
             ->concat($wacc)
             ->concat($cpb)
+            ->concat($gst)
             ->values()
             ->all();
     }

@@ -80,6 +80,7 @@ class TwoFactorChallengeTest extends TestCase
             ->withSession([
                 'login.id' => $user->getKey(),
                 'login.remember' => false,
+                'url.intended' => route('admin.service-rates.index', absolute: false),
             ])
             ->post(route('two-factor.login'), [
                 'code' => '123456',

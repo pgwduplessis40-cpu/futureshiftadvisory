@@ -111,6 +111,7 @@ final class ReferenceDataSubmission
             ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => $this->valuationPayload($payload, $asAt, $source),
             ReferenceDataEntry::DATASET_INDUSTRY_WACC => $this->waccPayload($payload, $asAt, $source),
             ReferenceDataEntry::DATASET_CPB_BENCHMARK => $this->cpbPayload($payload, $source),
+            ReferenceDataEntry::DATASET_GST_RATE => $this->gstRatePayload($payload, $source),
             default => throw new InvalidArgumentException("Unsupported reference dataset [{$dataset}]."),
         };
     }
@@ -224,6 +225,30 @@ final class ReferenceDataSubmission
 
     /**
      * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function gstRatePayload(array $payload, string $source): array
+    {
+        $rate = $this->requiredFloat($payload, 'rate_percent');
+        if ($rate < 0 || $rate > 100) {
+            throw new InvalidArgumentException('GST rate must be a percentage between 0 and 100.');
+        }
+
+        $jurisdiction = strtoupper(trim((string) ($payload['jurisdiction'] ?? 'NZ')));
+        $taxName = trim((string) ($payload['tax_name'] ?? 'GST'));
+
+        return [
+            ...$payload,
+            'tax_name' => $taxName === '' ? 'GST' : $taxName,
+            'jurisdiction' => $jurisdiction === '' ? 'NZ' : $jurisdiction,
+            'rate_percent' => $rate,
+            'unit' => 'percent',
+            'source' => $source,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
      */
     private function learningUpdate(
         string $dataset,
@@ -239,6 +264,7 @@ final class ReferenceDataSubmission
             ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => ValuationMultipleRefresher::LAYER_ID,
             ReferenceDataEntry::DATASET_INDUSTRY_WACC => IndustryWaccRefresher::LAYER_ID,
             ReferenceDataEntry::DATASET_CPB_BENCHMARK => LayerCadenceRegistry::LAYER_NPO_COST_PER_BENEFICIARY_BENCHMARKS,
+            ReferenceDataEntry::DATASET_GST_RATE => LayerCadenceRegistry::LAYER_PROPOSAL_ECONOMICS,
             default => throw new InvalidArgumentException("Unsupported reference dataset [{$dataset}]."),
         };
 
@@ -319,6 +345,7 @@ final class ReferenceDataSubmission
             ReferenceDataEntry::DATASET_VALUATION_MULTIPLE => 'Valuation multiple',
             ReferenceDataEntry::DATASET_INDUSTRY_WACC => 'Industry WACC',
             ReferenceDataEntry::DATASET_CPB_BENCHMARK => 'Cost-per-beneficiary benchmark',
+            ReferenceDataEntry::DATASET_GST_RATE => 'GST rate',
             default => 'Reference data',
         };
 

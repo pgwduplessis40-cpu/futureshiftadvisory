@@ -1,4 +1,5 @@
 import InvitationController from './InvitationController'
+import StaffController from './StaffController'
 import QuestionnaireController from './QuestionnaireController'
 import SurveyController from './SurveyController'
 import TermsController from './TermsController'
@@ -18,6 +19,7 @@ import PanelMemberController from './PanelMemberController'
 import SurveyAssignmentController from './SurveyAssignmentController'
 const Admin = {
     InvitationController: Object.assign(InvitationController, InvitationController),
+StaffController: Object.assign(StaffController, StaffController),
 QuestionnaireController: Object.assign(QuestionnaireController, QuestionnaireController),
 SurveyController: Object.assign(SurveyController, SurveyController),
 TermsController: Object.assign(TermsController, TermsController),

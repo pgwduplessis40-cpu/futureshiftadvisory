@@ -74,9 +74,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
                             Workspace request and fee/scope acknowledgement.
                         </p>
                     </div>
-                    <Badge variant="secondary">
-                        {activation.status_label}
-                    </Badge>
+                    <Badge variant="secondary">{activation.status_label}</Badge>
                 </div>
 
                 <section className="rounded-md border bg-background p-4">
@@ -114,7 +112,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
                             </div>
                             <div className="grid gap-3 sm:grid-cols-3">
                                 <Metric
-                                    label="Fee"
+                                    label="Fee ex GST"
                                     value={
                                         selectedPackage.fixed_fee !== null &&
                                         selectedPackage.fixed_fee !== undefined
@@ -142,8 +140,8 @@ export default function ServiceActivation({ activation, urls }: Props) {
                     ) : (
                         <p className="mt-3 text-sm text-muted-foreground">
                             Your advisor is reviewing this request and will
-                            select the package/scope/pricing from the active
-                            Admin Service Rates table.
+                            select the GST-exclusive package/scope/pricing from
+                            the active Admin Service Rates table.
                         </p>
                     )}
                 </section>
@@ -187,7 +185,8 @@ export default function ServiceActivation({ activation, urls }: Props) {
                         <p className="mt-2 text-sm text-muted-foreground">
                             The standard Terms and Conditions already accepted
                             for portal access continue to apply. This checkbox
-                            confirms the workspace-specific scope and fee.
+                            confirms the workspace-specific scope and
+                            GST-exclusive fee.
                         </p>
                         <label className="mt-4 flex gap-3 text-sm">
                             <input
@@ -202,8 +201,8 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                 }
                             />
                             <span>
-                                I accept the selected package, scope, and fee
-                                for this workspace.
+                                I accept the selected package, scope, and
+                                GST-exclusive fee for this workspace.
                             </span>
                         </label>
                         <InputError

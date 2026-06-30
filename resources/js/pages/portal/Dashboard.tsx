@@ -780,8 +780,8 @@ export default function PortalDashboard({
                                             value={activation.status_label}
                                             explanation={
                                                 activation.package_label
-                                                    ? `${activation.package_label}${activation.fixed_fee !== null ? ` / ${formatMoney(activation.fixed_fee, activation.currency)}` : ''}`
-                                                    : 'Your advisor will select the package, scope, and price from the active Admin Service Rates table.'
+                                                    ? `${activation.package_label}${activation.fixed_fee !== null ? ` / ${formatMoney(activation.fixed_fee, activation.currency)} ex GST` : ''}`
+                                                    : 'Your advisor will select the package, scope, and GST-exclusive price from the active Admin Service Rates table.'
                                             }
                                             href={
                                                 activation.workspace_url ??
