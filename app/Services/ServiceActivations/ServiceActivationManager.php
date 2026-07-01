@@ -404,7 +404,7 @@ final class ServiceActivationManager
     {
         return match ($serviceType) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
-            ServiceActivation::SERVICE_ENTREPRENEUR => 'Test a new idea',
+            ServiceActivation::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
             default => 'Service workspace',
         };
     }

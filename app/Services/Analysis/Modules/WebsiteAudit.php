@@ -7,6 +7,7 @@ namespace App\Services\Analysis\Modules;
 use App\Enums\AnalysisLens;
 use App\Enums\AnalysisModule as AnalysisModuleEnum;
 use App\Enums\FindingSeverity;
+use App\Enums\QuestionnaireSet;
 use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\QuestionnaireAnswer;
@@ -16,6 +17,7 @@ use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Analysis\AnalysisFindingData;
 use App\Services\Analysis\Contracts\AnalysisModule;
 use App\Services\DataQuality\DataQualityScore;
+use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 
 final class WebsiteAudit implements AnalysisModule
 {
@@ -76,44 +78,16 @@ final class WebsiteAudit implements AnalysisModule
         $websiteText = $this->evidenceText($websiteEvidence);
 
         $hasWebsite = str_contains($text, 'http') || str_contains($text, 'www') || str_contains($text, '.co.nz') || str_contains($text, '.nz');
-        $mentionsMobileIssue = str_contains($text, 'mobile') && (str_contains($text, 'slow') || str_contains($text, 'poor') || str_contains($text, 'not responsive'));
-        $mentionsCtaIssue = str_contains($text, 'cta') || str_contains($text, 'call to action') || str_contains($text, 'enquiry');
+        $mentionsMobileIssue = $this->mentionsMobileIssue($text);
+        $mentionsMobileEvidence = $this->mentionsMobileEvidence($text);
+        $mentionsCtaIssue = $this->mentionsCtaIssue($text);
+        $mentionsCtaEvidence = $this->mentionsCtaEvidence($text);
         $mentionsNzRanking = str_contains($text, 'nz') || str_contains($text, 'new zealand') || str_contains($text, 'local search');
         $hasProductServiceEvidence = $productServiceEvidence !== [];
-        $alignmentIsEvidenced = $hasProductServiceEvidence && $this->containsAny($websiteText, [
-            'product',
-            'products',
-            'service',
-            'services',
-            'offer',
-            'offers',
-            'selling',
-            'sells',
-            'pricing',
-            'package',
-            'packages',
-            'solution',
-            'solutions',
-        ]);
-        $mentionsDiscoverability = $this->containsAny($text, [
-            'seo',
-            'search',
-            'metadata',
-            'meta description',
-            'title tag',
-            'schema',
-            'structured data',
-            'faq',
-            'answer engine',
-            'aeo',
-            'generative engine',
-            'geo',
-            'ai overview',
-            'ai search',
-            'aio',
-            'llm',
-        ]);
-        $severity = ($mentionsMobileIssue || $mentionsCtaIssue || ! $alignmentIsEvidenced || ! $mentionsDiscoverability)
+        $alignmentIsEvidenced = $this->alignmentIsEvidenced($websiteText, $productServiceEvidence);
+        $mentionsDiscoverability = $this->mentionsDiscoverabilityEvidence($text);
+        $discoverabilityGap = $this->mentionsDiscoverabilityGap($text);
+        $severity = ($mentionsMobileIssue || $mentionsCtaIssue || ! $alignmentIsEvidenced || $discoverabilityGap || ! $mentionsDiscoverability)
             ? FindingSeverity::Medium
             : FindingSeverity::Low;
 
@@ -138,11 +112,14 @@ final class WebsiteAudit implements AnalysisModule
                 title: 'Product/service alignment and discoverability gaps',
                 body: $this->diagnosticBody(
                     mobileIssue: $mentionsMobileIssue,
+                    mobileIsEvidenced: $mentionsMobileEvidence,
                     ctaIssue: $mentionsCtaIssue,
+                    ctaIsEvidenced: $mentionsCtaEvidence,
                     nzRanking: $mentionsNzRanking,
                     hasProductServiceEvidence: $hasProductServiceEvidence,
                     alignmentIsEvidenced: $alignmentIsEvidenced,
                     discoverabilityIsEvidenced: $mentionsDiscoverability,
+                    discoverabilityGap: $discoverabilityGap,
                 ),
                 attributions: $attributions,
                 documentSupport: AnalysisFinding::DOCUMENT_SUPPORT_NONE,
@@ -176,13 +153,7 @@ final class WebsiteAudit implements AnalysisModule
      */
     private function websiteEvidence(Client $client): array
     {
-        return QuestionnaireResponse::query()
-            ->where('client_id', $client->getKey())
-            ->with('answers.question')
-            ->latest('submitted_at')
-            ->latest()
-            ->limit(3)
-            ->get()
+        return $this->standardAdvisoryResponses($client)
             ->flatMap(function (QuestionnaireResponse $response): array {
                 return $response->answers
                     ->filter(fn (QuestionnaireAnswer $answer): bool => $this->isWebsiteAnswer($answer))
@@ -203,13 +174,7 @@ final class WebsiteAudit implements AnalysisModule
      */
     private function productServiceEvidence(Client $client): array
     {
-        return QuestionnaireResponse::query()
-            ->where('client_id', $client->getKey())
-            ->with('answers.question')
-            ->latest('submitted_at')
-            ->latest()
-            ->limit(3)
-            ->get()
+        return $this->standardAdvisoryResponses($client)
             ->flatMap(function (QuestionnaireResponse $response): array {
                 return $response->answers
                     ->filter(fn (QuestionnaireAnswer $answer): bool => $this->isProductServiceAnswer($answer))
@@ -223,6 +188,21 @@ final class WebsiteAudit implements AnalysisModule
             })
             ->values()
             ->all();
+    }
+
+    /**
+     * @return EloquentCollection<int, QuestionnaireResponse>
+     */
+    private function standardAdvisoryResponses(Client $client): EloquentCollection
+    {
+        return QuestionnaireResponse::query()
+            ->where('client_id', $client->getKey())
+            ->whereHas('questionnaire', fn ($query) => $query->forSet(QuestionnaireSet::STANDARD_ADVISORY))
+            ->with('answers.question')
+            ->latest('submitted_at')
+            ->latest()
+            ->limit(3)
+            ->get();
     }
 
     private function isWebsiteAnswer(QuestionnaireAnswer $answer): bool
@@ -284,14 +264,17 @@ final class WebsiteAudit implements AnalysisModule
 
     private function diagnosticBody(
         bool $mobileIssue,
+        bool $mobileIsEvidenced,
         bool $ctaIssue,
+        bool $ctaIsEvidenced,
         bool $nzRanking,
         bool $hasProductServiceEvidence,
         bool $alignmentIsEvidenced,
         bool $discoverabilityIsEvidenced,
+        bool $discoverabilityGap,
     ): string {
         $parts = [
-            'Audit focus areas are product/service content accuracy, SEO metadata, GEO generative-engine extractability, AEO answer readiness, AIO AI-overview readiness, user journey friction, conversion calls to action, and mobile usability.',
+            'Audit focus areas are whether the website supports the products and services the client says it sells, whether those pages are clear enough for buyers, and whether the page content is aligned for SEO, GEO generative-engine extractability, AEO answer readiness, AIO AI-overview readiness, conversion calls to action, and mobile usability.',
         ];
 
         $parts[] = $hasProductServiceEvidence
@@ -299,26 +282,241 @@ final class WebsiteAudit implements AnalysisModule
             : 'Core product/service evidence is missing, so content alignment cannot be verified until the client states what they sell and to whom.';
 
         $parts[] = $alignmentIsEvidenced
-            ? 'The website evidence references products, services, offers, or pricing, but the advisor should still confirm that page copy matches what the client actually sells.'
-            : 'The supplied website evidence does not yet prove that page content accurately names and explains the products or services being sold.';
+            ? 'The website evidence appears to support at least part of the stated product/service offer, but the advisor should still confirm that page copy, headings, proof points, and conversion paths match what the client actually sells.'
+            : 'The supplied website evidence does not yet prove that page content accurately names, explains, and supports the products or services the client says it sells.';
 
         $parts[] = $mobileIssue
             ? 'The supplied evidence flags mobile performance or responsiveness as a likely conversion constraint.'
-            : 'No explicit mobile-performance issue is supplied, so mobile speed and responsiveness still need measurement before release decisions.';
+            : ($mobileIsEvidenced
+                ? 'The supplied evidence describes mobile speed or responsiveness positively, but mobile performance should still be measured before release decisions.'
+                : 'No explicit mobile-performance issue is supplied, so mobile speed and responsiveness still need measurement before release decisions.');
 
         $parts[] = $ctaIssue
             ? 'The supplied evidence flags enquiry or CTA clarity as a conversion risk.'
-            : 'CTA strength is not evidenced yet, so the next review should confirm whether enquiry actions are obvious above the fold and at service-page decision points.';
+            : ($ctaIsEvidenced
+                ? 'The supplied evidence describes enquiry or CTA visibility positively, but the advisor should still confirm whether enquiry actions are obvious above the fold and at service-page decision points.'
+                : 'CTA strength is not evidenced yet, so the next review should confirm whether enquiry actions are obvious above the fold and at service-page decision points.');
 
         $parts[] = $nzRanking
             ? 'NZ search context is present and should be checked against local service-intent queries.'
             : 'NZ search ranking context is missing and should be added before benchmarking visibility.';
 
-        $parts[] = $discoverabilityIsEvidenced
+        $parts[] = $discoverabilityGap
+            ? 'The supplied evidence flags missing or weak metadata, schema, structured data, FAQ or answer blocks, concise service definitions, or AI-readable proof points for SEO, GEO, AEO, and AIO pickup.'
+            : ($discoverabilityIsEvidenced
             ? 'The supplied evidence mentions search, structured data, answer-engine, or AI-search signals, so the review should test whether engines can extract concise products, services, locations, FAQs, and proof points for SEO, GEO, AEO, and AIO surfaces.'
-            : 'The supplied evidence does not yet show metadata, schema or structured data, FAQ or answer blocks, concise service definitions, or AI-readable proof points for SEO, GEO, AEO, and AIO pickup.';
+            : 'The supplied evidence does not yet show metadata, schema or structured data, FAQ or answer blocks, concise service definitions, or AI-readable proof points for SEO, GEO, AEO, and AIO pickup.');
 
         return implode(' ', $parts);
+    }
+
+    private function mentionsMobileIssue(string $text): bool
+    {
+        return $this->containsAny($text, [
+            'mobile pages are slow',
+            'mobile page is slow',
+            'mobile is slow',
+            'slow mobile',
+            'poor mobile',
+            'not responsive',
+            'mobile performance issue',
+            'mobile performance problem',
+            'mobile pages need work',
+            'mobile pages are weak',
+            'mobile pages are poor',
+        ]);
+    }
+
+    private function mentionsMobileEvidence(string $text): bool
+    {
+        return $this->containsAny($text, [
+            'mobile pages are fast',
+            'mobile page is fast',
+            'mobile is fast',
+            'fast mobile',
+            'mobile pages are responsive',
+            'mobile page is responsive',
+            'mobile is responsive',
+            'fast and responsive',
+            'responsive and fast',
+        ]);
+    }
+
+    private function mentionsCtaIssue(string $text): bool
+    {
+        return $this->containsAny($text, [
+            'cta is unclear',
+            'cta unclear',
+            'unclear cta',
+            'weak cta',
+            'missing cta',
+            'hidden cta',
+            'call to action is unclear',
+            'unclear call to action',
+            'weak call to action',
+            'missing call to action',
+            'enquiry cta is unclear',
+            'enquiry is unclear',
+            'hard to enquire',
+            'hard to find the enquiry',
+            'not obvious',
+            'below the fold',
+        ]);
+    }
+
+    private function mentionsCtaEvidence(string $text): bool
+    {
+        return $this->containsAny($text, [
+            'cta is clear',
+            'clear cta',
+            'visible cta',
+            'call to action is clear',
+            'clear call to action',
+            'visible call to action',
+            'enquiry cta is clear',
+            'enquiry is clear',
+            'clear enquiry',
+            'visible enquiry',
+            'above the fold',
+        ]);
+    }
+
+    private function mentionsDiscoverabilityEvidence(string $text): bool
+    {
+        return $this->containsAny($text, [
+            'seo',
+            'search',
+            'metadata',
+            'meta description',
+            'title tag',
+            'schema',
+            'structured data',
+            'faq',
+            'answer engine',
+            'aeo',
+            'generative engine',
+            'geo',
+            'ai overview',
+            'ai search',
+            'aio',
+            'llm',
+        ]);
+    }
+
+    private function mentionsDiscoverabilityGap(string $text): bool
+    {
+        return $this->containsAny($text, [
+            'no seo',
+            'weak seo',
+            'poor seo',
+            'missing seo',
+            'no metadata',
+            'missing metadata',
+            'weak metadata',
+            'no meta description',
+            'missing meta description',
+            'no title tag',
+            'missing title tag',
+            'no schema',
+            'missing schema',
+            'no structured data',
+            'missing structured data',
+            'no faq',
+            'missing faq',
+            'no answer blocks',
+            'missing answer blocks',
+            'no aeo',
+            'missing aeo',
+            'no geo',
+            'missing geo',
+            'no aio',
+            'missing aio',
+            'no ai-readable',
+            'not ai-readable',
+            'not ranking',
+            'poor search',
+            'weak local search',
+        ]);
+    }
+
+    /**
+     * @param  array<int, array{value:mixed}>  $productServiceEvidence
+     */
+    private function alignmentIsEvidenced(string $websiteText, array $productServiceEvidence): bool
+    {
+        if ($productServiceEvidence === [] || trim($websiteText) === '') {
+            return false;
+        }
+
+        $terms = $this->alignmentTerms($productServiceEvidence);
+
+        if ($terms === []) {
+            return $this->containsAny($websiteText, [
+                'product',
+                'products',
+                'service',
+                'services',
+                'offer',
+                'offers',
+                'pricing',
+                'package',
+                'packages',
+                'solution',
+                'solutions',
+            ]);
+        }
+
+        $matches = array_values(array_filter(
+            $terms,
+            static fn (string $term): bool => str_contains($websiteText, $term),
+        ));
+        $requiredMatches = min(3, max(1, (int) ceil(count($terms) * 0.25)));
+
+        return count($matches) >= $requiredMatches;
+    }
+
+    /**
+     * @param  array<int, array{value:mixed}>  $items
+     * @return array<int, string>
+     */
+    private function alignmentTerms(array $items): array
+    {
+        $text = preg_replace('/[^a-z0-9]+/', ' ', $this->evidenceText($items)) ?? '';
+        $words = preg_split('/\s+/', $text) ?: [];
+        $stopWords = [
+            'about',
+            'advisory',
+            'business',
+            'client',
+            'customer',
+            'customers',
+            'fixed',
+            'including',
+            'limited',
+            'monthly',
+            'offer',
+            'offers',
+            'package',
+            'packages',
+            'price',
+            'pricing',
+            'product',
+            'products',
+            'provide',
+            'sells',
+            'service',
+            'services',
+            'support',
+            'they',
+            'what',
+        ];
+
+        return collect($words)
+            ->map(static fn (string $word): string => trim($word))
+            ->filter(static fn (string $word): bool => strlen($word) >= 4 && ! in_array($word, $stopWords, true))
+            ->unique()
+            ->values()
+            ->all();
     }
 
     private function answerHaystack(QuestionnaireAnswer $answer): string

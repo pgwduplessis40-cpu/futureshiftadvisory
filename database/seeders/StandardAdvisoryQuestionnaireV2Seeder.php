@@ -109,10 +109,12 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
                     'help_text' => 'Operational systems, dependencies, and delivery risk.',
                     'questions' => [
                         $this->q('Core systems used day to day.', QuestionnaireQuestionType::LONG_TEXT, 'List accounting software, CRM, inventory system, POS, or spreadsheets.'),
+                        $this->q('System handoffs and duplicate entry.', QuestionnaireQuestionType::LONG_TEXT, 'List source system, destination system, data moved, frequency, owner, and whether the handoff is copy/paste, import/export, spreadsheet, or API.', required: false),
                         $this->q('Supplier concentration (% from top three suppliers).', QuestionnaireQuestionType::NUMBER, 'What % of purchases come from your top three suppliers?', required: false),
                         $this->q('Do you have standard operating procedures (SOPs)?', QuestionnaireQuestionType::SINGLE_SELECT, 'Written procedures for core tasks reduce key-person risk. Upload if available.', options: $this->yesNo()),
                         $this->q('Do you have a business continuity or disaster recovery plan?', QuestionnaireQuestionType::SINGLE_SELECT, 'A simple plan for major disruptions.', options: $this->yesNo()),
-                        $this->q('Manual tasks that take a lot of time each week.', QuestionnaireQuestionType::LONG_TEXT, 'List tasks that feel repetitive or slow.', required: false),
+                        $this->q('Manual tasks that take a lot of time each week.', QuestionnaireQuestionType::LONG_TEXT, 'For each repeat task, include owner, trigger, frequency, time per run, error/rework rate, and current system or spreadsheet.', required: false),
+                        $this->q('Automation constraints and approvals.', QuestionnaireQuestionType::LONG_TEXT, 'Note budget, system permissions, vendor limitations, data quality, change risk, and who must approve automation or workflow changes.', required: false),
                     ],
                 ],
                 [

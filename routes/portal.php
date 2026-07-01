@@ -19,6 +19,8 @@ use App\Http\Controllers\Portal\OnboardingController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
 use App\Http\Controllers\Portal\ReportController;
 use App\Http\Controllers\Portal\ServiceActivationController;
+use App\Http\Controllers\Portal\StrategicBudgetController;
+use App\Http\Controllers\Portal\StrategicPlanMilestoneController;
 use App\Http\Controllers\Portal\SurveyController;
 use App\Http\Controllers\Portal\WellbeingController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +30,11 @@ Route::middleware(['auth', 'verified', 'mfa'])
     ->name('portal.')
     ->group(function (): void {
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
+        Route::redirect('strategic-plan-budget', 'business-plan-budget');
+        Route::get('business-plan-budget', [StrategicBudgetController::class, 'show'])->name('business-plan-budget.show');
+        Route::post('business-plan-budget', [StrategicBudgetController::class, 'update'])->name('business-plan-budget.update');
+        Route::post('business-plan-budget/submit', [StrategicBudgetController::class, 'submit'])->name('business-plan-budget.submit');
+        Route::patch('strategic-plan/milestones/{milestone}', [StrategicPlanMilestoneController::class, 'update'])->name('strategic-plan.milestones.update');
         Route::get('service-activations/new/{serviceType}', [ServiceActivationController::class, 'create'])->name('service-activations.create');
         Route::post('service-activations', [ServiceActivationController::class, 'store'])->name('service-activations.store');
         Route::get('service-activations/{serviceActivation}', [ServiceActivationController::class, 'show'])->name('service-activations.show');

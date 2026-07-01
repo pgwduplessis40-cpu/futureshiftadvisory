@@ -5,6 +5,11 @@ declare(strict_types=1);
 return [
     'live' => env('FEATURE_VIRUS_SCAN_LIVE', false),
 
+    'allow_noop' => env(
+        'VIRUS_SCAN_ALLOW_NOOP',
+        in_array(env('APP_ENV', 'production'), ['local', 'testing'], true),
+    ),
+
     'clamav' => [
         'host' => env('CLAMAV_HOST', '127.0.0.1'),
         'port' => (int) env('CLAMAV_PORT', 3310),

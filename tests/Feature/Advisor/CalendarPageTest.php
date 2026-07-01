@@ -151,10 +151,71 @@ final class CalendarPageTest extends TestCase
             );
     }
 
+    public function test_advisor_calendar_lists_public_holidays_for_accessible_client_regions(): void
+    {
+        $this->travelTo('2026-07-01 09:00:00');
+
+        [$advisor] = $this->advisorAndClient('advisor-calendar-holidays@example.test', 'Waikato');
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.calendar.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('publicHolidays', fn (array $holidays): bool => collect($holidays)
+                    ->contains(fn (array $holiday): bool => $holiday['title'] === 'Matariki')
+                    && collect($holidays)->contains(fn (array $holiday): bool => $holiday['title'] === 'Labour Day')
+                    && ! collect($holidays)->contains(fn (array $holiday): bool => $holiday['title'] === 'Canterbury South Anniversary Day'))
+            );
+    }
+
+    public function test_meetings_cannot_be_scheduled_on_public_holidays_for_the_client_region(): void
+    {
+        $this->travelTo('2026-07-01 09:00:00');
+
+        [$advisor, $waikatoClient] = $this->advisorAndClient('advisor-calendar-holiday-block@example.test', 'Waikato');
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.calendar.meetings.store'), [
+                'client_id' => $waikatoClient->id,
+                'title' => 'Matariki strategy meeting',
+                'scheduled_at' => '2026-07-10 10:00:00',
+            ])
+            ->assertSessionHasErrors('scheduled_at');
+
+        $this->assertDatabaseMissing('meetings', [
+            'title' => 'Matariki strategy meeting',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.calendar.meetings.store'), [
+                'client_id' => $waikatoClient->id,
+                'title' => 'North Island meeting on South Canterbury anniversary',
+                'scheduled_at' => '2026-09-28 10:00:00',
+            ])
+            ->assertRedirect(route('advisor.calendar.index', absolute: false));
+
+        $this->assertDatabaseHas('meetings', [
+            'title' => 'North Island meeting on South Canterbury anniversary',
+        ]);
+
+        [$southAdvisor, $southCanterburyClient] = $this->advisorAndClient(
+            'advisor-calendar-south-canterbury@example.test',
+            'South Canterbury',
+        );
+
+        $this->actingAsMfa($southAdvisor)
+            ->post(route('advisor.calendar.meetings.store'), [
+                'client_id' => $southCanterburyClient->id,
+                'title' => 'South Canterbury anniversary meeting',
+                'scheduled_at' => '2026-09-28 10:00:00',
+            ])
+            ->assertSessionHasErrors('scheduled_at');
+    }
+
     /**
      * @return array{0: User, 1: Client}
      */
-    private function advisorAndClient(string $email): array
+    private function advisorAndClient(string $email, ?string $region = null): array
     {
         $advisor = User::factory()->withTwoFactor()->create([
             'email' => $email,
@@ -167,6 +228,7 @@ final class CalendarPageTest extends TestCase
             'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
             'nzbn' => fake()->numerify('9429#########'),
             'legal_name' => 'Calendar Page Limited',
+            'address' => $region ? ['region' => $region] : null,
             'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
             'created_by_user_id' => $advisor->getKey(),
         ]);

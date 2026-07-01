@@ -21,6 +21,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -174,6 +175,41 @@ final class GoalTrackerTest extends TestCase
         ]);
     }
 
+    public function test_public_holidays_block_milestone_and_action_due_dates_for_client_region(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('goals-holiday-advisor@example.test', 'South Canterbury');
+        $tracker = app(GoalTracker::class);
+        $goal = $tracker->createGoal($client, [
+            'title' => 'Keep implementation moving',
+            'pv_target' => 5000,
+        ], $advisor);
+
+        try {
+            $tracker->createMilestone($goal, [
+                'title' => 'Holiday blocked milestone',
+                'due_date' => '2026-09-28',
+            ], $advisor);
+            $this->fail('Expected a validation error for a regional public holiday milestone due date.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('due_date', $exception->errors());
+        }
+
+        $milestone = $tracker->createMilestone($goal, [
+            'title' => 'Allowed milestone',
+            'due_date' => '2026-09-29',
+        ], $advisor);
+
+        try {
+            $tracker->createAction($milestone, [
+                'title' => 'Holiday blocked action',
+                'due_date' => '2026-09-28',
+            ], $advisor);
+            $this->fail('Expected a validation error for a regional public holiday action due date.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('due_date', $exception->errors());
+        }
+    }
+
     public function test_goal_tables_are_isolated_by_client_rls(): void
     {
         if (DB::connection()->getDriverName() !== 'pgsql') {
@@ -204,7 +240,7 @@ final class GoalTrackerTest extends TestCase
     /**
      * @return array{0: User, 1: Client}
      */
-    private function clientWithTeam(string $advisorEmail = 'goals-advisor@example.test'): array
+    private function clientWithTeam(string $advisorEmail = 'goals-advisor@example.test', ?string $region = null): array
     {
         $advisor = User::factory()->withTwoFactor()->create([
             'email' => $advisorEmail,
@@ -213,7 +249,7 @@ final class GoalTrackerTest extends TestCase
         ]);
         $advisor->assignRole(User::TYPE_ADVISOR);
 
-        $client = $this->client('Goals Client Limited', $advisor);
+        $client = $this->client('Goals Client Limited', $advisor, $region);
 
         ClientTeamMember::query()->create([
             'client_id' => $client->id,
@@ -243,7 +279,7 @@ final class GoalTrackerTest extends TestCase
         return $user;
     }
 
-    private function client(string $name, ?User $createdBy = null): Client
+    private function client(string $name, ?User $createdBy = null, ?string $region = null): Client
     {
         app(RequestContext::class)->apply('system', [], $createdBy === null ? null : (string) $createdBy->getKey());
 
@@ -251,6 +287,7 @@ final class GoalTrackerTest extends TestCase
             'engagement_type' => EngagementType::STANDARD_ADVISORY,
             'nzbn' => fake()->unique()->numerify('9429#########'),
             'legal_name' => $name,
+            'address' => $region ? ['region' => $region] : null,
             'data_quality' => Client::DATA_QUALITY_LOW,
             'created_by_user_id' => $createdBy?->getKey(),
         ]);

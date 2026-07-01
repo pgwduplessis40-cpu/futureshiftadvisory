@@ -8,6 +8,7 @@ Application code calls `App\Services\Storage\SecureFileWriter`; it must not call
 
 `SecureFileWriter` performs:
 
+- local active-content threat inspection before persistence
 - malware scan through `FileScanner`
 - encrypted write to the `secure_local` disk
 - `documents` metadata creation
@@ -20,12 +21,18 @@ Application code calls `App\Services\Storage\SecureFileWriter`; it must not call
 
 Raw bytes under `storage/app/secure/` are JSON envelopes and must not contain the plaintext upload contents.
 
-## Scanner implementations
+## Threat inspection and scanner implementations
 
-`FileScanner` has two Phase 1 implementations:
+`UploadThreatInspector` runs before the external scanner and rejects strong
+active-content indicators, including executable file signatures, blocked script
+extensions, scripted PDFs, Office macro projects, ActiveX controls, embedded
+executables, and external Office relationships.
 
-- `NoopScanner` for local/dev and test-safe degraded operation. It returns `clean`, including for the EICAR test fixture.
+`FileScanner` has three implementations:
+
+- `NoopScanner` for local/dev and test-safe operation only when `VIRUS_SCAN_ALLOW_NOOP=true`. It returns `clean`, including for the EICAR test fixture.
 - `ClamAvScanner` for production-style live mode. It talks to a ClamAV daemon via the INSTREAM TCP protocol when `FEATURE_VIRUS_SCAN_LIVE=true`.
+- `UnavailableScanner` for fail-closed operation when live scanning is disabled and no-op scanning is not allowed. It returns `error`, which quarantines uploads rather than marking them clean.
 
 If ClamAV cannot connect or returns an unknown response, the scan result is `error`.
 

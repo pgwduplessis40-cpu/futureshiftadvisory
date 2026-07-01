@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Meeting;
 use App\Models\PreMeetingBrief;
 use App\Models\User;
+use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Meetings\MeetingManager;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -20,16 +21,23 @@ use Inertia\Response;
 
 final class CalendarController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, PublicHolidayCalendar $publicHolidays): Response
     {
         Gate::authorize('viewAny', Client::class);
 
         $user = $this->advisorUser($request);
         $clientIds = $this->clientIdsFor($user);
+        $rangeStart = now()->subDays(14);
+        $rangeEnd = now()->addDays(120);
         $clients = $this->clientQuery($clientIds)
             ->orderBy('legal_name')
             ->limit(250)
             ->get();
+        $holidayRegions = $clients
+            ->flatMap(fn (Client $client): array => $publicHolidays->regionsForClient($client))
+            ->unique()
+            ->values()
+            ->all();
         $connections = CalendarConnection::query()
             ->forUser($user)
             ->active()
@@ -48,14 +56,15 @@ final class CalendarController extends Controller
             'meetings' => $this->meetingQuery($clientIds)
                 ->with(['client', 'preMeetingBrief'])
                 ->withCount('calendarEventMappings')
-                ->where('scheduled_at', '>=', now()->subDays(14))
-                ->where('scheduled_at', '<=', now()->addDays(120))
+                ->where('scheduled_at', '>=', $rangeStart)
+                ->where('scheduled_at', '<=', $rangeEnd)
                 ->orderBy('scheduled_at')
                 ->limit(250)
                 ->get()
                 ->map(fn (Meeting $meeting): array => $this->meetingPayload($meeting))
                 ->values()
                 ->all(),
+            'publicHolidays' => $publicHolidays->eventsBetween($rangeStart, $rangeEnd, $holidayRegions),
             'providers' => collect(CalendarConnection::providerLabels())
                 ->map(fn (string $label, string $provider): array => [
                     'provider' => $provider,

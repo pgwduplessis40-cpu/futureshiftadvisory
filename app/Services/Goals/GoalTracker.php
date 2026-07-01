@@ -17,9 +17,11 @@ use App\Models\ProofOfCompletion;
 use App\Models\User;
 use App\Services\Ai\Verification\DocumentVerifier;
 use App\Services\Audit\AuditWriter;
+use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Documents\DocumentVerificationGate;
 use App\Services\Pv\PvEngine;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class GoalTracker
@@ -29,6 +31,7 @@ final class GoalTracker
         private readonly DocumentVerifier $verifier,
         private readonly DocumentVerificationGate $verificationGate,
         private readonly AuditWriter $audit,
+        private readonly PublicHolidayCalendar $publicHolidays,
     ) {}
 
     /**
@@ -82,6 +85,8 @@ final class GoalTracker
             throw new InvalidArgumentException('Goal must belong to a client.');
         }
 
+        $this->assertDueDateAllowed($client, $input['due_date'] ?? null, 'Milestones', 'due_date');
+
         return DB::transaction(function () use ($goal, $client, $input, $actor): Milestone {
             $pvCalculation = null;
             $pvOfImpact = (float) ($input['pv_of_impact'] ?? 0);
@@ -124,6 +129,15 @@ final class GoalTracker
      */
     public function createAction(Milestone $milestone, array $input, ?User $actor = null): MilestoneAction
     {
+        $milestone->loadMissing('client');
+        $client = $milestone->client;
+
+        if (! $client instanceof Client) {
+            throw new InvalidArgumentException('Milestone must belong to a client.');
+        }
+
+        $this->assertDueDateAllowed($client, $input['due_date'] ?? null, 'Actions', 'due_date');
+
         $action = MilestoneAction::query()->create([
             'milestone_id' => $milestone->getKey(),
             'client_id' => $milestone->client_id,
@@ -394,6 +408,24 @@ final class GoalTracker
         }
 
         return (string) $engagement->getKey();
+    }
+
+    private function assertDueDateAllowed(Client $client, mixed $dueDate, string $subject, string $field): void
+    {
+        if ($dueDate === null || trim((string) $dueDate) === '') {
+            return;
+        }
+
+        $holiday = $this->publicHolidays->holidayOn(
+            $dueDate,
+            $this->publicHolidays->regionsForClient($client),
+        );
+
+        if ($holiday !== null) {
+            throw ValidationException::withMessages([
+                $field => $this->publicHolidays->validationMessage($holiday, $subject),
+            ]);
+        }
     }
 
     private function proofStatus(DocumentVerification $verification): string

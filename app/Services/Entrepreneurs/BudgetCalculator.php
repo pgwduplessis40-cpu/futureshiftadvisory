@@ -10,6 +10,8 @@ final class BudgetCalculator
 
     private const DEFAULT_FORECAST_YEARS = 3;
 
+    private const SUPPORTED_FORECAST_YEARS = [1, 2, 3, 5];
+
     /**
      * @param  array<int, array<string, mixed>>  $launchCosts
      * @param  array<int, array<string, mixed>>  $monthlyFixedCosts
@@ -33,7 +35,7 @@ final class BudgetCalculator
         ?float $companyTaxRatePercent = null,
         ?float $defaultCostInflationPercent = null,
     ): array {
-        $forecastYears = in_array($forecastYears, [3, 5], true) ? $forecastYears : self::DEFAULT_FORECAST_YEARS;
+        $forecastYears = in_array($forecastYears, self::SUPPORTED_FORECAST_YEARS, true) ? $forecastYears : self::DEFAULT_FORECAST_YEARS;
         $launchRows = $this->normaliseRows($launchCosts);
         $fixedRows = $this->normaliseRows($monthlyFixedCosts);
         $revenueRows = $this->normaliseRows($revenueForecast);

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::store
- * @see app/Http/Controllers/Advisor/CalendarController.php:75
+ * @see app/Http/Controllers/Advisor/CalendarController.php:84
  * @route '/advisor/calendar/meetings'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::store
- * @see app/Http/Controllers/Advisor/CalendarController.php:75
+ * @see app/Http/Controllers/Advisor/CalendarController.php:84
  * @route '/advisor/calendar/meetings'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::store
- * @see app/Http/Controllers/Advisor/CalendarController.php:75
+ * @see app/Http/Controllers/Advisor/CalendarController.php:84
  * @route '/advisor/calendar/meetings'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\CalendarController::store
- * @see app/Http/Controllers/Advisor/CalendarController.php:75
+ * @see app/Http/Controllers/Advisor/CalendarController.php:84
  * @route '/advisor/calendar/meetings'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,18 +45,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\CalendarController::store
- * @see app/Http/Controllers/Advisor/CalendarController.php:75
+ * @see app/Http/Controllers/Advisor/CalendarController.php:84
  * @route '/advisor/calendar/meetings'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
- * @see app/Http/Controllers/Advisor/CalendarController.php:90
+ * @see app/Http/Controllers/Advisor/CalendarController.php:99
  * @route '/advisor/calendar/meetings/{meeting}'
  */
 export const update = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -71,7 +71,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
- * @see app/Http/Controllers/Advisor/CalendarController.php:90
+ * @see app/Http/Controllers/Advisor/CalendarController.php:99
  * @route '/advisor/calendar/meetings/{meeting}'
  */
 update.url = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -82,7 +82,7 @@ update.url = (args: { meeting: string | { id: string } } | [meeting: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { meeting: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     meeting: args[0],
@@ -104,7 +104,7 @@ update.url = (args: { meeting: string | { id: string } } | [meeting: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
- * @see app/Http/Controllers/Advisor/CalendarController.php:90
+ * @see app/Http/Controllers/Advisor/CalendarController.php:99
  * @route '/advisor/calendar/meetings/{meeting}'
  */
 update.patch = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -114,7 +114,7 @@ update.patch = (args: { meeting: string | { id: string } } | [meeting: string | 
 
     /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
- * @see app/Http/Controllers/Advisor/CalendarController.php:90
+ * @see app/Http/Controllers/Advisor/CalendarController.php:99
  * @route '/advisor/calendar/meetings/{meeting}'
  */
     const updateForm = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -129,7 +129,7 @@ update.patch = (args: { meeting: string | { id: string } } | [meeting: string | 
 
             /**
 * @see \App\Http\Controllers\Advisor\CalendarController::update
- * @see app/Http/Controllers/Advisor/CalendarController.php:90
+ * @see app/Http/Controllers/Advisor/CalendarController.php:99
  * @route '/advisor/calendar/meetings/{meeting}'
  */
         updateForm.patch = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -141,11 +141,11 @@ update.patch = (args: { meeting: string | { id: string } } | [meeting: string | 
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
- * @see app/Http/Controllers/Advisor/CalendarController.php:106
+ * @see app/Http/Controllers/Advisor/CalendarController.php:115
  * @route '/advisor/calendar/meetings/{meeting}'
  */
 export const cancel = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -160,7 +160,7 @@ cancel.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
- * @see app/Http/Controllers/Advisor/CalendarController.php:106
+ * @see app/Http/Controllers/Advisor/CalendarController.php:115
  * @route '/advisor/calendar/meetings/{meeting}'
  */
 cancel.url = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -171,7 +171,7 @@ cancel.url = (args: { meeting: string | { id: string } } | [meeting: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { meeting: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     meeting: args[0],
@@ -193,7 +193,7 @@ cancel.url = (args: { meeting: string | { id: string } } | [meeting: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
- * @see app/Http/Controllers/Advisor/CalendarController.php:106
+ * @see app/Http/Controllers/Advisor/CalendarController.php:115
  * @route '/advisor/calendar/meetings/{meeting}'
  */
 cancel.delete = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -203,7 +203,7 @@ cancel.delete = (args: { meeting: string | { id: string } } | [meeting: string |
 
     /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
- * @see app/Http/Controllers/Advisor/CalendarController.php:106
+ * @see app/Http/Controllers/Advisor/CalendarController.php:115
  * @route '/advisor/calendar/meetings/{meeting}'
  */
     const cancelForm = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -218,7 +218,7 @@ cancel.delete = (args: { meeting: string | { id: string } } | [meeting: string |
 
             /**
 * @see \App\Http\Controllers\Advisor\CalendarController::cancel
- * @see app/Http/Controllers/Advisor/CalendarController.php:106
+ * @see app/Http/Controllers/Advisor/CalendarController.php:115
  * @route '/advisor/calendar/meetings/{meeting}'
  */
         cancelForm.delete = (args: { meeting: string | { id: string } } | [meeting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -230,7 +230,7 @@ cancel.delete = (args: { meeting: string | { id: string } } | [meeting: string |
                     }),
             method: 'post',
         })
-    
+
     cancel.form = cancelForm
 const meetings = {
     store: Object.assign(store, store),

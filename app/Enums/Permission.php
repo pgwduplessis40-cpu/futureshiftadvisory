@@ -97,7 +97,6 @@ enum Permission: string
                 self::TERMS_VIEW,
                 self::AUDIT_VIEW,
                 self::REPORTS_VIEW,
-                self::INTEGRATION_HEALTH_VIEW,
                 self::REPORTS_PUBLISH,
                 self::PROPOSALS_RELEASE,
                 self::PAYMENTS_MANAGE,

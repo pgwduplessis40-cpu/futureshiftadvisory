@@ -14,10 +14,12 @@ use App\Enums\NpoSocialEnterpriseType;
 use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
 use App\Enums\ReportType;
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientFunderAlert;
 use App\Models\Consent;
 use App\Models\Document;
+use App\Models\EconomicIndicator;
 use App\Models\Funder;
 use App\Models\LearningUpdate;
 use App\Models\NpoComplianceAlert;
@@ -26,10 +28,15 @@ use App\Models\NpoTensionAnalysis;
 use App\Models\NpoValueCalculation;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
+use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\Questionnaire;
+use App\Models\StrategicBudget;
+use App\Models\StrategicPlan;
+use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Storage\KeyEnvelope;
@@ -99,6 +106,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedEngagementTouchpoints();
             $this->seedPanelAndReferralData();
             $this->seedDueDiligenceJourney();
+            $this->seedStrategicPlanTestData();
             $this->seedBulkCommunicationsAndExpiryReminders();
         });
     }
@@ -887,6 +895,36 @@ XML);
             'payload' => $this->json(['fixture' => true]),
         ]);
 
+        $this->upsert('economic_indicators', [
+            'indicator' => EconomicIndicator::CPI_ANNUAL,
+            'period_date' => '2026-05-01',
+            'source' => 'seed_stats_nz',
+        ], [
+            'label' => 'NZ CPI annual inflation',
+            'value' => 2.7000,
+            'unit' => 'percent',
+            'source_badge' => 'seeded',
+            'degraded' => false,
+            'correlation_id' => null,
+            'fetched_at' => $this->now->copy()->subDays(2),
+            'payload' => $this->json(['fixture' => true, 'used_by' => 'strategic_budget_seed']),
+        ]);
+
+        $this->upsert('economic_indicators', [
+            'indicator' => EconomicIndicator::COMPANY_TAX_RATE,
+            'period_date' => '2026-04-01',
+            'source' => 'seed_ird',
+        ], [
+            'label' => 'NZ company tax rate',
+            'value' => 28.0000,
+            'unit' => 'percent',
+            'source_badge' => 'seeded',
+            'degraded' => false,
+            'correlation_id' => null,
+            'fetched_at' => $this->now->copy()->subDays(2),
+            'payload' => $this->json(['fixture' => true, 'used_by' => 'strategic_budget_seed']),
+        ]);
+
         $this->ids['exchange_usd'] = $this->upsert('exchange_rates', [
             'base_currency' => 'USD',
             'quote_currency' => 'NZD',
@@ -926,7 +964,12 @@ XML);
             'status' => 'connected',
             'token_envelope' => encrypt('seed-xero-token'),
             'token_envelope_meta' => $this->json(['fixture' => true, 'algorithm' => 'local']),
-            'scopes' => $this->json(['accounting.transactions.read', 'accounting.reports.read']),
+            'scopes' => $this->json([
+                'accounting.transactions.read',
+                'accounting.reports.balancesheet.read',
+                'accounting.reports.profitandloss.read',
+                'accounting.reports.banksummary.read',
+            ]),
             'connected_by_user_id' => $this->users['primary']->getKey(),
             'connected_at' => $this->now->copy()->subDays(21),
             'revoked_by_user_id' => null,
@@ -4036,6 +4079,783 @@ XML);
                 'pv_link_id' => $pvLinkId,
                 'updated_at' => $this->now,
             ]);
+    }
+
+    private function seedStrategicPlanTestData(): void
+    {
+        $ddAcquisitionPlanId = $this->seedDdAcquisitionBusinessPlan();
+        $this->ids['dd_acquisition_plan'] = $ddAcquisitionPlanId;
+
+        $this->ids['doc_post_acquisition_financials'] = $this->document(
+            key: 'post-acquisition-management-accounts',
+            client: $this->clients['postAcquisition'],
+            category: Document::CATEGORY_FINANCIAL_STATEMENT,
+            filename: 'kauri-kitchens-management-accounts-may-2026.xlsx',
+            uploader: $this->users['buyer'],
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: null,
+            size: 345_000,
+            mimeType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        );
+
+        $ddProposalId = $this->seedSignedStrategicProposal(
+            clientKey: 'dd',
+            idPrefix: 'dd-strategic-advice',
+            method: 'outcome_based',
+            suggestedMid: 36_000,
+            termMonths: 12,
+            services: [
+                'Acquisition decision support',
+                'Completion accounts review',
+                'First 100-day advisory cadence',
+            ],
+        );
+        $this->ids['dd_strategic_proposal'] = $ddProposalId;
+
+        $postAcquisitionProposalId = $this->seedSignedStrategicProposal(
+            clientKey: 'postAcquisition',
+            idPrefix: 'post-acquisition-strategic-advice',
+            method: 'outcome_based',
+            suggestedMid: 48_000,
+            termMonths: 18,
+            services: [
+                'Post-acquisition operating cadence',
+                'Working-capital controls',
+                'Management reporting reset',
+            ],
+        );
+        $this->ids['post_acquisition_strategic_proposal'] = $postAcquisitionProposalId;
+
+        $advisoryBudget = $this->seedStrategicBudgetScenario(
+            clientKey: 'advisory',
+            scenario: 'advisory',
+            businessPlanId: null,
+            proposalId: $this->ids['proposal'],
+            state: StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+        );
+        $this->ids['strategic_budget_advisory'] = $advisoryBudget->getKey();
+
+        $ddBudget = $this->seedStrategicBudgetScenario(
+            clientKey: 'dd',
+            scenario: 'due_diligence',
+            businessPlanId: $ddAcquisitionPlanId,
+            proposalId: $ddProposalId,
+            state: StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+        );
+        $this->ids['strategic_budget_dd'] = $ddBudget->getKey();
+
+        $postAcquisitionBudget = $this->seedStrategicBudgetScenario(
+            clientKey: 'postAcquisition',
+            scenario: 'post_acquisition',
+            businessPlanId: null,
+            proposalId: $postAcquisitionProposalId,
+            state: StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+        );
+        $this->ids['strategic_budget_post_acquisition'] = $postAcquisitionBudget->getKey();
+
+        $npoBudget = $this->seedStrategicBudgetScenario(
+            clientKey: 'npo',
+            scenario: 'npo',
+            businessPlanId: null,
+            proposalId: null,
+            state: StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
+        );
+        $this->ids['strategic_budget_npo'] = $npoBudget->getKey();
+
+        $this->seedStrategicPlanScenario(
+            key: 'advisory_deployed',
+            clientKey: 'advisory',
+            proposalId: $this->ids['proposal'],
+            budgetId: $advisoryBudget->getKey(),
+            status: StrategicPlan::STATUS_DEPLOYED,
+            summary: "Harbour Hive's accepted advisory proposal is now deployed into practical milestones. The first focus is debtor cadence, operating cover, and management reporting evidence.",
+            sections: [
+                ['outcomes', 'Target outcomes', 'Lift cash resilience before peak season, reduce debtor drag, and create a repeatable monthly evidence pack for advisor review.'],
+                ['priorities', 'Action priorities', 'Start with receivables discipline, then connect inventory controls and weekly cash visibility before the next trading peak.'],
+                ['milestones', 'Milestone approach', 'Milestones are calculated from deployment date and owned by the client, advisor, or jointly.'],
+                ['budget', 'Budget and affordability', 'Use the approved Business Plan & Budget snapshot and GST-exclusive accepted proposal payment terms.'],
+                ['governance', 'Review rhythm', 'Fortnightly check-ins for the first six weeks, then monthly evidence and progress review.'],
+            ],
+            milestones: [
+                ['Strategic plan review meeting', 'Advisor and client confirmed the proposal, success measures, and first evidence actions.', StrategicPlanMilestone::OWNER_JOINT, 7, StrategicPlanMilestone::STATUS_COMPLETED, 100, 'Meeting notes accepted and first actions loaded.'],
+                ['Debtor cadence live in weekly operations', 'Client embeds follow-up rules, escalation thresholds, and disputed invoice review.', StrategicPlanMilestone::OWNER_CLIENT, 21, StrategicPlanMilestone::STATUS_IN_PROGRESS, 65, 'Draft debtor cadence is in use for two customer cohorts.'],
+                ['Advisor validates cash dashboard', 'Advisor reviews the cash dashboard against uploaded financials and management accounts.', StrategicPlanMilestone::OWNER_ADVISOR, 30, StrategicPlanMilestone::STATUS_PENDING, 0, null],
+                ['Peak-season funding review', 'Joint review of cash runway, funding buffer, and proposal affordability before the peak period.', StrategicPlanMilestone::OWNER_JOINT, 45, StrategicPlanMilestone::STATUS_PENDING, 0, null],
+            ],
+            deployedAt: $this->now->copy()->subDays(9),
+        );
+
+        $this->seedStrategicPlanScenario(
+            key: 'dd_draft',
+            clientKey: 'dd',
+            proposalId: $ddProposalId,
+            budgetId: $ddBudget->getKey(),
+            status: StrategicPlan::STATUS_DRAFT,
+            summary: 'Southern Lights has accepted the DD advisory proposal. This draft strategic plan is ready for advisor review before deployment to the buyer portal.',
+            sections: [
+                ['outcomes', 'Target outcomes', 'Protect purchase price, complete conditions precedent, and convert DD findings into first 100-day operating controls.'],
+                ['priorities', 'Action priorities', 'Confirm customer concentration protection, completion accounts process, funding buffer, and handover owner before settlement.'],
+                ['milestones', 'Milestone approach', 'Advisor reviews milestone ownership with the buyer before deployment.'],
+                ['budget', 'Budget and affordability', 'Use the approved DD Business Plan & Budget and accepted advisory proposal over 12 months.'],
+                ['governance', 'Review rhythm', 'Weekly until settlement, then fortnightly for the first 90 days.'],
+            ],
+            milestones: [
+                ['Review DD strategic plan with buyer', 'Advisor explains how DD findings become post-acceptance milestones.', StrategicPlanMilestone::OWNER_JOINT, 7, StrategicPlanMilestone::STATUS_PENDING, 0, null],
+                ['Confirm completion accounts evidence', 'Buyer provides source files and advisor confirms assumptions before settlement.', StrategicPlanMilestone::OWNER_CLIENT, 14, StrategicPlanMilestone::STATUS_PENDING, 0, null],
+                ['Negotiate customer concentration protection', 'Advisor helps finalise holdback or earnout treatment for top customer risk.', StrategicPlanMilestone::OWNER_ADVISOR, 21, StrategicPlanMilestone::STATUS_PENDING, 0, null],
+                ['First 100-day handover controls', 'Joint delivery of operating cadence, weekly cash review, and customer communication plan.', StrategicPlanMilestone::OWNER_JOINT, 45, StrategicPlanMilestone::STATUS_PENDING, 0, null],
+            ],
+            deployedAt: null,
+        );
+
+        $this->removeStrategicPlanForProposal($postAcquisitionProposalId);
+    }
+
+    private function seedDdAcquisitionBusinessPlan(): string|int|null
+    {
+        $planId = $this->upsert('business_plans', [
+            'dd_engagement_id' => $this->ids['dd_engagement'],
+            'title' => 'Kauri Kitchens Acquisition Plan',
+        ], [
+            'client_id' => $this->clients['dd']->getKey(),
+            'entrepreneur_profile_id' => null,
+            'source_type' => BusinessPlan::SOURCE_DUE_DILIGENCE,
+            'status' => BusinessPlan::STATUS_FOUNDING,
+            'current_phase' => 5,
+            'founding_advisory_payload' => $this->json([
+                'source' => 'seeded_dd_acquisition_plan',
+                'target_name' => 'Kauri Kitchens Group Limited',
+            ]),
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'completed_at' => $this->now->copy()->subDays(2),
+            'living_plan_next_update_at' => $this->now->copy()->addDays(21),
+            'living_plan_last_prompted_at' => $this->now->copy()->subDays(3),
+            'living_plan_last_assessed_at' => $this->now->copy()->subDays(2),
+            'living_plan_divergence_flags' => $this->json(['dd_customer_concentration_changed' => true]),
+        ]);
+
+        $phases = [
+            ['foundation', 'Foundation', 1],
+            ['market', 'Market', 2],
+            ['strategy', 'Strategy', 3],
+            ['legal_operations', 'Legal & Operations', 4],
+            ['financial', 'Financial', 5],
+        ];
+
+        foreach ($phases as [$key, $title, $position]) {
+            $this->ids["dd_acquisition_phase_{$key}"] = $this->upsert('plan_phases', [
+                'business_plan_id' => $planId,
+                'key' => $key,
+            ], [
+                'title' => $title,
+                'position' => $position,
+                'depends_on' => $position === 1 ? null : $this->json([$phases[$position - 2][0]]),
+                'status' => 'completed',
+            ]);
+        }
+
+        foreach ([
+            ['foundation', 'dd-foundation-target', 'Target context from DD', 'Kauri Kitchens is the named target. DD status is proceed with conditions, subject to customer concentration and completion accounts protection.', 'target_context'],
+            ['foundation', 'client-foundation-acquisition-thesis', 'Buyer acquisition thesis', 'The acquisition should proceed if price protection, customer assignment consent, and post-settlement working-capital controls are confirmed.', 'acquisition_thesis'],
+            ['market', 'client-market-market-position', 'Customer and market position', 'The target has a loyal customer base, but two customers represent 46 percent of trailing revenue and require retention planning.', 'market_position'],
+            ['strategy', 'dd-strategy-integration', 'First 100-day operating plan', 'First 100 days focus on customer communication, finance reconciliation, staff handover, and weekly cash visibility.', 'first_100_days'],
+            ['legal_operations', 'client-legal_operations-handover-risks', 'Legal, people, and operational handover risks', 'Open risks include customer assignment, key-person dependency in dispatch, and completion account evidence.', 'handover_risks'],
+            ['financial', 'dd-valuation-summary', 'Valuation and purchase-price range', 'Valuation range is NZD 1.76m to NZD 2.49m with a reconciled midpoint of NZD 2.14m after concentration discount.', 'valuation_price_range'],
+            ['financial', 'client-financial-funding-structure', 'Funding and deal-structure assumptions', 'Funding plan assumes bank debt plus owner contribution, with a completion-account true-up and 90-day cash buffer.', 'funding_structure'],
+        ] as [$phaseKey, $key, $title, $body, $requirementKey]) {
+            $this->upsert('plan_sections', [
+                'business_plan_id' => $planId,
+                'key' => $key,
+            ], [
+                'plan_phase_id' => $this->ids["dd_acquisition_phase_{$phaseKey}"],
+                'title' => $title,
+                'body' => $body,
+                'attached_document_ids' => $this->json([
+                    $this->ids['doc_dd_target'],
+                    $this->ids['doc_dd_contracts'],
+                ]),
+                'source_type' => BusinessPlan::SOURCE_DUE_DILIGENCE,
+                'source_analysis_finding_id' => $requirementKey === 'market_position' ? $this->ids['dd_finding'] : null,
+                'completeness_status' => 'complete',
+                'metadata' => $this->json([
+                    'fixture' => true,
+                    'requirement_key' => $requirementKey,
+                    'source' => 'seeded_dd_plan',
+                ]),
+                'predictive_score' => $this->json([
+                    'confidence' => 0.78,
+                    'source' => 'seeded',
+                ]),
+            ]);
+        }
+
+        return $planId;
+    }
+
+    private function seedSignedStrategicProposal(
+        string $clientKey,
+        string $idPrefix,
+        string $method,
+        int $suggestedMid,
+        int $termMonths,
+        array $services,
+        ?string $npoEngagementId = null,
+    ): string|int|null {
+        $client = $this->clients[$clientKey];
+        $signer = $this->portalActorForClient($clientKey);
+        $monthly = round($suggestedMid / max(1, $termMonths), 2);
+        $feeId = $this->upsert('fee_calculations', [
+            'client_id' => $client->getKey(),
+            'method' => $method,
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+        ], [
+            'npo_engagement_id' => $npoEngagementId,
+            'inputs' => $this->json([
+                'source' => 'strategic_plan_testing_seed',
+                'term_months' => $termMonths,
+                'monthly_retainer_fee' => $monthly,
+            ]),
+            'suggested_low' => round($suggestedMid * 0.85, 2),
+            'suggested_mid' => $suggestedMid,
+            'suggested_high' => round($suggestedMid * 1.2, 2),
+            'improvement_pv_total' => round($suggestedMid * 4.8, 2),
+            'risk_cost_pv_total' => round($suggestedMid * 1.4, 2),
+            'roi_ratio' => 4.8000,
+            'justification' => $this->json([
+                'summary' => 'Seeded accepted proposal for strategic plan workflow testing.',
+                'retainer' => [
+                    'months' => $termMonths,
+                    'monthly_fee' => $monthly,
+                ],
+            ]),
+        ]);
+
+        $signedAt = $this->now->copy()->subDays(match ($clientKey) {
+            'dd' => 2,
+            'postAcquisition' => 1,
+            default => 3,
+        });
+        $signatureEvidencePath = "seed/proposals/{$idPrefix}-signed-proposal.pdf";
+        $signatureEvidencePdf = $this->signedProposalFixtureContentFor($client, $signer, $services[0] ?? 'Strategic advisory', $signedAt);
+        $signatureEvidenceHashEnvelope = app(KeyEnvelope::class)->encrypt(hash('sha256', $signatureEvidencePdf));
+        Storage::disk('secure_local')->put($signatureEvidencePath, $signatureEvidencePdf);
+
+        $proposalId = $this->upsert('proposals', [
+            'client_id' => $client->getKey(),
+            'fee_calculation_id' => $feeId,
+            'version' => 1,
+        ], [
+            'npo_engagement_id' => $npoEngagementId,
+            'status' => 'signed',
+            'scope' => $this->json([
+                'summary' => 'Accepted strategic advisory proposal seeded for strategic plan testing.',
+                'modules' => ['business_plan_budget', 'proposal_acceptance', 'strategic_plan'],
+                'term_months' => $termMonths,
+            ]),
+            'services' => $this->json(collect($services)
+                ->map(fn (string $service): array => ['name' => $service, 'cadence' => 'monthly'])
+                ->values()
+                ->all()),
+            'pv_summary' => $this->json([
+                'fee_suggested_mid' => $suggestedMid,
+                'monthly_retainer_fee' => $monthly,
+                'strategic_plan_fixture' => true,
+            ]),
+            'roi_ratio' => 4.8000,
+            'acceptance_terms' => $this->json([
+                'payment' => 'monthly_card',
+                'term_months' => $termMonths,
+                'collection_day' => 1,
+                'cancellation_notice_days' => 30,
+            ]),
+            'pdf_path' => "seed/proposals/{$idPrefix}.pdf",
+            'pdf_byte_size' => 180_000,
+            'released_at' => $signedAt->copy()->subDay(),
+            'released_by_user_id' => $this->users['advisor']->getKey(),
+            'expires_at' => $signedAt->copy()->addDays(26),
+            'recalled_at' => null,
+            'recalled_by_user_id' => null,
+            'expired_at' => null,
+            'renewed_from_proposal_id' => null,
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'awaiting_signature_at' => $signedAt->copy()->subHours(3),
+            'signed_at' => $signedAt,
+            'signed_by_user_id' => $signer->getKey(),
+            'signature_evidence_path' => $signatureEvidencePath,
+            'signature_evidence_sha256_envelope' => $signatureEvidenceHashEnvelope,
+            'signature_envelope_meta' => $this->json(app(KeyEnvelope::class)->inspect($signatureEvidenceHashEnvelope)),
+            'signature_evidence_byte_size' => strlen($signatureEvidencePdf),
+        ]);
+
+        $this->seedSignedProposalSteps($proposalId, $clientKey, $signedAt);
+
+        return $proposalId;
+    }
+
+    private function seedStrategicBudgetScenario(
+        string $clientKey,
+        string $scenario,
+        string|int|null $businessPlanId,
+        string|int|null $proposalId,
+        string $state,
+    ): StrategicBudget {
+        $budgetService = app(StrategicBudgetService::class);
+        $client = $this->clients[$clientKey];
+        $businessPlan = $businessPlanId === null
+            ? null
+            : BusinessPlan::query()->whereKey($businessPlanId)->first();
+        $clientActor = $this->portalActorForClient($clientKey);
+        $advisor = $this->users['advisor'];
+
+        $budget = $budgetService->ensureForClient($client, $businessPlan);
+        $budget = $budgetService->update($budget, $this->strategicBudgetPayload($scenario), $clientActor);
+        $budget = $budgetService->updateAdvisorGoals($budget, $this->advisorGoalsForBudgetScenario($scenario), $advisor);
+
+        if (in_array($state, [
+            StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
+            StrategicBudget::STATUS_ADVISOR_APPROVED,
+            StrategicBudget::STATUS_USED_IN_PROPOSAL,
+            StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+        ], true)) {
+            $budget = $budgetService->submit($budget, $clientActor);
+        }
+
+        if (in_array($state, [
+            StrategicBudget::STATUS_ADVISOR_APPROVED,
+            StrategicBudget::STATUS_USED_IN_PROPOSAL,
+            StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+        ], true)) {
+            $budget = $budgetService->approve($budget, $advisor);
+        }
+
+        if (in_array($state, [
+            StrategicBudget::STATUS_USED_IN_PROPOSAL,
+            StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+        ], true) && $proposalId !== null) {
+            $proposal = Proposal::query()->whereKey($proposalId)->first();
+
+            if ($proposal instanceof Proposal) {
+                $budget = $budgetService->markUsedInProposal($budget, $proposal, $advisor);
+            }
+        }
+
+        if ($state === StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT) {
+            $budget->forceFill([
+                'status' => StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
+                'proposal_id' => $proposalId,
+                'accepted_snapshot_at' => $this->now->copy()->subDay(),
+            ])->save();
+        }
+
+        return $budget->refresh();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function strategicBudgetPayload(string $scenario): array
+    {
+        return [
+            'business_plan_sections' => $this->businessPlanSectionAnswers($scenario),
+            'horizon_months' => match ($scenario) {
+                'due_diligence', 'post_acquisition' => 24,
+                default => 12,
+            },
+            'expected_runway_months' => match ($scenario) {
+                'npo' => 6,
+                'due_diligence' => 9,
+                'post_acquisition' => 8,
+                default => 4,
+            },
+            'assumptions' => [
+                'revenue_growth_percent' => match ($scenario) {
+                    'npo' => 5,
+                    'due_diligence' => 9,
+                    'post_acquisition' => 11,
+                    default => 8,
+                },
+                'cost_inflation_percent' => 2.7,
+                'target_gross_profit_percent' => match ($scenario) {
+                    'npo' => 0,
+                    'due_diligence' => 52,
+                    'post_acquisition' => 56,
+                    default => 58,
+                },
+                'target_net_profit_before_tax_percent' => match ($scenario) {
+                    'npo' => 0,
+                    default => 14,
+                },
+                'target_net_profit_after_tax_percent' => match ($scenario) {
+                    'npo' => 0,
+                    default => 10,
+                },
+            ],
+            'implementation_costs' => $this->budgetRows($scenario, 'implementation'),
+            'monthly_fixed_costs' => $this->budgetRows($scenario, 'monthly'),
+            'future_costs' => $this->futureBudgetRows($scenario),
+            'revenue_forecast' => $this->budgetRows($scenario, 'revenue'),
+            'funding_sources' => $this->budgetRows($scenario, 'funding'),
+            'funding_scenarios' => $this->fundingScenarioRows($scenario),
+        ];
+    }
+
+    /**
+     * @return array<int, array{key:string,title:string,answer:string}>
+     */
+    private function businessPlanSectionAnswers(string $scenario): array
+    {
+        $titles = [
+            'goals' => 'Goals',
+            'current_position' => 'Current position',
+            'market_customers' => 'Market / customers',
+            'operations' => 'Operations',
+            'risks' => 'Risks',
+            'swot' => 'SWOT',
+            'action_priorities' => 'Action priorities',
+            'evidence_documents' => 'Evidence / documents',
+        ];
+        $answers = [
+            'advisory' => [
+                'goals' => 'Improve cash resilience, reduce debtor drag, and make monthly management reporting decision-ready.',
+                'current_position' => 'Harbour Hive has solid demand but cash is being trapped in receivables and unmanaged operating rhythms.',
+                'market_customers' => 'Core customers are recurring service buyers. Demand remains steady, with sensitivity to delayed decisions and payment cycles.',
+                'operations' => 'Operations need tighter debtor escalation, inventory visibility, and weekly cash review ownership.',
+                'risks' => 'Main risks are cash squeeze, slow decision cadence, and evidence gaps in the management pack.',
+                'swot' => 'Strength: loyal customer base. Weakness: debtor discipline. Opportunity: funding-ready evidence pack. Threat: peak-season cash pressure.',
+                'action_priorities' => 'Implement debtor cadence, validate weekly cash dashboard, and run a peak-season funding review.',
+                'evidence_documents' => 'Financial statements, supplier contract, expired insurance flag, and advisor PV findings support the plan.',
+            ],
+            'due_diligence' => [
+                'goals' => 'Protect purchase price, complete deal conditions, and convert DD findings into first 100-day actions.',
+                'current_position' => 'Southern Lights is reviewing Kauri Kitchens with a proceed-with-conditions DD recommendation.',
+                'market_customers' => 'The target has concentrated customer revenue and needs a retention plan before settlement.',
+                'operations' => 'Post-settlement operations require customer communication, management-account reconciliation, and handover controls.',
+                'risks' => 'Customer concentration, completion accounts, and dispatch key-person dependency are the highest priority risks.',
+                'swot' => 'Strength: defensible local customer base. Weakness: concentration and undocumented systems. Opportunity: margin and reporting uplift. Threat: customer churn after settlement.',
+                'action_priorities' => 'Confirm price protection, complete funding assumptions, and assign first 100-day operating owners.',
+                'evidence_documents' => 'Management accounts, customer contracts, DD workstream findings, valuation, and acquisition plan sections support the budget.',
+            ],
+            'post_acquisition' => [
+                'goals' => 'Stabilise the acquired business, preserve customer revenue, and establish a repeatable management rhythm.',
+                'current_position' => 'Kauri Kitchens is entering post-acquisition advisory with DD gaps around reporting, customer concentration, and handover.',
+                'market_customers' => 'The customer base is valuable but retention depends on communication, pricing discipline, and visible service continuity.',
+                'operations' => 'Operations need weekly leadership cadence, finance reconciliation, and documented dispatch knowledge.',
+                'risks' => 'Integration drift, cash surprises, and informal operational knowledge are the main execution risks.',
+                'swot' => 'Strength: established operating base. Weakness: reporting lag. Opportunity: first 100-day control reset. Threat: inherited concentration risk.',
+                'action_priorities' => 'Deploy handover controls, install weekly cash reporting, and review pricing and margin by customer segment.',
+                'evidence_documents' => 'Post-acquisition financials, DD report, gap report, and integration plan actions support the advisory budget.',
+            ],
+            'npo' => [
+                'goals' => 'Improve funding confidence, governance evidence, and programme sustainability for the next operating cycle.',
+                'current_position' => 'Aroha Community has committed programmes and active governance work, but reporting rhythm and funding accountability need tightening.',
+                'market_customers' => 'Beneficiaries, funders, and community partners rely on stable service delivery and credible impact evidence.',
+                'operations' => 'Programme delivery needs clearer volunteer capacity, treasurer sign-off, and board reporting cadence.',
+                'risks' => 'Funding concentration, reporting deadlines, governance re-registration, and service continuity are the key risks.',
+                'swot' => 'Strength: strong community trust. Weakness: manual reporting. Opportunity: better funder accountability. Threat: funding deadline pressure.',
+                'action_priorities' => 'Complete funder accountability pack, confirm programme budget lines, and prepare governance evidence for board review.',
+                'evidence_documents' => 'Management accounts, constitution, board minutes, and funding agreement support the operating plan.',
+            ],
+        ][$scenario];
+
+        return collect($titles)
+            ->map(fn (string $title, string $key): array => [
+                'key' => $key,
+                'title' => $title,
+                'answer' => $answers[$key],
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function budgetRows(string $scenario, string $group): array
+    {
+        $rows = [
+            'advisory' => [
+                'implementation' => [
+                    ['Debtor cadence setup', 6_500, 1, 'estimate'],
+                    ['Cash dashboard configuration', 4_200, 1, 'known'],
+                ],
+                'monthly' => [
+                    ['Advisor implementation cadence', 2_800, 1, 'known'],
+                    ['Reporting administration time', 650, 1, 'estimate'],
+                ],
+                'revenue' => [
+                    ['Margin retained through debtor improvement', 18_500, 1, 'estimate', 1, 1.5, 72],
+                    ['Peak-season delivery uplift', 9_000, 1, 'guess', 4, 2.0, 58],
+                ],
+                'funding' => [
+                    ['Working capital reserve', 30_000, 1, 'known'],
+                ],
+            ],
+            'due_diligence' => [
+                'implementation' => [
+                    ['Completion accounts support', 9_500, 1, 'estimate'],
+                    ['Customer retention workstream', 7_500, 1, 'estimate'],
+                ],
+                'monthly' => [
+                    ['DD advisory cadence', 3_000, 1, 'known'],
+                    ['Post-settlement reporting setup', 1_200, 1, 'estimate'],
+                ],
+                'revenue' => [
+                    ['Protected acquisition earnings', 42_000, 1, 'estimate', 2, 0.8, 52],
+                    ['Customer retention upside', 12_000, 1, 'guess', 5, 1.2, 55],
+                ],
+                'funding' => [
+                    ['Buyer contribution', 180_000, 1, 'known'],
+                    ['Bank acquisition facility', 620_000, 1, 'estimate'],
+                ],
+            ],
+            'post_acquisition' => [
+                'implementation' => [
+                    ['Handover control reset', 11_000, 1, 'estimate'],
+                    ['Management reporting pack', 6_800, 1, 'known'],
+                ],
+                'monthly' => [
+                    ['Post-acquisition advisory retainer', 3_200, 1, 'known'],
+                    ['Systems and reporting support', 950, 1, 'estimate'],
+                ],
+                'revenue' => [
+                    ['Retained customer revenue', 38_000, 1, 'estimate', 1, 1.2, 56],
+                    ['Pricing discipline uplift', 8_500, 1, 'guess', 4, 1.0, 62],
+                ],
+                'funding' => [
+                    ['Integration cash buffer', 75_000, 1, 'known'],
+                ],
+            ],
+            'npo' => [
+                'implementation' => [
+                    ['Funder accountability pack', 3_800, 1, 'estimate'],
+                    ['Board reporting refresh', 2_400, 1, 'known'],
+                ],
+                'monthly' => [
+                    ['Programme reporting support', 850, 1, 'estimate'],
+                    ['Volunteer coordination administration', 600, 1, 'guess'],
+                ],
+                'revenue' => [
+                    ['Committed programme funding', 18_000, 1, 'known', 1, 0.0, null],
+                    ['Community grant pipeline', 6_500, 1, 'estimate', 4, 0.0, null],
+                ],
+                'funding' => [
+                    ['Confirmed grant funding reserve', 22_000, 1, 'known'],
+                ],
+            ],
+        ][$scenario][$group];
+
+        return collect($rows)
+            ->map(function (array $row): array {
+                return [
+                    'label' => $row[0],
+                    'amount' => $row[1],
+                    'quantity' => $row[2],
+                    'confidence' => $row[3],
+                    ...($row[4] ?? null ? ['month' => $row[4]] : []),
+                    ...($row[5] ?? null ? ['monthly_growth_percent' => $row[5]] : []),
+                    ...($row[6] ?? null ? ['gross_profit_percent' => $row[6]] : []),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function futureBudgetRows(string $scenario): array
+    {
+        return match ($scenario) {
+            'due_diligence' => [
+                ['label' => 'Earnout validation support', 'amount' => 8_000, 'quantity' => 1, 'year' => 2, 'recurring' => false, 'confidence' => 'estimate'],
+            ],
+            'post_acquisition' => [
+                ['label' => 'System integration phase two', 'amount' => 14_000, 'quantity' => 1, 'year' => 2, 'recurring' => false, 'confidence' => 'guess'],
+            ],
+            'npo' => [
+                ['label' => 'Impact reporting upgrade', 'amount' => 5_500, 'quantity' => 1, 'year' => 2, 'recurring' => false, 'confidence' => 'estimate'],
+            ],
+            default => [
+                ['label' => 'Management reporting phase two', 'amount' => 7_500, 'quantity' => 1, 'year' => 2, 'recurring' => false, 'confidence' => 'estimate'],
+            ],
+        };
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function fundingScenarioRows(string $scenario): array
+    {
+        return match ($scenario) {
+            'due_diligence' => [
+                ['name' => 'Bank plus buyer contribution', 'type' => 'bank_loan', 'amount' => 620_000, 'year' => 1, 'interest_rate_percent' => 8.2, 'term_years' => 5, 'interest_only_months' => 6, 'confidence' => 'estimate'],
+            ],
+            'post_acquisition' => [
+                ['name' => 'Integration working capital facility', 'type' => 'bank_loan', 'amount' => 150_000, 'year' => 1, 'interest_rate_percent' => 8.0, 'term_years' => 3, 'interest_only_months' => 3, 'confidence' => 'estimate'],
+            ],
+            default => [],
+        };
+    }
+
+    /**
+     * @return array<int, array{title:string,measure:string}>
+     */
+    private function advisorGoalsForBudgetScenario(string $scenario): array
+    {
+        return match ($scenario) {
+            'due_diligence' => [
+                ['title' => 'Protect downside before settlement', 'measure' => 'Holdback or earnout treatment agreed before signing.'],
+                ['title' => 'Convert DD into operating cadence', 'measure' => 'First 100-day controls ready before proposal deployment.'],
+            ],
+            'post_acquisition' => [
+                ['title' => 'Stabilise first 90 days', 'measure' => 'Weekly reporting pack and risk register reviewed with advisor.'],
+            ],
+            'npo' => [
+                ['title' => 'Improve funder accountability', 'measure' => 'Board-approved reporting pack ready before next grant deadline.'],
+            ],
+            default => [
+                ['title' => 'Make cash resilience measurable', 'measure' => 'Weekly cash dashboard and debtor cadence operating by first review.'],
+            ],
+        };
+    }
+
+    private function seedStrategicPlanScenario(
+        string $key,
+        string $clientKey,
+        string|int|null $proposalId,
+        string|int|null $budgetId,
+        string $status,
+        string $summary,
+        array $sections,
+        array $milestones,
+        ?CarbonInterface $deployedAt,
+    ): void {
+        $client = $this->clients[$clientKey];
+        $planId = $this->upsert('strategic_plans', [
+            'proposal_id' => $proposalId,
+        ], [
+            'client_id' => $client->getKey(),
+            'strategic_budget_id' => $budgetId,
+            'title' => 'Strategic Plan - '.($client->trading_name ?: $client->legal_name),
+            'status' => $status,
+            'summary' => $summary,
+            'sections' => $this->json(collect($sections)
+                ->map(fn (array $section): array => [
+                    'key' => $section[0],
+                    'title' => $section[1],
+                    'body' => $section[2],
+                ])
+                ->values()
+                ->all()),
+            'generated_at' => $this->now->copy()->subDays($status === StrategicPlan::STATUS_DEPLOYED ? 10 : 1),
+            'generated_by_user_id' => $this->users['advisor']->getKey(),
+            'deployed_at' => $deployedAt,
+            'deployed_by_user_id' => $deployedAt instanceof CarbonInterface ? $this->users['advisor']->getKey() : null,
+        ]);
+
+        $this->ids["strategic_plan_{$key}"] = $planId;
+
+        DB::table('strategic_plan_milestones')
+            ->where('strategic_plan_id', $planId)
+            ->delete();
+
+        foreach ($milestones as [$title, $description, $owner, $offset, $milestoneStatus, $progress, $evidenceNotes]) {
+            $completed = $milestoneStatus === StrategicPlanMilestone::STATUS_COMPLETED;
+
+            $this->upsert('strategic_plan_milestones', [
+                'strategic_plan_id' => $planId,
+                'title' => $title,
+            ], [
+                'client_id' => $client->getKey(),
+                'description' => $description,
+                'owner' => $owner,
+                'due_offset_days' => $offset,
+                'due_date' => $deployedAt instanceof CarbonInterface
+                    ? $deployedAt->copy()->addDays($offset)->toDateString()
+                    : null,
+                'status' => $milestoneStatus,
+                'progress_percent' => $completed ? 100 : $progress,
+                'evidence_notes' => $evidenceNotes,
+                'advisor_notes' => $owner === StrategicPlanMilestone::OWNER_ADVISOR
+                    ? 'Seeded advisor-owned milestone for strategic plan testing.'
+                    : null,
+                'completed_at' => $completed && $deployedAt instanceof CarbonInterface
+                    ? $deployedAt->copy()->addDays(min(6, $offset))
+                    : null,
+            ]);
+        }
+    }
+
+    private function removeStrategicPlanForProposal(string|int|null $proposalId): void
+    {
+        if ($proposalId === null) {
+            return;
+        }
+
+        $planIds = DB::table('strategic_plans')
+            ->where('proposal_id', $proposalId)
+            ->pluck('id')
+            ->all();
+
+        if ($planIds === []) {
+            return;
+        }
+
+        DB::table('strategic_plan_milestones')
+            ->whereIn('strategic_plan_id', $planIds)
+            ->delete();
+        DB::table('strategic_plans')
+            ->whereIn('id', $planIds)
+            ->delete();
+    }
+
+    private function seedSignedProposalSteps(string|int|null $proposalId, string $clientKey, CarbonInterface $signedAt): void
+    {
+        if ($proposalId === null) {
+            return;
+        }
+
+        foreach ([
+            ProposalSignoffStep::STEP_REVIEW => ['completed_at' => $signedAt->copy()->subHours(3), 'payload' => ['reviewed' => true]],
+            ProposalSignoffStep::STEP_PAYMENT_METHOD => ['completed_at' => $signedAt->copy()->subHours(2), 'payload' => ['type' => PaymentAuthority::TYPE_CARD, 'gateway' => PaymentAuthority::GATEWAY_STRIPE, 'collection_day' => 1]],
+            ProposalSignoffStep::STEP_SIGNATURE => ['completed_at' => $signedAt, 'payload' => ['signature_name' => $this->portalActorForClient($clientKey)->name, 'accepted' => true]],
+            ProposalSignoffStep::STEP_CONFIRMATION => ['completed_at' => $signedAt->copy()->addMinutes(5), 'payload' => ['confirmed' => true]],
+        ] as $step => $data) {
+            $this->upsert('proposal_signoff_steps', [
+                'proposal_id' => $proposalId,
+                'step' => $step,
+            ], [
+                'client_id' => $this->clients[$clientKey]->getKey(),
+                'completed_by_user_id' => $this->portalActorForClient($clientKey)->getKey(),
+                'completed_at' => $data['completed_at'],
+                'payload' => $this->json(['fixture' => true, ...$data['payload']]),
+            ]);
+        }
+    }
+
+    private function portalActorForClient(string $clientKey): User
+    {
+        return match ($clientKey) {
+            'dd', 'postAcquisition' => $this->users['buyer'],
+            'npo' => $this->users['npoPrimary'],
+            'socialEnterprise' => $this->users['socialEnterprise'],
+            default => $this->users['primary'],
+        };
+    }
+
+    private function signedProposalFixtureContentFor(Client $client, User $signedBy, string $scope, CarbonInterface $signedAt): string
+    {
+        return app(SimpleTextPdf::class)->render('Future Shift Advisory Proposal - Signed', [
+            'Proposal: Accepted strategic advisory fixture',
+            'Client: '.$client->legal_name,
+            'Scope: '.$scope,
+            'Status: signed',
+            'All rates and proposal amounts are GST exclusive.',
+            'Signed at: '.$signedAt->format('j M Y, g:i A T'),
+            'Signed by: '.$signedBy->name.' <'.$signedBy->email.'>',
+            'Payment authority: tokenised by Stripe; raw card details are not stored by Future Shift Advisory.',
+            'Fixture: strategic plan seed data',
+        ]);
     }
 
     private function seedBulkCommunicationsAndExpiryReminders(): void

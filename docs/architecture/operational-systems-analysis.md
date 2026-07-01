@@ -36,5 +36,8 @@ Evidence is cited as `questionnaire_answer:{id}`.
 ## Boundaries
 
 WO-49 adds no schema and does not create implementation tasks, vendor
-recommendations, procurement workflows, or automated monitoring. Later work can
-turn these findings into PV-ranked initiatives or proposal/report sections.
+recommendations, procurement workflows, or automated monitoring. Prescriptive
+findings can flow into proposal focus areas, render under "What needs to be
+fixed", and carry into signed-proposal strategic plan priorities and milestones.
+Later work is still needed to turn them into PV-ranked initiatives, delivery
+tasks, or automation backlogs.

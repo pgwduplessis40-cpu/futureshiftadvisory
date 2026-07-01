@@ -24,6 +24,7 @@ use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\PlanBuilder as DdPlanBuilder;
 use App\Services\Dd\PostAcquisition;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Entrepreneurs\Guidance as EntrepreneurGuidance;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
@@ -50,6 +51,7 @@ final class DdBusinessPlanController extends Controller
         private readonly PostAcquisition $postAcquisition,
         private readonly PdfRenderer $pdf,
         private readonly RequestContext $requestContext,
+        private readonly StrategicBudgetService $strategicBudgets,
     ) {}
 
     public function show(Request $request): Response
@@ -75,6 +77,7 @@ final class DdBusinessPlanController extends Controller
             ],
             'readiness' => $readiness,
             'plan' => $plan instanceof BusinessPlan ? $this->planPayload($plan) : null,
+            'strategicBudget' => $this->strategicBudgets->portalPayload($this->strategicBudgets->ensureForClient($client, $plan)),
             'planTemplate' => $this->requirements->templatePayload(),
             'businessAdvice' => $this->businessAdvicePayload($engagement, $plan, $readiness),
             'generateUrl' => route('portal.dd-plan.store', absolute: false),

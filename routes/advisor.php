@@ -14,6 +14,7 @@ use App\Http\Controllers\Advisor\ClientController;
 use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
+use App\Http\Controllers\Advisor\ClientStrategicBudgetController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurActionController;
 use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
@@ -38,6 +39,7 @@ use App\Http\Controllers\Advisor\RedFlagController;
 use App\Http\Controllers\Advisor\ReportController;
 use App\Http\Controllers\Advisor\ServiceActivationController;
 use App\Http\Controllers\Advisor\StandardAdvisoryController;
+use App\Http\Controllers\Advisor\StrategicPlanController;
 use App\Http\Controllers\Advisor\SurveyResultController;
 use App\Http\Controllers\Advisor\TemplateController;
 use App\Http\Controllers\Advisor\TestimonialController;
@@ -109,6 +111,24 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/proposals', [ProposalController::class, 'store'])
             ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
             ->name('clients.proposals.store');
+        Route::patch('clients/{client}/strategic-budget/approve', [ClientStrategicBudgetController::class, 'approve'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.strategic-budget.approve');
+        Route::patch('clients/{client}/strategic-budget/advisor-goals', [ClientStrategicBudgetController::class, 'advisorGoals'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.strategic-budget.advisor-goals');
+        Route::post('proposals/{proposal}/strategic-plan', [StrategicPlanController::class, 'generate'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('proposals.strategic-plan.generate');
+        Route::get('strategic-plans/{strategicPlan}/pdf', [StrategicPlanController::class, 'pdf'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('strategic-plans.pdf');
+        Route::patch('strategic-plans/{strategicPlan}', [StrategicPlanController::class, 'update'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('strategic-plans.update');
+        Route::patch('strategic-plans/{strategicPlan}/deploy', [StrategicPlanController::class, 'deploy'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('strategic-plans.deploy');
         Route::post('clients/{client}/reports', [ReportController::class, 'store'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('clients.reports.store');

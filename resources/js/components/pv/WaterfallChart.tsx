@@ -52,6 +52,7 @@ export function WaterfallChart({ steps }: Props) {
                                   ? `PV: ${step.pv_calculation_id}`
                                   : undefined
                         }
+                        contentClassName="min-w-72"
                     >
                         <button
                             type="button"
@@ -117,6 +118,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         {
             label: 'Present value',
             value: formatCurrency(step.value),
+            description:
+                'The value today after spreading the benefit or risk reduction over time and applying the discount rate.',
         },
     ];
 
@@ -124,6 +127,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         rows.push({
             label: 'Items',
             value: step.remainder_count,
+            description:
+                'Smaller PV movements grouped together so the waterfall stays readable.',
         });
     }
 
@@ -131,6 +136,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         rows.push({
             label: 'Annual benefit',
             value: formatCurrency(step.annual_benefit),
+            description:
+                'The estimated yearly improvement before discounting. It is converted into present value over the benefit period.',
             tone: 'positive',
         });
     }
@@ -139,6 +146,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         rows.push({
             label: 'Annual risk value',
             value: formatCurrency(step.annual_expected_cost),
+            description:
+                'The expected yearly cost exposure that could be reduced or avoided if the risk is addressed.',
             tone: 'positive',
         });
     }
@@ -147,6 +156,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         rows.push({
             label: 'Years',
             value: step.duration_years,
+            description:
+                'The period over which the annual benefit or risk reduction is expected to apply.',
         });
     }
 
@@ -154,6 +165,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         rows.push({
             label: 'Discount rate',
             value: formatPercent(step.discount_rate),
+            description:
+                "The annual rate used to convert future value into today's value for comparison.",
         });
     }
 
@@ -161,6 +174,8 @@ function waterfallRows(step: WaterfallStep): InsightHoverCardRow[] {
         rows.push({
             label: 'Method',
             value: formatLabel(step.discount_method),
+            description:
+                'The source of the PV assumptions, such as advisor configuration or reference-data defaults.',
         });
     }
 

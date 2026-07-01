@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
 const DashboardController = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ DashboardController.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
 DashboardController.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ DashboardController.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
 DashboardController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ DashboardController.get = (options?: RouteQueryOptions): RouteDefinition<'get'> 
 })
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
 DashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ DashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'
 
     /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
     const DashboardControllerForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ DashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'
 
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
         DashboardControllerForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ DashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'
         })
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:67
+ * @see app/Http/Controllers/Portal/DashboardController.php:75
  * @route '/portal'
  */
         DashboardControllerForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,6 +75,6 @@ DashboardController.head = (options?: RouteQueryOptions): RouteDefinition<'head'
                     }),
             method: 'get',
         })
-    
+
     DashboardController.form = DashboardControllerForm
 export default DashboardController

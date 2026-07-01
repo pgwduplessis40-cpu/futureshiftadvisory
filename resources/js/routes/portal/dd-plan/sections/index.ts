@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:130
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:133
  * @route '/portal/acquisition-plan/sections'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:130
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:133
  * @route '/portal/acquisition-plan/sections'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:130
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:133
  * @route '/portal/acquisition-plan/sections'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:130
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:133
  * @route '/portal/acquisition-plan/sections'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,18 +45,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::store
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:130
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:133
  * @route '/portal/acquisition-plan/sections'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:175
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:178
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
 export const guidance = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -71,7 +71,7 @@ guidance.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:175
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:178
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
 guidance.url = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -82,7 +82,7 @@ guidance.url = (args: { planSection: string | { id: string } } | [planSection: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { planSection: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     planSection: args[0],
@@ -104,7 +104,7 @@ guidance.url = (args: { planSection: string | { id: string } } | [planSection: s
 
 /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:175
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:178
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
 guidance.post = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -114,7 +114,7 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
 
     /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:175
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:178
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
     const guidanceForm = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -124,14 +124,14 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
 
             /**
 * @see \App\Http\Controllers\Portal\DdBusinessPlanController::guidance
- * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:175
+ * @see app/Http/Controllers/Portal/DdBusinessPlanController.php:178
  * @route '/portal/acquisition-plan/sections/{planSection}/guidance'
  */
         guidanceForm.post = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: guidance.url(args, options),
             method: 'post',
         })
-    
+
     guidance.form = guidanceForm
 const sections = {
     store: Object.assign(store, store),

@@ -40,6 +40,12 @@ Website audit runs through the same document-verification gate as every Phase 2
 analysis. Outstanding `advisory_flag` or `accuracy_discrepancy` rows block the
 run before AI is called or findings are persisted.
 
+## Downstream Flow
+
+Prescriptive website-audit findings can flow into proposal focus areas, render
+under "What needs to be fixed", and carry into signed-proposal strategic plan
+priorities and milestones.
+
 ## Boundaries
 
 WO-45 does not implement continuous website monitoring, live SEO crawling, live

@@ -22,6 +22,7 @@ final class SecureFileWriter
         private readonly FileScanner $scanner,
         private readonly AuditWriter $auditWriter,
         private readonly SecureStorageNotice $notice,
+        private readonly UploadThreatInspector $threatInspector,
     ) {}
 
     public function write(
@@ -37,7 +38,7 @@ final class SecureFileWriter
             throw new SecureFileStorageException('Uploaded file is not readable.');
         }
 
-        $scanResult = $this->scan($realPath);
+        $scanResult = $this->threatInspector->inspect($uploadedFile, $realPath) ?? $this->scan($realPath);
         if ($scanResult->isInfected()) {
             $this->recordInfectedRejection($uploadedFile, $owner, $category, $clientId, $scanResult);
 

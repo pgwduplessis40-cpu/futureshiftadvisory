@@ -116,7 +116,7 @@ final class ServiceActivation extends Model
     {
         return match ($this->service_type) {
             self::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
-            self::SERVICE_ENTREPRENEUR => 'Test a new idea',
+            self::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
             default => $this->client_label,
         };
     }

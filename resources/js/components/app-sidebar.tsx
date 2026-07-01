@@ -8,6 +8,7 @@ import {
     ClipboardList,
     ClipboardCheck,
     Database,
+    FileSpreadsheet,
     FileText,
     FolderGit2,
     Handshake,
@@ -140,9 +141,15 @@ const advisorMessagesNavItem: NavItem = {
 };
 
 const acquisitionPlanNavItem: NavItem = {
-    title: 'Prepare Business Plan',
+    title: 'Prepare Due Diligence',
     href: '/portal/acquisition-plan',
     icon: Scale,
+};
+
+const strategicPlanBudgetNavItem: NavItem = {
+    title: 'Business Plan & Budget',
+    href: '/portal/business-plan-budget',
+    icon: FileSpreadsheet,
 };
 
 const apiHealthNavItem: NavItem = {
@@ -312,7 +319,6 @@ const advisorCommunicationNavItems: NavItem[] = [
 const advisorAdministrationNavItems: NavItem[] = [
     knowledgeNavItem,
     templatesNavItem,
-    apiHealthNavItem,
 ];
 
 const superAdminCommunicationNavItems: NavItem[] = [
@@ -342,6 +348,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
 
 type PortalClient = {
     engagement_type?: string | null;
+    onboarding_complete?: boolean;
 };
 
 type PortalServiceType = 'due_diligence' | 'entrepreneur';
@@ -456,7 +463,7 @@ function portalServiceNavItems(
         },
         {
             service_type: 'entrepreneur',
-            label: 'Test a new idea',
+            label: 'Test new Business Idea',
             description:
                 'Open idea validation, business-plan, and budget support inside this portal.',
             available: true,
@@ -505,24 +512,44 @@ function navGroupsFor(
 
     if (userType === 'client_primary' || userType === 'client_team') {
         const serviceItems = portalServiceNavItems(portalServices);
-        const platformItems = [
-            portalDashboardNavItem,
-            portalOnboardingNavItem,
+        const onboardingComplete = portalClient?.onboarding_complete === true;
+        const onboardingNavItem: NavItem = {
+            ...portalOnboardingNavItem,
+            title: onboardingComplete ? 'Onboarded' : 'Onboarding',
+        };
+        const planBudgetNavItem: NavItem = {
+            ...strategicPlanBudgetNavItem,
+            title:
+                portalClient?.engagement_type === 'npo'
+                    ? 'Operating Plan & Budget'
+                    : 'Business Plan & Budget',
+        };
+        const activePathItems =
+            portalClient?.engagement_type === 'due_diligence'
+                ? [acquisitionPlanNavItem, planBudgetNavItem]
+                : [planBudgetNavItem];
+        const supportingItems = [
             portalWellbeingNavItem,
             portalSurveysNavItem,
             portalInspirationNavItem,
         ];
+        const platformItems = onboardingComplete
+            ? [
+                  portalDashboardNavItem,
+                  ...activePathItems,
+                  ...supportingItems,
+                  onboardingNavItem,
+              ]
+            : [
+                  portalDashboardNavItem,
+                  onboardingNavItem,
+                  ...activePathItems,
+                  ...supportingItems,
+              ];
 
         if (portalClient?.engagement_type === 'due_diligence') {
             return portalNavGroups({
-                platformItems: [
-                    portalDashboardNavItem,
-                    acquisitionPlanNavItem,
-                    portalOnboardingNavItem,
-                    portalWellbeingNavItem,
-                    portalSurveysNavItem,
-                    portalInspirationNavItem,
-                ],
+                platformItems,
                 serviceItems,
             });
         }

@@ -41,7 +41,14 @@ final class LearningUpdateApprovalTest extends TestCase
                 ->where('cards.0.clients_affected', 12)
                 ->where('cards.0.magnitude', 'medium')
                 ->where('cards.0.confidence', 0.82)
-                ->where('cards.0.evidence.samples', 9),
+                ->where('cards.0.evidence.samples', 9)
+                ->where('cards.0.capability_profile', fn (array $profile): bool => in_array('Finance', $profile['capabilities'] ?? [], true)
+                    && in_array('decision-toolkit', $profile['capabilities'] ?? [], true)
+                    && in_array('analysis_modules', $profile['ai_surfaces'] ?? [], true)
+                    && data_get($profile, 'governance.automatic_application') === false
+                    && data_get($profile, 'advice_quality.methodology_review_required') === true
+                    && data_get($profile, 'advice_quality.calculation_validation_required') === true
+                    && data_get($profile, 'advice_quality.truthfulness_review_required') === true),
             );
     }
 

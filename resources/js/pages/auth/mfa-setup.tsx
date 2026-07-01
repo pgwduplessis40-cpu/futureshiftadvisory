@@ -67,7 +67,8 @@ export default function MfaSetup({
                         </Button>
                     ) : (
                         <Form
-                            {...enable.form()}
+                            action={enable.url()}
+                            method="post"
                             onSuccess={() => setShowSetupModal(true)}
                         >
                             {({ processing }) => (

@@ -16,6 +16,7 @@ final class ActiveLayerEngine
     public function __construct(
         private readonly LayerCadenceRegistry $registry,
         private readonly AuditWriter $audit,
+        private readonly LearningCapabilityProfile $capabilityProfile,
     ) {}
 
     /**
@@ -133,6 +134,9 @@ final class ActiveLayerEngine
 
     private function createCandidate(LearningLayerState $state, CarbonInterface $at): LearningUpdate
     {
+        $definition = $this->registry->definition((int) $state->layer_id);
+        $profile = $this->capabilityProfile->forLayerDefinition($definition);
+
         /** @var LearningUpdate $update */
         $update = LearningUpdate::query()->create([
             'layer_id' => $state->layer_id,
@@ -145,6 +149,10 @@ final class ActiveLayerEngine
             'proposed_change' => [
                 'action' => 'review_active_layer_signal',
                 'layer_id' => $state->layer_id,
+                'capabilities' => $profile['capabilities'],
+                'ai_surfaces' => $profile['ai_surfaces'],
+                'business_value' => $profile['business_value'],
+                'advice_quality' => $profile['advice_quality'],
                 'automatic_application' => false,
                 'requires_approval' => (bool) config('learning.require_approval', true),
             ],
@@ -152,6 +160,8 @@ final class ActiveLayerEngine
                 'surface' => 'learning_layer',
                 'layer_id' => $state->layer_id,
                 'tenant_scope' => 'global',
+                'capabilities' => $profile['capabilities'],
+                'ai_surfaces' => $profile['ai_surfaces'],
             ],
             'clients_affected' => 0,
             'magnitude' => 'low',
@@ -162,6 +172,9 @@ final class ActiveLayerEngine
                     'min_sample' => $state->min_sample,
                     'config' => $state->config,
                 ],
+                'review_focus' => $profile['review_focus'],
+                'advice_quality' => $profile['advice_quality'],
+                'governance' => $profile['governance'],
                 'guardrail' => 'candidate_only_no_runtime_behavior_change',
             ],
             'status' => LearningUpdate::STATUS_DETECTED,

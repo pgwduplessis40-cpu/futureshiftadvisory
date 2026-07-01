@@ -61,20 +61,23 @@ final class PaymentStatusReport
      */
     public function forClient(Client $client, int $limit = 20): array
     {
-        $payments = Payment::query()
+        $payments = $this->latestPaymentQuery()
             ->with(['client', 'paymentSchedule.paymentAuthority'])
-            ->where('client_id', $client->getKey())
-            ->orderByDesc('processed_at')
-            ->orderByDesc('created_at')
+            ->where('payments.client_id', $client->getKey())
+            ->whereIn('payments.status', [Payment::STATUS_FAILED, Payment::STATUS_RETRYING])
+            ->orderByRaw(
+                'case payments.status when ? then 0 when ? then 1 else 2 end',
+                [Payment::STATUS_FAILED, Payment::STATUS_RETRYING],
+            )
+            ->orderByDesc('payments.processed_at')
+            ->orderByDesc('payments.created_at')
             ->limit(max(1, $limit))
             ->get();
-
-        $latestPaymentIds = $this->latestPaymentIdsForSchedules($payments->pluck('payment_schedule_id')->all());
 
         return $payments
             ->map(fn (Payment $payment): array => $this->paymentPayload(
                 $payment,
-                ($latestPaymentIds[(string) $payment->payment_schedule_id] ?? null) === (string) $payment->getKey(),
+                true,
             ))
             ->values()
             ->all();
@@ -96,29 +99,6 @@ final class PaymentStatusReport
                     ->on('payments.payment_schedule_id', '=', 'latest_payments.payment_schedule_id')
                     ->on('payments.attempt', '=', 'latest_payments.latest_attempt');
             });
-    }
-
-    /**
-     * @param  array<int, mixed>  $scheduleIds
-     * @return array<string, string>
-     */
-    private function latestPaymentIdsForSchedules(array $scheduleIds): array
-    {
-        $ids = collect($scheduleIds)
-            ->filter()
-            ->map(fn (mixed $id): string => (string) $id)
-            ->unique()
-            ->values();
-
-        if ($ids->isEmpty()) {
-            return [];
-        }
-
-        return $this->latestPaymentQuery()
-            ->whereIn('payments.payment_schedule_id', $ids->all())
-            ->pluck('payments.id', 'payments.payment_schedule_id')
-            ->map(fn (mixed $id): string => (string) $id)
-            ->all();
     }
 
     /**

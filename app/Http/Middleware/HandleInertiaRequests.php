@@ -7,6 +7,7 @@ use App\Models\Client;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Notifications\NotificationCenter;
+use App\Services\Portal\OnboardingWizard;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use Illuminate\Http\Request;
 use Inertia\Middleware;
@@ -104,6 +105,7 @@ class HandleInertiaRequests extends Middleware
             'engagement_type' => is_string($client->engagement_type)
                 ? $client->engagement_type
                 : $client->engagement_type?->value,
+            'onboarding_complete' => app(OnboardingWizard::class)->state($client)['submitted_at'] !== null,
         ];
     }
 

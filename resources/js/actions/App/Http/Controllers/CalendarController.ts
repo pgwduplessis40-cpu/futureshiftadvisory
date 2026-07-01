@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
 const CalendarController9fbd95225f575cb58f4f4b347a44d932 = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.definition = {
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
 CalendarController9fbd95225f575cb58f4f4b347a44d932.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.url = (options?: RouteQueryOp
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
 CalendarController9fbd95225f575cb58f4f4b347a44d932.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.get = (options?: RouteQueryOp
 })
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
 CalendarController9fbd95225f575cb58f4f4b347a44d932.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.head = (options?: RouteQueryO
 
     /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
     const CalendarController9fbd95225f575cb58f4f4b347a44d932Form = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.head = (options?: RouteQueryO
 
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
         CalendarController9fbd95225f575cb58f4f4b347a44d932Form.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.head = (options?: RouteQueryO
         })
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/portal/calendar'
  */
         CalendarController9fbd95225f575cb58f4f4b347a44d932Form.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ CalendarController9fbd95225f575cb58f4f4b347a44d932.head = (options?: RouteQueryO
                     }),
             method: 'get',
         })
-    
+
     CalendarController9fbd95225f575cb58f4f4b347a44d932.form = CalendarController9fbd95225f575cb58f4f4b347a44d932Form
     /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 const CalendarControllerb779617412a951269ff402230939ace7 = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ CalendarControllerb779617412a951269ff402230939ace7.definition = {
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 CalendarControllerb779617412a951269ff402230939ace7.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ CalendarControllerb779617412a951269ff402230939ace7.url = (options?: RouteQueryOp
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 CalendarControllerb779617412a951269ff402230939ace7.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -112,7 +112,7 @@ CalendarControllerb779617412a951269ff402230939ace7.get = (options?: RouteQueryOp
 })
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 CalendarControllerb779617412a951269ff402230939ace7.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -122,7 +122,7 @@ CalendarControllerb779617412a951269ff402230939ace7.head = (options?: RouteQueryO
 
     /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
     const CalendarControllerb779617412a951269ff402230939ace7Form = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -132,7 +132,7 @@ CalendarControllerb779617412a951269ff402230939ace7.head = (options?: RouteQueryO
 
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
         CalendarControllerb779617412a951269ff402230939ace7Form.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -141,7 +141,7 @@ CalendarControllerb779617412a951269ff402230939ace7.head = (options?: RouteQueryO
         })
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
         CalendarControllerb779617412a951269ff402230939ace7Form.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -153,7 +153,7 @@ CalendarControllerb779617412a951269ff402230939ace7.head = (options?: RouteQueryO
                     }),
             method: 'get',
         })
-    
+
     CalendarControllerb779617412a951269ff402230939ace7.form = CalendarControllerb779617412a951269ff402230939ace7Form
 
 /**

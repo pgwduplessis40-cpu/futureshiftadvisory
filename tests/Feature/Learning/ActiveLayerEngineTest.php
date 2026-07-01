@@ -11,6 +11,7 @@ use App\Models\LearningUpdateImplementation;
 use App\Models\RatingCriterion;
 use App\Models\RatingFramework;
 use App\Services\Learning\ActiveLayerEngine;
+use App\Services\Learning\LayerCadenceRegistry;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Tests\TestCase;
@@ -26,19 +27,27 @@ final class ActiveLayerEngineTest extends TestCase
         Carbon::setTestNow('2026-05-25 03:00:00');
 
         $engine = app(ActiveLayerEngine::class);
+        $registeredLayers = app(LayerCadenceRegistry::class)->definitions()->count();
 
         $states = $engine->activateAll(now());
         $runs = $engine->runDue(now());
 
-        $this->assertCount(37, $states);
-        $this->assertCount(37, $runs);
-        $this->assertSame(37, LearningLayerState::query()->where('active', true)->count());
-        $this->assertSame(37, LearningLayerRun::query()->where('candidates_created', 1)->count());
-        $this->assertSame(37, LearningUpdate::query()->where('status', LearningUpdate::STATUS_DETECTED)->count());
+        $this->assertCount($registeredLayers, $states);
+        $this->assertCount($registeredLayers, $runs);
+        $this->assertSame($registeredLayers, LearningLayerState::query()->where('active', true)->count());
+        $this->assertSame($registeredLayers, LearningLayerRun::query()->where('candidates_created', 1)->count());
+        $this->assertSame($registeredLayers, LearningUpdate::query()->where('status', LearningUpdate::STATUS_DETECTED)->count());
         $this->assertSame(0, LearningUpdateImplementation::query()->count());
         $this->assertTrue(LearningUpdate::query()->get()->every(
             fn (LearningUpdate $update): bool => ($update->proposed_change['automatic_application'] ?? true) === false
                 && ($update->proposed_change['requires_approval'] ?? false) === true,
+        ));
+        $this->assertTrue(LearningUpdate::query()->get()->every(
+            fn (LearningUpdate $update): bool => is_array($update->proposed_change['capabilities'] ?? null)
+                && is_array($update->proposed_change['ai_surfaces'] ?? null)
+                && is_string($update->proposed_change['business_value'] ?? null)
+                && is_array($update->proposed_change['advice_quality'] ?? null)
+                && ($update->proposed_change['advice_quality']['methodology_review_required'] ?? false) === true,
         ));
     }
 

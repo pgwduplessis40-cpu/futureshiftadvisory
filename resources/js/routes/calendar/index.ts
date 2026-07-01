@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../wayfinder'
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:40
+ * @see app/Http/Controllers/CalendarController.php:45
  * @route '/calendar'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::edit
@@ -153,7 +153,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::connect
@@ -180,7 +180,7 @@ connect.url = (args: { provider: string | number } | [provider: string | number 
         args = { provider: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -250,7 +250,7 @@ connect.head = (args: { provider: string | number } | [provider: string | number
                     }),
             method: 'get',
         })
-    
+
     connect.form = connectForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::callback
@@ -277,7 +277,7 @@ callback.url = (args: { provider: string | number } | [provider: string | number
         args = { provider: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -347,7 +347,7 @@ callback.head = (args: { provider: string | number } | [provider: string | numbe
                     }),
             method: 'get',
         })
-    
+
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::sync
@@ -377,7 +377,7 @@ sync.url = (args: { calendarConnection: string | { id: string } } | [calendarCon
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { calendarConnection: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     calendarConnection: args[0],
@@ -426,7 +426,7 @@ sync.post = (args: { calendarConnection: string | { id: string } } | [calendarCo
             action: sync.url(args, options),
             method: 'post',
         })
-    
+
     sync.form = syncForm
 /**
 * @see \App\Http\Controllers\Settings\CalendarController::revoke
@@ -456,7 +456,7 @@ revoke.url = (args: { calendarConnection: string | { id: string } } | [calendarC
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { calendarConnection: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     calendarConnection: args[0],
@@ -515,7 +515,7 @@ revoke.patch = (args: { calendarConnection: string | { id: string } } | [calenda
                     }),
             method: 'post',
         })
-    
+
     revoke.form = revokeForm
 const calendar = {
     index: Object.assign(index, index),

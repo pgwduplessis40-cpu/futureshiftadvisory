@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\ReportType;
 use App\Enums\SurveyAssignmentStatus;
+use App\Http\Controllers\Concerns\BuildsMessagePayloads;
 use App\Http\Controllers\Controller;
 use App\Models\BoardPost;
 use App\Models\BusinessPlan;
@@ -17,6 +18,7 @@ use App\Models\DdEngagement;
 use App\Models\DdIntegrationPlanItem;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\MessageThread;
 use App\Models\NpoEngagement;
 use App\Models\NpoValueCalculation;
 use App\Models\PostAcquisitionMigration;
@@ -29,6 +31,7 @@ use App\Models\SurveyAssignment;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Board\InspirationBoard;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
@@ -42,12 +45,15 @@ use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
+use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
 
 final class DashboardController extends Controller
 {
+    use BuildsMessagePayloads;
+
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly OnboardingWizard $wizard,
@@ -62,14 +68,21 @@ final class DashboardController extends Controller
         private readonly WelcomeMessageRenderer $welcomeMessage,
         private readonly InspirationBoard $inspirationBoard,
         private readonly ServiceActivationNavigation $serviceActivationNavigation,
+        private readonly StrategicBudgetService $strategicBudgets,
+        private readonly StrategicPlanService $strategicPlans,
     ) {}
 
     public function __invoke(Request $request): Response
     {
+        $viewer = $request->user();
+        abort_unless($viewer instanceof User, 403);
+
         $client = $this->clients->resolveFor($request);
         $ddEngagement = $this->currentDdEngagement($client);
         $npoEngagement = $this->currentNpoEngagement($client);
         $postAcquisition = $this->currentPostAcquisitionMigration($client);
+        $ddPlan = $ddEngagement instanceof DdEngagement ? $this->latestDdPlan($ddEngagement) : null;
+        $strategicBudget = $this->strategicBudgets->ensureForClient($client, $ddPlan);
         $goals = $npoEngagement instanceof NpoEngagement
             ? $this->goals->dashboardForEngagement($client, $npoEngagement)
             : $this->goals->dashboard($client);
@@ -80,7 +93,7 @@ final class DashboardController extends Controller
             'currentStep' => $this->wizard->currentStepSlug($client),
             'welcomeMessage' => $this->welcomeMessage->renderForClient(
                 $client,
-                $request->user() instanceof User ? $request->user() : null,
+                $viewer,
             ),
             'inspirationBoard' => $this->inspirationBoardPayload(),
             'onboardingUrl' => route('portal.onboarding.step', [
@@ -97,6 +110,8 @@ final class DashboardController extends Controller
             'ddPlan' => $ddEngagement instanceof DdEngagement ? $this->ddPlanPayload($ddEngagement) : null,
             'postAcquisition' => $postAcquisition instanceof PostAcquisitionMigration ? $this->postAcquisitionPayload($postAcquisition) : null,
             'serviceActivations' => $this->serviceActivationNavigation->payload($client),
+            'strategicBudget' => $this->strategicBudgets->portalPayload($strategicBudget),
+            'strategicPlan' => $this->strategicPlans->portalPayload($client),
             'standardAdvisory' => $this->standardAdvisory->portalSummary($client),
             'goals' => $goals,
             'documents' => $this->documentPayload($client, $npoEngagement),
@@ -105,6 +120,7 @@ final class DashboardController extends Controller
             'scenarios' => $this->scenarioPayload($client),
             'proposals' => $this->proposalPayload($client),
             'reports' => $this->reportPayload($client, $npoEngagement),
+            'messageSummary' => $this->messageSummary($client, $viewer),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'surveys' => $this->surveyPayload($client),
         ]);
@@ -486,11 +502,7 @@ final class DashboardController extends Controller
      */
     private function ddPlanPayload(DdEngagement $engagement): array
     {
-        $plan = BusinessPlan::query()
-            ->where('dd_engagement_id', $engagement->getKey())
-            ->where('source_type', BusinessPlan::SOURCE_DUE_DILIGENCE)
-            ->latest()
-            ->first();
+        $plan = $this->latestDdPlan($engagement);
 
         return [
             'url' => route('portal.dd-plan.show', absolute: false),
@@ -511,6 +523,15 @@ final class DashboardController extends Controller
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function latestDdPlan(DdEngagement $engagement): ?BusinessPlan
+    {
+        return BusinessPlan::query()
+            ->where('dd_engagement_id', $engagement->getKey())
+            ->where('source_type', BusinessPlan::SOURCE_DUE_DILIGENCE)
+            ->latest()
+            ->first();
     }
 
     /**
@@ -550,6 +571,23 @@ final class DashboardController extends Controller
                 'submitted_at' => $questionnaire?->submitted_at?->toIso8601String(),
                 'answered_questions' => $questionnaire instanceof QuestionnaireResponse ? $questionnaire->answers()->count() : 0,
             ],
+        ];
+    }
+
+    /**
+     * @return array{threads_count:int, unread_count:int, latest_url:string}
+     */
+    private function messageSummary(Client $client, User $viewer): array
+    {
+        $threads = $this->clientMessageThreads($client);
+        $latestThread = $threads->first();
+
+        return [
+            'threads_count' => $threads->count(),
+            'unread_count' => (int) $threads->sum(fn (MessageThread $thread): int => $this->unreadCount($thread, $viewer)),
+            'latest_url' => $latestThread instanceof MessageThread
+                ? route('portal.messages.show', $latestThread, absolute: false)
+                : route('portal.messages.index', absolute: false),
         ];
     }
 

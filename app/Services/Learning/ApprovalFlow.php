@@ -22,6 +22,7 @@ final class ApprovalFlow
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly ReferenceDataProjector $referenceDataProjector,
+        private readonly LearningCapabilityProfile $capabilityProfile,
     ) {}
 
     /**
@@ -177,6 +178,9 @@ final class ApprovalFlow
                     'learning_update_id' => $implementation->learning_update_id,
                     'summary' => $update?->summary ?? 'Learning update',
                     'layer_id' => $update?->layer_id,
+                    'capability_profile' => $update instanceof LearningUpdate
+                        ? $this->capabilityProfile->forUpdate($update)
+                        : null,
                     'implemented_at' => $implementation->implemented_at?->toIso8601String(),
                     'review_due' => $implementation->review_due?->toIso8601String(),
                     'review_url' => route('admin.learning-update-implementations.review', $implementation, absolute: false),
@@ -312,6 +316,7 @@ final class ApprovalFlow
             'magnitude' => $update->magnitude,
             'confidence' => $update->confidence,
             'evidence' => $update->evidence,
+            'capability_profile' => $this->capabilityProfile->forUpdate($update),
             'status' => $update->status,
             'effective_date' => $update->effective_date?->toIso8601String(),
             'pre_implementation_notice_at' => $update->pre_implementation_notice_at?->toIso8601String(),

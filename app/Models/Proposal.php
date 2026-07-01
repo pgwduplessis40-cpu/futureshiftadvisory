@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use LogicException;
 
 final class Proposal extends Model
@@ -155,6 +156,14 @@ final class Proposal extends Model
     public function accountingInvoices(): HasMany
     {
         return $this->hasMany(AccountingInvoice::class);
+    }
+
+    /**
+     * @return HasOne<StrategicBudget>
+     */
+    public function strategicBudget(): HasOne
+    {
+        return $this->hasOne(StrategicBudget::class);
     }
 
     /**

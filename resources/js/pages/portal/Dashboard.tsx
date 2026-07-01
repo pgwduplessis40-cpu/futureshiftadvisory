@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, useForm } from '@inertiajs/react';
 import {
     Activity,
     Bell,
@@ -6,6 +6,7 @@ import {
     CalendarClock,
     ClipboardList,
     CircleDollarSign,
+    FileSpreadsheet,
     FileText,
     HeartPulse,
     Lightbulb,
@@ -90,6 +91,8 @@ type Props = {
     ddPlan: DdPlanPayload | null;
     postAcquisition: PostAcquisitionPayload | null;
     serviceActivations: ServiceActivationsPayload;
+    strategicBudget: StrategicBudgetPayload;
+    strategicPlan: StrategicPlanPayload | null;
     standardAdvisory: StandardAdvisoryPortalPayload | null;
     goals: GoalDashboard;
     documents: DocumentPayload[];
@@ -98,6 +101,11 @@ type Props = {
     scenarios: ScenarioPayload[];
     proposals: ProposalPayload[];
     reports: ReportPayload[];
+    messageSummary: {
+        threads_count: number;
+        unread_count: number;
+        latest_url: string;
+    };
     messagesUrl: string;
     surveys: PendingSurveysPayload;
     welcomeMessage: WelcomeMessage;
@@ -243,6 +251,47 @@ type StandardAdvisoryPortalPayload = {
         download_url: string | null;
     } | null;
     latest_report_generated_at: string | null;
+};
+
+type StrategicBudgetPayload = {
+    label: string;
+    status: string;
+    status_label: string;
+    locked: boolean;
+    readiness_score: number;
+    progress_score: number;
+    source_financials: {
+        count?: number;
+        system_review?: string;
+    };
+};
+
+type StrategicPlanPayload = {
+    id: string;
+    title: string;
+    status: string;
+    status_label: string;
+    summary: string | null;
+    generated_at: string | null;
+    deployed_at: string | null;
+    progress_percent: number;
+    completed_milestones: number;
+    total_milestones: number;
+    milestones: StrategicPlanMilestonePayload[];
+};
+
+type StrategicPlanMilestonePayload = {
+    id: string;
+    title: string;
+    description: string | null;
+    owner: 'client' | 'advisor' | 'joint';
+    owner_label: string;
+    due_date: string | null;
+    status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+    status_label: string;
+    progress_percent: number;
+    evidence_notes: string | null;
+    update_url: string;
 };
 
 type NpoFundingPayload = {
@@ -469,6 +518,8 @@ export default function PortalDashboard({
     ddPlan,
     postAcquisition,
     serviceActivations,
+    strategicBudget,
+    strategicPlan,
     standardAdvisory,
     goals,
     documents: initialDocuments,
@@ -477,7 +528,7 @@ export default function PortalDashboard({
     scenarios,
     proposals,
     reports,
-    messagesUrl,
+    messageSummary,
     surveys,
     welcomeMessage,
     inspirationBoard,
@@ -623,13 +674,21 @@ export default function PortalDashboard({
             ).length,
         0,
     );
+    const strategicPlanOpenMilestoneCount = strategicPlan
+        ? Math.max(
+              0,
+              strategicPlan.total_milestones -
+                  strategicPlan.completed_milestones,
+          )
+        : 0;
     const nextSurvey = surveys.items[0] ?? null;
-    const showInformationSection = (
+    const focusDashboardSection = (
         sectionId: string,
+        tab: PortalDashboardTab,
         event: MouseEvent<Element>,
     ) => {
         event.preventDefault();
-        setActiveTab('information');
+        setActiveTab(tab);
         window.setTimeout(() => {
             const section = document.getElementById(sectionId);
 
@@ -637,10 +696,40 @@ export default function PortalDashboard({
                 return;
             }
 
+            const highlightClasses = [
+                'ring-2',
+                'ring-primary',
+                'ring-offset-2',
+                'ring-offset-background',
+                'transition-shadow',
+                'scroll-mt-24',
+            ];
+            const previousTabIndex = section.getAttribute('tabindex');
+            const hadTabIndex = section.hasAttribute('tabindex');
+
+            section.setAttribute('tabindex', previousTabIndex ?? '-1');
+            section.classList.add(...highlightClasses);
             section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            section.focus({ preventScroll: true });
             window.history.replaceState(null, '', `#${sectionId}`);
+
+            window.setTimeout(() => {
+                section.classList.remove(...highlightClasses);
+
+                if (hadTabIndex && previousTabIndex !== null) {
+                    section.setAttribute('tabindex', previousTabIndex);
+                } else {
+                    section.removeAttribute('tabindex');
+                }
+            }, 2200);
         }, 0);
     };
+    const showActionSection = (sectionId: string, event: MouseEvent<Element>) =>
+        focusDashboardSection(sectionId, 'actions', event);
+    const showInformationSection = (
+        sectionId: string,
+        event: MouseEvent<Element>,
+    ) => focusDashboardSection(sectionId, 'information', event);
 
     return (
         <>
@@ -736,7 +825,7 @@ export default function PortalDashboard({
                                 {ddPlan && (
                                     <StatusPanel
                                         icon={PieChart}
-                                        label="Prepare business plan"
+                                        label="Prepare Due Diligence"
                                         value={
                                             ddPlan.business_advice_requested
                                                 ? 'Advice requested'
@@ -746,12 +835,54 @@ export default function PortalDashboard({
                                                     ? `Updated ${formatDate(ddPlan.updated_at)}`
                                                     : 'Not generated'
                                         }
-                                        explanation={`Builds a business plan for the target acquisition (${ddPlan.target_name}) from DD questionnaire answers, uploaded evidence, workstream findings, and valuation context.`}
+                                        explanation={`Builds the due diligence plan for the target acquisition (${ddPlan.target_name}) from DD questionnaire answers, uploaded evidence, workstream findings, and valuation context.`}
                                         href={ddPlan.url}
                                         actionLabel={
                                             ddPlan.generated
                                                 ? 'Open'
                                                 : 'Prepare'
+                                        }
+                                    />
+                                )}
+                                <StatusPanel
+                                    icon={FileSpreadsheet}
+                                    label={strategicBudget.label}
+                                    value={
+                                        strategicBudget.locked
+                                            ? 'Locked'
+                                            : `${strategicBudget.readiness_score}/100 ready`
+                                    }
+                                    explanation={
+                                        strategicBudget.locked
+                                            ? (strategicBudget.source_financials
+                                                  .system_review ??
+                                              'Upload a P&L or management accounts file to unlock the budget.')
+                                            : `Status: ${strategicBudget.status_label}. Progress ${strategicBudget.progress_score}%.`
+                                    }
+                                    href="/portal/business-plan-budget"
+                                    actionLabel={
+                                        strategicBudget.locked
+                                            ? 'Unlock'
+                                            : 'Open'
+                                    }
+                                />
+                                {strategicPlan && (
+                                    <StatusPanel
+                                        icon={ClipboardList}
+                                        label="Strategic Plan milestones"
+                                        value={
+                                            strategicPlanOpenMilestoneCount > 0
+                                                ? `${strategicPlanOpenMilestoneCount} open`
+                                                : 'All complete'
+                                        }
+                                        explanation={`Track the deployed Strategic Plan. ${strategicPlan.completed_milestones}/${strategicPlan.total_milestones} milestones are complete and progress is ${strategicPlan.progress_percent}%.`}
+                                        href="#section-strategic-plan-milestones"
+                                        actionLabel="Update"
+                                        onAction={(event) =>
+                                            showInformationSection(
+                                                'section-strategic-plan-milestones',
+                                                event,
+                                            )
                                         }
                                     />
                                 )}
@@ -763,6 +894,16 @@ export default function PortalDashboard({
                                         explanation="This handoff uses DD evidence, the DD valuation baseline, and the post-close gap questionnaire to start the advisory engagement."
                                         href={postAcquisitionActionUrl}
                                         actionLabel={postAcquisitionActionLabel}
+                                        onAction={
+                                            postAcquisitionActionUrl ===
+                                            '#section-post-acquisition'
+                                                ? (event) =>
+                                                      showActionSection(
+                                                          'section-post-acquisition',
+                                                          event,
+                                                      )
+                                                : undefined
+                                        }
                                     />
                                 )}
                                 {serviceActivations.items
@@ -803,9 +944,15 @@ export default function PortalDashboard({
                                             : `Shared ${formatDate(wellbeing.submitted_at)}`
                                     }
                                     explanation="Wellbeing prompts help the advisory team understand founder pressure and support needs."
-                                    href={wellbeing.url}
+                                    href="#section-wellbeing"
                                     actionLabel={
                                         wellbeing.prompt_due ? 'Open' : 'View'
+                                    }
+                                    onAction={(event) =>
+                                        showActionSection(
+                                            'section-wellbeing',
+                                            event,
+                                        )
                                     }
                                 />
                                 <StatusPanel
@@ -820,14 +967,16 @@ export default function PortalDashboard({
                                     href="/notifications"
                                     actionLabel="Open"
                                 />
-                                <StatusPanel
-                                    icon={MessageSquare}
-                                    label="Messages"
-                                    value="Advisor thread"
-                                    explanation="Messages opens your secure conversation history with the advisory team."
-                                    href={messagesUrl}
-                                    actionLabel="Open"
-                                />
+                                {messageSummary.unread_count > 0 && (
+                                    <StatusPanel
+                                        icon={MessageSquare}
+                                        label="Messages"
+                                        value={`${messageSummary.unread_count} unread`}
+                                        explanation="Unread advisor messages may need a response before the next advisory step can move forward."
+                                        href={messageSummary.latest_url}
+                                        actionLabel="Open"
+                                    />
+                                )}
                                 <StatusPanel
                                     icon={FileText}
                                     label="Proposals"
@@ -838,13 +987,25 @@ export default function PortalDashboard({
                                     }
                                     explanation="Proposal tiles link to released proposals that may need sign-off or review."
                                     href={
-                                        actionProposal?.signoff_url ??
-                                        '#section-proposals'
+                                        unsignedProposalCount > 0 &&
+                                        actionProposal?.signoff_url
+                                            ? actionProposal.signoff_url
+                                            : '#section-proposals'
                                     }
                                     actionLabel={
                                         unsignedProposalCount > 0
                                             ? 'Open'
                                             : 'View'
+                                    }
+                                    onAction={
+                                        unsignedProposalCount > 0 &&
+                                        actionProposal?.signoff_url
+                                            ? undefined
+                                            : (event) =>
+                                                  showActionSection(
+                                                      'section-proposals',
+                                                      event,
+                                                  )
                                     }
                                 />
                                 <StatusPanel
@@ -858,6 +1019,12 @@ export default function PortalDashboard({
                                     explanation="Documents include uploaded evidence and any verification outcomes that need attention."
                                     href="#section-documents"
                                     actionLabel="Review"
+                                    onAction={(event) =>
+                                        showActionSection(
+                                            'section-documents',
+                                            event,
+                                        )
+                                    }
                                 />
                                 <StatusPanel
                                     icon={TrendingUp}
@@ -1112,8 +1279,8 @@ export default function PortalDashboard({
                 ) : (
                     <>
                         <DashboardSection
-                            title="Decision context"
-                            description="Use these panels to understand client health, NPO position, and value progress."
+                            title="Insights & evidence"
+                            description="Review the signals that shape next actions, including business health, goals, NPO position, and strategic plan progress."
                         >
                             <BusinessHealthPanel
                                 businessHealth={businessHealth}
@@ -1136,11 +1303,17 @@ export default function PortalDashboard({
                             )}
 
                             <GoalProgressPanel goals={goals} />
+
+                            {strategicPlan && (
+                                <StrategicPlanProgressPanel
+                                    strategicPlan={strategicPlan}
+                                />
+                            )}
                         </DashboardSection>
 
                         <DashboardSection
-                            title="Information"
-                            description="Review released reports, scenarios, and message access after open actions are clear."
+                            title="Reports & shared outputs"
+                            description="Review released reports and advisor-shared what-if scenarios after open actions are clear."
                         >
                             <section
                                 className="space-y-4 rounded-md border bg-background p-4"
@@ -1234,7 +1407,7 @@ export default function PortalDashboard({
                                 )}
                             </section>
 
-                            <div className="grid gap-6 lg:grid-cols-2">
+                            {scenarios.length > 0 && (
                                 <section
                                     className="space-y-4 rounded-md border bg-background p-4"
                                     aria-labelledby="scenarios-heading"
@@ -1248,35 +1421,12 @@ export default function PortalDashboard({
                                             id="scenarios-heading"
                                             className="text-sm font-medium"
                                         >
-                                            Scenarios
+                                            What-if scenarios
                                         </h2>
                                     </div>
                                     <ScenarioList scenarios={scenarios} />
                                 </section>
-
-                                <section
-                                    className="space-y-4 rounded-md border bg-background p-4"
-                                    aria-labelledby="messages-heading"
-                                >
-                                    <div className="flex items-center gap-2">
-                                        <MessageSquare
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        <h2
-                                            id="messages-heading"
-                                            className="text-sm font-medium"
-                                        >
-                                            Messages
-                                        </h2>
-                                    </div>
-                                    <Button asChild variant="outline" size="sm">
-                                        <Link href={messagesUrl}>
-                                            Open messages
-                                        </Link>
-                                    </Button>
-                                </section>
-                            </div>
+                            )}
                         </DashboardSection>
                     </>
                 )}
@@ -1762,7 +1912,7 @@ function DashboardTabList({
                 active={activeTab === 'information'}
                 onClick={() => onChange('information')}
             >
-                Information
+                Insights
             </DashboardTabButton>
         </div>
     );
@@ -1796,7 +1946,11 @@ function DashboardTabButton({
 function initialPortalDashboardTab(): PortalDashboardTab {
     if (
         typeof window !== 'undefined' &&
-        ['#section-health'].includes(window.location.hash)
+        [
+            '#section-health',
+            '#section-reports',
+            '#section-strategic-plan-milestones',
+        ].includes(window.location.hash)
     ) {
         return 'information';
     }
@@ -1834,6 +1988,11 @@ function BusinessHealthPanel({
     businessHealth: BusinessHealthRadarPayload;
     healthFindings: HealthFindingDimension[];
 }) {
+    const hasHealthAnalysis =
+        businessHealth.captured_at !== null ||
+        businessHealth.axes.some((axis) => typeof axis.score === 'number') ||
+        healthFindings.some((dimension) => dimension.findings.length > 0);
+
     return (
         <section
             id="section-health"
@@ -1847,7 +2006,7 @@ function BusinessHealthPanel({
                         id="business-health-heading"
                         className="text-sm font-medium"
                     >
-                        Business health
+                        Business health overview
                     </h2>
                 </div>
                 <Badge variant="outline">
@@ -1857,7 +2016,21 @@ function BusinessHealthPanel({
                 </Badge>
             </div>
 
-            <BusinessHealthRadar payload={businessHealth} />
+            {!hasHealthAnalysis ? (
+                <div className="rounded-md border border-dashed bg-muted/20 p-4">
+                    <div className="text-sm font-medium">
+                        Waiting for analysis
+                    </div>
+                    <p className="mt-2 max-w-3xl text-sm text-muted-foreground">
+                        This overview will populate once onboarding, financial
+                        uploads, and advisor analysis provide enough evidence.
+                        It will then show financial, operational, people,
+                        strategic, and compliance signals in one place.
+                    </p>
+                </div>
+            ) : (
+                <BusinessHealthRadar payload={businessHealth} />
+            )}
 
             <div className="grid gap-3 lg:grid-cols-5">
                 {healthFindings.map((dimension) => (
@@ -2053,6 +2226,157 @@ function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function StrategicPlanProgressPanel({
+    strategicPlan,
+}: {
+    strategicPlan: StrategicPlanPayload;
+}) {
+    return (
+        <section
+            id="section-strategic-plan-milestones"
+            className="space-y-4 rounded-md border bg-background p-4"
+            aria-labelledby="strategic-plan-heading"
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="flex items-start gap-2">
+                    <ClipboardList
+                        className="mt-0.5 size-4"
+                        aria-hidden="true"
+                    />
+                    <div>
+                        <h2
+                            id="strategic-plan-heading"
+                            className="text-sm font-medium"
+                        >
+                            Strategic Plan milestones
+                        </h2>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            {strategicPlan.summary ??
+                                'Track the deployed strategic plan milestones and evidence.'}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <Badge variant="outline">
+                        {strategicPlan.completed_milestones}/
+                        {strategicPlan.total_milestones} complete
+                    </Badge>
+                    <Badge variant="secondary">
+                        {strategicPlan.progress_percent}% progress
+                    </Badge>
+                </div>
+            </div>
+
+            <div className="space-y-3">
+                {strategicPlan.milestones.map((milestone) => (
+                    <StrategicPlanMilestoneCard
+                        key={milestone.id}
+                        milestone={milestone}
+                    />
+                ))}
+            </div>
+        </section>
+    );
+}
+
+function StrategicPlanMilestoneCard({
+    milestone,
+}: {
+    milestone: StrategicPlanMilestonePayload;
+}) {
+    const form = useForm({
+        status: milestone.status,
+        progress_percent: String(milestone.progress_percent),
+        evidence_notes: milestone.evidence_notes ?? '',
+    });
+
+    const save = () => {
+        form.patch(milestone.update_url, { preserveScroll: true });
+    };
+
+    return (
+        <article className="space-y-3 rounded-md border p-3">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0 space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-medium">
+                            {milestone.title}
+                        </h3>
+                        <Badge variant="outline">{milestone.owner_label}</Badge>
+                        <Badge variant="secondary">
+                            {milestone.status_label}
+                        </Badge>
+                    </div>
+                    {milestone.description && (
+                        <p className="text-sm text-muted-foreground">
+                            {milestone.description}
+                        </p>
+                    )}
+                </div>
+                <div className="text-sm text-muted-foreground">
+                    Due {formatOptionalDate(milestone.due_date)}
+                </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-[180px_180px_minmax(0,1fr)_auto]">
+                <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Status</span>
+                    <select
+                        value={form.data.status}
+                        onChange={(event) =>
+                            form.setData(
+                                'status',
+                                event.target
+                                    .value as StrategicPlanMilestonePayload['status'],
+                            )
+                        }
+                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    >
+                        <option value="pending">Pending</option>
+                        <option value="in_progress">In progress</option>
+                        <option value="completed">Completed</option>
+                        <option value="blocked">Blocked</option>
+                    </select>
+                </label>
+                <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Progress %</span>
+                    <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        value={form.data.progress_percent}
+                        onChange={(event) =>
+                            form.setData('progress_percent', event.target.value)
+                        }
+                    />
+                </label>
+                <label className="grid gap-1 text-sm">
+                    <span className="font-medium">Evidence notes</span>
+                    <Input
+                        value={form.data.evidence_notes}
+                        onChange={(event) =>
+                            form.setData('evidence_notes', event.target.value)
+                        }
+                        placeholder="Record progress evidence or blockers"
+                    />
+                </label>
+                <Button
+                    type="button"
+                    className="self-end"
+                    disabled={form.processing}
+                    onClick={save}
+                >
+                    <Save className="size-4" aria-hidden="true" />
+                    Save
+                </Button>
+            </div>
+            <InputError message={form.errors.status} />
+            <InputError message={form.errors.progress_percent} />
+            <InputError message={form.errors.evidence_notes} />
+        </article>
     );
 }
 
@@ -2469,23 +2793,20 @@ function StatusPanel({
     return (
         <Tooltip>
             <TooltipTrigger asChild>
-                <section className="rounded-md border bg-background p-4">
+                <Link
+                    href={href}
+                    onClick={onAction}
+                    className="block rounded-md border bg-background p-4 text-left transition-colors hover:border-primary/50 hover:bg-muted/30 focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                >
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
                         <Icon className="size-4" aria-hidden={true} />
                         {label}
                     </div>
                     <div className="mt-2 text-sm font-medium">{value}</div>
-                    <Button
-                        asChild
-                        variant="ghost"
-                        size="sm"
-                        className="mt-3 px-0"
-                    >
-                        <Link href={href} onClick={onAction}>
-                            {actionLabel}
-                        </Link>
-                    </Button>
-                </section>
+                    <span className="mt-3 inline-flex text-sm font-medium text-foreground">
+                        {actionLabel}
+                    </span>
+                </Link>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-xs">
                 {explanation}

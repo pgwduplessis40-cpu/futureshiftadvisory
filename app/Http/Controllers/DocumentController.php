@@ -152,7 +152,7 @@ final class DocumentController extends Controller
     private function validatedUpload(Request $request): array
     {
         return $request->validate([
-            'file' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx'],
+            'file' => ['required', 'file', 'max:20480', 'mimes:pdf,doc,docx,xls,xlsx,csv,txt'],
             'category' => ['nullable', 'string', 'max:80'],
             'workstream' => ['nullable', 'string', 'max:80'],
             'question_id' => ['nullable', 'uuid', 'exists:questionnaire_questions,id'],

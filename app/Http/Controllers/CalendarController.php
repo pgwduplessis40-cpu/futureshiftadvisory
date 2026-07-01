@@ -25,6 +25,7 @@ use App\Models\Report;
 use App\Models\ReverseReferral;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\ClientPortalResolver;
 use DateTimeInterface;
@@ -37,6 +38,10 @@ use Inertia\Response;
 
 final class CalendarController extends Controller
 {
+    public function __construct(
+        private readonly PublicHolidayCalendar $publicHolidays,
+    ) {}
+
     public function __invoke(
         Request $request,
         ClientPortalResolver $clients,
@@ -244,6 +249,15 @@ final class CalendarController extends Controller
                     href: route('portal.messages.show', $thread, absolute: false),
                 ));
             });
+
+        array_push(
+            $events,
+            ...$this->publicHolidays->eventsBetween(
+                now()->subMonths(3),
+                now()->addMonths(9),
+                $this->publicHolidays->regionsForClient($client),
+            ),
+        );
 
         return [
             'Client calendar',

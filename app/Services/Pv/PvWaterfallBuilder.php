@@ -38,7 +38,7 @@ final class PvWaterfallBuilder implements ProvidesMethodology
             $query->whereIn('id', $clientIds);
         }
 
-        $clients = $query->limit(12)->get();
+        $clients = $query->get();
         $items = $clients
             ->map(fn (Client $client): array => $this->forClient($client))
             ->filter(fn (array $item): bool => $item['current_pv'] > 0 || $item['target_pv'] > 0)

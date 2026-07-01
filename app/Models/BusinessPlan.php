@@ -106,6 +106,14 @@ final class BusinessPlan extends Model
     }
 
     /**
+     * @return HasOne<StrategicBudget>
+     */
+    public function strategicBudget(): HasOne
+    {
+        return $this->hasOne(StrategicBudget::class);
+    }
+
+    /**
      * @return HasMany<PlanAssessment>
      */
     public function assessments(): HasMany

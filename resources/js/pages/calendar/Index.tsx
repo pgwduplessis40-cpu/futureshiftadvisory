@@ -1,5 +1,11 @@
 import { Head, Link } from '@inertiajs/react';
-import { CalendarDays, Clock3, ExternalLink } from 'lucide-react';
+import {
+    CalendarDays,
+    ChevronLeft,
+    ChevronRight,
+    Clock3,
+    ExternalLink,
+} from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -47,7 +53,7 @@ export default function ActivityCalendarIndex({
     emptyState,
 }: Props) {
     const [view, setView] = useState<ViewMode>('agenda');
-    const referenceDate = useMemo(() => new Date(), []);
+    const [referenceDate, setReferenceDate] = useState<Date>(() => new Date());
     const visibleEvents = useMemo(
         () => events.filter((event) => eventInView(event, view, referenceDate)),
         [events, referenceDate, view],
@@ -70,6 +76,13 @@ export default function ActivityCalendarIndex({
                 .length,
         };
     }, [events]);
+    const showDateNavigation = view !== 'agenda';
+
+    const moveReferenceDate = (direction: -1 | 1) => {
+        setReferenceDate((current) =>
+            shiftReferenceDate(current, view, direction),
+        );
+    };
 
     return (
         <>
@@ -104,7 +117,7 @@ export default function ActivityCalendarIndex({
                 </header>
 
                 <section className="space-y-4">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
                         <div className="grid grid-cols-4 rounded-md border p-1 sm:w-[420px]">
                             {(
                                 [
@@ -129,9 +142,64 @@ export default function ActivityCalendarIndex({
                                 </Button>
                             ))}
                         </div>
-                        <Badge variant="outline">
-                            {visibleEvents.length} shown
-                        </Badge>
+                        <div className="flex flex-wrap items-center gap-2">
+                            {showDateNavigation && (
+                                <>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => moveReferenceDate(-1)}
+                                        aria-label={`Previous ${navigationUnitLabel(view)}`}
+                                    >
+                                        <ChevronLeft
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Previous
+                                    </Button>
+                                    <Badge
+                                        variant="secondary"
+                                        className="min-w-40 justify-center"
+                                    >
+                                        {calendarPeriodLabel(
+                                            view,
+                                            referenceDate,
+                                        )}
+                                    </Badge>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        onClick={() => moveReferenceDate(1)}
+                                        aria-label={`Next ${navigationUnitLabel(view)}`}
+                                    >
+                                        Next
+                                        <ChevronRight
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() =>
+                                            setReferenceDate(new Date())
+                                        }
+                                    >
+                                        <CalendarDays
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Today
+                                    </Button>
+                                </>
+                            )}
+                            <Badge variant="outline">
+                                {visibleEvents.length} shown
+                            </Badge>
+                        </div>
                     </div>
 
                     {view === 'agenda' ? (
@@ -673,6 +741,22 @@ function buildMonthDays(referenceDate: Date): Date[] {
     return Array.from({ length: 42 }, (_, index) => addDays(start, index));
 }
 
+function shiftReferenceDate(
+    date: Date,
+    view: ViewMode,
+    direction: -1 | 1,
+): Date {
+    if (view === 'month') {
+        return new Date(date.getFullYear(), date.getMonth() + direction, 1);
+    }
+
+    if (view === 'week' || view === 'work_week') {
+        return addDays(date, direction * 7);
+    }
+
+    return date;
+}
+
 function addDays(date: Date, days: number): Date {
     const next = new Date(date);
     next.setDate(next.getDate() + days);
@@ -712,6 +796,34 @@ function formatMonthLabel(date: Date): string {
         month: 'long',
         year: 'numeric',
     }).format(date);
+}
+
+function calendarPeriodLabel(view: ViewMode, referenceDate: Date): string {
+    if (view === 'month') {
+        return formatMonthLabel(referenceDate);
+    }
+
+    if (view === 'work_week') {
+        const days = buildWorkWeekDays(referenceDate);
+
+        return formatWeekRange(days[0], days[days.length - 1]);
+    }
+
+    if (view === 'week') {
+        const days = buildWeekDays(referenceDate);
+
+        return formatWeekRange(days[0], days[days.length - 1]);
+    }
+
+    return 'All activity';
+}
+
+function navigationUnitLabel(view: ViewMode): string {
+    if (view === 'work_week') {
+        return 'work week';
+    }
+
+    return view;
 }
 
 function formatWeekRange(start: Date, end: Date): string {

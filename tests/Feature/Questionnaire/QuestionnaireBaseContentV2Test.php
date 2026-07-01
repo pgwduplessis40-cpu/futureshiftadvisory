@@ -46,6 +46,9 @@ final class QuestionnaireBaseContentV2Test extends TestCase
         $this->assertContains('Website URL and main product/service pages.', $prompts);
         $this->assertContains('How accurately does the website describe what you sell?', $prompts);
         $this->assertContains('Search and AI discoverability evidence.', $prompts);
+        $this->assertContains('System handoffs and duplicate entry.', $prompts);
+        $this->assertContains('Manual tasks that take a lot of time each week.', $prompts);
+        $this->assertContains('Automation constraints and approvals.', $prompts);
         // Every question carries its "why we need this" as help_text.
         $this->assertTrue(
             $questions->every(fn ($q): bool => is_string($q->help_text) && $q->help_text !== ''),

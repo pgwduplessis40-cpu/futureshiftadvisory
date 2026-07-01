@@ -77,7 +77,8 @@ export default function RequestDeactivation({ requestedAt }: Props) {
                         </DialogDescription>
 
                         <Form
-                            {...ProfileController.requestDeactivation.form()}
+                            action={ProfileController.requestDeactivation.url()}
+                            method="post"
                             options={{
                                 preserveScroll: true,
                             }}

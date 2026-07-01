@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Proposals;
 
+use App\Enums\AnalysisLens;
+use App\Enums\AnalysisModule;
 use App\Enums\DiscountMethod;
 use App\Enums\EngagementType;
 use App\Enums\FeeMethod;
+use App\Enums\FindingSeverity;
 use App\Enums\ProposalStatus;
 use App\Enums\PvType;
+use App\Models\AnalysisFinding;
+use App\Models\AnalysisRun;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -16,10 +21,13 @@ use App\Models\Consent;
 use App\Models\FeeCalculation;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
+use App\Models\StrategicPlan;
+use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Proposals\ProposalBuilder;
+use App\Services\StrategicPlans\StrategicPlanService;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -154,6 +162,204 @@ final class ProposalBuilderTest extends TestCase
         $this->assertGreaterThan(100, $proposal->pdf_byte_size);
         $this->assertStringContainsString('Future Shift Advisory', $this->renderer->html);
         $this->assertStringContainsString('ROI ratio', $this->renderer->html);
+    }
+
+    public function test_proposal_includes_analysis_fixes_from_website_audit_findings(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-website-fix-advisor@example.test');
+        $calculation = $this->feeCalculation($client, 12000, 3.5);
+        $run = AnalysisRun::query()->create([
+            'client_id' => $client->getKey(),
+            'module' => AnalysisModule::WebsiteAudit,
+            'status' => AnalysisRun::STATUS_COMPLETED,
+            'framework_lenses' => [],
+            'data_quality_snapshot' => [],
+            'tokens_in' => 0,
+            'tokens_out' => 0,
+            'started_at' => now(),
+            'completed_at' => now(),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        AnalysisFinding::query()->create([
+            'analysis_run_id' => $run->getKey(),
+            'client_id' => $client->getKey(),
+            'lens' => AnalysisLens::Prescriptive,
+            'severity' => FindingSeverity::Medium,
+            'title' => 'Website audit action plan',
+            'body' => 'Align the product and service pages with the stated offer, then fix SEO metadata, schema, FAQ answers, mobile responsiveness, and enquiry CTAs.',
+            'attributions' => [[
+                'claim' => 'Website audit evidence comes from the submitted questionnaire.',
+                'source_reference' => 'questionnaire_answer:website-fixture',
+            ]],
+            'document_support' => AnalysisFinding::DOCUMENT_SUPPORT_NONE,
+        ]);
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->assertSame('website_audit', $proposal->scope['focus_areas'][0]['module']);
+        $this->assertSame('Website audit action plan', $proposal->scope['focus_areas'][0]['title']);
+
+        app(ProposalBuilder::class)->rerenderPdf($proposal);
+
+        $this->assertStringContainsString('What needs to be fixed', $this->renderer->html);
+        $this->assertStringContainsString('Website audit action plan', $this->renderer->html);
+        $this->assertStringContainsString('Align the product and service pages', $this->renderer->html);
+    }
+
+    public function test_proposal_includes_operational_and_systems_automation_fixes(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-automation-fix-advisor@example.test');
+        $calculation = $this->feeCalculation($client, 14000, 4);
+
+        foreach ([
+            [
+                'module' => AnalysisModule::Operational,
+                'title' => 'Operational improvement plan',
+                'body' => 'Quote follow-up: Quantify annual labour cost, rework, and customer-delay cost; automate the repeatable follow-up before adding headcount.',
+            ],
+            [
+                'module' => AnalysisModule::Systems,
+                'title' => 'Systems upgrade plan',
+                'body' => 'CRM to inventory sync: Quantify duplicate-entry time, reporting lag, and decision risk; replace re-keying with a governed API handoff.',
+            ],
+        ] as $finding) {
+            $run = AnalysisRun::query()->create([
+                'client_id' => $client->getKey(),
+                'module' => $finding['module'],
+                'status' => AnalysisRun::STATUS_COMPLETED,
+                'framework_lenses' => [],
+                'data_quality_snapshot' => [],
+                'tokens_in' => 0,
+                'tokens_out' => 0,
+                'started_at' => now(),
+                'completed_at' => now(),
+                'created_by_user_id' => $advisor->getKey(),
+            ]);
+
+            AnalysisFinding::query()->create([
+                'analysis_run_id' => $run->getKey(),
+                'client_id' => $client->getKey(),
+                'lens' => AnalysisLens::Prescriptive,
+                'severity' => FindingSeverity::Medium,
+                'title' => $finding['title'],
+                'body' => $finding['body'],
+                'attributions' => [[
+                    'claim' => 'Automation evidence comes from the submitted questionnaire.',
+                    'source_reference' => 'questionnaire_answer:automation-fixture',
+                ]],
+                'document_support' => AnalysisFinding::DOCUMENT_SUPPORT_NONE,
+            ]);
+        }
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $titles = collect($proposal->scope['focus_areas'])->pluck('title')->all();
+        $this->assertContains('Operational improvement plan', $titles);
+        $this->assertContains('Systems upgrade plan', $titles);
+
+        app(ProposalBuilder::class)->rerenderPdf($proposal);
+
+        $this->assertStringContainsString('What needs to be fixed', $this->renderer->html);
+        $this->assertStringContainsString('Operational improvement plan', $this->renderer->html);
+        $this->assertStringContainsString('Systems upgrade plan', $this->renderer->html);
+        $this->assertStringContainsString('Quantify annual labour cost', $this->renderer->html);
+        $this->assertStringContainsString('Quantify duplicate-entry time', $this->renderer->html);
+    }
+
+    public function test_strategic_plan_inherits_website_and_systems_fixes_from_signed_proposal(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-strategic-plan-fixes@example.test');
+        $builder = app(ProposalBuilder::class);
+        $proposal = $builder->generate($client, $this->feeCalculation($client, 18000, 4.5), [
+            'scope' => [
+                'summary' => 'Automation and website delivery proposal.',
+                'focus_areas' => [
+                    [
+                        'module' => AnalysisModule::WebsiteAudit->value,
+                        'title' => 'Website audit action plan',
+                        'body' => 'Align the product and service pages with the stated offer, then fix SEO metadata, schema, FAQ answers, mobile responsiveness, and enquiry CTAs.',
+                    ],
+                    [
+                        'module' => AnalysisModule::Systems->value,
+                        'title' => 'Systems upgrade plan',
+                        'body' => 'CRM to inventory sync: Quantify duplicate-entry time, reporting lag, and decision risk; replace re-keying with a governed API handoff.',
+                    ],
+                ],
+            ],
+        ], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $proposal = $builder->release($proposal, $advisor);
+        Proposal::allowSignoffStatusTransition(function () use ($proposal, $advisor): void {
+            $proposal->forceFill([
+                'status' => ProposalStatus::AwaitingSignature,
+                'awaiting_signature_at' => now(),
+            ])->save();
+            $proposal->forceFill([
+                'status' => ProposalStatus::Signed,
+                'signed_at' => now(),
+                'signed_by_user_id' => $advisor->getKey(),
+            ])->save();
+        });
+
+        $plan = app(StrategicPlanService::class)->generateForProposal($proposal->refresh(), $advisor);
+
+        $actionPriorities = (string) data_get(
+            collect($plan->sections)->firstWhere('key', 'priorities'),
+            'body',
+            '',
+        );
+        $this->assertStringContainsString('Website audit action plan', $actionPriorities);
+        $this->assertStringContainsString('Align the product and service pages', $actionPriorities);
+        $this->assertStringContainsString('Systems upgrade plan', $actionPriorities);
+        $this->assertStringContainsString('Quantify duplicate-entry time', $actionPriorities);
+
+        $milestoneText = $plan->milestones
+            ->map(fn ($milestone): string => $milestone->title.' '.$milestone->description)
+            ->implode("\n");
+        $this->assertStringContainsString('Website audit action plan', $milestoneText);
+        $this->assertStringContainsString('Systems upgrade plan', $milestoneText);
+    }
+
+    public function test_strategic_plan_deployment_moves_generated_due_dates_off_client_public_holidays(): void
+    {
+        $this->travelTo('2026-09-21 09:00:00');
+
+        [$advisor, $client] = $this->clientWithTeam(
+            'proposal-strategic-plan-holiday@example.test',
+            'South Canterbury',
+        );
+        $plan = StrategicPlan::query()->create([
+            'client_id' => $client->getKey(),
+            'title' => 'Holiday-aware strategic plan',
+            'status' => StrategicPlan::STATUS_DRAFT,
+            'summary' => 'Deployment should avoid client regional public holidays.',
+            'sections' => [],
+            'generated_at' => now(),
+            'generated_by_user_id' => $advisor->getKey(),
+        ]);
+
+        StrategicPlanMilestone::query()->create([
+            'strategic_plan_id' => $plan->getKey(),
+            'client_id' => $client->getKey(),
+            'title' => 'Regional holiday offset',
+            'owner' => StrategicPlanMilestone::OWNER_JOINT,
+            'due_offset_days' => 7,
+            'status' => StrategicPlanMilestone::STATUS_PENDING,
+        ]);
+
+        $deployed = app(StrategicPlanService::class)->deploy($plan, $advisor);
+
+        $this->assertSame(
+            '2026-09-29',
+            $deployed->milestones->first()?->due_date?->toDateString(),
+        );
     }
 
     public function test_proposal_generation_uses_active_uploaded_proposal_template(): void
@@ -435,7 +641,7 @@ final class ProposalBuilderTest extends TestCase
     /**
      * @return array{0: User, 1: Client}
      */
-    private function clientWithTeam(string $advisorEmail = 'proposal-advisor@example.test'): array
+    private function clientWithTeam(string $advisorEmail = 'proposal-advisor@example.test', ?string $region = null): array
     {
         $advisor = User::factory()->withTwoFactor()->create([
             'email' => $advisorEmail,
@@ -444,7 +650,7 @@ final class ProposalBuilderTest extends TestCase
         ]);
         $advisor->assignRole(User::TYPE_ADVISOR);
 
-        $client = $this->client('Proposal Client Limited', $advisor);
+        $client = $this->client('Proposal Client Limited', $advisor, $region);
 
         ClientTeamMember::query()->create([
             'client_id' => $client->id,
@@ -456,7 +662,7 @@ final class ProposalBuilderTest extends TestCase
         return [$advisor, $client];
     }
 
-    private function client(string $name, ?User $createdBy = null): Client
+    private function client(string $name, ?User $createdBy = null, ?string $region = null): Client
     {
         app(RequestContext::class)->apply('system', []);
 
@@ -464,6 +670,7 @@ final class ProposalBuilderTest extends TestCase
             'engagement_type' => EngagementType::STANDARD_ADVISORY,
             'nzbn' => fake()->numerify('9429#########'),
             'legal_name' => $name,
+            'address' => $region ? ['region' => $region] : null,
             'data_quality' => Client::DATA_QUALITY_LOW,
             'created_by_user_id' => $createdBy?->getKey(),
         ]);

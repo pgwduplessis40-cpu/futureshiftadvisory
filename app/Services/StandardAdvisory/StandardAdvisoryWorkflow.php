@@ -15,6 +15,7 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\Questionnaire;
+use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\User;
@@ -160,6 +161,7 @@ final class StandardAdvisoryWorkflow
             'analysis_modules' => $analysisModules,
             'analysis_completed' => $analysisCompleted,
             'analysis_total' => count(self::ANALYSIS_MODULES),
+            'website_audit' => $this->websiteAuditReadiness($client),
             'health_recomputed_at' => $healthBatch instanceof Collection
                 ? $healthBatch->first()?->captured_at?->toIso8601String()
                 : null,
@@ -296,6 +298,198 @@ final class StandardAdvisoryWorkflow
             ->latest('submitted_at')
             ->latest()
             ->first();
+    }
+
+    /**
+     * @return Collection<int, QuestionnaireResponse>
+     */
+    private function latestStandardQuestionnaireResponses(Client $client): Collection
+    {
+        return QuestionnaireResponse::query()
+            ->where('client_id', $client->getKey())
+            ->whereHas('questionnaire', fn ($query) => $query->forSet(QuestionnaireSet::STANDARD_ADVISORY))
+            ->with('answers.question')
+            ->latest('submitted_at')
+            ->latest()
+            ->limit(3)
+            ->get();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function websiteAuditReadiness(Client $client): array
+    {
+        $responses = $this->latestStandardQuestionnaireResponses($client);
+
+        if ($responses->isEmpty()) {
+            return $this->websiteAuditReadinessPayload(
+                status: 'waiting_questionnaire',
+                label: 'Waiting for questionnaire',
+                nextAction: 'Ask the client to complete the Standard Advisory questionnaire before relying on website alignment findings.',
+            );
+        }
+
+        $answers = $responses->flatMap(fn (QuestionnaireResponse $response): Collection => $response->answers);
+        $websiteAnswers = $answers->filter(fn (QuestionnaireAnswer $answer): bool => $this->isWebsiteAuditAnswer($answer));
+        $productServiceAnswers = $answers->filter(fn (QuestionnaireAnswer $answer): bool => $this->isProductServiceAnswer($answer));
+        $websiteValueText = $websiteAnswers
+            ->map(fn (QuestionnaireAnswer $answer): string => $this->answerValueText($answer))
+            ->implode(' ');
+
+        $hasUrl = $this->hasWebsiteUrl($websiteValueText);
+        $hasWebsitePageEvidence = $this->hasWebsitePageEvidence($websiteValueText);
+        $hasProductServiceEvidence = $productServiceAnswers->contains(
+            fn (QuestionnaireAnswer $answer): bool => trim($this->answerValueText($answer)) !== '',
+        );
+        $hasSeoEvidence = $this->hasSeoEvidence($websiteValueText);
+
+        if (! $hasUrl) {
+            return $this->websiteAuditReadinessPayload(
+                status: 'missing_url',
+                label: 'Website URL missing',
+                nextAction: 'Capture the homepage URL and the main product or service page URLs before treating the website audit as complete.',
+                hasProductServiceEvidence: $hasProductServiceEvidence,
+                hasSeoEvidence: $hasSeoEvidence,
+            );
+        }
+
+        if (! $hasWebsitePageEvidence) {
+            return $this->websiteAuditReadinessPayload(
+                status: 'missing_page_evidence',
+                label: 'Page evidence missing',
+                nextAction: 'Add website page copy, page notes, screenshots, or adviser observations so product/service claims can be compared against the website.',
+                hasUrl: true,
+                hasProductServiceEvidence: $hasProductServiceEvidence,
+                hasSeoEvidence: $hasSeoEvidence,
+            );
+        }
+
+        if (! $hasProductServiceEvidence) {
+            return $this->websiteAuditReadinessPayload(
+                status: 'missing_product_service_evidence',
+                label: 'Offer evidence missing',
+                nextAction: 'Add what the client actually sells so the website can be checked against the product or service offer.',
+                hasUrl: true,
+                hasWebsitePageEvidence: true,
+                hasSeoEvidence: $hasSeoEvidence,
+            );
+        }
+
+        if (! $hasSeoEvidence) {
+            return $this->websiteAuditReadinessPayload(
+                status: 'missing_seo_evidence',
+                label: 'SEO evidence missing',
+                nextAction: 'Add SEO, metadata, schema, headings, FAQ, local-search, or AI-search observations to support the website alignment audit.',
+                hasUrl: true,
+                hasWebsitePageEvidence: true,
+                hasProductServiceEvidence: true,
+            );
+        }
+
+        return $this->websiteAuditReadinessPayload(
+            status: 'ready',
+            label: 'Ready for review',
+            nextAction: 'Website URL, page evidence, product/service evidence, and SEO alignment evidence are available for the audit.',
+            hasUrl: true,
+            hasWebsitePageEvidence: true,
+            hasProductServiceEvidence: true,
+            hasSeoEvidence: true,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function websiteAuditReadinessPayload(
+        string $status,
+        string $label,
+        string $nextAction,
+        bool $hasUrl = false,
+        bool $hasWebsitePageEvidence = false,
+        bool $hasProductServiceEvidence = false,
+        bool $hasSeoEvidence = false,
+    ): array {
+        return [
+            'status' => $status,
+            'status_label' => $label,
+            'next_action' => $nextAction,
+            'has_url' => $hasUrl,
+            'has_website_page_evidence' => $hasWebsitePageEvidence,
+            'has_product_service_evidence' => $hasProductServiceEvidence,
+            'has_seo_evidence' => $hasSeoEvidence,
+        ];
+    }
+
+    private function isWebsiteAuditAnswer(QuestionnaireAnswer $answer): bool
+    {
+        $haystack = $this->answerHaystack($answer);
+
+        foreach (['website', 'url', 'seo', 'geo', 'aeo', 'aio', 'mobile', 'search', 'schema', 'structured data', 'answer engine', 'generative engine', 'ai overview', 'ai search', 'cta', 'call to action', 'landing page', 'product page', 'service page', 'enquiry'] as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return $this->hasWebsiteUrl($this->answerValueText($answer));
+    }
+
+    private function isProductServiceAnswer(QuestionnaireAnswer $answer): bool
+    {
+        $haystack = $this->answerHaystack($answer);
+
+        foreach (['product', 'products', 'service', 'services', 'selling', 'sells', 'sold', 'offer', 'offers', 'price', 'pricing', 'package', 'packages', 'customer', 'customers', 'sales channel'] as $needle) {
+            if (str_contains($haystack, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function answerHaystack(QuestionnaireAnswer $answer): string
+    {
+        return strtolower((string) $answer->question?->prompt.' '.$this->answerValueText($answer));
+    }
+
+    private function answerValueText(QuestionnaireAnswer $answer): string
+    {
+        if (is_array($answer->value)) {
+            return (string) json_encode($answer->value);
+        }
+
+        return (string) $answer->value;
+    }
+
+    private function hasWebsiteUrl(string $text): bool
+    {
+        return preg_match('/https?:\/\/|www\.|[a-z0-9.-]+\.(?:co\.nz|nz|com|net|org)\b/i', $text) === 1;
+    }
+
+    private function hasWebsitePageEvidence(string $text): bool
+    {
+        $text = strtolower($text);
+
+        foreach (['home page', 'homepage', 'service page', 'product page', 'pricing page', 'booking page', 'copy', 'heading', 'metadata', 'meta description', 'schema', 'faq', 'cta', 'call to action', 'mobile', 'responsive', 'content', 'local search', 'seo'] as $needle) {
+            if (str_contains($text, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasSeoEvidence(string $text): bool
+    {
+        $text = strtolower($text);
+
+        foreach (['seo', 'search', 'metadata', 'meta description', 'title tag', 'schema', 'structured data', 'faq', 'answer engine', 'aeo', 'generative engine', 'geo', 'ai overview', 'ai search', 'aio', 'llm'] as $needle) {
+            if (str_contains($text, $needle)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

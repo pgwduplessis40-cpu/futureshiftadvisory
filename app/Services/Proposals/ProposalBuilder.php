@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Proposals;
 
+use App\Enums\AnalysisLens;
 use App\Enums\FeeMethod;
 use App\Enums\ProposalStatus;
+use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
@@ -317,6 +319,22 @@ final class ProposalBuilder
             'excluded' => array_values($excluded),
         ];
 
+        if (isset($scope['term_months']) && is_numeric($scope['term_months'])) {
+            $payload['term_months'] = max(1, (int) $scope['term_months']);
+        }
+
+        if (is_array($scope['budget'] ?? null)) {
+            $payload['budget'] = $scope['budget'];
+        }
+
+        $focusAreas = is_array($scope['focus_areas'] ?? null)
+            ? array_values(array_filter($scope['focus_areas'], 'is_array'))
+            : $this->proposalFocusAreas($client);
+
+        if ($focusAreas !== []) {
+            $payload['focus_areas'] = $focusAreas;
+        }
+
         if ($isGovernanceReview) {
             $payload['proposal_variant'] = FeeMethod::GovernanceReview->value;
             $payload['fixed_fee'] = true;
@@ -356,6 +374,68 @@ final class ProposalBuilder
             'fee_method' => $feeCalculation->method->value,
             'suggested_mid' => $feeCalculation->suggested_mid,
         ]];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function proposalFocusAreas(Client $client): array
+    {
+        $findings = AnalysisFinding::query()
+            ->with('run')
+            ->where('client_id', $client->getKey())
+            ->where('lens', AnalysisLens::Prescriptive->value)
+            ->latest()
+            ->limit(80)
+            ->get()
+            ->sort(function (AnalysisFinding $left, AnalysisFinding $right): int {
+                return [
+                    $this->severityRank($right),
+                    $right->created_at?->getTimestamp() ?? 0,
+                ] <=> [
+                    $this->severityRank($left),
+                    $left->created_at?->getTimestamp() ?? 0,
+                ];
+            })
+            ->values();
+
+        if ($findings->isEmpty()) {
+            return [];
+        }
+
+        $websiteFinding = $findings->first(
+            fn (AnalysisFinding $finding): bool => $finding->run?->module?->value === 'website_audit',
+        );
+        $selected = collect([$websiteFinding])
+            ->filter()
+            ->merge($findings->reject(
+                fn (AnalysisFinding $finding): bool => $websiteFinding instanceof AnalysisFinding
+                    && (string) $finding->getKey() === (string) $websiteFinding->getKey(),
+            ))
+            ->take(6)
+            ->values();
+
+        return $selected
+            ->map(fn (AnalysisFinding $finding): array => [
+                'analysis_finding_id' => (string) $finding->getKey(),
+                'module' => $finding->run?->module?->value,
+                'lens' => $finding->lens->value,
+                'severity' => $finding->severity->value,
+                'title' => $finding->title,
+                'body' => Str::limit($finding->body, 750),
+            ])
+            ->all();
+    }
+
+    private function severityRank(AnalysisFinding $finding): int
+    {
+        return match ($finding->severity->value) {
+            'critical' => 5,
+            'high' => 4,
+            'medium' => 3,
+            'low' => 2,
+            default => 1,
+        };
     }
 
     /**
@@ -510,6 +590,8 @@ final class ProposalBuilder
             ))
             ->implode('');
         $conversionCredit = $this->conversionCreditHtml($proposal);
+        $budgetReadiness = $this->budgetReadinessHtml($proposal);
+        $focusAreas = $this->proposalFocusAreasHtml($proposal);
 
         return sprintf(
             <<<'HTML'
@@ -517,6 +599,7 @@ final class ProposalBuilder
 <h2>Scope</h2>
 <p>%s</p>
 </section>
+%s
 <section class="proposal-panel">
 <h2>Fee</h2>
 <p>Method: %s</p>
@@ -524,6 +607,7 @@ final class ProposalBuilder
 <p>All proposal rates and amounts are GST exclusive. GST at 15%% is added to any final payment collected.</p>
 <p>ROI ratio: %s</p>
 </section>
+%s
 %s
 <section class="proposal-panel">
 <h2>PV summary</h2>
@@ -541,16 +625,51 @@ final class ProposalBuilder
 </section>
 HTML,
             $this->escape((string) data_get($proposal->scope, 'summary')),
+            $focusAreas,
             $this->escape($proposal->feeCalculation?->method?->value ?? ''),
             number_format($proposal->feeCalculation?->suggested_low ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_high ?? 0, 0),
             number_format($proposal->roi_ratio, 2),
             $conversionCredit,
+            $budgetReadiness,
             number_format((float) data_get($proposal->pv_summary, 'improvement_pv_total', 0), 0),
             number_format((float) data_get($proposal->pv_summary, 'risk_cost_pv_total', 0), 0),
             number_format((float) data_get($proposal->pv_summary, 'target_pv', 0), 0),
             $consents,
+        );
+    }
+
+    private function proposalFocusAreasHtml(Proposal $proposal): string
+    {
+        $focusAreas = data_get($proposal->scope, 'focus_areas', []);
+
+        if (! is_array($focusAreas) || $focusAreas === []) {
+            return '';
+        }
+
+        $items = collect($focusAreas)
+            ->filter('is_array')
+            ->take(6)
+            ->map(fn (array $area): string => sprintf(
+                '<li><strong>%s</strong><br><span>%s</span></li>',
+                $this->escape((string) ($area['title'] ?? 'Advisory focus area')),
+                $this->escape((string) ($area['body'] ?? '')),
+            ))
+            ->implode('');
+
+        if ($items === '') {
+            return '';
+        }
+
+        return sprintf(
+            <<<'HTML'
+<section class="proposal-panel">
+<h2>What needs to be fixed</h2>
+<ul>%s</ul>
+</section>
+HTML,
+            $items,
         );
     }
 
@@ -832,6 +951,44 @@ CSS;
         }
 
         return $value;
+    }
+
+    private function budgetReadinessHtml(Proposal $proposal): string
+    {
+        $budget = data_get($proposal->scope, 'budget');
+
+        if (! is_array($budget)) {
+            return '';
+        }
+
+        $override = $budget['override'] ?? null;
+        if (! is_array($override)) {
+            return sprintf(
+                <<<'HTML'
+<section class="proposal-panel">
+<h2>Business Plan &amp; Budget readiness</h2>
+<p>Status: %s. Confidence score: %s/100.</p>
+<p>The budget was advisor-approved before proposal generation.</p>
+</section>
+HTML,
+                $this->escape((string) ($budget['status_label'] ?? 'Approved')),
+                number_format((float) ($budget['confidence_score'] ?? 0), 0),
+            );
+        }
+
+        return sprintf(
+            <<<'HTML'
+<section class="proposal-panel">
+<h2>Budget readiness acknowledgement</h2>
+<p>The Business Plan &amp; Budget was not advisor-approved before this proposal was generated.</p>
+<p>Reason: %s.</p>
+<p>Advisor notes: %s</p>
+<p>This may adversely affect proposal confidence, recommended package, fee level, payment terms, and affordability checks.</p>
+</section>
+HTML,
+            $this->escape(str((string) ($override['category'] ?? 'other'))->replace('_', ' ')->title()->toString()),
+            $this->escape((string) ($override['notes'] ?? '')),
+        );
     }
 
     /**

@@ -34,6 +34,7 @@ type LearningUpdateCard = {
     magnitude: string;
     confidence: number | null;
     evidence: Record<string, unknown> | null;
+    capability_profile: CapabilityProfile;
     status: string;
     effective_date: string | null;
     pre_implementation_notice_at: string | null;
@@ -68,6 +69,33 @@ type ImpactReviewCard = {
     review_due: string | null;
     review_url: string;
     proposed_change: Record<string, unknown> | null;
+    capability_profile: CapabilityProfile | null;
+};
+
+type CapabilityProfile = {
+    capabilities: string[];
+    ai_surfaces: string[];
+    business_value: string;
+    review_focus: string[];
+    advice_quality?: AdviceQuality;
+    governance: {
+        approval_required: boolean;
+        automatic_application: boolean;
+        fact_check_required: boolean;
+        advisor_review_required: boolean;
+    };
+};
+
+type AdviceQuality = {
+    learning_outcome_review_required: boolean;
+    methodology_review_required: boolean;
+    evidence_review_required: boolean;
+    bias_review_required: boolean;
+    truthfulness_review_required: boolean;
+    calculation_validation_required: boolean;
+    valuation_review_required: boolean;
+    budget_principle_review_required: boolean;
+    standards: string[];
 };
 
 type LearningMonitor = {
@@ -84,6 +112,7 @@ type LearningMonitor = {
         window_days: number;
         command: string | null;
         governed_candidates_only: boolean;
+        capability_profile: CapabilityProfile;
         latest_run: LearningLayerRun | null;
     }[];
     recent_runs: LearningLayerRun[];
@@ -250,6 +279,12 @@ function ImpactReviewCardItem({ review }: { review: ImpactReviewCard }) {
                 <p className="text-xs text-muted-foreground">
                     Implemented {formatDate(review.implemented_at)}
                 </p>
+                {review.capability_profile && (
+                    <CapabilityStrip
+                        profile={review.capability_profile}
+                        compact
+                    />
+                )}
             </div>
             <div className="grid gap-2">
                 <textarea
@@ -391,6 +426,10 @@ function MonitorPanel({ monitor }: { monitor: LearningMonitor }) {
                                         <div className="text-xs text-muted-foreground">
                                             {layer.command ?? 'registry'}
                                         </div>
+                                        <CapabilityStrip
+                                            profile={layer.capability_profile}
+                                            compact
+                                        />
                                     </td>
                                     <td
                                         className="px-3 py-2"
@@ -505,6 +544,12 @@ function UpdateCard({
                         <Badge variant="secondary">{card.magnitude}</Badge>
                     </div>
                     <h2 className="text-base font-semibold">{card.summary}</h2>
+                    <CapabilityStrip profile={card.capability_profile} />
+                    {card.capability_profile.business_value && (
+                        <p className="max-w-3xl text-sm text-muted-foreground">
+                            {card.capability_profile.business_value}
+                        </p>
+                    )}
                     <dl className="grid gap-2 text-sm sm:grid-cols-3">
                         <Metric
                             label="Clients"
@@ -571,6 +616,7 @@ function UpdateCard({
             </div>
 
             <div className="mt-4 grid gap-3 lg:grid-cols-3">
+                <ReviewFocusPanel profile={card.capability_profile} />
                 <JsonPanel title="Source" value={card.source} />
                 <JsonPanel
                     title="Proposed change"
@@ -645,6 +691,67 @@ function UpdateCard({
     );
 }
 
+function CapabilityStrip({
+    profile,
+    compact = false,
+}: {
+    profile: CapabilityProfile;
+    compact?: boolean;
+}) {
+    return (
+        <div className={cn('flex flex-wrap gap-1.5', !compact && 'mt-1')}>
+            {profile.capabilities.slice(0, compact ? 3 : 5).map((capability) => (
+                <Badge key={capability} variant="outline">
+                    {capability}
+                </Badge>
+            ))}
+            {profile.ai_surfaces.slice(0, compact ? 2 : 3).map((surface) => (
+                <Badge key={surface} variant="secondary">
+                    {label(surface)}
+                </Badge>
+            ))}
+            {profile.governance.fact_check_required && (
+                <Badge variant="destructive">Fact check</Badge>
+            )}
+            {profile.advice_quality?.calculation_validation_required && (
+                <Badge variant="outline">Calculation check</Badge>
+            )}
+            {profile.advice_quality?.budget_principle_review_required && (
+                <Badge variant="outline">Budget check</Badge>
+            )}
+        </div>
+    );
+}
+
+function ReviewFocusPanel({ profile }: { profile: CapabilityProfile }) {
+    const standards = profile.advice_quality?.standards ?? [];
+
+    return (
+        <section className="rounded-md border p-3">
+            <h3 className="text-xs font-medium text-muted-foreground">
+                Review focus
+            </h3>
+            <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                {profile.review_focus.map((focus) => (
+                    <li key={focus}>{focus}</li>
+                ))}
+            </ul>
+            {standards.length > 0 && (
+                <>
+                    <h3 className="mt-3 text-xs font-medium text-muted-foreground">
+                        Advice quality
+                    </h3>
+                    <ul className="mt-2 space-y-1 text-xs text-muted-foreground">
+                        {standards.slice(0, 5).map((standard) => (
+                            <li key={standard}>{standard}</li>
+                        ))}
+                    </ul>
+                </>
+            )}
+        </section>
+    );
+}
+
 function Metric({
     label,
     value,
@@ -673,6 +780,10 @@ function Metric({
             </TooltipContent>
         </Tooltip>
     );
+}
+
+function label(value: string): string {
+    return value.replaceAll('_', ' ');
 }
 
 function JsonPanel({

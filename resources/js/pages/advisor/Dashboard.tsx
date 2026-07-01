@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
+    Banknote,
     BarChart3,
     CheckCircle2,
     Clock,
@@ -12,6 +13,7 @@ import {
     HeartPulse,
     Inbox,
     Lightbulb,
+    ListChecks,
     PieChart,
     PlugZap,
     ShieldAlert,
@@ -67,6 +69,23 @@ type EngagementScore = {
     drill_url: string;
 };
 
+type CashFlowStatus = {
+    client_id: string;
+    client_name: string;
+    status: 'positive' | 'watch' | 'negative' | 'unknown';
+    status_label: string;
+    tone: 'positive' | 'warning' | 'negative' | 'muted';
+    reason: string;
+    source: string;
+    latest_operating_cash_flow: number | null;
+    latest_period_end: string | null;
+    runway_months: number | null;
+    runway_open_ended: boolean;
+    cash_flow_positive_year: number | null;
+    alert_headline: string | null;
+    detail_url: string;
+};
+
 type ClientHealth = {
     id: string;
     legal_name: string;
@@ -75,6 +94,7 @@ type ClientHealth = {
     status: string;
     status_label: string;
     engagement: EngagementScore;
+    cash_flow: CashFlowStatus;
     open_document_flags_count: number;
     last_activity_at: string | null;
     show_url: string;
@@ -90,6 +110,19 @@ type ClientsHealthPayload = {
         needs_attention: number;
     };
     clients: ClientHealth[];
+};
+
+type CashFlowStatusPayload = {
+    summary: {
+        total: number;
+        positive: number;
+        watch: number;
+        negative: number;
+        unknown: number;
+        action_required: number;
+    };
+    by_client: Record<string, CashFlowStatus>;
+    items: CashFlowStatus[];
 };
 
 type PendingTermsPayload = {
@@ -131,6 +164,29 @@ type EntrepreneurReviewsPayload = {
         status: string;
         submitted_at: string | null;
         detail_url: string | null;
+        action_label: string;
+    }>;
+};
+
+type StrategicPlanDeploymentsPayload = {
+    summary: {
+        total: number;
+        ready_to_generate: number;
+        ready_to_deploy: number;
+    };
+    items: Array<{
+        id: string;
+        type: 'generate' | 'deploy';
+        client_id: string;
+        client_name: string;
+        proposal_version: number | null;
+        generated_at: string | null;
+        accepted_at: string | null;
+        milestones_count: number;
+        status_label: string;
+        budget_status_label: string | null;
+        detail_url: string;
+        action_url: string | null;
         action_label: string;
     }>;
 };
@@ -600,6 +656,8 @@ type ActionSummaryItem = {
     key: string;
     label: string;
     value: number;
+    displayValue?: React.ReactNode;
+    statusLabel?: string;
     href: string;
     targetId: string;
     tab: DashboardTab;
@@ -622,10 +680,12 @@ const signalPanelTargetIds = new Set([
 
 type Props = {
     clientsHealth: ClientsHealthPayload;
+    cashFlowStatus: CashFlowStatusPayload;
     redFlags: RedFlagsPayload;
     documentVerificationFlags: DocumentVerificationFlag[];
     messagesPending: MessagesPendingPayload;
     entrepreneurReviews: EntrepreneurReviewsPayload;
+    strategicPlanDeployments: StrategicPlanDeploymentsPayload;
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
     integrationHealth: IntegrationHealthPayload;
@@ -647,10 +707,12 @@ type Props = {
 
 export default function AdvisorDashboard({
     clientsHealth,
+    cashFlowStatus,
     redFlags,
     documentVerificationFlags,
     messagesPending,
     entrepreneurReviews,
+    strategicPlanDeployments,
     pendingTermsReacceptance,
     prospectInbox,
     integrationHealth,
@@ -672,15 +734,20 @@ export default function AdvisorDashboard({
     const [activeTab, setActiveTab] =
         useState<DashboardTab>(initialDashboardTab);
     const actionItems = buildActionSummaryItems({
+        cashFlowStatus,
         redFlags,
         documentVerificationFlags,
         entrepreneurReviews,
+        strategicPlanDeployments,
         pendingTermsReacceptance,
         proposalStatus,
         paymentStatus,
+        pvWaterfall,
+        practiceHealth,
         npoPendingConversions,
         npoFunding,
         referenceDataTasks,
+        scenarioPlanning,
         panelOperations,
     });
     const actionQueueCount = actionItems.filter(
@@ -790,25 +857,27 @@ export default function AdvisorDashboard({
                             title="Action panel"
                             description="Work the live queues before moving into planning and portfolio decisions."
                         >
-                            <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
-                                <RedFlagPanel payload={redFlags} />
-
-                                <div className="space-y-4">
-                                    <EntrepreneurReviewPanel
-                                        payload={entrepreneurReviews}
-                                    />
-                                    <div id="advisor-documents">
-                                        <DocumentVerificationFlagPanel
-                                            flags={documentVerificationFlags}
-                                        />
-                                    </div>
-                                    <PendingTermsReacceptance
-                                        payload={pendingTermsReacceptance}
+                            <div className="grid items-start gap-4 xl:grid-cols-2">
+                                <EntrepreneurReviewPanel
+                                    payload={entrepreneurReviews}
+                                />
+                                <CashFlowRiskPanel
+                                    payload={cashFlowStatus}
+                                />
+                                <StrategicPlanDeploymentPanel
+                                    payload={strategicPlanDeployments}
+                                />
+                                <div id="advisor-documents">
+                                    <DocumentVerificationFlagPanel
+                                        flags={documentVerificationFlags}
                                     />
                                 </div>
+                                <PendingTermsReacceptance
+                                    payload={pendingTermsReacceptance}
+                                />
                             </div>
 
-                            <div className="grid gap-4 xl:grid-cols-2">
+                            <div className="grid items-start gap-4 xl:grid-cols-2">
                                 <ProposalStatusPanel payload={proposalStatus} />
                                 <PaymentStatusPanel payload={paymentStatus} />
                             </div>
@@ -818,15 +887,22 @@ export default function AdvisorDashboard({
                             title="Portfolio decisions"
                             description="Review client health, PV opportunity, practice position, and scenario options."
                         >
-                            <div className="grid gap-4 xl:grid-cols-[minmax(0,2fr)_minmax(360px,1fr)]">
+                            <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1.55fr)_minmax(340px,0.95fr)]">
                                 <MyClientsHealth payload={clientsHealth} />
                                 <PvWaterfallPanel payload={pvWaterfall} />
                             </div>
 
-                            <div className="grid gap-4 xl:grid-cols-2">
+                            <div className="grid items-start gap-4 xl:grid-cols-2">
                                 <PracticeHealth payload={practiceHealth} />
                                 <ScenarioPlanning payload={scenarioPlanning} />
                             </div>
+                        </DashboardSection>
+
+                        <DashboardSection
+                            title="Risk review"
+                            description="AI red flags sit here for advisor review after the live action queues are clear."
+                        >
+                            <RedFlagPanel payload={redFlags} />
                         </DashboardSection>
                     </div>
                 )}
@@ -964,12 +1040,16 @@ function ActionCommandCentre({
     const criticalCount = items.filter(
         (item) => item.value > 0 && item.priority === 'critical',
     ).length;
-    const totalOpen = items.reduce((total, item) => total + item.value, 0);
+    const totalOpen = items.reduce(
+        (total, item) =>
+            item.priority === 'neutral' ? total : total + item.value,
+        0,
+    );
 
     return (
         <section
             id="advisor-command-centre"
-            className="space-y-4 rounded-md border bg-background p-4"
+            className="space-y-3 rounded-md border bg-background p-3"
         >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -992,7 +1072,7 @@ function ActionCommandCentre({
                 </div>
             </div>
 
-            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+            <div className="grid grid-cols-[repeat(auto-fit,minmax(160px,1fr))] gap-2">
                 {sortedItems.map((item) => (
                     <ActionSummaryCard
                         key={item.key}
@@ -1016,18 +1096,45 @@ function ActionSummaryCard({
     onSelectTab: (tab: DashboardTab) => void;
 }) {
     const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
-        if (item.tab === activeTab) {
-            return;
+        event.preventDefault();
+
+        if (item.tab !== activeTab) {
+            onSelectTab(item.tab);
         }
 
-        event.preventDefault();
-        onSelectTab(item.tab);
-
         window.setTimeout(() => {
-            document
-                .getElementById(item.targetId)
-                ?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const target = document.getElementById(item.targetId);
+
+            if (!target) {
+                return;
+            }
+
+            const highlightClasses = [
+                'ring-2',
+                'ring-primary',
+                'ring-offset-2',
+                'ring-offset-background',
+                'transition-shadow',
+                'scroll-mt-24',
+            ];
+            const previousTabIndex = target.getAttribute('tabindex');
+            const hadTabIndex = target.hasAttribute('tabindex');
+
+            target.setAttribute('tabindex', previousTabIndex ?? '-1');
+            target.classList.add(...highlightClasses);
+            target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            target.focus({ preventScroll: true });
             window.history.replaceState(null, '', item.href);
+
+            window.setTimeout(() => {
+                target.classList.remove(...highlightClasses);
+
+                if (hadTabIndex && previousTabIndex !== null) {
+                    target.setAttribute('tabindex', previousTabIndex);
+                } else {
+                    target.removeAttribute('tabindex');
+                }
+            }, 2200);
         }, 0);
     };
 
@@ -1038,26 +1145,34 @@ function ActionSummaryCard({
                     href={item.href}
                     onClick={handleClick}
                     className={cn(
-                        'min-h-32 rounded-md border p-4 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
+                        'flex min-h-[58px] items-center gap-2 rounded-md border p-2.5 transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                         actionCardClasses(item.priority, item.value),
                     )}
                 >
-                    <div className="flex items-start justify-between gap-3">
-                        <div className="rounded-md border bg-background p-2 text-muted-foreground">
-                            {item.icon}
+                    <div className="rounded-md border bg-background p-1.5 text-muted-foreground">
+                        {item.icon}
+                    </div>
+                    <div className="min-w-0 flex-1">
+                        <div className="flex items-start justify-between gap-2">
+                            <div className="truncate text-base leading-none font-semibold tabular-nums">
+                                {item.displayValue ?? item.value}
+                            </div>
+                            <Badge
+                                variant={actionBadgeVariant(item)}
+                                className="shrink-0 px-1.5 py-0 text-[10px]"
+                            >
+                                {item.statusLabel ??
+                                    (item.priority === 'critical'
+                                        ? 'Critical'
+                                        : item.priority === 'warning'
+                                          ? 'Review'
+                                          : 'Clear')}
+                            </Badge>
                         </div>
-                        <Badge variant={actionBadgeVariant(item)}>
-                            {item.priority === 'critical'
-                                ? 'Critical'
-                                : item.priority === 'warning'
-                                  ? 'Review'
-                                  : 'Clear'}
-                        </Badge>
+                        <div className="mt-1 truncate text-xs font-medium">
+                            {item.label}
+                        </div>
                     </div>
-                    <div className="mt-4 text-2xl font-semibold">
-                        {item.value}
-                    </div>
-                    <div className="mt-1 text-sm font-medium">{item.label}</div>
                 </a>
             </TooltipTrigger>
             <TooltipContent side="bottom" className="max-w-sm">
@@ -1071,27 +1186,37 @@ function ActionSummaryCard({
 }
 
 function buildActionSummaryItems({
+    cashFlowStatus,
     redFlags,
     documentVerificationFlags,
     entrepreneurReviews,
+    strategicPlanDeployments,
     pendingTermsReacceptance,
     proposalStatus,
     paymentStatus,
+    pvWaterfall,
+    practiceHealth,
     npoPendingConversions,
     npoFunding,
     referenceDataTasks,
+    scenarioPlanning,
     panelOperations,
 }: Pick<
     Props,
+    | 'cashFlowStatus'
     | 'redFlags'
     | 'documentVerificationFlags'
     | 'entrepreneurReviews'
+    | 'strategicPlanDeployments'
     | 'pendingTermsReacceptance'
     | 'proposalStatus'
     | 'paymentStatus'
+    | 'pvWaterfall'
+    | 'practiceHealth'
     | 'npoPendingConversions'
     | 'npoFunding'
     | 'referenceDataTasks'
+    | 'scenarioPlanning'
     | 'panelOperations'
 >): ActionSummaryItem[] {
     const paymentActionCount =
@@ -1107,27 +1232,48 @@ function buildActionSummaryItems({
         referenceDataTasks.summary.due_soon;
     const brokerApprovalActionCount = panelOperations.approvals.summary.broker;
     const coachApprovalActionCount = panelOperations.approvals.summary.coach;
+    const redFlagAction =
+        redFlags.summary.open > 0
+            ? {
+                  key: 'red-flags',
+                  label: 'AI red flags',
+                  value: redFlags.summary.open,
+                  href: '#advisor-red-flags',
+                  targetId: 'advisor-red-flags',
+                  tab: 'priorities' as const,
+                  priority:
+                      redFlags.summary.unacknowledged > 0
+                          ? ('critical' as const)
+                          : ('warning' as const),
+                  explanation:
+                      'AI red flags are advisor review prompts raised from analysed client evidence, findings, and risk triggers.',
+                  nextStep:
+                      'Open the risk review panel, acknowledge new items, and resolve risks once they have been reviewed with the client context.',
+                  icon: <ShieldAlert className="size-4" aria-hidden="true" />,
+              }
+            : null;
 
     return [
         {
-            key: 'red-flags',
-            label: 'Red flags',
-            value: redFlags.summary.open,
-            href: '#advisor-red-flags',
-            targetId: 'advisor-red-flags',
+            key: 'cash-flow-risks',
+            label: 'Cash flow risks',
+            value: cashFlowStatus.summary.action_required,
+            href: '#advisor-cash-flow-risks',
+            targetId: 'advisor-cash-flow-risks',
             tab: 'priorities',
             priority:
-                redFlags.summary.unacknowledged > 0
+                cashFlowStatus.summary.negative > 0
                     ? 'critical'
-                    : redFlags.summary.open > 0
+                    : cashFlowStatus.summary.watch > 0
                       ? 'warning'
                       : 'neutral',
             explanation:
-                'Open AI red flags indicate advisory risks that have not been fully cleared.',
+                'Cash flow risks show clients with negative operating cash flow, short budget runway, or a forecast that has not reached cash-flow positive.',
             nextStep:
-                'Open the panel, acknowledge new items, and resolve risks once reviewed.',
-            icon: <ShieldAlert className="size-4" aria-hidden="true" />,
+                'Open the risk panel, review the affected client, then update the budget, funding plan, debtor cadence, or strategic milestones.',
+            icon: <Banknote className="size-4" aria-hidden="true" />,
         },
+        ...(redFlagAction ? [redFlagAction] : []),
         {
             key: 'documents',
             label: 'Document review',
@@ -1176,6 +1322,23 @@ function buildActionSummaryItems({
             nextStep:
                 'Open the entrepreneur record, run the assessment if needed, then finalise the feedback report.',
             icon: <FileText className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'strategic-plan-deployments',
+            label: 'Strategic plans',
+            value: strategicPlanDeployments.summary.total,
+            href: '#advisor-strategic-plan-deployments',
+            targetId: 'advisor-strategic-plan-deployments',
+            tab: 'priorities',
+            priority:
+                strategicPlanDeployments.summary.total > 0
+                    ? 'warning'
+                    : 'neutral',
+            explanation:
+                'Strategic plan actions include signed proposals that need a plan generated and draft plans ready for deployment.',
+            nextStep:
+                'Generate missing strategic plans, then review draft plans with the client before deploying milestones.',
+            icon: <ListChecks className="size-4" aria-hidden="true" />,
         },
         {
             key: 'terms',
@@ -1229,6 +1392,54 @@ function buildActionSummaryItems({
             nextStep:
                 'Open expiring proposals and decide whether to renew, recall, or progress client sign-off.',
             icon: <FileText className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'pv-waterfall',
+            label: 'PV waterfall',
+            value: pvWaterfall.summary.clients,
+            displayValue: formatCurrency(pvWaterfall.summary.target_pv),
+            statusLabel: 'View',
+            href: '#advisor-pv-waterfall',
+            targetId: 'advisor-pv-waterfall',
+            tab: 'priorities',
+            priority: 'neutral',
+            explanation:
+                'PV waterfall bridges current portfolio value to target value using improvement opportunities and risk-mitigation value.',
+            nextStep:
+                'Open the waterfall to see the featured client and hover each movement to understand the annual benefit, years, discount rate, and method.',
+            icon: <TrendingUp className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'practice-health',
+            label: 'Practice health',
+            value: practiceHealth.summary.active_clients,
+            displayValue: `${practiceHealth.summary.active_clients} active`,
+            statusLabel: 'View',
+            href: '#advisor-practice-health',
+            targetId: 'advisor-practice-health',
+            tab: 'priorities',
+            priority: 'neutral',
+            explanation:
+                'Practice health measures the advisor portfolio position: active clients, revenue under management, target PV, released proposals, generated reports, and open red flags.',
+            nextStep:
+                'Open Practice health to see whether advisory work is converting into value, reports, and manageable risk across the visible portfolio.',
+            icon: <PieChart className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'scenario-planning',
+            label: 'Scenario planning',
+            value: scenarioPlanning.summary.scenarios,
+            displayValue: `${scenarioPlanning.summary.scenarios} scenarios`,
+            statusLabel: 'View',
+            href: '#advisor-scenario-planning',
+            targetId: 'advisor-scenario-planning',
+            tab: 'priorities',
+            priority: 'neutral',
+            explanation:
+                'Scenario planning tracks prepared what-if cases and their PV impact so advisors can compare options before recommending action.',
+            nextStep:
+                'Open Scenario planning to review available scenarios or confirm no scenario work has been prepared yet.',
+            icon: <BarChart3 className="size-4" aria-hidden="true" />,
         },
         {
             key: 'broker-approvals',
@@ -1497,7 +1708,9 @@ function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <CreditCard className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">Payments</h2>
+                    <h2 className="text-sm font-medium">
+                        Payment exceptions
+                    </h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge
@@ -1792,11 +2005,23 @@ function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
         .slice(0, 4);
 
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-practice-health"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                    <PieChart className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">Practice health</h2>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <PieChart className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">
+                            Practice health
+                        </h2>
+                    </div>
+                    <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                        Measures portfolio position: active clients, revenue
+                        under management, target PV, released proposals,
+                        generated reports, and open red flags.
+                    </p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge variant="secondary">
@@ -1840,7 +2065,7 @@ function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
                     No active client PV portfolio yet.
                 </p>
             ) : (
-                <div className="divide-y rounded-md border">
+                <div className="max-h-[280px] divide-y overflow-y-auto rounded-md border">
                     {topClients.map((client) => (
                         <div
                             key={client.client_id}
@@ -2179,7 +2404,10 @@ function FunnelAnalytics({ payload }: { payload: FunnelAnalyticsPayload }) {
 
 function ScenarioPlanning({ payload }: { payload: ScenarioPlanningPayload }) {
     return (
-        <section className="space-y-4 rounded-md border bg-background p-4">
+        <section
+            id="advisor-scenario-planning"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <TrendingUp className="size-4" aria-hidden="true" />
@@ -2200,7 +2428,7 @@ function ScenarioPlanning({ payload }: { payload: ScenarioPlanningPayload }) {
                     No scenarios prepared yet.
                 </p>
             ) : (
-                <div className="divide-y rounded-md border">
+                <div className="max-h-[280px] divide-y overflow-y-auto rounded-md border">
                     {payload.items.slice(0, 5).map((scenario) => (
                         <article
                             key={scenario.id}
@@ -2236,7 +2464,13 @@ function ScenarioPlanning({ payload }: { payload: ScenarioPlanningPayload }) {
 }
 
 function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
-    const firstClient = payload.clients[0] ?? null;
+    const featuredClient =
+        [...payload.clients].sort(
+            (a, b) =>
+                b.improvement_pv +
+                b.risk_mitigation_pv -
+                (a.improvement_pv + a.risk_mitigation_pv),
+        )[0] ?? null;
 
     return (
         <section
@@ -2244,17 +2478,31 @@ function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
             className="space-y-4 rounded-md border bg-background p-4"
         >
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                <div className="flex items-center gap-2">
-                    <TrendingUp className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">PV waterfall</h2>
+                <div>
+                    <div className="flex items-center gap-2">
+                        <TrendingUp className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">
+                            Portfolio PV waterfall
+                        </h2>
+                    </div>
+                    <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
+                        Totals include all visible clients with PV data. The
+                        chart highlights the client with the largest improvement
+                        or risk-mitigation movement.
+                    </p>
                 </div>
-                <PvSummaryBadges
-                    current={payload.summary.current_pv}
-                    target={payload.summary.target_pv}
-                />
+                <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
+                    <Badge variant="outline">
+                        {payload.summary.clients} clients
+                    </Badge>
+                    <PvSummaryBadges
+                        current={payload.summary.current_pv}
+                        target={payload.summary.target_pv}
+                    />
+                </div>
             </div>
 
-            {firstClient === null ? (
+            {featuredClient === null ? (
                 <p className="text-sm text-muted-foreground">
                     No PV baseline has been calculated yet.
                 </p>
@@ -2262,16 +2510,18 @@ function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
                 <div className="space-y-4">
                     <div>
                         <div className="text-sm font-medium">
-                            {firstClient.client_name}
+                            Featured client: {featuredClient.client_name}
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
-                            {formatCurrency(firstClient.improvement_pv)}{' '}
+                            {formatCurrency(featuredClient.improvement_pv)}{' '}
                             improvements +{' '}
-                            {formatCurrency(firstClient.risk_mitigation_pv)}{' '}
+                            {formatCurrency(featuredClient.risk_mitigation_pv)}{' '}
                             risk mitigation
                         </div>
                     </div>
-                    <WaterfallChart steps={firstClient.waterfall} />
+                    <div className="max-h-[500px] overflow-y-auto pr-1">
+                        <WaterfallChart steps={featuredClient.waterfall} />
+                    </div>
                 </div>
             )}
         </section>
@@ -2505,7 +2755,7 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                     No assigned clients.
                 </p>
             ) : (
-                <div className="overflow-hidden rounded-md border">
+                <div className="max-h-[460px] overflow-y-auto rounded-md border">
                     <table className="fsa-responsive-table">
                         <thead className="bg-muted/60 text-left">
                             <tr>
@@ -2514,6 +2764,9 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                                 </th>
                                 <th className="px-3 py-2 font-medium">
                                     Engagement
+                                </th>
+                                <th className="px-3 py-2 font-medium">
+                                    Cash flow
                                 </th>
                                 <th className="px-3 py-2 font-medium">Flags</th>
                                 <th className="px-3 py-2 font-medium">
@@ -2548,6 +2801,14 @@ function MyClientsHealth({ payload }: { payload: ClientsHealthPayload }) {
                                     >
                                         <EngagementBadge
                                             engagement={client.engagement}
+                                        />
+                                    </td>
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Cash flow"
+                                    >
+                                        <CashFlowBadge
+                                            cashFlow={client.cash_flow}
                                         />
                                     </td>
                                     <td
@@ -2640,6 +2901,85 @@ function EngagementBadge({ engagement }: { engagement: EngagementScore }) {
     );
 }
 
+function CashFlowBadge({ cashFlow }: { cashFlow: CashFlowStatus }) {
+    return (
+        <InsightHoverCard
+            title={`Cash flow: ${cashFlow.status_label}`}
+            rows={[
+                {
+                    label: 'Status',
+                    value: cashFlow.status_label,
+                    tone:
+                        cashFlow.status === 'negative'
+                            ? 'negative'
+                            : cashFlow.status === 'positive'
+                              ? 'positive'
+                              : cashFlow.status === 'unknown'
+                                ? 'muted'
+                                : 'default',
+                },
+                {
+                    label: 'Reason',
+                    value: cashFlow.reason,
+                    tone:
+                        cashFlow.status === 'negative'
+                            ? 'negative'
+                            : cashFlow.status === 'unknown'
+                              ? 'muted'
+                              : 'default',
+                },
+                {
+                    label: 'Latest OCF',
+                    value:
+                        cashFlow.latest_operating_cash_flow === null
+                            ? 'Not available'
+                            : formatCurrency(
+                                  cashFlow.latest_operating_cash_flow,
+                              ),
+                    tone:
+                        cashFlow.latest_operating_cash_flow !== null &&
+                        cashFlow.latest_operating_cash_flow < 0
+                            ? 'negative'
+                            : 'default',
+                },
+                {
+                    label: 'Runway',
+                    value: formatRunway(cashFlow),
+                },
+                {
+                    label: 'Source',
+                    value: cashFlow.source,
+                },
+            ]}
+            drillHref={cashFlow.detail_url}
+            drillAriaLabel={`Open cash flow context for ${cashFlow.client_name}`}
+        >
+            <button
+                type="button"
+                className="rounded-md focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+            >
+                <Badge variant={cashFlowBadgeVariant(cashFlow)}>
+                    {cashFlow.status_label}
+                </Badge>
+            </button>
+        </InsightHoverCard>
+    );
+}
+
+function cashFlowBadgeVariant(
+    cashFlow: CashFlowStatus,
+): React.ComponentProps<typeof Badge>['variant'] {
+    if (cashFlow.status === 'negative') {
+        return 'destructive';
+    }
+
+    if (cashFlow.status === 'watch') {
+        return 'secondary';
+    }
+
+    return 'outline';
+}
+
 function PendingTermsReacceptance({
     payload,
 }: {
@@ -2684,6 +3024,208 @@ function PendingTermsReacceptance({
                                 {item.user_email}
                             </div>
                         </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function CashFlowRiskPanel({ payload }: { payload: CashFlowStatusPayload }) {
+    return (
+        <section
+            id="advisor-cash-flow-risks"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <Banknote className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">Cash flow risks</h2>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.negative > 0
+                                ? 'destructive'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.negative} negative
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.watch > 0 ? 'secondary' : 'outline'
+                        }
+                    >
+                        {payload.summary.watch} watch
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No negative or watch cash-flow positions detected.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={item.client_id}
+                            className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant={cashFlowBadgeVariant(item)}>
+                                        {item.status_label}
+                                    </Badge>
+                                    <span className="text-sm font-medium">
+                                        {item.client_name}
+                                    </span>
+                                </div>
+                                <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
+                                    <div>
+                                        <span className="font-medium text-foreground">
+                                            Reason:{' '}
+                                        </span>
+                                        {item.reason}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-foreground">
+                                            Source:{' '}
+                                        </span>
+                                        {item.source}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-foreground">
+                                            Operating cash flow:{' '}
+                                        </span>
+                                        {item.latest_operating_cash_flow ===
+                                        null
+                                            ? 'Not available'
+                                            : formatCurrency(
+                                                  item.latest_operating_cash_flow,
+                                              )}
+                                    </div>
+                                    <div>
+                                        <span className="font-medium text-foreground">
+                                            Runway:{' '}
+                                        </span>
+                                        {formatRunway(item)}
+                                    </div>
+                                </div>
+                            </div>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={item.detail_url}>Open client</Link>
+                            </Button>
+                        </article>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+function StrategicPlanDeploymentPanel({
+    payload,
+}: {
+    payload: StrategicPlanDeploymentsPayload;
+}) {
+    const generatePlan = (url: string) => {
+        router.post(url, {}, { preserveScroll: false });
+    };
+
+    return (
+        <section
+            id="advisor-strategic-plan-deployments"
+            className="space-y-4 rounded-md border bg-background p-4"
+        >
+            <div className="flex items-center justify-between gap-3">
+                <div className="flex items-center gap-2">
+                    <ListChecks className="size-4" aria-hidden="true" />
+                    <h2 className="text-sm font-medium">
+                        Strategic plan actions
+                    </h2>
+                </div>
+                <div className="flex flex-wrap justify-end gap-2">
+                    <Badge
+                        variant={
+                            payload.summary.ready_to_generate > 0
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.ready_to_generate} generate
+                    </Badge>
+                    <Badge
+                        variant={
+                            payload.summary.ready_to_deploy > 0
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {payload.summary.ready_to_deploy} deploy
+                    </Badge>
+                </div>
+            </div>
+
+            {payload.items.length === 0 ? (
+                <p className="text-sm text-muted-foreground">
+                    No strategic plans are waiting for generation or deployment.
+                </p>
+            ) : (
+                <div className="divide-y rounded-md border">
+                    {payload.items.map((item) => (
+                        <article
+                            key={`${item.type}-${item.id}`}
+                            className="flex flex-wrap items-center justify-between gap-3 p-3"
+                        >
+                            <div className="min-w-0">
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <Badge variant="outline">
+                                        {item.type === 'generate'
+                                            ? 'Generate'
+                                            : 'Draft'}
+                                    </Badge>
+                                    {item.type === 'deploy' && (
+                                        <Badge variant="secondary">
+                                            {item.milestones_count} milestones
+                                        </Badge>
+                                    )}
+                                    {item.proposal_version !== null && (
+                                        <Badge variant="outline">
+                                            Proposal v{item.proposal_version}
+                                        </Badge>
+                                    )}
+                                    {item.budget_status_label && (
+                                        <Badge variant="secondary">
+                                            {item.budget_status_label}
+                                        </Badge>
+                                    )}
+                                </div>
+                                <div className="mt-2 text-sm font-medium">
+                                    {item.client_name}
+                                </div>
+                                <div className="text-xs text-muted-foreground">
+                                    {item.type === 'generate'
+                                        ? `Accepted ${formatDate(item.accepted_at)}`
+                                        : `Generated ${formatDate(item.generated_at)}`}
+                                </div>
+                            </div>
+                            {item.type === 'generate' && item.action_url ? (
+                                <Button
+                                    size="sm"
+                                    onClick={() => generatePlan(item.action_url!)}
+                                >
+                                    {item.action_label}
+                                </Button>
+                            ) : (
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href={item.detail_url}>
+                                        {item.action_label}
+                                    </Link>
+                                </Button>
+                            )}
+                        </article>
                     ))}
                 </div>
             )}
@@ -3690,6 +4232,22 @@ function formatCurrency(value: number): string {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatRunway(cashFlow: CashFlowStatus): string {
+    if (cashFlow.runway_open_ended) {
+        return 'Open-ended';
+    }
+
+    if (cashFlow.runway_months !== null) {
+        return `${Math.round(cashFlow.runway_months)} months`;
+    }
+
+    if (cashFlow.cash_flow_positive_year !== null) {
+        return `Cash positive year ${cashFlow.cash_flow_positive_year}`;
+    }
+
+    return 'Not available';
 }
 
 function formatMoney(value: number, currency: string): string {

@@ -175,6 +175,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<StrategicBudget>
+     */
+    public function strategicBudgets(): HasMany
+    {
+        return $this->hasMany(StrategicBudget::class);
+    }
+
+    /**
      * @return HasMany<PaymentAuthority>
      */
     public function paymentAuthorities(): HasMany

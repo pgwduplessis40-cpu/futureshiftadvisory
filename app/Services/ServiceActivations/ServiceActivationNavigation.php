@@ -35,7 +35,7 @@ final class ServiceActivationNavigation
                 ),
                 $this->optionPayload(
                     ServiceActivation::SERVICE_ENTREPRENEUR,
-                    'Test a new idea',
+                    'Test new Business Idea',
                     'Open idea validation, business-plan, and budget support inside this portal.',
                     ! $open->contains(fn (ServiceActivation $activation): bool => $activation->service_type === ServiceActivation::SERVICE_ENTREPRENEUR),
                 ),

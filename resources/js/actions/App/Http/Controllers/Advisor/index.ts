@@ -8,6 +8,8 @@ import KnowledgeAssessmentController from './KnowledgeAssessmentController'
 import KnowledgeController from './KnowledgeController'
 import GoalController from './GoalController'
 import ProposalController from './ProposalController'
+import ClientStrategicBudgetController from './ClientStrategicBudgetController'
+import StrategicPlanController from './StrategicPlanController'
 import ReportController from './ReportController'
 import SurveyResultController from './SurveyResultController'
 import StandardAdvisoryController from './StandardAdvisoryController'
@@ -47,6 +49,8 @@ KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, Know
 KnowledgeController: Object.assign(KnowledgeController, KnowledgeController),
 GoalController: Object.assign(GoalController, GoalController),
 ProposalController: Object.assign(ProposalController, ProposalController),
+ClientStrategicBudgetController: Object.assign(ClientStrategicBudgetController, ClientStrategicBudgetController),
+StrategicPlanController: Object.assign(StrategicPlanController, StrategicPlanController),
 ReportController: Object.assign(ReportController, ReportController),
 SurveyResultController: Object.assign(SurveyResultController, SurveyResultController),
 StandardAdvisoryController: Object.assign(StandardAdvisoryController, StandardAdvisoryController),

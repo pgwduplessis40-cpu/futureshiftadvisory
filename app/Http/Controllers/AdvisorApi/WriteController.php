@@ -10,12 +10,14 @@ use App\Models\Client;
 use App\Models\Meeting;
 use App\Models\Milestone;
 use App\Models\MilestoneAction;
+use App\Services\Calendar\PublicHolidayCalendar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 
 final class WriteController extends Controller
 {
-    public function meetingNote(Request $request, Client $client): JsonResponse
+    public function meetingNote(Request $request, Client $client, PublicHolidayCalendar $publicHolidays): JsonResponse
     {
         $apiClient = $this->apiClient($request);
         $this->authorizeScope($apiClient, AdvisorApiClient::SCOPE_WRITE_MEETING_NOTES);
@@ -26,6 +28,13 @@ final class WriteController extends Controller
             'note' => ['required', 'string', 'max:5000'],
             'occurred_at' => ['nullable', 'date'],
         ]);
+        $this->assertDateAllowed(
+            $client,
+            $validated['occurred_at'] ?? now(),
+            'occurred_at',
+            'Meetings',
+            $publicHolidays,
+        );
 
         /** @var Meeting $meeting */
         $meeting = Meeting::query()->create([
@@ -44,7 +53,7 @@ final class WriteController extends Controller
         return response()->json(['data' => ['id' => $meeting->id]], 201);
     }
 
-    public function action(Request $request, Client $client): JsonResponse
+    public function action(Request $request, Client $client, PublicHolidayCalendar $publicHolidays): JsonResponse
     {
         $apiClient = $this->apiClient($request);
         $this->authorizeScope($apiClient, AdvisorApiClient::SCOPE_WRITE_ACTIONS);
@@ -60,6 +69,13 @@ final class WriteController extends Controller
             ->where('client_id', $client->id)
             ->whereKey($validated['milestone_id'])
             ->firstOrFail();
+        $this->assertDateAllowed(
+            $client,
+            $validated['due_date'] ?? null,
+            'due_date',
+            'Actions',
+            $publicHolidays,
+        );
 
         /** @var MilestoneAction $action */
         $action = MilestoneAction::query()->create([
@@ -92,5 +108,25 @@ final class WriteController extends Controller
     private function authorizeClient(AdvisorApiClient $apiClient, Client $client): void
     {
         abort_unless(in_array((string) $client->id, $apiClient->advisor->accessibleClientIds(), true), 404);
+    }
+
+    private function assertDateAllowed(
+        Client $client,
+        mixed $date,
+        string $field,
+        string $subject,
+        PublicHolidayCalendar $publicHolidays,
+    ): void {
+        if ($date === null || trim((string) $date) === '') {
+            return;
+        }
+
+        $holiday = $publicHolidays->holidayOn($date, $publicHolidays->regionsForClient($client));
+
+        if ($holiday !== null) {
+            throw ValidationException::withMessages([
+                $field => $publicHolidays->validationMessage($holiday, $subject),
+            ]);
+        }
     }
 }

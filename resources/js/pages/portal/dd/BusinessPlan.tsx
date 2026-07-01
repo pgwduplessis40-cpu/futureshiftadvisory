@@ -3,6 +3,7 @@ import {
     Bot,
     CheckCircle2,
     ClipboardList,
+    FileSpreadsheet,
     FileText,
     MessageSquare,
     PieChart,
@@ -86,6 +87,17 @@ type BusinessPlanPayload = {
     phases: PlanPhasePayload[];
 };
 
+type StrategicBudgetPayload = {
+    label: string;
+    status_label: string;
+    locked: boolean;
+    readiness_score: number;
+    progress_score: number;
+    source_financials: {
+        system_review?: string;
+    };
+};
+
 type PlanPhasePayload = {
     id: string;
     key: string;
@@ -154,6 +166,7 @@ type Props = {
     readiness: ReadinessPayload;
     businessAdvice: BusinessAdvicePayload;
     plan: BusinessPlanPayload | null;
+    strategicBudget: StrategicBudgetPayload;
     planTemplate: PlanTemplatePhasePayload[];
     generateUrl: string;
     previewUrl: string;
@@ -173,6 +186,7 @@ export default function DdBusinessPlan({
     readiness,
     businessAdvice,
     plan,
+    strategicBudget,
     planTemplate,
     generateUrl,
     previewUrl,
@@ -329,13 +343,13 @@ export default function DdBusinessPlan({
 
     return (
         <>
-            <Head title="Acquisition plan" />
+            <Head title="Prepare Due Diligence" />
 
             <main className="flex-1 space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
                     <div>
                         <h1 className="text-xl font-semibold">
-                            Prepare business plan
+                            Prepare Due Diligence
                         </h1>
                         <div className="mt-1 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
                             <span>{engagement.target_name}</span>
@@ -362,7 +376,7 @@ export default function DdBusinessPlan({
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        Preview business plan
+                                        Preview DD plan
                                     </a>
                                 </Button>
                             </TooltipTrigger>
@@ -404,7 +418,7 @@ export default function DdBusinessPlan({
                             title="Priority actions"
                             description="Start with DD inputs, complete the missing plan requirements, then request post-acquisition advisory when advice is ready."
                         >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-6">
                                 <ActionTile
                                     icon={ClipboardList}
                                     title="DD questionnaire"
@@ -482,6 +496,31 @@ export default function DdBusinessPlan({
                                         {planCompleted
                                             ? 'Completed'
                                             : 'Complete plan'}
+                                    </Button>
+                                </ActionTile>
+
+                                <ActionTile
+                                    icon={FileSpreadsheet}
+                                    title="Budget"
+                                    value={
+                                        strategicBudget.locked
+                                            ? 'Locked'
+                                            : `${strategicBudget.readiness_score}/100 ready`
+                                    }
+                                    explanation={
+                                        strategicBudget.locked
+                                            ? (strategicBudget.source_financials
+                                                  .system_review ??
+                                              'Upload P&L or management accounts to unlock the acquisition budget.')
+                                            : `Budget status: ${strategicBudget.status_label}. Progress ${strategicBudget.progress_score}%.`
+                                    }
+                                >
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href="/portal/business-plan-budget">
+                                            {strategicBudget.locked
+                                                ? 'Unlock'
+                                                : 'Open'}
+                                        </Link>
                                     </Button>
                                 </ActionTile>
 
@@ -1012,8 +1051,8 @@ function PlanTemplatePreview({
 }) {
     return (
         <Section
-            title="Business plan view"
-            description="The plan structure is visible before generation; DD-populated and client-completed sections replace pending items as the plan is built."
+            title="Due diligence source view"
+            description="The DD structure is visible before generation; DD-populated and client-completed sections become source material for Business Plan & Budget."
         >
             <section className="space-y-4 rounded-md border bg-background p-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">

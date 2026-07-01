@@ -9,7 +9,9 @@ use App\Models\Meeting;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Calendar\CalendarSync;
+use App\Services\Calendar\PublicHolidayCalendar;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class MeetingManager
@@ -17,6 +19,7 @@ final class MeetingManager
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly CalendarSync $calendarSync,
+        private readonly PublicHolidayCalendar $publicHolidays,
     ) {}
 
     /**
@@ -24,6 +27,8 @@ final class MeetingManager
      */
     public function create(Client $client, User $actor, array $payload): Meeting
     {
+        $this->assertSchedulable($client, $payload['scheduled_at']);
+
         $meeting = DB::transaction(function () use ($actor, $client, $payload): Meeting {
             /** @var Meeting $meeting */
             $meeting = Meeting::query()->create([
@@ -59,6 +64,11 @@ final class MeetingManager
         if (! $meeting->scheduled()) {
             throw new HttpException(422, 'Cancelled meetings cannot be edited.');
         }
+
+        $client = isset($payload['client_id'])
+            ? Client::query()->whereKey($payload['client_id'])->firstOrFail()
+            : $meeting->client()->firstOrFail();
+        $this->assertSchedulable($client, $payload['scheduled_at']);
 
         $before = $meeting->only(['title', 'scheduled_at', 'location', 'link', 'attendees']);
 
@@ -127,5 +137,19 @@ final class MeetingManager
         $value = trim((string) ($value ?? ''));
 
         return $value === '' ? null : $value;
+    }
+
+    private function assertSchedulable(Client $client, mixed $scheduledAt): void
+    {
+        $holiday = $this->publicHolidays->holidayOn(
+            $scheduledAt,
+            $this->publicHolidays->regionsForClient($client),
+        );
+
+        if ($holiday !== null) {
+            throw ValidationException::withMessages([
+                'scheduled_at' => $this->publicHolidays->validationMessage($holiday, 'Meetings'),
+            ]);
+        }
     }
 }

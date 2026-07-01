@@ -16,6 +16,7 @@ use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Voice\Contracts\WhisperClient;
 use Illuminate\Support\Arr;
@@ -29,6 +30,7 @@ final class VoiceNoteProcessor
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $live,
+        private readonly PublicHolidayCalendar $publicHolidays,
     ) {}
 
     public function processDocument(Client $client, Document $document, ?User $actor = null, ?Milestone $milestone = null): VoiceNote
@@ -218,6 +220,8 @@ final class VoiceNoteProcessor
                     return $item;
                 }
 
+                $dueDate = $this->actionDueDate($milestone, Arr::get($item, 'due_date'));
+
                 /** @var MilestoneAction $action */
                 $action = MilestoneAction::query()->create([
                     'milestone_id' => $milestone->getKey(),
@@ -225,7 +229,7 @@ final class VoiceNoteProcessor
                     'call_log_id' => $callLog->getKey(),
                     'title' => $title,
                     'owner_user_id' => $actor?->getAuthIdentifier(),
-                    'due_date' => Arr::get($item, 'due_date'),
+                    'due_date' => $dueDate,
                     'priority' => (string) ($item['priority'] ?? 'normal'),
                     'status' => MilestoneAction::STATUS_PENDING,
                 ]);
@@ -237,12 +241,31 @@ final class VoiceNoteProcessor
 
                 return [
                     ...$item,
+                    'due_date' => $dueDate,
                     'milestone_id' => $milestone->getKey(),
                     'milestone_action_id' => $action->getKey(),
                 ];
             })
             ->values()
             ->all();
+    }
+
+    private function actionDueDate(Milestone $milestone, mixed $dueDate): mixed
+    {
+        if ($dueDate === null || trim((string) $dueDate) === '') {
+            return $dueDate;
+        }
+
+        $milestone->loadMissing('client');
+        $client = $milestone->client;
+
+        if (! $client instanceof Client) {
+            return $dueDate;
+        }
+
+        return $this->publicHolidays
+            ->nextAvailableDate($dueDate, $this->publicHolidays->regionsForClient($client))
+            ->toDateString();
     }
 
     /**

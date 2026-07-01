@@ -15,6 +15,7 @@ use App\Services\Integration\Resilience\RetryPolicy;
 use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
+use App\Services\Integration\VirusScanner\UnavailableScanner;
 use App\Services\Pdf\BrowsershotRenderer;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
@@ -58,9 +59,17 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(RetryPolicy::class, fn (): RetryPolicy => RetryPolicy::fromConfig());
-        $this->app->singleton(FileScanner::class, fn (): FileScanner => (bool) config('virus-scanner.live', false)
-            ? $this->app->make(ClamAvScanner::class)
-            : $this->app->make(NoopScanner::class));
+        $this->app->singleton(FileScanner::class, function (): FileScanner {
+            if ((bool) config('virus-scanner.live', false)) {
+                return $this->app->make(ClamAvScanner::class);
+            }
+
+            if ((bool) config('virus-scanner.allow_noop', false)) {
+                return $this->app->make(NoopScanner::class);
+            }
+
+            return $this->app->make(UnavailableScanner::class);
+        });
         $this->app->singleton(PdfRenderer::class, BrowsershotRenderer::class);
         $this->app->singleton(PptxGenerator::class, OpenXmlPptxGenerator::class);
         $this->app->singleton(ProjectSettings::class);

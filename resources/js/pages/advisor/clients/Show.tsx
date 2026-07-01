@@ -7,6 +7,7 @@ import {
     CheckCircle2,
     CreditCard,
     Download,
+    FileSpreadsheet,
     FileCheck2,
     FileText,
     HeartPulse,
@@ -100,6 +101,9 @@ type ClientDetail = ClientSummary & {
     npo_funding: NpoFundingSummary | null;
     npo_values: NpoValueSummary | null;
     npo_social_enterprise: NpoSocialEnterpriseSummary | null;
+    strategic_budget: StrategicBudgetSummary;
+    strategic_plan: StrategicPlanSummary | null;
+    proposal_budget_guard: ProposalBudgetGuard;
 };
 
 type ConflictDeclaration = {
@@ -131,6 +135,7 @@ const clientSectionTabs: Record<string, ClientDetailTab> = {
     'section-payments': 'actions',
     'section-proposals': 'actions',
     'section-standard-advisory': 'actions',
+    'section-strategic-budget': 'actions',
     'section-accounting': 'information',
     'section-engagement': 'information',
     'section-knowledge': 'information',
@@ -503,6 +508,134 @@ type ProposalSummary = {
     renew_url: string;
     view_url: string;
     download_url: string | null;
+    strategic_plan_generate_url: string | null;
+};
+
+type StrategicPlanSection = {
+    key: string;
+    title: string;
+    body: string;
+};
+
+type StrategicPlanMilestone = {
+    id: string;
+    title: string;
+    description: string | null;
+    owner: 'client' | 'advisor' | 'joint';
+    owner_label: string;
+    due_offset_days: number;
+    due_date: string | null;
+    status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+    status_label: string;
+    progress_percent: number;
+    evidence_notes: string | null;
+    advisor_notes: string | null;
+};
+
+type StrategicPlanSummary = {
+    id: string;
+    title: string;
+    status: string;
+    status_label: string;
+    summary: string | null;
+    sections: StrategicPlanSection[];
+    generated_at: string | null;
+    deployed_at: string | null;
+    progress_percent: number;
+    completed_milestones: number;
+    total_milestones: number;
+    milestones: StrategicPlanMilestone[];
+    pdf_url: string;
+    update_url: string;
+    deploy_url: string;
+};
+
+type StrategicPlanForm = {
+    summary: string;
+    sections: StrategicPlanSection[];
+    milestones: Array<
+        StrategicPlanMilestone & {
+            description: string;
+            advisor_notes: string;
+        }
+    >;
+};
+
+type StrategicBudgetGoal = {
+    title: string;
+    measure?: string | null;
+    owner?: string;
+    locked?: boolean;
+};
+
+type StrategicBudgetSourceFinancial = {
+    id: string;
+    filename: string;
+    detected_as: string;
+    uploaded_at: string | null;
+};
+
+type StrategicBudgetFlag = {
+    key: string;
+    title: string;
+    message: string;
+    severity: string;
+};
+
+type StrategicBudgetSummary = {
+    id: string;
+    label: string;
+    pathway: string;
+    status: string;
+    status_label: string;
+    locked: boolean;
+    horizon_months: number;
+    expected_runway_months: number | null;
+    source_financials: {
+        count?: number;
+        system_review?: string;
+        items?: StrategicBudgetSourceFinancial[];
+    };
+    client_goals: StrategicBudgetGoal[];
+    advisor_goals: StrategicBudgetGoal[];
+    business_plan_readiness_score: number;
+    business_plan_ready: boolean;
+    business_plan_submitted_at: string | null;
+    business_plan_approved_at: string | null;
+    computed: {
+        total_launch_costs?: number;
+        monthly_fixed_costs?: number;
+        total_funding?: number;
+        available_after_launch?: number;
+        break_even_year?: number | null;
+        cash_flow_positive_year?: number | null;
+        runway_months?: number | null;
+        runway_open_ended?: boolean;
+    };
+    flags: StrategicBudgetFlag[];
+    confidence: {
+        score?: number;
+        progress_score?: number;
+        overall?: string;
+        message?: string;
+    };
+    readiness_score: number;
+    progress_score: number;
+    submitted_at: string | null;
+    approved_at: string | null;
+    used_in_proposal_at: string | null;
+    accepted_snapshot_at: string | null;
+    approve_url: string;
+    advisor_goals_url: string;
+};
+
+type ProposalBudgetGuard = {
+    id: string;
+    status: string;
+    status_label: string;
+    approved: boolean;
+    confidence_score: number;
+    warning: string | null;
 };
 
 type ReportSummary = {
@@ -643,6 +776,8 @@ type ProposalForm = {
     scope_summary: string;
     insurance_consent: string;
     coach_consent: string;
+    budget_override_category: string;
+    budget_override_notes: string;
 };
 
 type MeetingForm = {
@@ -688,6 +823,15 @@ type StandardAdvisorySummary = {
     }>;
     analysis_completed: number;
     analysis_total: number;
+    website_audit: {
+        status: string;
+        status_label: string;
+        next_action: string;
+        has_url: boolean;
+        has_website_page_evidence: boolean;
+        has_product_service_evidence: boolean;
+        has_seo_evidence: boolean;
+    };
     health_recomputed_at: string | null;
     valuation_ready: boolean;
     valuation_as_at: string | null;
@@ -811,8 +955,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         }, 0);
     };
 
-    const failedPaymentCount = client.payments.filter(
-        (payment) => payment.status === 'failed',
+    const paymentExceptionCount = client.payments.filter((payment) =>
+        ['failed', 'retrying'].includes(payment.status),
     ).length;
     const draftProposalCount = client.proposals.filter((proposal) =>
         ['draft', 'generated'].includes(proposal.status),
@@ -832,6 +976,21 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                 'pending_review'
               ? 'Awaiting release'
               : client.standard_advisory?.status_label;
+    const strategicBudgetPriorityValue = client.strategic_budget.locked
+        ? 'Financials needed'
+        : client.strategic_budget.status === 'advisor_approved'
+          ? 'Approved'
+          : `${client.strategic_budget.readiness_score}/100 ready`;
+    const signedProposal = client.proposals.find(
+        (proposal) => proposal.status === 'signed',
+    );
+    const strategicPlanPriorityValue = client.strategic_plan
+        ? client.strategic_plan.status === 'deployed'
+            ? `${client.strategic_plan.progress_percent}% progressing`
+            : 'Draft ready'
+        : signedProposal
+          ? 'Ready to generate'
+          : 'After acceptance';
 
     return (
         <>
@@ -920,7 +1079,7 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                             title="Priority actions"
                             description="Start with communication, lifecycle, client work, and commercial actions."
                         >
-                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+                            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                                 <ActionTile
                                     icon={MessageSquare}
                                     title="Messages"
@@ -1005,14 +1164,28 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                     }
                                 />
                                 <ActionTile
-                                    icon={CreditCard}
-                                    title="Payments"
-                                    value={
-                                        failedPaymentCount > 0
-                                            ? `${failedPaymentCount} failed`
-                                            : `${client.payments.length} records`
+                                    icon={FileSpreadsheet}
+                                    title={client.strategic_budget.label}
+                                    value={strategicBudgetPriorityValue}
+                                    explanation="Review budget readiness, client goals, advisor goals, and approve the budget before proposal generation."
+                                    href="#section-strategic-budget"
+                                    actionLabel="Open"
+                                    onAction={(event) =>
+                                        jumpToSection(
+                                            'section-strategic-budget',
+                                            event,
+                                        )
                                     }
-                                    explanation="Review payment outcomes and retry failed payments where available."
+                                />
+                                <ActionTile
+                                    icon={CreditCard}
+                                    title="Payment exceptions"
+                                    value={
+                                        paymentExceptionCount > 0
+                                            ? `${paymentExceptionCount} open`
+                                            : 'Clear'
+                                    }
+                                    explanation="Review failed or retrying payments only. Successful payments are hidden from this action view."
                                     href="#section-payments"
                                     actionLabel="Review"
                                     onAction={(event) =>
@@ -1037,6 +1210,32 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                         )
                                     }
                                 />
+                                {(client.strategic_plan || signedProposal) && (
+                                    <ActionTile
+                                        icon={ListChecks}
+                                        title="Strategic Plan"
+                                        value={strategicPlanPriorityValue}
+                                        explanation="Generate the post-acceptance strategic plan, review it with the client, then deploy milestones."
+                                        href={
+                                            client.strategic_plan
+                                                ? '#section-strategic-plan'
+                                                : '#section-proposals'
+                                        }
+                                        actionLabel={
+                                            client.strategic_plan
+                                                ? 'Open'
+                                                : 'Generate'
+                                        }
+                                        onAction={(event) =>
+                                            jumpToSection(
+                                                client.strategic_plan
+                                                    ? 'section-strategic-plan'
+                                                    : 'section-proposals',
+                                                event,
+                                            )
+                                        }
+                                    />
+                                )}
                                 <ActionTile
                                     icon={MessageSquarePlus}
                                     title="Analysis"
@@ -1122,6 +1321,12 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                     configuration={client.npo_configuration}
                                 />
                             )}
+
+                            <StrategicBudgetPanel
+                                budget={client.strategic_budget}
+                            />
+
+                            <StrategicPlanPanel plan={client.strategic_plan} />
 
                             <GoalsPanel client={client} />
 
@@ -3020,115 +3225,145 @@ function AccountingConnectionsPanel({ client }: { client: ClientDetail }) {
                 </p>
             ) : (
                 <div className="space-y-3">
-                    {client.accounting.connections.map((connection) => (
-                        <article
-                            key={connection.id}
-                            className="space-y-3 rounded-md border p-3"
-                        >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div className="space-y-1">
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <h3 className="text-sm font-medium">
-                                            {connection.provider_label}
-                                        </h3>
-                                        <Badge
-                                            variant={
-                                                connection.connected
-                                                    ? 'secondary'
-                                                    : 'outline'
+                    {client.accounting.connections.map((connection) => {
+                        const noReportData =
+                            connection.latest_snapshot?.source_badge ===
+                            'live_no_data';
+
+                        return (
+                            <article
+                                key={connection.id}
+                                className="space-y-3 rounded-md border p-3"
+                            >
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div className="space-y-1">
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <h3 className="text-sm font-medium">
+                                                {connection.provider_label}
+                                            </h3>
+                                            <Badge
+                                                variant={
+                                                    connection.connected
+                                                        ? 'secondary'
+                                                        : 'outline'
+                                                }
+                                            >
+                                                {formatLabel(connection.status)}
+                                            </Badge>
+                                            {connection.latest_snapshot && (
+                                                <Badge variant="outline">
+                                                    {formatLabel(
+                                                        connection
+                                                            .latest_snapshot
+                                                            .source_badge,
+                                                    )}
+                                                </Badge>
+                                            )}
+                                        </div>
+                                        <div className="text-xs text-muted-foreground">
+                                            {connection.external_tenant_id ??
+                                                '-'}
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-wrap gap-2">
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!connection.connected}
+                                            onClick={() =>
+                                                pullSnapshot(
+                                                    connection.pull_url,
+                                                )
                                             }
                                         >
-                                            {formatLabel(connection.status)}
-                                        </Badge>
-                                        {connection.latest_snapshot && (
-                                            <Badge variant="outline">
-                                                {
-                                                    connection.latest_snapshot
-                                                        .source_badge
-                                                }
-                                            </Badge>
+                                            <RotateCcw
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Pull
+                                        </Button>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={!connection.connected}
+                                            onClick={() =>
+                                                revokeConnection(
+                                                    connection.revoke_url,
+                                                )
+                                            }
+                                        >
+                                            <Unplug
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Revoke
+                                        </Button>
+                                    </div>
+                                </div>
+
+                                <dl className="grid gap-2 text-sm md:grid-cols-3">
+                                    <Metric
+                                        label="Connected"
+                                        value={formatDate(
+                                            connection.connected_at,
                                         )}
-                                    </div>
-                                    <div className="text-xs text-muted-foreground">
-                                        {connection.external_tenant_id ?? '-'}
-                                    </div>
-                                </div>
-
-                                <div className="flex flex-wrap gap-2">
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={!connection.connected}
-                                        onClick={() =>
-                                            pullSnapshot(connection.pull_url)
+                                    />
+                                    <Metric
+                                        label="Last pull"
+                                        value={formatDate(
+                                            connection.last_snapshot_at,
+                                        )}
+                                    />
+                                    <Metric
+                                        label="Period"
+                                        value={
+                                            connection.latest_snapshot
+                                                ?.period_end ?? '-'
                                         }
-                                    >
-                                        <RotateCcw
-                                            className="size-4"
+                                    />
+                                </dl>
+
+                                {noReportData ? (
+                                    <div className="flex gap-2 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+                                        <ShieldAlert
+                                            className="mt-0.5 size-4 shrink-0"
                                             aria-hidden="true"
                                         />
-                                        Pull
-                                    </Button>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={!connection.connected}
-                                        onClick={() =>
-                                            revokeConnection(
-                                                connection.revoke_url,
+                                        <p>
+                                            Xero authorised successfully, but no
+                                            report activity was found in the
+                                            connected organisation. Add or
+                                            publish accounting activity in Xero,
+                                            or connect an organisation with
+                                            trading data, then pull again.
+                                        </p>
+                                    </div>
+                                ) : (
+                                    connection.latest_snapshot && (
+                                        <div className="flex flex-wrap gap-2">
+                                            {Object.entries(
+                                                connection.latest_snapshot
+                                                    .metrics,
                                             )
-                                        }
-                                    >
-                                        <Unplug
-                                            className="size-4"
-                                            aria-hidden="true"
-                                        />
-                                        Revoke
-                                    </Button>
-                                </div>
-                            </div>
-
-                            <dl className="grid gap-2 text-sm md:grid-cols-3">
-                                <Metric
-                                    label="Connected"
-                                    value={formatDate(connection.connected_at)}
-                                />
-                                <Metric
-                                    label="Last pull"
-                                    value={formatDate(
-                                        connection.last_snapshot_at,
-                                    )}
-                                />
-                                <Metric
-                                    label="Period"
-                                    value={
-                                        connection.latest_snapshot
-                                            ?.period_end ?? '-'
-                                    }
-                                />
-                            </dl>
-
-                            {connection.latest_snapshot && (
-                                <div className="flex flex-wrap gap-2">
-                                    {Object.entries(
-                                        connection.latest_snapshot.metrics,
+                                                .slice(0, 4)
+                                                .map(([metric, value]) => (
+                                                    <Badge
+                                                        key={metric}
+                                                        variant="secondary"
+                                                    >
+                                                        {formatLabel(metric)}:{' '}
+                                                        {formatMetric(value)}
+                                                    </Badge>
+                                                ))}
+                                        </div>
                                     )
-                                        .slice(0, 4)
-                                        .map(([metric, value]) => (
-                                            <Badge
-                                                key={metric}
-                                                variant="secondary"
-                                            >
-                                                {formatLabel(metric)}:{' '}
-                                                {formatMetric(value)}
-                                            </Badge>
-                                        ))}
-                                </div>
-                            )}
-                        </article>
-                    ))}
+                                )}
+                            </article>
+                        );
+                    })}
                 </div>
             )}
         </section>
@@ -3152,14 +3387,21 @@ function PaymentsPanel({ client }: { client: ClientDetail }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <CreditCard className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">Payments</h2>
+                    <h2 className="text-sm font-medium">
+                        Payment exceptions
+                    </h2>
                 </div>
-                <Badge variant="outline">{client.payments.length}</Badge>
+                <Badge
+                    variant={client.payments.length > 0 ? 'secondary' : 'outline'}
+                >
+                    {client.payments.length} open
+                </Badge>
             </div>
 
             {client.payments.length === 0 ? (
                 <p className="text-sm text-muted-foreground">
-                    No payments recorded yet.
+                    No failed or retrying payments. Successful payments are
+                    hidden here so this stays focused on advisor action.
                 </p>
             ) : (
                 <div className="space-y-3">
@@ -3260,18 +3502,873 @@ function PaymentsPanel({ client }: { client: ClientDetail }) {
     );
 }
 
+function StrategicPlanPanel({ plan }: { plan: StrategicPlanSummary | null }) {
+    const [deploying, setDeploying] = useState(false);
+
+    if (!plan) {
+        return null;
+    }
+
+    return (
+        <StrategicPlanEditor
+            plan={plan}
+            deploying={deploying}
+            setDeploying={setDeploying}
+        />
+    );
+}
+
+function StrategicPlanEditor({
+    plan,
+    deploying,
+    setDeploying,
+}: {
+    plan: StrategicPlanSummary;
+    deploying: boolean;
+    setDeploying: (deploying: boolean) => void;
+}) {
+    const deployed = plan.status === 'deployed';
+    const form = useForm<StrategicPlanForm>({
+        summary: plan.summary ?? '',
+        sections: plan.sections,
+        milestones: plan.milestones.map((milestone) => ({
+            ...milestone,
+            description: milestone.description ?? '',
+            advisor_notes: milestone.advisor_notes ?? '',
+        })),
+    });
+
+    const save = () => {
+        form.patch(plan.update_url, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Strategic plan saved.'),
+        });
+    };
+
+    const deploy = () => {
+        router.patch(
+            plan.deploy_url,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setDeploying(true),
+                onFinish: () => setDeploying(false),
+                onSuccess: () => toast.success('Strategic plan deployed.'),
+            },
+        );
+    };
+
+    const updateSection = (
+        index: number,
+        field: keyof StrategicPlanSection,
+        value: string,
+    ) => {
+        form.setData(
+            'sections',
+            form.data.sections.map((section, current) =>
+                current === index ? { ...section, [field]: value } : section,
+            ),
+        );
+    };
+
+    const updateMilestone = (
+        index: number,
+        field: keyof StrategicPlanForm['milestones'][number],
+        value: string | number,
+    ) => {
+        form.setData(
+            'milestones',
+            form.data.milestones.map((milestone, current) =>
+                current === index
+                    ? {
+                          ...milestone,
+                          [field]: value,
+                      }
+                    : milestone,
+            ),
+        );
+    };
+
+    const addMilestone = () => {
+        form.setData('milestones', [
+            ...form.data.milestones,
+            {
+                id: '',
+                title: '',
+                description: '',
+                owner: 'joint',
+                owner_label: 'Joint',
+                due_offset_days: 30,
+                due_date: null,
+                status: 'pending',
+                status_label: 'Pending',
+                progress_percent: 0,
+                evidence_notes: '',
+                advisor_notes: '',
+            },
+        ]);
+    };
+
+    const removeMilestone = (index: number) => {
+        form.setData(
+            'milestones',
+            form.data.milestones.filter(
+                (_milestone, current) => current !== index,
+            ),
+        );
+    };
+
+    return (
+        <section
+            id="section-strategic-plan"
+            className="space-y-4 rounded-md border p-4"
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <ListChecks className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">Strategic Plan</h2>
+                        <Badge variant={deployed ? 'secondary' : 'outline'}>
+                            {plan.status_label}
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        Generated after proposal acceptance. Review with the
+                        client, edit the structure if needed, then deploy
+                        milestones.
+                    </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                    <Button asChild size="sm" variant="outline">
+                        <a
+                            href={plan.pdf_url}
+                            target="_blank"
+                            rel="noreferrer"
+                        >
+                            <FileText className="size-4" aria-hidden="true" />
+                            View PDF
+                        </a>
+                    </Button>
+                    {!deployed && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={form.processing}
+                            onClick={save}
+                        >
+                            <FileCheck2 className="size-4" aria-hidden="true" />
+                            Save draft
+                        </Button>
+                    )}
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={deployed || deploying}
+                        onClick={deploy}
+                    >
+                        <Send className="size-4" aria-hidden="true" />
+                        {deployed
+                            ? 'Deployed'
+                            : deploying
+                              ? 'Deploying'
+                              : 'Deploy strategic plan'}
+                    </Button>
+                </div>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-4">
+                <Metric label="Progress" value={`${plan.progress_percent}%`} />
+                <Metric
+                    label="Milestones"
+                    value={`${plan.completed_milestones}/${plan.total_milestones}`}
+                />
+                <Metric
+                    label="Generated"
+                    value={formatDate(plan.generated_at)}
+                />
+                <Metric label="Deployed" value={formatDate(plan.deployed_at)} />
+            </div>
+
+            <div className="grid gap-2">
+                <Label htmlFor="strategic_plan_summary">Summary</Label>
+                <textarea
+                    id="strategic_plan_summary"
+                    value={form.data.summary}
+                    disabled={deployed}
+                    onChange={(event) =>
+                        form.setData('summary', event.target.value)
+                    }
+                    rows={4}
+                    className="min-h-28 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                />
+            </div>
+
+            <div className="grid gap-3 lg:grid-cols-2">
+                {form.data.sections.map((section, index) => (
+                    <div
+                        key={section.key}
+                        className="space-y-2 rounded-md border p-3"
+                    >
+                        <Label
+                            htmlFor={`strategic_plan_section_${section.key}`}
+                        >
+                            {section.title}
+                        </Label>
+                        <textarea
+                            id={`strategic_plan_section_${section.key}`}
+                            value={section.body}
+                            disabled={deployed}
+                            onChange={(event) =>
+                                updateSection(index, 'body', event.target.value)
+                            }
+                            rows={5}
+                            className="min-h-32 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                        />
+                    </div>
+                ))}
+            </div>
+
+            <div className="space-y-3 rounded-md border p-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div>
+                        <h3 className="text-sm font-medium">
+                            Milestone tracker
+                        </h3>
+                        <p className="text-xs text-muted-foreground">
+                            Due dates are calculated from deployment date.
+                        </p>
+                    </div>
+                    {!deployed && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={addMilestone}
+                        >
+                            <PlusCircle className="size-4" aria-hidden="true" />
+                            Add milestone
+                        </Button>
+                    )}
+                </div>
+
+                <div className="space-y-3">
+                    {form.data.milestones.map((milestone, index) => (
+                        <div
+                            key={`${milestone.id}-${index}`}
+                            className="grid gap-3 rounded-md bg-muted/30 p-3"
+                        >
+                            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_150px_150px_auto]">
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_title_${index}`}
+                                    >
+                                        Title
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_title_${index}`}
+                                        value={milestone.title}
+                                        disabled={deployed}
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'title',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_owner_${index}`}
+                                    >
+                                        Owner
+                                    </Label>
+                                    <select
+                                        id={`strategic_milestone_owner_${index}`}
+                                        value={milestone.owner}
+                                        disabled={deployed}
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'owner',
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="h-10 rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                                    >
+                                        <option value="client">Client</option>
+                                        <option value="advisor">Advisor</option>
+                                        <option value="joint">Joint</option>
+                                    </select>
+                                </div>
+                                <div className="grid gap-1">
+                                    <Label
+                                        htmlFor={`strategic_milestone_due_${index}`}
+                                    >
+                                        Due after
+                                    </Label>
+                                    <Input
+                                        id={`strategic_milestone_due_${index}`}
+                                        type="number"
+                                        min={1}
+                                        max={365}
+                                        value={milestone.due_offset_days}
+                                        disabled={deployed}
+                                        onChange={(event) =>
+                                            updateMilestone(
+                                                index,
+                                                'due_offset_days',
+                                                Number(event.target.value),
+                                            )
+                                        }
+                                    />
+                                </div>
+                                {!deployed && (
+                                    <Button
+                                        type="button"
+                                        size="icon"
+                                        variant="outline"
+                                        className="self-end"
+                                        onClick={() => removeMilestone(index)}
+                                    >
+                                        <Ban
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        <span className="sr-only">
+                                            Remove milestone
+                                        </span>
+                                    </Button>
+                                )}
+                            </div>
+                            <textarea
+                                value={milestone.description}
+                                disabled={deployed}
+                                onChange={(event) =>
+                                    updateMilestone(
+                                        index,
+                                        'description',
+                                        event.target.value,
+                                    )
+                                }
+                                rows={3}
+                                placeholder="Milestone description"
+                                className="min-h-20 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-70"
+                            />
+                            {deployed && (
+                                <div className="grid gap-2 text-sm md:grid-cols-4">
+                                    <Metric
+                                        label="Status"
+                                        value={milestone.status_label}
+                                    />
+                                    <Metric
+                                        label="Progress"
+                                        value={`${milestone.progress_percent}%`}
+                                    />
+                                    <Metric
+                                        label="Due"
+                                        value={formatDate(milestone.due_date)}
+                                    />
+                                    <Metric
+                                        label="Owner"
+                                        value={milestone.owner_label}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </section>
+    );
+}
+
+function StrategicBudgetPanel({ budget }: { budget: StrategicBudgetSummary }) {
+    const [approving, setApproving] = useState(false);
+    const advisorGoalForm = useForm<{ advisor_goals: StrategicBudgetGoal[] }>({
+        advisor_goals:
+            budget.advisor_goals.length > 0
+                ? budget.advisor_goals.map((goal) => ({
+                      title: goal.title,
+                      measure: goal.measure ?? '',
+                      owner: 'advisor',
+                      locked: false,
+                  }))
+                : [
+                      {
+                          title: '',
+                          measure: '',
+                          owner: 'advisor',
+                          locked: false,
+                      },
+                  ],
+    });
+    const sourceItems = budget.source_financials.items ?? [];
+    const canApprove =
+        !budget.locked &&
+        budget.business_plan_ready &&
+        budget.status !== 'advisor_approved';
+    const confidenceScore = budget.confidence.score ?? 0;
+
+    const updateAdvisorGoal = (
+        index: number,
+        field: 'title' | 'measure',
+        value: string,
+    ) => {
+        const next = advisorGoalForm.data.advisor_goals.map(
+            (goal, goalIndex) =>
+                goalIndex === index ? { ...goal, [field]: value } : goal,
+        );
+
+        advisorGoalForm.setData('advisor_goals', next);
+    };
+
+    const addAdvisorGoal = () => {
+        advisorGoalForm.setData('advisor_goals', [
+            ...advisorGoalForm.data.advisor_goals,
+            {
+                title: '',
+                measure: '',
+                owner: 'advisor',
+                locked: false,
+            },
+        ]);
+    };
+
+    const removeAdvisorGoal = (index: number) => {
+        const next = advisorGoalForm.data.advisor_goals.filter(
+            (_goal, goalIndex) => goalIndex !== index,
+        );
+
+        advisorGoalForm.setData(
+            'advisor_goals',
+            next.length > 0
+                ? next
+                : [
+                      {
+                          title: '',
+                          measure: '',
+                          owner: 'advisor',
+                          locked: false,
+                      },
+                  ],
+        );
+    };
+
+    const saveAdvisorGoals = () => {
+        advisorGoalForm.patch(budget.advisor_goals_url, {
+            preserveScroll: true,
+            onSuccess: () => toast.success('Advisor goals saved.'),
+        });
+    };
+
+    const approveBudget = () => {
+        if (!canApprove) {
+            return;
+        }
+
+        router.patch(
+            budget.approve_url,
+            {},
+            {
+                preserveScroll: true,
+                onStart: () => setApproving(true),
+                onFinish: () => setApproving(false),
+                onSuccess: () =>
+                    toast.success(
+                        'Business Plan & Budget approved for proposal.',
+                    ),
+            },
+        );
+    };
+
+    return (
+        <section
+            id="section-strategic-budget"
+            className="space-y-4 rounded-md border p-4"
+        >
+            <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="space-y-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <FileSpreadsheet
+                            className="size-4"
+                            aria-hidden="true"
+                        />
+                        <h2 className="text-sm font-medium">{budget.label}</h2>
+                        <Badge variant={budgetStatusVariant(budget.status)}>
+                            {budget.status_label}
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        Figures are maintained ex GST. GST is added only at
+                        final Stripe collection.
+                    </p>
+                </div>
+                <Button
+                    type="button"
+                    size="sm"
+                    disabled={!canApprove || approving}
+                    onClick={approveBudget}
+                >
+                    <CheckCircle2 className="size-4" aria-hidden="true" />
+                    {budget.status === 'advisor_approved'
+                        ? 'Approved'
+                        : 'Approve plan & budget'}
+                </Button>
+            </div>
+
+            {budget.locked && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    The client can see this task, but it stays locked until a
+                    P&amp;L or management accounts file is uploaded and tagged
+                    as financial evidence.
+                </div>
+            )}
+
+            {!budget.business_plan_ready && (
+                <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                    The client still needs to complete every plan section before
+                    this combined plan and budget can be approved for proposal
+                    readiness.
+                </div>
+            )}
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-5">
+                <BudgetScore
+                    label={
+                        budget.pathway === 'npo'
+                            ? 'Operating Plan'
+                            : 'Business Plan'
+                    }
+                    value={budget.business_plan_readiness_score}
+                />
+                <BudgetScore label="Progress" value={budget.progress_score} />
+                <BudgetScore label="Readiness" value={budget.readiness_score} />
+                <Metric
+                    label="Confidence"
+                    value={`${confidenceScore}/100 ${budget.confidence.overall ?? ''}`.trim()}
+                />
+                <Metric
+                    label="Horizon"
+                    value={`${budget.horizon_months} months`}
+                />
+            </div>
+
+            <div className="grid gap-4 lg:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)]">
+                <div className="space-y-3 rounded-md border p-3">
+                    <div className="flex items-center justify-between gap-3">
+                        <h3 className="text-sm font-medium">
+                            Source financials
+                        </h3>
+                        <Badge variant="outline">
+                            {budget.source_financials.count ?? 0}
+                        </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                        {budget.source_financials.system_review ??
+                            'No system review yet.'}
+                    </p>
+                    {sourceItems.length > 0 ? (
+                        <div className="space-y-2">
+                            {sourceItems.map((item) => (
+                                <div
+                                    key={item.id}
+                                    className="rounded-md bg-muted/30 px-3 py-2 text-sm"
+                                >
+                                    <div className="font-medium">
+                                        {item.filename}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        {formatLabel(item.detected_as)} ·{' '}
+                                        {formatDate(item.uploaded_at)}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Waiting on a P&amp;L or management accounts upload.
+                        </p>
+                    )}
+                </div>
+
+                <div className="grid gap-3 rounded-md border p-3 text-sm md:grid-cols-2">
+                    <Metric
+                        label="Implementation costs"
+                        value={formatCurrency(
+                            budget.computed.total_launch_costs ?? 0,
+                        )}
+                    />
+                    <Metric
+                        label="Monthly fixed costs"
+                        value={formatCurrency(
+                            budget.computed.monthly_fixed_costs ?? 0,
+                        )}
+                    />
+                    <Metric
+                        label="Funding available"
+                        value={formatCurrency(
+                            budget.computed.total_funding ?? 0,
+                        )}
+                    />
+                    <Metric
+                        label="Runway"
+                        value={
+                            budget.computed.runway_open_ended
+                                ? 'Open ended'
+                                : budget.computed.runway_months !== null &&
+                                    budget.computed.runway_months !== undefined
+                                  ? `${budget.computed.runway_months} months`
+                                  : '-'
+                        }
+                    />
+                </div>
+            </div>
+
+            {budget.flags.length > 0 && (
+                <div className="space-y-2 rounded-md border p-3">
+                    <h3 className="text-sm font-medium">Readiness signals</h3>
+                    <div className="grid gap-2 lg:grid-cols-2">
+                        {budget.flags.map((flag) => (
+                            <div
+                                key={flag.key}
+                                className="rounded-md bg-muted/30 p-3 text-sm"
+                            >
+                                <div className="flex flex-wrap items-center gap-2">
+                                    <span className="font-medium">
+                                        {flag.title}
+                                    </span>
+                                    <Badge
+                                        variant={
+                                            flag.severity === 'critical'
+                                                ? 'destructive'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {formatLabel(flag.severity)}
+                                    </Badge>
+                                </div>
+                                <p className="mt-1 text-muted-foreground">
+                                    {flag.message}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
+            <div className="grid gap-4 lg:grid-cols-2">
+                <GoalReadOnlyPanel
+                    title="Client goals"
+                    empty="No client-owned onboarding goals yet."
+                    goals={budget.client_goals}
+                />
+
+                <div className="space-y-3 rounded-md border p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div>
+                            <h3 className="text-sm font-medium">
+                                Advisor goals
+                            </h3>
+                            <p className="text-xs text-muted-foreground">
+                                Visible to the client, owned by the advisor.
+                            </p>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={addAdvisorGoal}
+                        >
+                            <PlusCircle className="size-4" aria-hidden="true" />
+                            Add
+                        </Button>
+                    </div>
+
+                    <div className="space-y-3">
+                        {advisorGoalForm.data.advisor_goals.map(
+                            (goal, index) => (
+                                <div
+                                    key={index}
+                                    className="grid gap-2 rounded-md bg-muted/30 p-3"
+                                >
+                                    <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_auto]">
+                                        <div className="grid gap-1">
+                                            <Label
+                                                htmlFor={`advisor_goal_title_${index}`}
+                                            >
+                                                Goal
+                                            </Label>
+                                            <Input
+                                                id={`advisor_goal_title_${index}`}
+                                                value={goal.title}
+                                                onChange={(event) =>
+                                                    updateAdvisorGoal(
+                                                        index,
+                                                        'title',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <div className="grid gap-1">
+                                            <Label
+                                                htmlFor={`advisor_goal_measure_${index}`}
+                                            >
+                                                Measure
+                                            </Label>
+                                            <Input
+                                                id={`advisor_goal_measure_${index}`}
+                                                value={goal.measure ?? ''}
+                                                onChange={(event) =>
+                                                    updateAdvisorGoal(
+                                                        index,
+                                                        'measure',
+                                                        event.target.value,
+                                                    )
+                                                }
+                                            />
+                                        </div>
+                                        <Button
+                                            type="button"
+                                            size="icon"
+                                            variant="outline"
+                                            className="self-end"
+                                            onClick={() =>
+                                                removeAdvisorGoal(index)
+                                            }
+                                        >
+                                            <Ban
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            <span className="sr-only">
+                                                Remove advisor goal
+                                            </span>
+                                        </Button>
+                                    </div>
+                                    <InputError
+                                        message={
+                                            (
+                                                advisorGoalForm.errors as Record<
+                                                    string,
+                                                    string
+                                                >
+                                            )[`advisor_goals.${index}.title`]
+                                        }
+                                    />
+                                </div>
+                            ),
+                        )}
+                    </div>
+                    <InputError
+                        message={
+                            (advisorGoalForm.errors as Record<string, string>)
+                                .advisor_goals
+                        }
+                    />
+                    <Button
+                        type="button"
+                        size="sm"
+                        disabled={advisorGoalForm.processing}
+                        onClick={saveAdvisorGoals}
+                    >
+                        <FileCheck2 className="size-4" aria-hidden="true" />
+                        Save advisor goals
+                    </Button>
+                </div>
+            </div>
+        </section>
+    );
+}
+
+function BudgetScore({ label, value }: { label: string; value: number }) {
+    const safeValue = Math.max(0, Math.min(100, value));
+
+    return (
+        <div className="rounded-md border p-4">
+            <div className="flex items-center justify-between gap-3 text-xs text-muted-foreground">
+                <span>{label}</span>
+                <span>{safeValue}/100</span>
+            </div>
+            <div className="mt-3 h-2 rounded-full bg-muted">
+                <div
+                    className="h-2 rounded-full bg-[var(--fs-admiralty)]"
+                    style={{ width: `${safeValue}%` }}
+                />
+            </div>
+        </div>
+    );
+}
+
+function GoalReadOnlyPanel({
+    title,
+    empty,
+    goals,
+}: {
+    title: string;
+    empty: string;
+    goals: StrategicBudgetGoal[];
+}) {
+    return (
+        <div className="space-y-3 rounded-md border p-3">
+            <div>
+                <h3 className="text-sm font-medium">{title}</h3>
+                <p className="text-xs text-muted-foreground">
+                    Client-owned goals stay transparent and locked here.
+                </p>
+            </div>
+            {goals.length === 0 ? (
+                <p className="text-sm text-muted-foreground">{empty}</p>
+            ) : (
+                <div className="space-y-2">
+                    {goals.map((goal, index) => (
+                        <div
+                            key={`${goal.title}-${index}`}
+                            className="rounded-md bg-muted/30 p-3 text-sm"
+                        >
+                            <div className="flex flex-wrap items-center gap-2">
+                                <LockKeyhole
+                                    className="size-3"
+                                    aria-hidden="true"
+                                />
+                                <span className="font-medium">
+                                    {goal.title}
+                                </span>
+                            </div>
+                            {goal.measure && (
+                                <p className="mt-1 text-muted-foreground">
+                                    {goal.measure}
+                                </p>
+                            )}
+                        </div>
+                    ))}
+                </div>
+            )}
+        </div>
+    );
+}
+
 function ProposalsPanel({ client }: { client: ClientDetail }) {
     const form = useForm<ProposalForm>({
         fee_calculation_id: client.fee_calculations[0]?.id ?? '',
         scope_summary: '',
         insurance_consent: 'undecided',
         coach_consent: 'undecided',
+        budget_override_category: '',
+        budget_override_notes: '',
     });
 
     const submit = () => {
         form.post(client.proposal_store_url, {
             preserveScroll: true,
-            onSuccess: () => form.reset('scope_summary'),
+            onSuccess: () =>
+                form.reset(
+                    'scope_summary',
+                    'budget_override_category',
+                    'budget_override_notes',
+                ),
         });
     };
 
@@ -3289,6 +4386,18 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
 
     const renew = (proposal: ProposalSummary) => {
         router.patch(proposal.renew_url, {}, { preserveScroll: true });
+    };
+
+    const generateStrategicPlan = (proposal: ProposalSummary) => {
+        if (!proposal.strategic_plan_generate_url) {
+            return;
+        }
+
+        router.post(
+            proposal.strategic_plan_generate_url,
+            {},
+            { preserveScroll: true },
+        );
     };
 
     return (
@@ -3388,6 +4497,88 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                             Generate
                         </Button>
                     </div>
+
+                    {!client.proposal_budget_guard.approved && (
+                        <div className="space-y-3 rounded-md border bg-muted/30 p-3 lg:col-span-2">
+                            <div className="flex flex-wrap items-start gap-2">
+                                <ShieldAlert
+                                    className="mt-0.5 size-4"
+                                    aria-hidden="true"
+                                />
+                                <div>
+                                    <h3 className="text-sm font-medium">
+                                        Budget readiness acknowledgement
+                                    </h3>
+                                    <p className="text-sm text-muted-foreground">
+                                        {client.proposal_budget_guard.warning ??
+                                            'The Business Plan & Budget has not been advisor approved. This can affect package selection, fee level, payment terms, affordability checks, and proposal confidence.'}
+                                    </p>
+                                </div>
+                            </div>
+                            <div className="grid gap-3 md:grid-cols-[minmax(180px,0.35fr)_minmax(0,1fr)]">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="budget_override_category">
+                                        Reason category
+                                    </Label>
+                                    <select
+                                        id="budget_override_category"
+                                        value={
+                                            form.data.budget_override_category
+                                        }
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'budget_override_category',
+                                                event.target.value,
+                                            )
+                                        }
+                                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    >
+                                        <option value="">Select reason</option>
+                                        <option value="client_urgency">
+                                            Client urgency
+                                        </option>
+                                        <option value="limited_financials">
+                                            Limited financials
+                                        </option>
+                                        <option value="preliminary_budget">
+                                            Preliminary budget sufficient
+                                        </option>
+                                        <option value="advisor_judgement">
+                                            Advisor judgement
+                                        </option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                    <InputError
+                                        message={
+                                            form.errors.budget_override_category
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="budget_override_notes">
+                                        Advisor notes
+                                    </Label>
+                                    <textarea
+                                        id="budget_override_notes"
+                                        value={form.data.budget_override_notes}
+                                        onChange={(event) =>
+                                            form.setData(
+                                                'budget_override_notes',
+                                                event.target.value,
+                                            )
+                                        }
+                                        rows={3}
+                                        className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    />
+                                    <InputError
+                                        message={
+                                            form.errors.budget_override_notes
+                                        }
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
             )}
 
@@ -3488,6 +4679,21 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         />
                                         Renew
                                     </Button>
+                                    {proposal.strategic_plan_generate_url && (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={() =>
+                                                generateStrategicPlan(proposal)
+                                            }
+                                        >
+                                            <ListChecks
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Generate strategic plan
+                                        </Button>
+                                    )}
                                 </div>
                             </div>
 
@@ -3669,6 +4875,48 @@ function StandardAdvisoryPanel({
                             : 'Not generated'
                     }
                 />
+            </div>
+
+            <div className="rounded-md border bg-muted/20 p-3">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-sm font-medium">
+                        Website audit readiness
+                    </div>
+                    <Badge
+                        variant={
+                            summary.website_audit.status === 'ready'
+                                ? 'secondary'
+                                : 'outline'
+                        }
+                    >
+                        {summary.website_audit.status_label}
+                    </Badge>
+                </div>
+                <p className="mt-2 text-sm text-muted-foreground">
+                    {summary.website_audit.next_action}
+                </p>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                    <WebsiteAuditSignal
+                        label="URL"
+                        complete={summary.website_audit.has_url}
+                    />
+                    <WebsiteAuditSignal
+                        label="Page evidence"
+                        complete={
+                            summary.website_audit.has_website_page_evidence
+                        }
+                    />
+                    <WebsiteAuditSignal
+                        label="Offer evidence"
+                        complete={
+                            summary.website_audit.has_product_service_evidence
+                        }
+                    />
+                    <WebsiteAuditSignal
+                        label="SEO evidence"
+                        complete={summary.website_audit.has_seo_evidence}
+                    />
+                </div>
             </div>
 
             {summary.missing.length > 0 ? (
@@ -4872,6 +6120,33 @@ function formatLabel(value: string) {
         .join(' ');
 }
 
+function WebsiteAuditSignal({
+    label,
+    complete,
+}: {
+    label: string;
+    complete: boolean;
+}) {
+    const Icon = complete ? CheckCircle2 : ShieldAlert;
+
+    return (
+        <div className="flex items-center gap-2 rounded-md border bg-background px-3 py-2 text-xs">
+            <Icon
+                className={
+                    complete
+                        ? 'size-4 text-emerald-700'
+                        : 'size-4 text-muted-foreground'
+                }
+                aria-hidden="true"
+            />
+            <span className="font-medium">{label}</span>
+            <span className="ml-auto text-muted-foreground">
+                {complete ? 'Ready' : 'Needed'}
+            </span>
+        </div>
+    );
+}
+
 function standardAdvisoryStatusVariant(
     status: string,
 ): 'secondary' | 'destructive' | 'outline' {
@@ -4880,6 +6155,26 @@ function standardAdvisoryStatusVariant(
     }
 
     if (status === 'verification_blocked') {
+        return 'destructive';
+    }
+
+    return 'outline';
+}
+
+function budgetStatusVariant(
+    status: string,
+): 'secondary' | 'destructive' | 'outline' {
+    if (
+        [
+            'advisor_approved',
+            'used_in_proposal',
+            'accepted_proposal_snapshot',
+        ].includes(status)
+    ) {
+        return 'secondary';
+    }
+
+    if (status === 'locked') {
         return 'destructive';
     }
 

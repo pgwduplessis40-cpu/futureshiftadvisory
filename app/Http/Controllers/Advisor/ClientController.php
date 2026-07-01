@@ -33,6 +33,7 @@ use App\Models\ReportSectionRevision;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
@@ -49,6 +50,7 @@ use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoValueCalculator;
 use App\Services\Npo\SocialEnterpriseAssessment;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
+use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -272,10 +274,13 @@ final class ClientController extends Controller
         NpoValueCalculator $npoValues,
         SocialEnterpriseAssessment $socialEnterprise,
         StandardAdvisoryWorkflow $standardAdvisory,
+        StrategicBudgetService $strategicBudgets,
+        StrategicPlanService $strategicPlans,
     ): Response {
         Gate::authorize('view', $client);
         $dataQuality = $this->dataQuality->score($client);
         $user = $request->user();
+        $strategicBudget = $strategicBudgets->ensureForClient($client);
 
         return Inertia::render('advisor/clients/Show', [
             'client' => [
@@ -310,6 +315,9 @@ final class ClientController extends Controller
                 'payments' => $payments->forClient($client),
                 'analysis_findings' => $this->analysisFindingSummaries($client, $request->query('highlight')),
                 'standard_advisory' => $standardAdvisory->clientSummary($client),
+                'strategic_budget' => $strategicBudgets->advisorPayload($strategicBudget),
+                'strategic_plan' => $strategicPlans->advisorPayload($client),
+                'proposal_budget_guard' => $strategicBudgets->proposalGuardPayload($strategicBudget),
                 'due_diligence' => $this->dueDiligenceSummary($client),
                 'npo_conversion' => $npoConversion->clientSummary($client),
                 'npo_governance_review' => $this->npoGovernanceReviewSummary($client),
@@ -480,6 +488,9 @@ final class ClientController extends Controller
                     'renew_url' => route('advisor.proposals.renew', $proposal, absolute: false),
                     'view_url' => route('advisor.proposals.show', $proposal, absolute: false),
                     'download_url' => route('advisor.proposals.download', $proposal, absolute: false),
+                    'strategic_plan_generate_url' => $status === ProposalStatus::Signed
+                        ? route('advisor.proposals.strategic-plan.generate', $proposal, absolute: false)
+                        : null,
                 ];
             })
             ->values()
@@ -700,6 +711,8 @@ final class ClientController extends Controller
         $connections = AccountingConnection::query()
             ->with('latestFinancialSnapshot')
             ->where('client_id', $client->getKey())
+            ->where('status', AccountingConnection::STATUS_CONNECTED)
+            ->whereNull('revoked_at')
             ->latest('connected_at')
             ->get();
 

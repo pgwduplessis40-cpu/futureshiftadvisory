@@ -20,6 +20,7 @@ import { cn } from '@/lib/utils';
 export type InsightHoverCardRow = {
     label: ReactNode;
     value: ReactNode;
+    description?: ReactNode;
     tone?: 'default' | 'muted' | 'positive' | 'negative';
 };
 
@@ -121,6 +122,11 @@ function InsightHoverCardContent({
                         >
                             <dt className="min-w-0 text-muted-foreground">
                                 {row.label}
+                                {row.description && (
+                                    <div className="mt-1 text-[11px] leading-snug text-muted-foreground/80">
+                                        {row.description}
+                                    </div>
+                                )}
                             </dt>
                             <dd
                                 className={cn(

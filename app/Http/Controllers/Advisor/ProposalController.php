@@ -13,6 +13,7 @@ use App\Models\FunnelEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Audit\AuditWriter;
 use App\Services\Proposals\ProposalBuilder;
 use Illuminate\Http\RedirectResponse;
@@ -26,7 +27,13 @@ use InvalidArgumentException;
 
 final class ProposalController extends Controller
 {
-    public function store(Request $request, Client $client, ProposalBuilder $proposals, FunnelTracker $funnels): RedirectResponse
+    public function store(
+        Request $request,
+        Client $client,
+        ProposalBuilder $proposals,
+        FunnelTracker $funnels,
+        StrategicBudgetService $strategicBudgets,
+    ): RedirectResponse
     {
         Gate::authorize('view', $client);
 
@@ -42,17 +49,49 @@ final class ProposalController extends Controller
             'scope_summary' => ['nullable', 'string', 'max:2000'],
             'insurance_consent' => ['required', Rule::in(Consent::elections())],
             'coach_consent' => ['required', Rule::in(Consent::elections())],
+            'budget_override_category' => ['nullable', 'string', Rule::in([
+                'client_urgency',
+                'limited_financials',
+                'preliminary_budget',
+                'advisor_judgement',
+                'other',
+            ])],
+            'budget_override_notes' => ['nullable', 'string', 'max:1200'],
         ]);
 
         $feeCalculation = FeeCalculation::query()
             ->where('client_id', $client->getKey())
             ->findOrFail($validated['fee_calculation_id']);
+        $budget = $strategicBudgets->ensureForClient($client);
+
+        if (! $budget->isApprovedForProposal()) {
+            $overrideCategory = trim((string) ($validated['budget_override_category'] ?? ''));
+            $overrideNotes = trim((string) ($validated['budget_override_notes'] ?? ''));
+
+            if ($overrideCategory === '' || $overrideNotes === '') {
+                return back()->withErrors([
+                    'budget_override_category' => 'Choose an override reason before generating a proposal without an approved Business Plan & Budget.',
+                    'budget_override_notes' => 'Add acknowledgement notes explaining why the proposal is being generated before Business Plan & Budget approval.',
+                ]);
+            }
+        }
 
         $scopeSummary = trim((string) ($validated['scope_summary'] ?? ''));
+        $scope = $scopeSummary === '' ? [] : ['summary' => $scopeSummary];
+        $scope['term_months'] = $this->recommendedTermMonths((float) $feeCalculation->suggested_mid);
+        $scope['budget'] = [
+            ...$strategicBudgets->proposalGuardPayload($budget),
+            'override' => $budget->isApprovedForProposal() ? null : [
+                'category' => $validated['budget_override_category'],
+                'notes' => $validated['budget_override_notes'],
+                'acknowledged_by_user_id' => $user->getKey(),
+                'acknowledged_at' => now()->toIso8601String(),
+            ],
+        ];
 
         $funnels->enter(FunnelEvent::FLOW_PROPOSAL, 'generate', $client, $user);
-        $proposals->generate($client, $feeCalculation, [
-            'scope' => $scopeSummary === '' ? [] : ['summary' => $scopeSummary],
+        $proposal = $proposals->generate($client, $feeCalculation, [
+            'scope' => $scope,
             'consents' => [
                 Consent::TYPE_INSURANCE_REFERRAL => $validated['insurance_consent'],
                 Consent::TYPE_COACH_REFERRAL => $validated['coach_consent'],
@@ -60,9 +99,19 @@ final class ProposalController extends Controller
         ], [
             'created_by_user_id' => $user->getKey(),
         ]);
+        $strategicBudgets->markUsedInProposal($budget, $proposal, $user);
         $funnels->complete(FunnelEvent::FLOW_PROPOSAL, 'generate', $client, $user);
 
         return to_route('advisor.clients.show', $client)->with('status', 'proposal-generated');
+    }
+
+    private function recommendedTermMonths(float $amount): int
+    {
+        return match (true) {
+            $amount >= 40000 => 36,
+            $amount >= 18000 => 24,
+            default => 12,
+        };
     }
 
     public function release(Request $request, Proposal $proposal, ProposalBuilder $proposals, FunnelTracker $funnels): RedirectResponse

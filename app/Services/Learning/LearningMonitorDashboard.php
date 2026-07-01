@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\Schema;
 
 final class LearningMonitorDashboard
 {
-    public function __construct(private readonly LayerCadenceRegistry $registry) {}
+    public function __construct(
+        private readonly LayerCadenceRegistry $registry,
+        private readonly LearningCapabilityProfile $capabilityProfile,
+    ) {}
 
     /**
      * @return array<string, mixed>
@@ -74,6 +77,7 @@ final class LearningMonitorDashboard
                     'command' => $definition['command'],
                     'governed_candidates_only' => $definition['governed_candidates_only'],
                     'metadata' => $definition['metadata'] ?? [],
+                    'capability_profile' => $this->capabilityProfile->forLayerDefinition($definition),
                     'active' => $state instanceof LearningLayerState ? $state->active : false,
                     'next_due_at' => $state instanceof LearningLayerState ? $state->next_due_at?->toIso8601String() : null,
                     'min_sample' => $state instanceof LearningLayerState ? $state->min_sample : $definition['window_days'],

@@ -31,9 +31,12 @@ use App\Models\Referral;
 use App\Models\ReferralMessage;
 use App\Models\ReverseReferral;
 use App\Models\Scenario;
+use App\Models\StrategicBudget;
+use App\Models\StrategicPlan;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Analytics\FunnelTracker;
+use App\Services\Dashboards\CashFlowStatusMonitor;
 use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
@@ -64,6 +67,7 @@ final class DashboardController extends Controller
         Request $request,
         TermsAcceptanceGate $termsGate,
         ClientEngagementScorer $engagementScorer,
+        CashFlowStatusMonitor $cashFlowStatus,
         EconomicExposureMapper $economicExposure,
         PaymentStatusReport $paymentStatus,
         PvWaterfallBuilder $pvWaterfalls,
@@ -98,7 +102,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -656,6 +660,7 @@ final class DashboardController extends Controller
         User $user,
         TermsAcceptanceGate $termsGate,
         ClientEngagementScorer $engagementScorer,
+        CashFlowStatusMonitor $cashFlowStatus,
         EconomicExposureMapper $economicExposure,
         PaymentStatusReport $paymentStatus,
         PvWaterfallBuilder $pvWaterfalls,
@@ -673,6 +678,7 @@ final class DashboardController extends Controller
         $wellbeingAnalytics = $wellbeing->forClientIds($clientIds);
         $coachSignalsPayload = $coachSignals->advisorPanel($user);
         $funnelAnalytics = $funnels->summary($clientIds);
+        $cashFlowStatusPayload = $cashFlowStatus->forClientIds($clientIds);
 
         return [
             'clientsHealth' => $this->clientsHealth(
@@ -681,11 +687,14 @@ final class DashboardController extends Controller
                 $this->visibleEntrepreneurQuery(EntrepreneurProfile::query(), $user)
                     ->whereIn('stage', EntrepreneurStage::activeCapacityValues())
                     ->count(),
+                $cashFlowStatusPayload['by_client'] ?? [],
             ),
+            'cashFlowStatus' => $cashFlowStatusPayload,
             'redFlags' => $this->redFlags($clientIds),
             'documentVerificationFlags' => $this->documentVerificationFlags($clientIds),
             'messagesPending' => $this->messagesPending($user, $clientIds),
             'entrepreneurReviews' => $this->entrepreneurReviews($user),
+            'strategicPlanDeployments' => $this->strategicPlanDeployments($clientIds),
             'pendingTermsReacceptance' => $this->pendingTermsReacceptance($clientIds, $termsGate),
             'prospectInbox' => $this->prospectInbox(),
             'integrationHealth' => $this->integrationHealth($user),
@@ -831,6 +840,121 @@ final class DashboardController extends Controller
             'action_label' => $plan->status === BusinessPlan::STATUS_SUBMITTED
                 ? 'Run assessment'
                 : 'Finalise review',
+        ];
+    }
+
+    /**
+     * @param  array<int, string>|null  $clientIds
+     * @return array<string, mixed>
+     */
+    private function strategicPlanDeployments(?array $clientIds): array
+    {
+        if ($clientIds === [] || ! Schema::hasTable('strategic_plans')) {
+            return [
+                'summary' => [
+                    'total' => 0,
+                    'ready_to_generate' => 0,
+                    'ready_to_deploy' => 0,
+                ],
+                'items' => [],
+            ];
+        }
+
+        $deploymentQuery = StrategicPlan::query()
+            ->with(['client', 'proposal'])
+            ->withCount('milestones')
+            ->where('status', StrategicPlan::STATUS_DRAFT);
+
+        $generationQuery = Proposal::query()
+            ->with('client')
+            ->where('status', ProposalStatus::Signed->value)
+            ->whereNotExists(function ($query): void {
+                $query->selectRaw('1')
+                    ->from('strategic_plans')
+                    ->whereColumn('strategic_plans.proposal_id', 'proposals.id');
+            });
+
+        if (Schema::hasTable('strategic_budgets')) {
+            $generationQuery->with('strategicBudget');
+        }
+
+        if (is_array($clientIds)) {
+            $deploymentQuery->whereIn('client_id', $clientIds);
+            $generationQuery->whereIn('client_id', $clientIds);
+        }
+
+        $readyToGenerate = (clone $generationQuery)->count();
+        $readyToDeploy = (clone $deploymentQuery)->count();
+        $generationItems = (clone $generationQuery)
+            ->latest('signed_at')
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(function (Proposal $proposal): array {
+                $budget = $proposal->relationLoaded('strategicBudget')
+                    ? $proposal->strategicBudget
+                    : null;
+                $hasAcceptedSnapshot = $budget instanceof StrategicBudget
+                    && $budget->status === StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT;
+
+                return [
+                    'id' => $proposal->id,
+                    'type' => 'generate',
+                    'client_id' => $proposal->client_id,
+                    'client_name' => $proposal->client?->legal_name ?? 'Client',
+                    'proposal_version' => $proposal->version,
+                    'generated_at' => null,
+                    'accepted_at' => $proposal->signed_at?->toIso8601String(),
+                    'milestones_count' => 0,
+                    'status_label' => 'Accepted proposal',
+                    'budget_status_label' => $hasAcceptedSnapshot
+                        ? 'Budget snapshot'
+                        : ($budget instanceof StrategicBudget ? str($budget->status)->replace('_', ' ')->title()->toString() : null),
+                    'detail_url' => route('advisor.clients.show', $proposal->client_id, absolute: false).'#section-proposals',
+                    'action_url' => route('advisor.proposals.strategic-plan.generate', $proposal, absolute: false),
+                    'action_label' => 'Generate strategic plan',
+                    'sort_at' => $proposal->signed_at?->toIso8601String() ?? $proposal->updated_at?->toIso8601String() ?? '',
+                ];
+            });
+        $deploymentItems = (clone $deploymentQuery)
+            ->latest('generated_at')
+            ->latest()
+            ->limit(8)
+            ->get()
+            ->map(fn (StrategicPlan $plan): array => [
+                'id' => $plan->id,
+                'type' => 'deploy',
+                'client_id' => $plan->client_id,
+                'client_name' => $plan->client?->legal_name ?? 'Client',
+                'proposal_version' => $plan->proposal?->version,
+                'generated_at' => $plan->generated_at?->toIso8601String(),
+                'accepted_at' => $plan->proposal?->signed_at?->toIso8601String(),
+                'milestones_count' => (int) ($plan->milestones_count ?? 0),
+                'status_label' => 'Draft strategic plan',
+                'budget_status_label' => null,
+                'detail_url' => route('advisor.clients.show', $plan->client_id, absolute: false).'#section-strategic-plan',
+                'action_url' => null,
+                'action_label' => 'Open strategic plan',
+                'sort_at' => $plan->generated_at?->toIso8601String() ?? $plan->updated_at?->toIso8601String() ?? '',
+            ]);
+
+        return [
+            'summary' => [
+                'total' => $readyToGenerate + $readyToDeploy,
+                'ready_to_generate' => $readyToGenerate,
+                'ready_to_deploy' => $readyToDeploy,
+            ],
+            'items' => $generationItems
+                ->merge($deploymentItems)
+                ->sortByDesc('sort_at')
+                ->take(8)
+                ->map(function (array $item): array {
+                    unset($item['sort_at']);
+
+                    return $item;
+                })
+                ->values()
+                ->all(),
         ];
     }
 
@@ -1436,6 +1560,7 @@ final class DashboardController extends Controller
         ?array $clientIds,
         ClientEngagementScorer $engagementScorer,
         int $entrepreneurWorkspaces = 0,
+        array $cashFlowByClient = [],
     ): array {
         $query = $this->scopedClientQuery($clientIds);
         $totalClientWorkspaces = (clone $query)->count();
@@ -1459,6 +1584,9 @@ final class DashboardController extends Controller
         $green = (int) ($engagementCounts['green'] ?? 0);
         $amber = (int) ($engagementCounts['amber'] ?? 0);
         $red = (int) ($engagementCounts['red'] ?? 0);
+        $cashFlowAttention = collect($cashFlowByClient)
+            ->filter(fn (mixed $status): bool => is_array($status) && in_array($status['status'] ?? null, ['negative', 'watch'], true))
+            ->count();
 
         return [
             'methodology_id' => 'engagement.score',
@@ -1470,10 +1598,10 @@ final class DashboardController extends Controller
                 'medium' => $amber,
                 'low' => $red,
                 'insufficient' => 0,
-                'needs_attention' => $red,
+                'needs_attention' => max($red, $cashFlowAttention),
             ],
             'clients' => $clients
-                ->map(function (Client $client) use ($engagementScores, $flagCounts, $latestDocumentActivity, $latestMessageActivity): array {
+                ->map(function (Client $client) use ($engagementScores, $flagCounts, $latestDocumentActivity, $latestMessageActivity, $cashFlowByClient): array {
                     $clientId = (string) $client->getKey();
 
                     return $this->clientSummary(
@@ -1485,6 +1613,7 @@ final class DashboardController extends Controller
                             $latestDocumentActivity[$clientId] ?? null,
                             $latestMessageActivity[$clientId] ?? null,
                         ),
+                        is_array($cashFlowByClient[$clientId] ?? null) ? $cashFlowByClient[$clientId] : null,
                     );
                 })
                 ->values()
@@ -1609,7 +1738,7 @@ final class DashboardController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function clientSummary(Client $client, array $engagement, int $openDocumentFlags, ?Carbon $latestActivity): array
+    private function clientSummary(Client $client, array $engagement, int $openDocumentFlags, ?Carbon $latestActivity, ?array $cashFlow): array
     {
         $engagementType = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type
@@ -1634,6 +1763,22 @@ final class DashboardController extends Controller
                     'client' => $client,
                     'focus' => $engagement['focus_section'],
                 ], absolute: false),
+            ],
+            'cash_flow' => $cashFlow ?? [
+                'client_id' => (string) $client->getKey(),
+                'client_name' => $client->legal_name,
+                'status' => 'unknown',
+                'status_label' => 'Unknown',
+                'tone' => 'muted',
+                'reason' => 'No cash-flow actuals or budget forecast are available yet.',
+                'source' => 'Financial data required',
+                'latest_operating_cash_flow' => null,
+                'latest_period_end' => null,
+                'runway_months' => null,
+                'runway_open_ended' => false,
+                'cash_flow_positive_year' => null,
+                'alert_headline' => null,
+                'detail_url' => route('advisor.clients.show', $client, absolute: false).'#section-accounting',
             ],
             'open_document_flags_count' => $openDocumentFlags,
             'last_activity_at' => $latestActivity?->toIso8601String(),

@@ -75,9 +75,70 @@ final class WebsiteAuditTest extends TestCase
         $this->assertSame(0, $run->findings()->count());
     }
 
-    private function clientWithWebsiteEvidence(): Client
+    public function test_positive_website_wording_is_not_treated_as_a_gap(): void
+    {
+        $client = $this->clientWithWebsiteEvidence([
+            'website' => 'https://example.co.nz service pages clearly explain cash-flow advisory, CFO support, and pricing workshops for New Zealand SMEs.',
+            'discoverability' => 'SEO metadata, schema, FAQ answer blocks, GEO citations, AEO answers, and AIO-friendly service summaries are implemented.',
+            'mobile' => 'Mobile pages are fast and responsive for enquiry traffic.',
+            'cta' => 'The enquiry CTA is clear and visible above the fold on each service page.',
+        ]);
+
+        $run = app(AnalysisRunner::class)->run($client, app(WebsiteAudit::class));
+
+        $diagnostic = $run->findings->firstWhere('lens', AnalysisLens::Diagnostic);
+        $this->assertInstanceOf(AnalysisFinding::class, $diagnostic);
+        $this->assertStringContainsString('mobile speed or responsiveness positively', $diagnostic->body);
+        $this->assertStringContainsString('CTA visibility positively', $diagnostic->body);
+        $this->assertStringContainsString('supplied evidence mentions search', $diagnostic->body);
+        $this->assertStringNotContainsString('flags mobile performance', $diagnostic->body);
+        $this->assertStringNotContainsString('flags enquiry or CTA clarity', $diagnostic->body);
+        $this->assertStringNotContainsString('flags missing or weak metadata', $diagnostic->body);
+    }
+
+    public function test_website_audit_uses_only_standard_advisory_questionnaire_responses(): void
+    {
+        $client = $this->clientWithWebsiteEvidence([
+            'website' => 'https://example.co.nz service pages clearly explain cash-flow advisory and CFO support.',
+            'discoverability' => 'SEO metadata and schema are present.',
+            'mobile' => 'Mobile pages are fast and responsive.',
+            'cta' => 'The enquiry CTA is clear.',
+        ]);
+        $user = User::factory()->create();
+        [$questionnaire, $questions] = $this->questionnaireWithQuestions(QuestionnaireSet::DUE_DILIGENCE);
+        $response = QuestionnaireResponse::query()->create([
+            'client_id' => $client->id,
+            'questionnaire_id' => $questionnaire->id,
+            'submitted_at' => now()->addMinute(),
+            'submitted_by_user_id' => $user->getKey(),
+        ]);
+        $nonStandardAnswer = $response->answers()->create([
+            'question_id' => $questions['website']->id,
+            'value' => 'https://irrelevant.example has slow mobile pages, no schema, and a hidden CTA.',
+            'attached_document_ids' => [],
+        ]);
+
+        $run = app(AnalysisRunner::class)->run($client, app(WebsiteAudit::class));
+
+        $diagnostic = $run->findings->firstWhere('lens', AnalysisLens::Diagnostic);
+        $this->assertInstanceOf(AnalysisFinding::class, $diagnostic);
+        $this->assertStringNotContainsString('flags mobile performance', $diagnostic->body);
+        $this->assertFalse(collect($diagnostic->attributions)->contains(
+            fn (array $attribution): bool => $attribution['source_reference'] === "questionnaire_answer:{$nonStandardAnswer->id}",
+        ));
+    }
+
+    private function clientWithWebsiteEvidence(array $overrides = []): Client
     {
         $user = User::factory()->create();
+        $values = [
+            'website' => 'https://example.co.nz has useful service pages for virtual CFO and cash-flow advisory but weak local SEO for NZ advisory searches.',
+            'products' => 'The client sells fixed-fee cash-flow advisory, monthly CFO support, and pricing workshops for New Zealand SMEs.',
+            'discoverability' => 'The site has no schema, FAQ answer blocks, AEO content, GEO citations, or AIO-friendly service summaries.',
+            'mobile' => 'Mobile pages are slow and not responsive enough for enquiry traffic.',
+            'cta' => 'The main enquiry CTA is unclear and sits below most service-page content.',
+            ...$overrides,
+        ];
 
         $client = Client::query()->create([
             'engagement_type' => EngagementType::STANDARD_ADVISORY,
@@ -98,27 +159,27 @@ final class WebsiteAuditTest extends TestCase
 
         $response->answers()->create([
             'question_id' => $questions['website']->id,
-            'value' => 'https://example.co.nz has useful service pages for virtual CFO and cash-flow advisory but weak local SEO for NZ advisory searches.',
+            'value' => $values['website'],
             'attached_document_ids' => [],
         ]);
         $response->answers()->create([
             'question_id' => $questions['products']->id,
-            'value' => 'The client sells fixed-fee cash-flow advisory, monthly CFO support, and pricing workshops for New Zealand SMEs.',
+            'value' => $values['products'],
             'attached_document_ids' => [],
         ]);
         $response->answers()->create([
             'question_id' => $questions['discoverability']->id,
-            'value' => 'The site has no schema, FAQ answer blocks, AEO content, GEO citations, or AIO-friendly service summaries.',
+            'value' => $values['discoverability'],
             'attached_document_ids' => [],
         ]);
         $response->answers()->create([
             'question_id' => $questions['mobile']->id,
-            'value' => 'Mobile pages are slow and not responsive enough for enquiry traffic.',
+            'value' => $values['mobile'],
             'attached_document_ids' => [],
         ]);
         $response->answers()->create([
             'question_id' => $questions['cta']->id,
-            'value' => 'The main enquiry CTA is unclear and sits below most service-page content.',
+            'value' => $values['cta'],
             'attached_document_ids' => [],
         ]);
 
@@ -128,10 +189,10 @@ final class WebsiteAuditTest extends TestCase
     /**
      * @return array{0: Questionnaire, 1: array{website: QuestionnaireQuestion, products: QuestionnaireQuestion, discoverability: QuestionnaireQuestion, mobile: QuestionnaireQuestion, cta: QuestionnaireQuestion}}
      */
-    private function questionnaireWithQuestions(): array
+    private function questionnaireWithQuestions(QuestionnaireSet $set = QuestionnaireSet::STANDARD_ADVISORY): array
     {
         $questionnaire = Questionnaire::query()->create([
-            'set' => QuestionnaireSet::STANDARD_ADVISORY,
+            'set' => $set,
             'version' => 'wo45-'.Str::lower(Str::random(8)),
             'title' => 'WO-45 Website Audit Questionnaire',
             'published_at' => now(),

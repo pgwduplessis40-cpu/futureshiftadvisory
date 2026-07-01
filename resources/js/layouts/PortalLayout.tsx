@@ -362,7 +362,7 @@ function portalServiceNavItems(
         },
         {
             service_type: 'entrepreneur',
-            label: 'Test a new idea',
+            label: 'Test new Business Idea',
             description:
                 'Open idea validation, business-plan, and budget support inside this portal.',
             available: true,

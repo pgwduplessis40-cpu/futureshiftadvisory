@@ -328,7 +328,7 @@ export default function ServiceRatesIndex({
                                         Explore buying a business
                                     </option>
                                     <option value="entrepreneur">
-                                        Test a new idea
+                                        Test new Business Idea
                                     </option>
                                 </select>
                                 <InputError
@@ -814,7 +814,7 @@ function formatPercent(value: number) {
 function serviceLabel(serviceType: ServiceRatePackage['service_type']) {
     return serviceType === 'due_diligence'
         ? 'Explore buying a business'
-        : 'Test a new idea';
+        : 'Test new Business Idea';
 }
 
 function packageFee(ratePackage: ServiceRatePackage) {
