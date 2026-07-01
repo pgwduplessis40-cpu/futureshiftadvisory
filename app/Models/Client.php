@@ -199,6 +199,22 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<AccountingInvoiceBatch>
+     */
+    public function accountingInvoiceBatches(): HasMany
+    {
+        return $this->hasMany(AccountingInvoiceBatch::class);
+    }
+
+    /**
+     * @return HasMany<AccountingInvoice>
+     */
+    public function accountingInvoices(): HasMany
+    {
+        return $this->hasMany(AccountingInvoice::class);
+    }
+
+    /**
      * @return HasMany<BusinessHealthSnapshot>
      */
     public function businessHealthSnapshots(): HasMany

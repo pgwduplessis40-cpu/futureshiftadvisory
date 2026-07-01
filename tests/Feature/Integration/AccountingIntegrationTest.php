@@ -100,7 +100,12 @@ final class AccountingIntegrationTest extends TestCase
 
         $token = json_decode(app(KeyEnvelope::class)->decrypt($connection->token_envelope), true, flags: JSON_THROW_ON_ERROR);
         $this->assertSame('xero-access-token-fixture', $token['access_token']);
-        $this->assertSame(['accounting.reports.read', 'offline_access'], $connection->scopes);
+        $this->assertSame([
+            'accounting.reports.balancesheet.read',
+            'accounting.reports.profitandloss.read',
+            'accounting.reports.banksummary.read',
+            'offline_access',
+        ], $connection->scopes);
         $this->assertDatabaseHas('audit_events', ['action' => 'accounting_connection.connected']);
     }
 
@@ -238,7 +243,7 @@ final class AccountingIntegrationTest extends TestCase
         $snapshot->forceFill(['source_badge' => 'tampered'])->save();
     }
 
-    public function test_live_mode_with_config_credentials_logs_resilient_http_fallback(): void
+    public function test_xero_live_mode_stores_tenant_discovered_from_connections_endpoint(): void
     {
         Config::set('integrations.accounting.xero.live', true);
         Config::set('integrations.accounting.xero.client_id', 'xero-test-client');
@@ -246,6 +251,56 @@ final class AccountingIntegrationTest extends TestCase
         $this->forgetAccountingClients();
 
         [$advisor, $client] = $this->advisorAndClient();
+        $state = $this->connectState($advisor, $client, AccountingConnection::PROVIDER_XERO);
+        Http::fake([
+            'https://identity.xero.com/connect/token' => Http::response([
+                'access_token' => 'xero-live-token',
+                'refresh_token' => 'xero-live-refresh-token',
+                'expires_in' => 1800,
+                'scope' => 'accounting.reports.balancesheet.read accounting.reports.profitandloss.read accounting.reports.banksummary.read offline_access',
+            ]),
+            'https://api.xero.com/connections' => Http::response([
+                [
+                    'tenantId' => 'xero-live-tenant-123',
+                    'tenantName' => 'Demo Company',
+                    'tenantType' => 'ORGANISATION',
+                ],
+            ]),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.accounting.callback', [
+                $client,
+                AccountingConnection::PROVIDER_XERO,
+                'code' => 'fixture-code',
+                'state' => $state,
+            ]))
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+
+        Http::assertSentCount(2);
+
+        /** @var AccountingConnection $connection */
+        $connection = AccountingConnection::query()->firstOrFail();
+        $token = json_decode(app(KeyEnvelope::class)->decrypt($connection->token_envelope), true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('xero-live-tenant-123', $connection->external_tenant_id);
+        $this->assertSame('xero-live-token', $token['access_token']);
+        $this->assertSame('live', $token['source_badge']);
+        $this->assertSame([
+            'accounting.reports.balancesheet.read',
+            'accounting.reports.profitandloss.read',
+            'accounting.reports.banksummary.read',
+            'offline_access',
+        ], $connection->scopes);
+    }
+
+    public function test_xero_live_mode_does_not_create_fixture_connection_when_token_exchange_fails(): void
+    {
+        Config::set('integrations.accounting.xero.live', true);
+        Config::set('integrations.accounting.xero.client_id', 'xero-test-client');
+        Config::set('integrations.accounting.xero.client_secret', 'xero-test-secret');
+        $this->forgetAccountingClients();
+
+        [$advisor, $client] = $this->advisorAndClient('xero-live-failure@example.test');
         $state = $this->connectState($advisor, $client, AccountingConnection::PROVIDER_XERO);
         Http::fake(fn () => Http::response(['error' => 'missing credential'], 401));
 
@@ -256,7 +311,8 @@ final class AccountingIntegrationTest extends TestCase
                 'code' => 'fixture-code',
                 'state' => $state,
             ]))
-            ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
+            ->assertRedirect(route('advisor.clients.show', $client, absolute: false))
+            ->assertSessionHas('error', 'accounting-connection-invalid');
 
         Http::assertSentCount(1);
         $this->assertDatabaseHas('integration_calls', [
@@ -270,11 +326,7 @@ final class AccountingIntegrationTest extends TestCase
             'attempt' => 1,
         ]);
 
-        /** @var AccountingConnection $connection */
-        $connection = AccountingConnection::query()->firstOrFail();
-        $token = json_decode(app(KeyEnvelope::class)->decrypt($connection->token_envelope), true, flags: JSON_THROW_ON_ERROR);
-        $this->assertSame('stub_live_fallback', $token['source_badge']);
-        $this->assertTrue($token['degraded']);
+        $this->assertDatabaseCount('accounting_connections', 0);
     }
 
     public function test_revoke_marks_connection_revoked_without_deleting_snapshots(): void

@@ -11,6 +11,7 @@ import integrationHealth from './integration-health'
 import auditTrail from './audit-trail'
 import integrationCredentials from './integration-credentials'
 import projectSettings from './project-settings'
+import practiceAccounting from './practice-accounting'
 import referenceData from './reference-data'
 import welcomeMessage from './welcome-message'
 import inspirationBoard from './inspiration-board'
@@ -31,6 +32,7 @@ integrationHealth: Object.assign(integrationHealth, integrationHealth),
 auditTrail: Object.assign(auditTrail, auditTrail),
 integrationCredentials: Object.assign(integrationCredentials, integrationCredentials),
 projectSettings: Object.assign(projectSettings, projectSettings),
+practiceAccounting: Object.assign(practiceAccounting, practiceAccounting),
 referenceData: Object.assign(referenceData, referenceData),
 welcomeMessage: Object.assign(welcomeMessage, welcomeMessage),
 inspirationBoard: Object.assign(inspirationBoard, inspirationBoard),

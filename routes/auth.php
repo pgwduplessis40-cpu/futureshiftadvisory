@@ -11,6 +11,7 @@ use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
+use App\Http\Controllers\Admin\PracticeAccountingConnectionController;
 use App\Http\Controllers\Admin\PrinciplesRolesController;
 use App\Http\Controllers\Admin\ProjectSettingsController;
 use App\Http\Controllers\Admin\QuestionnaireController;
@@ -160,6 +161,13 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('integration-credentials/deactivate', [IntegrationCredentialController::class, 'deactivate'])
                 ->middleware('require.fresh-step-up')
                 ->name('integration-credentials.deactivate');
+            Route::get('practice-accounting/{provider}/connect', [PracticeAccountingConnectionController::class, 'connect'])
+                ->name('practice-accounting.connect');
+            Route::get('practice-accounting/{provider}/callback', [PracticeAccountingConnectionController::class, 'callback'])
+                ->name('practice-accounting.callback');
+            Route::patch('practice-accounting/{practiceAccountingConnection}/revoke', [PracticeAccountingConnectionController::class, 'revoke'])
+                ->middleware('require.fresh-step-up')
+                ->name('practice-accounting.revoke');
         });
 
     Route::prefix('admin')

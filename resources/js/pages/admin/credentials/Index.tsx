@@ -6,6 +6,7 @@ import {
     CircleCheck,
     Info,
     KeyRound,
+    PlugZap,
     RotateCw,
     ShieldCheck,
 } from 'lucide-react';
@@ -48,6 +49,17 @@ type IntegrationRow = {
     credentials_ready: boolean;
     effective_live: boolean;
     credentials: CredentialField[];
+    practice_connection?: PracticeConnection | null;
+};
+
+type PracticeConnection = {
+    connected: boolean;
+    tenant_name: string | null;
+    tenant_id: string | null;
+    connected_at: string | null;
+    last_invoice_sync_at: string | null;
+    connect_url: string;
+    revoke_url: string | null;
 };
 
 type Props = {
@@ -201,6 +213,7 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
                         <Badge variant="destructive">Not wired</Badge>
                     ) : null}
                 </div>
+                <PracticeConnectionControl row={row} />
             </td>
             <td className="px-3 py-3" data-label="Required keys">
                 <CredentialList row={row} />
@@ -234,6 +247,70 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
                 <LiveControl row={row} />
             </td>
         </tr>
+    );
+}
+
+function PracticeConnectionControl({ row }: { row: IntegrationRow }) {
+    const connection = row.practice_connection;
+    const revokeForm = useForm({});
+
+    if (!connection) {
+        return null;
+    }
+    const canConnect = row.effective_live;
+
+    return (
+        <div className="mt-3 space-y-2 rounded-md border bg-muted/30 p-2">
+            <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-medium">Practice Xero</span>
+                {connection.connected ? (
+                    <Badge variant="secondary">Connected</Badge>
+                ) : (
+                    <Badge variant="outline">Not connected</Badge>
+                )}
+            </div>
+            <div className="text-xs break-words text-muted-foreground">
+                {connection.connected
+                    ? `${connection.tenant_name ?? 'Xero organisation'}${connection.tenant_id ? ` (${connection.tenant_id})` : ''}`
+                    : "Connect Future Shift Advisory's Xero organisation before accepted proposals can create invoice batches."}
+            </div>
+            {connection.last_invoice_sync_at ? (
+                <div className="text-xs text-muted-foreground">
+                    Last invoice sync {formatDateTime(connection.last_invoice_sync_at)}
+                </div>
+            ) : null}
+            <div className="flex flex-wrap gap-2">
+                {canConnect ? (
+                    <Button asChild size="sm" variant="outline">
+                        <a href={connection.connect_url}>
+                            <PlugZap className="size-4" aria-hidden="true" />
+                            {connection.connected ? 'Reconnect' : 'Connect'}
+                        </a>
+                    </Button>
+                ) : (
+                    <Button size="sm" variant="outline" disabled>
+                        <PlugZap className="size-4" aria-hidden="true" />
+                        Connect
+                    </Button>
+                )}
+                {connection.connected && connection.revoke_url ? (
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        disabled={revokeForm.processing}
+                        onClick={() =>
+                            revokeForm.patch(connection.revoke_url ?? '', {
+                                preserveScroll: true,
+                            })
+                        }
+                    >
+                        <Ban className="size-4" aria-hidden="true" />
+                        Revoke
+                    </Button>
+                ) : null}
+            </div>
+        </div>
     );
 }
 
@@ -429,6 +506,13 @@ function CredentialStatus({ credential }: { credential: CredentialField }) {
     return <Badge variant="outline">Unset</Badge>;
 }
 
+function formatDateTime(value: string) {
+    return new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(new Date(value));
+}
+
 function ReadinessBadge({ row }: { row: IntegrationRow }) {
     if (row.credentials_ready) {
         return (
@@ -468,7 +552,7 @@ function LiveControl({ row }: { row: IntegrationRow }) {
                 <Button
                     type="button"
                     size="sm"
-                    variant="outline"
+                    variant="secondary"
                     disabled={deactivateForm.processing}
                     onClick={() =>
                         deactivateForm.patch(
@@ -478,7 +562,7 @@ function LiveControl({ row }: { row: IntegrationRow }) {
                     }
                 >
                     <Ban className="size-4" aria-hidden="true" />
-                    Off
+                    On
                 </Button>
             </ActionTooltip>
         );
@@ -507,7 +591,7 @@ function LiveControl({ row }: { row: IntegrationRow }) {
                 }
             >
                 <ShieldCheck className="size-4" aria-hidden="true" />
-                On
+                Off
             </Button>
         </ActionTooltip>
     );

@@ -142,6 +142,22 @@ final class Proposal extends Model
     }
 
     /**
+     * @return HasMany<AccountingInvoiceBatch>
+     */
+    public function accountingInvoiceBatches(): HasMany
+    {
+        return $this->hasMany(AccountingInvoiceBatch::class);
+    }
+
+    /**
+     * @return HasMany<AccountingInvoice>
+     */
+    public function accountingInvoices(): HasMany
+    {
+        return $this->hasMany(AccountingInvoice::class);
+    }
+
+    /**
      * @return BelongsTo<User, Proposal>
      */
     public function createdBy(): BelongsTo

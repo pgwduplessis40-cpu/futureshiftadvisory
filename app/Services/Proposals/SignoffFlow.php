@@ -11,6 +11,7 @@ use App\Models\PaymentSchedule;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\User;
+use App\Services\Accounting\ProposalInvoiceScheduler;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Payments\AuthorityCapture;
@@ -35,6 +36,7 @@ final class SignoffFlow
         private readonly ScheduleBuilder $schedules,
         private readonly PdfRenderer $renderer,
         private readonly ProposalBuilder $proposals,
+        private readonly ProposalInvoiceScheduler $invoiceScheduler,
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $integrations,
@@ -54,7 +56,7 @@ final class SignoffFlow
         $this->assertStepOrder($proposal, $step, $alreadyCompleted);
 
         try {
-            return DB::transaction(function () use ($proposal, $step, $payload, $actor): Proposal {
+            $result = DB::transaction(function () use ($proposal, $step, $payload, $actor): Proposal {
                 $stepPayload = match ($step) {
                     ProposalSignoffStep::STEP_REVIEW => $this->review($payload),
                     ProposalSignoffStep::STEP_INSURANCE_CONSENT => $this->consent($proposal, Consent::TYPE_INSURANCE_REFERRAL, $payload, $actor),
@@ -83,6 +85,12 @@ final class SignoffFlow
 
             throw $e;
         }
+
+        if ($step === ProposalSignoffStep::STEP_SIGNATURE && $result->status === ProposalStatus::Signed) {
+            $this->invoiceScheduler->sync($result, $actor);
+        }
+
+        return $result;
     }
 
     /**

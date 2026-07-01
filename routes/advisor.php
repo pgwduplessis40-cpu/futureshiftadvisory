@@ -151,6 +151,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients/{client}/accounting/{provider}/connect', [AccountingConnectionController::class, 'connect'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.accounting.connect');
+        Route::get('accounting/{provider}/callback', [AccountingConnectionController::class, 'callbackFromState'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('accounting.callback');
         Route::get('clients/{client}/accounting/{provider}/callback', [AccountingConnectionController::class, 'callback'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.accounting.callback');

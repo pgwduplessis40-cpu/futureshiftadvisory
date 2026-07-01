@@ -5,7 +5,12 @@
       "refresh_token": "xero-refresh-token-fixture",
       "expires_at": "2026-05-22T05:00:00+00:00",
       "external_tenant_id": "xero-tenant-fixture",
-      "scopes": ["accounting.reports.read", "offline_access"]
+      "scopes": [
+        "accounting.reports.balancesheet.read",
+        "accounting.reports.profitandloss.read",
+        "accounting.reports.banksummary.read",
+        "offline_access"
+      ]
     },
     "snapshot": {
       "period_start": "2026-04-01",

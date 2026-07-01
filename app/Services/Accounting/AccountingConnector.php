@@ -29,7 +29,7 @@ final class AccountingConnector
         $this->assertProvider($provider);
         $query = http_build_query([
             'client_id' => (string) ($this->credentials->get($provider, 'client_id') ?? 'fixture-client'),
-            'redirect_uri' => $this->callbackUrl($client, $provider),
+            'redirect_uri' => $this->callbackUrl($provider),
             'response_type' => 'code',
             'scope' => implode(' ', $this->scopes($provider)),
             'state' => $this->stateFor($client, $provider, $user),
@@ -38,7 +38,7 @@ final class AccountingConnector
         return rtrim((string) Config::get("integrations.accounting.{$provider}.authorize_url"), '?').'?'.$query;
     }
 
-    public function connectFromCallback(Client $client, User $user, string $provider, string $code, string $state): AccountingConnection
+    public function connectFromCallback(Client $client, User $user, string $provider, string $code, string $state, ?string $redirectUri = null): AccountingConnection
     {
         $this->assertProvider($provider);
         if (! $this->stateIsValid($state, $client, $provider, $user)) {
@@ -47,7 +47,7 @@ final class AccountingConnector
 
         $token = $this->clients
             ->client($provider)
-            ->exchangeCodeForToken($code, $this->callbackUrl($client, $provider));
+            ->exchangeCodeForToken($code, $redirectUri ?? $this->callbackUrl($provider));
 
         $tokenJson = $this->json($token);
         $tokenEnvelope = $this->envelope->encrypt($tokenJson);
@@ -125,7 +125,12 @@ final class AccountingConnector
     public function scopes(string $provider): array
     {
         return match ($provider) {
-            AccountingConnection::PROVIDER_XERO => ['accounting.reports.read', 'offline_access'],
+            AccountingConnection::PROVIDER_XERO => [
+                'accounting.reports.balancesheet.read',
+                'accounting.reports.profitandloss.read',
+                'accounting.reports.banksummary.read',
+                'offline_access',
+            ],
             AccountingConnection::PROVIDER_MYOB => ['CompanyFile', 'offline_access'],
             AccountingConnection::PROVIDER_QUICKBOOKS => ['com.intuit.quickbooks.accounting', 'offline_access'],
             AccountingConnection::PROVIDER_SAGE => ['accounting.read', 'offline_access'],
@@ -135,7 +140,35 @@ final class AccountingConnector
         };
     }
 
-    private function callbackUrl(Client $client, string $provider): string
+    public function clientFromState(string $state, string $provider, User $user): Client
+    {
+        $this->assertProvider($provider);
+        $payload = $this->statePayload($state);
+
+        if (
+            (string) ($payload['provider'] ?? '') !== $provider
+            || (string) ($payload['user_id'] ?? '') !== (string) $user->getKey()
+            || (string) ($payload['client_id'] ?? '') === ''
+        ) {
+            throw new InvalidArgumentException('Invalid accounting connection state.');
+        }
+
+        /** @var Client|null $client */
+        $client = Client::query()->find((string) $payload['client_id']);
+
+        if (! $client instanceof Client) {
+            throw new InvalidArgumentException('Accounting connection state client was not found.');
+        }
+
+        return $client;
+    }
+
+    public function callbackUrl(string $provider): string
+    {
+        return route('advisor.accounting.callback', $provider);
+    }
+
+    public function legacyCallbackUrl(Client $client, string $provider): string
     {
         return route('advisor.clients.accounting.callback', [$client, $provider]);
     }
@@ -162,31 +195,48 @@ final class AccountingConnector
 
     private function stateIsValid(string $state, Client $client, string $provider, User $user): bool
     {
+        try {
+            $payload = $this->statePayload($state);
+        } catch (InvalidArgumentException) {
+            return false;
+        }
+
+        return (string) ($payload['client_id'] ?? '') === (string) $client->getKey()
+            && (string) ($payload['provider'] ?? '') === $provider
+            && (string) ($payload['user_id'] ?? '') === (string) $user->getKey();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function statePayload(string $state): array
+    {
         [$encoded, $signature] = array_pad(explode('.', $state, 2), 2, '');
         if ($encoded === '' || $signature === '') {
-            return false;
+            throw new InvalidArgumentException('Invalid accounting connection state.');
         }
 
         $expected = hash_hmac('sha256', $encoded, (string) Config::get('app.key'));
         if (! hash_equals($expected, $signature)) {
-            return false;
+            throw new InvalidArgumentException('Invalid accounting connection state.');
         }
 
         $json = base64_decode(strtr($encoded, '-_', '+/'), true);
         if (! is_string($json)) {
-            return false;
+            throw new InvalidArgumentException('Invalid accounting connection state.');
         }
 
         try {
             $payload = json_decode($json, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException) {
-            return false;
+        } catch (JsonException $e) {
+            throw new InvalidArgumentException('Invalid accounting connection state.', previous: $e);
         }
 
-        return is_array($payload)
-            && (string) ($payload['client_id'] ?? '') === (string) $client->getKey()
-            && (string) ($payload['provider'] ?? '') === $provider
-            && (string) ($payload['user_id'] ?? '') === (string) $user->getKey();
+        if (! is_array($payload)) {
+            throw new InvalidArgumentException('Invalid accounting connection state.');
+        }
+
+        return $payload;
     }
 
     /**

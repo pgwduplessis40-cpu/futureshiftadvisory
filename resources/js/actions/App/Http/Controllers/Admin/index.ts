@@ -11,6 +11,7 @@ import IntegrationHealthController from './IntegrationHealthController'
 import AuditTrailController from './AuditTrailController'
 import IntegrationCredentialController from './IntegrationCredentialController'
 import ProjectSettingsController from './ProjectSettingsController'
+import PracticeAccountingConnectionController from './PracticeAccountingConnectionController'
 import ReferenceDataController from './ReferenceDataController'
 import WelcomeMessageController from './WelcomeMessageController'
 import InspirationBoardController from './InspirationBoardController'
@@ -31,6 +32,7 @@ IntegrationHealthController: Object.assign(IntegrationHealthController, Integrat
 AuditTrailController: Object.assign(AuditTrailController, AuditTrailController),
 IntegrationCredentialController: Object.assign(IntegrationCredentialController, IntegrationCredentialController),
 ProjectSettingsController: Object.assign(ProjectSettingsController, ProjectSettingsController),
+PracticeAccountingConnectionController: Object.assign(PracticeAccountingConnectionController, PracticeAccountingConnectionController),
 ReferenceDataController: Object.assign(ReferenceDataController, ReferenceDataController),
 WelcomeMessageController: Object.assign(WelcomeMessageController, WelcomeMessageController),
 InspirationBoardController: Object.assign(InspirationBoardController, InspirationBoardController),

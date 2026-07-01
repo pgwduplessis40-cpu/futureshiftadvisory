@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\AccountingConnection;
+use App\Models\PracticeAccountingConnection;
 use App\Models\User;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\IntegrationCredentials;
@@ -31,6 +33,7 @@ final class IntegrationCredentialController extends Controller
                     ...$row,
                     'credentials_ready' => $this->activations->readiness((string) $row['integration_key']),
                     'effective_live' => $this->activations->isLive((string) $row['integration_key']),
+                    'practice_connection' => $this->practiceConnection((string) $row['integration_key']),
                 ]),
         ]);
     }
@@ -115,5 +118,34 @@ final class IntegrationCredentialController extends Controller
                 $integration['integration_key'] => $this->registry->credentialFields((string) $integration['integration_key']),
             ])
             ->all();
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function practiceConnection(string $integrationKey): ?array
+    {
+        if ($integrationKey !== AccountingConnection::PROVIDER_XERO) {
+            return null;
+        }
+
+        $connection = PracticeAccountingConnection::query()
+            ->where('provider', AccountingConnection::PROVIDER_XERO)
+            ->where('status', PracticeAccountingConnection::STATUS_CONNECTED)
+            ->whereNull('revoked_at')
+            ->latest('connected_at')
+            ->first();
+
+        return [
+            'connected' => $connection instanceof PracticeAccountingConnection,
+            'tenant_name' => $connection?->external_tenant_name,
+            'tenant_id' => $connection?->external_tenant_id,
+            'connected_at' => $connection?->connected_at?->toIso8601String(),
+            'last_invoice_sync_at' => $connection?->last_invoice_sync_at?->toIso8601String(),
+            'connect_url' => route('admin.practice-accounting.connect', AccountingConnection::PROVIDER_XERO, absolute: false),
+            'revoke_url' => $connection instanceof PracticeAccountingConnection
+                ? route('admin.practice-accounting.revoke', $connection, absolute: false)
+                : null,
+        ];
     }
 }
