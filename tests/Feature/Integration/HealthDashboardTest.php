@@ -37,14 +37,14 @@ final class HealthDashboardTest extends TestCase
         parent::tearDown();
     }
 
-    public function test_advisor_can_view_latest_integration_health_samples(): void
+    public function test_super_admin_can_view_latest_integration_health_samples(): void
     {
-        $this->travelTo(now()->setMicrosecond(0));
+        $this->travelTo('2026-06-15 12:00:00');
         config([
             'ai.costs.monthly_budget_usd' => 1.0,
             'ai.costs.usd_to_nzd_rate' => 1.7,
         ]);
-        $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'advisor@example.test');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'admin-health@example.test');
         $this->sample('nzbn', IntegrationHealthSample::HEALTH_GREEN, now()->subMinutes(15), 1.0, 140);
         $this->sample('nzbn', IntegrationHealthSample::HEALTH_RED, now()->subMinutes(2), 0.40, 4200);
         $this->sample('ird', IntegrationHealthSample::HEALTH_AMBER, now()->subMinutes(3), 0.96, 2100);
@@ -52,7 +52,7 @@ final class HealthDashboardTest extends TestCase
         $this->aiUsage('claude-sonnet-4-6', 2_000, 400, 0.012, now()->subDays(2));
         $this->aiUsage('claude-sonnet-4-6', 5_000, 500, 0.0225, now()->subMonth());
 
-        $this->actingAsMfa($advisor)
+        $this->actingAsMfa($admin)
             ->get(route('admin.integration-health.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
@@ -106,9 +106,9 @@ final class HealthDashboardTest extends TestCase
             ]),
         ]);
 
-        $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'anthropic-cost-advisor@example.test');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'anthropic-cost-admin@example.test');
 
-        $this->actingAsMfa($advisor)
+        $this->actingAsMfa($admin)
             ->get(route('admin.integration-health.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
@@ -136,12 +136,12 @@ final class HealthDashboardTest extends TestCase
     public function test_refresh_aggregates_recent_integration_call_logs(): void
     {
         $this->travelTo(now()->setMicrosecond(0));
-        $advisor = $this->userWithRole(User::TYPE_ADVISOR, 'refresh-advisor@example.test');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'refresh-admin@example.test');
 
         $this->recordCall('nzbn', IntegrationCall::STATUS_SUCCESS, 180, now()->subMinute());
         $this->recordCall('nzbn', IntegrationCall::STATUS_SUCCESS, 220, now()->subMinute());
 
-        $this->actingAsMfa($advisor)
+        $this->actingAsMfa($admin)
             ->post(route('admin.integration-health.refresh'))
             ->assertRedirect(route('admin.integration-health.index'))
             ->assertSessionHas('status', 'integration-health-refreshed');

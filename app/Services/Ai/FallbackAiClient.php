@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace App\Services\Ai;
 
-use App\Services\Ai\Claude\AnthropicClaudeClient;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
@@ -14,10 +13,11 @@ use App\Services\Ai\Fake\FakeAiClient;
 final class FallbackAiClient implements AiClient
 {
     public function __construct(
-        private readonly ?AnthropicClaudeClient $live,
+        private readonly ?AiClient $live,
         private readonly FakeAiClient $fake,
         private readonly AdvisorAiNotice $notice,
         private readonly bool $forceFake,
+        private readonly string $unavailableReason = 'AI provider is not configured.',
     ) {}
 
     public function analyse(PromptEnvelope $prompt): AiResponse
@@ -48,7 +48,7 @@ final class FallbackAiClient implements AiClient
     private function call(PromptEnvelope $prompt, string $method): AiResponse
     {
         if ($this->forceFake || $this->live === null) {
-            $this->notice->recordUnavailable($prompt, 'Anthropic API key is not configured.');
+            $this->notice->recordUnavailable($prompt, $this->unavailableReason);
 
             return $this->fake->{$method}($prompt);
         }

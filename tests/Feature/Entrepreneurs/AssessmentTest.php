@@ -11,6 +11,9 @@ use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
+use App\Services\Ai\Contracts\AiResponse;
+use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\Assessment;
 use App\Services\Entrepreneurs\IdeaValidationService;
@@ -53,6 +56,18 @@ final class AssessmentTest extends TestCase
             'action' => 'entrepreneur.plan_first_pass_scored',
             'subject_id' => $assessment->id,
         ]);
+    }
+
+    public function test_first_pass_uses_structured_ai_score_when_supplied(): void
+    {
+        $this->app->instance(AiClient::class, new StructuredScoreAiClient(91));
+        [$advisor, $plan] = $this->plan('structured-score-founder@example.test');
+
+        $assessment = app(Assessment::class)->firstPass($plan, $advisor);
+
+        $this->assertSame(91, data_get($assessment->ai_scores, '0.score'));
+        $this->assertSame('ai_assessment', data_get($assessment->ai_scores, '0.score_source'));
+        $this->assertSame('exceptional', $assessment->overall_grade);
     }
 
     public function test_advisor_adjustment_requires_note_and_queues_governed_learning(): void
@@ -164,5 +179,59 @@ final class AssessmentTest extends TestCase
         }
 
         return [$advisor, $plan->refresh()->load('sections')];
+    }
+}
+
+final class StructuredScoreAiClient implements AiClient
+{
+    public function __construct(private readonly int $score) {}
+
+    public function analyse(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    public function verifyDocument(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt, ['score' => $this->score]);
+    }
+
+    public function summarise(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    public function redFlag(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->response($prompt);
+    }
+
+    /**
+     * @param  array<string, mixed>  $metadata
+     */
+    private function response(PromptEnvelope $prompt, array $metadata = []): AiResponse
+    {
+        return new AiResponse(
+            text: 'AI rationale tied to the supplied framework evidence.',
+            attributions: [
+                [
+                    'claim' => 'AI score derived from current business plan draft.',
+                    'source_reference' => 'test:structured-score-ai-client',
+                ],
+            ],
+            uncertainty: Uncertainty::Low,
+            biasSignals: [],
+            model: 'structured-score-ai-client',
+            promptVersion: $prompt->version,
+            promptHash: $prompt->hash(),
+            tokensIn: 1,
+            tokensOut: 1,
+            metadata: $metadata,
+        );
     }
 }

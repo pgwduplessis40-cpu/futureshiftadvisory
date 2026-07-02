@@ -202,6 +202,7 @@ final class CashFlowStatusMonitor
         return [
             'client_id' => (string) $client->getKey(),
             'client_name' => $client->legal_name,
+            'client_url' => route('advisor.clients.show', $client, absolute: false),
             'status' => $status,
             'status_label' => $this->statusLabel($status),
             'tone' => $this->tone($status),

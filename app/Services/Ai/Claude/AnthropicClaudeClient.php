@@ -140,6 +140,20 @@ final class AnthropicClaudeClient implements AiClient
 
     private function renderPrompt(PromptEnvelope $prompt, string $task): string
     {
+        $requiredSchema = [
+            'text' => 'string',
+            'attributions' => [
+                ['claim' => 'string', 'source_reference' => 'string'],
+            ],
+            'uncertainty' => ['high', 'medium', 'low', 'none'],
+        ];
+
+        if ($task === 'score_criterion') {
+            $requiredSchema['metadata'] = [
+                'score' => 'integer from 0 to 100, calibrated to the supplied rating framework descriptors',
+            ];
+        }
+
         return json_encode([
             'task' => $task,
             'integrity_preamble' => $prompt->integrityPreamble,
@@ -148,13 +162,7 @@ final class AnthropicClaudeClient implements AiClient
             'input' => $prompt->input,
             'data_quality_summary' => $prompt->dataQualitySummary,
             'source_references' => $prompt->sourceReferences,
-            'required_response_schema' => [
-                'text' => 'string',
-                'attributions' => [
-                    ['claim' => 'string', 'source_reference' => 'string'],
-                ],
-                'uncertainty' => ['high', 'medium', 'low', 'none'],
-            ],
+            'required_response_schema' => $requiredSchema,
         ], JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
     }
 }

@@ -72,6 +72,7 @@ type EngagementScore = {
 type CashFlowStatus = {
     client_id: string;
     client_name: string;
+    client_url: string;
     status: 'positive' | 'watch' | 'negative' | 'unknown';
     status_label: string;
     tone: 'positive' | 'warning' | 'negative' | 'muted';
@@ -136,6 +137,7 @@ type PendingTermsPayload = {
         id: string;
         client_id: string;
         client_name: string | null;
+        client_url: string;
         user_id: number;
         user_name: string | null;
         user_email: string | null;
@@ -185,6 +187,7 @@ type StrategicPlanDeploymentsPayload = {
         milestones_count: number;
         status_label: string;
         budget_status_label: string | null;
+        client_url: string;
         detail_url: string;
         action_url: string | null;
         action_label: string;
@@ -327,6 +330,7 @@ type PvWaterfallPayload = {
     clients: Array<{
         client_id: string;
         client_name: string;
+        client_url: string;
         business_valuation_id: string | null;
         current_pv: number;
         improvement_pv: number;
@@ -357,6 +361,7 @@ type PracticeHealthPayload = {
     clients: Array<{
         client_id: string;
         client_name: string;
+        client_url: string;
         current_pv: number;
         improvement_pv: number;
         risk_mitigation_pv: number;
@@ -400,6 +405,7 @@ type PaymentStatusPayload = {
         id: string;
         client_id: string;
         client_name: string | null;
+        client_url: string;
         status: string;
         amount: number;
         currency: string;
@@ -423,6 +429,7 @@ type ScenarioPlanningPayload = {
         id: string;
         client_id: string;
         client_name: string | null;
+        client_url: string;
         name: string;
         kind: string;
         pv_impact: number;
@@ -495,6 +502,7 @@ type WellbeingAnalyticsPayload = {
         id: string;
         client_id: string;
         client_name: string | null;
+        client_url: string;
         signal_type: string;
         severity: string;
         generated_at: string | null;
@@ -511,6 +519,7 @@ type CoachSignalsPayload = {
         id: string;
         client_id: string;
         client_name: string | null;
+        client_url: string;
         signal_type: string | null;
         suggested_specialisation: string;
         threshold_ref: string;
@@ -1680,9 +1689,11 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
                             className="grid gap-3 p-3 sm:grid-cols-[1fr_auto]"
                         >
                             <div className="min-w-0">
-                                <div className="truncate text-sm font-medium">
-                                    {proposal.client_name ?? 'Client'}
-                                </div>
+                                <ClientNameLink
+                                    name={proposal.client_name}
+                                    href={proposal.client_url}
+                                    className="truncate text-sm"
+                                />
                                 <div className="mt-1 text-xs text-muted-foreground">
                                     v{proposal.version} -{' '}
                                     {formatDate(proposal.expires_at)}
@@ -1784,10 +1795,7 @@ function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
                                         : 'Retry unavailable'
                                 }
                             >
-                                <button
-                                    type="button"
-                                    className="min-w-0 space-y-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                >
+                                <div className="min-w-0 space-y-1 text-left focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                                     <span className="flex flex-wrap items-center gap-2">
                                         <Badge
                                             variant={paymentStatusVariant(
@@ -1803,14 +1811,16 @@ function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
                                             )}
                                         </span>
                                     </span>
-                                    <span className="block truncate text-sm">
-                                        {payment.client_name ?? 'Client'}
-                                    </span>
+                                    <ClientNameLink
+                                        name={payment.client_name}
+                                        href={payment.client_url}
+                                        className="block truncate text-sm"
+                                    />
                                     <span className="block text-xs text-muted-foreground">
                                         Attempt {payment.attempt} -{' '}
                                         {formatDate(payment.processed_at)}
                                     </span>
-                                </button>
+                                </div>
                             </InsightHoverCard>
                             <Button asChild size="sm" variant="outline">
                                 <Link href={payment.drill_url}>Open</Link>
@@ -1898,9 +1908,11 @@ function NpoPendingConversions({
                                         </Badge>
                                     )}
                                 </div>
-                                <div className="truncate text-sm font-medium">
-                                    {item.client_name ?? 'Client'}
-                                </div>
+                                <ClientNameLink
+                                    name={item.client_name}
+                                    href={item.client_url}
+                                    className="truncate text-sm"
+                                />
                                 <div className="text-xs text-muted-foreground">
                                     Delivered{' '}
                                     {formatDate(item.report_delivered_at)} ·
@@ -1977,9 +1989,11 @@ function NpoFundingPanel({ payload }: { payload: NpoFundingPayload }) {
                                         {formatLabel(alert.type)}
                                     </Badge>
                                 </div>
-                                <div className="truncate text-sm font-medium">
-                                    {alert.client_name ?? 'Client'}
-                                </div>
+                                <ClientNameLink
+                                    name={alert.client_name}
+                                    href={alert.client_url}
+                                    className="truncate text-sm"
+                                />
                                 <div className="text-xs text-muted-foreground">
                                     {alert.funder_name ?? 'Funder'} - due{' '}
                                     {formatDateOnly(alert.due_on)}
@@ -2072,9 +2086,11 @@ function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
                             className="grid gap-2 p-3 sm:grid-cols-[1fr_auto]"
                         >
                             <div className="min-w-0">
-                                <div className="truncate text-sm font-medium">
-                                    {client.client_name}
-                                </div>
+                                <ClientNameLink
+                                    name={client.client_name}
+                                    href={client.client_url}
+                                    className="truncate text-sm"
+                                />
                                 <div className="mt-1 text-xs text-muted-foreground">
                                     Revenue{' '}
                                     {formatCurrency(
@@ -2271,9 +2287,11 @@ function CoachSignals({ payload }: { payload: CoachSignalsPayload }) {
                                 <Badge variant="outline">
                                     {formatLabel(item.suggested_specialisation)}
                                 </Badge>
-                                <span className="text-sm font-medium">
-                                    {item.client_name ?? 'Client'}
-                                </span>
+                                <ClientNameLink
+                                    name={item.client_name}
+                                    href={item.client_url}
+                                    className="text-sm"
+                                />
                             </div>
                             <p className="text-xs leading-5 text-muted-foreground">
                                 {item.rationale}
@@ -2449,7 +2467,11 @@ function ScenarioPlanning({ payload }: { payload: ScenarioPlanningPayload }) {
                                     )}
                                 </div>
                                 <div className="mt-1 text-xs text-muted-foreground">
-                                    {scenario.client_name ?? 'Client'}
+                                    <ClientNameLink
+                                        name={scenario.client_name}
+                                        href={scenario.client_url}
+                                        className="text-xs"
+                                    />
                                 </div>
                             </div>
                             <div className="text-sm font-medium sm:text-right">
@@ -2510,7 +2532,12 @@ function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
                 <div className="space-y-4">
                     <div>
                         <div className="text-sm font-medium">
-                            Featured client: {featuredClient.client_name}
+                            Featured client:{' '}
+                            <ClientNameLink
+                                name={featuredClient.client_name}
+                                href={featuredClient.client_url}
+                                className="text-sm"
+                            />
                         </div>
                         <div className="mt-1 text-xs text-muted-foreground">
                             {formatCurrency(featuredClient.improvement_pv)}{' '}
@@ -2612,10 +2639,7 @@ function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
                                                 : undefined
                                         }
                                     >
-                                        <button
-                                            type="button"
-                                            className="block min-w-0 space-y-1 text-left focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                                        >
+                                        <div className="block min-w-0 space-y-1 text-left focus-within:ring-2 focus-within:ring-ring focus-within:ring-offset-2">
                                             <span className="flex flex-wrap items-center gap-2">
                                                 <Badge variant="destructive">
                                                     {formatLabel(flag.severity)}
@@ -2635,10 +2659,14 @@ function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
                                                 {flag.headline}
                                             </span>
                                             <span className="block text-xs text-muted-foreground">
-                                                {flag.client_name ?? 'Client'} -{' '}
-                                                {formatDate(flag.surfaced_at)}
+                                                <ClientNameLink
+                                                    name={flag.client_name}
+                                                    href={flag.client_url}
+                                                    className="text-xs text-muted-foreground"
+                                                />{' '}
+                                                - {formatDate(flag.surfaced_at)}
                                             </span>
-                                        </button>
+                                        </div>
                                     </InsightHoverCard>
                                     <Button asChild size="sm" variant="outline">
                                         <Link href={openUrl}>Open</Link>
@@ -2685,6 +2713,34 @@ function RedFlagPanel({ payload }: { payload: RedFlagsPayload }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function ClientNameLink({
+    name,
+    href,
+    className,
+}: {
+    name: React.ReactNode;
+    href?: string | null;
+    className?: string;
+}) {
+    const content = name ?? 'Client';
+
+    if (!href) {
+        return <span className={cn('font-medium', className)}>{content}</span>;
+    }
+
+    return (
+        <Link
+            href={href}
+            className={cn(
+                'inline-block max-w-full font-medium text-foreground hover:underline focus-visible:underline focus-visible:outline-none',
+                className,
+            )}
+        >
+            {content}
+        </Link>
     );
 }
 
@@ -3020,7 +3076,12 @@ function PendingTermsReacceptance({
                                 {item.user_name ?? item.user_email}
                             </div>
                             <div className="text-xs text-muted-foreground">
-                                {item.client_name ?? 'Client'} -{' '}
+                                <ClientNameLink
+                                    name={item.client_name}
+                                    href={item.client_url}
+                                    className="text-xs text-muted-foreground"
+                                />{' '}
+                                -{' '}
                                 {item.user_email}
                             </div>
                         </div>
@@ -3078,9 +3139,11 @@ function CashFlowRiskPanel({ payload }: { payload: CashFlowStatusPayload }) {
                                     <Badge variant={cashFlowBadgeVariant(item)}>
                                         {item.status_label}
                                     </Badge>
-                                    <span className="text-sm font-medium">
-                                        {item.client_name}
-                                    </span>
+                                    <ClientNameLink
+                                        name={item.client_name}
+                                        href={item.client_url}
+                                        className="text-sm"
+                                    />
                                 </div>
                                 <div className="mt-2 grid gap-2 text-xs text-muted-foreground sm:grid-cols-2">
                                     <div>
@@ -3202,9 +3265,11 @@ function StrategicPlanDeploymentPanel({
                                         </Badge>
                                     )}
                                 </div>
-                                <div className="mt-2 text-sm font-medium">
-                                    {item.client_name}
-                                </div>
+                                <ClientNameLink
+                                    name={item.client_name}
+                                    href={item.client_url}
+                                    className="mt-2 text-sm"
+                                />
                                 <div className="text-xs text-muted-foreground">
                                     {item.type === 'generate'
                                         ? `Accepted ${formatDate(item.accepted_at)}`

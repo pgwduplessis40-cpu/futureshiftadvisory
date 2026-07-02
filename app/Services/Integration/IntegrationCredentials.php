@@ -13,6 +13,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Throwable;
 
 final class IntegrationCredentials
 {
@@ -222,7 +223,15 @@ final class IntegrationCredentials
 
     private function credentialStoreAvailable(): bool
     {
-        return $this->credentialStoreAvailable ??= Schema::hasTable('integration_credentials');
+        if ($this->credentialStoreAvailable !== null) {
+            return $this->credentialStoreAvailable;
+        }
+
+        try {
+            return $this->credentialStoreAvailable = Schema::hasTable('integration_credentials');
+        } catch (Throwable) {
+            return $this->credentialStoreAvailable = false;
+        }
     }
 
     private function fallback(string $integrationKey, string $field): ?string

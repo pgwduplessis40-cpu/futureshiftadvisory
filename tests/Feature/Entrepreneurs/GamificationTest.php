@@ -15,6 +15,7 @@ use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Fake\FakeAiClient;
+use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Services\Entrepreneurs\EntrepreneurMilestones;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
@@ -110,7 +111,7 @@ final class GamificationTest extends TestCase
         $this->assertSame(0, $profile->current_streak);
     }
 
-    public function test_enable_reconciles_legacy_numeric_assessment_scores(): void
+    public function test_enable_reconciles_canonical_assessment_scores(): void
     {
         [$advisor, , $profile] = $this->profile('legacy-score-gamification@example.test', gamificationOn: false);
         $plan = BusinessPlan::query()->create([
@@ -146,12 +147,24 @@ final class GamificationTest extends TestCase
                 'is_placeholder' => false,
             ],
         ]);
+        $framework->load('criteria');
         $assessment = PlanAssessment::query()->create([
             'business_plan_id' => $plan->id,
             'round' => 1,
             'rating_framework_id' => $framework->id,
-            'ai_scores' => [80.0, 70.0],
-            'advisor_scores' => ['overall' => 8.2, 'note' => 'Legacy summary shape.'],
+            'ai_scores' => $framework->criteria
+                ->map(fn ($criterion): array => [
+                    'criterion_id' => (string) $criterion->id,
+                    'criterion_number' => (int) $criterion->number,
+                    'criterion_name' => (string) $criterion->name,
+                    'score' => (int) ($criterion->number === 1 ? 80 : 70),
+                    'weight' => (float) $criterion->weight,
+                    'rationale' => 'Canonical score row for gamification fixture.',
+                    'attributions' => [],
+                ])
+                ->values()
+                ->all(),
+            'advisor_scores' => [],
             'mentor_notes' => [],
             'document_support' => [],
             'overall_grade' => 'strong',
@@ -365,6 +378,34 @@ final class GamificationTest extends TestCase
     {
         foreach (PlanRequirements::definitions() as $phaseKey => $definition) {
             foreach ($definition['requirements'] as $requirement) {
+                if (($requirement['type'] ?? null) === 'budget') {
+                    app(EntrepreneurBudgetService::class)->update($plan, [
+                        'expected_runway_months' => 12,
+                        'forecast_years' => 3,
+                        'assumptions' => [
+                            'revenue_growth_percent' => 12,
+                            'cost_inflation_percent' => 3,
+                            'target_gross_profit_percent' => 55,
+                            'target_net_profit_before_tax_percent' => 10,
+                            'target_net_profit_after_tax_percent' => 7,
+                        ],
+                        'launch_costs' => [
+                            ['label' => 'Launch setup', 'amount' => 5_000, 'quantity' => 1],
+                        ],
+                        'monthly_fixed_costs' => [
+                            ['label' => 'Core operating tools', 'amount' => 1_200, 'quantity' => 1],
+                        ],
+                        'revenue_forecast' => [
+                            ['label' => 'Pilot subscriptions', 'amount' => 2_500, 'quantity' => 2, 'month' => 1, 'monthly_growth_percent' => 0, 'variable_cost_percent' => 12],
+                        ],
+                        'funding_sources' => [
+                            ['label' => 'Founder cash', 'amount' => 25_000, 'quantity' => 1],
+                        ],
+                    ], $actor);
+
+                    continue;
+                }
+
                 app(PlanBuilder::class)->upsertSection(
                     plan: $plan,
                     phaseKey: $phaseKey,

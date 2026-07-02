@@ -282,6 +282,7 @@ final class StrategicBudgetService
             ...$this->basePayload($budget),
             'update_url' => route('portal.business-plan-budget.update', absolute: false),
             'submit_url' => route('portal.business-plan-budget.submit', absolute: false),
+            'export_url' => route('portal.business-plan-budget.export', absolute: false),
             'budget_pack_available' => $budget->accepted_snapshot_at !== null,
             'budget_pack_locked_reason' => $budget->accepted_snapshot_at === null
                 ? 'Budget Pack PDF unlocks automatically after the proposal is accepted.'
@@ -315,6 +316,150 @@ final class StrategicBudgetService
             'warning' => $budget->isApprovedForProposal()
                 ? null
                 : $budget->label.' has not been advisor-approved. Generating a proposal now requires a hard acknowledgement override.',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function analyticsPayload(StrategicBudget $budget): array
+    {
+        $computed = (array) ($budget->computed ?? []);
+        $confidence = (array) ($budget->confidence ?? []);
+        $annualForecast = $this->annualForecastRows($computed);
+        $monthlyForecast = $this->monthlyForecastRows($computed);
+        $scenarioRows = $this->scenarioRows($computed);
+        $sourceFinancials = (array) ($budget->source_financials ?? []);
+        $firstYear = $annualForecast[0] ?? [];
+        $rowConfidence = (array) data_get($confidence, 'row_confidence', []);
+        $costDrivers = $this->costDrivers($budget);
+        $missingAssumptions = $this->missingAssumptions($computed);
+        $flags = (array) ($budget->flags ?? []);
+        $prescriptiveActions = $this->prescriptiveActions($budget, $flags, $computed, $confidence);
+        $yearOneRevenue = (float) ($firstYear['revenue'] ?? 0);
+        $yearOneFixedCosts = (float) ($firstYear['fixed_costs'] ?? 0);
+        $totalFunding = (float) data_get($computed, 'total_funding', 0);
+        $runwayText = $this->runwayText($computed);
+        $breakEvenText = $this->yearText(data_get($computed, 'break_even_year'));
+        $cashFlowPositiveText = $this->yearText(data_get($computed, 'cash_flow_positive_year'));
+        $knownRows = (int) ($rowConfidence['known'] ?? 0);
+        $estimateRows = (int) ($rowConfidence['estimate'] ?? 0);
+        $guessRows = (int) ($rowConfidence['guess'] ?? 0);
+        $topDriver = collect($costDrivers)->first(fn (array $driver): bool => (float) ($driver['value'] ?? 0) > 0);
+        $firstFlag = collect($flags)->first(fn (mixed $flag): bool => is_array($flag));
+        $planSections = collect((array) ($budget->business_plan_sections ?? []))
+            ->filter(fn (mixed $section): bool => is_array($section))
+            ->values();
+        $completedPlanSections = $planSections
+            ->filter(fn (array $section): bool => trim((string) ($section['answer'] ?? '')) !== '')
+            ->count();
+        $planSectionTotal = max(1, $planSections->count());
+        $planCoverage = "{$completedPlanSections}/{$planSectionTotal} plan sections complete";
+        $goalExcerpt = $this->sectionExcerpt($planSections->all(), 'goals');
+        $riskExcerpt = $this->sectionExcerpt($planSections->all(), 'risks');
+        $actionExcerpt = $this->sectionExcerpt($planSections->all(), 'action_priorities');
+        $descriptions = array_values(array_filter([
+            "Plan coverage: {$planCoverage}",
+            $goalExcerpt ? "Plan goal: {$goalExcerpt}" : null,
+            "Year 1 revenue: {$this->money($yearOneRevenue)}",
+            "Year 1 fixed costs: {$this->money($yearOneFixedCosts)}",
+            "Funding available: {$this->money($totalFunding)}",
+            "Runway: {$runwayText}",
+        ]));
+        $diagnoses = collect($flags)
+            ->filter(fn (mixed $flag): bool => is_array($flag))
+            ->map(fn (array $flag): string => (string) ($flag['title'] ?? 'Budget warning').': '.(string) ($flag['message'] ?? 'Review this budget signal.'))
+            ->values()
+            ->all();
+        $diagnoses = array_values(array_filter([
+            ...$diagnoses,
+            $riskExcerpt ? "Plan risk noted: {$riskExcerpt}" : null,
+            count($missingAssumptions) > 0 ? count($missingAssumptions).' missing budget assumption'.(count($missingAssumptions) === 1 ? '' : 's') : 'No missing budget assumptions',
+            "Evidence base: {$knownRows} known, {$estimateRows} estimates, {$guessRows} guesses",
+            $topDriver ? 'Largest cost driver: '.(string) ($topDriver['label'] ?? 'Cost driver').' at '.$this->money((float) ($topDriver['value'] ?? 0)) : null,
+        ]));
+        $predictions = array_values(array_filter([
+            "Runway is {$runwayText}.",
+            "Break-even is {$breakEvenText}.",
+            "Cash-flow positive timing is {$cashFlowPositiveText}.",
+            $scenarioRows !== [] ? 'Base scenario ending cash is '.$this->money((float) ($scenarioRows[0]['ending_cash'] ?? 0)).'.' : null,
+        ]));
+        $prescriptions = collect($prescriptiveActions)
+            ->take(3)
+            ->map(fn (array $action): string => ucfirst((string) ($action['priority'] ?? 'medium')).': '.(string) ($action['action'] ?? 'Review this budget signal.'))
+            ->values()
+            ->all();
+        $prescriptions = array_values(array_filter([
+            $actionExcerpt ? "Plan action priority to fund: {$actionExcerpt}" : null,
+            ...$prescriptions,
+        ]));
+
+        return [
+            'descriptive' => [
+                'summary' => (bool) ($sourceFinancials['unlocked'] ?? false)
+                    ? "Plan coverage is {$planCoverage}; Year 1 is forecasting {$this->money($yearOneRevenue)} revenue, {$this->money($yearOneFixedCosts)} fixed costs, {$this->money($totalFunding)} funding available, and {$runwayText} runway."
+                    : 'Budget is locked until a P&L or management accounts file is uploaded.',
+                'explanation' => 'Current budget view based on uploaded financial evidence and client-entered budget assumptions.',
+                'findings' => $descriptions,
+                'metrics' => [
+                    $this->metric('Year 1 revenue', (float) ($firstYear['revenue'] ?? 0), 'currency'),
+                    $this->metric('Year 1 fixed costs', (float) ($firstYear['fixed_costs'] ?? 0), 'currency'),
+                    $this->metric('Funding available', (float) data_get($computed, 'total_funding', 0), 'currency'),
+                    $this->metric('Runway', data_get($computed, 'runway_open_ended') ? 'Open ended' : data_get($computed, 'runway_months'), 'months'),
+                ],
+                'source_financials' => $sourceFinancials,
+            ],
+            'diagnostic' => [
+                'summary' => $flags === []
+                    ? "No active budget warnings are present; evidence mix is {$knownRows} known, {$estimateRows} estimates, and {$guessRows} guesses."
+                    : count($flags).' active budget warning'.(count($flags) === 1 ? '' : 's').': '.(string) ($firstFlag['title'] ?? 'Review budget risk').'.',
+                'explanation' => 'Explains why the budget is strong, weak, incomplete, or risky.',
+                'findings' => $diagnoses,
+                'flags' => $flags,
+                'cost_drivers' => $costDrivers,
+                'missing_assumptions' => $missingAssumptions,
+                'confidence_mix' => [
+                    'known' => $knownRows,
+                    'estimate' => $estimateRows,
+                    'guess' => $guessRows,
+                    'total' => (int) ($rowConfidence['total'] ?? 0),
+                ],
+            ],
+            'predictive' => [
+                'summary' => "Runway is {$runwayText}; break-even is {$breakEvenText}; cash-flow positive timing is {$cashFlowPositiveText}.",
+                'explanation' => 'Projects runway, break-even timing, cash-flow timing, and scenario outcomes.',
+                'findings' => $predictions,
+                'key_events' => [
+                    $this->metric('Break-even', data_get($computed, 'break_even_year'), 'year'),
+                    $this->metric('Cash-flow positive', data_get($computed, 'cash_flow_positive_year'), 'year'),
+                    $this->metric('Runway', data_get($computed, 'runway_open_ended') ? 'Open ended' : data_get($computed, 'runway_months'), 'months'),
+                ],
+                'annual_forecast' => $annualForecast,
+                'monthly_forecast' => $monthlyForecast,
+                'scenarios' => $scenarioRows,
+            ],
+            'prescriptive' => [
+                'summary' => 'Next action: '.(string) ($prescriptiveActions[0]['action'] ?? 'Maintain the current budget and proceed to advisor review when the plan is complete.'),
+                'explanation' => 'Turns budget signals into advisor/client actions before proposal reliance.',
+                'findings' => $prescriptions,
+                'actions' => $prescriptiveActions,
+                'advisor_decision_points' => [
+                    'Confirm whether the financial upload is sufficient evidence for proposal reliance.',
+                    'Check whether guessed rows need client confirmation or advisor-reviewed estimates.',
+                    'Confirm that funding, runway, and break-even timing support the proposed engagement and payment terms.',
+                ],
+            ],
+            'charts' => [
+                'annual_revenue_costs' => $this->annualChartRows($annualForecast),
+                'margin_percentages' => $this->marginChartRows($annualForecast),
+                'monthly_cash' => $this->monthlyChartRows($monthlyForecast),
+                'scenario_comparison' => $scenarioRows,
+                'confidence_mix' => [
+                    ['label' => 'Known', 'value' => $knownRows],
+                    ['label' => 'Estimate', 'value' => $estimateRows],
+                    ['label' => 'Guess', 'value' => $guessRows],
+                ],
+            ],
         ];
     }
 
@@ -355,6 +500,7 @@ final class StrategicBudgetService
             'computed' => $computed,
             'flags' => $budget->flags ?? [],
             'confidence' => $confidence,
+            'analytics' => $this->analyticsPayload($budget),
             'readiness_score' => (int) data_get($confidence, 'score', 0),
             'progress_score' => (int) data_get($confidence, 'progress_score', 0),
             'submitted_at' => $budget->submitted_at?->toIso8601String(),
@@ -393,6 +539,327 @@ final class StrategicBudgetService
         ])->save();
 
         return $budget->refresh();
+    }
+
+    /**
+     * @return array{label:string,value:mixed,format:string,detail:?string}
+     */
+    private function metric(string $label, mixed $value, string $format = 'number', ?string $detail = null): array
+    {
+        return compact('label', 'value', 'format', 'detail');
+    }
+
+    private function money(float $value): string
+    {
+        return 'NZ$'.number_format($value, 0);
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     */
+    private function runwayText(array $computed): string
+    {
+        if ((bool) data_get($computed, 'runway_open_ended', false)) {
+            return 'open ended';
+        }
+
+        $months = data_get($computed, 'runway_months');
+
+        return is_numeric($months) ? ((int) $months).' months' : 'not yet known';
+    }
+
+    private function yearText(mixed $year): string
+    {
+        return is_numeric($year) && (int) $year > 0 ? 'Year '.(int) $year : 'not yet visible';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $sections
+     */
+    private function sectionExcerpt(array $sections, string $key): ?string
+    {
+        $section = collect($sections)->first(
+            fn (array $section): bool => (string) ($section['key'] ?? '') === $key,
+        );
+
+        if (! is_array($section)) {
+            return null;
+        }
+
+        $answer = trim((string) ($section['answer'] ?? ''));
+
+        return $answer === '' ? null : str($answer)->squish()->limit(150)->toString();
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array<int, array<string, mixed>>
+     */
+    private function annualForecastRows(array $computed): array
+    {
+        return collect((array) data_get($computed, 'annual_totals', []))
+            ->filter(fn (mixed $row): bool => is_array($row))
+            ->map(fn (array $row): array => [
+                'year' => (int) ($row['year'] ?? 0),
+                'revenue' => (float) ($row['revenue'] ?? 0),
+                'variable_costs' => (float) ($row['variable_costs'] ?? 0),
+                'fixed_costs' => (float) ($row['fixed_costs'] ?? 0),
+                'interest' => (float) ($row['interest'] ?? 0),
+                'tax' => (float) ($row['tax'] ?? 0),
+                'loan_principal' => (float) ($row['loan_principal'] ?? 0),
+                'funding_inflow' => (float) ($row['funding_inflow'] ?? 0),
+                'launch_costs' => (float) ($row['launch_costs'] ?? 0),
+                'gross_profit' => (float) ($row['gross_profit'] ?? 0),
+                'net_profit_before_tax' => (float) ($row['net_profit_before_tax'] ?? 0),
+                'net_profit_after_tax' => (float) ($row['net_profit_after_tax'] ?? 0),
+                'net_cash_flow' => (float) ($row['net_cash_flow'] ?? 0),
+                'ending_cash' => (float) ($row['ending_cash'] ?? 0),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array<int, array<string, mixed>>
+     */
+    private function monthlyForecastRows(array $computed): array
+    {
+        return collect((array) data_get($computed, 'monthly_detail', data_get($computed, 'monthly_series', [])))
+            ->filter(fn (mixed $row): bool => is_array($row))
+            ->map(fn (array $row): array => [
+                'month' => (int) ($row['month'] ?? 0),
+                'year' => (int) ($row['year'] ?? 0),
+                'revenue' => (float) ($row['revenue'] ?? 0),
+                'variable_costs' => (float) ($row['variable_costs'] ?? 0),
+                'fixed_costs' => (float) ($row['fixed_costs'] ?? 0),
+                'interest' => (float) ($row['interest'] ?? 0),
+                'tax' => (float) ($row['tax'] ?? 0),
+                'loan_principal' => (float) ($row['loan_principal'] ?? 0),
+                'funding_inflow' => (float) ($row['funding_inflow'] ?? 0),
+                'launch_costs' => (float) ($row['launch_costs'] ?? 0),
+                'net_profit_after_tax' => (float) ($row['net_profit_after_tax'] ?? 0),
+                'net_cash_flow' => (float) ($row['net_cash_flow'] ?? 0),
+                'cumulative_cash' => (float) ($row['cumulative_cash'] ?? 0),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array<int, array<string, mixed>>
+     */
+    private function scenarioRows(array $computed): array
+    {
+        return collect((array) data_get($computed, 'scenarios', []))
+            ->filter(fn (mixed $scenario): bool => is_array($scenario))
+            ->map(function (array $scenario): array {
+                $annualRows = collect((array) ($scenario['annual_totals'] ?? []))
+                    ->filter(fn (mixed $row): bool => is_array($row));
+                $lastYear = $annualRows->last();
+                $summary = (array) ($scenario['summary'] ?? []);
+
+                return [
+                    'key' => (string) ($scenario['key'] ?? ''),
+                    'name' => (string) ($scenario['name'] ?? 'Scenario'),
+                    'type' => (string) ($scenario['type'] ?? ''),
+                    'runway_months' => $summary['runway_months'] ?? null,
+                    'runway_open_ended' => (bool) ($summary['runway_open_ended'] ?? false),
+                    'break_even_year' => $summary['break_even_year'] ?? null,
+                    'cash_flow_positive_year' => $summary['cash_flow_positive_year'] ?? null,
+                    'total_funding' => (float) ($summary['total_funding'] ?? 0),
+                    'ending_cash' => is_array($lastYear) ? (float) ($lastYear['ending_cash'] ?? 0) : 0.0,
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $annualForecast
+     * @return array<int, array<string, mixed>>
+     */
+    private function annualChartRows(array $annualForecast): array
+    {
+        return collect($annualForecast)
+            ->map(fn (array $row): array => [
+                'label' => 'Year '.(int) ($row['year'] ?? 0),
+                'revenue' => (float) ($row['revenue'] ?? 0),
+                'costs' => (float) ($row['variable_costs'] ?? 0)
+                    + (float) ($row['fixed_costs'] ?? 0)
+                    + (float) ($row['interest'] ?? 0)
+                    + (float) ($row['tax'] ?? 0)
+                    + (float) ($row['loan_principal'] ?? 0)
+                    + (float) ($row['launch_costs'] ?? 0),
+                'net_cash_flow' => (float) ($row['net_cash_flow'] ?? 0),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $annualForecast
+     * @return array<int, array<string, mixed>>
+     */
+    private function marginChartRows(array $annualForecast): array
+    {
+        return collect($annualForecast)
+            ->map(fn (array $row): array => [
+                'label' => 'Year '.(int) ($row['year'] ?? 0),
+                'gross_profit_percent' => $this->marginPercent(
+                    (float) ($row['gross_profit'] ?? 0),
+                    (float) ($row['revenue'] ?? 0),
+                ),
+                'net_profit_before_tax_percent' => $this->marginPercent(
+                    (float) ($row['net_profit_before_tax'] ?? 0),
+                    (float) ($row['revenue'] ?? 0),
+                ),
+                'net_profit_after_tax_percent' => $this->marginPercent(
+                    (float) ($row['net_profit_after_tax'] ?? 0),
+                    (float) ($row['revenue'] ?? 0),
+                ),
+            ])
+            ->values()
+            ->all();
+    }
+
+    private function marginPercent(float $profit, float $revenue): float
+    {
+        if ($revenue === 0.0) {
+            return 0.0;
+        }
+
+        return round(($profit / $revenue) * 100, 1);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $monthlyForecast
+     * @return array<int, array<string, mixed>>
+     */
+    private function monthlyChartRows(array $monthlyForecast): array
+    {
+        return collect($monthlyForecast)
+            ->take(36)
+            ->map(fn (array $row): array => [
+                'label' => 'M'.(int) ($row['month'] ?? 0),
+                'revenue' => (float) ($row['revenue'] ?? 0),
+                'costs' => (float) ($row['variable_costs'] ?? 0)
+                    + (float) ($row['fixed_costs'] ?? 0)
+                    + (float) ($row['interest'] ?? 0)
+                    + (float) ($row['tax'] ?? 0)
+                    + (float) ($row['loan_principal'] ?? 0)
+                    + (float) ($row['launch_costs'] ?? 0),
+                'cumulative_cash' => (float) ($row['cumulative_cash'] ?? 0),
+            ])
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<int, array{label:string,value:float}>
+     */
+    private function costDrivers(StrategicBudget $budget): array
+    {
+        return collect([
+            ['label' => 'Implementation costs', 'value' => $this->inputRowsTotal((array) ($budget->implementation_costs ?? []))],
+            ['label' => 'Monthly fixed costs', 'value' => $this->inputRowsTotal((array) ($budget->monthly_fixed_costs ?? []))],
+            ['label' => 'Future costs', 'value' => $this->inputRowsTotal((array) ($budget->future_costs ?? []))],
+        ])
+            ->sortByDesc('value')
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function inputRowsTotal(array $rows): float
+    {
+        return round(array_reduce(
+            $rows,
+            fn (float $total, array $row): float => $total
+                + ((float) ($row['amount'] ?? 0) * max(1.0, (float) ($row['quantity'] ?? 1))),
+            0.0,
+        ), 2);
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array<int, array{key:string,label:string}>
+     */
+    private function missingAssumptions(array $computed): array
+    {
+        $labels = (array) data_get($computed, 'assumptions.field_labels', []);
+
+        return collect((array) ($computed['missing_assumptions'] ?? []))
+            ->map(function (mixed $key) use ($labels): array {
+                $key = (string) $key;
+
+                return [
+                    'key' => $key,
+                    'label' => (string) ($labels[$key] ?? str($key)->replace('_', ' ')->title()->toString()),
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $flags
+     * @param  array<string, mixed>  $computed
+     * @param  array<string, mixed>  $confidence
+     * @return array<int, array<string, string>>
+     */
+    private function prescriptiveActions(StrategicBudget $budget, array $flags, array $computed, array $confidence): array
+    {
+        $actions = collect($flags)
+            ->filter(fn (mixed $flag): bool => is_array($flag))
+            ->map(function (array $flag): array {
+                $key = (string) ($flag['key'] ?? '');
+
+                return [
+                    'priority' => (string) ($flag['severity'] ?? 'medium'),
+                    'action' => match ($key) {
+                        'financial_upload_required' => 'Upload a P&L or management accounts file before relying on this budget.',
+                        'partial_financials' => 'Request an additional financial upload to strengthen the evidence base.',
+                        'business_plan_incomplete' => 'Complete every plan section before advisor approval.',
+                        'implementation_costs_missing' => 'Add one-off setup, transition, advisory, or project costs.',
+                        'revenue_forecast_missing', 'no_break_even' => 'Update the revenue forecast and margin assumptions until break-even is visible or the risk is accepted.',
+                        'missing_assumptions' => 'Complete growth, margin, inflation, and profit-target assumptions.',
+                        'too_many_guesses' => 'Replace guessed rows with uploaded evidence, client confirmation, or advisor-reviewed estimates.',
+                        'tax_not_configured' => 'Configure current company tax reference data before relying on after-tax outputs.',
+                        default => (string) ($flag['message'] ?? 'Review this budget signal before proposal reliance.'),
+                    },
+                    'reason' => (string) ($flag['message'] ?? ''),
+                ];
+            });
+
+        if ((int) data_get($confidence, 'score', 0) < 55 && $budget->isUnlocked()) {
+            $actions->push([
+                'priority' => 'medium',
+                'action' => 'Treat the budget as preliminary until evidence and assumptions improve.',
+                'reason' => 'Budget confidence is below the developing threshold.',
+            ]);
+        }
+
+        if ((float) data_get($computed, 'available_after_launch', 0) < 0) {
+            $actions->push([
+                'priority' => 'high',
+                'action' => 'Confirm extra funding, delay implementation spend, or reduce launch costs.',
+                'reason' => 'Available cash after launch costs is negative.',
+            ]);
+        }
+
+        if ($actions->isEmpty()) {
+            $actions->push([
+                'priority' => 'low',
+                'action' => 'Maintain the current budget and proceed to advisor review when the plan is complete.',
+                'reason' => 'No active budget warnings are present.',
+            ]);
+        }
+
+        return $actions->values()->all();
     }
 
     private function refreshReadiness(StrategicBudget $budget): StrategicBudget

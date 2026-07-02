@@ -34,6 +34,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('business-plan-budget', [StrategicBudgetController::class, 'show'])->name('business-plan-budget.show');
         Route::post('business-plan-budget', [StrategicBudgetController::class, 'update'])->name('business-plan-budget.update');
         Route::post('business-plan-budget/submit', [StrategicBudgetController::class, 'submit'])->name('business-plan-budget.submit');
+        Route::get('business-plan-budget/export', [StrategicBudgetController::class, 'export'])->name('business-plan-budget.export');
         Route::patch('strategic-plan/milestones/{milestone}', [StrategicPlanMilestoneController::class, 'update'])->name('strategic-plan.milestones.update');
         Route::get('service-activations/new/{serviceType}', [ServiceActivationController::class, 'create'])->name('service-activations.create');
         Route::post('service-activations', [ServiceActivationController::class, 'store'])->name('service-activations.store');

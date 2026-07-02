@@ -14,7 +14,7 @@ final class PromptRegistry
      */
     private array $prompts = [];
 
-    public function __construct()
+    public function __construct(private readonly ?GovernancePreambleProvider $governance = null)
     {
         $this->register(
             id: 'summarise.smoke',
@@ -133,6 +133,7 @@ final class PromptRegistry
         }
 
         $prompt = $this->prompts[$id];
+        $governance = $this->governancePreamble();
 
         return new PromptEnvelope(
             id: $id,
@@ -142,11 +143,24 @@ final class PromptRegistry
             input: $input,
             dataQualitySummary: $dataQualitySummary,
             sourceReferences: $sourceReferences,
+            integrityPreamble: $governance['text'],
+            integrityPreambleVersion: $governance['version'],
         );
     }
 
     public function promptHash(string $id): string
     {
         return $this->envelope($id)->hash();
+    }
+
+    /**
+     * @return array{text:string,version:string}
+     */
+    private function governancePreamble(): array
+    {
+        return $this->governance?->active() ?? [
+            'text' => IntegrityPreamble::TEXT,
+            'version' => IntegrityPreamble::VERSION,
+        ];
     }
 }

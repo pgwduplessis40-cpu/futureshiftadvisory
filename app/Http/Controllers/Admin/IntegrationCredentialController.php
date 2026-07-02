@@ -13,6 +13,7 @@ use App\Services\Integration\IntegrationCredentials;
 use App\Services\Integration\IntegrationRegistry;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -27,14 +28,21 @@ final class IntegrationCredentialController extends Controller
 
     public function index(): Response
     {
+        $aiProviderIntegrationKeys = $this->aiProviderIntegrationKeys();
+
         return Inertia::render('admin/credentials/Index', [
             'credentials' => $this->credentials->registryRows()
-                ->map(fn (array $row): array => [
-                    ...$row,
-                    'credentials_ready' => $this->activations->readiness((string) $row['integration_key']),
-                    'effective_live' => $this->activations->isLive((string) $row['integration_key']),
-                    'practice_connection' => $this->practiceConnection((string) $row['integration_key']),
-                ]),
+                ->map(function (array $row) use ($aiProviderIntegrationKeys): array {
+                    $integrationKey = (string) $row['integration_key'];
+
+                    return [
+                        ...$row,
+                        'credentials_ready' => $this->activations->readiness($integrationKey),
+                        'effective_live' => $this->activations->isLive($integrationKey),
+                        'ai_provider' => in_array($integrationKey, $aiProviderIntegrationKeys, true),
+                        'practice_connection' => $this->practiceConnection($integrationKey),
+                    ];
+                }),
         ]);
     }
 
@@ -118,6 +126,31 @@ final class IntegrationCredentialController extends Controller
                 $integration['integration_key'] => $this->registry->credentialFields((string) $integration['integration_key']),
             ])
             ->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function aiProviderIntegrationKeys(): array
+    {
+        $providers = Config::get('ai.providers', []);
+        if (! is_array($providers)) {
+            return [];
+        }
+
+        $keys = [];
+        foreach ($providers as $key => $provider) {
+            if (! is_array($provider)) {
+                continue;
+            }
+
+            $integrationKey = $provider['integration_key'] ?? $key;
+            if (is_string($integrationKey) && trim($integrationKey) !== '') {
+                $keys[] = trim($integrationKey);
+            }
+        }
+
+        return array_values(array_unique($keys));
     }
 
     /**

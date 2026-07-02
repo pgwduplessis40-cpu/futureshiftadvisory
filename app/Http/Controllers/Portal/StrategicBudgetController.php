@@ -10,6 +10,7 @@ use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\DdEngagement;
 use App\Models\User;
+use App\Services\Budgets\StrategicBudgetExcelExporter;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Portal\ClientPortalResolver;
 use Illuminate\Http\RedirectResponse;
@@ -23,6 +24,7 @@ final class StrategicBudgetController extends Controller
     public function __construct(
         private readonly ClientPortalResolver $clients,
         private readonly StrategicBudgetService $budgets,
+        private readonly StrategicBudgetExcelExporter $exporter,
     ) {}
 
     public function show(Request $request): Response
@@ -83,6 +85,20 @@ final class StrategicBudgetController extends Controller
         $this->budgets->submit($budget, $user);
 
         return to_route('portal.business-plan-budget.show')->with('status', 'business-plan-budget-submitted');
+    }
+
+    public function export(Request $request): \Symfony\Component\HttpFoundation\Response
+    {
+        $client = $this->clients->resolveFor($request);
+        $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client))->load('client');
+        $contents = $this->exporter->export($budget);
+
+        return response($contents, 200, [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'Content-Disposition' => 'attachment; filename="'.$this->exporter->filename($budget).'"',
+            'X-Content-Type-Options' => 'nosniff',
+            'Cache-Control' => 'private, no-store, max-age=0',
+        ]);
     }
 
     /**

@@ -37,7 +37,6 @@ use App\Models\PostAcquisitionMigration;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\QuestionnaireResponse;
-use App\Models\RatingFramework;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\RiskCost;
@@ -49,6 +48,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdDisclaimer;
+use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
@@ -314,7 +314,7 @@ final class ReportComposer implements ProvidesMethodology
             }
 
             $criteria = $this->entrepreneurCriteriaRows($assessment);
-            $weightedScore = $this->weightedEntrepreneurScore($assessment->ratingFramework, $criteria);
+            $weightedScore = AssessmentScoring::weightedScore($assessment);
             $overallGrade = $assessment->ratingFramework->gradeFor($weightedScore);
             $conceptPv = $assessment->conceptPvCalculation
                 ?: $this->createEntrepreneurConceptPv($assessment, $weightedScore, $overallGrade, $actor);
@@ -1588,32 +1588,23 @@ final class ReportComposer implements ProvidesMethodology
      */
     private function entrepreneurCriteriaRows(PlanAssessment $assessment): Collection
     {
-        $framework = $assessment->ratingFramework;
-        $aiScores = collect($assessment->ai_scores ?? [])->keyBy(fn (array $score): int => (int) ($score['criterion_number'] ?? 0));
-        $advisorScores = collect($assessment->advisor_scores ?? [])->keyBy(fn (array $score): int => (int) ($score['criterion_number'] ?? 0));
         $documentSupport = $this->entrepreneurDocumentSupport($assessment);
 
-        return $framework->criteria
-            ->map(function ($criterion) use ($aiScores, $advisorScores, $framework, $documentSupport): array {
-                $ai = $aiScores->get($criterion->number, []);
-                $advisor = $advisorScores->get($criterion->number);
-                $hasAdvisorScore = is_array($advisor) && is_numeric($advisor['score'] ?? null);
-                $score = $hasAdvisorScore ? (int) $advisor['score'] : (int) ($ai['score'] ?? 0);
-                $score = max(0, min(100, $score));
-
+        return collect(AssessmentScoring::criteriaPayload($assessment))
+            ->map(function (array $row) use ($documentSupport): array {
                 return [
-                    'criterion_id' => (string) $criterion->getKey(),
-                    'criterion_number' => $criterion->number,
-                    'criterion_name' => $criterion->name,
-                    'weight' => (float) $criterion->weight,
-                    'ai_score' => is_numeric($ai['score'] ?? null) ? (int) $ai['score'] : null,
-                    'advisor_score' => $hasAdvisorScore ? (int) $advisor['score'] : null,
-                    'score' => $score,
-                    'grade' => $framework instanceof RatingFramework ? $framework->gradeFor($score) : 'needs_work',
-                    'rationale' => $hasAdvisorScore
-                        ? 'Advisor adjustment: '.(string) ($advisor['note'] ?? 'No note recorded.')
-                        : (string) ($ai['rationale'] ?? 'First-pass assessment did not provide a rationale.'),
-                    'attributions' => $this->normalisedEntrepreneurAttributions((array) ($ai['attributions'] ?? []), (string) $criterion->getKey()),
+                    'criterion_id' => (string) $row['criterion_id'],
+                    'criterion_number' => $row['criterion_number'],
+                    'criterion_name' => $row['criterion_name'],
+                    'weight' => (float) $row['weight'],
+                    'ai_score' => is_numeric($row['ai_score'] ?? null) ? (int) round((float) $row['ai_score']) : null,
+                    'advisor_score' => is_numeric($row['advisor_score'] ?? null) ? (int) round((float) $row['advisor_score']) : null,
+                    'score' => max(0, min(100, (int) round((float) $row['score']))),
+                    'grade' => (string) $row['grade'],
+                    'rationale' => ($row['advisor_score'] ?? null) !== null
+                        ? 'Advisor adjustment: '.((string) ($row['rationale'] ?: 'No note recorded.'))
+                        : (string) ($row['rationale'] ?: 'First-pass assessment did not provide a rationale.'),
+                    'attributions' => $this->normalisedEntrepreneurAttributions((array) ($row['attributions'] ?? []), (string) $row['criterion_id']),
                     'document_support' => $documentSupport['support'],
                     'document_support_note' => $documentSupport['note'],
                     'data_quality_indicator' => $documentSupport['data_quality_indicator'],
@@ -1784,20 +1775,6 @@ final class ReportComposer implements ProvidesMethodology
                 ])->values()->all(),
             ],
         );
-    }
-
-    /**
-     * @param  Collection<int, array<string, mixed>>  $criteria
-     */
-    private function weightedEntrepreneurScore(RatingFramework $framework, Collection $criteria): float
-    {
-        $totalWeight = (float) $criteria->sum('weight');
-
-        if ($totalWeight <= 0) {
-            return 0.0;
-        }
-
-        return round($criteria->sum(fn (array $row): float => ((float) $row['score']) * (((float) $row['weight']) / $totalWeight)), 2);
     }
 
     private function createEntrepreneurConceptPv(

@@ -4,6 +4,7 @@ import {
     ArrowLeft,
     BookOpen,
     CheckCircle2,
+    Download,
     ExternalLink,
     FileSpreadsheet,
     FileText,
@@ -144,6 +145,7 @@ type BudgetPayload = {
         overall?: string;
         message?: string;
     };
+    analytics: BudgetAnalytics;
     readiness_score: number;
     progress_score: number;
     submitted_at: string | null;
@@ -152,8 +154,88 @@ type BudgetPayload = {
     accepted_snapshot_at: string | null;
     update_url: string;
     submit_url: string;
+    export_url: string;
     budget_pack_available: boolean;
     budget_pack_locked_reason: string | null;
+};
+
+type BudgetMetric = {
+    label: string;
+    value: number | string | null;
+    format: 'currency' | 'months' | 'year' | 'number' | string;
+    detail?: string | null;
+};
+
+type BudgetScenario = {
+    key: string;
+    name: string;
+    type: string;
+    runway_months: number | null;
+    runway_open_ended: boolean;
+    break_even_year: number | null;
+    cash_flow_positive_year: number | null;
+    total_funding: number;
+    ending_cash: number;
+};
+
+type BudgetFrameworkReadout = {
+    summary: string;
+    explanation: string;
+    findings: string[];
+};
+
+type BudgetAnalytics = {
+    descriptive: BudgetFrameworkReadout & {
+        metrics: BudgetMetric[];
+        source_financials: BudgetPayload['source_financials'];
+    };
+    diagnostic: BudgetFrameworkReadout & {
+        flags: BudgetPayload['flags'];
+        cost_drivers: Array<{ label: string; value: number }>;
+        missing_assumptions: Array<{ key: string; label: string }>;
+        confidence_mix: {
+            known: number;
+            estimate: number;
+            guess: number;
+            total: number;
+        };
+    };
+    predictive: BudgetFrameworkReadout & {
+        key_events: BudgetMetric[];
+        annual_forecast: Array<Record<string, number>>;
+        monthly_forecast: Array<Record<string, number>>;
+        scenarios: BudgetScenario[];
+    };
+    prescriptive: BudgetFrameworkReadout & {
+        actions: Array<{
+            priority: string;
+            action: string;
+            reason: string;
+        }>;
+        advisor_decision_points: string[];
+    };
+    charts: {
+        annual_revenue_costs: Array<{
+            label: string;
+            revenue: number;
+            costs: number;
+            net_cash_flow: number;
+        }>;
+        margin_percentages: Array<{
+            label: string;
+            gross_profit_percent: number;
+            net_profit_before_tax_percent: number;
+            net_profit_after_tax_percent: number;
+        }>;
+        monthly_cash: Array<{
+            label: string;
+            revenue: number;
+            costs: number;
+            cumulative_cash: number;
+        }>;
+        scenario_comparison: BudgetScenario[];
+        confidence_mix: Array<{ label: string; value: number }>;
+    };
 };
 
 type GoalPayload = {
@@ -190,7 +272,7 @@ type BudgetForm = {
     funding_scenarios: FundingScenarioRow[];
 };
 
-type WorkspaceTab = 'business_plan' | 'budget';
+type WorkspaceTab = 'business_plan' | 'budget' | 'insights';
 
 type BudgetGroupKey =
     | 'implementation_costs'
@@ -341,6 +423,20 @@ export default function StrategicPlanBudget({
             }, 2200);
         }, 0);
     };
+    const workspaceTitle =
+        activeTab === 'business_plan'
+            ? budget.pathway === 'npo'
+                ? 'Operating plan workspace'
+                : 'Business plan workspace'
+            : activeTab === 'budget'
+              ? 'Budget workspace'
+              : 'Plan and budget story';
+    const workspaceHelp =
+        activeTab === 'business_plan'
+            ? 'Use source drafts on the left, then write the final client-owned plan on the right.'
+            : activeTab === 'budget'
+              ? 'All amounts are GST exclusive. GST is added only when final payment is sent to Stripe.'
+              : 'Descriptions, diagnoses, predictions and prescriptions drawn from the current plan and budget.';
 
     return (
         <>
@@ -378,6 +474,15 @@ export default function StrategicPlanBudget({
                         >
                             <Save className="size-4" aria-hidden="true" />
                             Save
+                        </Button>
+                        <Button asChild variant="outline">
+                            <a href={budget.export_url}>
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Export Excel
+                            </a>
                         </Button>
                         <Button
                             type="button"
@@ -520,26 +625,28 @@ export default function StrategicPlanBudget({
                         )}
                     </div>
                 ) : (
-                    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+                    <div
+                        className={cn(
+                            'grid gap-6',
+                            activeTab === 'insights'
+                                ? 'xl:grid-cols-1'
+                                : 'xl:grid-cols-[minmax(0,1fr)_360px]',
+                        )}
+                    >
                         <section className="space-y-5 rounded-md border bg-background p-4">
                             <WorkspaceTabs
                                 activeTab={activeTab}
                                 label={budget.label}
                                 onChange={setActiveTab}
+                                showInsights
                             />
                             <div className="flex flex-wrap items-center justify-between gap-3">
                                 <div>
                                     <h2 className="text-sm font-medium">
-                                        {activeTab === 'business_plan'
-                                            ? budget.pathway === 'npo'
-                                                ? 'Operating plan workspace'
-                                                : 'Business plan workspace'
-                                            : 'Budget workspace'}
+                                        {workspaceTitle}
                                     </h2>
                                     <p className="mt-1 text-sm text-muted-foreground">
-                                        {activeTab === 'business_plan'
-                                            ? 'Use source drafts on the left, then write the final client-owned plan on the right.'
-                                            : 'All amounts are GST exclusive. GST is added only when final payment is sent to Stripe.'}
+                                        {workspaceHelp}
                                     </p>
                                 </div>
                                 <Badge variant="outline">
@@ -577,7 +684,7 @@ export default function StrategicPlanBudget({
                                         }
                                     />
                                 </div>
-                            ) : (
+                            ) : activeTab === 'budget' ? (
                                 <>
                                     <div
                                         id="budget-section-settings"
@@ -727,24 +834,30 @@ export default function StrategicPlanBudget({
                                         }
                                     />
                                 </>
+                            ) : (
+                                <BudgetAnalyticsPanel
+                                    analytics={budget.analytics}
+                                />
                             )}
 
                             <div className="flex flex-wrap gap-2">
-                                <Button
-                                    type="button"
-                                    disabled={form.processing}
-                                    onClick={save}
-                                >
-                                    <Save
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {form.processing
-                                        ? 'Saving'
-                                        : activeTab === 'business_plan'
-                                          ? 'Save plan'
-                                          : 'Save budget'}
-                                </Button>
+                                {activeTab !== 'insights' ? (
+                                    <Button
+                                        type="button"
+                                        disabled={form.processing}
+                                        onClick={save}
+                                    >
+                                        <Save
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {form.processing
+                                            ? 'Saving'
+                                            : activeTab === 'business_plan'
+                                              ? 'Save plan'
+                                              : 'Save budget'}
+                                    </Button>
+                                ) : null}
                                 <Button
                                     type="button"
                                     variant="outline"
@@ -759,18 +872,20 @@ export default function StrategicPlanBudget({
                             </div>
                         </section>
 
-                        <aside className="space-y-4">
-                            <SummaryPanel budget={budget} />
-                            <GoalsPanel
-                                clientGoals={budget.client_goals}
-                                advisorGoals={budget.advisor_goals}
-                            />
-                            <FlagsPanel
-                                flags={budget.flags}
-                                onboardingUrl={onboardingUrl}
-                                onSelectSection={focusBudgetSection}
-                            />
-                        </aside>
+                        {activeTab !== 'insights' ? (
+                            <aside className="space-y-4">
+                                <SummaryPanel budget={budget} />
+                                <GoalsPanel
+                                    clientGoals={budget.client_goals}
+                                    advisorGoals={budget.advisor_goals}
+                                />
+                                <FlagsPanel
+                                    flags={budget.flags}
+                                    onboardingUrl={onboardingUrl}
+                                    onSelectSection={focusBudgetSection}
+                                />
+                            </aside>
+                        ) : null}
                     </div>
                 )}
             </main>
@@ -840,10 +955,12 @@ function WorkspaceTabs({
     activeTab,
     label,
     onChange,
+    showInsights = false,
 }: {
     activeTab: WorkspaceTab;
     label: string;
     onChange: (tab: WorkspaceTab) => void;
+    showInsights?: boolean;
 }) {
     const planLabel =
         label === 'Operating Plan & Budget'
@@ -852,7 +969,7 @@ function WorkspaceTabs({
 
     return (
         <div
-            className="inline-flex w-full max-w-md rounded-md border bg-muted/30 p-1"
+            className="inline-flex w-full max-w-xl rounded-md border bg-muted/30 p-1"
             role="tablist"
             aria-label={label}
         >
@@ -870,6 +987,15 @@ function WorkspaceTabs({
                 <FileSpreadsheet className="size-4" aria-hidden="true" />
                 Budget
             </WorkspaceTabButton>
+            {showInsights ? (
+                <WorkspaceTabButton
+                    active={activeTab === 'insights'}
+                    onClick={() => onChange('insights')}
+                >
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    Insights
+                </WorkspaceTabButton>
+            ) : null}
         </div>
     );
 }
@@ -1056,6 +1182,600 @@ function ProgressBand({ score, message }: { score: number; message: string }) {
             </div>
             <p className="text-sm text-muted-foreground">{message}</p>
         </section>
+    );
+}
+
+function BudgetAnalyticsPanel({ analytics }: { analytics: BudgetAnalytics }) {
+    const frameworkCards = [
+        {
+            title: 'Descriptions',
+            lens: 'Descriptive',
+            summary: analytics.descriptive.summary,
+            explanation: analytics.descriptive.explanation,
+            items: analytics.descriptive.findings,
+        },
+        {
+            title: 'Diagnoses',
+            lens: 'Diagnostic',
+            summary: analytics.diagnostic.summary,
+            explanation: analytics.diagnostic.explanation,
+            items: analytics.diagnostic.findings,
+        },
+        {
+            title: 'Predictions',
+            lens: 'Predictive',
+            summary: analytics.predictive.summary,
+            explanation: analytics.predictive.explanation,
+            items: analytics.predictive.findings,
+        },
+        {
+            title: 'Prescriptions',
+            lens: 'Prescriptive',
+            summary: analytics.prescriptive.summary,
+            explanation: analytics.prescriptive.explanation,
+            items: analytics.prescriptive.findings,
+        },
+    ];
+
+    return (
+        <section
+            className="space-y-4"
+            aria-labelledby="budget-intelligence-heading"
+        >
+            <div className="flex flex-wrap items-end justify-between gap-3">
+                <div>
+                    <h2
+                        id="budget-intelligence-heading"
+                        className="text-base font-semibold"
+                    >
+                        Business plan + budget readout
+                    </h2>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        Current readings, risks, forecast signals and actions
+                        generated from the live plan and budget.
+                    </p>
+                </div>
+                <Badge variant="outline">Evidence-backed readout</Badge>
+            </div>
+
+            <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                {frameworkCards.map((card) => (
+                    <FrameworkCard
+                        key={card.title}
+                        title={card.title}
+                        lens={card.lens}
+                        summary={card.summary}
+                        explanation={card.explanation}
+                        items={card.items}
+                    />
+                ))}
+            </div>
+
+            <div className="grid gap-4 xl:grid-cols-2">
+                <MarginChart rows={analytics.charts.margin_percentages} />
+                <AnnualRevenueCostChart
+                    rows={analytics.charts.annual_revenue_costs}
+                />
+                <MonthlyCashChart rows={analytics.charts.monthly_cash} />
+                <ScenarioComparisonChart
+                    rows={analytics.charts.scenario_comparison}
+                />
+                <ConfidenceMixChart rows={analytics.charts.confidence_mix} />
+            </div>
+        </section>
+    );
+}
+
+function FrameworkCard({
+    title,
+    lens,
+    summary,
+    explanation,
+    items,
+}: {
+    title: string;
+    lens: string;
+    summary: string;
+    explanation: string;
+    items: string[];
+}) {
+    return (
+        <article className="space-y-3 rounded-md border bg-background p-4">
+            <div>
+                <div className="flex items-center justify-between gap-2">
+                    <h3 className="text-sm font-semibold">{title}</h3>
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            <button
+                                type="button"
+                                className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                                aria-label={`${lens} framework explanation`}
+                            >
+                                <Info className="size-3.5" aria-hidden="true" />
+                            </button>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="max-w-xs">
+                            <span className="font-medium">{lens}:</span>{' '}
+                            {explanation}
+                        </TooltipContent>
+                    </Tooltip>
+                </div>
+                <p className="mt-1 text-sm text-muted-foreground">
+                    {summary}
+                </p>
+            </div>
+            <ul className="space-y-2 text-sm">
+                {items.length > 0 ? (
+                    items.map((item, index) => (
+                        <li
+                            key={`${title}-${index}`}
+                            className="border-t pt-2 text-muted-foreground first:border-t-0 first:pt-0"
+                        >
+                            {item}
+                        </li>
+                    ))
+                ) : (
+                    <li className="text-muted-foreground">No data yet.</li>
+                )}
+            </ul>
+        </article>
+    );
+}
+
+function MarginChart({
+    rows,
+}: {
+    rows: BudgetAnalytics['charts']['margin_percentages'];
+}) {
+    const max = Math.max(
+        100,
+        chartMax(
+            rows.flatMap((row) => [
+                row.gross_profit_percent,
+                row.net_profit_before_tax_percent,
+                row.net_profit_after_tax_percent,
+            ]),
+        ),
+    );
+
+    return (
+        <ChartPanel
+            title="Profit margin story"
+            explanation="Shows how much of each revenue dollar remains after direct costs, before tax, and after tax. GP % is gross profit, NPBT % is net profit before tax, and NPAT % is net profit after tax."
+        >
+            {rows.length === 0 ? (
+                <EmptyChart label="No margin forecast yet." />
+            ) : (
+                <div className="space-y-3">
+                    {rows.map((row) => (
+                        <div
+                            key={row.label}
+                            className="grid grid-cols-[4.5rem_minmax(0,1fr)] gap-3 text-sm"
+                        >
+                            <div className="pt-0.5 font-medium">
+                                {row.label}
+                            </div>
+                            <div className="space-y-1.5">
+                                <PercentBar
+                                    value={row.gross_profit_percent}
+                                    max={max}
+                                    className="bg-emerald-600"
+                                    label="GP %"
+                                />
+                                <PercentBar
+                                    value={row.net_profit_before_tax_percent}
+                                    max={max}
+                                    className={
+                                        row.net_profit_before_tax_percent >= 0
+                                            ? 'bg-cyan-700'
+                                            : 'bg-red-500'
+                                    }
+                                    label="NPBT %"
+                                />
+                                <PercentBar
+                                    value={row.net_profit_after_tax_percent}
+                                    max={max}
+                                    className={
+                                        row.net_profit_after_tax_percent >= 0
+                                            ? 'bg-slate-700'
+                                            : 'bg-red-500'
+                                    }
+                                    label="NPAT %"
+                                />
+                            </div>
+                        </div>
+                    ))}
+                    <ChartLegend
+                        items={[
+                            ['GP %', 'bg-emerald-600'],
+                            ['NPBT %', 'bg-cyan-700'],
+                            ['NPAT %', 'bg-slate-700'],
+                        ]}
+                    />
+                </div>
+            )}
+        </ChartPanel>
+    );
+}
+
+function AnnualRevenueCostChart({
+    rows,
+}: {
+    rows: BudgetAnalytics['charts']['annual_revenue_costs'];
+}) {
+    const max = chartMax(
+        rows.flatMap((row) => [row.revenue, row.costs, row.net_cash_flow]),
+    );
+
+    return (
+        <ChartPanel
+            title="Revenue, costs and net cash"
+            explanation="Compares forecast revenue with the costs needed to deliver the plan. The net cash figure shows whether the year adds cash or uses cash."
+        >
+            {rows.length === 0 ? (
+                <EmptyChart label="No annual forecast yet." />
+            ) : (
+                <div className="space-y-3">
+                    {rows.map((row) => (
+                        <div
+                            key={row.label}
+                            className="grid grid-cols-[4.5rem_minmax(0,1fr)_6.5rem] items-center gap-3 text-sm"
+                        >
+                            <div className="font-medium">{row.label}</div>
+                            <div className="space-y-1.5">
+                                <ChartBar
+                                    value={row.revenue}
+                                    max={max}
+                                    className="bg-emerald-600"
+                                    label="Revenue"
+                                />
+                                <ChartBar
+                                    value={row.costs}
+                                    max={max}
+                                    className="bg-amber-500"
+                                    label="Costs"
+                                />
+                            </div>
+                            <div
+                                className={cn(
+                                    'text-right text-xs font-medium',
+                                    row.net_cash_flow >= 0
+                                        ? 'text-emerald-700'
+                                        : 'text-red-600',
+                                )}
+                            >
+                                {formatCompactCurrency(row.net_cash_flow)}
+                            </div>
+                        </div>
+                    ))}
+                    <ChartLegend
+                        items={[
+                            ['Revenue', 'bg-emerald-600'],
+                            ['Costs', 'bg-amber-500'],
+                            ['Net cash flow', 'bg-foreground'],
+                        ]}
+                    />
+                </div>
+            )}
+        </ChartPanel>
+    );
+}
+
+function MonthlyCashChart({
+    rows,
+}: {
+    rows: BudgetAnalytics['charts']['monthly_cash'];
+}) {
+    const values = rows.map((row) => row.cumulative_cash);
+    const min = Math.min(...values, 0);
+    const max = Math.max(...values, 0);
+    const range = Math.max(1, max - min);
+    const width = 360;
+    const height = 140;
+    const paddingX = 18;
+    const top = 18;
+    const chartHeight = 92;
+    const chartWidth = width - paddingX * 2;
+    const points = rows
+        .map((row, index) => {
+            const x =
+                rows.length === 1
+                    ? width / 2
+                    : paddingX + (index / (rows.length - 1)) * chartWidth;
+            const y =
+                top +
+                chartHeight -
+                ((row.cumulative_cash - min) / range) * chartHeight;
+
+            return `${x.toFixed(2)},${y.toFixed(2)}`;
+        })
+        .join(' ');
+    const zeroY =
+        top + chartHeight - ((0 - min) / range) * chartHeight;
+    const last = rows[rows.length - 1];
+
+    return (
+        <ChartPanel
+            title="Cash available over time"
+            explanation="Shows the forecast cash balance month by month. This is the runway view: it helps answer how long the business can keep operating before cash runs out, and whether cash improves or tightens over the budget period."
+        >
+            {rows.length === 0 ? (
+                <EmptyChart label="No monthly forecast yet." />
+            ) : (
+                <div className="space-y-3">
+                    <svg
+                        viewBox={`0 0 ${width} ${height}`}
+                        role="img"
+                        aria-label="Monthly cumulative cash forecast"
+                        className="h-44 w-full overflow-visible"
+                    >
+                        <line
+                            x1={paddingX}
+                            y1={zeroY}
+                            x2={width - paddingX}
+                            y2={zeroY}
+                            className="stroke-muted-foreground/30"
+                            strokeWidth="1"
+                        />
+                        <polyline
+                            points={points}
+                            fill="none"
+                            className="stroke-cyan-700"
+                            strokeWidth="3"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                    <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
+                        <ChartStat
+                            label="Low"
+                            value={formatCompactCurrency(min)}
+                        />
+                        <ChartStat
+                            label="High"
+                            value={formatCompactCurrency(max)}
+                        />
+                        <ChartStat
+                            label="End"
+                            value={formatCompactCurrency(
+                                last?.cumulative_cash ?? 0,
+                            )}
+                        />
+                    </div>
+                </div>
+            )}
+        </ChartPanel>
+    );
+}
+
+function ScenarioComparisonChart({
+    rows,
+}: {
+    rows: BudgetAnalytics['charts']['scenario_comparison'];
+}) {
+    const max = chartMax(
+        rows.flatMap((row) => [row.total_funding, row.ending_cash]),
+    );
+
+    return (
+        <ChartPanel
+            title="Scenario funding impact"
+            explanation="Compares funding options against the cash left at the end of the plan. It helps show whether the proposed funding is enough to support the budget."
+        >
+            {rows.length === 0 ? (
+                <EmptyChart label="No funding scenarios yet." />
+            ) : (
+                <div className="space-y-3">
+                    {rows.map((row) => (
+                        <div key={row.key || row.name} className="space-y-1.5">
+                            <div className="flex items-center justify-between gap-3 text-sm">
+                                <span className="min-w-0 font-medium">
+                                    {row.name}
+                                </span>
+                                <span className="text-xs text-muted-foreground">
+                                    {row.runway_open_ended
+                                        ? 'Open runway'
+                                        : `${row.runway_months ?? 0} months`}
+                                </span>
+                            </div>
+                            <ChartBar
+                                value={row.total_funding}
+                                max={max}
+                                className="bg-sky-600"
+                                label="Funding"
+                            />
+                            <ChartBar
+                                value={row.ending_cash}
+                                max={max}
+                                className={
+                                    row.ending_cash >= 0
+                                        ? 'bg-emerald-600'
+                                        : 'bg-red-500'
+                                }
+                                label="Ending cash"
+                            />
+                        </div>
+                    ))}
+                    <ChartLegend
+                        items={[
+                            ['Funding', 'bg-sky-600'],
+                            ['Positive ending cash', 'bg-emerald-600'],
+                            ['Negative ending cash', 'bg-red-500'],
+                        ]}
+                    />
+                </div>
+            )}
+        </ChartPanel>
+    );
+}
+
+function ConfidenceMixChart({
+    rows,
+}: {
+    rows: BudgetAnalytics['charts']['confidence_mix'];
+}) {
+    const total = rows.reduce((sum, row) => sum + row.value, 0);
+    const max = chartMax(rows.map((row) => row.value));
+    const toneByLabel: Record<string, string> = {
+        Known: 'bg-emerald-600',
+        Estimate: 'bg-amber-500',
+        Guess: 'bg-red-500',
+    };
+
+    return (
+        <ChartPanel
+            title="Evidence confidence mix"
+            explanation="Shows how much of the budget is based on known evidence, estimates, or guesses. More known evidence means the budget is more reliable for advisor review."
+        >
+            {total === 0 ? (
+                <EmptyChart label="No confidence rows yet." />
+            ) : (
+                <div className="space-y-3">
+                    {rows.map((row) => (
+                        <div
+                            key={row.label}
+                            className="grid grid-cols-[5rem_minmax(0,1fr)_4.5rem] items-center gap-3 text-sm"
+                        >
+                            <span className="font-medium">{row.label}</span>
+                            <ChartBar
+                                value={row.value}
+                                max={max}
+                                className={toneByLabel[row.label] ?? 'bg-muted'}
+                                label={row.label}
+                            />
+                            <span className="text-right text-xs text-muted-foreground">
+                                {Math.round((row.value / total) * 100)}%
+                            </span>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </ChartPanel>
+    );
+}
+
+function ChartPanel({
+    title,
+    explanation,
+    children,
+}: {
+    title: string;
+    explanation: string;
+    children: ReactNode;
+}) {
+    return (
+        <article className="space-y-3 rounded-md border bg-background p-4">
+            <div className="flex items-center justify-between gap-2">
+                <h3 className="text-sm font-semibold">{title}</h3>
+                <Tooltip>
+                    <TooltipTrigger asChild>
+                        <button
+                            type="button"
+                            className="inline-flex size-6 items-center justify-center rounded-full text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                            aria-label={`${title} explanation`}
+                        >
+                            <Info className="size-3.5" aria-hidden="true" />
+                        </button>
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                        {explanation}
+                    </TooltipContent>
+                </Tooltip>
+            </div>
+            {children}
+        </article>
+    );
+}
+
+function ChartBar({
+    value,
+    max,
+    className,
+    label,
+}: {
+    value: number;
+    max: number;
+    className: string;
+    label: string;
+}) {
+    return (
+        <div
+            className="h-2.5 overflow-hidden rounded-full bg-muted"
+            aria-label={`${label}: ${formatCompactCurrency(value)}`}
+        >
+            <div
+                className={cn('h-full rounded-full', className)}
+                style={barStyle(value, max)}
+            />
+        </div>
+    );
+}
+
+function PercentBar({
+    value,
+    max,
+    className,
+    label,
+}: {
+    value: number;
+    max: number;
+    className: string;
+    label: string;
+}) {
+    return (
+        <div className="grid grid-cols-[4rem_minmax(0,1fr)_4rem] items-center gap-2 text-xs">
+            <span className="font-medium text-muted-foreground">{label}</span>
+            <div
+                className="h-2.5 overflow-hidden rounded-full bg-muted"
+                aria-label={`${label}: ${formatPercent(value)}`}
+            >
+                <div
+                    className={cn('h-full rounded-full', className)}
+                    style={barStyle(value, max)}
+                />
+            </div>
+            <span
+                className={cn(
+                    'text-right font-medium',
+                    value >= 0 ? 'text-foreground' : 'text-red-600',
+                )}
+            >
+                {formatPercent(value)}
+            </span>
+        </div>
+    );
+}
+
+function ChartLegend({ items }: { items: Array<[string, string]> }) {
+    return (
+        <div className="flex flex-wrap gap-x-4 gap-y-2 text-xs text-muted-foreground">
+            {items.map(([label, className]) => (
+                <span key={label} className="inline-flex items-center gap-1.5">
+                    <span
+                        className={cn('size-2 rounded-full', className)}
+                        aria-hidden="true"
+                    />
+                    {label}
+                </span>
+            ))}
+        </div>
+    );
+}
+
+function ChartStat({ label, value }: { label: string; value: string }) {
+    return (
+        <div className="rounded-md border bg-muted/20 px-2 py-1.5">
+            <div>{label}</div>
+            <div className="mt-0.5 font-medium text-foreground">{value}</div>
+        </div>
+    );
+}
+
+function EmptyChart({ label }: { label: string }) {
+    return (
+        <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
+            {label}
+        </div>
     );
 }
 
@@ -1586,6 +2306,23 @@ function SummaryMetric({ label, value }: { label: string; value: ReactNode }) {
     );
 }
 
+function chartMax(values: number[]): number {
+    return Math.max(
+        1,
+        ...values.map((value) =>
+            Math.abs(Number.isFinite(value) ? value : 0),
+        ),
+    );
+}
+
+function barStyle(value: number, max: number): CSSProperties {
+    const width = Math.min(100, (Math.abs(value) / Math.max(1, max)) * 100);
+
+    return {
+        width: value === 0 ? '0%' : `${Math.max(3, width)}%`,
+    };
+}
+
 function blankRow(revenue = false): BudgetRow {
     return revenue
         ? {
@@ -1611,6 +2348,21 @@ function formatCurrency(value: number): string {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatCompactCurrency(value: number): string {
+    return new Intl.NumberFormat('en-NZ', {
+        style: 'currency',
+        currency: 'NZD',
+        notation: 'compact',
+        maximumFractionDigits: 1,
+    }).format(value);
+}
+
+function formatPercent(value: number): string {
+    return `${new Intl.NumberFormat('en-NZ', {
+        maximumFractionDigits: 1,
+    }).format(value)}%`;
 }
 
 function formatYear(value: number | null | undefined): string {

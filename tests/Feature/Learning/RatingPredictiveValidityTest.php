@@ -92,7 +92,7 @@ final class RatingPredictiveValidityTest extends TestCase
                 'success_score' => $outcomeScore,
                 'source' => 'advisor_review',
             ],
-            'observed_at' => now(),
+            'observed_at' => Carbon::parse('2026-06-15 09:00:00'),
         ]);
     }
 

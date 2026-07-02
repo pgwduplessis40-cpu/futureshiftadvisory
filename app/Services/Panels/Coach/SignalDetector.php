@@ -101,6 +101,7 @@ final class SignalDetector implements ProvidesMethodology
                     'id' => $suggestion->id,
                     'client_id' => $suggestion->client_id,
                     'client_name' => $suggestion->client?->legal_name,
+                    'client_url' => route('advisor.clients.show', $suggestion->client_id, absolute: false),
                     'signal_type' => $suggestion->coachingSignal?->signal_type,
                     'suggested_specialisation' => $suggestion->suggested_specialisation,
                     'threshold_ref' => $suggestion->threshold_ref,

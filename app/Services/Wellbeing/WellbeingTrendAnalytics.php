@@ -55,6 +55,7 @@ final class WellbeingTrendAnalytics implements ProvidesMethodology
                     'id' => $signal->id,
                     'client_id' => $signal->client_id,
                     'client_name' => $signal->client?->legal_name,
+                    'client_url' => route('advisor.clients.show', $signal->client_id, absolute: false),
                     'signal_type' => $signal->signal_type,
                     'severity' => $signal->severity,
                     'generated_at' => $signal->generated_at?->toIso8601String(),

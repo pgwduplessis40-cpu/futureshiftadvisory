@@ -7,7 +7,6 @@ namespace App\Services\Entrepreneurs;
 use App\Models\BusinessPlan;
 use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
-use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
@@ -107,8 +106,8 @@ final class Revision implements ProvidesMethodology
                 ];
             })
             ->values();
-        $previousOverall = $this->weightedScore($framework, $previousScores->values());
-        $currentOverall = $this->weightedScore($framework, $currentScores->values());
+        $previousOverall = AssessmentScoring::weightedScoreForFramework($framework, $previous->ai_scores ?? [], $previous->advisor_scores ?? []);
+        $currentOverall = AssessmentScoring::weightedScoreForFramework($framework, $current->ai_scores ?? [], $current->advisor_scores ?? []);
         $overallDelta = round($currentOverall - $previousOverall, 2);
 
         return [
@@ -154,7 +153,7 @@ final class Revision implements ProvidesMethodology
     {
         $assessment->loadMissing('ratingFramework.criteria');
         $scores = $this->scoreRows($assessment);
-        $overall = $this->weightedScore($assessment->ratingFramework, $scores);
+        $overall = AssessmentScoring::weightedScore($assessment);
 
         return [
             'previous_round' => null,
@@ -190,45 +189,13 @@ final class Revision implements ProvidesMethodology
      */
     private function scoreRows(PlanAssessment $assessment): Collection
     {
-        $assessment->loadMissing('ratingFramework.criteria');
-        $aiScores = collect($assessment->ai_scores ?? [])->keyBy(fn (array $score): int => (int) ($score['criterion_number'] ?? 0));
-        $advisorScores = collect($assessment->advisor_scores ?? [])->keyBy(fn (array $score): int => (int) ($score['criterion_number'] ?? 0));
-
-        return $assessment->ratingFramework->criteria
-            ->map(function ($criterion) use ($aiScores, $advisorScores): array {
-                $advisor = $advisorScores->get($criterion->number);
-                $ai = $aiScores->get($criterion->number, []);
-                $score = is_array($advisor) && is_numeric($advisor['score'] ?? null)
-                    ? (int) $advisor['score']
-                    : (int) ($ai['score'] ?? 0);
-
-                return [
-                    'criterion_number' => (int) $criterion->number,
-                    'criterion_name' => (string) $criterion->name,
-                    'score' => max(0, min(100, $score)),
-                    'weight' => (float) $criterion->weight,
-                ];
-            })
-            ->values();
-    }
-
-    /**
-     * @param  Collection<int, array<string, mixed>>  $scores
-     */
-    private function weightedScore(RatingFramework $framework, Collection $scores): float
-    {
-        $weights = $framework->criteria->pluck('weight', 'number');
-        $totalWeight = (float) $framework->criteria->sum('weight');
-
-        if ($totalWeight <= 0) {
-            return 0.0;
-        }
-
-        return round($scores->sum(function (array $row) use ($weights, $totalWeight): float {
-            $weight = (float) $weights->get((int) $row['criterion_number'], (float) ($row['weight'] ?? 0));
-
-            return ((float) $row['score']) * ($weight / $totalWeight);
-        }), 2);
+        return collect(AssessmentScoring::criteriaPayload($assessment))
+            ->map(fn (array $row): array => [
+                'criterion_number' => (int) $row['criterion_number'],
+                'criterion_name' => (string) $row['criterion_name'],
+                'score' => max(0, min(100, (int) round((float) $row['score']))),
+                'weight' => (float) $row['weight'],
+            ]);
     }
 
     private function trajectoryPercent(float $previousOverall, float $currentOverall): float

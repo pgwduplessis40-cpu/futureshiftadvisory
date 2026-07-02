@@ -15,46 +15,103 @@ final class PlanRequirements
         'foundation' => [
             'title' => 'Foundation',
             'requirements' => [
-                ['key' => 'business-type-location', 'title' => 'Business type, location, and operating model'],
-                ['key' => 'mission-vision', 'title' => 'Mission and vision'],
+                [
+                    'key' => 'business-type-location',
+                    'title' => 'Business type, location, and operating model',
+                    'description' => 'Describe the type of business, location, and means of doing business.',
+                ],
+                [
+                    'key' => 'mission-vision',
+                    'title' => 'Mission and vision',
+                    'description' => 'Explain the mission, vision, and the problem the business exists to solve.',
+                ],
             ],
         ],
         'market' => [
             'title' => 'Market',
             'requirements' => [
-                ['key' => 'industry-context', 'title' => 'Industry and customer demand'],
-                ['key' => 'differentiation', 'title' => 'What sets the business apart'],
+                [
+                    'key' => 'industry-context',
+                    'title' => 'Industry and customer demand',
+                    'description' => 'Discuss the industry, customer segment, demand evidence, and market timing.',
+                ],
+                [
+                    'key' => 'differentiation',
+                    'title' => 'What sets the business apart',
+                    'description' => 'Describe competitors, alternatives, and why customers would choose this business.',
+                ],
             ],
         ],
         'strategy' => [
             'title' => 'Strategy',
             'requirements' => [
-                ['key' => 'success-factors', 'title' => 'Unique success factors'],
-                ['key' => 'goals-objectives', 'title' => 'Goals and objectives'],
-                ['key' => 'culture', 'title' => 'Culture'],
+                [
+                    'key' => 'success-factors',
+                    'title' => 'Unique success factors',
+                    'description' => 'Describe the capabilities, relationships, or assets that improve the chance of success.',
+                ],
+                [
+                    'key' => 'goals-objectives',
+                    'title' => 'Goals and objectives',
+                    'description' => 'Set the launch goals, milestones, decisions, and measures of success.',
+                ],
+                [
+                    'key' => 'culture',
+                    'title' => 'Culture',
+                    'description' => 'Explain the team culture, values, operating behaviours, and customer promise.',
+                ],
             ],
         ],
         'legal_operations' => [
             'title' => 'Legal & Operations',
             'requirements' => [
-                ['key' => 'intellectual-property', 'title' => 'Intellectual property'],
-                ['key' => 'legal-environment', 'title' => 'Legal environment'],
-                ['key' => 'systems-software-processes', 'title' => 'What systems/software/processes will be required to run this business if viable?'],
+                [
+                    'key' => 'intellectual-property',
+                    'title' => 'Intellectual property',
+                    'description' => 'Identify brand, data, methods, contracts, licences, or IP that need protection.',
+                ],
+                [
+                    'key' => 'legal-environment',
+                    'title' => 'Legal environment',
+                    'description' => 'List legal, privacy, compliance, supplier, employment, or industry obligations.',
+                ],
+                [
+                    'key' => 'systems-software-processes',
+                    'title' => 'What systems/software/processes will be required to run this business if viable?',
+                    'description' => 'List the software, operating systems, workflows, responsibilities, suppliers, controls, and implementation gaps needed to run the business if the concept proves viable.',
+                ],
             ],
         ],
         'financial' => [
             'title' => 'Financial',
             'requirements' => [
-                ['key' => 'financial-assumptions', 'title' => 'Financial assumptions'],
-                ['key' => 'revenue-model', 'title' => 'Revenue model'],
-                ['key' => 'launch-funding', 'title' => 'Launch funding and support'],
-                ['key' => 'budget-runway', 'title' => 'Budget', 'type' => 'budget'],
+                [
+                    'key' => 'financial-assumptions',
+                    'title' => 'Financial assumptions',
+                    'description' => 'Set the planning assumptions for the budget: business model, revenue streams, target gross profit, target net profit before and after tax, revenue growth, cost inflation, funding scenarios, and known future costs.',
+                ],
+                [
+                    'key' => 'revenue-model',
+                    'title' => 'Revenue model',
+                    'description' => 'Explain pricing, margin, cost drivers, cash cycle, and early revenue assumptions.',
+                ],
+                [
+                    'key' => 'launch-funding',
+                    'title' => 'Launch funding and support',
+                    'description' => 'Describe start-up funding, support needed, runway, and financial risk controls.',
+                ],
+                [
+                    'key' => 'budget-runway',
+                    'title' => 'Budget',
+                    'description' => 'Enter launch costs, monthly costs, revenue assumptions, funding sources, and expected runway.',
+                    'type' => 'budget',
+                ],
             ],
         ],
     ];
 
     /**
-     * @return array<string, array{title:string, requirements:array<int, array{key:string, title:string, type?:string}>}>
+     * @return array<string, array{title:string, requirements:array<int, array{key:string, title:string, description:string, type?:string}>}>
      */
     public static function definitions(): array
     {

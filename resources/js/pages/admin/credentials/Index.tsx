@@ -1,11 +1,14 @@
 import { Head, useForm } from '@inertiajs/react';
 import {
+    AlertTriangle,
     Ban,
+    Bot,
     ChevronDown,
     ChevronUp,
     CircleCheck,
     Info,
     KeyRound,
+    Plus,
     PlugZap,
     RotateCw,
     ShieldCheck,
@@ -15,8 +18,18 @@ import type { FormEvent, ReactNode } from 'react';
 import { CompletionSummaryBadges } from '@/components/completion-summary-badges';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Dialog,
+    DialogClose,
+    DialogContent,
+    DialogDescription,
+    DialogFooter,
+    DialogHeader,
+    DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -48,6 +61,7 @@ type IntegrationRow = {
     api_outcome: string;
     credentials_ready: boolean;
     effective_live: boolean;
+    ai_provider: boolean;
     credentials: CredentialField[];
     practice_connection?: PracticeConnection | null;
 };
@@ -108,9 +122,13 @@ function IntegrationCredentialGroup({
     rows: IntegrationRow[];
 }) {
     const [expanded, setExpanded] = useState(false);
-    const categoryTitle = category.replaceAll('_', ' ');
+    const [addAiOpen, setAddAiOpen] = useState(false);
+    const categoryTitle = formatCategoryTitle(category);
     const contentId = `integration-credentials-${category}`;
     const completed = rows.filter((row) => row.credentials_ready).length;
+    const isAiGroup = category === 'ai';
+    const activeAi =
+        rows.find((row) => row.ai_provider && row.effective_live) ?? null;
 
     return (
         <section className="rounded-md border bg-background">
@@ -119,6 +137,21 @@ function IntegrationCredentialGroup({
                     {categoryTitle}
                 </h2>
                 <div className="flex shrink-0 items-center gap-2">
+                    {isAiGroup ? (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            className="h-8"
+                            onClick={() => {
+                                setExpanded(true);
+                                setAddAiOpen(true);
+                            }}
+                        >
+                            <Plus className="size-4" aria-hidden="true" />
+                            Add AI
+                        </Button>
+                    ) : null}
                     <CompletionSummaryBadges
                         total={rows.length}
                         completed={completed}
@@ -156,7 +189,23 @@ function IntegrationCredentialGroup({
                 </div>
             </div>
 
+            {isAiGroup ? (
+                <AddAiDialog
+                    open={addAiOpen}
+                    onOpenChange={setAddAiOpen}
+                    activeAiName={activeAi?.display_name ?? null}
+                />
+            ) : null}
+
             <div id={contentId} hidden={!expanded} className="p-4">
+                {isAiGroup ? (
+                    <div className="mb-4 rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                        Activating a different AI assistant will automatically
+                        deactivate the current AI assistant. Platform learning,
+                        knowledge, governance rules, prompt history, and audit
+                        records stay in Future Shift Advisory.
+                    </div>
+                ) : null}
                 <div className="overflow-hidden rounded-md border">
                     <table className="fsa-responsive-table table-fixed md:table-fixed">
                         <thead className="bg-muted/60 text-left">
@@ -190,6 +239,76 @@ function IntegrationCredentialGroup({
                 </div>
             </div>
         </section>
+    );
+}
+
+function AddAiDialog({
+    open,
+    onOpenChange,
+    activeAiName,
+}: {
+    open: boolean;
+    onOpenChange: (open: boolean) => void;
+    activeAiName: string | null;
+}) {
+    const currentAssistant = activeAiName ?? 'the current AI assistant';
+
+    return (
+        <Dialog open={open} onOpenChange={onOpenChange}>
+            <DialogContent>
+                <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                        <Bot className="size-5" aria-hidden="true" />
+                        Add AI assistant
+                    </DialogTitle>
+                    <DialogDescription>
+                        Connect a replacement assistant while keeping Future
+                        Shift Advisory knowledge and governance in the platform.
+                    </DialogDescription>
+                </DialogHeader>
+
+                <div className="space-y-4">
+                    <Alert>
+                        <AlertTriangle className="size-4" aria-hidden="true" />
+                        <AlertTitle>
+                            Only one AI assistant can be live
+                        </AlertTitle>
+                        <AlertDescription>
+                            <p>
+                                When a new AI assistant is added and activated,{' '}
+                                {currentAssistant} will be deactivated
+                                automatically.
+                            </p>
+                        </AlertDescription>
+                    </Alert>
+
+                    <div className="rounded-md border bg-muted/30 p-3 text-sm leading-6 text-muted-foreground">
+                        The learning history, knowledge records, governance
+                        principles, prompt versions, evidence trails, and audit
+                        records remain in Future Shift Advisory. A new AI
+                        assistant starts from the platform record, not from a
+                        blank slate.
+                    </div>
+                </div>
+
+                <DialogFooter>
+                    <DialogClose asChild>
+                        <Button type="button" variant="outline">
+                            Cancel
+                        </Button>
+                    </DialogClose>
+                    <DialogClose asChild>
+                        <Button type="button">
+                            <ShieldCheck
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            I understand
+                        </Button>
+                    </DialogClose>
+                </DialogFooter>
+            </DialogContent>
+        </Dialog>
     );
 }
 
@@ -276,7 +395,8 @@ function PracticeConnectionControl({ row }: { row: IntegrationRow }) {
             </div>
             {connection.last_invoice_sync_at ? (
                 <div className="text-xs text-muted-foreground">
-                    Last invoice sync {formatDateTime(connection.last_invoice_sync_at)}
+                    Last invoice sync{' '}
+                    {formatDateTime(connection.last_invoice_sync_at)}
                 </div>
             ) : null}
             <div className="flex flex-wrap gap-2">
@@ -511,6 +631,14 @@ function formatDateTime(value: string) {
         dateStyle: 'medium',
         timeStyle: 'short',
     }).format(new Date(value));
+}
+
+function formatCategoryTitle(category: string) {
+    if (category === 'ai') {
+        return 'AI';
+    }
+
+    return category.replaceAll('_', ' ');
 }
 
 function ReadinessBadge({ row }: { row: IntegrationRow }) {

@@ -117,6 +117,44 @@ final class IntegrationActivationResolverTest extends TestCase
         $this->assertFalse(app(IntegrationActivationResolver::class)->isLive('stripe'));
     }
 
+    public function test_activating_replacement_ai_provider_deactivates_current_ai_provider(): void
+    {
+        config([
+            'services.anthropic.key' => 'anthropic-live-key',
+            'ai.providers.replacement' => [
+                'display_name' => 'Replacement AI',
+                'integration_key' => 'replacement_ai',
+                'client' => self::class,
+                'status' => 'available',
+            ],
+            'integration_registry.integrations.replacement_ai' => [
+                'display_name' => 'Replacement AI',
+                'category' => 'ai',
+                'fallback_mode' => 'api_required',
+                'managed_via' => 'vault',
+                'wiring_status' => 'wired',
+                'credentials' => [],
+            ],
+        ]);
+        $admin = $this->admin();
+        $resolver = app(IntegrationActivationResolver::class);
+
+        $this->assertTrue($resolver->isLive('anthropic'));
+
+        $resolver->activate('replacement_ai', $admin);
+
+        $this->assertFalse($resolver->isLive('anthropic'));
+        $this->assertTrue($resolver->isLive('replacement_ai'));
+        $this->assertDatabaseHas('integration_activations', [
+            'integration_key' => 'anthropic',
+            'active' => false,
+        ]);
+        $this->assertDatabaseHas('integration_activations', [
+            'integration_key' => 'replacement_ai',
+            'active' => true,
+        ]);
+    }
+
     public function test_not_wired_integration_forces_fake_binding_even_when_env_flag_is_enabled(): void
     {
         config(['services.whisper.live' => true]);

@@ -104,6 +104,7 @@ final class PlanBuilderTest extends TestCase
             [
                 'key' => 'systems-software-processes',
                 'title' => 'What systems/software/processes will be required to run this business if viable?',
+                'description' => 'List the software, operating systems, workflows, responsibilities, suppliers, controls, and implementation gaps needed to run the business if the concept proves viable.',
             ],
             $legalOperations,
         );

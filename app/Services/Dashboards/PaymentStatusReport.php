@@ -130,6 +130,7 @@ final class PaymentStatusReport
             'id' => (string) $payment->getKey(),
             'client_id' => $clientId,
             'client_name' => $client?->legal_name,
+            'client_url' => route('advisor.clients.show', $clientId, absolute: false),
             'status' => $payment->status,
             'amount' => (float) $payment->amount,
             'currency' => $payment->currency,

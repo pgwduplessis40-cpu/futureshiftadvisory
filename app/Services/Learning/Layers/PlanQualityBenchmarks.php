@@ -9,6 +9,7 @@ use App\Models\LearningLayerRun;
 use App\Models\LearningUpdate;
 use App\Models\PlanAssessment;
 use App\Services\Audit\AuditWriter;
+use App\Services\Entrepreneurs\AssessmentScoring;
 use App\Services\Privacy\CohortGuard;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
@@ -160,20 +161,7 @@ final class PlanQualityBenchmarks
 
     private function score(PlanAssessment $assessment): float
     {
-        $assessment->loadMissing('ratingFramework.criteria');
-        $weights = $assessment->ratingFramework->criteria->pluck('weight', 'number');
-        $scores = collect($assessment->ai_scores ?? [])->keyBy(fn (array $row): int => (int) ($row['criterion_number'] ?? 0));
-        $advisorScores = collect($assessment->advisor_scores ?? [])->keyBy(fn (array $row): int => (int) ($row['criterion_number'] ?? 0));
-
-        return round($assessment->ratingFramework->criteria->sum(function ($criterion) use ($weights, $scores, $advisorScores): float {
-            $advisor = $advisorScores->get($criterion->number);
-            $ai = $scores->get($criterion->number, []);
-            $score = is_array($advisor) && is_numeric($advisor['score'] ?? null)
-                ? (float) $advisor['score']
-                : (float) ($ai['score'] ?? 0);
-
-            return $score * (((float) $weights->get($criterion->number, 0)) / 100);
-        }), 2);
+        return AssessmentScoring::weightedScore($assessment);
     }
 
     /**

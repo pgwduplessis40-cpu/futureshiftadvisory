@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
 export const show = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
 show.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ show.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
 show.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ show.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
 show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
     const showForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
         showForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::show
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:28
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:30
  * @route '/portal/business-plan-budget'
  */
         showForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:52
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:54
  * @route '/portal/business-plan-budget'
  */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:52
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:54
  * @route '/portal/business-plan-budget'
  */
 update.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:52
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:54
  * @route '/portal/business-plan-budget'
  */
 update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:52
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:54
  * @route '/portal/business-plan-budget'
  */
     const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:52
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:54
  * @route '/portal/business-plan-budget'
  */
         updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -134,7 +134,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:65
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:67
  * @route '/portal/business-plan-budget/submit'
  */
 export const submit = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -149,7 +149,7 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:65
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:67
  * @route '/portal/business-plan-budget/submit'
  */
 submit.url = (options?: RouteQueryOptions) => {
@@ -158,7 +158,7 @@ submit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:65
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:67
  * @route '/portal/business-plan-budget/submit'
  */
 submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -168,7 +168,7 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:65
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:67
  * @route '/portal/business-plan-budget/submit'
  */
     const submitForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -178,7 +178,7 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
- * @see app/Http/Controllers/Portal/StrategicBudgetController.php:65
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:67
  * @route '/portal/business-plan-budget/submit'
  */
         submitForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -187,6 +187,84 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
         })
 
     submit.form = submitForm
-const StrategicBudgetController = { show, update, submit }
+/**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+export const exportMethod = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: exportMethod.url(options),
+    method: 'get',
+})
+
+exportMethod.definition = {
+    methods: ["get","head"],
+    url: '/portal/business-plan-budget/export',
+} satisfies RouteDefinition<["get","head"]>
+
+/**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+exportMethod.url = (options?: RouteQueryOptions) => {
+    return exportMethod.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+exportMethod.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
+    url: exportMethod.url(options),
+    method: 'get',
+})
+/**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+exportMethod.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
+    url: exportMethod.url(options),
+    method: 'head',
+})
+
+    /**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+    const exportMethodForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+        action: exportMethod.url(options),
+        method: 'get',
+    })
+
+            /**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+        exportMethodForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url(options),
+            method: 'get',
+        })
+            /**
+* @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
+ * @see app/Http/Controllers/Portal/StrategicBudgetController.php:90
+ * @route '/portal/business-plan-budget/export'
+ */
+        exportMethodForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
+            action: exportMethod.url({
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'HEAD',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'get',
+        })
+
+    exportMethod.form = exportMethodForm
+const StrategicBudgetController = { show, update, submit, exportMethod, export: exportMethod }
 
 export default StrategicBudgetController

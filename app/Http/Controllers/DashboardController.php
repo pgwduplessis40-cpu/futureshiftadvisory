@@ -910,6 +910,7 @@ final class DashboardController extends Controller
                     'budget_status_label' => $hasAcceptedSnapshot
                         ? 'Budget snapshot'
                         : ($budget instanceof StrategicBudget ? str($budget->status)->replace('_', ' ')->title()->toString() : null),
+                    'client_url' => route('advisor.clients.show', $proposal->client_id, absolute: false),
                     'detail_url' => route('advisor.clients.show', $proposal->client_id, absolute: false).'#section-proposals',
                     'action_url' => route('advisor.proposals.strategic-plan.generate', $proposal, absolute: false),
                     'action_label' => 'Generate strategic plan',
@@ -932,6 +933,7 @@ final class DashboardController extends Controller
                 'milestones_count' => (int) ($plan->milestones_count ?? 0),
                 'status_label' => 'Draft strategic plan',
                 'budget_status_label' => null,
+                'client_url' => route('advisor.clients.show', $plan->client_id, absolute: false),
                 'detail_url' => route('advisor.clients.show', $plan->client_id, absolute: false).'#section-strategic-plan',
                 'action_url' => null,
                 'action_label' => 'Open strategic plan',
@@ -1767,6 +1769,7 @@ final class DashboardController extends Controller
             'cash_flow' => $cashFlow ?? [
                 'client_id' => (string) $client->getKey(),
                 'client_name' => $client->legal_name,
+                'client_url' => route('advisor.clients.show', $client, absolute: false),
                 'status' => 'unknown',
                 'status_label' => 'Unknown',
                 'tone' => 'muted',
@@ -1814,7 +1817,11 @@ final class DashboardController extends Controller
                 'claim_text' => $verification->claim_text,
                 'explanation' => $verification->explanation,
                 'client_explanation' => $verification->clientFacingExplanation(),
+                'client_id' => $verification->client_id ?? $verification->document?->client_id,
                 'client_name' => $verification->client?->legal_name ?? $verification->document?->client?->legal_name,
+                'client_url' => ($verification->client_id ?? $verification->document?->client_id)
+                    ? route('advisor.clients.show', $verification->client_id ?? $verification->document?->client_id, absolute: false)
+                    : null,
                 'document_name' => $verification->document?->original_filename,
                 'created_at' => $verification->created_at?->toIso8601String(),
             ])
@@ -1866,6 +1873,7 @@ final class DashboardController extends Controller
                     'id' => $member->id,
                     'client_id' => $member->client_id,
                     'client_name' => $member->client?->legal_name,
+                    'client_url' => route('advisor.clients.show', $member->client_id, absolute: false),
                     'user_id' => $member->user_id,
                     'user_name' => $member->user?->name,
                     'user_email' => $member->user?->email,
@@ -2248,6 +2256,7 @@ final class DashboardController extends Controller
                 'id' => $scenario->id,
                 'client_id' => $scenario->client_id,
                 'client_name' => $scenario->client?->legal_name,
+                'client_url' => route('advisor.clients.show', $scenario->client_id, absolute: false),
                 'name' => $scenario->name,
                 'kind' => $scenario->kind,
                 'pv_impact' => $scenario->pv_impact,

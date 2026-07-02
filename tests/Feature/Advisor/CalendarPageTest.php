@@ -161,7 +161,7 @@ final class CalendarPageTest extends TestCase
             ->get(route('advisor.calendar.index'))
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
-                ->where('publicHolidays', fn (array $holidays): bool => collect($holidays)
+                ->where('publicHolidays', fn ($holidays): bool => collect($holidays)
                     ->contains(fn (array $holiday): bool => $holiday['title'] === 'Matariki')
                     && collect($holidays)->contains(fn (array $holiday): bool => $holiday['title'] === 'Labour Day')
                     && ! collect($holidays)->contains(fn (array $holiday): bool => $holiday['title'] === 'Canterbury South Anniversary Day'))

@@ -87,6 +87,7 @@ final class PvWaterfallBuilder implements ProvidesMethodology
         return [
             'client_id' => $client->id,
             'client_name' => $client->legal_name,
+            'client_url' => route('advisor.clients.show', $client, absolute: false),
             'business_valuation_id' => $valuation?->id,
             'current_pv' => round($current, 2),
             'improvement_pv' => round($improvement, 2),

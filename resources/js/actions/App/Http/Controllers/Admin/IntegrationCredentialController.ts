@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::index
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:28
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:29
  * @route '/admin/integration-credentials'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::store
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:41
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:49
  * @route '/admin/integration-credentials'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::store
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:41
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:49
  * @route '/admin/integration-credentials'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::store
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:41
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:49
  * @route '/admin/integration-credentials'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::store
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:41
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:49
  * @route '/admin/integration-credentials'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,18 +123,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::store
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:41
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:49
  * @route '/admin/integration-credentials'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::revoke
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:62
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:70
  * @route '/admin/integration-credentials/revoke'
  */
 export const revoke = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -149,7 +149,7 @@ revoke.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::revoke
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:62
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:70
  * @route '/admin/integration-credentials/revoke'
  */
 revoke.url = (options?: RouteQueryOptions) => {
@@ -158,7 +158,7 @@ revoke.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::revoke
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:62
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:70
  * @route '/admin/integration-credentials/revoke'
  */
 revoke.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -168,7 +168,7 @@ revoke.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::revoke
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:62
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:70
  * @route '/admin/integration-credentials/revoke'
  */
     const revokeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -183,7 +183,7 @@ revoke.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::revoke
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:62
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:70
  * @route '/admin/integration-credentials/revoke'
  */
         revokeForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -195,11 +195,11 @@ revoke.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-    
+
     revoke.form = revokeForm
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::activate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:82
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:90
  * @route '/admin/integration-credentials/activate'
  */
 export const activate = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -214,7 +214,7 @@ activate.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::activate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:82
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:90
  * @route '/admin/integration-credentials/activate'
  */
 activate.url = (options?: RouteQueryOptions) => {
@@ -223,7 +223,7 @@ activate.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::activate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:82
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:90
  * @route '/admin/integration-credentials/activate'
  */
 activate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -233,7 +233,7 @@ activate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::activate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:82
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:90
  * @route '/admin/integration-credentials/activate'
  */
     const activateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -248,7 +248,7 @@ activate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::activate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:82
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:90
  * @route '/admin/integration-credentials/activate'
  */
         activateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -260,11 +260,11 @@ activate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-    
+
     activate.form = activateForm
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::deactivate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:96
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:104
  * @route '/admin/integration-credentials/deactivate'
  */
 export const deactivate = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -279,7 +279,7 @@ deactivate.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::deactivate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:96
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:104
  * @route '/admin/integration-credentials/deactivate'
  */
 deactivate.url = (options?: RouteQueryOptions) => {
@@ -288,7 +288,7 @@ deactivate.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::deactivate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:96
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:104
  * @route '/admin/integration-credentials/deactivate'
  */
 deactivate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -298,7 +298,7 @@ deactivate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::deactivate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:96
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:104
  * @route '/admin/integration-credentials/deactivate'
  */
     const deactivateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -313,7 +313,7 @@ deactivate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\IntegrationCredentialController::deactivate
- * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:96
+ * @see app/Http/Controllers/Admin/IntegrationCredentialController.php:104
  * @route '/admin/integration-credentials/deactivate'
  */
         deactivateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -325,7 +325,7 @@ deactivate.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-    
+
     deactivate.form = deactivateForm
 const IntegrationCredentialController = { index, store, revoke, activate, deactivate }
 

@@ -81,6 +81,7 @@ final class PracticeHealthReport
                 return [
                     'client_id' => $clientId,
                     'client_name' => $client->legal_name,
+                    'client_url' => route('advisor.clients.show', $clientId, absolute: false),
                     'current_pv' => $currentPv,
                     'improvement_pv' => $improvementPv,
                     'risk_mitigation_pv' => $riskMitigationPv,

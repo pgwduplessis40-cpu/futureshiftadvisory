@@ -29,6 +29,7 @@ use App\Services\Entrepreneurs\Guidance;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\PlanBuilder;
 use App\Services\Entrepreneurs\PlanDocuments;
+use App\Services\Entrepreneurs\PlanRequirements;
 use App\Services\Entrepreneurs\Readiness;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Pdf\PdfRenderer;
@@ -63,105 +64,6 @@ final class EntrepreneurPlanController extends Controller
         'financial_runway' => 'Financial runway',
         'support_network' => 'Support network',
         'launch_readiness' => 'Launch readiness',
-    ];
-
-    private const PLAN_REQUIREMENTS = [
-        'foundation' => [
-            'title' => 'Foundation',
-            'requirements' => [
-                [
-                    'key' => 'business-type-location',
-                    'title' => 'Business type, location, and operating model',
-                    'description' => 'Describe the type of business, location, and means of doing business.',
-                ],
-                [
-                    'key' => 'mission-vision',
-                    'title' => 'Mission and vision',
-                    'description' => 'Explain the mission, vision, and the problem the business exists to solve.',
-                ],
-            ],
-        ],
-        'market' => [
-            'title' => 'Market',
-            'requirements' => [
-                [
-                    'key' => 'industry-context',
-                    'title' => 'Industry and customer demand',
-                    'description' => 'Discuss the industry, customer segment, demand evidence, and market timing.',
-                ],
-                [
-                    'key' => 'differentiation',
-                    'title' => 'What sets the business apart',
-                    'description' => 'Describe competitors, alternatives, and why customers would choose this business.',
-                ],
-            ],
-        ],
-        'strategy' => [
-            'title' => 'Strategy',
-            'requirements' => [
-                [
-                    'key' => 'success-factors',
-                    'title' => 'Unique success factors',
-                    'description' => 'Describe the capabilities, relationships, or assets that improve the chance of success.',
-                ],
-                [
-                    'key' => 'goals-objectives',
-                    'title' => 'Goals and objectives',
-                    'description' => 'Set the launch goals, milestones, decisions, and measures of success.',
-                ],
-                [
-                    'key' => 'culture',
-                    'title' => 'Culture',
-                    'description' => 'Explain the team culture, values, operating behaviours, and customer promise.',
-                ],
-            ],
-        ],
-        'legal_operations' => [
-            'title' => 'Legal & Operations',
-            'requirements' => [
-                [
-                    'key' => 'intellectual-property',
-                    'title' => 'Intellectual property',
-                    'description' => 'Identify brand, data, methods, contracts, licences, or IP that need protection.',
-                ],
-                [
-                    'key' => 'legal-environment',
-                    'title' => 'Legal environment',
-                    'description' => 'List legal, privacy, compliance, supplier, employment, or industry obligations.',
-                ],
-                [
-                    'key' => 'systems-software-processes',
-                    'title' => 'What systems/software/processes will be required to run this business if viable?',
-                    'description' => 'List the software, operating systems, workflows, responsibilities, suppliers, controls, and implementation gaps needed to run the business if the concept proves viable.',
-                ],
-            ],
-        ],
-        'financial' => [
-            'title' => 'Financial',
-            'requirements' => [
-                [
-                    'key' => 'financial-assumptions',
-                    'title' => 'Financial assumptions',
-                    'description' => 'Set the planning assumptions for the budget: business model, revenue streams, target gross profit, target net profit before and after tax, revenue growth, cost inflation, funding scenarios, and known future costs.',
-                ],
-                [
-                    'key' => 'revenue-model',
-                    'title' => 'Revenue model',
-                    'description' => 'Explain pricing, margin, cost drivers, cash cycle, and early revenue assumptions.',
-                ],
-                [
-                    'key' => 'launch-funding',
-                    'title' => 'Launch funding and support',
-                    'description' => 'Describe start-up funding, support needed, runway, and financial risk controls.',
-                ],
-                [
-                    'key' => 'budget-runway',
-                    'title' => 'Budget',
-                    'description' => 'Enter launch costs, monthly costs, revenue assumptions, funding sources, and expected runway.',
-                    'type' => 'budget',
-                ],
-            ],
-        ],
     ];
 
     public function __construct(
@@ -339,7 +241,7 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($plan instanceof BusinessPlan, 404);
 
         $validated = $request->validate([
-            'phase_key' => ['required', 'string', Rule::in(array_keys(self::PLAN_REQUIREMENTS))],
+            'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
             'requirement_key' => ['required', 'string', 'max:100'],
             'title' => ['nullable', 'string', 'max:180'],
             'body' => ['required', 'string', 'min:80', 'max:8000'],
@@ -497,7 +399,7 @@ final class EntrepreneurPlanController extends Controller
         abort_unless($plan instanceof BusinessPlan, 404);
 
         $validated = $request->validate([
-            'phase_key' => ['required', 'string', Rule::in(array_keys(self::PLAN_REQUIREMENTS))],
+            'phase_key' => ['required', 'string', Rule::in(array_keys(PlanRequirements::definitions()))],
             'requirement_key' => ['required', 'string', 'max:100'],
             'body' => ['nullable', 'string', 'max:8000'],
         ]);
@@ -505,7 +407,7 @@ final class EntrepreneurPlanController extends Controller
         $requirement = [
             ...$this->requirement($phaseKey, (string) $validated['requirement_key']),
             'phase_key' => $phaseKey,
-            'phase_title' => self::PLAN_REQUIREMENTS[$phaseKey]['title'],
+            'phase_title' => PlanRequirements::phaseTitle($phaseKey),
         ];
 
         return response()->json($this->guidance->draftRequirement(
@@ -759,7 +661,7 @@ final class EntrepreneurPlanController extends Controller
                 'finalised_at' => $latestAssessment->finalised_at?->toIso8601String(),
                 'url' => route('portal.entrepreneur.assessments.show', $latestAssessment, absolute: false),
             ] : null,
-            'phases' => collect(self::PLAN_REQUIREMENTS)
+            'phases' => collect(PlanRequirements::definitions())
                 ->map(function (array $definition, string $phaseKey) use ($phasesByKey, $requirements): array {
                     $phase = $phasesByKey->get($phaseKey);
 
@@ -797,7 +699,7 @@ final class EntrepreneurPlanController extends Controller
      */
     private function planTemplatePayload(): array
     {
-        return collect(self::PLAN_REQUIREMENTS)
+        return collect(PlanRequirements::definitions())
             ->map(fn (array $definition, string $phaseKey): array => [
                 'key' => $phaseKey,
                 'title' => $definition['title'],
@@ -825,7 +727,7 @@ final class EntrepreneurPlanController extends Controller
         $sections = $plan->sections;
         $budget = $plan->budgetRunway;
 
-        return collect(self::PLAN_REQUIREMENTS)
+        return collect(PlanRequirements::definitions())
             ->mapWithKeys(function (array $definition, string $phaseKey) use ($sections, $budget): array {
                 return [
                     $phaseKey => collect($definition['requirements'])
@@ -1043,7 +945,7 @@ final class EntrepreneurPlanController extends Controller
      */
     private function requirement(string $phaseKey, string $requirementKey): array
     {
-        $requirement = collect(self::PLAN_REQUIREMENTS[$phaseKey]['requirements'] ?? [])
+        $requirement = collect(PlanRequirements::definitions()[$phaseKey]['requirements'] ?? [])
             ->first(fn (array $definition): bool => $definition['key'] === $requirementKey);
         abort_unless(is_array($requirement), 422);
 

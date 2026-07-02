@@ -1520,18 +1520,35 @@ XML);
             ->value('id');
 
         if ($ratingFrameworkId !== null) {
+            $assessmentScores = DB::table('rating_criteria')
+                ->where('rating_framework_id', $ratingFrameworkId)
+                ->orderBy('number')
+                ->get(['id', 'number', 'name', 'weight'])
+                ->map(fn (object $criterion): array => [
+                    'criterion_id' => (string) $criterion->id,
+                    'criterion_number' => (int) $criterion->number,
+                    'criterion_name' => (string) $criterion->name,
+                    'score' => 82,
+                    'weight' => (float) $criterion->weight,
+                    'rationale' => 'Seeded first-pass score uses canonical criterion rows for testing.',
+                    'attributions' => [
+                        [
+                            'claim' => 'Seeded assessment score derived from the demo business plan.',
+                            'source_reference' => 'business_plan:'.$planId,
+                        ],
+                    ],
+                    'score_source' => 'seed_fixture',
+                ])
+                ->values()
+                ->all();
+
             $this->ids['plan_assessment'] = $this->upsert('plan_assessments', [
                 'business_plan_id' => $planId,
                 'round' => 1,
             ], [
                 'rating_framework_id' => $ratingFrameworkId,
-                'ai_scores' => $this->json([
-                    'problem' => 8.6,
-                    'market' => 8.1,
-                    'evidence' => 7.9,
-                    'execution' => 8.4,
-                ]),
-                'advisor_scores' => $this->json(['overall' => 8.2, 'note' => 'Good evidence depth for a first plan.']),
+                'ai_scores' => $this->json($assessmentScores),
+                'advisor_scores' => $this->json([]),
                 'mentor_notes' => $this->json([
                     ['mentor_user_id' => $this->users['mentor']->getKey(), 'note' => 'Tighten integration assumptions before launch.'],
                 ]),

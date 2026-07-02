@@ -1,3 +1,4 @@
+import { Link } from '@inertiajs/react';
 import { FileWarning } from 'lucide-react';
 import type { VerificationOutcome } from './Badge';
 import { VerificationBadge } from './Badge';
@@ -9,7 +10,9 @@ export type DocumentVerificationFlag = {
     claim_text: string;
     explanation?: string | null;
     client_explanation?: string | null;
+    client_id?: string | null;
     client_name?: string | null;
+    client_url?: string | null;
     document_name?: string | null;
     created_at?: string | null;
 };
@@ -53,9 +56,20 @@ export function DocumentVerificationFlagPanel({
                             <div className="min-w-0 space-y-1">
                                 <div className="flex flex-wrap items-center gap-2">
                                     <VerificationBadge outcome={flag.outcome} />
-                                    <span className="truncate text-sm font-medium">
-                                        {flag.client_name ?? 'Unknown client'}
-                                    </span>
+                                    {flag.client_url ? (
+                                        <Link
+                                            href={flag.client_url}
+                                            className="truncate text-sm font-medium text-foreground hover:underline focus-visible:underline focus-visible:outline-none"
+                                        >
+                                            {flag.client_name ??
+                                                'Unknown client'}
+                                        </Link>
+                                    ) : (
+                                        <span className="truncate text-sm font-medium">
+                                            {flag.client_name ??
+                                                'Unknown client'}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="text-sm text-muted-foreground">
                                     {flag.document_name ?? 'Uploaded document'}

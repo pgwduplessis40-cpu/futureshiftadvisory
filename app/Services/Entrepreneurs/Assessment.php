@@ -13,6 +13,7 @@ use App\Models\RatingCriterion;
 use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
+use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
@@ -180,7 +181,7 @@ final class Assessment implements ProvidesMethodology
             id: EntrepreneurPromptRegistry::PLAN_SCORE_CRITERION,
             version: '2026-05-23',
             task: 'Score one entrepreneur business-plan criterion honestly against the current rating framework.',
-            body: 'Return an honest first-pass score and rationale. Do not flatter weak evidence.',
+            body: 'Return JSON only. Set metadata.score to an honest integer from 0 to 100 and set text to the rationale. Do not flatter weak evidence.',
             input: [
                 'business_plan_id' => $plan->getKey(),
                 'criterion' => [
@@ -196,16 +197,20 @@ final class Assessment implements ProvidesMethodology
             sourceReferences: ['business_plan:'.$plan->getKey(), 'rating_criterion:'.$criterion->getKey()],
         );
         $response = $this->ai->scoreCriterion($prompt);
-        $base = $this->heuristicScore($criterion, $plan, $sectionsText);
+        $fallbackScore = $this->heuristicScore($criterion, $plan, $sectionsText);
+        $aiScore = $this->scoreFromResponse($response);
+        $score = $aiScore ?? $fallbackScore;
+        $scoreSource = $aiScore === null ? 'deterministic_fallback' : 'ai_assessment';
 
         return [
             'criterion_id' => $criterion->getKey(),
             'criterion_number' => $criterion->number,
             'criterion_name' => $criterion->name,
-            'score' => $base,
-            'rationale' => $base < 60
-                ? 'First-pass score is conservative because draft evidence is incomplete.'
-                : 'First-pass score reflects current draft evidence and framework descriptors.',
+            'score' => $score,
+            'score_source' => $scoreSource,
+            'rationale' => $scoreSource === 'ai_assessment'
+                ? $this->rationaleFromResponse($response, $score)
+                : $this->fallbackRationale($fallbackScore),
             'attributions' => [
                 ...$response->attributions,
                 [
@@ -214,7 +219,46 @@ final class Assessment implements ProvidesMethodology
                 ],
             ],
             'model' => $response->model,
+            'metadata' => [
+                'ai_score' => $aiScore,
+                'fallback_score' => $fallbackScore,
+                'score_source' => $scoreSource,
+                'uncertainty' => $response->uncertainty->value,
+            ],
         ];
+    }
+
+    private function scoreFromResponse(AiResponse $response): ?int
+    {
+        $candidate = data_get($response->metadata, 'score')
+            ?? data_get($response->metadata, 'criterion_score')
+            ?? data_get($response->metadata, 'score_0_100');
+
+        if (! is_numeric($candidate)) {
+            return null;
+        }
+
+        return max(0, min(100, (int) round((float) $candidate)));
+    }
+
+    private function rationaleFromResponse(AiResponse $response, int $score): string
+    {
+        $text = trim($response->text);
+
+        if ($text !== '') {
+            return $text;
+        }
+
+        return $score < 60
+            ? 'AI first-pass score is conservative because draft evidence is incomplete.'
+            : 'AI first-pass score reflects current draft evidence and framework descriptors.';
+    }
+
+    private function fallbackRationale(int $score): string
+    {
+        return $score < 60
+            ? 'Deterministic first-pass fallback used because the AI response did not include a valid score; draft evidence is incomplete.'
+            : 'Deterministic first-pass fallback used because the AI response did not include a valid score; review before relying on this criterion.';
     }
 
     private function heuristicScore(RatingCriterion $criterion, BusinessPlan $plan, string $sectionsText): int

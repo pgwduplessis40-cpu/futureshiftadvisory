@@ -9,8 +9,10 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Throwable;
 
 final class IntegrationActivationResolver
 {
@@ -81,20 +83,27 @@ final class IntegrationActivationResolver
         abort_if(($definition['wiring_status'] ?? 'wired') !== 'wired', 422);
         abort_unless($this->credentialsReady($integrationKey), 422);
 
-        $activation = IntegrationActivation::query()->updateOrCreate(
-            ['integration_key' => $integrationKey],
-            [
-                'active' => true,
-                'activated_by_user_id' => $actor->getKey(),
-                'activated_at' => now(),
-                'deactivated_at' => null,
-            ],
-        );
+        /** @var IntegrationActivation $activation */
+        $activation = DB::transaction(function () use ($integrationKey, $actor): IntegrationActivation {
+            $this->deactivateOtherAiProviders($integrationKey, $actor);
 
-        $this->audit->record('integration.activation.enabled', subject: $activation, actor: $actor, after: [
-            'integration_key' => $integrationKey,
-            'active' => true,
-        ]);
+            $activation = IntegrationActivation::query()->updateOrCreate(
+                ['integration_key' => $integrationKey],
+                [
+                    'active' => true,
+                    'activated_by_user_id' => $actor->getKey(),
+                    'activated_at' => now(),
+                    'deactivated_at' => null,
+                ],
+            );
+
+            $this->audit->record('integration.activation.enabled', subject: $activation, actor: $actor, after: [
+                'integration_key' => $integrationKey,
+                'active' => true,
+            ]);
+
+            return $activation;
+        });
 
         return $activation;
     }
@@ -157,9 +166,81 @@ final class IntegrationActivationResolver
         return $this->credentialsReady($integrationKey);
     }
 
+    private function deactivateOtherAiProviders(string $integrationKey, User $actor): void
+    {
+        $providerIntegrationKeys = $this->aiProviderIntegrationKeys();
+        if (! in_array($integrationKey, $providerIntegrationKeys, true)) {
+            return;
+        }
+
+        $otherProviderKeys = array_values(array_diff($providerIntegrationKeys, [$integrationKey]));
+        if ($otherProviderKeys === []) {
+            return;
+        }
+
+        foreach ($otherProviderKeys as $otherProviderKey) {
+            if ($this->registry->integration($otherProviderKey) === null) {
+                continue;
+            }
+
+            $wasLive = $this->isLive($otherProviderKey);
+
+            $activation = IntegrationActivation::query()->updateOrCreate(
+                ['integration_key' => $otherProviderKey],
+                [
+                    'active' => false,
+                    'activated_by_user_id' => $actor->getKey(),
+                    'deactivated_at' => now(),
+                ],
+            );
+
+            if ($wasLive) {
+                $this->audit->record('integration.activation.disabled', subject: $activation, actor: $actor, after: [
+                    'integration_key' => $otherProviderKey,
+                    'active' => false,
+                    'reason' => 'ai_provider_switch',
+                    'replacement_integration_key' => $integrationKey,
+                ]);
+            }
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function aiProviderIntegrationKeys(): array
+    {
+        $providers = Config::get('ai.providers', []);
+        if (! is_array($providers)) {
+            return [];
+        }
+
+        $keys = [];
+        foreach ($providers as $key => $provider) {
+            if (! is_array($provider)) {
+                continue;
+            }
+
+            $integrationKey = $provider['integration_key'] ?? $key;
+            if (is_string($integrationKey) && trim($integrationKey) !== '') {
+                $keys[] = trim($integrationKey);
+            }
+        }
+
+        return array_values(array_unique($keys));
+    }
+
     private function activationStoreAvailable(): bool
     {
-        return $this->activationStoreAvailable ??= Schema::hasTable('integration_activations');
+        if ($this->activationStoreAvailable !== null) {
+            return $this->activationStoreAvailable;
+        }
+
+        try {
+            return $this->activationStoreAvailable = Schema::hasTable('integration_activations');
+        } catch (Throwable) {
+            return $this->activationStoreAvailable = false;
+        }
     }
 
     private function environmentReady(string $integrationKey): bool

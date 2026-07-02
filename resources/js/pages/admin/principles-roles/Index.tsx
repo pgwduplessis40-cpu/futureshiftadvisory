@@ -62,7 +62,7 @@ export default function PrinciplesRolesIndex({
                     eyebrow="Administration"
                     icon={ShieldCheck}
                     title="Principles & Roles"
-                    description="Govern the non-negotiable principles and system roles that guide platform behaviour."
+                    description="Set the non-negotiable rules and system roles the platform and AI assistant must follow."
                     actions={
                         <Badge variant="outline">
                             Version {current?.version ?? 1}
@@ -76,9 +76,11 @@ export default function PrinciplesRolesIndex({
                         Critical - Non-Negotiable Platform Principle
                     </AlertTitle>
                     <AlertDescription>
-                        These principles must remain honest, evidence-based,
-                        accurate, free from bias, truthful, and explicit about
-                        advisor visibility where facts conflict.
+                        The active version is injected into AI prompt envelopes
+                        and must be followed by the system and AI assistant.
+                        These rules are honest, evidence-based, accurate, free
+                        from bias, truthful, and explicit about advisor
+                        visibility where facts conflict.
                     </AlertDescription>
                 </Alert>
 

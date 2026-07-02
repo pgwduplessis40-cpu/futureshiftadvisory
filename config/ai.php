@@ -2,10 +2,27 @@
 
 declare(strict_types=1);
 
+use App\Services\Ai\Claude\AnthropicClaudeClient;
+
 $monthlyBudgetUsd = env('AI_MONTHLY_BUDGET_USD');
 $usdToNzdRate = env('AI_USD_TO_NZD_RATE');
 
 return [
+    'default_provider' => env('AI_PROVIDER', 'anthropic'),
+
+    'active_provider' => env('AI_PROVIDER', 'anthropic'),
+
+    'force_fake' => (bool) env('AI_FORCE_FAKE', false),
+
+    'providers' => [
+        'anthropic' => [
+            'display_name' => 'Anthropic Claude',
+            'integration_key' => 'anthropic',
+            'client' => AnthropicClaudeClient::class,
+            'status' => 'available',
+        ],
+    ],
+
     'costs' => [
         'monthly_budget_usd' => $monthlyBudgetUsd === null ? null : (float) $monthlyBudgetUsd,
         'usd_to_nzd_rate' => $usdToNzdRate === null ? null : (float) $usdToNzdRate,

@@ -26,28 +26,38 @@ final class AssessmentScoring
         $totalWeight = self::totalWeight($framework);
 
         return $framework->criteria
-            ->map(function ($criterion) use ($aiScores, $advisorScores, $totalWeight): array {
+            ->map(function ($criterion) use ($framework, $aiScores, $advisorScores, $totalWeight): array {
                 $advisor = $advisorScores->get((int) $criterion->number);
                 $ai = $aiScores->get((int) $criterion->number);
                 $hasAdvisorScore = is_array($advisor) && is_numeric($advisor['score'] ?? null);
+                $aiScore = is_array($ai) && is_numeric($ai['score'] ?? null)
+                    ? (float) $ai['score']
+                    : null;
                 $score = $hasAdvisorScore
                     ? (float) $advisor['score']
-                    : (float) (is_array($ai) && is_numeric($ai['score'] ?? null) ? $ai['score'] : 0);
+                    : (float) ($aiScore ?? 0);
                 $weight = (float) $criterion->weight;
                 $normalisedWeight = $totalWeight > 0 ? $weight / $totalWeight : 0;
 
                 return [
+                    'criterion_id' => (string) $criterion->getKey(),
+                    'criterion_number' => $criterion->number,
+                    'criterion_name' => $criterion->name,
                     'number' => $criterion->number,
                     'name' => $criterion->name,
                     'weight' => $weight,
                     'normalised_weight' => round($normalisedWeight * 100, 3),
                     'score' => $score,
+                    'ai_score' => $aiScore,
+                    'advisor_score' => $hasAdvisorScore ? (float) $advisor['score'] : null,
+                    'grade' => $framework->gradeFor($score),
                     'contribution' => round($score * $normalisedWeight, 2),
                     'source' => $hasAdvisorScore ? 'advisor_review' : 'first_pass',
                     'source_label' => $hasAdvisorScore ? 'Advisor reviewed' : 'First pass',
                     'rationale' => $hasAdvisorScore
                         ? (string) ($advisor['note'] ?? '')
                         : (string) (is_array($ai) ? ($ai['rationale'] ?? '') : ''),
+                    'attributions' => is_array($ai) && is_array($ai['attributions'] ?? null) ? $ai['attributions'] : [],
                 ];
             })
             ->values()
