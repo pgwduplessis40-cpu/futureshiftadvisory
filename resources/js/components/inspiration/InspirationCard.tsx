@@ -10,6 +10,28 @@ export type InspirationPost = {
     published_at: string | null;
 };
 
+function splitQuoteBody(body: string | null): {
+    quote: string | null;
+    note: string | null;
+} {
+    const text = body?.trim();
+
+    if (!text) {
+        return { quote: null, note: null };
+    }
+
+    const quotedSentence = text.match(/^(["“][\s\S]+?["”])\s+([\s\S]+)$/);
+
+    if (!quotedSentence) {
+        return { quote: text, note: null };
+    }
+
+    return {
+        quote: quotedSentence[1].trim(),
+        note: quotedSentence[2].trim(),
+    };
+}
+
 export function InspirationCard({
     post,
     compact = false,
@@ -17,6 +39,8 @@ export function InspirationCard({
     post: InspirationPost;
     compact?: boolean;
 }) {
+    const quoteBody = post.type === 'quote' ? splitQuoteBody(post.body) : null;
+
     return (
         <section
             aria-label="Inspiration"
@@ -70,9 +94,18 @@ export function InspirationCard({
                                 </p>
                             )}
                             {post.type === 'quote' ? (
-                                <blockquote className="text-sm leading-relaxed text-foreground italic">
-                                    {post.body}
-                                </blockquote>
+                                <div className="space-y-4 text-sm leading-relaxed">
+                                    {quoteBody?.quote && (
+                                        <blockquote className="text-foreground italic">
+                                            {quoteBody.quote}
+                                        </blockquote>
+                                    )}
+                                    {quoteBody?.note && (
+                                        <p className="whitespace-pre-line text-foreground">
+                                            {quoteBody.note}
+                                        </p>
+                                    )}
+                                </div>
                             ) : (
                                 <p className="text-sm leading-relaxed whitespace-pre-line text-foreground">
                                     {post.body}
