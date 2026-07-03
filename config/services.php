@@ -54,4 +54,8 @@ return [
         'timeout_seconds' => (int) env('BROWSERSHOT_TIMEOUT_SECONDS', 60),
     ],
 
+    'google_analytics' => [
+        'measurement_id' => env('GOOGLE_ANALYTICS_MEASUREMENT_ID'),
+    ],
+
 ];

@@ -17,11 +17,33 @@ final class OfflinePwaTest extends TestCase
 
         $manifest = $this->jsonFile(public_path('manifest.webmanifest'));
         $this->assertSame('Future Shift Advisory Portal', $manifest['name']);
-        $this->assertSame('/portal', $manifest['start_url']);
+        $this->assertSame('/dashboard', $manifest['start_url']);
         $this->assertSame('standalone', $manifest['display']);
+        $this->assertContains('/icons/fsa-pwa-192.png', array_column($manifest['icons'], 'src'));
+        $this->assertContains('/icons/fsa-pwa-512.png', array_column($manifest['icons'], 'src'));
+        $this->assertContains('/icons/fsa-pwa-maskable-512.png', array_column($manifest['icons'], 'src'));
 
         $this->assertFileExists(public_path('sw.js'));
         $this->assertFileExists(public_path('offline.html'));
+        $this->assertFileExists(public_path('icons/fsa-pwa-192.png'));
+        $this->assertFileExists(public_path('icons/fsa-pwa-512.png'));
+        $this->assertFileExists(public_path('icons/fsa-pwa-maskable-512.png'));
+    }
+
+    public function test_app_shell_includes_google_tag_when_measurement_id_is_configured(): void
+    {
+        config(['services.google_analytics.measurement_id' => 'G-93DXC5XFNS']);
+
+        $html = view('app', [
+            'appearance' => 'light',
+            'page' => ['component' => 'home'],
+        ])->render();
+
+        $this->assertStringContainsString(
+            'https://www.googletagmanager.com/gtag/js?id=G-93DXC5XFNS',
+            $html,
+        );
+        $this->assertStringContainsString('gtag(\'config\', "G-93DXC5XFNS");', $html);
     }
 
     public function test_service_worker_handles_portal_fallback_and_sync_messages(): void
@@ -30,9 +52,11 @@ final class OfflinePwaTest extends TestCase
 
         $this->assertIsString($serviceWorker);
         $this->assertStringContainsString("url.pathname.startsWith('/portal')", $serviceWorker);
+        $this->assertStringContainsString("url.pathname === '/dashboard'", $serviceWorker);
         $this->assertStringContainsString("caches.match('/offline.html')", $serviceWorker);
         $this->assertStringContainsString("'portal-offline-sync'", $serviceWorker);
         $this->assertStringContainsString('PORTAL_OFFLINE_SYNC', $serviceWorker);
+        $this->assertStringContainsString('/icons/fsa-pwa-192.png', $serviceWorker);
     }
 
     public function test_offline_queue_uses_encrypted_indexeddb_storage_and_dedupe_keys(): void

@@ -196,6 +196,22 @@ final class BrokerPortalTest extends TestCase
             );
     }
 
+    public function test_broker_opening_client_portal_start_url_is_sent_to_broker_dashboard(): void
+    {
+        $brokerMember = $this->activeBroker('portal-start-broker@example.test');
+
+        $this->actingAsMfa($brokerMember->user)
+            ->get(route('portal.dashboard'))
+            ->assertRedirect(route('dashboard', absolute: false));
+
+        $this->actingAsMfa($brokerMember->user)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('broker/Dashboard')
+                ->where('dashboard.panel.company', 'Active Broker'));
+    }
+
     public function test_broker_can_apply_from_portal_and_sign_panel_agreement(): void
     {
         $advisor = $this->advisor('broker-self-service-approver@example.test');

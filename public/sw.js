@@ -1,5 +1,13 @@
-const CACHE_NAME = 'fsa-portal-shell-v1';
-const SHELL_URLS = ['/offline.html', '/manifest.webmanifest', '/favicon.svg'];
+const CACHE_NAME = 'fsa-portal-shell-v2';
+const SHELL_URLS = [
+    '/offline.html',
+    '/manifest.webmanifest',
+    '/favicon.svg',
+    '/apple-touch-icon.png',
+    '/icons/fsa-pwa-192.png',
+    '/icons/fsa-pwa-512.png',
+    '/icons/fsa-pwa-maskable-512.png',
+];
 const SYNC_TAG = 'portal-offline-sync';
 
 self.addEventListener('install', (event) => {
@@ -32,7 +40,10 @@ self.addEventListener('fetch', (event) => {
         return;
     }
 
-    if (request.mode === 'navigate' && url.pathname.startsWith('/portal')) {
+    if (
+        request.mode === 'navigate' &&
+        (url.pathname.startsWith('/portal') || url.pathname === '/dashboard')
+    ) {
         event.respondWith(
             fetch(request).catch(() => caches.match('/offline.html')),
         );
@@ -42,8 +53,10 @@ self.addEventListener('fetch', (event) => {
 
     if (
         url.pathname.startsWith('/build/') ||
+        url.pathname.startsWith('/icons/') ||
         url.pathname === '/manifest.webmanifest' ||
-        url.pathname === '/favicon.svg'
+        url.pathname === '/favicon.svg' ||
+        url.pathname === '/apple-touch-icon.png'
     ) {
         event.respondWith(
             caches.match(request).then((cached) => {

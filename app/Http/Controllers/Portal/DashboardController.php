@@ -46,6 +46,7 @@ use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Services\StrategicPlans\StrategicPlanService;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -72,10 +73,29 @@ final class DashboardController extends Controller
         private readonly StrategicPlanService $strategicPlans,
     ) {}
 
-    public function __invoke(Request $request): Response
+    public function __invoke(Request $request): Response|RedirectResponse
     {
         $viewer = $request->user();
         abort_unless($viewer instanceof User, 403);
+
+        if ($viewer->user_type === User::TYPE_ENTREPRENEUR) {
+            return to_route('portal.entrepreneur.dashboard');
+        }
+
+        if ($viewer->user_type === User::TYPE_NPO_BOARD_MEMBER) {
+            return to_route('portal.npo-board.dashboard');
+        }
+
+        if (in_array($viewer->user_type, [
+            User::TYPE_SUPER_ADMIN,
+            User::TYPE_ADVISOR,
+            User::TYPE_JUNIOR_ADVISOR,
+            User::TYPE_ENTREPRENEUR_MENTOR,
+            User::TYPE_BROKER,
+            User::TYPE_COACH,
+        ], true)) {
+            return to_route('dashboard');
+        }
 
         $client = $this->clients->resolveFor($request);
         $ddEngagement = $this->currentDdEngagement($client);
