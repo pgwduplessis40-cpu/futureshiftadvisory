@@ -100,6 +100,7 @@ final class PartnerPanelController extends Controller
                 targetUserType: $panelMember->panel_type,
                 targetRole: $panelMember->panel_type,
                 issuedBy: $actor,
+                deliver: true,
             );
 
             $application = $panelMember->application ?? [];
@@ -190,8 +191,9 @@ final class PartnerPanelController extends Controller
             'referrals as active_referrals_count' => $this->activeReferrals(...),
             'reverseReferrals',
         ]);
-        $inviteDraft = $this->inviteIssuer->draftFor($panelMember->inviteToken);
         $accountOnboarded = $panelMember->user instanceof User;
+        $activeInvite = $panelMember->inviteToken instanceof InviteToken
+            && $panelMember->inviteToken->isUsable();
 
         return Inertia::render('advisor/partners/Show', [
             'partner' => [
@@ -208,13 +210,7 @@ final class PartnerPanelController extends Controller
                     : ($panelMember->inviteToken?->expires_at?->toISOString() ?? null),
                 'invite_delivery_label' => $accountOnboarded
                     ? 'Account onboarded'
-                    : ($inviteDraft['accept_url'] ?? null ? 'Manual Outlook send' : 'No active link'),
-                'invite_accept_url' => $inviteDraft['accept_url'] ?? null,
-                'invite_email_to' => $inviteDraft['to'] ?? null,
-                'invite_email_subject' => $inviteDraft['subject'] ?? null,
-                'invite_email_body' => $inviteDraft['body'] ?? null,
-                'invite_outlook_url' => $inviteDraft['outlook_url'] ?? null,
-                'invite_mailto_url' => $inviteDraft['mailto_url'] ?? null,
+                    : ($activeInvite ? 'Email sent' : 'No active invite'),
                 'invite_resend_url' => $this->canResendInvite($panelMember)
                     ? route('advisor.partners.invite.resend', $panelMember, absolute: false)
                     : null,
@@ -365,6 +361,7 @@ final class PartnerPanelController extends Controller
             targetUserType: $panelType,
             targetRole: $panelType,
             issuedBy: $request->user(),
+            deliver: true,
         );
 
         PanelMember::query()->create([

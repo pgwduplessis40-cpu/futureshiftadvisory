@@ -4,11 +4,13 @@ import {
     ChevronUp,
     Copy,
     KeyRound,
+    Link2,
     Mail,
     RotateCcw,
     Save,
     Send,
     Settings2,
+    Unplug,
 } from 'lucide-react';
 import { useState } from 'react';
 import type { FormEvent } from 'react';
@@ -56,14 +58,29 @@ type Props = {
         reset: string;
         test_email: string;
         test_slack: string;
+        graph_mail_connect: string;
+        graph_mail_disconnect: string;
     };
     microsoftRedirectUri: string;
+    microsoftMailRedirectUri: string;
+    graphMail: {
+        available: boolean;
+        connected: boolean;
+        status: string | null;
+        mailbox_email: string | null;
+        token_expires_at: string | null;
+        connected_at: string | null;
+        connected_by: string | null;
+        last_error: string | null;
+    };
 };
 
 export default function ProjectSettingsIndex({
     groups,
     routes,
     microsoftRedirectUri,
+    microsoftMailRedirectUri,
+    graphMail,
 }: Props) {
     return (
         <>
@@ -84,6 +101,8 @@ export default function ProjectSettingsIndex({
                             group={group}
                             routes={routes}
                             microsoftRedirectUri={microsoftRedirectUri}
+                            microsoftMailRedirectUri={microsoftMailRedirectUri}
+                            graphMail={graphMail}
                         />
                     ))}
                 </div>
@@ -96,10 +115,14 @@ function ProjectSettingsGroupForm({
     group,
     routes,
     microsoftRedirectUri,
+    microsoftMailRedirectUri,
+    graphMail,
 }: {
     group: ProjectSettingGroup;
     routes: Props['routes'];
     microsoftRedirectUri: string;
+    microsoftMailRedirectUri: string;
+    graphMail: Props['graphMail'];
 }) {
     const form = useForm({
         group: group.key,
@@ -214,6 +237,15 @@ function ProjectSettingsGroupForm({
 
             <div id={groupContentId} hidden={!expanded}>
                 <form onSubmit={submit} className="space-y-4 p-4">
+                    {group.key === 'email_delivery' ? (
+                        <GraphMailOAuthPanel
+                            status={graphMail}
+                            connectUrl={routes.graph_mail_connect}
+                            disconnectUrl={routes.graph_mail_disconnect}
+                            redirectUri={microsoftMailRedirectUri}
+                        />
+                    ) : null}
+
                     {group.key === 'microsoft_graph' ? (
                         <RedirectUriPanel value={microsoftRedirectUri} />
                     ) : null}
@@ -469,6 +501,139 @@ function RedirectUriPanel({ value }: { value: string }) {
                     <Copy className="size-4" aria-hidden="true" />
                     Copy
                 </Button>
+            </div>
+        </div>
+    );
+}
+
+function GraphMailOAuthPanel({
+    status,
+    connectUrl,
+    disconnectUrl,
+    redirectUri,
+}: {
+    status: Props['graphMail'];
+    connectUrl: string;
+    disconnectUrl: string;
+    redirectUri: string;
+}) {
+    const copy = () => {
+        if (navigator.clipboard) {
+            void navigator.clipboard.writeText(redirectUri);
+        }
+    };
+
+    const disconnect = () => {
+        router.patch(disconnectUrl, {}, { preserveScroll: true });
+    };
+
+    return (
+        <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                        <Link2
+                            className="size-4 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <h3 className="text-sm font-medium">
+                            Microsoft Graph mail OAuth
+                        </h3>
+                        <Badge
+                            variant={status.connected ? 'secondary' : 'outline'}
+                        >
+                            {status.connected ? 'Connected' : 'Not connected'}
+                        </Badge>
+                    </div>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        {status.connected && status.mailbox_email
+                            ? `Sending as ${status.mailbox_email}.`
+                            : 'Connect a Microsoft mailbox so Graph can send email with delegated OAuth.'}
+                    </p>
+                    {status.last_error ? (
+                        <p className="mt-1 text-xs text-destructive">
+                            {status.last_error}
+                        </p>
+                    ) : null}
+                </div>
+                <div className="flex shrink-0 gap-2">
+                    <Tooltip>
+                        <TooltipTrigger asChild>
+                            {status.available ? (
+                                <Button type="button" variant="outline" asChild>
+                                    <a href={connectUrl}>
+                                        <Link2
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {status.connected
+                                            ? 'Reconnect mailbox'
+                                            : 'Connect mailbox'}
+                                    </a>
+                                </Button>
+                            ) : (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    disabled
+                                >
+                                    <Link2
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Connect mailbox
+                                </Button>
+                            )}
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                            Authorise Microsoft Graph to send mail from the
+                            selected mailbox.
+                        </TooltipContent>
+                    </Tooltip>
+                    {status.connected ? (
+                        <Tooltip>
+                            <TooltipTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={disconnect}
+                                >
+                                    <Unplug
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Disconnect
+                                </Button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left" className="max-w-xs">
+                                Revoke this app's use of the connected mailbox
+                                in Future Shift Advisory.
+                            </TooltipContent>
+                        </Tooltip>
+                    ) : null}
+                </div>
+            </div>
+
+            <div className="grid gap-2">
+                <Label htmlFor="microsoft_mail_redirect_uri">
+                    Mail OAuth redirect URI
+                </Label>
+                <div className="grid gap-2 sm:grid-cols-[1fr_auto]">
+                    <Input
+                        id="microsoft_mail_redirect_uri"
+                        value={redirectUri}
+                        readOnly
+                    />
+                    <Button
+                        type="button"
+                        variant="outline"
+                        onClick={copy}
+                        aria-label="Copy Microsoft Graph mail redirect URI"
+                    >
+                        <Copy className="size-4" aria-hidden="true" />
+                        Copy
+                    </Button>
+                </div>
             </div>
         </div>
     );

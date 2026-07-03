@@ -51,13 +51,16 @@ return [
 
         'graph' => [
             'transport' => 'graph',
+            'auth_mode' => env('MICROSOFT_GRAPH_MAIL_AUTH_MODE', 'client_credentials'),
             'tenant' => env('MICROSOFT_GRAPH_MAIL_TENANT', env('MICROSOFT_GRAPH_TENANT', '')),
             'client_id' => env('MICROSOFT_GRAPH_MAIL_CLIENT_ID', env('MICROSOFT_GRAPH_CLIENT_ID', '')),
             'client_secret' => env('MICROSOFT_GRAPH_MAIL_CLIENT_SECRET', env('MICROSOFT_GRAPH_CLIENT_SECRET', '')),
             'from_address' => env('MICROSOFT_GRAPH_MAIL_FROM_ADDRESS', env('MAIL_FROM_ADDRESS')),
             'base_url' => env('MICROSOFT_GRAPH_MAIL_BASE_URL', 'https://graph.microsoft.com/v1.0'),
+            'authorize_url' => env('MICROSOFT_GRAPH_MAIL_AUTHORIZE_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize'),
             'token_url' => env('MICROSOFT_GRAPH_MAIL_TOKEN_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token'),
             'scope' => env('MICROSOFT_GRAPH_MAIL_SCOPE', 'https://graph.microsoft.com/.default'),
+            'delegated_scopes' => array_values(array_filter(preg_split('/[\s,]+/', (string) env('MICROSOFT_GRAPH_MAIL_DELEGATED_SCOPES', 'offline_access User.Read Mail.Send')) ?: [])),
             'timeout' => (int) env('MICROSOFT_GRAPH_MAIL_TIMEOUT', 15),
         ],
 

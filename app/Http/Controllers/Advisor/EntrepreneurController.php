@@ -103,6 +103,7 @@ final class EntrepreneurController extends Controller
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
                 issuedBy: $advisor,
+                deliver: true,
             );
 
             $profile = EntrepreneurProfile::query()->create([
@@ -152,6 +153,7 @@ final class EntrepreneurController extends Controller
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
                 issuedBy: $advisor,
+                deliver: true,
             );
 
             $entrepreneurProfile->forceFill([
@@ -222,7 +224,8 @@ final class EntrepreneurController extends Controller
         $latestPlan = $entrepreneurProfile->businessPlans
             ->sortByDesc('updated_at')
             ->first();
-        $inviteDraft = $this->inviteIssuer->draftFor($entrepreneurProfile->inviteToken);
+        $activeInvite = $entrepreneurProfile->inviteToken instanceof InviteToken
+            && $entrepreneurProfile->inviteToken->isUsable();
 
         return Inertia::render('advisor/entrepreneurs/Show', [
             'entrepreneur' => [
@@ -231,12 +234,9 @@ final class EntrepreneurController extends Controller
                 'user_id' => $entrepreneurProfile->user_id,
                 'invite_accepted_at' => $entrepreneurProfile->inviteToken?->accepted_at?->toIso8601String(),
                 'invite_expires_at' => $entrepreneurProfile->inviteToken?->expires_at?->toIso8601String(),
-                'invite_accept_url' => $inviteDraft['accept_url'] ?? null,
-                'invite_email_to' => $inviteDraft['to'] ?? null,
-                'invite_email_subject' => $inviteDraft['subject'] ?? null,
-                'invite_email_body' => $inviteDraft['body'] ?? null,
-                'invite_outlook_url' => $inviteDraft['outlook_url'] ?? null,
-                'invite_mailto_url' => $inviteDraft['mailto_url'] ?? null,
+                'invite_delivery_label' => $entrepreneurProfile->user_id
+                    ? 'Account onboarded'
+                    : ($activeInvite ? 'Email sent' : 'No active invite'),
                 'invite_resend_url' => $this->canResendInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.resend', $entrepreneurProfile, absolute: false)
                     : null,

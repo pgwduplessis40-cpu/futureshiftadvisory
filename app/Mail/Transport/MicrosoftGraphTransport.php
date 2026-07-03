@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace App\Mail\Transport;
 
+use App\Services\Mail\MicrosoftGraphMailOAuthConnector;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Str;
 use Symfony\Component\Mailer\Exception\TransportException;
 use Symfony\Component\Mailer\SentMessage;
 use Symfony\Component\Mailer\Transport\AbstractTransport;
@@ -23,7 +25,7 @@ final class MicrosoftGraphTransport extends AbstractTransport
 
     protected function doSend(SentMessage $message): void
     {
-        $from = $this->requiredEmail('from_address');
+        $from = $this->fromAddress();
         $response = $this->sendMessage($message, $from);
 
         if (in_array($response->status(), [401, 403], true)) {
@@ -45,7 +47,9 @@ final class MicrosoftGraphTransport extends AbstractTransport
 
     private function sendMessage(SentMessage $message, string $from, bool $refreshToken = false): Response
     {
-        $endpoint = $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
+        $endpoint = $this->authMode() === 'delegated'
+            ? $this->baseUrl().'/me/sendMail'
+            : $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
 
         return Http::withToken($this->accessToken($refreshToken))
             ->acceptJson()
@@ -56,6 +60,10 @@ final class MicrosoftGraphTransport extends AbstractTransport
 
     private function accessToken(bool $refresh = false): string
     {
+        if ($this->authMode() === 'delegated') {
+            return app(MicrosoftGraphMailOAuthConnector::class)->accessToken($refresh);
+        }
+
         $cacheKey = $this->tokenCacheKey();
         $cached = Cache::get($cacheKey);
         if (! $refresh && is_string($cached) && $cached !== '') {
@@ -112,6 +120,25 @@ final class MicrosoftGraphTransport extends AbstractTransport
     private function scope(): string
     {
         return $this->stringValue('scope', 'https://graph.microsoft.com/.default');
+    }
+
+    private function authMode(): string
+    {
+        $mode = Str::lower($this->stringValue('auth_mode', 'client_credentials'));
+
+        return $mode === 'delegated' ? 'delegated' : 'client_credentials';
+    }
+
+    private function fromAddress(): string
+    {
+        if ($this->authMode() === 'delegated') {
+            $connected = app(MicrosoftGraphMailOAuthConnector::class)->connectedMailbox();
+            if (is_string($connected) && filter_var($connected, FILTER_VALIDATE_EMAIL) !== false) {
+                return $connected;
+            }
+        }
+
+        return $this->requiredEmail('from_address');
     }
 
     private function timeout(): int

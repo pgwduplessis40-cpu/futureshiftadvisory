@@ -54,6 +54,7 @@ final class InvitationController extends Controller
             targetUserType: $validated['target_user_type'],
             targetRole: $validated['target_role'],
             issuedBy: $request->user(),
+            deliver: true,
         );
 
         return redirect($this->safeReturnUrl($validated['return_to'] ?? null));

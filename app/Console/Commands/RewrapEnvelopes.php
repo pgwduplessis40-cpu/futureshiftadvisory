@@ -225,6 +225,8 @@ final class RewrapEnvelopes extends Command
             ['table' => 'accounting_connections', 'column' => 'token_envelope', 'meta_column' => 'token_envelope_meta'],
             ['table' => 'calendar_connections', 'column' => 'access_token_envelope', 'meta_column' => 'access_token_envelope_meta'],
             ['table' => 'calendar_connections', 'column' => 'refresh_token_envelope', 'meta_column' => 'refresh_token_envelope_meta'],
+            ['table' => 'mail_oauth_connections', 'column' => 'access_token_envelope', 'meta_column' => 'access_token_envelope_meta'],
+            ['table' => 'mail_oauth_connections', 'column' => 'refresh_token_envelope', 'meta_column' => 'refresh_token_envelope_meta'],
             ['table' => 'proposals', 'column' => 'signature_evidence_sha256_envelope', 'meta_column' => 'signature_envelope_meta'],
             ['table' => 'payment_authorities', 'column' => 'gateway_token_envelope'],
             ['table' => 'receipts', 'column' => 'receipt_sha256_envelope', 'meta_column' => 'receipt_envelope_meta'],

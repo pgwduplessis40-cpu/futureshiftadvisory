@@ -9,6 +9,7 @@ use App\Http\Controllers\Admin\IntegrationCredentialController;
 use App\Http\Controllers\Admin\IntegrationHealthController;
 use App\Http\Controllers\Admin\InvitationController;
 use App\Http\Controllers\Admin\LearningUpdateController;
+use App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
 use App\Http\Controllers\Admin\PracticeAccountingConnectionController;
@@ -149,6 +150,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('project-settings/test-slack', [ProjectSettingsController::class, 'testSlackWebhook'])
                 ->middleware('require.fresh-step-up')
                 ->name('project-settings.test-slack');
+            Route::get('project-settings/mail/graph/connect', [MicrosoftGraphMailOAuthController::class, 'connect'])
+                ->middleware('require.fresh-step-up')
+                ->name('project-settings.mail-graph.connect');
+            Route::get('project-settings/mail/graph/callback', [MicrosoftGraphMailOAuthController::class, 'callback'])
+                ->name('project-settings.mail-graph.callback');
+            Route::patch('project-settings/mail/graph/disconnect', [MicrosoftGraphMailOAuthController::class, 'disconnect'])
+                ->middleware('require.fresh-step-up')
+                ->name('project-settings.mail-graph.disconnect');
             Route::post('integration-credentials', [IntegrationCredentialController::class, 'store'])
                 ->middleware('require.fresh-step-up')
                 ->name('integration-credentials.store');

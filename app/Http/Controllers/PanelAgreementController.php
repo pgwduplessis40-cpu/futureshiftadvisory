@@ -8,11 +8,15 @@ use App\Enums\Permission;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
+use App\Services\Panels\PanelAccessException;
 use App\Services\Panels\PanelOnboarding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Inertia\Inertia;
+use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
+use Throwable;
 
 final class PanelAgreementController extends Controller
 {
@@ -21,7 +25,27 @@ final class PanelAgreementController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
-        $panelOnboarding->signAgreement($panelAgreement, $user);
+        try {
+            $panelOnboarding->signAgreement($panelAgreement, $user);
+        } catch (PanelAccessException|InvalidArgumentException $exception) {
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => $exception->getMessage(),
+            ]);
+
+            return back()->withErrors(['agreement' => $exception->getMessage()]);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            $message = 'We could not sign the agreement right now. Please try again or contact support.';
+
+            Inertia::flash('toast', [
+                'type' => 'error',
+                'message' => $message,
+            ]);
+
+            return back()->withErrors(['agreement' => $message]);
+        }
 
         return to_route('dashboard')->with('status', 'panel-agreement-signed');
     }

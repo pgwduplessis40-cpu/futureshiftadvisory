@@ -4,12 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Security;
 
+use App\Mail\InvitationMail;
 use App\Models\InviteToken;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Contracts\Auth\Authenticatable;
 use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Support\Facades\Crypt;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 
@@ -24,6 +27,7 @@ final class InviteIssuer
         string $targetUserType,
         string $targetRole,
         ?Authenticatable $issuedBy = null,
+        bool $deliver = false,
     ): IssuedInvite {
         $email = Str::lower(trim($email));
         $this->validateTarget($email, $targetUserType, $targetRole);
@@ -49,9 +53,13 @@ final class InviteIssuer
                 'target_user_type' => $targetUserType,
                 'target_role' => $targetRole,
                 'expires_at' => $invite->expires_at?->toIso8601String(),
-                'delivery_mode' => 'manual_outlook',
+                'delivery_mode' => $deliver ? 'app_mail' : 'token_issued',
             ],
         );
+
+        if ($deliver) {
+            $this->deliver($draft, $issuedBy);
+        }
 
         return new IssuedInvite(
             invite: $invite,
@@ -63,7 +71,7 @@ final class InviteIssuer
     }
 
     /**
-     * @return array{accept_url: string, to: string, subject: string, body: string, outlook_url: string, mailto_url: string}|null
+     * @return array{accept_url: string, to: string, subject: string, body: string}|null
      */
     public function draftFor(?InviteToken $invite, ?string $plainToken = null): ?array
     {
@@ -94,8 +102,6 @@ final class InviteIssuer
             'to' => $to,
             'subject' => self::INVITE_SUBJECT,
             'body' => $body,
-            'outlook_url' => $this->outlookComposeUrl($to, self::INVITE_SUBJECT, $body),
-            'mailto_url' => $this->mailtoUrl($to, self::INVITE_SUBJECT, $body),
         ];
     }
 
@@ -140,21 +146,27 @@ final class InviteIssuer
         ])."\n";
     }
 
-    private function outlookComposeUrl(string $to, string $subject, string $body): string
+    /**
+     * @param  array{accept_url: string, to: string, subject: string, body: string}  $draft
+     */
+    private function deliver(array $draft, ?Authenticatable $issuedBy): void
     {
-        return 'https://outlook.office.com/mail/deeplink/compose?'.http_build_query([
-            'to' => $to,
-            'subject' => $subject,
-            'body' => $body,
-        ], '', '&', PHP_QUERY_RFC3986);
-    }
+        $replyToEmail = $issuedBy instanceof User ? $issuedBy->email : null;
+        $replyToName = $issuedBy instanceof User ? $issuedBy->name : null;
+        $send = fn (): mixed => Mail::to((string) $draft['to'])->send(new InvitationMail(
+            subjectLine: (string) $draft['subject'],
+            bodyText: (string) $draft['body'],
+            replyToEmail: is_string($replyToEmail) ? $replyToEmail : null,
+            replyToName: is_string($replyToName) ? $replyToName : null,
+        ));
 
-    private function mailtoUrl(string $to, string $subject, string $body): string
-    {
-        return 'mailto:'.$to.'?'.http_build_query([
-            'subject' => $subject,
-            'body' => $body,
-        ], '', '&', PHP_QUERY_RFC3986);
+        if (app()->runningUnitTests()) {
+            $send();
+
+            return;
+        }
+
+        DB::afterCommit($send);
     }
 
     private function accountLabel(string $targetUserType): string

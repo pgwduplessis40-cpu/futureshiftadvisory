@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Advisor;
 
+use App\Mail\InvitationMail;
 use App\Models\InviteToken;
 use App\Models\PanelMember;
 use App\Models\User;
@@ -160,7 +161,7 @@ final class PartnerPanelNavigationTest extends TestCase
         $this->assertSame('Founder Coach Studio', data_get($coachMember->application, 'company'));
         $this->assertSame('Mere Coach', data_get($coachMember->application, 'coach_name'));
         $this->assertSame(['Founder resilience'], data_get($coachMember->application, 'specialties'));
-        Mail::assertNothingSent();
+        Mail::assertSent(InvitationMail::class, 2);
     }
 
     public function test_super_admin_can_resend_and_cancel_pending_partner_invite(): void
@@ -191,12 +192,7 @@ final class PartnerPanelNavigationTest extends TestCase
             ->get(route('advisor.partners.show', $member))
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
-                ->whereNot('partner.invite_accept_url', null)
-                ->where('partner.invite_email_to', 'pending-broker@example.test')
-                ->where('partner.invite_email_subject', 'Future Shift Advisory invitation')
-                ->whereNot('partner.invite_email_body', null)
-                ->whereNot('partner.invite_outlook_url', null)
-                ->whereNot('partner.invite_mailto_url', null)
+                ->where('partner.invite_delivery_label', 'Email sent')
                 ->where('partner.invite_resend_url', route('advisor.partners.invite.resend', $member, absolute: false))
                 ->where('partner.invite_cancel_url', route('advisor.partners.invite.cancel', $member, absolute: false)));
 
@@ -217,7 +213,7 @@ final class PartnerPanelNavigationTest extends TestCase
             'action' => 'panel.invite_resent',
             'subject_id' => $member->id,
         ]);
-        Mail::assertNothingSent();
+        Mail::assertSent(InvitationMail::class, 1);
 
         $this->actingAsMfa($admin)
             ->delete(route('advisor.partners.invite.cancel', $member))

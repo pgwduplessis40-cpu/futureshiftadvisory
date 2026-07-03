@@ -48,9 +48,6 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     const [gamificationPending, setGamificationPending] = useState(false);
     const [gateNote, setGateNote] = useState('');
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
-    const [copiedInviteDraft, setCopiedInviteDraft] = useState(false);
-    const [copiedInviteLink, setCopiedInviteLink] = useState(false);
-    const inviteRecipient = entrepreneur.invite_email_to ?? entrepreneur.email;
 
     const copyText = (text: string, onCopied: (value: boolean) => void) => {
         void navigator.clipboard.writeText(text).then(() => {
@@ -60,39 +57,6 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     };
     const copyInviteEmail = () =>
         copyText(entrepreneur.email, setCopiedInviteEmail);
-    const openOutlookDraft = () => {
-        if (!entrepreneur.invite_outlook_url) {
-            return;
-        }
-
-        window.open(
-            entrepreneur.invite_outlook_url,
-            '_blank',
-            'noopener,noreferrer',
-        );
-    };
-    const copyInviteDraft = () => {
-        if (!entrepreneur.invite_email_body) {
-            return;
-        }
-
-        copyText(
-            [
-                `To: ${inviteRecipient}`,
-                `Subject: ${entrepreneur.invite_email_subject ?? 'Future Shift Advisory invitation'}`,
-                '',
-                entrepreneur.invite_email_body,
-            ].join('\n'),
-            setCopiedInviteDraft,
-        );
-    };
-    const copyInviteLink = () => {
-        if (!entrepreneur.invite_accept_url) {
-            return;
-        }
-
-        copyText(entrepreneur.invite_accept_url, setCopiedInviteLink);
-    };
     const resendInvite = () => {
         if (!entrepreneur.invite_resend_url) {
             return;
@@ -789,9 +753,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 label={
                                     entrepreneur.invite_accepted_at
                                         ? 'Accepted'
-                                        : entrepreneur.invite_email_body
-                                          ? 'Manual send'
-                                          : 'No active link'
+                                        : entrepreneur.invite_delivery_label
                                 }
                                 title="Invite status"
                                 rows={[
@@ -813,9 +775,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     },
                                     {
                                         label: 'Delivery',
-                                        value: entrepreneur.invite_email_body
-                                            ? 'Open the addressed Outlook draft and send it from Outlook'
-                                            : 'Resend to create a fresh invite link',
+                                        value: entrepreneur.invite_delivery_label,
                                     },
                                 ]}
                             />
@@ -840,63 +800,10 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             />
                             <Detail
                                 label="Delivery"
-                                value={
-                                    entrepreneur.invite_email_body
-                                        ? 'Manual Outlook send'
-                                        : 'No active link'
-                                }
+                                value={entrepreneur.invite_delivery_label}
                             />
                         </dl>
                         <div className="flex flex-wrap gap-2">
-                            {entrepreneur.invite_outlook_url ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={openOutlookDraft}
-                                >
-                                    <Mail
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    Open Outlook draft
-                                </Button>
-                            ) : null}
-                            {entrepreneur.invite_email_body ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant={
-                                        entrepreneur.invite_outlook_url
-                                            ? 'outline'
-                                            : 'default'
-                                    }
-                                    onClick={copyInviteDraft}
-                                >
-                                    <Copy
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {copiedInviteDraft
-                                        ? 'Draft copied'
-                                        : 'Copy draft'}
-                                </Button>
-                            ) : null}
-                            {entrepreneur.invite_accept_url ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={copyInviteLink}
-                                >
-                                    <Copy
-                                        className="size-4"
-                                        aria-hidden="true"
-                                    />
-                                    {copiedInviteLink
-                                        ? 'Link copied'
-                                        : 'Copy invite link'}
-                                </Button>
-                            ) : null}
                             <Button
                                 type="button"
                                 size="sm"

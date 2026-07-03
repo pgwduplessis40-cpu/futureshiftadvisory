@@ -11,18 +11,22 @@ use App\Notifications\PanelApplicationInformationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Panels\Broker\BrokerFspVerifier;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Storage\KeyEnvelope;
+use DateTimeInterface;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
+use Throwable;
 
 final class PanelOnboarding
 {
     public function __construct(
         private readonly PdfRenderer $renderer,
+        private readonly SimpleTextPdf $fallbackPdf,
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
         private readonly BrokerFspVerifier $brokerFspVerifier,
@@ -248,6 +252,10 @@ final class PanelOnboarding
             $agreement = $agreement->refresh()->loadMissing('panelMember.user');
             $member = $agreement->panelMember;
 
+            if (! $member instanceof PanelMember) {
+                throw new PanelAccessException('Panel agreement is not linked to a panel member.');
+            }
+
             if ((string) $member->user_id !== (string) $actor->getKey()) {
                 throw new PanelAccessException('Only the panel member can sign their panel agreement.');
             }
@@ -256,7 +264,8 @@ final class PanelOnboarding
                 throw new InvalidArgumentException('Only pending panel agreements can be signed.');
             }
 
-            $pdf = $this->renderer->render($this->agreementHtml($agreement, $actor));
+            $signedAt = now();
+            $pdf = $this->renderAgreementPdf($agreement, $actor, $signedAt);
             $path = sprintf('panel/agreements/%s/%s-agreement.pdf', $member->getKey(), Str::uuid());
 
             if (Storage::disk('secure_local')->put($path, $pdf) !== true) {
@@ -272,7 +281,7 @@ final class PanelOnboarding
                 'pdf_envelope_meta' => $this->envelope->inspect($hashEnvelope),
                 'pdf_byte_size' => strlen($pdf),
                 'signed_by_user_id' => $actor->getKey(),
-                'signed_at' => now(),
+                'signed_at' => $signedAt,
             ])->save();
 
             $member->forceFill([
@@ -370,16 +379,60 @@ final class PanelOnboarding
         ];
     }
 
-    private function agreementHtml(PanelAgreement $agreement, User $actor): string
+    private function renderAgreementPdf(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
+    {
+        try {
+            return $this->renderer->render($this->agreementHtml($agreement, $actor, $signedAt));
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $this->fallbackPdf->render($this->agreementTitle($agreement), [
+                'Future Shift Advisory partner agreement.',
+                'Signed by: '.$actor->name.' <'.$actor->email.'>',
+                'User ID: '.$actor->getKey(),
+                'Agreement ID: '.$agreement->getKey(),
+                'Signed at: '.$signedAt->format(DATE_ATOM),
+                ...$this->agreementPlainTextLines($agreement),
+            ]);
+        }
+    }
+
+    private function agreementHtml(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
     {
         $agreementTerms = $agreement->terms ?? [];
-        $title = $this->escape((string) ($agreementTerms['agreement_title'] ?? 'Future Shift Advisory partner agreement'));
+        $title = $this->escape($this->agreementTitle($agreement));
         $terms = collect($agreementTerms)
             ->reject(fn (mixed $_, string $key): bool => in_array($key, ['agreement_title'], true))
-            ->map(fn (mixed $value, string $key): string => '<p><strong>'.$this->escape($key).'</strong>: '.$this->escape(is_scalar($value) ? (string) $value : json_encode($value, JSON_THROW_ON_ERROR)).'</p>')
+            ->map(fn (mixed $value, string $key): string => '<p><strong>'.$this->escape($key).'</strong>: '.$this->escape($this->agreementValue($value)).'</p>')
             ->implode('');
 
-        return '<!doctype html><html><body><h1>'.$title.'</h1><p>Signed by '.$this->escape($actor->name).'</p>'.$terms.'</body></html>';
+        return '<!doctype html><html><body><h1>'.$title.'</h1><p>Signed by '.$this->escape($actor->name).' &lt;'.$this->escape((string) $actor->email).'&gt;</p><p>Signed at '.$this->escape($signedAt->format(DATE_ATOM)).'</p>'.$terms.'</body></html>';
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function agreementPlainTextLines(PanelAgreement $agreement): array
+    {
+        return collect($agreement->terms ?? [])
+            ->reject(fn (mixed $_, string $key): bool => in_array($key, ['agreement_title'], true))
+            ->map(fn (mixed $value, string $key): string => $key.': '.$this->agreementValue($value))
+            ->values()
+            ->all();
+    }
+
+    private function agreementTitle(PanelAgreement $agreement): string
+    {
+        return (string) (($agreement->terms ?? [])['agreement_title'] ?? 'Future Shift Advisory partner agreement');
+    }
+
+    private function agreementValue(mixed $value): string
+    {
+        if (is_scalar($value) || $value === null) {
+            return (string) $value;
+        }
+
+        return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
     }
 
     private function escape(string $value): string

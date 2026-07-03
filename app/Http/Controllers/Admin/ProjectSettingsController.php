@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Mail\MicrosoftGraphMailOAuthConnector;
 use App\Services\Settings\ProjectSettings;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -24,6 +25,7 @@ final class ProjectSettingsController extends Controller
     public function __construct(
         private readonly ProjectSettings $settings,
         private readonly AuditWriter $auditWriter,
+        private readonly MicrosoftGraphMailOAuthConnector $graphMailOAuth,
     ) {}
 
     public function index(): Response
@@ -35,8 +37,12 @@ final class ProjectSettingsController extends Controller
                 'reset' => route('admin.project-settings.reset', absolute: false),
                 'test_email' => route('admin.project-settings.test-email', absolute: false),
                 'test_slack' => route('admin.project-settings.test-slack', absolute: false),
+                'graph_mail_connect' => route('admin.project-settings.mail-graph.connect', absolute: false),
+                'graph_mail_disconnect' => route('admin.project-settings.mail-graph.disconnect', absolute: false),
             ],
             'microsoftRedirectUri' => route('calendar.callback', 'microsoft'),
+            'microsoftMailRedirectUri' => route('admin.project-settings.mail-graph.callback'),
+            'graphMail' => $this->graphMailOAuth->statusPayload(),
         ]);
     }
 

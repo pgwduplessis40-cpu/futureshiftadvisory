@@ -5,9 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Admin;
 
 use App\Models\CalendarConnection;
+use App\Models\MailOAuthConnection;
 use App\Models\ProjectSetting;
 use App\Models\User;
 use App\Services\Calendar\CalendarConnector;
+use App\Services\Mail\MicrosoftGraphMailOAuthConnector;
 use App\Services\Settings\ProjectSettings;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
@@ -49,7 +51,11 @@ final class ProjectSettingsManagementTest extends TestCase
                 ->where('routes.reset', route('admin.project-settings.reset', absolute: false))
                 ->where('routes.test_email', route('admin.project-settings.test-email', absolute: false))
                 ->where('routes.test_slack', route('admin.project-settings.test-slack', absolute: false))
+                ->where('routes.graph_mail_connect', route('admin.project-settings.mail-graph.connect', absolute: false))
+                ->where('routes.graph_mail_disconnect', route('admin.project-settings.mail-graph.disconnect', absolute: false))
                 ->where('microsoftRedirectUri', route('calendar.callback', 'microsoft'))
+                ->where('microsoftMailRedirectUri', route('admin.project-settings.mail-graph.callback'))
+                ->where('graphMail.connected', false)
             );
     }
 
@@ -267,6 +273,122 @@ final class ProjectSettingsManagementTest extends TestCase
 
         Http::assertSent(fn ($request): bool => $request->url() === 'https://graph.microsoft.com/v1.0/users/pieter%40futureshiftadvisory.nz/sendMail'
             && $request->hasHeader('Authorization', 'Bearer fresh-token'));
+    }
+
+    public function test_super_admin_can_connect_graph_mail_oauth_and_send_test_email(): void
+    {
+        $admin = $this->superAdmin();
+
+        Config::set('mail.default', 'log');
+        Config::set('mail.from.address', 'hello@example.com');
+        Config::set('mail.mailers.graph', [
+            'transport' => 'graph',
+            'auth_mode' => 'client_credentials',
+            'tenant' => 'fsa-test-tenant',
+            'client_id' => 'graph-client-id',
+            'client_secret' => 'graph-client-secret',
+            'from_address' => '',
+            'base_url' => 'https://graph.microsoft.com/v1.0',
+            'authorize_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize',
+            'token_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
+            'scope' => 'https://graph.microsoft.com/.default',
+            'delegated_scopes' => ['offline_access', 'User.Read', 'Mail.Send'],
+            'timeout' => 15,
+        ]);
+
+        $authorizeUrl = app(MicrosoftGraphMailOAuthConnector::class)->authorizeUrl($admin);
+        parse_str((string) parse_url($authorizeUrl, PHP_URL_QUERY), $authorizeQuery);
+
+        $this->assertSame('graph-client-id', $authorizeQuery['client_id'] ?? null);
+        $this->assertSame('offline_access User.Read Mail.Send', $authorizeQuery['scope'] ?? null);
+        $this->assertSame(route('admin.project-settings.mail-graph.callback'), $authorizeQuery['redirect_uri'] ?? null);
+
+        Http::fake([
+            'https://login.microsoftonline.com/fsa-test-tenant/oauth2/v2.0/token' => Http::response([
+                'access_token' => 'delegated-access-token',
+                'refresh_token' => 'delegated-refresh-token',
+                'expires_in' => 3600,
+            ]),
+            'https://graph.microsoft.com/v1.0/me*' => Http::response([
+                'id' => 'graph-user-id',
+                'mail' => 'pieter@futureshiftadvisory.nz',
+                'userPrincipalName' => 'pieter@futureshiftadvisory.nz',
+            ]),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.project-settings.mail-graph.callback', [
+                'code' => 'oauth-code',
+                'state' => $authorizeQuery['state'] ?? '',
+            ]))
+            ->assertRedirect(route('admin.project-settings.index', absolute: false))
+            ->assertSessionHas('status', 'graph-mail-oauth-connected');
+
+        /** @var MailOAuthConnection $connection */
+        $connection = MailOAuthConnection::query()->firstOrFail();
+        $this->assertSame(MailOAuthConnection::STATUS_CONNECTED, $connection->status);
+        $this->assertSame('pieter@futureshiftadvisory.nz', $connection->mailbox_email);
+        $this->assertStringNotContainsString('delegated-access-token', $connection->access_token_envelope);
+        $this->assertStringNotContainsString('delegated-refresh-token', (string) $connection->refresh_token_envelope);
+        $this->assertSame('delegated-access-token', app(KeyEnvelope::class)->decrypt($connection->access_token_envelope));
+        $this->assertSame('delegated-refresh-token', app(KeyEnvelope::class)->decrypt((string) $connection->refresh_token_envelope));
+        $this->assertSame('graph', config('mail.default'));
+        $this->assertSame('delegated', config('mail.mailers.graph.auth_mode'));
+        $this->assertSame('pieter@futureshiftadvisory.nz', config('mail.mailers.graph.from_address'));
+        $this->assertSame('pieter@futureshiftadvisory.nz', config('mail.from.address'));
+
+        Http::fake([
+            'https://graph.microsoft.com/v1.0/me/sendMail' => Http::response('', 202),
+        ]);
+        Mail::forgetMailers();
+
+        $this->actingAsMfa($admin)
+            ->from(route('admin.project-settings.index'))
+            ->post(route('admin.project-settings.test-email'), [
+                'recipient' => 'recipient@example.test',
+            ])
+            ->assertRedirect(route('admin.project-settings.index', absolute: false))
+            ->assertSessionHas('status', 'project-settings-test-email-sent');
+
+        Http::assertSent(function ($request): bool {
+            $decoded = base64_decode($request->body(), true);
+
+            return $request->url() === 'https://graph.microsoft.com/v1.0/me/sendMail'
+                && $request->hasHeader('Authorization', 'Bearer delegated-access-token')
+                && is_string($decoded)
+                && str_contains($decoded, 'Future Shift Advisory project email settings test.')
+                && str_contains($decoded, 'Subject: Future Shift Advisory email test');
+        });
+    }
+
+    public function test_graph_mail_oauth_reuses_calendar_microsoft_credentials_when_mail_credentials_are_blank(): void
+    {
+        $admin = $this->superAdmin();
+
+        Config::set('mail.mailers.graph', [
+            'transport' => 'graph',
+            'auth_mode' => 'client_credentials',
+            'tenant' => '',
+            'client_id' => '',
+            'client_secret' => '',
+            'from_address' => '',
+            'base_url' => 'https://graph.microsoft.com/v1.0',
+            'authorize_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize',
+            'token_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
+            'scope' => 'https://graph.microsoft.com/.default',
+            'delegated_scopes' => ['offline_access', 'User.Read', 'Mail.Send'],
+            'timeout' => 15,
+        ]);
+        Config::set('integrations.calendar.microsoft.tenant', 'fsa-test-tenant');
+        Config::set('integrations.calendar.microsoft.client_id', 'existing-calendar-client-id');
+        Config::set('integrations.calendar.microsoft.client_secret', 'existing-calendar-client-secret');
+
+        $authorizeUrl = app(MicrosoftGraphMailOAuthConnector::class)->authorizeUrl($admin);
+        parse_str((string) parse_url($authorizeUrl, PHP_URL_QUERY), $authorizeQuery);
+
+        $this->assertStringContainsString('login.microsoftonline.com/fsa-test-tenant/oauth2/v2.0/authorize', $authorizeUrl);
+        $this->assertSame('existing-calendar-client-id', $authorizeQuery['client_id'] ?? null);
+        $this->assertSame('offline_access User.Read Mail.Send', $authorizeQuery['scope'] ?? null);
     }
 
     public function test_project_settings_feed_microsoft_graph_calendar_authorization(): void

@@ -121,6 +121,7 @@ final class ProspectInboxController extends Controller
             targetUserType: $targetUserType,
             targetRole: $targetUserType,
             issuedBy: $actor,
+            deliver: true,
         )->invite;
     }
 
