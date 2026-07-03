@@ -18,7 +18,7 @@ final class MicrosoftGraphMailOAuthController extends Controller
     public function connect(Request $request, MicrosoftGraphMailOAuthConnector $connector): Response|RedirectResponse
     {
         try {
-            $authorizeUrl = $connector->authorizeUrl($this->user($request));
+            $authorizeUrl = $connector->authorizeUrl($this->user($request), $this->callbackUrl($request));
         } catch (InvalidArgumentException $exception) {
             Inertia::flash('toast', [
                 'type' => 'error',
@@ -48,6 +48,7 @@ final class MicrosoftGraphMailOAuthController extends Controller
                 user: $this->user($request),
                 code: (string) $validated['code'],
                 state: (string) $validated['state'],
+                callbackUrl: $this->callbackUrl($request),
             );
         } catch (InvalidArgumentException $exception) {
             Inertia::flash('toast', [
@@ -87,5 +88,10 @@ final class MicrosoftGraphMailOAuthController extends Controller
         abort_unless($user instanceof User, 403);
 
         return $user;
+    }
+
+    private function callbackUrl(Request $request): string
+    {
+        return $request->getSchemeAndHttpHost().route('admin.project-settings.mail-graph.callback', absolute: false);
     }
 }

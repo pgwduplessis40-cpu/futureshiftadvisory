@@ -60,11 +60,11 @@ final class MicrosoftGraphMailOAuthConnector
         ];
     }
 
-    public function authorizeUrl(User $user): string
+    public function authorizeUrl(User $user, ?string $callbackUrl = null): string
     {
         $query = http_build_query([
             'client_id' => $this->requiredConfig('client_id'),
-            'redirect_uri' => $this->callbackUrl(),
+            'redirect_uri' => $this->callbackUrl($callbackUrl),
             'response_type' => 'code',
             'response_mode' => 'query',
             'scope' => implode(' ', $this->delegatedScopes()),
@@ -74,7 +74,7 @@ final class MicrosoftGraphMailOAuthConnector
         return rtrim($this->authorizeUrlBase(), '?').'?'.$query;
     }
 
-    public function connectFromCallback(User $user, string $code, string $state): MailOAuthConnection
+    public function connectFromCallback(User $user, string $code, string $state, ?string $callbackUrl = null): MailOAuthConnection
     {
         abort_unless($this->tableAvailable(), 503, 'Mail OAuth connection store is not migrated.');
 
@@ -82,7 +82,7 @@ final class MicrosoftGraphMailOAuthConnector
             throw new InvalidArgumentException('Invalid Microsoft Graph mail OAuth state.');
         }
 
-        $token = $this->exchangeAuthorizationCode($code);
+        $token = $this->exchangeAuthorizationCode($code, $callbackUrl);
         $accessToken = $this->requiredTokenValue($token, 'access_token');
         $refreshToken = $this->requiredTokenValue($token, 'refresh_token');
         $profile = $this->mailboxProfile($accessToken);
@@ -240,7 +240,7 @@ final class MicrosoftGraphMailOAuthConnector
     /**
      * @return array<string, mixed>
      */
-    private function exchangeAuthorizationCode(string $code): array
+    private function exchangeAuthorizationCode(string $code, ?string $callbackUrl = null): array
     {
         $response = Http::asForm()
             ->acceptJson()
@@ -250,7 +250,7 @@ final class MicrosoftGraphMailOAuthConnector
                 'client_secret' => $this->requiredConfig('client_secret'),
                 'grant_type' => 'authorization_code',
                 'code' => $code,
-                'redirect_uri' => $this->callbackUrl(),
+                'redirect_uri' => $this->callbackUrl($callbackUrl),
                 'scope' => implode(' ', $this->delegatedScopes()),
             ], fn (mixed $value): bool => $value !== null && $value !== ''));
 
@@ -360,9 +360,9 @@ final class MicrosoftGraphMailOAuthConnector
         }
     }
 
-    private function callbackUrl(): string
+    private function callbackUrl(?string $callbackUrl = null): string
     {
-        return route('admin.project-settings.mail-graph.callback');
+        return $callbackUrl ?: route('admin.project-settings.mail-graph.callback');
     }
 
     private function tokenUrl(): string

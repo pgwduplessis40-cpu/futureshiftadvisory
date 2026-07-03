@@ -28,7 +28,7 @@ final class ProjectSettingsController extends Controller
         private readonly MicrosoftGraphMailOAuthConnector $graphMailOAuth,
     ) {}
 
-    public function index(): Response
+    public function index(Request $request): Response
     {
         return Inertia::render('admin/project-settings/Index', [
             'groups' => $this->settings->groupsForUi(),
@@ -41,7 +41,7 @@ final class ProjectSettingsController extends Controller
                 'graph_mail_disconnect' => route('admin.project-settings.mail-graph.disconnect', absolute: false),
             ],
             'microsoftRedirectUri' => route('calendar.callback', 'microsoft'),
-            'microsoftMailRedirectUri' => route('admin.project-settings.mail-graph.callback'),
+            'microsoftMailRedirectUri' => $this->mailGraphCallbackUrl($request),
             'graphMail' => $this->graphMailOAuth->statusPayload(),
         ]);
     }
@@ -256,5 +256,10 @@ final class ProjectSettingsController extends Controller
         abort_unless($user instanceof User, 403);
 
         return $user;
+    }
+
+    private function mailGraphCallbackUrl(Request $request): string
+    {
+        return $request->getSchemeAndHttpHost().route('admin.project-settings.mail-graph.callback', absolute: false);
     }
 }

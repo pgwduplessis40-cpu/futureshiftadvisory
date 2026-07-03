@@ -59,6 +59,21 @@ final class ProjectSettingsManagementTest extends TestCase
             );
     }
 
+    public function test_project_settings_mail_oauth_redirect_uri_uses_current_request_host(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->get('https://futureshiftadvisory.test/admin/project-settings')
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where(
+                    'microsoftMailRedirectUri',
+                    'https://futureshiftadvisory.test/admin/project-settings/mail/graph/callback',
+                )
+            );
+    }
+
     public function test_super_admin_can_store_project_email_settings_with_encrypted_secret(): void
     {
         $admin = $this->superAdmin();
@@ -296,12 +311,13 @@ final class ProjectSettingsManagementTest extends TestCase
             'timeout' => 15,
         ]);
 
-        $authorizeUrl = app(MicrosoftGraphMailOAuthConnector::class)->authorizeUrl($admin);
+        $mailCallbackUrl = 'https://futureshiftadvisory.test/admin/project-settings/mail/graph/callback';
+        $authorizeUrl = app(MicrosoftGraphMailOAuthConnector::class)->authorizeUrl($admin, $mailCallbackUrl);
         parse_str((string) parse_url($authorizeUrl, PHP_URL_QUERY), $authorizeQuery);
 
         $this->assertSame('graph-client-id', $authorizeQuery['client_id'] ?? null);
         $this->assertSame('offline_access User.Read Mail.Send', $authorizeQuery['scope'] ?? null);
-        $this->assertSame(route('admin.project-settings.mail-graph.callback'), $authorizeQuery['redirect_uri'] ?? null);
+        $this->assertSame($mailCallbackUrl, $authorizeQuery['redirect_uri'] ?? null);
 
         Http::fake([
             'https://login.microsoftonline.com/fsa-test-tenant/oauth2/v2.0/token' => Http::response([
