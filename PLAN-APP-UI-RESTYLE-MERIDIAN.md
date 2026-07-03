@@ -1,6 +1,57 @@
 # PLAN — Authenticated App UI Restyle ("Tasko" language × Meridian Warm)
 
-**Plan version:** 1.4 — owner direction + code-grounded design pass + shell-reality + functional-preservation review fixes (gate now AST-required). *(Build target: Codex, into the test env, then push to live.)*
+**Plan version:** 1.9 — owner direction + code-grounded design pass + shell-reality + functional-preservation review fixes (gate spec, proof fixture, and WO coverage consistent; implementation-ready). *(Build target: Codex, into the test env, then push to live.)*
+
+> **v1.9 revision (review pass — propagate the grown gate into its own proof + WO list).** Two fixes:
+> (P1) **UI-0's proof fixture now covers every v1.5–v1.8 capture class** (named-form calls, template-literal
+> hrefs, plural maps + member reads, raw `fetch`, `on[A-Z]*` handlers, behavioural attrs, `flushAll`,
+> `useForm`, imports) **plus a negative fixture** (`actions` slot not map-captured, nested links/handlers
+> still captured, style-only edit ⇒ empty diff) — an incomplete script can no longer pass UI-0 (§6 UI-0).
+> (P2) **UI-3 brought inside the gate** — it edits the live `page-header.tsx` (actions slot), so the
+> inventory diff applies to its existing-file edits; **new** primitives get fixture checks instead
+> (`StatCard` never synthesises an `href`; progress/chart primitives render zero interactive elements)
+> (§5.1 rule 3, UI-3).
+
+> **v1.8 revision (review pass — all handlers; slot false-positive).** Two fixes:
+> (P1) **All `on[A-Z]\w*` handlers captured** — not just click/submit: this Radix/shadcn codebase hangs live
+> behaviour on `onValueChange`/`onCheckedChange`/`onOpenChange` etc. (~375 non-click/submit handler props);
+> wildcard capture with full expression text (§5.1 rule 3).
+> (P3) **Slot false-positive killed** — `actions={...}` is also a plain ReactNode slot
+> ([app-sidebar-layout.tsx:20](resources/js/layouts/app/app-sidebar-layout.tsx:20)); map capture now applies
+> only to object/array values with URL-ish strings, while nested links/handlers inside slots stay protected
+> by the normal attribute walk — style-only slot edits no longer trip the gate (§5.1 rule 3).
+
+> **v1.7 revision (review pass — raw fetches + plural URL maps).** Two fixes:
+> (P1) **Raw `fetch()` calls join the AST snapshot** — identifier calls, not just property calls; **12 sites
+> / 9 files** verified (entrepreneur Plan assist, portal metric store, ProposalSignoff payment setup,
+> questionnaire uploads, offline sync); `axios`/`sendBeacon`/`XMLHttpRequest`/`EventSource`/`WebSocket`
+> reserved (§5.1 rule 3).
+> (P2) **Plural URL/link/route maps matched** — `urls|links|routes|endpoints|actions` added to the prop/property
+> matcher (verified: `urls` in Plan.tsx + ServiceActivation, `routes` in project-settings, `links` in
+> npo-board), **including member expressions read from those maps** so a renamed key fails the gate (§5.1 rule 3).
+
+> **v1.6 revision (review pass — the gate's last two blind spots).** Two fixes:
+> (P1) **`flushAll` added to the protected call list** — it's part of the logout cleanup sequence
+> ([user-menu-content.tsx:26](resources/js/components/user-menu-content.tsx:26)); without it the cleanup
+> could vanish unnoticed while `logout()` still posts (§5.1 rule 3).
+> (P2) **URL-bearing custom props protected** — JSX props/object properties matching
+> `/^(href|to|url|link|endpoint|action)$|(_url|Url|Href|Link|Endpoint)$/` (e.g. `download_url`, `view_url`,
+> `connect_url`, link maps passed into components) join the AST snapshot — UI-5's pages pass links through
+> props, not only literal `href` (§5.1 rule 3).
+
+> **v1.5 revision (review pass — index state, attribute coverage, generated-surface proof).** Three fixes:
+> (P1) **Baseline resolved in-repo + UI-0 now handles index AND worktree** — the generated-file churn was
+> committed as baseline **`be6a552b` ("Update generated routes and app plan")**; `git status` is clean on
+> both dirs today. The recurrence procedure now uses `git restore --staged --worktree` (a bare
+> `git checkout --` leaves **staged** changes in place — the reviewer caught the gate staying dirty), with
+> `git status --porcelain` empty on both dirs as the gate (§6 UI-0).
+> (P1) **AST gate attribute list expanded** — `target`, `rel`, `download`, `type`, `disabled`,
+> `aria-disabled`, `data-test` added to the JSX snapshot: losing `target="_blank"` on an export/view link or
+> flipping a `type="button"` to implicit submit is exactly the visual-edit regression class this gate exists
+> to catch (§5.1 rule 3).
+> (P2) **Generated-surface fallback proof upgraded** — if the EOL/whitespace-insensitive diff is non-empty,
+> neutrality is proven by a **structured extraction** (exported symbol names + signatures + route
+> path/method/param/query behaviour via the same TS-AST tooling), not `rg` string literals (§6 UI-0).
 
 > **v1.4 revision (review pass — the gate must match how this codebase actually writes links/forms).** Four fixes:
 > (P1) **AST snapshot is now the REQUIRED gate** (was "gold standard") — verified failure modes of the regex
@@ -277,14 +328,45 @@ advisor, admin, client portal, entrepreneur, NPO board, broker, and coach in a s
    `/download` passes unseen. **The required gate is an AST snapshot**, via a small committed script
    (`scripts/link-inventory.ts`, ts-morph or the TS compiler API, built once in **UI-0**) that emits, per
    file, the sorted full-expression list of:
-   - JSX attributes `href`, `as`, `method`, `onClick`, `onSubmit` — **entire expression text**, template
-     literals and multi-line included;
-   - every `CallExpression` whose callee property is `post|get|patch|put|delete|submit|visit|reload|transform`
+   - JSX attributes `href`, `as`, `method`, **every handler matching `on[A-Z]\w*`** (v1.8 — not just
+     `onClick`/`onSubmit`: this Radix/shadcn codebase hangs live behaviour on `onValueChange`,
+     `onCheckedChange`, `onOpenChange`, tab/select/checkbox handlers — **~375 non-click/submit handler
+     props** exist; all captured with full expression text), plus **`target`, `rel`, `download`, `type`,
+     `disabled`, `aria-disabled`, `data-test`** (v1.5) — **entire expression text**, template literals and
+     multi-line included (losing `target="_blank"` on a view/export link, or a `type="button"` becoming an
+     implicit submit inside a form, is precisely the restyle-regression class this gate exists to catch);
+   - every `CallExpression` whose callee property is
+     `post|get|patch|put|delete|submit|visit|reload|transform|flushAll` (v1.6 — `flushAll` is part of the
+     protected logout cleanup, [user-menu-content.tsx:26](resources/js/components/user-menu-content.tsx:26))
      — **any receiver** (`router`, `form`, `createForm`, `deleteForm`, …) — with full argument text;
+   - **raw network calls (v1.7):** every **identifier call** to `fetch` with full argument/options text —
+     **12 call sites across 9 files** today (`fetch(urls.assistRequirement)` in entrepreneur `Plan.tsx`,
+     `fetch(metricStoreUrl)` in portal `Dashboard.tsx`, payment setup in `ProposalSignoff.tsx`, uploads in
+     `QuestionnaireRenderer.tsx`, offline sync in `lib/portal-offline.ts`, …) — plus reserved identifiers
+     `axios`, `sendBeacon`, `XMLHttpRequest`, `EventSource`, `WebSocket` so future adoption is captured
+     without re-speccing the gate;
+   - **URL-bearing custom props and object properties (v1.6; widened v1.7; value-shape guard v1.8):** every
+     JSX prop and object-literal property whose name matches
+     `/^(href|to|url|link|endpoint|action|urls|links|routes|endpoints|actions)$|(_url|Url|Href|Link|Endpoint)$/`
+     — the **plural map forms are real**: `urls` (entrepreneur `Plan.tsx`, `ServiceActivation.tsx`),
+     `routes` (`admin/project-settings/Index.tsx`), `links` (`portal/npo-board/Dashboard.tsx`) — with full
+     value expression, **and every member expression read from those maps** (`urls.assistRequirement`,
+     `links.report`, …) so a renamed/dropped key fails the gate.
+     **Value-shape guard (v1.8, kills the false-positive):** the *map capture* applies **only when the value
+     is an object/array literal (or a reference to one) with URL-ish string values** — `actions={...}` and
+     similar names carrying **JSX/ReactNode slots** (e.g. the `actions` slot at
+     [app-sidebar-layout.tsx:20](resources/js/layouts/app/app-sidebar-layout.tsx:20), `PageHeader`'s
+     `actions`) are **excluded from map capture**; their nested `href`/`on[A-Z]*` expressions are already
+     protected individually by the normal attribute walk, so style-only edits inside a slot don't trip the
+     gate while its links/handlers still do;
    - `useForm` calls (type args + initialiser) and all import specifiers from `@/routes` / `@/actions`.
-   Snapshot before and after each UI-2/UI-4/UI-5/UI-6 edit; **`diff` must be empty**. Intentional exceptions
-   are named in the PR with the old/new expression and a reason. (A quick `rg` pre-check is fine as a
-   developer convenience; it is **not** the gate.)
+   Snapshot before and after each **UI-2/UI-3/UI-4/UI-5/UI-6** edit to an **existing** file (v1.9 — UI-3
+   restyles the live `page-header.tsx` with its `actions` slot, so it is inside the gate, not outside it);
+   **`diff` must be empty**. **New** files (UI-3's new primitives) have no "before" — they get a
+   primitive-level fixture instead: e.g. `StatCard` renders an anchor **only** when `href` is passed and
+   never synthesises one, `RadialProgress`/`MiniBarChart` render no interactive elements at all. Intentional
+   exceptions are named in the PR with the old/new expression and a reason. (A quick `rg` pre-check is fine
+   as a developer convenience; it is **not** the gate.)
    - **Deletion exemption (v1.3):** deleted dead files (UI-4) are exempt from the inventory diff — their
      proof is different: repo-wide `rg` shows **zero imports** of the deleted module, `tsc` green, full
      ESLint + PHPUnit green, in UI-4's own PR. No other WO may delete files.
@@ -301,10 +383,10 @@ advisor, admin, client portal, entrepreneur, NPO board, broker, and coach in a s
 
 | WO | Title | Deliverable |
 |---|---|---|
-| **UI-0** | **Pre-flight: clean generated-module baseline + gate tooling** (v1.3, hardened v1.4) | The worktree has **70 modified files** under `resources/js/routes/**` + `resources/js/actions/**` (symmetric 418+/418−, CRLF warnings — *likely* churn from a Windows Wayfinder run, but the diff also carries generated-comment/whitespace noise, so eyeballing is not proof). **Machine-check neutrality before reset/baseline (v1.4):** (1) `git diff --ignore-cr-at-eol -w -- resources/js/routes resources/js/actions` — empty ⇒ pure EOL/whitespace churn ⇒ `git checkout --` both dirs; (2) if non-empty, extract the **functional surface** per file from HEAD and worktree — export names + route `path`/`method`/`url` string literals (script or `rg -o "export (const\|function) \w+\|path: '[^']*'\|method: '[^']*'" \| sort`) — identical ⇒ still neutral ⇒ reset; genuinely different ⇒ commit as its own named baseline **outside** this plan's branches. Prevent recurrence with **two explicit `.gitattributes` lines**: `resources/js/routes/** text eol=lf` and `resources/js/actions/** text eol=lf` (the brace form `{routes,actions}` is not reliable gitattributes syntax) — or regenerate Wayfinder only in CI/WSL. **Also build the §5.1 rule-3 AST gate script (`scripts/link-inventory.ts`) here**, so it exists before the first styling edit. **Gate:** `git status` clean for both dirs + the neutrality check output attached to the UI-0 PR + `link-inventory.ts` runs against a sample page. |
+| **UI-0** | **Pre-flight: baseline (✅ landed) + recurrence guard + gate tooling** (v1.5) | **Status: the dirty-baseline half is DONE** — the generated-file churn was committed as baseline **`be6a552b`** ("Update generated routes and app plan"); `git status --porcelain` is clean on both dirs. **Remaining UI-0 work:** (1) the **two `.gitattributes` lines** — `resources/js/routes/** text eol=lf` + `resources/js/actions/** text eol=lf` — so a Windows Wayfinder run can't re-dirty the gate; (2) **build the §5.1 rule-3 AST gate script (`scripts/link-inventory.ts`)** and prove it against a **committed two-part fixture** (v1.9 — the proof must cover every capture class the gate has accumulated, or an incomplete script passes UI-0 while missing the later fixes): **positive fixture** exercising named-form calls (`createForm.post`), template-literal + multi-line hrefs, plural URL maps + member reads (`urls.x`), raw `fetch(...)`, `on[A-Z]*` handlers (incl. `onValueChange`/`onCheckedChange`), the v1.5 behavioural attributes (`target`/`rel`/`download`/`type`/`disabled`/`aria-disabled`/`data-test`), `flushAll`, `useForm`, and `@/routes`+`@/actions` imports — every one must appear in the snapshot; **negative fixture** proving `actions={<Jsx/>}` is **not** map-captured while a nested `href`/`onClick` inside that slot **is**, and that a pure className/style edit yields an **empty diff**. **Recurrence procedure (if the dirs ever show changes again — staged OR unstaged):** neutrality check first — `git diff --ignore-cr-at-eol -w` **and** `git diff --cached --ignore-cr-at-eol -w` over both dirs; if both empty ⇒ EOL/whitespace churn ⇒ **`git restore --staged --worktree resources/js/routes resources/js/actions`** (a bare `git checkout --` leaves staged changes in the index — the gate would stay dirty); if non-empty ⇒ prove neutrality via **structured extraction** (exported symbol names + signatures + route path/method/**param names/query behaviour** from the TS AST — not `rg` literals; Wayfinder helpers' signatures are functional surface) — identical ⇒ restore both index+worktree; genuinely different ⇒ its own named baseline commit outside UI-* branches. **Gate:** `git status --porcelain` empty for both dirs; `.gitattributes` lines present; `link-inventory.ts` output for the sample page attached to the PR. |
 | **UI-1** | Token flip + typography | Replace `:root`/`.dark` values per §3 (light + Meridian Night); `--radius: 1rem`; hoist `--fs-*` definitions to `:root` (public semantics untouched); `--gold`/`--gold-strong`; Outfit on body; shadow tokens **in `@theme`** (§3.3). **Gate:** app boots with warm canvas, no page edits; `tsc`, ESLint, Prettier, PHPUnit all green (no behaviour change). |
 | **UI-2** | **The single authenticated shell** (all roles) | Tasko sidebar + top bar per §5 on `app-sidebar` / **`app-sidebar-header`** (the live top bar) / `ui/sidebar` — **restyling only controls that render today (§5.1)**: pill actives, section labels, muted breadcrumbs, restyled `NotificationBell` slot, footer `NavUser` untouched; **no search/mail/avatar-chip additions (descoped, §5)**; **`hsl(var(...))` shadow rewrite** ([sidebar.tsx:476](resources/js/components/ui/sidebar.tsx:476)); **brand-band tokenisation** ([app-sidebar-header.tsx:20,31](resources/js/components/app-sidebar-header.tsx:20)); §5.1 inventory gate on every touched file. One WO restyles every role's chrome. |
-| **UI-3** | Shared primitives | `StatCard`, **existing `PageHeader` restyled backward-compatibly (prop contract unchanged)**, pill `Button`, `CountBadge` (existing-counts-only, §4), `RadialProgress`, `MiniBarChart` per §4 (plain components + type exports only; the header search/mail/avatar primitives are descoped, §4/§5.1). |
+| **UI-3** | Shared primitives | `StatCard`, **existing `PageHeader` restyled backward-compatibly (prop contract unchanged; §5.1 inventory gate applies — it's a live file with an `actions` slot)**, pill `Button`, `CountBadge` (existing-counts-only, §4), `RadialProgress`, `MiniBarChart` per §4 (plain components + type exports only; header search/mail/avatar descoped, §4/§5.1). **New primitives ship with the §5.1 fixture checks** — `StatCard` renders an anchor only when `href` is passed (never synthesises a destination); progress/chart primitives render zero interactive elements. |
 | **UI-4** | Dead-shell removal + live non-shell sweeps | **Delete** `PortalLayout.tsx`, `ExternalPanelLayout.tsx`, `app-header.tsx`, `app-header-layout.tsx` (zero imports — `rg` gate before each delete, `tsc` green after; decision §8.4); token-inherit sweeps on the live `auth/*`, `settings/layout`, `notifications-layout`. |
 | **UI-5** | Dashboard adoption (**seven** dashboards) | Swap ad-hoc stat blocks/heroes to `StatCard`/`PageHeader`/`MiniBarChart`/`RadialProgress` on: advisor `Dashboard.tsx`, portal `Dashboard.tsx`, entrepreneur `Dashboard.tsx`/`Plan.tsx` headers, broker `Dashboard.tsx`, coach `Dashboard.tsx`, admin index, **and `portal/npo-board/Dashboard.tsx`** (`npo_board_member` lands there via [DashboardController.php:92](app/Http/Controllers/DashboardController.php:92); board-facing surface — visual swaps only, report-visibility rules untouched). First stat card on each = `inverted`. Inline SVG charts re-pointed at `var(--chart-*)`. **Purely mechanical swaps — no payload/logic edits — and the §5.1 link/action inventory gate runs per edited file** (these pages are dense with `href`/`download_url`/`view_url`/`connect_url`/`form.*` call sites; the before/after inventories must be identical). |
 | **UI-6** | Hardcoded-style sweep + a11y audit | Grep-driven off the **§2.4 inventory (131 occurrences / 17 files)**: `advisor/templates/*` hex; **`--fs-*` usages outside `public/`** (portal Dashboard/onboarding/ProposalSignoff/StrategicPlanBudget/wellbeing/surveys, entrepreneur Dashboard — verify each renders correctly post-hoist); **semantic `slate-`/`gray-`/`zinc-` status classes** in broker/coach/portal/admin pages + `components/`; `WaterfallChart.tsx` → chart tokens; re-grep `hsl(var(` and raw hex in `components/` as the completeness gate; then the §7 contrast checklist against both modes. |

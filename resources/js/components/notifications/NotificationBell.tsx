@@ -49,9 +49,9 @@ export function NotificationBell({
                     variant="outline"
                     size="icon"
                     className={cn(
-                        'relative',
+                        'relative rounded-full border-border/70 bg-card shadow-sm hover:bg-accent hover:text-accent-foreground',
                         brandHeader &&
-                            'border-white/35 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-[#d4a020]/60',
+                            'border-white/35 bg-white/10 text-white shadow-none hover:bg-white/20 hover:text-white focus-visible:ring-[var(--gold)]/60',
                     )}
                     aria-label={
                         unread === 0
@@ -64,7 +64,7 @@ export function NotificationBell({
                         aria-hidden="true"
                     />
                     {unread > 0 && (
-                        <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-primary px-1 text-[11px] font-medium text-primary-foreground">
+                        <span className="absolute -top-1 -right-1 flex min-w-5 items-center justify-center rounded-full bg-[var(--gold)] px-1 text-[11px] font-semibold text-primary">
                             {unread > 9 ? '9+' : unread}
                         </span>
                     )}

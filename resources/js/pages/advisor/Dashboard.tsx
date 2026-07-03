@@ -870,9 +870,7 @@ export default function AdvisorDashboard({
                                 <EntrepreneurReviewPanel
                                     payload={entrepreneurReviews}
                                 />
-                                <CashFlowRiskPanel
-                                    payload={cashFlowStatus}
-                                />
+                                <CashFlowRiskPanel payload={cashFlowStatus} />
                                 <StrategicPlanDeploymentPanel
                                     payload={strategicPlanDeployments}
                                 />
@@ -999,12 +997,21 @@ function DashboardTabButton({
             className={cn(
                 'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2',
                 active
-                    ? 'bg-background text-foreground shadow-sm'
-                    : 'text-muted-foreground hover:bg-background/60 hover:text-foreground',
+                    ? 'bg-sidebar-primary text-sidebar-primary-foreground shadow-sm'
+                    : 'text-muted-foreground hover:bg-card hover:text-foreground',
             )}
         >
             {label}
-            <Badge variant={active ? 'secondary' : 'outline'}>{count}</Badge>
+            <Badge
+                variant="outline"
+                className={
+                    active
+                        ? 'border-sidebar-primary-foreground/20 bg-sidebar-primary-foreground/15 text-sidebar-primary-foreground'
+                        : undefined
+                }
+            >
+                {count}
+            </Badge>
         </button>
     );
 }
@@ -1058,7 +1065,7 @@ function ActionCommandCentre({
     return (
         <section
             id="advisor-command-centre"
-            className="space-y-3 rounded-md border bg-background p-3"
+            className="space-y-3 rounded-md border bg-sidebar-accent/70 p-3"
         >
             <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:justify-between">
                 <div>
@@ -1158,7 +1165,7 @@ function ActionSummaryCard({
                         actionCardClasses(item.priority, item.value),
                     )}
                 >
-                    <div className="rounded-md border bg-background p-1.5 text-muted-foreground">
+                    <div className="rounded-md border bg-card p-1.5 text-muted-foreground">
                         {item.icon}
                     </div>
                     <div className="min-w-0 flex-1">
@@ -1618,7 +1625,7 @@ function actionBadgeVariant(
 
 function actionCardClasses(priority: ActionPriority, value: number): string {
     if (value === 0 || priority === 'neutral') {
-        return 'bg-background hover:bg-muted/40';
+        return 'bg-card hover:bg-white dark:hover:bg-card/90';
     }
 
     if (priority === 'critical') {
@@ -1719,9 +1726,7 @@ function PaymentStatusPanel({ payload }: { payload: PaymentStatusPayload }) {
             <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
                 <div className="flex items-center gap-2">
                     <CreditCard className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">
-                        Payment exceptions
-                    </h2>
+                    <h2 className="text-sm font-medium">Payment exceptions</h2>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                     <Badge
@@ -2027,9 +2032,7 @@ function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
                 <div>
                     <div className="flex items-center gap-2">
                         <PieChart className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">
-                            Practice health
-                        </h2>
+                        <h2 className="text-sm font-medium">Practice health</h2>
                     </div>
                     <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                         Measures portfolio position: active clients, revenue
@@ -2769,7 +2772,7 @@ function Metric({
             <TooltipTrigger asChild>
                 <a
                     href={href}
-                    className="rounded-md border bg-background px-4 py-3 transition-colors outline-none hover:bg-muted/40 focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                    className="rounded-md border bg-card px-4 py-3 shadow-card transition-colors outline-none hover:bg-white focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 dark:hover:bg-card/90"
                 >
                     <div className="text-xs text-muted-foreground">{label}</div>
                     <div className="mt-1 text-lg font-semibold">{value}</div>
@@ -3081,8 +3084,7 @@ function PendingTermsReacceptance({
                                     href={item.client_url}
                                     className="text-xs text-muted-foreground"
                                 />{' '}
-                                -{' '}
-                                {item.user_email}
+                                - {item.user_email}
                             </div>
                         </div>
                     ))}
@@ -3279,7 +3281,9 @@ function StrategicPlanDeploymentPanel({
                             {item.type === 'generate' && item.action_url ? (
                                 <Button
                                     size="sm"
-                                    onClick={() => generatePlan(item.action_url!)}
+                                    onClick={() =>
+                                        generatePlan(item.action_url!)
+                                    }
                                 >
                                     {item.action_label}
                                 </Button>

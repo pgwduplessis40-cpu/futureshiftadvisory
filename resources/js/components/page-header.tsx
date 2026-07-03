@@ -26,14 +26,14 @@ export function PageHeader({
     return (
         <div
             className={cn(
-                'flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between',
+                'flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between',
                 className,
             )}
             {...props}
         >
-            <div className="min-w-0 space-y-1">
+            <div className="min-w-0 space-y-2">
                 {eyebrow || Icon ? (
-                    <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <div className="flex items-center gap-2 text-[11px] font-semibold tracking-[0.15em] text-muted-foreground uppercase">
                         {Icon ? (
                             <Icon
                                 className="size-4 shrink-0"
@@ -43,11 +43,11 @@ export function PageHeader({
                         {eyebrow ? <span>{eyebrow}</span> : null}
                     </div>
                 ) : null}
-                <h1 className="text-xl font-semibold tracking-tight">
+                <h1 className="text-3xl font-bold tracking-tight text-foreground">
                     {title}
                 </h1>
                 {description ? (
-                    <p className="max-w-2xl text-sm text-muted-foreground">
+                    <p className="max-w-2xl text-sm leading-6 text-muted-foreground">
                         {description}
                     </p>
                 ) : null}

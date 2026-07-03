@@ -16,19 +16,20 @@ export function AppSidebarHeader({
     return (
         <header
             className={cn(
-                'sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-sidebar-border/50 bg-background px-6 transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4',
-                brandHeader && 'border-b-0 bg-[#2a3b5c] text-white shadow-sm',
+                'sticky top-0 z-30 flex h-16 shrink-0 items-center justify-between gap-4 border-b border-sidebar-border/70 bg-background/95 px-6 backdrop-blur transition-[width,height] ease-linear group-has-data-[collapsible=icon]/sidebar-wrapper:h-12 md:px-4',
+                brandHeader &&
+                    'border-b-0 bg-[var(--fs-commodore)] text-white shadow-card',
             )}
         >
             <div className="z-10 flex items-center gap-2">
-                <SidebarTrigger className="-ml-1" />
+                <SidebarTrigger className="-ml-1 rounded-full" />
                 {!brandHeader && <Breadcrumbs breadcrumbs={breadcrumbs} />}
             </div>
             {brandHeader && (
                 <div className="pointer-events-none absolute inset-0 flex items-center justify-center px-16 text-center">
                     <span
                         aria-label="Mentor, Advisor, Partner"
-                        className="flex items-center justify-center gap-4 text-sm font-semibold tracking-normal text-[#d4a020] sm:gap-8 sm:text-base"
+                        className="flex items-center justify-center gap-4 text-sm font-semibold tracking-normal text-[var(--gold)] sm:gap-8 sm:text-base"
                     >
                         <span>Mentor</span>
                         <span aria-hidden="true">{'\u00b7'}</span>

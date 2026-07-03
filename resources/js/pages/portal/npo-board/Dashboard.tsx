@@ -8,6 +8,8 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
+import { StatCard } from '@/components/dashboard-primitives';
+import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -63,19 +65,12 @@ export default function NpoBoardDashboard({
             <Head title="NPO board portal" />
 
             <main className="space-y-6">
-                <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                    <div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                            <ShieldCheck
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            NPO board portal
-                        </div>
-                        <h1 className="mt-1 text-xl font-semibold">
-                            {client.trading_name || client.legal_name}
-                        </h1>
-                        <div className="mt-2 flex flex-wrap gap-2">
+                <PageHeader
+                    eyebrow="NPO board portal"
+                    icon={ShieldCheck}
+                    title={client.trading_name || client.legal_name}
+                    description={
+                        <span className="flex flex-wrap gap-2">
                             <Badge variant="secondary">
                                 {engagement.sub_type}
                             </Badge>
@@ -87,52 +82,59 @@ export default function NpoBoardDashboard({
                                     NZBN {client.nzbn}
                                 </Badge>
                             ) : null}
+                        </span>
+                    }
+                    actions={
+                        <div className="flex flex-wrap gap-2">
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={links.calendar}>
+                                    <CalendarDays
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Calendar
+                                </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={links.messages}>
+                                    <MessageSquare
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Messages
+                                </Link>
+                            </Button>
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={links.notifications}>
+                                    <Bell
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Notifications
+                                </Link>
+                            </Button>
                         </div>
-                    </div>
-
-                    <div className="flex flex-wrap gap-2">
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={links.calendar}>
-                                <CalendarDays
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Calendar
-                            </Link>
-                        </Button>
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={links.messages}>
-                                <MessageSquare
-                                    className="size-4"
-                                    aria-hidden="true"
-                                />
-                                Messages
-                            </Link>
-                        </Button>
-                        <Button asChild size="sm" variant="outline">
-                            <Link href={links.notifications}>
-                                <Bell className="size-4" aria-hidden="true" />
-                                Notifications
-                            </Link>
-                        </Button>
-                    </div>
-                </header>
+                    }
+                />
 
                 <section className="grid gap-3 sm:grid-cols-3">
-                    <MetricCard
-                        label="Reports"
+                    <StatCard
+                        title="Reports"
                         value={reports.length}
-                        detail="Board-visible reports"
+                        footnote="Board-visible reports"
+                        inverted
+                        icon={FileText}
                     />
-                    <MetricCard
-                        label="Documents"
+                    <StatCard
+                        title="Documents"
                         value={documents.length}
-                        detail="Clean board records"
+                        footnote="Clean board records"
+                        icon={FolderOpen}
                     />
-                    <MetricCard
-                        label="Status"
+                    <StatCard
+                        title="Status"
                         value={engagement.conversion_status ?? 'Active'}
-                        detail={
+                        footnote={
                             engagement.reengagement_due_at
                                 ? `Due ${formatDate(engagement.reengagement_due_at)}`
                                 : 'Current engagement'
@@ -176,24 +178,6 @@ export default function NpoBoardDashboard({
     );
 }
 
-function MetricCard({
-    label,
-    value,
-    detail,
-}: {
-    label: string;
-    value: string | number;
-    detail: string;
-}) {
-    return (
-        <article className="rounded-md border bg-background p-4">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-2 text-2xl font-semibold">{value}</div>
-            <div className="mt-1 text-sm text-muted-foreground">{detail}</div>
-        </article>
-    );
-}
-
 function BoardPanel({
     icon: Icon,
     title,
@@ -206,7 +190,7 @@ function BoardPanel({
     children: ReactNode[];
 }) {
     return (
-        <section className="space-y-3 rounded-md border bg-background p-4">
+        <section className="space-y-3 rounded-[1.25rem] border border-border/80 bg-card p-5 shadow-card">
             <div className="flex items-center gap-2">
                 <Icon className="size-4" aria-hidden={true} />
                 <h2 className="text-sm font-medium">{title}</h2>
@@ -216,7 +200,9 @@ function BoardPanel({
                     {empty}
                 </div>
             ) : (
-                <div className="divide-y rounded-md border">{children}</div>
+                <div className="divide-y overflow-hidden rounded-[1rem] border">
+                    {children}
+                </div>
             )}
         </section>
     );

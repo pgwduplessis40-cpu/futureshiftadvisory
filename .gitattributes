@@ -6,6 +6,9 @@
 *.md diff=markdown
 *.php diff=php
 
+resources/js/routes/** text eol=lf
+resources/js/actions/** text eol=lf
+
 CHANGELOG.md export-ignore
 README.md export-ignore
 .github/workflows/browser-tests.yml export-ignore
