@@ -27,7 +27,7 @@ run.url = (args: { npoEngagement: string | { id: string } } | [npoEngagement: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { npoEngagement: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     npoEngagement: args[0],
@@ -76,7 +76,7 @@ run.post = (args: { npoEngagement: string | { id: string } } | [npoEngagement: s
             action: run.url(args, options),
             method: 'post',
         })
-    
+
     run.form = runForm
 /**
 * @see \App\Http\Controllers\Advisor\NpoGovernanceReviewController::review
@@ -106,7 +106,7 @@ review.url = (args: { governanceReviewFinding: string | { id: string } } | [gove
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { governanceReviewFinding: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     governanceReviewFinding: args[0],
@@ -165,7 +165,7 @@ review.patch = (args: { governanceReviewFinding: string | { id: string } } | [go
                     }),
             method: 'post',
         })
-    
+
     review.form = reviewForm
 const NpoGovernanceReviewController = { run, review }
 

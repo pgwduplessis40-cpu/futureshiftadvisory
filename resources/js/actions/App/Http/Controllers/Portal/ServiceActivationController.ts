@@ -24,7 +24,7 @@ create.url = (args: { serviceType: string | number } | [serviceType: string | nu
         args = { serviceType: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceType: args[0],
@@ -94,7 +94,7 @@ create.head = (args: { serviceType: string | number } | [serviceType: string | n
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
@@ -149,7 +149,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
@@ -179,7 +179,7 @@ show.url = (args: { serviceActivation: string | { id: string } } | [serviceActiv
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -251,7 +251,7 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
@@ -281,7 +281,7 @@ accept.url = (args: { serviceActivation: string | { id: string } } | [serviceAct
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -330,7 +330,7 @@ accept.post = (args: { serviceActivation: string | { id: string } } | [serviceAc
             action: accept.url(args, options),
             method: 'post',
         })
-    
+
     accept.form = acceptForm
 const ServiceActivationController = { create, store, show, accept }
 

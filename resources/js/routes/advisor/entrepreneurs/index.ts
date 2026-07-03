@@ -401,7 +401,7 @@ surveys.head = (args: { entrepreneurProfile: string | { id: string } } | [entrep
     surveys.form = surveysForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 export const show = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -416,7 +416,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 show.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -449,7 +449,7 @@ show.url = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 show.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -458,7 +458,7 @@ show.get = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
 })
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
 show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -468,7 +468,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
     const showForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -478,7 +478,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
         showForm.get = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -487,7 +487,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
         })
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
- * @see app/Http/Controllers/Advisor/EntrepreneurController.php:209
+ * @see app/Http/Controllers/Advisor/EntrepreneurController.php:211
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}'
  */
         showForm.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

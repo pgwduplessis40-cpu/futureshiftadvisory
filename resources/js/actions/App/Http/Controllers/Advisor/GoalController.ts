@@ -27,7 +27,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::milestone
@@ -106,7 +106,7 @@ milestone.url = (args: { goal: string | { id: string } } | [goal: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { goal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     goal: args[0],
@@ -155,7 +155,7 @@ milestone.post = (args: { goal: string | { id: string } } | [goal: string | { id
             action: milestone.url(args, options),
             method: 'post',
         })
-    
+
     milestone.form = milestoneForm
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::action
@@ -185,7 +185,7 @@ action.url = (args: { milestone: string | { id: string } } | [milestone: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { milestone: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     milestone: args[0],
@@ -234,7 +234,7 @@ action.post = (args: { milestone: string | { id: string } } | [milestone: string
             action: action.url(args, options),
             method: 'post',
         })
-    
+
     action.form = actionForm
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::proof
@@ -264,7 +264,7 @@ proof.url = (args: { milestone: string | { id: string } } | [milestone: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { milestone: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     milestone: args[0],
@@ -313,7 +313,7 @@ proof.post = (args: { milestone: string | { id: string } } | [milestone: string 
             action: proof.url(args, options),
             method: 'post',
         })
-    
+
     proof.form = proofForm
 const GoalController = { store, milestone, action, proof }
 

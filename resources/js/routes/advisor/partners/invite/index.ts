@@ -80,7 +80,7 @@ resend.post = (args: { panelMember: string | { id: string } } | [panelMember: st
     resend.form = resendForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
 export const cancel = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -95,7 +95,7 @@ cancel.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
 cancel.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -128,7 +128,7 @@ cancel.url = (args: { panelMember: string | { id: string } } | [panelMember: str
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
 cancel.delete = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -138,7 +138,7 @@ cancel.delete = (args: { panelMember: string | { id: string } } | [panelMember: 
 
     /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
     const cancelForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -153,7 +153,7 @@ cancel.delete = (args: { panelMember: string | { id: string } } | [panelMember: 
 
             /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
         cancelForm.delete = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -502,7 +502,7 @@ resendInvite.post = (args: { panelMember: string | { id: string } } | [panelMemb
     resendInvite.form = resendInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
 export const cancelInvite = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -517,7 +517,7 @@ cancelInvite.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
 cancelInvite.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -550,7 +550,7 @@ cancelInvite.url = (args: { panelMember: string | { id: string } } | [panelMembe
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
 cancelInvite.delete = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
@@ -560,7 +560,7 @@ cancelInvite.delete = (args: { panelMember: string | { id: string } } | [panelMe
 
     /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
     const cancelInviteForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -575,7 +575,7 @@ cancelInvite.delete = (args: { panelMember: string | { id: string } } | [panelMe
 
             /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancelInvite
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:128
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:129
  * @route '/advisor/partners/{panelMember}/invite'
  */
         cancelInviteForm.delete = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -591,7 +591,7 @@ cancelInvite.delete = (args: { panelMember: string | { id: string } } | [panelMe
     cancelInvite.form = cancelInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
 export const show = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -606,7 +606,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
 show.url = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -639,7 +639,7 @@ show.url = (args: { panelMember: string | { id: string } } | [panelMember: strin
 
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
 show.get = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -648,7 +648,7 @@ show.get = (args: { panelMember: string | { id: string } } | [panelMember: strin
 })
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
 show.head = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -658,7 +658,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
 
     /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
     const showForm = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -668,7 +668,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
 
             /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
         showForm.get = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -677,7 +677,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
         })
             /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::show
- * @see app/Http/Controllers/Advisor/PartnerPanelController.php:173
+ * @see app/Http/Controllers/Advisor/PartnerPanelController.php:174
  * @route '/advisor/partners/{panelMember}'
  */
         showForm.head = (args: { panelMember: string | { id: string } } | [panelMember: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

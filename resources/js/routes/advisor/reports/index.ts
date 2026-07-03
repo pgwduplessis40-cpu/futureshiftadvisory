@@ -28,7 +28,7 @@ download.url = (args: { report: string | { id: string } } | [report: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -100,7 +100,7 @@ download.head = (args: { report: string | { id: string } } | [report: string | {
                     }),
             method: 'get',
         })
-    
+
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::pptx
@@ -130,7 +130,7 @@ pptx.url = (args: { report: string | { id: string } } | [report: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -202,7 +202,7 @@ pptx.head = (args: { report: string | { id: string } } | [report: string | { id:
                     }),
             method: 'get',
         })
-    
+
     pptx.form = pptxForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
@@ -232,7 +232,7 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -291,7 +291,7 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
                     }),
             method: 'post',
         })
-    
+
     review.form = reviewForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
@@ -321,7 +321,7 @@ release.url = (args: { report: string | { id: string } } | [report: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -380,7 +380,7 @@ release.patch = (args: { report: string | { id: string } } | [report: string | {
                     }),
             method: 'post',
         })
-    
+
     release.form = releaseForm
 const reports = {
     download: Object.assign(download, download),

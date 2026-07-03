@@ -27,7 +27,7 @@ update.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -86,7 +86,7 @@ update.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrep
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const gamification = {
     update: Object.assign(update, update),

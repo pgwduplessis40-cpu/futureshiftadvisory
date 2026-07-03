@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::index
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:29
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:31
  * @route '/admin/project-settings'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:43
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:43
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
 update.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:43
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
 update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -113,7 +113,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:43
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
     const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -128,7 +128,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:43
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:49
  * @route '/admin/project-settings'
  */
         updateForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -144,7 +144,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:87
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
 export const reset = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -159,7 +159,7 @@ reset.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:87
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
 reset.url = (options?: RouteQueryOptions) => {
@@ -168,7 +168,7 @@ reset.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:87
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
 reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -178,7 +178,7 @@ reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:87
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
     const resetForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -193,7 +193,7 @@ reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:87
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:93
  * @route '/admin/project-settings/reset'
  */
         resetForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -209,7 +209,7 @@ reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     reset.form = resetForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:99
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
 export const testEmail = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -224,7 +224,7 @@ testEmail.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:99
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
 testEmail.url = (options?: RouteQueryOptions) => {
@@ -233,7 +233,7 @@ testEmail.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:99
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
 testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -243,7 +243,7 @@ testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:99
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
     const testEmailForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -253,7 +253,7 @@ testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:99
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:105
  * @route '/admin/project-settings/test-email'
  */
         testEmailForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -264,7 +264,7 @@ testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     testEmail.form = testEmailForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlackWebhook
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:123
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
 export const testSlackWebhook = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -279,7 +279,7 @@ testSlackWebhook.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlackWebhook
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:123
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
 testSlackWebhook.url = (options?: RouteQueryOptions) => {
@@ -288,7 +288,7 @@ testSlackWebhook.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlackWebhook
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:123
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
 testSlackWebhook.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -298,7 +298,7 @@ testSlackWebhook.post = (options?: RouteQueryOptions): RouteDefinition<'post'> =
 
     /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlackWebhook
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:123
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
     const testSlackWebhookForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -308,7 +308,7 @@ testSlackWebhook.post = (options?: RouteQueryOptions): RouteDefinition<'post'> =
 
             /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlackWebhook
- * @see app/Http/Controllers/Admin/ProjectSettingsController.php:123
+ * @see app/Http/Controllers/Admin/ProjectSettingsController.php:129
  * @route '/admin/project-settings/test-slack'
  */
         testSlackWebhookForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

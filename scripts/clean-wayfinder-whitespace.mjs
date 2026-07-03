@@ -1,20 +1,25 @@
-import { readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile, writeFile } from 'node:fs/promises';
 
-const generatedFiles = [
-    'resources/js/actions/App/Http/Controllers/Admin/ProjectSettingsController.ts',
-    'resources/js/actions/App/Http/Controllers/Admin/ReferenceDataController.ts',
-    'resources/js/actions/App/Http/Controllers/Advisor/EntrepreneurController.ts',
-    'resources/js/actions/App/Http/Controllers/Advisor/PartnerPanelController.ts',
-    'resources/js/routes/admin/project-settings/index.ts',
-    'resources/js/routes/admin/reference-data/index.ts',
-    'resources/js/routes/advisor/entrepreneurs/index.ts',
-    'resources/js/routes/advisor/entrepreneurs/invite/index.ts',
-    'resources/js/routes/advisor/partners/brokers/index.ts',
-    'resources/js/routes/advisor/partners/coaches/index.ts',
-    'resources/js/routes/advisor/partners/index.ts',
-    'resources/js/routes/advisor/partners/invite/index.ts',
-    'resources/js/routes/public/index.ts',
-];
+const generatedRoots = ['resources/js/actions', 'resources/js/routes'];
+
+async function tsFilesIn(path) {
+    const entries = await readdir(path, { withFileTypes: true });
+    const files = await Promise.all(
+        entries.map((entry) => {
+            const childPath = `${path}/${entry.name}`;
+
+            if (entry.isDirectory()) {
+                return tsFilesIn(childPath);
+            }
+
+            return entry.isFile() && entry.name.endsWith('.ts') ? [childPath] : [];
+        }),
+    );
+
+    return files.flat();
+}
+
+const generatedFiles = (await Promise.all(generatedRoots.map(tsFilesIn))).flat();
 
 let changed = 0;
 

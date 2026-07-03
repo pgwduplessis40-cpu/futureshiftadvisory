@@ -157,7 +157,7 @@ callback.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
- * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:71
+ * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:72
  * @route '/admin/project-settings/mail/graph/disconnect'
  */
 export const disconnect = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -172,7 +172,7 @@ disconnect.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
- * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:71
+ * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:72
  * @route '/admin/project-settings/mail/graph/disconnect'
  */
 disconnect.url = (options?: RouteQueryOptions) => {
@@ -181,7 +181,7 @@ disconnect.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
- * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:71
+ * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:72
  * @route '/admin/project-settings/mail/graph/disconnect'
  */
 disconnect.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -191,7 +191,7 @@ disconnect.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
- * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:71
+ * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:72
  * @route '/admin/project-settings/mail/graph/disconnect'
  */
     const disconnectForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -206,7 +206,7 @@ disconnect.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
- * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:71
+ * @see app/Http/Controllers/Admin/MicrosoftGraphMailOAuthController.php:72
  * @route '/admin/project-settings/mail/graph/disconnect'
  */
         disconnectForm.patch = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

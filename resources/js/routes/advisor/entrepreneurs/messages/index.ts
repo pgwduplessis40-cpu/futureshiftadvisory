@@ -28,7 +28,7 @@ index.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -100,7 +100,7 @@ index.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::store
@@ -130,7 +130,7 @@ store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -179,7 +179,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::show
@@ -278,7 +278,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, messageThread
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurMessageController::reply
@@ -354,7 +354,7 @@ reply.post = (args: { entrepreneurProfile: string | { id: string }, messageThrea
             action: reply.url(args, options),
             method: 'post',
         })
-    
+
     reply.form = replyForm
 const messages = {
     index: Object.assign(index, index),

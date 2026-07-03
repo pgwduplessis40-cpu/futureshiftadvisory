@@ -27,7 +27,7 @@ runAnalysis.url = (args: { client: string | { id: string } } | [client: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ runAnalysis.post = (args: { client: string | { id: string } } | [client: string 
             action: runAnalysis.url(args, options),
             method: 'post',
         })
-    
+
     runAnalysis.form = runAnalysisForm
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::generatePack
@@ -106,7 +106,7 @@ generatePack.url = (args: { client: string | { id: string } } | [client: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -155,7 +155,7 @@ generatePack.post = (args: { client: string | { id: string } } | [client: string
             action: generatePack.url(args, options),
             method: 'post',
         })
-    
+
     generatePack.form = generatePackForm
 const StandardAdvisoryController = { runAnalysis, generatePack }
 
