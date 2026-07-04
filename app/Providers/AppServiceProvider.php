@@ -64,7 +64,10 @@ class AppServiceProvider extends ServiceProvider
                 return $this->app->make(ClamAvScanner::class);
             }
 
-            if ((bool) config('virus-scanner.allow_noop', false)) {
+            if (
+                (bool) config('virus-scanner.allow_noop', false)
+                && in_array((string) config('app.env', 'production'), ['local', 'testing'], true)
+            ) {
                 return $this->app->make(NoopScanner::class);
             }
 

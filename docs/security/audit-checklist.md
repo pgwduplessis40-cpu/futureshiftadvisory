@@ -8,7 +8,7 @@ Use this checklist with `php artisan security-audit:prepare`.
 - Verify HSM driver binding, KEK non-export invariant, key rotation records, and production HSM provisioning.
 - Review Postgres RLS helper functions, middleware context propagation, and table policies.
 - Review audit trail append-only enforcement and `fsa:audit:verify` output.
-- Review secure upload scanning, quarantine behavior, and secure file storage encryption.
+- Review secure upload scanning, quarantine behavior, and secure file storage encryption. Production must set `FEATURE_VIRUS_SCAN_LIVE=true`, `VIRUS_SCAN_ALLOW_NOOP=false`, `CLAMAV_HOST=127.0.0.1`, and `CLAMAV_PORT=3310`.
 - Review AI integrity gates, live-client boundaries, learning approval/rollback controls, and no-autonomous-change tests.
 - Review mobile/advisor API token hashing, rate limits, scopes, and audit logging.
 - Review payment token handling and no-PAN-storage controls.
