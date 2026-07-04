@@ -277,6 +277,38 @@ final class GamificationTest extends TestCase
         $this->assertSame(1, $profile->refresh()->current_streak);
     }
 
+    public function test_scheduled_streak_recompute_clears_lapsed_streaks(): void
+    {
+        try {
+            $this->travelTo('2026-07-01 09:00:00');
+
+            [$advisor, $entrepreneur, $profile] = $this->profile('streak-recompute-gamification@example.test', gamificationOn: true);
+            $this->openIdeaGate($profile, $advisor);
+            $plan = app(PlanBuilder::class)->start($profile, $entrepreneur);
+
+            app(PlanBuilder::class)->upsertSection(
+                plan: $plan,
+                phaseKey: 'foundation',
+                key: 'founder-foundation-business-type-location',
+                title: 'Business type, location, and operating model',
+                body: 'A focused founder update with enough meaningful words to count toward a daily planning streak.',
+                actor: $entrepreneur,
+                metadata: ['requirement_key' => 'business-type-location'],
+            );
+
+            $this->assertSame(1, $profile->refresh()->current_streak);
+
+            $this->travelTo('2026-07-03 00:20:00');
+
+            $this->artisan('entrepreneurs:recompute-streaks')
+                ->assertSuccessful();
+
+            $this->assertSame(0, $profile->refresh()->current_streak);
+        } finally {
+            $this->travelBack();
+        }
+    }
+
     public function test_entrepreneur_plan_workspace_exposes_enabled_gamification_state(): void
     {
         [, $entrepreneur, $profile] = $this->profile('portal-state-gamification@example.test', gamificationOn: true);

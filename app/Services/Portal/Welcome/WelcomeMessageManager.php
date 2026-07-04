@@ -12,7 +12,10 @@ use Illuminate\Support\Facades\DB;
 
 final class WelcomeMessageManager
 {
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly WelcomeMessageSanitizer $sanitizer,
+    ) {}
 
     /**
      * The single active welcome message, or null if none has been published.
@@ -44,7 +47,7 @@ final class WelcomeMessageManager
      */
     public function publish(string $body, User $actor): WelcomeMessage
     {
-        $body = trim($body);
+        $body = $this->sanitizer->sanitize($body);
 
         return DB::transaction(function () use ($body, $actor): WelcomeMessage {
             WelcomeMessage::query()

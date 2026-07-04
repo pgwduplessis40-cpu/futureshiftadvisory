@@ -60,6 +60,11 @@ final class WelcomeMessageDisplayTest extends TestCase
     public function test_welcome_message_is_provided_to_the_entrepreneur_dashboard(): void
     {
         $this->seed(RoleSeeder::class);
+        $advisor = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
         $user = User::factory()->withTwoFactor()->create([
             'name' => 'Wessel Du Plessis',
             'email' => 'wessel@example.test',
@@ -70,6 +75,7 @@ final class WelcomeMessageDisplayTest extends TestCase
 
         EntrepreneurProfile::query()->create([
             'user_id' => $user->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
             'name' => 'Wessel',
             'email' => $user->email,
             'stage' => EntrepreneurStage::ONBOARDING,

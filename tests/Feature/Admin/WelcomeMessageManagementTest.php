@@ -46,6 +46,27 @@ final class WelcomeMessageManagementTest extends TestCase
         ]);
     }
 
+    public function test_publish_sanitizes_raw_html_and_unsafe_links_before_storage(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.welcome-message.store'), [
+                'body' => 'Kia ora **team**, &lt;script&gt;alert(1)&lt;/script&gt;<img src=x onerror=alert(1)> read [bad link](javascript:alert(1)) and [safe link](https://example.test).',
+            ])
+            ->assertRedirect(route('admin.welcome-message.index', absolute: false));
+
+        $body = (string) WelcomeMessage::query()->firstOrFail()->body;
+
+        $this->assertStringContainsString('**team**', $body);
+        $this->assertStringContainsString('bad link', $body);
+        $this->assertStringContainsString('[safe link](https://example.test)', $body);
+        $this->assertStringNotContainsString('<script', $body);
+        $this->assertStringNotContainsString('<img', $body);
+        $this->assertStringNotContainsString('onerror', $body);
+        $this->assertStringNotContainsString('javascript:', $body);
+    }
+
     public function test_publishing_again_supersedes_the_prior_active_version(): void
     {
         $admin = $this->superAdmin();
