@@ -27,7 +27,7 @@ sign.url = (args: { panelAgreement: string | { id: string } } | [panelAgreement:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelAgreement: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelAgreement: args[0],
@@ -76,7 +76,7 @@ sign.post = (args: { panelAgreement: string | { id: string } } | [panelAgreement
             action: sign.url(args, options),
             method: 'post',
         })
-
+    
     sign.form = signForm
 /**
 * @see \App\Http\Controllers\PanelAgreementController::download
@@ -106,7 +106,7 @@ download.url = (args: { panelAgreement: string | { id: string } } | [panelAgreem
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelAgreement: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelAgreement: args[0],
@@ -178,7 +178,7 @@ download.head = (args: { panelAgreement: string | { id: string } } | [panelAgree
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 const PanelAgreementController = { sign, download }
 

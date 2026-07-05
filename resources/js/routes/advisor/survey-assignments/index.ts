@@ -27,7 +27,7 @@ cancel.url = (args: { surveyAssignment: string | { id: string } } | [surveyAssig
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { surveyAssignment: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     surveyAssignment: args[0],
@@ -86,7 +86,7 @@ cancel.patch = (args: { surveyAssignment: string | { id: string } } | [surveyAss
                     }),
             method: 'post',
         })
-
+    
     cancel.form = cancelForm
 const surveyAssignments = {
     cancel: Object.assign(cancel, cancel),

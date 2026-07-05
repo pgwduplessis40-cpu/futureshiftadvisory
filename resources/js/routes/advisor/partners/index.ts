@@ -30,7 +30,7 @@ show.url = (args: { panelMember: string | { id: string } } | [panelMember: strin
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -102,7 +102,7 @@ show.head = (args: { panelMember: string | { id: string } } | [panelMember: stri
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const partners = {
     brokers: Object.assign(brokers, brokers),

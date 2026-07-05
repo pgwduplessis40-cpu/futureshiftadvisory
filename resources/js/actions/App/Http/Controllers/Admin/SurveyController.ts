@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::edit
@@ -160,7 +160,7 @@ edit.url = (args: { survey: string | { id: string } } | [survey: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { survey: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     survey: args[0],
@@ -232,7 +232,7 @@ edit.head = (args: { survey: string | { id: string } } | [survey: string | { id:
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::update
@@ -262,7 +262,7 @@ update.url = (args: { survey: string | { id: string } } | [survey: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { survey: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     survey: args[0],
@@ -321,7 +321,7 @@ update.put = (args: { survey: string | { id: string } } | [survey: string | { id
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::publish
@@ -351,7 +351,7 @@ publish.url = (args: { survey: string | { id: string } } | [survey: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { survey: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     survey: args[0],
@@ -400,7 +400,7 @@ publish.post = (args: { survey: string | { id: string } } | [survey: string | { 
             action: publish.url(args, options),
             method: 'post',
         })
-
+    
     publish.form = publishForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::archive
@@ -430,7 +430,7 @@ archive.url = (args: { survey: string | { id: string } } | [survey: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { survey: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     survey: args[0],
@@ -479,7 +479,7 @@ archive.post = (args: { survey: string | { id: string } } | [survey: string | { 
             action: archive.url(args, options),
             method: 'post',
         })
-
+    
     archive.form = archiveForm
 /**
 * @see \App\Http\Controllers\Admin\SurveyController::results
@@ -509,7 +509,7 @@ results.url = (args: { survey: string | { id: string } } | [survey: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { survey: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     survey: args[0],
@@ -581,7 +581,7 @@ results.head = (args: { survey: string | { id: string } } | [survey: string | { 
                     }),
             method: 'get',
         })
-
+    
     results.form = resultsForm
 const SurveyController = { index, store, edit, update, publish, archive, results }
 

@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
@@ -82,7 +82,7 @@ guidance.url = (args: { planSection: string | { id: string } } | [planSection: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { planSection: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     planSection: args[0],
@@ -131,7 +131,7 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
             action: guidance.url(args, options),
             method: 'post',
         })
-
+    
     guidance.form = guidanceForm
 const sections = {
     store: Object.assign(store, store),

@@ -75,6 +75,6 @@ HomeController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => 
                     }),
             method: 'get',
         })
-
+    
     HomeController.form = HomeControllerForm
 export default HomeController

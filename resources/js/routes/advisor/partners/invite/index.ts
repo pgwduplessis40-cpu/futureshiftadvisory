@@ -27,7 +27,7 @@ resend.url = (args: { panelMember: string | { id: string } } | [panelMember: str
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -76,7 +76,7 @@ resend.post = (args: { panelMember: string | { id: string } } | [panelMember: st
             action: resend.url(args, options),
             method: 'post',
         })
-
+    
     resend.form = resendForm
 /**
 * @see \App\Http\Controllers\Advisor\PartnerPanelController::cancel
@@ -106,7 +106,7 @@ cancel.url = (args: { panelMember: string | { id: string } } | [panelMember: str
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { panelMember: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     panelMember: args[0],
@@ -165,7 +165,7 @@ cancel.delete = (args: { panelMember: string | { id: string } } | [panelMember: 
                     }),
             method: 'post',
         })
-
+    
     cancel.form = cancelForm
 const invite = {
     resend: Object.assign(resend, resend),

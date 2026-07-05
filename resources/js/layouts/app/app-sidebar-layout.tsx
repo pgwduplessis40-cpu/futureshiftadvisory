@@ -3,6 +3,7 @@ import { AppShell } from '@/components/app-shell';
 import { AppSidebar } from '@/components/app-sidebar';
 import { AppSidebarHeader } from '@/components/app-sidebar-header';
 import { NotificationBell } from '@/components/notifications/NotificationBell';
+import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import type { AppLayoutProps } from '@/types';
 
 export default function AppSidebarLayout({
@@ -20,6 +21,7 @@ export default function AppSidebarLayout({
                     actions={<NotificationBell brandHeader={brandHeader} />}
                 />
                 {children}
+                <PwaInstallPrompt />
             </AppContent>
         </AppShell>
     );

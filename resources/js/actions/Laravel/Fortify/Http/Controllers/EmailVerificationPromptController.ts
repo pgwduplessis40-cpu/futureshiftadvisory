@@ -75,7 +75,7 @@ __invoke.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     __invoke.form = __invokeForm
 const EmailVerificationPromptController = { __invoke }
 

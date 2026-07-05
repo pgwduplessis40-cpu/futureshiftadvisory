@@ -27,7 +27,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::download
@@ -106,7 +106,7 @@ download.url = (args: { report: string | { id: string } } | [report: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -178,7 +178,7 @@ download.head = (args: { report: string | { id: string } } | [report: string | {
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::downloadPptx
@@ -208,7 +208,7 @@ downloadPptx.url = (args: { report: string | { id: string } } | [report: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -280,7 +280,7 @@ downloadPptx.head = (args: { report: string | { id: string } } | [report: string
                     }),
             method: 'get',
         })
-
+    
     downloadPptx.form = downloadPptxForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::review
@@ -310,7 +310,7 @@ review.url = (args: { report: string | { id: string } } | [report: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -369,7 +369,7 @@ review.patch = (args: { report: string | { id: string } } | [report: string | { 
                     }),
             method: 'post',
         })
-
+    
     review.form = reviewForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::release
@@ -399,7 +399,7 @@ release.url = (args: { report: string | { id: string } } | [report: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -458,7 +458,7 @@ release.patch = (args: { report: string | { id: string } } | [report: string | {
                     }),
             method: 'post',
         })
-
+    
     release.form = releaseForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::updateSection
@@ -544,7 +544,7 @@ updateSection.patch = (args: { report: string | { id: string }, reportSection: s
                     }),
             method: 'post',
         })
-
+    
     updateSection.form = updateSectionForm
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::commentSection
@@ -620,7 +620,7 @@ commentSection.post = (args: { report: string | { id: string }, reportSection: s
             action: commentSection.url(args, options),
             method: 'post',
         })
-
+    
     commentSection.form = commentSectionForm
 const ReportController = { store, download, downloadPptx, review, release, updateSection, commentSection }
 

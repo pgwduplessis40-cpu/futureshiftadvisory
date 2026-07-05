@@ -75,7 +75,7 @@ connect.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     connect.form = connectForm
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::callback
@@ -153,7 +153,7 @@ callback.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController::disconnect
@@ -218,7 +218,7 @@ disconnect.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-
+    
     disconnect.form = disconnectForm
 const MicrosoftGraphMailOAuthController = { connect, callback, disconnect }
 

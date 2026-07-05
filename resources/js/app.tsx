@@ -11,7 +11,7 @@ import SettingsLayout from '@/layouts/settings/layout';
 import { registerPortalOffline } from '@/lib/portal-offline';
 import { registerTargetHighlighting } from '@/lib/target-highlight';
 
-const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
+const appName = import.meta.env.VITE_APP_NAME || 'Future Shift Advisory';
 
 createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
