@@ -27,6 +27,11 @@ const baseSidebarNavItems: NavItem[] = [
         icon: null,
     },
     {
+        title: 'Install app',
+        href: '/settings/install-app',
+        icon: null,
+    },
+    {
         title: 'Appearance',
         href: editAppearance(),
         icon: null,

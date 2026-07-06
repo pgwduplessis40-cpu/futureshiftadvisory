@@ -6,12 +6,14 @@ namespace Tests\Feature\Advisor;
 
 use App\Mail\InvitationMail;
 use App\Models\InviteToken;
+use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
@@ -97,6 +99,57 @@ final class PartnerPanelNavigationTest extends TestCase
                 ->where('partners.0.business_name', 'Leadership Coach Studio')
                 ->where('partners.0.contact_name', 'Mika Coach')
                 ->where('partners.0.industry_label', 'Leadership rhythm'));
+    }
+
+    public function test_super_admin_can_view_signed_partner_agreement_inline(): void
+    {
+        Storage::fake('secure_local');
+
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $broker = $this->panelUser(User::TYPE_BROKER, 'signed-broker@example.test');
+        $member = PanelMember::query()->create([
+            'user_id' => $broker->id,
+            'panel_type' => PanelMember::TYPE_BROKER,
+            'status' => PanelMember::STATUS_ACTIVE,
+            'application' => [
+                'company' => 'Signed Broker Partners',
+                'broker_name' => 'Signed Broker',
+                'industry' => 'business insurance',
+            ],
+            'approved_at' => now(),
+        ]);
+        Storage::disk('secure_local')->put('panel-agreements/signed.pdf', '%PDF-1.4 test agreement');
+        $agreement = PanelAgreement::query()->create([
+            'panel_member_id' => $member->getKey(),
+            'status' => PanelAgreement::STATUS_SIGNED,
+            'terms' => ['panel_type' => PanelMember::TYPE_BROKER],
+            'pdf_path' => 'panel-agreements/signed.pdf',
+            'pdf_byte_size' => 23,
+            'signed_by_user_id' => $broker->getKey(),
+            'generated_at' => now(),
+            'signed_at' => now(),
+        ]);
+        $viewUrl = route('panel.agreements.view', $agreement, absolute: false);
+        $downloadUrl = route('panel.agreements.download', $agreement, absolute: false);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.partners.show', $member))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/partners/Show')
+                ->where('partner.latest_agreement.view_url', $viewUrl)
+                ->where('partner.latest_agreement.download_url', $downloadUrl));
+
+        $response = $this->actingAsMfa($admin)
+            ->get($viewUrl)
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->assertStringStartsWith(
+            'inline',
+            (string) $response->headers->get('content-disposition'),
+        );
     }
 
     public function test_super_admin_can_invite_broker_and_coach_partners(): void

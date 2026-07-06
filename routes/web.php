@@ -49,6 +49,8 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
         ->name('panel.application.update');
     Route::post('panel/agreements/{panelAgreement}/sign', [PanelAgreementController::class, 'sign'])
         ->name('panel.agreements.sign');
+    Route::get('panel/agreements/{panelAgreement}/view', [PanelAgreementController::class, 'view'])
+        ->name('panel.agreements.view');
     Route::get('panel/agreements/{panelAgreement}/download', [PanelAgreementController::class, 'download'])
         ->name('panel.agreements.download');
 });

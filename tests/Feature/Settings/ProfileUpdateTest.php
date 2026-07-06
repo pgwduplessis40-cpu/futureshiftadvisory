@@ -26,6 +26,19 @@ class ProfileUpdateTest extends TestCase
         $response->assertOk();
     }
 
+    public function test_install_app_settings_page_is_displayed()
+    {
+        $user = User::factory()->create();
+
+        $this
+            ->actingAsMfa($user)
+            ->get(route('install-app.edit'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('settings/install-app')
+            );
+    }
+
     public function test_entrepreneur_profile_page_exposes_deactivation_request_state()
     {
         $user = User::factory()->create([

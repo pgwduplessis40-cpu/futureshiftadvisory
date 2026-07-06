@@ -614,6 +614,9 @@ final class PartnerPanelController extends Controller
             'generated_at' => $agreement->generated_at?->toISOString(),
             'signed_at' => $agreement->signed_at?->toISOString(),
             'terms' => $agreement->terms ?? [],
+            'view_url' => filled($agreement->pdf_path)
+                ? route('panel.agreements.view', $agreement, absolute: false)
+                : null,
             'download_url' => filled($agreement->pdf_path)
                 ? route('panel.agreements.download', $agreement, absolute: false)
                 : null,

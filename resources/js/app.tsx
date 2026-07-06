@@ -8,6 +8,7 @@ import AuthLayout from '@/layouts/auth-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
+import { ensurePwaInstallListeners } from '@/lib/pwa-install';
 import { registerPortalOffline } from '@/lib/portal-offline';
 import { registerTargetHighlighting } from '@/lib/target-highlight';
 
@@ -53,5 +54,6 @@ createInertiaApp({
 
 // This will set light / dark mode on load...
 initializeTheme();
+ensurePwaInstallListeners();
 registerPortalOffline();
 registerTargetHighlighting();

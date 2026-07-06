@@ -305,6 +305,48 @@ final class BrokerPortalTest extends TestCase
         ]);
     }
 
+    public function test_legacy_signed_broker_agreement_pdf_refreshes_when_viewed(): void
+    {
+        $advisor = $this->advisor('broker-view-refresh-approver@example.test');
+        $broker = $this->broker('broker-view-refresh@example.test');
+        $onboarding = app(PanelOnboarding::class);
+
+        $member = $onboarding->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'View Refresh Brokers Limited',
+            'fsp_number' => 'FSP100001',
+        ]);
+        $agreement = $onboarding->approve($member, $advisor);
+        $signed = $onboarding->signAgreement($agreement, $broker)->refresh();
+        $previousPath = $signed->pdf_path;
+
+        Storage::disk('secure_local')->put(
+            $previousPath,
+            "%PDF-1.4\npanel_type: broker\nbroker_clauses: {\"fsp_number\":\"FSP100001\"}",
+        );
+
+        $response = $this->actingAsMfa($broker)
+            ->get(route('panel.agreements.view', $signed))
+            ->assertOk()
+            ->assertHeader('content-type', 'application/pdf');
+
+        $this->assertStringStartsWith(
+            'inline',
+            (string) $response->headers->get('content-disposition'),
+        );
+
+        $signed->refresh();
+
+        $this->assertNotSame($previousPath, $signed->pdf_path);
+        $refreshedAgreement = Storage::disk('secure_local')->get($signed->pdf_path);
+        $this->assertStringContainsString('Future Shift Advisory', $refreshedAgreement);
+        $this->assertStringContainsString('Broker operating terms', $refreshedAgreement);
+        $this->assertStringNotContainsString('broker_clauses', $refreshedAgreement);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.agreement_pdf_refreshed',
+            'subject_id' => $signed->id,
+        ]);
+    }
+
     public function test_broker_application_reuses_invited_member_for_same_email(): void
     {
         $email = 'broker-reuses-invite@example.test';

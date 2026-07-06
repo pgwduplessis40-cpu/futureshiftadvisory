@@ -13,6 +13,7 @@ use App\Services\Panels\PanelOnboarding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use InvalidArgumentException;
 use Symfony\Component\HttpFoundation\StreamedResponse;
@@ -50,7 +51,38 @@ final class PanelAgreementController extends Controller
         return to_route('dashboard')->with('status', 'panel-agreement-signed');
     }
 
-    public function download(Request $request, PanelAgreement $panelAgreement): StreamedResponse
+    public function download(Request $request, PanelAgreement $panelAgreement, PanelOnboarding $panelOnboarding): StreamedResponse
+    {
+        $this->authorizeAgreementAccess($request, $panelAgreement);
+        $panelAgreement = $this->ensureCurrentSignedPdf($panelAgreement, $panelOnboarding);
+
+        abort_unless(filled($panelAgreement->pdf_path), 404);
+        abort_unless(Storage::disk('secure_local')->exists($panelAgreement->pdf_path), 404);
+
+        return Storage::disk('secure_local')->download(
+            $panelAgreement->pdf_path,
+            'future-shift-panel-agreement.pdf',
+            ['Content-Type' => 'application/pdf'],
+        );
+    }
+
+    public function view(Request $request, PanelAgreement $panelAgreement, PanelOnboarding $panelOnboarding): StreamedResponse
+    {
+        $this->authorizeAgreementAccess($request, $panelAgreement);
+        $panelAgreement = $this->ensureCurrentSignedPdf($panelAgreement, $panelOnboarding);
+
+        abort_unless(filled($panelAgreement->pdf_path), 404);
+        abort_unless(Storage::disk('secure_local')->exists($panelAgreement->pdf_path), 404);
+
+        return Storage::disk('secure_local')->response(
+            $panelAgreement->pdf_path,
+            'future-shift-panel-agreement.pdf',
+            ['Content-Type' => 'application/pdf'],
+            'inline',
+        );
+    }
+
+    private function authorizeAgreementAccess(Request $request, PanelAgreement $panelAgreement): void
     {
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -64,13 +96,45 @@ final class PanelAgreementController extends Controller
                 || $user->can(Permission::CLIENTS_MANAGE->value),
             403,
         );
-        abort_unless(filled($panelAgreement->pdf_path), 404);
-        abort_unless(Storage::disk('secure_local')->exists($panelAgreement->pdf_path), 404);
+    }
 
-        return Storage::disk('secure_local')->download(
-            $panelAgreement->pdf_path,
-            'future-shift-panel-agreement.pdf',
-            ['Content-Type' => 'application/pdf'],
-        );
+    private function ensureCurrentSignedPdf(PanelAgreement $panelAgreement, PanelOnboarding $panelOnboarding): PanelAgreement
+    {
+        if ($panelAgreement->status !== PanelAgreement::STATUS_SIGNED) {
+            return $panelAgreement;
+        }
+
+        if (! filled($panelAgreement->pdf_path) || ! Storage::disk('secure_local')->exists($panelAgreement->pdf_path)) {
+            return $panelOnboarding->refreshSignedAgreementPdf($panelAgreement);
+        }
+
+        if (! $this->storedPdfLooksLegacy($panelAgreement->pdf_path)) {
+            return $panelAgreement;
+        }
+
+        try {
+            return $panelOnboarding->refreshSignedAgreementPdf($panelAgreement);
+        } catch (Throwable $exception) {
+            report($exception);
+
+            return $panelAgreement->refresh();
+        }
+    }
+
+    private function storedPdfLooksLegacy(string $path): bool
+    {
+        try {
+            $content = Storage::disk('secure_local')->get($path);
+        } catch (Throwable) {
+            return false;
+        }
+
+        return Str::contains($content, [
+            'broker_clauses',
+            'coach_clauses',
+            'panel_type:',
+            'client_consent_required:',
+            'reverse_referrals_no_auto_access:',
+        ]);
     }
 }

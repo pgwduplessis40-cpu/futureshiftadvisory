@@ -1,5 +1,5 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft, Download, RefreshCw, XCircle } from 'lucide-react';
+import { ArrowLeft, Download, Eye, RefreshCw, XCircle } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ type Agreement = {
     generated_at: string | null;
     signed_at: string | null;
     terms: Record<string, unknown>;
+    view_url: string | null;
     download_url: string | null;
 };
 
@@ -367,14 +368,31 @@ function AgreementSummary({ agreement }: { agreement: Agreement }) {
                             : ''}
                     </p>
                 </div>
-                {agreement.download_url ? (
-                    <Button asChild size="sm" variant="outline">
-                        <a href={agreement.download_url}>
-                            <Download className="size-4" aria-hidden="true" />
-                            Download signed PDF
-                        </a>
-                    </Button>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                    {agreement.view_url ? (
+                        <Button asChild size="sm" variant="default">
+                            <a
+                                href={agreement.view_url}
+                                target="_blank"
+                                rel="noreferrer"
+                            >
+                                <Eye className="size-4" aria-hidden="true" />
+                                View agreement
+                            </a>
+                        </Button>
+                    ) : null}
+                    {agreement.download_url ? (
+                        <Button asChild size="sm" variant="outline">
+                            <a href={agreement.download_url}>
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Download signed PDF
+                            </a>
+                        </Button>
+                    ) : null}
+                </div>
             </div>
 
             {terms.length > 0 ? (

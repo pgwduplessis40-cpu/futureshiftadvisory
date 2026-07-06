@@ -23,6 +23,7 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::patch('settings/calendar/{calendarConnection}/revoke', [CalendarController::class, 'revoke'])
         ->whereUuid('calendarConnection')
         ->name('calendar.revoke');
+    Route::inertia('settings/install-app', 'settings/install-app')->name('install-app.edit');
 });
 
 Route::middleware(['auth', 'verified'])->group(function () {

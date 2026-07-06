@@ -1,176 +1,93 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Download, Share2, X } from 'lucide-react';
 
 import { BrandMark } from '@/components/public/brand-mark';
 import { Button } from '@/components/ui/button';
+import { usePwaInstall } from '@/lib/pwa-install';
 import { cn } from '@/lib/utils';
 
-type BeforeInstallPromptEvent = Event & {
-    prompt: () => Promise<void>;
-    userChoice: Promise<{
-        outcome: 'accepted' | 'dismissed';
-        platform: string;
-    }>;
-};
-
-const DISMISSED_UNTIL_KEY = 'fsa.pwa.install.dismissed_until';
-const DISMISS_MS = 1000 * 60 * 60 * 24 * 7;
-
-function storageNumber(key: string): number {
-    try {
-        return Number(window.localStorage.getItem(key) ?? 0);
-    } catch {
-        return 0;
-    }
-}
-
-function setStorageNumber(key: string, value: number): void {
-    try {
-        window.localStorage.setItem(key, String(value));
-    } catch {
-        return;
-    }
-}
-
-function isStandalone(): boolean {
-    const navigatorWithStandalone = window.navigator as Navigator & {
-        standalone?: boolean;
-    };
-
-    return (
-        window.matchMedia('(display-mode: standalone)').matches ||
-        navigatorWithStandalone.standalone === true
-    );
-}
-
-function isLikelyMobile(): boolean {
-    return (
-        window.matchMedia('(max-width: 768px)').matches ||
-        /Android|iPhone|iPad|iPod/i.test(window.navigator.userAgent)
-    );
-}
-
-function isIosSafari(): boolean {
-    const userAgent = window.navigator.userAgent;
-
-    return (
-        /iPhone|iPad|iPod/i.test(userAgent) &&
-        /Safari/i.test(userAgent) &&
-        !/CriOS|FxiOS|EdgiOS/i.test(userAgent)
-    );
-}
-
 export function PwaInstallPrompt() {
-    const [deferredPrompt, setDeferredPrompt] =
-        useState<BeforeInstallPromptEvent | null>(null);
+    const installState = usePwaInstall();
     const [visible, setVisible] = useState(false);
     const [helpMode, setHelpMode] = useState<'browser' | 'ios' | null>(null);
-
-    const iosSafari = useMemo(() => {
-        if (typeof window === 'undefined') {
-            return false;
-        }
-
-        return isIosSafari();
-    }, []);
 
     useEffect(() => {
         if (typeof window === 'undefined') {
             return;
         }
 
-        if (isStandalone()) {
+        if (installState.isInstalled) {
+            setVisible(false);
             return;
         }
 
-        if (storageNumber(DISMISSED_UNTIL_KEY) > Date.now()) {
+        if (installState.dismissedUntil > Date.now()) {
+            setVisible(false);
             return;
         }
 
-        let fallbackTimer: number | undefined;
-
-        const handleBeforeInstallPrompt = (event: Event) => {
-            event.preventDefault();
-
-            if (fallbackTimer) {
-                window.clearTimeout(fallbackTimer);
-                fallbackTimer = undefined;
-            }
-
-            setDeferredPrompt(event as BeforeInstallPromptEvent);
+        if (installState.canPrompt) {
             setHelpMode(null);
             setVisible(true);
-        };
-
-        const handleAppInstalled = () => {
-            setDeferredPrompt(null);
-            setVisible(false);
-        };
-
-        window.addEventListener(
-            'beforeinstallprompt',
-            handleBeforeInstallPrompt,
-        );
-        window.addEventListener('appinstalled', handleAppInstalled);
-
-        if (isIosSafari() && isLikelyMobile()) {
-            setHelpMode('ios');
-            setVisible(true);
-        } else {
-            fallbackTimer = window.setTimeout(() => {
-                setHelpMode('browser');
-                setVisible(true);
-            }, 1500);
+            return;
         }
 
-        return () => {
-            if (fallbackTimer) {
-                window.clearTimeout(fallbackTimer);
-            }
+        if (
+            installState.instructionMode === 'ios' &&
+            installState.isLikelyMobile
+        ) {
+            setHelpMode('ios');
+            setVisible(true);
+            return;
+        }
 
-            window.removeEventListener(
-                'beforeinstallprompt',
-                handleBeforeInstallPrompt,
-            );
-            window.removeEventListener('appinstalled', handleAppInstalled);
+        const fallbackTimer = window.setTimeout(() => {
+            setHelpMode('browser');
+            setVisible(true);
+        }, 1500);
+
+        return () => {
+            window.clearTimeout(fallbackTimer);
         };
-    }, []);
+    }, [
+        installState.canPrompt,
+        installState.dismissedUntil,
+        installState.instructionMode,
+        installState.isInstalled,
+        installState.isLikelyMobile,
+    ]);
 
     const dismiss = () => {
         setVisible(false);
-        setStorageNumber(DISMISSED_UNTIL_KEY, Date.now() + DISMISS_MS);
+        installState.dismiss();
     };
 
     const install = async () => {
-        if (!deferredPrompt) {
-            setHelpMode(iosSafari ? 'ios' : 'browser');
+        if (!installState.canPrompt) {
+            setHelpMode(installState.instructionMode);
             return;
         }
 
-        try {
-            await deferredPrompt.prompt();
-            const choice = await deferredPrompt.userChoice;
+        const outcome = await installState.install();
 
-            setDeferredPrompt(null);
+        if (outcome === 'accepted' || outcome === 'installed') {
+            setVisible(false);
+            return;
+        }
 
-            if (choice.outcome === 'accepted') {
-                setVisible(false);
-                return;
-            }
-
+        if (outcome === 'dismissed') {
             dismiss();
             return;
-        } catch {
-            setDeferredPrompt(null);
-            setHelpMode(iosSafari ? 'ios' : 'browser');
         }
+
+        setHelpMode(installState.instructionMode);
     };
 
     if (!visible) {
         return null;
     }
 
-    const canInstallDirectly = deferredPrompt !== null;
+    const canInstallDirectly = installState.canPrompt;
 
     return (
         <div
