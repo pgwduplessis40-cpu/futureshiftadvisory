@@ -41,8 +41,8 @@ final class UploadedReportTemplateRenderer
         return sprintf(
             <<<'HTML'
 <style>%s
-.uploaded-docx-standalone { background: #fff; color: #17211b; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; }
-.uploaded-docx-standalone .docx-template-footer { color: #4b5563; font-size: 10px; margin-top: 18mm; }
+.uploaded-docx-standalone { background: #fff; color: #13233a; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; }
+.uploaded-docx-standalone .docx-template-footer { color: #667282; font-size: 10px; margin-top: 18mm; }
 </style>
 <div class="uploaded-docx-standalone">
 %s
@@ -583,7 +583,7 @@ HTML,
 
         $size = $border->getAttributeNS(self::WORD_NAMESPACE, 'sz');
         $width = is_numeric($size) ? max(1, round(((float) $size) / 8, 2)) : 1;
-        $color = $this->hexColor($border->getAttributeNS(self::WORD_NAMESPACE, 'color')) ?? '#d7e2dd';
+        $color = $this->hexColor($border->getAttributeNS(self::WORD_NAMESPACE, 'color')) ?? '#ded6c7';
 
         return $width.'px solid '.$color;
     }
@@ -729,7 +729,7 @@ h2.docx-template-block { font-size: 17px; line-height: 1.25; margin: 16px 0 9px;
 h3.docx-template-block { font-size: 13px; line-height: 1.3; margin: 12px 0 7px; }
 .docx-template-rule { height: 1px; margin: 8px 0; }
 .docx-template-table { border-collapse: collapse; margin: 10px 0 14px; table-layout: fixed; width: 100%; }
-.docx-template-table td { border: 1px solid #d7e2dd; padding: 7px 8px; vertical-align: top; }
+.docx-template-table td { border: 1px solid #ded6c7; padding: 7px 8px; vertical-align: top; }
 .docx-template-table .docx-template-block { margin-bottom: 5px; }
 .docx-page-break { break-before: page; height: 0; page-break-before: always; }
 CSS;

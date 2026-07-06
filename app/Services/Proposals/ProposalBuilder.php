@@ -626,7 +626,7 @@ final class ProposalBuilder
 HTML,
             $this->escape((string) data_get($proposal->scope, 'summary')),
             $focusAreas,
-            $this->escape($proposal->feeCalculation?->method?->value ?? ''),
+            $this->escape(Str::headline($proposal->feeCalculation?->method?->value ?? '')),
             number_format($proposal->feeCalculation?->suggested_low ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_high ?? 0, 0),
@@ -675,6 +675,11 @@ HTML,
 
     private function brandedProposalHtml(Proposal $proposal, string $sections): string
     {
+        $clientName = $proposal->client?->legal_name ?? 'Client';
+        $proposalDate = $this->proposalDate($proposal);
+        $feeMid = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
+        $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
+
         return sprintf(
             <<<'HTML'
 <!doctype html>
@@ -687,14 +692,28 @@ HTML,
 </style>
 </head>
 <body>
-<header class="brand">
-<h1>Future Shift Advisory</h1>
-<p>Fee proposal v%s</p>
+<header class="letterhead">
+<div class="brand-lockup">
+<div class="brand-mark"><span></span><span></span><span></span></div>
+<div><p class="brand-name">Future Shift</p><p class="brand-subtitle">ADVISORY</p></div>
+</div>
+<div class="document-tag">Fee proposal</div>
 </header>
-<section class="proposal-panel">
-<h2>Client</h2>
+<section class="proposal-hero">
+<p class="eyebrow">Proposal v%s</p>
+<h1>%s</h1>
 <p>%s</p>
-<p>Proposal status: %s</p>
+</section>
+<section class="proposal-snapshot">
+<h2>Proposal snapshot</h2>
+<dl>
+<div><dt>Client</dt><dd>%s</dd></div>
+<div><dt>Status</dt><dd>%s</dd></div>
+<div><dt>Generated</dt><dd>%s</dd></div>
+<div><dt>Prepared by</dt><dd>%s</dd></div>
+<div><dt>Suggested fee</dt><dd>%s</dd></div>
+<div><dt>ROI ratio</dt><dd>%s</dd></div>
+</dl>
 </section>
 %s
 </body>
@@ -702,8 +721,14 @@ HTML,
 HTML,
             $this->proposalCss(null),
             $proposal->version,
-            $this->escape($proposal->client?->legal_name ?? 'Client'),
-            $this->escape($proposal->status->value),
+            $this->escape($this->proposalTitle($proposal)),
+            $this->escape((string) data_get($proposal->scope, 'summary', 'Future Shift Advisory proposal for the agreed engagement scope.')),
+            $this->escape($clientName),
+            $this->escape(Str::headline($proposal->status->value)),
+            $this->escape($proposalDate),
+            $this->escape($createdBy),
+            $this->money($feeMid),
+            number_format($proposal->roi_ratio, 2).'x',
             $sections,
         );
     }
@@ -894,20 +919,37 @@ HTML,
 
     private function proposalCss(?Template $template): string
     {
-        $accent = $this->templateLayoutColor($template, 'accent_color', '#2f6f5e');
-        $accentDark = $this->templateLayoutColor($template, 'accent_dark', '#214f44');
-        $ink = $this->templateLayoutColor($template, 'ink_color', '#17211b');
-        $muted = $this->templateLayoutColor($template, 'muted_color', '#5d6b63');
+        $accent = $this->templateLayoutColor($template, 'accent_color', '#0d7a7a');
+        $accentDark = $this->templateLayoutColor($template, 'accent_dark', '#1c2f4a');
+        $ink = $this->templateLayoutColor($template, 'ink_color', '#13233a');
+        $muted = $this->templateLayoutColor($template, 'muted_color', '#667282');
         $paper = $this->templateLayoutColor($template, 'paper_color', '#ffffff');
 
         return <<<CSS
-@page { margin: 16mm 15mm 18mm; }
+@page { margin: 15mm 15mm 18mm; }
 * { box-sizing: border-box; }
-body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; margin: 0; }
-.brand { border-bottom: 2px solid {$accent}; margin-bottom: 18px; padding-bottom: 12px; }
-.brand h1 { color: {$accentDark}; font-size: 22px; margin: 0 0 4px; }
-.proposal-panel { background: #fff; border: 1px solid #d8e2dc; border-left: 4px solid {$accent}; break-inside: avoid; margin-bottom: 16px; padding: 12px; }
-.proposal-panel h2 { color: {$accentDark}; font-size: 15px; margin: 0 0 6px; }
+body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font-size: 11.5px; line-height: 1.55; margin: 0; }
+.letterhead { align-items: center; border-top: 7px solid #1c2f4a; border-bottom: 1px solid #d8d1c2; display: flex; justify-content: space-between; margin-bottom: 18px; padding: 13px 0 12px; }
+.brand-lockup { align-items: center; display: inline-flex; gap: 13px; }
+.brand-mark { align-items: end; display: inline-flex; gap: 3px; height: 36px; width: 38px; }
+.brand-mark span { background: {$accent}; display: block; width: 8px; }
+.brand-mark span:nth-child(1) { height: 14px; opacity: .55; }
+.brand-mark span:nth-child(2) { height: 24px; opacity: .78; }
+.brand-mark span:nth-child(3) { height: 34px; }
+.brand-name { color: {$accentDark}; font-size: 15px; font-weight: 700; line-height: 1; margin: 0; }
+.brand-subtitle { color: #5a7a70; font-size: 8px; font-weight: 700; letter-spacing: .06em; margin: 4px 0 0; }
+.document-tag { background: #f4efe3; border: 1px solid #d8d1c2; border-radius: 999px; color: {$accentDark}; font-size: 10px; font-weight: 700; padding: 5px 11px; }
+.proposal-hero { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; margin-bottom: 14px; padding: 16px 18px; }
+.eyebrow { color: {$accent}; font-size: 9px; font-weight: 700; letter-spacing: .04em; margin: 0 0 5px; text-transform: uppercase; }
+.proposal-hero h1 { color: {$ink}; font-size: 24px; line-height: 1.15; margin: 0 0 6px; }
+.proposal-hero p { color: {$muted}; margin: 0; }
+.proposal-snapshot { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid {$accent}; break-inside: avoid; margin-bottom: 16px; padding: 15px 18px; }
+.proposal-snapshot h2 { color: {$accentDark}; font-size: 15px; margin: 0 0 10px; }
+.proposal-snapshot dl { border-top: 1px solid #eee7db; display: grid; gap: 9px 18px; grid-template-columns: 1fr 1fr 1fr; margin: 0; padding-top: 10px; }
+.proposal-snapshot dt { color: {$muted}; font-size: 8.5px; font-weight: 700; margin: 0 0 2px; text-transform: uppercase; }
+.proposal-snapshot dd { margin: 0; overflow-wrap: anywhere; }
+.proposal-panel { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid {$accent}; break-inside: avoid; margin-bottom: 14px; padding: 13px 15px; }
+.proposal-panel h2 { color: {$accentDark}; font-size: 14px; margin: 0 0 7px; }
 .proposal-panel p { margin: 0 0 6px; }
 .proposal-panel ul { margin: 0; padding-left: 18px; }
 .proposal-panel li { margin: 0 0 4px; }

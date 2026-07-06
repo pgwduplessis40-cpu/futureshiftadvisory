@@ -14,7 +14,7 @@ use Throwable;
 
 final class PanelAgreementPdfRenderer
 {
-    public const BRANDED_FALLBACK_MARKER = 'FSA-PANEL-AGREEMENT-BRANDED-FALLBACK';
+    public const BRANDED_FALLBACK_MARKER = 'FSA-PANEL-AGREEMENT-BRANDED-FALLBACK-V2';
 
     private const PAGE_WIDTH = 595;
 

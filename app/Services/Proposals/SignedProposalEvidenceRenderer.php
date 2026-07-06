@@ -37,35 +37,39 @@ final class SignedProposalEvidenceRenderer
         $banner = $this->signatureBannerHtml($proposal, $actor, $signedAt);
         $style = <<<'CSS'
 .proposal-signature-stamp {
-  border: 1px solid #214f44;
-  border-left: 5px solid #214f44;
-  color: #17211b;
+  background: #f8f5ee;
+  border: 1px solid #ded6c7;
+  border-left: 5px solid #b8860b;
+  color: #13233a;
   font-family: Arial, sans-serif;
   font-size: 11px;
   margin: 0 0 14px;
   padding: 10px 12px;
 }
 .proposal-signature-certificate {
-  background: #fff;
-  border: 1px solid #d8e2dc;
-  border-left: 5px solid #214f44;
+  background: #f8f5ee;
+  border: 1px solid #ded6c7;
+  border-left: 5px solid #b8860b;
   break-before: page;
-  color: #17211b;
+  color: #13233a;
   font-family: Arial, sans-serif;
-  font-size: 12px;
+  font-size: 11.5px;
   line-height: 1.55;
   margin: 0;
-  padding: 16px;
+  padding: 18px 20px;
 }
 .proposal-signature-certificate h1 {
-  color: #214f44;
-  font-size: 20px;
-  margin: 0 0 6px;
+  color: #1c2f4a;
+  font-size: 22px;
+  line-height: 1.15;
+  margin: 0 0 7px;
 }
 .proposal-signature-certificate h2 {
-  color: #214f44;
+  border-top: 1px solid #ded6c7;
+  color: #0d6a5a;
   font-size: 14px;
-  margin: 18px 0 6px;
+  margin: 16px 0 6px;
+  padding-top: 10px;
 }
 .proposal-signature-certificate dl {
   display: grid;
@@ -73,9 +77,11 @@ final class SignedProposalEvidenceRenderer
   margin: 0;
 }
 .proposal-signature-certificate dt {
-  color: #5d6b63;
+  color: #667282;
+  font-size: 9px;
   font-weight: 700;
   padding: 4px 10px 4px 0;
+  text-transform: uppercase;
 }
 .proposal-signature-certificate dd {
   margin: 0;

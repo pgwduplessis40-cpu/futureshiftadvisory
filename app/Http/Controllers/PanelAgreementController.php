@@ -134,6 +134,10 @@ final class PanelAgreementController extends Controller
             return false;
         }
 
+        if (Str::contains($content, 'FSA-PANEL-AGREEMENT-BRANDED-FALLBACK')) {
+            return true;
+        }
+
         if (Str::contains($content, [
             'broker_clauses',
             'coach_clauses',
