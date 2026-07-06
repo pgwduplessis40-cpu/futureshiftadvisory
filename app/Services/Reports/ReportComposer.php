@@ -24,6 +24,7 @@ use App\Models\DdWorkstream;
 use App\Models\DocumentVerification;
 use App\Models\FinancialSnapshot;
 use App\Models\GovernanceReviewFinding;
+use App\Models\ImprovementOpportunity;
 use App\Models\Milestone;
 use App\Models\NpoDimensionScore;
 use App\Models\NpoEngagement;
@@ -40,10 +41,12 @@ use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Models\RiskCost;
+use App\Models\SuccessionPlan;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Analysis\HolidaysActLiabilityCalculator;
 use App\Services\Audit\AuditWriter;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
@@ -82,6 +85,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly NpoImpactMetricRecorder $npoImpactMetrics,
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
+        private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -714,6 +718,157 @@ final class ReportComposer implements ProvidesMethodology
         });
     }
 
+    public function composeValuation(Client $client, ?User $actor = null): Report
+    {
+        return DB::transaction(function () use ($client, $actor): Report {
+            $valuation = $this->latestValuation($client);
+
+            $report = Report::query()->create([
+                'client_id' => $client->getKey(),
+                'type' => ReportType::Valuation,
+                'title' => ReportType::Valuation->label().' - '.$client->legal_name,
+                'generated_by_user_id' => $actor?->getKey(),
+                'generated_at' => now(),
+                'metadata' => [
+                    'phase' => 'phase_report_layer_composition',
+                    'business_valuation_id' => $valuation?->getKey(),
+                    'methodology' => 'triangulated_sde_ebitda_dcf_range',
+                    'advisor_review_required' => true,
+                    'redactions' => [],
+                ],
+                'review_status' => 'pending_review',
+            ]);
+
+            foreach ($this->valuationReportSections($client, $valuation) as $position => $section) {
+                ReportSection::query()->create([
+                    ...$section,
+                    'report_id' => $report->getKey(),
+                    'client_id' => $client->getKey(),
+                    'position' => $position + 1,
+                ]);
+            }
+
+            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
+
+            $this->audit->record('valuation.report_generated', subject: $report, actor: $actor, after: [
+                'client_id' => $client->getKey(),
+                'business_valuation_id' => $valuation?->getKey(),
+                'sections' => $report->sections()->count(),
+                'pdf_path' => $report->pdf_path,
+            ]);
+
+            return $report->refresh()->load(['client', 'sections']);
+        });
+    }
+
+    public function composeAcquisitionGoNoGo(DdEngagement $engagement, ?User $actor = null): Report
+    {
+        $engagement->loadMissing('client');
+
+        if (! $engagement->client instanceof Client) {
+            throw new InvalidArgumentException('Acquisition Go/No-Go reports require a DD engagement with a client.');
+        }
+
+        return DB::transaction(function () use ($engagement, $actor): Report {
+            $findings = $this->ddFindings($engagement);
+            $valuation = $this->latestDdValuation($engagement);
+            $risks = $findings->isEmpty()
+                ? DdRiskRegisterItem::query()
+                    ->where('dd_engagement_id', $engagement->getKey())
+                    ->orderBy('rank')
+                    ->get()
+                : $this->refreshDdRiskRegister($engagement, $findings, $valuation);
+            $recommendation = $this->ddRecommendation($risks, $valuation);
+
+            $engagement->forceFill([
+                'recommendation' => $recommendation['recommendation'],
+            ])->save();
+
+            $report = Report::query()->create([
+                'client_id' => $engagement->client_id,
+                'type' => ReportType::AcquisitionGoNoGo,
+                'title' => ReportType::AcquisitionGoNoGo->label().' - '.$engagement->target_name,
+                'generated_by_user_id' => $actor?->getKey(),
+                'generated_at' => now(),
+                'metadata' => [
+                    'phase' => 'phase_report_layer_composition',
+                    'dd_engagement_id' => $engagement->getKey(),
+                    'dd_valuation_id' => $valuation?->getKey(),
+                    'recommendation' => $recommendation,
+                    'advisor_review_required' => true,
+                    'redactions' => [],
+                ],
+                'review_status' => 'pending_review',
+            ]);
+
+            foreach ($this->acquisitionGoNoGoSections($engagement, $valuation, $risks, $recommendation) as $position => $section) {
+                ReportSection::query()->create([
+                    ...$section,
+                    'report_id' => $report->getKey(),
+                    'client_id' => $engagement->client_id,
+                    'position' => $position + 1,
+                ]);
+            }
+
+            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
+
+            $this->audit->record('dd.go_no_go_report_generated', subject: $report, actor: $actor, after: [
+                'dd_engagement_id' => $engagement->getKey(),
+                'recommendation' => $recommendation['recommendation'],
+                'sections' => $report->sections()->count(),
+                'pdf_path' => $report->pdf_path,
+            ]);
+
+            return $report->refresh()->load(['client', 'sections']);
+        });
+    }
+
+    public function composeSuccessionValueGap(Client $client, ?User $actor = null): Report
+    {
+        return DB::transaction(function () use ($client, $actor): Report {
+            $valuation = $this->latestValuation($client);
+            $successionPlan = $this->latestSuccessionPlan($client);
+            $improvements = $this->latestImprovementOpportunities($client);
+
+            $report = Report::query()->create([
+                'client_id' => $client->getKey(),
+                'type' => ReportType::SuccessionValueGap,
+                'title' => ReportType::SuccessionValueGap->label().' - '.$client->legal_name,
+                'generated_by_user_id' => $actor?->getKey(),
+                'generated_at' => now(),
+                'metadata' => [
+                    'phase' => 'phase_report_layer_composition',
+                    'business_valuation_id' => $valuation?->getKey(),
+                    'succession_plan_id' => $successionPlan?->getKey(),
+                    'advisor_review_required' => true,
+                    'redactions' => [],
+                ],
+                'review_status' => 'pending_review',
+            ]);
+
+            foreach ($this->successionValueGapSections($client, $valuation, $successionPlan, $improvements) as $position => $section) {
+                ReportSection::query()->create([
+                    ...$section,
+                    'report_id' => $report->getKey(),
+                    'client_id' => $client->getKey(),
+                    'position' => $position + 1,
+                ]);
+            }
+
+            $this->renderAndStorePdf($report->refresh()->load(['client', 'sections']));
+
+            $this->audit->record('succession.value_gap_report_generated', subject: $report, actor: $actor, after: [
+                'client_id' => $client->getKey(),
+                'business_valuation_id' => $valuation?->getKey(),
+                'succession_plan_id' => $successionPlan?->getKey(),
+                'sections' => $report->sections()->count(),
+                'pdf_path' => $report->pdf_path,
+            ]);
+
+            return $report->refresh()->load(['client', 'sections']);
+        });
+    }
+
     public function markReviewed(Report $report, User $actor): Report
     {
         $report = $report->refresh();
@@ -770,7 +925,10 @@ final class ReportComposer implements ProvidesMethodology
     {
         if (in_array($report->type, [
             ReportType::DueDiligence,
+            ReportType::Valuation,
+            ReportType::AcquisitionGoNoGo,
             ReportType::Trajectory,
+            ReportType::SuccessionValueGap,
             ReportType::FunderAccountability,
             ReportType::ImpactSummary,
         ], true)) {
@@ -1126,6 +1284,60 @@ final class ReportComposer implements ProvidesMethodology
             $this->ddBuyerReadinessSection($engagement, $valuation, $risks),
             $this->ddRecommendationSection($engagement, $recommendation),
             $this->ddLiabilityDisclaimerSection($engagement),
+        ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function valuationReportSections(Client $client, ?BusinessValuation $valuation): array
+    {
+        return [
+            $this->valuationTriangulationSection($client, $valuation),
+            $this->earningsNormalisationSection($client, $valuation),
+            $this->assetFloorSection($client, $valuation),
+            $this->valuationMethodologySection($client, $valuation),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  array{recommendation:string,rationale:string}  $recommendation
+     * @return array<int, array<string, mixed>>
+     */
+    private function acquisitionGoNoGoSections(
+        DdEngagement $engagement,
+        ?DdValuation $valuation,
+        Collection $risks,
+        array $recommendation,
+    ): array {
+        $price = $this->walkAwayPricePayload($engagement, $valuation, $risks);
+
+        return [
+            $this->acquisitionDecisionSection($engagement, $valuation, $risks, $recommendation, $price),
+            $this->walkAwayPriceChipSection($engagement, $risks, $price),
+            $this->dealMechanicsSection($engagement, $price),
+            $this->goNoGoEvidenceSection($engagement, $valuation, $risks),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, ImprovementOpportunity>  $improvements
+     * @return array<int, array<string, mixed>>
+     */
+    private function successionValueGapSections(
+        Client $client,
+        ?BusinessValuation $valuation,
+        ?SuccessionPlan $successionPlan,
+        Collection $improvements,
+    ): array {
+        $gap = $this->successionGapPayload($valuation, $successionPlan, $improvements);
+
+        return [
+            $this->successionGapSummarySection($client, $valuation, $successionPlan, $gap),
+            $this->successionReadinessSection($client, $successionPlan),
+            $this->successionImprovementBridgeSection($client, $improvements, $gap),
+            $this->successionOptionsSection($client, $successionPlan),
         ];
     }
 
@@ -2655,6 +2867,437 @@ final class ReportComposer implements ProvidesMethodology
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    private function valuationTriangulationSection(Client $client, ?BusinessValuation $valuation): array
+    {
+        if (! $valuation instanceof BusinessValuation) {
+            return $this->generatedSection(
+                key: 'valuation_triangulation',
+                title: 'Method triangulation',
+                body: 'No business valuation row is available yet. Generate or import a valuation before relying on a standalone valuation report.',
+                sourceReference: 'business_valuations:none:'.$client->getKey(),
+                dataQualityNote: 'Data quality note: valuation report is pending source valuation data.',
+            );
+        }
+
+        $methodRows = $this->valuationMethodRows($valuation);
+        $body = sprintf(
+            "Valuation as at: %s.\nReconciled range: %s low, %s midpoint, %s high.\n\nMethod triangulation:\n%s\n\nConclusion: use the range, not a point estimate. The midpoint is a planning anchor; negotiation and advice should stay inside the evidenced low/high range unless the advisor records a specific adjustment.",
+            $valuation->as_at?->toDateString() ?? 'not dated',
+            $this->money($valuation->reconciled_low),
+            $this->money($valuation->reconciled_mid),
+            $this->money($valuation->reconciled_high),
+            implode("\n", $methodRows),
+        );
+
+        return $this->generatedSection(
+            key: 'valuation_triangulation',
+            title: 'Method triangulation',
+            body: $body,
+            sourceReference: 'business_valuation:'.$valuation->getKey(),
+            dataQualityNote: ($valuation->data_quality_disclaimer ?: 'Data quality note: valuation uses persisted SDE, EBITDA, and DCF/PV methods.').' Data-age stamp: valuation as at '.($valuation->as_at?->toDateString() ?? 'not dated').'.',
+            metadata: [
+                'business_valuation_id' => $valuation->getKey(),
+                'methods' => [
+                    'sde' => $valuation->sde_value,
+                    'ebitda' => $valuation->ebitda_value,
+                    'dcf' => $valuation->dcf_value,
+                ],
+                'reconciled_range' => [
+                    'low' => $valuation->reconciled_low,
+                    'mid' => $valuation->reconciled_mid,
+                    'high' => $valuation->reconciled_high,
+                ],
+            ],
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function earningsNormalisationSection(Client $client, ?BusinessValuation $valuation): array
+    {
+        $snapshot = $this->latestFinancialSnapshot($client);
+        $normalisation = $this->earningsNormalisationPayload($valuation, $snapshot);
+        $addBacks = collect($normalisation['add_backs'])
+            ->map(fn (array $row): string => sprintf(
+                '%s: %s (%s)',
+                $row['label'],
+                $this->money($row['amount']),
+                $row['rationale'],
+            ))
+            ->implode("\n");
+
+        $body = sprintf(
+            "Reported net profit: %s.\nNormalised EBITDA: %s.\nSeller discretionary earnings (SDE): %s.\n\nAdd-backs and normalisation adjustments:\n%s\n\nAdvisor check: for owner-operated NZ SMEs, SDE and one-off add-backs should be reviewed before this valuation is used for pricing or lending conversations.",
+            $this->money($normalisation['reported_net_profit']),
+            $this->money($normalisation['normalised_ebitda']),
+            $this->money($normalisation['sde']),
+            $addBacks !== '' ? $addBacks : 'No structured add-backs are recorded on the latest valuation.',
+        );
+
+        return $this->generatedSection(
+            key: 'earnings_normalisation',
+            title: 'Earnings normalisation worksheet',
+            body: $body,
+            sourceReference: $valuation instanceof BusinessValuation ? 'business_valuation:'.$valuation->getKey().':normalisation' : 'financial_snapshot:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: normalisation is assembled from the latest valuation inputs, valuation adjustments, and the latest financial snapshot where present.',
+            metadata: $normalisation,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function assetFloorSection(Client $client, ?BusinessValuation $valuation): array
+    {
+        $floor = $this->assetFloorPayload($client);
+        $sanityCheck = match (true) {
+            ! is_numeric($floor['asset_floor_nzd']) => 'Asset floor could not be calculated from the latest balance sheet.',
+            $valuation instanceof BusinessValuation && $valuation->reconciled_low < (float) $floor['asset_floor_nzd'] => 'The valuation low point sits below the asset floor; advisor review should reconcile whether assets are surplus, impaired, or required for operations.',
+            $valuation instanceof BusinessValuation => 'The valuation range sits above the available asset floor sanity check.',
+            default => 'Asset floor is ready for comparison once a valuation is available.',
+        };
+
+        $body = sprintf(
+            "Asset floor estimate: %s.\nCash and surplus asset indicator: %s.\nLiabilities included: %s.\nSanity check: %s",
+            $this->money($floor['asset_floor_nzd']),
+            $this->money($floor['cash_or_surplus_asset_indicator_nzd']),
+            $this->money($floor['liabilities_nzd']),
+            $sanityCheck,
+        );
+
+        return $this->generatedSection(
+            key: 'asset_floor',
+            title: 'Asset floor and surplus asset check',
+            body: $body,
+            sourceReference: (string) ($floor['source_reference'] ?? 'financial_snapshot:none:'.$client->getKey()),
+            dataQualityNote: 'Data quality note: asset floor is a sanity check from balance-sheet fields, not a replacement for the earnings and DCF valuation methods.',
+            metadata: $floor,
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function valuationMethodologySection(Client $client, ?BusinessValuation $valuation): array
+    {
+        $sources = collect($valuation?->source_attributions ?? [])
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $source): string => (string) ($source['source_reference'] ?? $source['id'] ?? 'source'))
+            ->filter()
+            ->values()
+            ->all();
+
+        $body = sprintf(
+            "Methodology version: valuation.business; report-layer composition %s.\nUncertainty standard: forward-looking valuation outputs are presented as ranges.\nInput attribution: %s.\nAdvisor review: confirm earnings add-backs, surplus assets, multiple feed date, and DCF assumptions before releasing to a client.",
+            now()->toDateString(),
+            $sources === [] ? 'No explicit source attribution recorded on the valuation row.' : implode(', ', $sources),
+        );
+
+        return $this->generatedSection(
+            key: 'valuation_methodology',
+            title: 'Methodology and source notes',
+            body: $body,
+            sourceReference: $valuation instanceof BusinessValuation ? 'business_valuation:'.$valuation->getKey().':methodology' : 'client:'.$client->getKey().':valuation_methodology',
+            dataQualityNote: 'Data quality note: this section surfaces methodology, uncertainty, and source-age checks so stale reference data is visible.',
+            metadata: [
+                'methodology_ids' => ['valuation.business', 'pv.engine'],
+                'source_attributions' => $valuation?->source_attributions ?? [],
+                'as_at' => $valuation?->as_at?->toIso8601String(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  array{recommendation:string,rationale:string}  $recommendation
+     * @param  array<string, mixed>  $price
+     * @return array<string, mixed>
+     */
+    private function acquisitionDecisionSection(
+        DdEngagement $engagement,
+        ?DdValuation $valuation,
+        Collection $risks,
+        array $recommendation,
+        array $price,
+    ): array {
+        $priceSignal = is_numeric($price['asking_price_nzd']) && is_numeric($price['walk_away_price_nzd'])
+            ? (((float) $price['asking_price_nzd'] > (float) $price['walk_away_price_nzd'])
+                ? 'Asking price is above the calculated walk-away price.'
+                : 'Asking price is at or below the calculated walk-away price.')
+            : 'Asking price or walk-away price is not available yet.';
+
+        $body = sprintf(
+            "Decision: %s.\nTarget: %s.\nWalk-away price: %s.\nAsking price: %s.\nPrice gap to walk-away: %s.\nMaterial risk chips: %d.\nPrice signal: %s\nRationale: %s",
+            ucfirst(str_replace('_', ' ', $recommendation['recommendation'])),
+            $engagement->target_name,
+            $this->money($price['walk_away_price_nzd']),
+            $this->money($price['asking_price_nzd']),
+            $this->money($price['gap_to_walk_away_nzd']),
+            $risks->filter(fn (DdRiskRegisterItem $risk): bool => $risk->price_adjustment_nzd > 0)->count(),
+            $priceSignal,
+            $recommendation['rationale'],
+        );
+
+        return $this->generatedSection(
+            key: 'go_no_go_decision',
+            title: 'Go/No-Go decision',
+            body: $body,
+            sourceReference: $valuation instanceof DdValuation ? 'dd_valuation:'.$valuation->getKey() : 'dd_engagement:'.$engagement->getKey(),
+            dataQualityNote: 'Data quality note: decision combines valuation, asking price, risk register, and price-chip calculations for advisor review.',
+            metadata: [
+                'recommendation' => $recommendation,
+                'walk_away_price' => $price,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  array<string, mixed>  $price
+     * @return array<string, mixed>
+     */
+    private function walkAwayPriceChipSection(DdEngagement $engagement, Collection $risks, array $price): array
+    {
+        $chips = collect($price['price_chips'] ?? [])
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $chip): string => sprintf(
+                '%s: %s off price (%s).',
+                $chip['label'] ?? 'Price chip',
+                $this->money($chip['amount_nzd'] ?? null),
+                $chip['basis'] ?? 'advisor review required',
+            ))
+            ->implode("\n");
+
+        $body = sprintf(
+            "Base valuation high point: %s.\nRisk price chips: %s.\nHolidays Act liability chip: %s.\nWorking-capital chip: %s.\nCalculated walk-away price: %s.\n\nPrice chips:\n%s",
+            $this->money($price['base_high_nzd']),
+            $this->money($price['risk_adjustment_nzd']),
+            $this->money($price['holidays_act_liability_nzd']),
+            $this->money($price['working_capital_adjustment_nzd']),
+            $this->money($price['walk_away_price_nzd']),
+            $chips !== '' ? $chips : 'No quantified price chips are available yet.',
+        );
+
+        return $this->generatedSection(
+            key: 'walk_away_price_chips',
+            title: 'Walk-away price and red-flag price chips',
+            body: $body,
+            sourceReference: 'dd_risk_register:'.$engagement->getKey().':walk_away',
+            dataQualityNote: 'Data quality note: walk-away price starts with the valuation high point and deducts quantified DD risk, Holidays Act, and working-capital chips where available.',
+            metadata: [
+                'risk_register_ids' => $risks->pluck('id')->values()->all(),
+                'walk_away_price' => $price,
+            ],
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $price
+     * @return array<string, mixed>
+     */
+    private function dealMechanicsSection(DdEngagement $engagement, array $price): array
+    {
+        $mechanics = (array) ($price['deal_mechanics'] ?? []);
+        $body = sprintf(
+            "GST going-concern zero-rating: %s.\nGST cash exposure if not zero-rated: %s.\nWorking-capital peg: %s.\nVendor finance: %s.\nEarn-out: %s.\nCompletion note: these mechanics change cash-to-complete and negotiation structure even when headline price is unchanged.",
+            $mechanics['gst_zero_rating_status'] ?? 'not recorded',
+            $this->money($mechanics['gst_cash_exposure_nzd'] ?? null),
+            $mechanics['working_capital_peg'] ?? 'not recorded',
+            $mechanics['vendor_finance'] ?? 'not recorded',
+            $mechanics['earnout'] ?? 'not recorded',
+        );
+
+        return $this->generatedSection(
+            key: 'deal_mechanics',
+            title: 'NZ deal mechanics',
+            body: $body,
+            sourceReference: 'dd_engagement:'.$engagement->getKey().':deal_mechanics',
+            dataQualityNote: 'Data quality note: deal mechanics are sourced from DD target details and should be checked against transaction documents before client advice is released.',
+            metadata: $mechanics,
+        );
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @return array<string, mixed>
+     */
+    private function goNoGoEvidenceSection(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
+    {
+        $riskSources = $risks
+            ->flatMap(fn (DdRiskRegisterItem $risk): array => $risk->source_attributions ?? [])
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $source): string => (string) ($source['source_reference'] ?? $source['id'] ?? 'source'))
+            ->filter()
+            ->unique()
+            ->values()
+            ->all();
+
+        $body = sprintf(
+            "Valuation source: %s.\nRisk-register rows used: %d.\nEvidence sources: %s.\nAdvisor review: confirm any unquantified legal, tax, employment, and financing conditions before issuing the decision to the client.",
+            $valuation instanceof DdValuation ? 'dd_valuation:'.$valuation->getKey().' as at '.($valuation->as_at?->toDateString() ?? 'not dated') : 'no DD valuation available',
+            $risks->count(),
+            $riskSources === [] ? 'No explicit risk source attribution recorded.' : implode(', ', $riskSources),
+        );
+
+        return $this->generatedSection(
+            key: 'go_no_go_evidence',
+            title: 'Evidence and limitations',
+            body: $body,
+            sourceReference: 'dd_engagement:'.$engagement->getKey().':go_no_go_evidence',
+            dataQualityNote: 'Data quality note: Go/No-Go report is a one-page decision layer over persisted DD evidence, valuation, and risk PV data.',
+            metadata: [
+                'dd_valuation_id' => $valuation?->getKey(),
+                'risk_register_ids' => $risks->pluck('id')->values()->all(),
+            ],
+        );
+    }
+
+    /**
+     * @param  array<string, float|null>  $gap
+     * @return array<string, mixed>
+     */
+    private function successionGapSummarySection(
+        Client $client,
+        ?BusinessValuation $valuation,
+        ?SuccessionPlan $successionPlan,
+        array $gap,
+    ): array {
+        $body = sprintf(
+            "Current valuation midpoint: %s.\nOwner target exit PV: %s.\nCurrent value gap: %s.\nPV of ranked improvements: %s.\nProjected value after improvements: %s.\nRemaining gap after improvements: %s.\n\nInterpretation: this report connects succession readiness to enterprise value so the owner can see which improvements most directly close the exit gap.",
+            $this->money($gap['current_value_nzd']),
+            $this->money($gap['target_exit_pv_nzd']),
+            $this->money($gap['current_gap_nzd']),
+            $this->money($gap['improvement_pv_nzd']),
+            $this->money($gap['projected_value_nzd']),
+            $this->money($gap['remaining_gap_nzd']),
+        );
+
+        return $this->generatedSection(
+            key: 'succession_value_gap',
+            title: 'Value-gap analysis',
+            body: $body,
+            sourceReference: $successionPlan instanceof SuccessionPlan ? 'succession_plan:'.$successionPlan->getKey() : 'client:'.$client->getKey().':succession_value_gap',
+            dataQualityNote: 'Data quality note: value gap compares latest valuation, latest succession target-exit PV, and ranked improvement PV rows.',
+            metadata: [
+                'business_valuation_id' => $valuation?->getKey(),
+                'succession_plan_id' => $successionPlan?->getKey(),
+                'gap' => $gap,
+            ],
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function successionReadinessSection(Client $client, ?SuccessionPlan $successionPlan): array
+    {
+        if (! $successionPlan instanceof SuccessionPlan) {
+            return $this->generatedSection(
+                key: 'exit_readiness',
+                title: 'Exit readiness',
+                body: 'No succession plan is available yet. Run the succession planner before relying on exit-readiness scoring.',
+                sourceReference: 'succession_plan:none:'.$client->getKey(),
+                dataQualityNote: 'Data quality note: succession readiness is pending a succession-plan run.',
+            );
+        }
+
+        $ownerPlan = collect((array) ($successionPlan->owner_dependency_plan['actions'] ?? []))
+            ->filter()
+            ->map(fn (mixed $action): string => is_scalar($action) ? (string) $action : json_encode($action, JSON_THROW_ON_ERROR))
+            ->implode("\n");
+        $constraint = $successionPlan->owner_readiness_is_primary_constraint
+            ? 'Owner readiness is the primary constraint.'
+            : 'Owner readiness is not currently marked as the primary constraint.';
+
+        $body = sprintf(
+            "Exit readiness score: %d/10.\n%s\nOwner dependency actions:\n%s",
+            $successionPlan->exit_readiness_score,
+            $constraint,
+            $ownerPlan !== '' ? $ownerPlan : 'No owner dependency actions recorded.',
+        );
+
+        return $this->generatedSection(
+            key: 'exit_readiness',
+            title: 'Exit readiness',
+            body: $body,
+            sourceReference: 'succession_plan:'.$successionPlan->getKey().':readiness',
+            dataQualityNote: 'Data quality note: readiness comes from the persisted succession planner output and should be reviewed against current owner intentions.',
+            metadata: [
+                'succession_plan_id' => $successionPlan->getKey(),
+                'exit_readiness_score' => $successionPlan->exit_readiness_score,
+                'owner_readiness_is_primary_constraint' => $successionPlan->owner_readiness_is_primary_constraint,
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, ImprovementOpportunity>  $improvements
+     * @param  array<string, float|null>  $gap
+     * @return array<string, mixed>
+     */
+    private function successionImprovementBridgeSection(Client $client, Collection $improvements, array $gap): array
+    {
+        $rows = $improvements
+            ->map(fn (ImprovementOpportunity $opportunity): string => sprintf(
+                '#%d %s: %s PV impact over %d year(s).',
+                $opportunity->rank,
+                $opportunity->title,
+                $this->money($opportunity->pv_of_impact),
+                $opportunity->duration_years,
+            ))
+            ->implode("\n");
+
+        $body = sprintf(
+            "Improvement PV included in bridge: %s.\n\nRanked improvement bridge:\n%s",
+            $this->money($gap['improvement_pv_nzd']),
+            $rows !== '' ? $rows : 'No ranked improvement opportunities are available yet.',
+        );
+
+        return $this->generatedSection(
+            key: 'improvement_value_bridge',
+            title: 'Improvement value bridge',
+            body: $body,
+            sourceReference: 'improvement_opportunities:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: improvement PV comes from persisted ranked improvement opportunities and shared PV calculations.',
+            metadata: [
+                'improvement_opportunity_ids' => $improvements->pluck('id')->values()->all(),
+                'improvement_pv_nzd' => $gap['improvement_pv_nzd'],
+            ],
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function successionOptionsSection(Client $client, ?SuccessionPlan $successionPlan): array
+    {
+        $options = collect((array) ($successionPlan?->options ?? []))
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $option): string => sprintf(
+                '%s: fit score %s. %s',
+                (string) ($option['name'] ?? 'Succession option'),
+                (string) ($option['fit_score'] ?? $option['score'] ?? 'n/a'),
+                (string) ($option['rationale'] ?? 'Advisor review required.'),
+            ))
+            ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'succession_options',
+            title: 'Exit option comparison',
+            body: $options !== '' ? $options : 'No succession options are recorded yet.',
+            sourceReference: $successionPlan instanceof SuccessionPlan ? 'succession_plan:'.$successionPlan->getKey().':options' : 'succession_plan:none:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: option comparison is sourced from the latest succession planner output.',
+            metadata: [
+                'succession_plan_id' => $successionPlan?->getKey(),
+                'options' => $successionPlan?->options ?? [],
+            ],
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $waterfall
      * @return array<string, mixed>
      */
@@ -3394,6 +4037,396 @@ final class ReportComposer implements ProvidesMethodology
             ->first();
     }
 
+    private function latestFinancialSnapshot(Client $client): ?FinancialSnapshot
+    {
+        return FinancialSnapshot::query()
+            ->where('client_id', $client->getKey())
+            ->latest('period_end')
+            ->latest('pulled_at')
+            ->latest()
+            ->first();
+    }
+
+    private function latestSuccessionPlan(Client $client): ?SuccessionPlan
+    {
+        return SuccessionPlan::query()
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * @return Collection<int, ImprovementOpportunity>
+     */
+    private function latestImprovementOpportunities(Client $client): Collection
+    {
+        return ImprovementOpportunity::query()
+            ->where('client_id', $client->getKey())
+            ->orderBy('rank')
+            ->latest()
+            ->limit(6)
+            ->get()
+            ->sortBy('rank')
+            ->values();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function valuationMethodRows(BusinessValuation $valuation): array
+    {
+        return collect([
+            'SDE capitalisation' => $valuation->sde_value,
+            'EBITDA market multiple' => $valuation->ebitda_value,
+            'PV/DCF' => $valuation->dcf_value,
+        ])->map(function (mixed $range, string $label): string {
+            if (! is_array($range)) {
+                return "{$label}: n/a.";
+            }
+
+            return sprintf(
+                '%s: %s low, %s midpoint, %s high%s.',
+                $label,
+                $this->money($range['low'] ?? null),
+                $this->money($range['mid'] ?? $range['present_value'] ?? null),
+                $this->money($range['high'] ?? null),
+                is_numeric($range['input'] ?? null) ? ' from input '.$this->money($range['input']) : '',
+            );
+        })->values()->all();
+    }
+
+    /**
+     * @return array{reported_net_profit:?float, normalised_ebitda:?float, sde:?float, add_backs:array<int, array{label:string, amount:float, rationale:string}>}
+     */
+    private function earningsNormalisationPayload(?BusinessValuation $valuation, ?FinancialSnapshot $snapshot): array
+    {
+        $reportedNetProfit = $this->numericFromArray($snapshot?->profit_and_loss, ['net_profit', 'profit', 'net_income']);
+        $normalisedEbitda = $this->numericFromArray($valuation?->ebitda_value, ['input', 'normalised_ebitda'])
+            ?? $this->numericFromArray($snapshot?->metrics, ['ebitda', 'normalised_ebitda']);
+        $sde = $this->numericFromArray($valuation?->sde_value, ['input', 'sde'])
+            ?? $this->numericFromArray($snapshot?->metrics, ['sde']);
+        $addBacks = $this->normalisationAddBacks($valuation?->adjustments ?? []);
+
+        if (is_numeric($sde) && is_numeric($normalisedEbitda) && (float) $sde > (float) $normalisedEbitda) {
+            $addBacks[] = [
+                'label' => 'Owner discretionary earnings uplift',
+                'amount' => round((float) $sde - (float) $normalisedEbitda, 2),
+                'rationale' => 'SDE exceeds normalised EBITDA in the valuation inputs.',
+            ];
+        }
+
+        return [
+            'reported_net_profit' => $reportedNetProfit,
+            'normalised_ebitda' => $normalisedEbitda,
+            'sde' => $sde,
+            'add_backs' => $addBacks,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $values
+     * @param  array<int, string>  $keys
+     */
+    private function numericFromArray(?array $values, array $keys): ?float
+    {
+        if ($values === null) {
+            return null;
+        }
+
+        foreach ($keys as $key) {
+            $value = data_get($values, $key);
+
+            if (is_numeric($value)) {
+                return round((float) $value, 2);
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<int|string, mixed>  $adjustments
+     * @return array<int, array{label:string, amount:float, rationale:string}>
+     */
+    private function normalisationAddBacks(array $adjustments): array
+    {
+        $rows = [];
+
+        foreach ($adjustments as $key => $adjustment) {
+            if (is_array($adjustment)) {
+                $amount = $adjustment['amount'] ?? $adjustment['value'] ?? null;
+
+                if (is_numeric($amount)) {
+                    $rows[] = [
+                        'label' => (string) ($adjustment['label'] ?? $adjustment['name'] ?? (is_string($key) ? str($key)->replace('_', ' ')->title()->toString() : 'Valuation adjustment')),
+                        'amount' => round((float) $amount, 2),
+                        'rationale' => (string) ($adjustment['rationale'] ?? $adjustment['description'] ?? 'Advisor supplied valuation adjustment.'),
+                    ];
+                }
+
+                continue;
+            }
+
+            if (is_string($key) && is_numeric($adjustment)) {
+                $rows[] = [
+                    'label' => str($key)->replace('_', ' ')->title()->toString(),
+                    'amount' => round((float) $adjustment, 2),
+                    'rationale' => 'Valuation adjustment recorded on the valuation row.',
+                ];
+            }
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @return array{asset_floor_nzd:?float, cash_or_surplus_asset_indicator_nzd:?float, liabilities_nzd:?float, source_reference:string}
+     */
+    private function assetFloorPayload(Client $client): array
+    {
+        $snapshot = $this->latestFinancialSnapshot($client);
+        $balanceSheet = $snapshot?->balance_sheet;
+        $totalAssets = $this->numericFromArray($balanceSheet, ['total_assets', 'assets.total', 'assets']);
+        $liabilities = $this->numericFromArray($balanceSheet, ['total_liabilities', 'liabilities.total', 'liabilities']);
+        $cash = $this->numericFromArray($balanceSheet, ['cash', 'bank', 'cash_and_cash_equivalents']);
+
+        return [
+            'asset_floor_nzd' => is_numeric($totalAssets)
+                ? round((float) $totalAssets - (float) ($liabilities ?? 0), 2)
+                : null,
+            'cash_or_surplus_asset_indicator_nzd' => $cash,
+            'liabilities_nzd' => $liabilities,
+            'source_reference' => $snapshot instanceof FinancialSnapshot
+                ? 'financial_snapshot:'.$snapshot->getKey()
+                : 'financial_snapshot:none:'.$client->getKey(),
+        ];
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @return array<string, mixed>
+     */
+    private function walkAwayPricePayload(DdEngagement $engagement, ?DdValuation $valuation, Collection $risks): array
+    {
+        $valuation?->loadMissing('businessValuation');
+        $baseRange = $valuation instanceof DdValuation
+            ? ($this->ddValuationRange($valuation, 'dcf_value') ?? $this->ddValuationRange($valuation, 'reconciled'))
+            : null;
+        $baseHigh = is_array($baseRange) ? $baseRange['high'] : null;
+        $riskAdjustment = round((float) $risks->sum('price_adjustment_nzd'), 2);
+        $holidaysAct = $this->holidaysActLiabilityPayload($engagement);
+        $workingCapitalAdjustment = $this->workingCapitalAdjustmentNzd($engagement);
+        $targetDetails = $engagement->target_details ?? [];
+        $dealStructureAdjustment = $this->ddAdjustmentTotal(data_get($targetDetails, 'deal_structure_adjustments', []));
+        $synergyAdjustment = $this->ddAdjustmentTotal(data_get($targetDetails, 'synergy_adjustments', []));
+        $askingPrice = $this->askingPriceNzd($engagement, $valuation);
+        $walkAway = is_numeric($baseHigh)
+            ? round(max(0, (float) $baseHigh + $dealStructureAdjustment + $synergyAdjustment - $riskAdjustment - (float) $holidaysAct['total_liability_nzd'] - $workingCapitalAdjustment), 2)
+            : null;
+
+        return [
+            'base_range_nzd' => $baseRange,
+            'base_high_nzd' => $baseHigh,
+            'deal_structure_adjustment_nzd' => $dealStructureAdjustment,
+            'synergy_adjustment_nzd' => $synergyAdjustment,
+            'risk_adjustment_nzd' => $riskAdjustment,
+            'holidays_act_liability_nzd' => $holidaysAct['total_liability_nzd'],
+            'working_capital_adjustment_nzd' => $workingCapitalAdjustment,
+            'walk_away_price_nzd' => $walkAway,
+            'asking_price_nzd' => $askingPrice,
+            'gap_to_walk_away_nzd' => is_numeric($askingPrice) && is_numeric($walkAway)
+                ? round((float) $askingPrice - (float) $walkAway, 2)
+                : null,
+            'price_chips' => $this->priceChips($risks, $holidaysAct, $workingCapitalAdjustment),
+            'deal_mechanics' => $this->dealMechanicsPayload($engagement, $askingPrice),
+        ];
+    }
+
+    private function askingPriceNzd(DdEngagement $engagement, ?DdValuation $valuation): ?float
+    {
+        $buyerPositionPrice = data_get($valuation?->buyer_position, 'asking_price_nzd');
+
+        if (is_numeric($buyerPositionPrice)) {
+            return round((float) $buyerPositionPrice, 2);
+        }
+
+        $askingPrice = data_get($engagement->target_details ?? [], 'asking_price');
+        $rate = $valuation instanceof DdValuation ? $valuation->source_to_nzd_rate : 1.0;
+
+        return is_numeric($askingPrice) ? round((float) $askingPrice * $rate, 2) : null;
+    }
+
+    /**
+     * @return array{total_liability_nzd:float, basis:string}
+     */
+    private function holidaysActLiabilityPayload(DdEngagement $engagement): array
+    {
+        $details = $engagement->target_details ?? [];
+        $raw = data_get($details, 'holidays_act_liability', data_get($details, 'holidays_act'));
+
+        if (is_numeric($raw)) {
+            return [
+                'total_liability_nzd' => round((float) $raw, 2),
+                'basis' => 'Advisor supplied Holidays Act liability.',
+            ];
+        }
+
+        if (is_array($raw)) {
+            if (is_numeric($raw['total_liability'] ?? $raw['total_liability_nzd'] ?? null)) {
+                return [
+                    'total_liability_nzd' => round((float) ($raw['total_liability'] ?? $raw['total_liability_nzd']), 2),
+                    'basis' => (string) ($raw['basis'] ?? 'Advisor supplied Holidays Act liability.'),
+                ];
+            }
+
+            if (is_numeric($raw['underpaid_hours'] ?? null) && is_numeric($raw['hourly_rate'] ?? null)) {
+                $calculation = $this->holidaysActLiability->calculate(
+                    (float) $raw['underpaid_hours'],
+                    (float) $raw['hourly_rate'],
+                    (float) ($raw['buffer_rate'] ?? 0.15),
+                );
+
+                return [
+                    'total_liability_nzd' => $calculation['total_liability'],
+                    'basis' => sprintf(
+                        'Calculated from %.2f underpaid hours at %s/hour plus remediation buffer.',
+                        $calculation['underpaid_hours'],
+                        $this->money($calculation['hourly_rate']),
+                    ),
+                ];
+            }
+        }
+
+        return [
+            'total_liability_nzd' => 0.0,
+            'basis' => 'No Holidays Act liability chip recorded.',
+        ];
+    }
+
+    private function workingCapitalAdjustmentNzd(DdEngagement $engagement): float
+    {
+        $details = $engagement->target_details ?? [];
+        $direct = data_get($details, 'working_capital_adjustment_nzd');
+
+        if (is_numeric($direct)) {
+            return round(max(0, (float) $direct), 2);
+        }
+
+        return round(max(0, $this->ddAdjustmentTotal(
+            data_get($details, 'working_capital_adjustments', []),
+            data_get($details, 'completion_accounts_adjustments', []),
+        )), 2);
+    }
+
+    /**
+     * @param  Collection<int, DdRiskRegisterItem>  $risks
+     * @param  array{total_liability_nzd:float, basis:string}  $holidaysAct
+     * @return array<int, array{label:string, amount_nzd:float, basis:string, source_reference:string}>
+     */
+    private function priceChips(Collection $risks, array $holidaysAct, float $workingCapitalAdjustment): array
+    {
+        $chips = $risks
+            ->filter(fn (DdRiskRegisterItem $risk): bool => $risk->price_adjustment_nzd > 0)
+            ->map(fn (DdRiskRegisterItem $risk): array => [
+                'label' => $risk->title,
+                'amount_nzd' => round($risk->price_adjustment_nzd, 2),
+                'basis' => str_replace('_', ' ', $risk->risk_level).' DD risk priced from RiskCostPv.',
+                'source_reference' => 'dd_risk_register:'.$risk->getKey(),
+            ])
+            ->values()
+            ->all();
+
+        if ($holidaysAct['total_liability_nzd'] > 0) {
+            $chips[] = [
+                'label' => 'Holidays Act remediation',
+                'amount_nzd' => $holidaysAct['total_liability_nzd'],
+                'basis' => $holidaysAct['basis'],
+                'source_reference' => 'holidays_act_liability:target_details',
+            ];
+        }
+
+        if ($workingCapitalAdjustment > 0) {
+            $chips[] = [
+                'label' => 'Working-capital true-up',
+                'amount_nzd' => $workingCapitalAdjustment,
+                'basis' => 'Advisor supplied working-capital/completion adjustment.',
+                'source_reference' => 'working_capital_adjustment:target_details',
+            ];
+        }
+
+        return $chips;
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function dealMechanicsPayload(DdEngagement $engagement, mixed $askingPriceNzd): array
+    {
+        $details = $engagement->target_details ?? [];
+        $zeroRated = data_get($details, 'gst_going_concern_zero_rating', data_get($details, 'gst.zero_rating'));
+        $zeroRatingStatus = is_bool($zeroRated)
+            ? ($zeroRated ? 'confirmed as intended' : 'not confirmed')
+            : (is_string($zeroRated) && trim($zeroRated) !== '' ? $zeroRated : 'not recorded');
+
+        return [
+            'gst_zero_rating_status' => $zeroRatingStatus,
+            'gst_cash_exposure_nzd' => $zeroRated === false && is_numeric($askingPriceNzd)
+                ? round((float) $askingPriceNzd * 0.15, 2)
+                : 0.0,
+            'working_capital_peg' => $this->dealMechanicText(data_get($details, 'working_capital_peg')),
+            'vendor_finance' => $this->dealMechanicText(data_get($details, 'vendor_finance')),
+            'earnout' => $this->dealMechanicText(data_get($details, 'earnout')),
+        ];
+    }
+
+    private function dealMechanicText(mixed $value): string
+    {
+        if (is_string($value) && trim($value) !== '') {
+            return $value;
+        }
+
+        if (is_numeric($value)) {
+            return $this->money($value);
+        }
+
+        if (is_array($value)) {
+            foreach (['summary', 'status', 'label', 'description'] as $key) {
+                if (is_string($value[$key] ?? null) && trim((string) $value[$key]) !== '') {
+                    return (string) $value[$key];
+                }
+            }
+
+            return json_encode($value, JSON_THROW_ON_ERROR);
+        }
+
+        return 'not recorded';
+    }
+
+    /**
+     * @param  Collection<int, ImprovementOpportunity>  $improvements
+     * @return array{current_value_nzd:?float, target_exit_pv_nzd:?float, current_gap_nzd:?float, improvement_pv_nzd:float, projected_value_nzd:?float, remaining_gap_nzd:?float}
+     */
+    private function successionGapPayload(?BusinessValuation $valuation, ?SuccessionPlan $successionPlan, Collection $improvements): array
+    {
+        $current = $valuation?->reconciled_mid;
+        $target = $successionPlan?->target_exit_pv;
+        $improvementPv = round((float) $improvements->sum('pv_of_impact'), 2);
+        $projected = is_numeric($current) ? round((float) $current + $improvementPv, 2) : null;
+
+        return [
+            'current_value_nzd' => is_numeric($current) ? round((float) $current, 2) : null,
+            'target_exit_pv_nzd' => is_numeric($target) ? round((float) $target, 2) : null,
+            'current_gap_nzd' => is_numeric($current) && is_numeric($target)
+                ? round((float) $target - (float) $current, 2)
+                : null,
+            'improvement_pv_nzd' => $improvementPv,
+            'projected_value_nzd' => $projected,
+            'remaining_gap_nzd' => is_numeric($projected) && is_numeric($target)
+                ? round((float) $target - (float) $projected, 2)
+                : null,
+        ];
+    }
+
     private function latestProposal(Client $client): ?Proposal
     {
         return Proposal::query()
@@ -3569,7 +4602,7 @@ final class ReportComposer implements ProvidesMethodology
 
         $ebitda = data_get($valuation->businessValuation?->ebitda_value, 'input');
         $values = collect($precedents)
-            ->filter('is_array')
+            ->filter(fn (mixed $item): bool => is_array($item))
             ->map(function (array $precedent) use ($ebitda, $valuation): ?float {
                 $amount = $precedent['enterprise_value_nzd']
                     ?? $precedent['value_nzd']
@@ -3624,7 +4657,7 @@ final class ReportComposer implements ProvidesMethodology
 
                 return array_values(array_filter($group, 'is_array'));
             })
-            ->filter('is_array')
+            ->filter(fn (mixed $item): bool => is_array($item))
             ->sum(fn (array $adjustment): float => (float) ($adjustment['amount'] ?? $adjustment['value'] ?? 0)), 2);
     }
 

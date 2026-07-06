@@ -16,6 +16,7 @@ use App\Http\Controllers\Portal\MessageController;
 use App\Http\Controllers\Portal\NpoBoardDashboardController;
 use App\Http\Controllers\Portal\NpoImpactMetricController;
 use App\Http\Controllers\Portal\OnboardingController;
+use App\Http\Controllers\Portal\OutcomeFollowUpController;
 use App\Http\Controllers\Portal\ProposalSignoffController;
 use App\Http\Controllers\Portal\ReportController;
 use App\Http\Controllers\Portal\ServiceActivationController;
@@ -76,6 +77,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('documents/{document}', [DocumentController::class, 'show'])->name('documents.show');
         Route::get('reports/{report}', [ReportController::class, 'show'])->name('reports.show');
         Route::post('npo-impact-metrics', NpoImpactMetricController::class)->name('npo-impact-metrics.store');
+        Route::get('outcome-follow-ups/{outcomeFollowUp}', [OutcomeFollowUpController::class, 'show'])->name('outcome-follow-ups.show');
+        Route::post('outcome-follow-ups/{outcomeFollowUp}', [OutcomeFollowUpController::class, 'submit'])->name('outcome-follow-ups.submit');
         Route::get('inspiration-board', [InspirationBoardController::class, 'index'])->name('inspiration-board.index');
         Route::get('inspiration-board/{boardPost}/image', [InspirationBoardController::class, 'image'])->name('inspiration-board.image');
         Route::get('messages', [MessageController::class, 'index'])->name('messages.index');

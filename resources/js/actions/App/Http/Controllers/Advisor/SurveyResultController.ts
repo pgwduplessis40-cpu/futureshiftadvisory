@@ -27,7 +27,7 @@ client.url = (args: { client: string | { id: string } } | [client: string | { id
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -99,7 +99,7 @@ client.head = (args: { client: string | { id: string } } | [client: string | { i
                     }),
             method: 'get',
         })
-    
+
     client.form = clientForm
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::entrepreneur
@@ -129,7 +129,7 @@ entrepreneur.url = (args: { entrepreneurProfile: string | { id: string } } | [en
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -201,7 +201,7 @@ entrepreneur.head = (args: { entrepreneurProfile: string | { id: string } } | [e
                     }),
             method: 'get',
         })
-    
+
     entrepreneur.form = entrepreneurForm
 const SurveyResultController = { client, entrepreneur }
 

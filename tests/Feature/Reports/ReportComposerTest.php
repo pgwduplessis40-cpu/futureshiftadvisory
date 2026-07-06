@@ -21,10 +21,12 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
+use App\Models\ImprovementOpportunity;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\Report;
 use App\Models\ReportSection;
+use App\Models\SuccessionPlan;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
@@ -138,6 +140,71 @@ final class ReportComposerTest extends TestCase
             $this->assertNotSame('', $section->document_support_note);
             $this->assertStringContainsString('Data quality note:', $section->data_quality_note);
         });
+    }
+
+    public function test_valuation_report_triangulates_methods_and_requires_review(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('valuation-report-advisor@example.test');
+        $this->businessValuation($client, 640000);
+
+        $report = app(ReportComposer::class)->composeValuation($client, $advisor);
+
+        $this->assertSame(ReportType::Valuation, $report->type);
+        $this->assertSame('pending_review', $report->review_status);
+        $this->assertTrue($report->metadata['advisor_review_required']);
+        $this->assertNotNull($report->pdf_path);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
+
+        foreach ([
+            'valuation_triangulation',
+            'earnings_normalisation',
+            'asset_floor',
+            'valuation_methodology',
+        ] as $key) {
+            $this->assertTrue($report->sections->contains('key', $key), "Missing valuation section {$key}.");
+        }
+
+        $this->assertStringContainsString('Method triangulation', $this->renderer->html);
+        $this->assertStringContainsString('use the range, not a point estimate', $this->renderer->html);
+        $this->assertStringContainsString('Earnings normalisation worksheet', $this->renderer->html);
+    }
+
+    public function test_succession_value_gap_report_bridges_current_value_target_and_improvements(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('succession-gap-advisor@example.test');
+        $this->businessValuation($client, 500000);
+        $this->improvementOpportunity($client, 150000);
+
+        SuccessionPlan::query()->create([
+            'client_id' => $client->id,
+            'exit_readiness_score' => 6,
+            'options' => [
+                ['name' => 'Trade sale', 'fit_score' => 7, 'rationale' => 'Likely best fit once owner dependency is reduced.'],
+            ],
+            'owner_dependency_plan' => ['actions' => ['Document sales handover and appoint a general manager.']],
+            'target_exit_pv' => 900000,
+            'owner_readiness_is_primary_constraint' => true,
+        ]);
+
+        $report = app(ReportComposer::class)->composeSuccessionValueGap($client, $advisor);
+
+        $this->assertSame(ReportType::SuccessionValueGap, $report->type);
+        $this->assertSame('pending_review', $report->review_status);
+
+        foreach ([
+            'succession_value_gap',
+            'exit_readiness',
+            'improvement_value_bridge',
+            'succession_options',
+        ] as $key) {
+            $this->assertTrue($report->sections->contains('key', $key), "Missing succession section {$key}.");
+        }
+
+        $gap = $report->sections->firstWhere('key', 'succession_value_gap')?->metadata['gap'];
+        $this->assertEqualsWithDelta(400000, $gap['current_gap_nzd'], 0.01);
+        $this->assertEqualsWithDelta(250000, $gap['remaining_gap_nzd'], 0.01);
+        $this->assertStringContainsString('Value-gap analysis', $this->renderer->html);
+        $this->assertStringContainsString('Trade sale', $this->renderer->html);
     }
 
     public function test_client_report_uses_active_report_template(): void
@@ -1153,8 +1220,8 @@ XML,
         return BusinessValuation::query()->create([
             'client_id' => $client->getKey(),
             'pv_calculation_id' => $calculation->getKey(),
-            'sde_value' => ['mid' => $mid],
-            'ebitda_value' => ['mid' => $mid],
+            'sde_value' => ['mid' => $mid, 'input' => $mid * 0.4],
+            'ebitda_value' => ['mid' => $mid, 'input' => $mid * 0.35],
             'dcf_value' => ['mid' => $mid],
             'reconciled_low' => $mid * 0.9,
             'reconciled_mid' => $mid,
@@ -1164,6 +1231,36 @@ XML,
                 ['claim' => 'Fixture valuation', 'source_reference' => 'test:valuation'],
             ],
             'as_at' => $asAt,
+        ]);
+    }
+
+    private function improvementOpportunity(Client $client, float $impact): ImprovementOpportunity
+    {
+        $calculation = PvCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'type' => PvType::ImprovementOpportunity,
+            'discount_method' => DiscountMethod::AdvisorConfigured,
+            'discount_rate' => 0.12,
+            'discount_rate_rationale' => 'Fixture improvement rate.',
+            'inputs' => ['fixture' => true],
+            'result' => ['present_value' => $impact],
+            'as_at' => now(),
+            'source_attributions' => [
+                ['claim' => 'Fixture improvement', 'source_reference' => 'test:improvement'],
+            ],
+        ]);
+
+        return ImprovementOpportunity::query()->create([
+            'client_id' => $client->getKey(),
+            'pv_calculation_id' => $calculation->getKey(),
+            'title' => 'Reduce owner dependency',
+            'annual_benefit' => $impact / 3,
+            'duration_years' => 3,
+            'pv_of_impact' => $impact,
+            'rank' => 1,
+            'source_attributions' => [
+                ['claim' => 'Fixture improvement', 'source_reference' => 'test:improvement'],
+            ],
         ]);
     }
 

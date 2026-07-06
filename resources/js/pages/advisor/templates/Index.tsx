@@ -292,7 +292,7 @@ export default function TemplateIndex({
                             </span>
                             <Input
                                 type="file"
-                                accept=".doc,.docx,.dot,.dotx,.pdf"
+                                accept=".doc,.docx,.dot,.dotx,.pdf,.png,.jpg,.jpeg"
                                 onChange={(event) =>
                                     createForm.setData(
                                         'file',

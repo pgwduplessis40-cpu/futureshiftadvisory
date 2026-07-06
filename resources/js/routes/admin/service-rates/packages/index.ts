@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:80
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
  * @route '/admin/service-rates/packages'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:80
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
  * @route '/admin/service-rates/packages'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:80
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
  * @route '/admin/service-rates/packages'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:80
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
  * @route '/admin/service-rates/packages'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,19 +45,108 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:80
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
  * @route '/admin/service-rates/packages'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
-* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:128
+* @see \App\Http\Controllers\Admin\ServiceRateController::update
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:101
  * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ */
+export const update = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: update.url(args, options),
+    method: 'patch',
+})
+
+update.definition = {
+    methods: ["patch"],
+    url: '/admin/service-rates/packages/{serviceRatePackage}',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Admin\ServiceRateController::update
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:101
+ * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ */
+update.url = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { serviceRatePackage: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { serviceRatePackage: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    serviceRatePackage: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        serviceRatePackage: typeof args.serviceRatePackage === 'object'
+                ? args.serviceRatePackage.id
+                : args.serviceRatePackage,
+                }
+
+    return update.definition.url
+            .replace('{serviceRatePackage}', parsedArgs.serviceRatePackage.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\ServiceRateController::update
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:101
+ * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ */
+update.patch = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: update.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\ServiceRateController::update
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:101
+ * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ */
+    const updateForm = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: update.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\ServiceRateController::update
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:101
+ * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ */
+        updateForm.patch = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: update.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+
+    update.form = updateForm
+/**
+* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:132
+ * @route '/admin/service-rates/packages/{serviceRatePackage}/status'
  */
 export const toggle = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: toggle.url(args, options),
@@ -66,13 +155,13 @@ export const toggle = (args: { serviceRatePackage: string | { id: string } } | [
 
 toggle.definition = {
     methods: ["patch"],
-    url: '/admin/service-rates/packages/{serviceRatePackage}',
+    url: '/admin/service-rates/packages/{serviceRatePackage}/status',
 } satisfies RouteDefinition<["patch"]>
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:128
- * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:132
+ * @route '/admin/service-rates/packages/{serviceRatePackage}/status'
  */
 toggle.url = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
     if (typeof args === 'string' || typeof args === 'number') {
@@ -82,7 +171,7 @@ toggle.url = (args: { serviceRatePackage: string | { id: string } } | [serviceRa
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRatePackage: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceRatePackage: args[0],
@@ -104,8 +193,8 @@ toggle.url = (args: { serviceRatePackage: string | { id: string } } | [serviceRa
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:128
- * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:132
+ * @route '/admin/service-rates/packages/{serviceRatePackage}/status'
  */
 toggle.patch = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
     url: toggle.url(args, options),
@@ -114,8 +203,8 @@ toggle.patch = (args: { serviceRatePackage: string | { id: string } } | [service
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:128
- * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:132
+ * @route '/admin/service-rates/packages/{serviceRatePackage}/status'
  */
     const toggleForm = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
         action: toggle.url(args, {
@@ -129,8 +218,8 @@ toggle.patch = (args: { serviceRatePackage: string | { id: string } } | [service
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:128
- * @route '/admin/service-rates/packages/{serviceRatePackage}'
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:132
+ * @route '/admin/service-rates/packages/{serviceRatePackage}/status'
  */
         toggleForm.patch = (args: { serviceRatePackage: string | { id: string } } | [serviceRatePackage: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: toggle.url(args, {
@@ -141,10 +230,11 @@ toggle.patch = (args: { serviceRatePackage: string | { id: string } } | [service
                     }),
             method: 'post',
         })
-    
+
     toggle.form = toggleForm
 const packages = {
     store: Object.assign(store, store),
+update: Object.assign(update, update),
 toggle: Object.assign(toggle, toggle),
 }
 

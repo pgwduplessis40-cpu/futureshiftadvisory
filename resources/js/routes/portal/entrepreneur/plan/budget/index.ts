@@ -3,7 +3,7 @@ import flags from './flags'
 import advisorNudge from './advisor-nudge'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:290
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:331
  * @route '/portal/entrepreneur/plan/budget'
  */
 export const update = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -18,7 +18,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:290
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:331
  * @route '/portal/entrepreneur/plan/budget'
  */
 update.url = (options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ update.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:290
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:331
  * @route '/portal/entrepreneur/plan/budget'
  */
 update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -37,7 +37,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:290
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:331
  * @route '/portal/entrepreneur/plan/budget'
  */
     const updateForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -47,14 +47,14 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::update
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:290
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:331
  * @route '/portal/entrepreneur/plan/budget'
  */
         updateForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: update.url(options),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const budget = {
     update: Object.assign(update, update),

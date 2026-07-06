@@ -10,23 +10,18 @@ use App\Models\User;
 use App\Notifications\PanelApplicationInformationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Panels\Broker\BrokerFspVerifier;
-use App\Services\Pdf\PdfRenderer;
-use App\Services\Pdf\SimpleTextPdf;
 use App\Services\Storage\KeyEnvelope;
-use DateTimeInterface;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use InvalidArgumentException;
-use Throwable;
 
 final class PanelOnboarding
 {
     public function __construct(
-        private readonly PdfRenderer $renderer,
-        private readonly SimpleTextPdf $fallbackPdf,
+        private readonly PanelAgreementPdfRenderer $agreementRenderer,
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
         private readonly BrokerFspVerifier $brokerFspVerifier,
@@ -265,7 +260,7 @@ final class PanelOnboarding
             }
 
             $signedAt = now();
-            $pdf = $this->renderAgreementPdf($agreement, $actor, $signedAt);
+            $pdf = $this->agreementRenderer->renderPdf($agreement, $actor, $signedAt);
             $path = sprintf('panel/agreements/%s/%s-agreement.pdf', $member->getKey(), Str::uuid());
 
             if (Storage::disk('secure_local')->put($path, $pdf) !== true) {
@@ -292,6 +287,58 @@ final class PanelOnboarding
             $this->audit->record('panel.agreement_signed', subject: $agreement, actor: $actor, after: [
                 'panel_member_id' => $member->getKey(),
                 'panel_type' => $member->panel_type,
+                'pdf_path' => $path,
+            ]);
+
+            return $agreement->refresh();
+        });
+    }
+
+    public function refreshSignedAgreementPdf(PanelAgreement $agreement): PanelAgreement
+    {
+        return DB::transaction(function () use ($agreement): PanelAgreement {
+            $agreement = $agreement->refresh()->loadMissing(['panelMember.user', 'signedBy']);
+            $member = $agreement->panelMember;
+
+            if (! $member instanceof PanelMember) {
+                throw new PanelAccessException('Panel agreement is not linked to a panel member.');
+            }
+
+            if ($agreement->status !== PanelAgreement::STATUS_SIGNED) {
+                throw new InvalidArgumentException('Only signed panel agreements can be refreshed.');
+            }
+
+            if ($agreement->signed_at === null) {
+                throw new InvalidArgumentException('Signed panel agreements require a signed timestamp before refresh.');
+            }
+
+            $actor = $agreement->signedBy instanceof User ? $agreement->signedBy : $member->user;
+
+            if (! $actor instanceof User) {
+                throw new PanelAccessException('Panel agreement is missing the signing user.');
+            }
+
+            $pdf = $this->agreementRenderer->renderPdf($agreement, $actor, $agreement->signed_at);
+            $path = sprintf('panel/agreements/%s/%s-agreement.pdf', $member->getKey(), Str::uuid());
+
+            if (Storage::disk('secure_local')->put($path, $pdf) !== true) {
+                throw new \RuntimeException('Panel agreement PDF could not be stored.');
+            }
+
+            $hashEnvelope = $this->envelope->encrypt(hash('sha256', $pdf));
+            $previousPath = $agreement->pdf_path;
+
+            $agreement->forceFill([
+                'pdf_path' => $path,
+                'pdf_sha256_envelope' => $hashEnvelope,
+                'pdf_envelope_meta' => $this->envelope->inspect($hashEnvelope),
+                'pdf_byte_size' => strlen($pdf),
+            ])->save();
+
+            $this->audit->record('panel.agreement_pdf_refreshed', subject: $agreement, after: [
+                'panel_member_id' => $member->getKey(),
+                'panel_type' => $member->panel_type,
+                'previous_pdf_path' => $previousPath,
                 'pdf_path' => $path,
             ]);
 
@@ -377,66 +424,5 @@ final class PanelOnboarding
             'decided_by_user_id' => $admin->getKey(),
             'decided_at' => now()->toIso8601String(),
         ];
-    }
-
-    private function renderAgreementPdf(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
-    {
-        try {
-            return $this->renderer->render($this->agreementHtml($agreement, $actor, $signedAt));
-        } catch (Throwable $exception) {
-            report($exception);
-
-            return $this->fallbackPdf->render($this->agreementTitle($agreement), [
-                'Future Shift Advisory partner agreement.',
-                'Signed by: '.$actor->name.' <'.$actor->email.'>',
-                'User ID: '.$actor->getKey(),
-                'Agreement ID: '.$agreement->getKey(),
-                'Signed at: '.$signedAt->format(DATE_ATOM),
-                ...$this->agreementPlainTextLines($agreement),
-            ]);
-        }
-    }
-
-    private function agreementHtml(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
-    {
-        $agreementTerms = $agreement->terms ?? [];
-        $title = $this->escape($this->agreementTitle($agreement));
-        $terms = collect($agreementTerms)
-            ->reject(fn (mixed $_, string $key): bool => in_array($key, ['agreement_title'], true))
-            ->map(fn (mixed $value, string $key): string => '<p><strong>'.$this->escape($key).'</strong>: '.$this->escape($this->agreementValue($value)).'</p>')
-            ->implode('');
-
-        return '<!doctype html><html><body><h1>'.$title.'</h1><p>Signed by '.$this->escape($actor->name).' &lt;'.$this->escape((string) $actor->email).'&gt;</p><p>Signed at '.$this->escape($signedAt->format(DATE_ATOM)).'</p>'.$terms.'</body></html>';
-    }
-
-    /**
-     * @return array<int, string>
-     */
-    private function agreementPlainTextLines(PanelAgreement $agreement): array
-    {
-        return collect($agreement->terms ?? [])
-            ->reject(fn (mixed $_, string $key): bool => in_array($key, ['agreement_title'], true))
-            ->map(fn (mixed $value, string $key): string => $key.': '.$this->agreementValue($value))
-            ->values()
-            ->all();
-    }
-
-    private function agreementTitle(PanelAgreement $agreement): string
-    {
-        return (string) (($agreement->terms ?? [])['agreement_title'] ?? 'Future Shift Advisory partner agreement');
-    }
-
-    private function agreementValue(mixed $value): string
-    {
-        if (is_scalar($value) || $value === null) {
-            return (string) $value;
-        }
-
-        return json_encode($value, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES | JSON_INVALID_UTF8_SUBSTITUTE);
-    }
-
-    private function escape(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }

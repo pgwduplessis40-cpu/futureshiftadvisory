@@ -528,7 +528,10 @@ final class ClientController extends Controller
                 'can_review' => in_array($report->type, [
                     ReportType::Client,
                     ReportType::DueDiligence,
+                    ReportType::Valuation,
+                    ReportType::AcquisitionGoNoGo,
                     ReportType::Trajectory,
+                    ReportType::SuccessionValueGap,
                     ReportType::FunderAccountability,
                     ReportType::ImpactSummary,
                 ], true) && $report->review_status === 'pending_review',

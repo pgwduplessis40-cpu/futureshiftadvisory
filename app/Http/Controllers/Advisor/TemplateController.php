@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -201,6 +202,16 @@ final class TemplateController extends Controller
             ]);
         }
 
+        if ($this->isImageUpload($uploadedFile)) {
+            return response($contents, 200, [
+                'Content-Type' => (string) ($uploadedFile['mime_type'] ?? 'image/png'),
+                'Content-Disposition' => 'inline; filename="'.$this->downloadFilename((string) ($uploadedFile['original_name'] ?? Str::slug($template->title).'.png')).'"',
+                'Content-Length' => (string) strlen($contents),
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store, max-age=0',
+            ]);
+        }
+
         $fragment = $renderer->renderStandaloneFragmentFromBytes($contents);
         abort_if($fragment === null, 422, 'Template preview could not be generated.');
 
@@ -330,7 +341,7 @@ final class TemplateController extends Controller
             'status' => ['required', 'string', Rule::in(Template::libraryStatuses())],
             'report_type' => ['nullable', 'string', Rule::in($this->reportTypeValues())],
             'accent_color' => ['nullable', 'string', 'regex:/^#[0-9a-fA-F]{6}$/'],
-            'file' => ['nullable', 'file', 'mimes:doc,docx,dot,dotx,pdf', 'max:20480'],
+            'file' => ['nullable', 'file', 'mimes:doc,docx,dot,dotx,pdf,png,jpg,jpeg', 'max:20480'],
         ]);
 
         $validator->after(function ($validator) use ($request): void {
@@ -412,6 +423,9 @@ final class TemplateController extends Controller
             ReportType::Advisor->value,
             ReportType::Stakeholder->value,
             ReportType::Trajectory->value,
+            ReportType::Valuation->value,
+            ReportType::AcquisitionGoNoGo->value,
+            ReportType::SuccessionValueGap->value,
         ];
     }
 
@@ -432,11 +446,11 @@ final class TemplateController extends Controller
         $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
         $document = $this->files->write($file, $user, Document::CATEGORY_TEMPLATE_FILE);
 
-        abort_unless(
-            $document->scanner_result === Document::SCANNER_CLEAN,
-            422,
-            'Upload could not be virus-scanned. Please try again or contact support.',
-        );
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            throw ValidationException::withMessages([
+                'file' => 'Upload is quarantined because malware scanning could not complete. Future Shift Advisory has been alerted; please try again or contact support.',
+            ]);
+        }
 
         return [
             'source_kind' => 'uploaded_file',
@@ -473,7 +487,9 @@ final class TemplateController extends Controller
      */
     private function canPreviewUploadedFile(array $uploadedFile): bool
     {
-        return $this->isPdfUpload($uploadedFile) || $this->isDocxUpload($uploadedFile);
+        return $this->isPdfUpload($uploadedFile)
+            || $this->isDocxUpload($uploadedFile)
+            || $this->isImageUpload($uploadedFile);
     }
 
     private function downloadDisposition(Request $request, string $mime): string
@@ -511,6 +527,20 @@ final class TemplateController extends Controller
         return $extension === 'docx'
             || str_contains($mimeType, 'wordprocessingml.document')
             || Str::endsWith($originalName, '.docx');
+    }
+
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function isImageUpload(array $uploadedFile): bool
+    {
+        $mimeType = Str::lower((string) ($uploadedFile['mime_type'] ?? ''));
+        $extension = Str::lower((string) ($uploadedFile['extension'] ?? ''));
+        $originalName = Str::lower((string) ($uploadedFile['original_name'] ?? ''));
+
+        return in_array($extension, ['png', 'jpg', 'jpeg'], true)
+            || in_array($mimeType, ['image/png', 'image/jpg', 'image/jpeg'], true)
+            || Str::endsWith($originalName, ['.png', '.jpg', '.jpeg']);
     }
 
     private function previewHtml(Template $template, string $fragment): string

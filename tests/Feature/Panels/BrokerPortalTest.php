@@ -255,11 +255,53 @@ final class BrokerPortalTest extends TestCase
         $download = $this->actingAsMfa($broker)
             ->get($downloadUrl)
             ->assertOk();
-        $this->assertStringContainsString('%PDF-1.4', $download->streamedContent());
+        $downloadedAgreement = $download->streamedContent();
+        $this->assertStringContainsString('%PDF-1.4', $downloadedAgreement);
+        $this->assertStringContainsString('Future Shift Advisory', $downloadedAgreement);
+        $this->assertStringContainsString('Signed agreement', $downloadedAgreement);
+        $this->assertStringContainsString('Broker operating terms', $downloadedAgreement);
+        $this->assertStringContainsString('FSP100001', $downloadedAgreement);
+        $this->assertStringNotContainsString('broker_clauses', $downloadedAgreement);
+        $this->assertStringNotContainsString('lapse_auto_suspends_portal_access', $downloadedAgreement);
+        $this->assertStringNotContainsString('{"fsp_number"', $downloadedAgreement);
 
         $this->assertDatabaseHas('audit_events', [
             'action' => 'panel.agreement_signed',
             'subject_id' => $agreement->id,
+        ]);
+    }
+
+    public function test_signed_broker_agreement_pdf_can_be_refreshed_with_current_letterhead(): void
+    {
+        $advisor = $this->advisor('broker-refresh-approver@example.test');
+        $broker = $this->broker('broker-refresh@example.test');
+        $onboarding = app(PanelOnboarding::class);
+
+        $member = $onboarding->submitApplication($broker, PanelMember::TYPE_BROKER, [
+            'company' => 'Refresh Brokers Limited',
+            'fsp_number' => 'FSP100001',
+        ]);
+        $agreement = $onboarding->approve($member, $advisor);
+        $signed = $onboarding->signAgreement($agreement, $broker)->refresh();
+        $previousPath = $signed->pdf_path;
+
+        Storage::disk('secure_local')->put($previousPath, "%PDF-1.4\nbroker_clauses: {\"fsp_number\":\"FSP100001\"}");
+
+        $this
+            ->artisan('panels:refresh-agreement-pdfs', ['--agreement' => [$signed->id]])
+            ->expectsOutput('Refreshed 1 of 1 signed panel agreement PDFs.')
+            ->assertSuccessful();
+
+        $signed->refresh();
+
+        $this->assertNotSame($previousPath, $signed->pdf_path);
+        $refreshedAgreement = Storage::disk('secure_local')->get($signed->pdf_path);
+        $this->assertStringContainsString('Future Shift Advisory', $refreshedAgreement);
+        $this->assertStringContainsString('Broker operating terms', $refreshedAgreement);
+        $this->assertStringNotContainsString('broker_clauses', $refreshedAgreement);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'panel.agreement_pdf_refreshed',
+            'subject_id' => $signed->id,
         ]);
     }
 

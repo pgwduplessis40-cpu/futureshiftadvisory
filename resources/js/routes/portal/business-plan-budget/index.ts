@@ -75,7 +75,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::update
@@ -130,7 +130,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: update.url(options),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::submit
@@ -185,7 +185,7 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: submit.url(options),
             method: 'post',
         })
-    
+
     submit.form = submitForm
 /**
 * @see \App\Http\Controllers\Portal\StrategicBudgetController::exportMethod
@@ -263,7 +263,7 @@ exportMethod.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     exportMethod.form = exportMethodForm
 const businessPlanBudget = {
     show: Object.assign(show, show),

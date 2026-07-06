@@ -47,8 +47,11 @@ final class ReportController extends Controller
                 ReportType::Advisor->value,
                 ReportType::Stakeholder->value,
                 ReportType::Trajectory->value,
+                ReportType::Valuation->value,
                 ReportType::DueDiligence->value,
+                ReportType::AcquisitionGoNoGo->value,
                 ReportType::PostAcquisitionGap->value,
+                ReportType::SuccessionValueGap->value,
                 ReportType::GovernanceReview->value,
                 ReportType::NpoHealth->value,
                 ReportType::NpoAdvisor->value,
@@ -59,7 +62,9 @@ final class ReportController extends Controller
         ]);
 
         $type = ReportType::from((string) $validated['type']);
-        if ($type === ReportType::DueDiligence) {
+        if ($type === ReportType::Valuation) {
+            $reports->composeValuation($client, $user);
+        } elseif ($type === ReportType::DueDiligence) {
             $engagement = DdEngagement::query()
                 ->where('client_id', $client->getKey())
                 ->latest()
@@ -72,6 +77,15 @@ final class ReportController extends Controller
             if (! $report instanceof Report) {
                 return to_route('advisor.clients.show', $client)->with('status', 'dd-report-not-ready');
             }
+        } elseif ($type === ReportType::AcquisitionGoNoGo) {
+            $engagement = DdEngagement::query()
+                ->where('client_id', $client->getKey())
+                ->latest()
+                ->first();
+
+            abort_unless($engagement instanceof DdEngagement, 404);
+
+            $reports->composeAcquisitionGoNoGo($engagement, $user);
         } elseif ($type === ReportType::PostAcquisitionGap) {
             $migration = PostAcquisitionMigration::query()
                 ->where('advisory_client_id', $client->getKey())
@@ -82,6 +96,8 @@ final class ReportController extends Controller
             abort_unless($migration instanceof PostAcquisitionMigration, 404);
 
             $reports->composePostAcquisitionGap($migration, $user);
+        } elseif ($type === ReportType::SuccessionValueGap) {
+            $reports->composeSuccessionValueGap($client, $user);
         } elseif ($type === ReportType::GovernanceReview) {
             $engagement = NpoEngagement::query()
                 ->where('client_id', $client->getKey())

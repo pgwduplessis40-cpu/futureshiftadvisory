@@ -15,6 +15,7 @@ use App\Models\EntrepreneurProfile;
 use App\Models\Message;
 use App\Models\MessageThread;
 use App\Models\MessageThreadParticipant;
+use App\Models\OutcomeFollowUp;
 use App\Models\ServiceActivation;
 use App\Models\SurveyAssignment;
 use App\Models\User;
@@ -118,6 +119,10 @@ final class EntrepreneurDashboardController extends Controller
                 'index_url' => route('portal.entrepreneur.surveys.index', absolute: false),
                 'items' => [],
             ],
+            'outcomeFollowUps' => $profile ? $this->outcomeFollowUpPayload($profile) : [
+                'total_open' => 0,
+                'items' => [],
+            ],
             'gamification' => $profile
                 ? [
                     ...$this->gamification->payload($profile, $latestPlan instanceof BusinessPlan ? $latestPlan : null),
@@ -219,6 +224,35 @@ final class EntrepreneurDashboardController extends Controller
                     'status' => $assignment->status?->value,
                     'due_at' => $assignment->due_at?->toIso8601String(),
                     'url' => route('portal.entrepreneur.surveys.show', $assignment, absolute: false),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function outcomeFollowUpPayload(EntrepreneurProfile $profile): array
+    {
+        $followUps = OutcomeFollowUp::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->where('status', OutcomeFollowUp::STATUS_PENDING)
+            ->oldest('due_at')
+            ->get();
+
+        return [
+            'total_open' => $followUps->count(),
+            'items' => $followUps
+                ->take(3)
+                ->map(fn (OutcomeFollowUp $followUp): array => [
+                    'id' => $followUp->id,
+                    'subject_type' => $followUp->subject_type,
+                    'subject_label' => 'Idea outcome',
+                    'subject_name' => $profile->name,
+                    'cadence_month' => $followUp->cadence_month,
+                    'due_at' => $followUp->due_at?->toIso8601String(),
+                    'url' => route('portal.outcome-follow-ups.show', $followUp, absolute: false),
                 ])
                 ->values()
                 ->all(),

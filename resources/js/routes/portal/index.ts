@@ -9,6 +9,7 @@ import entrepreneur from './entrepreneur'
 import documents from './documents'
 import reports from './reports'
 import npoImpactMetrics from './npo-impact-metrics'
+import outcomeFollowUps from './outcome-follow-ups'
 import inspirationBoard from './inspiration-board'
 import messages from './messages'
 import proposals from './proposals'
@@ -17,7 +18,7 @@ import surveys from './surveys'
 import onboarding from './onboarding'
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
 export const dashboard = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -32,7 +33,7 @@ dashboard.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
 dashboard.url = (options?: RouteQueryOptions) => {
@@ -41,7 +42,7 @@ dashboard.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
 dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -50,7 +51,7 @@ dashboard.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
 dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -60,7 +61,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
     const dashboardForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -70,7 +71,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
         dashboardForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +80,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\DashboardController::__invoke
- * @see app/Http/Controllers/Portal/DashboardController.php:76
+ * @see app/Http/Controllers/Portal/DashboardController.php:77
  * @route '/portal'
  */
         dashboardForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -91,7 +92,7 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     dashboard.form = dashboardForm
 const portal = {
     dashboard: Object.assign(dashboard, dashboard),
@@ -105,6 +106,7 @@ entrepreneur: Object.assign(entrepreneur, entrepreneur),
 documents: Object.assign(documents, documents),
 reports: Object.assign(reports, reports),
 npoImpactMetrics: Object.assign(npoImpactMetrics, npoImpactMetrics),
+outcomeFollowUps: Object.assign(outcomeFollowUps, outcomeFollowUps),
 inspirationBoard: Object.assign(inspirationBoard, inspirationBoard),
 messages: Object.assign(messages, messages),
 proposals: Object.assign(proposals, proposals),

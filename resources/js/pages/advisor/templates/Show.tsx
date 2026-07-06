@@ -304,7 +304,7 @@ export default function TemplateShow({
                             </span>
                             <Input
                                 type="file"
-                                accept=".doc,.docx,.dot,.dotx,.pdf"
+                                accept=".doc,.docx,.dot,.dotx,.pdf,.png,.jpg,.jpeg"
                                 onChange={(event) =>
                                     form.setData(
                                         'file',

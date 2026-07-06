@@ -234,7 +234,14 @@ final class CoachPortalTest extends TestCase
         $download = $this->actingAsMfa($coach)
             ->get($downloadUrl)
             ->assertOk();
-        $this->assertStringContainsString('%PDF-1.4', $download->streamedContent());
+        $downloadedAgreement = $download->streamedContent();
+        $this->assertStringContainsString('%PDF-1.4', $downloadedAgreement);
+        $this->assertStringContainsString('Future Shift Advisory', $downloadedAgreement);
+        $this->assertStringContainsString('Signed agreement', $downloadedAgreement);
+        $this->assertStringContainsString('Coach operating terms', $downloadedAgreement);
+        $this->assertStringContainsString('Coaching support only', $downloadedAgreement);
+        $this->assertStringNotContainsString('coach_clauses', $downloadedAgreement);
+        $this->assertStringNotContainsString('client_authorisation_required_for_key_staff', $downloadedAgreement);
 
         $this->assertDatabaseHas('audit_events', [
             'action' => 'panel.agreement_signed',

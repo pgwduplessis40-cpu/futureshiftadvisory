@@ -5017,8 +5017,11 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
             | 'advisor'
             | 'stakeholder'
             | 'trajectory'
+            | 'valuation_report'
             | 'due_diligence'
+            | 'acquisition_go_no_go_report'
             | 'post_acquisition_gap_report'
+            | 'succession_value_gap_report'
             | 'governance_review_report'
             | 'npo_health_report'
             | 'npo_advisor_report'
@@ -5090,16 +5093,47 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                     <TrendingUp className="size-4" aria-hidden="true" />
                     Trajectory
                 </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generate('valuation_report')}
+                >
+                    <FileSpreadsheet className="size-4" aria-hidden="true" />
+                    Valuation
+                </Button>
+                <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={() => generate('succession_value_gap_report')}
+                >
+                    <TrendingUp className="size-4" aria-hidden="true" />
+                    Succession Gap
+                </Button>
                 {client.due_diligence && (
-                    <Button
-                        type="button"
-                        size="sm"
-                        variant="outline"
-                        onClick={() => generate('due_diligence')}
-                    >
-                        <FileText className="size-4" aria-hidden="true" />
-                        Due Diligence
-                    </Button>
+                    <>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() => generate('due_diligence')}
+                        >
+                            <FileText className="size-4" aria-hidden="true" />
+                            Due Diligence
+                        </Button>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            onClick={() =>
+                                generate('acquisition_go_no_go_report')
+                            }
+                        >
+                            <Target className="size-4" aria-hidden="true" />
+                            Go/No-Go
+                        </Button>
+                    </>
                 )}
                 {client.engagement_type === 'post_acquisition_advisory' && (
                     <Button

@@ -27,7 +27,7 @@ approve.url = (args: { client: string | { id: string } } | [client: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -86,7 +86,7 @@ approve.patch = (args: { client: string | { id: string } } | [client: string | {
                     }),
             method: 'post',
         })
-    
+
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientStrategicBudgetController::advisorGoals
@@ -116,7 +116,7 @@ advisorGoals.url = (args: { client: string | { id: string } } | [client: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -175,7 +175,7 @@ advisorGoals.patch = (args: { client: string | { id: string } } | [client: strin
                     }),
             method: 'post',
         })
-    
+
     advisorGoals.form = advisorGoalsForm
 const ClientStrategicBudgetController = { approve, advisorGoals }
 

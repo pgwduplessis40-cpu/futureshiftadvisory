@@ -156,6 +156,52 @@ final class DdReportTest extends TestCase
         ]);
     }
 
+    public function test_acquisition_go_no_go_report_surfaces_walk_away_price_chips(): void
+    {
+        [$advisor, $engagement] = $this->ddEngagement('go-no-go-dd-advisor@example.test');
+        $engagement->forceFill([
+            'target_details' => [
+                ...$engagement->target_details,
+                'asking_price' => 820000,
+                'gst_going_concern_zero_rating' => false,
+                'working_capital_adjustment_nzd' => 25000,
+                'holidays_act' => [
+                    'underpaid_hours' => 120,
+                    'hourly_rate' => 38,
+                    'buffer_rate' => 0.15,
+                ],
+                'working_capital_peg' => 'Completion accounts to peg normal working capital at NZD 140,000.',
+                'vendor_finance' => '10 percent vendor finance proposed.',
+                'earnout' => 'Earn-out linked to retained customer revenue.',
+            ],
+        ])->save();
+        $this->ddValuation($engagement, 650000);
+        $this->finding($engagement, 'financial', FindingSeverity::High, 'Stock ageing risk', 'Aged inventory should be adjusted at completion.');
+
+        $report = app(ReportComposer::class)->composeAcquisitionGoNoGo($engagement, $advisor);
+
+        $this->assertSame(ReportType::AcquisitionGoNoGo, $report->type);
+        $this->assertSame('pending_review', $report->review_status);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
+
+        foreach ([
+            'go_no_go_decision',
+            'walk_away_price_chips',
+            'deal_mechanics',
+            'go_no_go_evidence',
+        ] as $key) {
+            $this->assertTrue($report->sections->contains('key', $key), "Missing Go/No-Go section {$key}.");
+        }
+
+        $walkAway = $report->sections->firstWhere('key', 'walk_away_price_chips')?->metadata['walk_away_price'];
+        $this->assertGreaterThan(0, $walkAway['risk_adjustment_nzd']);
+        $this->assertGreaterThan(0, $walkAway['holidays_act_liability_nzd']);
+        $this->assertGreaterThan(0, $walkAway['working_capital_adjustment_nzd']);
+        $this->assertEqualsWithDelta(820000.0, $walkAway['asking_price_nzd'], 0.01);
+        $this->assertStringContainsString('Walk-away price and red-flag price chips', $this->renderer->html);
+        $this->assertStringContainsString('GST going-concern zero-rating', $this->renderer->html);
+    }
+
     public function test_dd_risk_register_is_ranked_by_pv_cost_and_feeds_price_adjustment(): void
     {
         [$advisor, $engagement] = $this->ddEngagement('risk-ranking-dd-advisor@example.test');

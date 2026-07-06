@@ -25,6 +25,7 @@ use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Storage\KeyEnvelope;
 use Database\Seeders\TestingSeedDataSeeder;
@@ -44,6 +45,13 @@ final class TestingSeedDataSeederTest extends TestCase
         parent::setUp();
 
         Storage::fake('secure_local');
+        $this->app->instance(PdfRenderer::class, new class implements PdfRenderer
+        {
+            public function render(string $html): string
+            {
+                return "%PDF-1.4\n".$html;
+            }
+        });
     }
 
     public function test_testing_seed_data_is_comprehensive_and_idempotent(): void
@@ -165,6 +173,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'plan_assessments');
         $this->assertAtLeast(1, 'plan_revisions');
         $this->assertAtLeast(1, 'advisory_readiness_signals');
+        $this->assertAtLeast(2, 'outcome_follow_ups');
 
         $this->assertAtLeast(2, 'panel_members');
         $this->assertAtLeast(2, 'panel_agreements');
@@ -432,9 +441,17 @@ final class TestingSeedDataSeederTest extends TestCase
             'Seeded signed proposal should have retrievable signed PDF evidence.',
         );
         $signatureEvidence = Storage::disk('secure_local')->get($proposal->signature_evidence_path);
+        $this->assertIsString($signatureEvidence);
+        $compactSignatureEvidence = preg_replace('/\s+/', '', $signatureEvidence) ?? '';
+
+        $this->assertStringContainsString('UPLOADED PROPOSAL TEMPLATE', $signatureEvidence);
+        $this->assertStringContainsString('proposal-signature-stamp', $signatureEvidence);
+        $this->assertStringContainsString('proposal-signature-certificate', $signatureEvidence);
         $this->assertStringContainsString('Signed proposal certificate', $signatureEvidence);
-        $this->assertStringContainsString('Signed by: Seed Client Principal', $signatureEvidence);
-        $this->assertStringContainsString('Collection date: 1st of each month', $signatureEvidence);
+        $this->assertStringContainsString('Signedby</dt><dd>SeedClientPrincipal', $compactSignatureEvidence);
+        $this->assertStringContainsString('Collectiondate</dt><dd>1stofeachmonth', $compactSignatureEvidence);
+        $this->assertStringNotContainsString('Future Shift Advisory Proposal v1 - Signed', $signatureEvidence);
+        $this->assertStringNotContainsString('Future Shift Advisory Proposal - Signed', $signatureEvidence);
         $this->assertSame(
             hash('sha256', $signatureEvidence),
             app(KeyEnvelope::class)->decrypt((string) $proposal->signature_evidence_sha256_envelope),

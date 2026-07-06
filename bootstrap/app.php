@@ -27,6 +27,7 @@ use App\Console\Commands\RunPlanQualityBenchmarks;
 use App\Console\Commands\RunQuestionnaireOptimisationLayer;
 use App\Console\Commands\RunRatingPredictiveValidity;
 use App\Console\Commands\RunSharedIntelligenceLayer;
+use App\Console\Commands\ScheduleOutcomeFollowUps;
 use App\Console\Commands\SendGovernanceReviewConversionNudges;
 use App\Console\Commands\SendMeetingReminders;
 use App\Console\Commands\SendReengagementReminders;
@@ -230,6 +231,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ProcessScheduledPayments::class)
             ->everyFiveMinutes()
             ->name('fsa-payments-process-scheduled')
+            ->withoutOverlapping();
+
+        $schedule->command(ScheduleOutcomeFollowUps::class)
+            ->dailyAt('05:15')
+            ->name('fsa-outcome-follow-ups')
             ->withoutOverlapping();
 
         $schedule->command(ReverifyBrokerFspRegistrations::class)

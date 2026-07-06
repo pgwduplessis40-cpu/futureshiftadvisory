@@ -10,9 +10,12 @@ enum ReportType: string
     case Advisor = 'advisor';
     case Stakeholder = 'stakeholder';
     case Trajectory = 'trajectory';
+    case Valuation = 'valuation_report';
     case DueDiligence = 'due_diligence';
+    case AcquisitionGoNoGo = 'acquisition_go_no_go_report';
     case PostAcquisitionGap = 'post_acquisition_gap_report';
     case EntrepreneurAssessment = 'entrepreneur_assessment';
+    case SuccessionValueGap = 'succession_value_gap_report';
     case GovernanceReview = 'governance_review_report';
     case NpoHealth = 'npo_health_report';
     case NpoAdvisor = 'npo_advisor_report';
@@ -27,9 +30,12 @@ enum ReportType: string
             self::Advisor => 'Advisor Report',
             self::Stakeholder => 'Stakeholder Report',
             self::Trajectory => 'Business Health Trajectory Report',
+            self::Valuation => 'Valuation Report',
             self::DueDiligence => 'Due Diligence Report',
+            self::AcquisitionGoNoGo => 'Acquisition Go/No-Go Report',
             self::PostAcquisitionGap => 'Post-acquisition Gap Report',
             self::EntrepreneurAssessment => 'Entrepreneur Assessment Report',
+            self::SuccessionValueGap => 'Succession Value-gap Report',
             self::GovernanceReview => 'Governance Review Report',
             self::NpoHealth => 'NPO Health Report',
             self::NpoAdvisor => 'NPO Advisor Report',

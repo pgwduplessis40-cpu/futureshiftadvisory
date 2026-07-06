@@ -244,6 +244,46 @@ final class TemplateLibraryTest extends TestCase
             ->assertHeader('X-Content-Type-Options', 'nosniff');
     }
 
+    public function test_admin_can_upload_and_preview_letterhead_image_template_file(): void
+    {
+        Storage::fake('secure_local');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+        $image = base64_decode(
+            'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+P+/HgAFeAL+N4wJSgAAAABJRU5ErkJggg==',
+            true,
+        );
+        $this->assertIsString($image);
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_REPORT,
+                'title' => 'FSA Letterhead',
+                'body' => '',
+                'status' => Template::STATUS_ACTIVE,
+                'file' => UploadedFile::fake()->createWithContent('FSA_Letterhead.png', $image),
+            ])
+            ->assertRedirect();
+
+        $template = Template::query()->firstOrFail();
+        $uploadedFile = data_get($template->structure, 'uploaded_file');
+
+        $this->assertSame('FSA_Letterhead.png', $uploadedFile['original_name']);
+        $this->assertSame('png', $uploadedFile['extension']);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.index', ['status' => Template::STATUS_ACTIVE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('templates.0.uploaded_file.original_name', 'FSA_Letterhead.png')
+                ->where('templates.0.uploaded_file.can_preview', true)
+                ->where('templates.0.view_url', route('advisor.templates.preview', $template, absolute: false)));
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.preview', $template))
+            ->assertOk()
+            ->assertHeader('Content-Type', 'image/png');
+    }
+
     public function test_admin_can_preview_uploaded_docx_template_file(): void
     {
         if (! class_exists(ZipArchive::class)) {
@@ -367,6 +407,40 @@ final class TemplateLibraryTest extends TestCase
         $this->assertSame(0, Template::query()->count());
         $this->assertSame(0, Document::query()->count());
         $this->assertEmpty(Storage::disk('secure_local')->allFiles());
+    }
+
+    public function test_scanner_error_on_template_upload_returns_form_error_without_creating_template(): void
+    {
+        Storage::fake('secure_local');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $upload = UploadedFile::fake()->create(
+            'FSA_Letterhead.pdf',
+            24,
+            'application/pdf',
+        );
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_REPORT,
+                'title' => 'FSA Letterhead',
+                'body' => '',
+                'status' => Template::STATUS_ACTIVE,
+                'file' => $upload,
+            ])
+            ->assertSessionHasErrors('file');
+
+        $this->assertSame(0, Template::query()->count());
+        $this->assertSame(1, Document::query()->count());
+        $this->assertSame(Document::SCANNER_ERROR, Document::query()->firstOrFail()->scanner_result);
     }
 
     /**

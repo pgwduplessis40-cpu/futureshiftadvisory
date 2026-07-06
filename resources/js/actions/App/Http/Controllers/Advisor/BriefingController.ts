@@ -27,7 +27,7 @@ reviewIndustry.url = (args: { industryBriefing: string | { id: string } } | [ind
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { industryBriefing: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     industryBriefing: args[0],
@@ -86,7 +86,7 @@ reviewIndustry.patch = (args: { industryBriefing: string | { id: string } } | [i
                     }),
             method: 'post',
         })
-    
+
     reviewIndustry.form = reviewIndustryForm
 /**
 * @see \App\Http\Controllers\Advisor\BriefingController::reviewPreMeeting
@@ -116,7 +116,7 @@ reviewPreMeeting.url = (args: { preMeetingBrief: string | { id: string } } | [pr
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { preMeetingBrief: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     preMeetingBrief: args[0],
@@ -175,7 +175,7 @@ reviewPreMeeting.patch = (args: { preMeetingBrief: string | { id: string } } | [
                     }),
             method: 'post',
         })
-    
+
     reviewPreMeeting.form = reviewPreMeetingForm
 const BriefingController = { reviewIndustry, reviewPreMeeting }
 

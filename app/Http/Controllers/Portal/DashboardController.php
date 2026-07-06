@@ -21,6 +21,7 @@ use App\Models\DocumentVerification;
 use App\Models\MessageThread;
 use App\Models\NpoEngagement;
 use App\Models\NpoValueCalculation;
+use App\Models\OutcomeFollowUp;
 use App\Models\PostAcquisitionMigration;
 use App\Models\Proposal;
 use App\Models\QuestionnaireResponse;
@@ -143,6 +144,7 @@ final class DashboardController extends Controller
             'messageSummary' => $this->messageSummary($client, $viewer),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'surveys' => $this->surveyPayload($client),
+            'outcomeFollowUps' => $this->outcomeFollowUpPayload($client),
         ]);
     }
 
@@ -339,6 +341,17 @@ final class DashboardController extends Controller
                         ->where('type', ReportType::Client->value)
                         ->whereIn('review_status', ['not_required', 'reviewed']);
 
+                    if ($engagementType === EngagementType::STANDARD_ADVISORY) {
+                        $scope->orWhere(function ($standardAdvisory): void {
+                            $standardAdvisory
+                                ->whereIn('type', [
+                                    ReportType::Valuation->value,
+                                    ReportType::SuccessionValueGap->value,
+                                ])
+                                ->where('review_status', 'reviewed');
+                        });
+                    }
+
                     if ($engagementType === EngagementType::POST_ACQUISITION_ADVISORY) {
                         $scope->orWhere(function ($postAcquisition): void {
                             $postAcquisition
@@ -350,7 +363,10 @@ final class DashboardController extends Controller
                     if ($engagementType === EngagementType::DUE_DILIGENCE) {
                         $scope->orWhere(function ($dueDiligence): void {
                             $dueDiligence
-                                ->where('type', ReportType::DueDiligence->value)
+                                ->whereIn('type', [
+                                    ReportType::DueDiligence->value,
+                                    ReportType::AcquisitionGoNoGo->value,
+                                ])
                                 ->whereIn('review_status', ['not_required', 'reviewed']);
                         });
                     }
@@ -634,6 +650,40 @@ final class DashboardController extends Controller
                     'status' => $assignment->status?->value,
                     'due_at' => $assignment->due_at?->toIso8601String(),
                     'url' => route('portal.surveys.show', $assignment, absolute: false),
+                ])
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function outcomeFollowUpPayload(Client $client): array
+    {
+        $followUps = OutcomeFollowUp::query()
+            ->with(['entrepreneurProfile', 'ddEngagement'])
+            ->where('client_id', $client->getKey())
+            ->where('status', OutcomeFollowUp::STATUS_PENDING)
+            ->oldest('due_at')
+            ->get();
+
+        return [
+            'total_open' => $followUps->count(),
+            'items' => $followUps
+                ->take(3)
+                ->map(fn (OutcomeFollowUp $followUp): array => [
+                    'id' => $followUp->id,
+                    'subject_type' => $followUp->subject_type,
+                    'subject_label' => $followUp->subject_type === OutcomeFollowUp::SUBJECT_DUE_DILIGENCE
+                        ? 'Buying outcome'
+                        : 'Idea outcome',
+                    'subject_name' => $followUp->subject_type === OutcomeFollowUp::SUBJECT_DUE_DILIGENCE
+                        ? ($followUp->ddEngagement?->target_name ?? 'Acquisition follow-up')
+                        : ($followUp->entrepreneurProfile?->name ?? 'Idea follow-up'),
+                    'cadence_month' => $followUp->cadence_month,
+                    'due_at' => $followUp->due_at?->toIso8601String(),
+                    'url' => route('portal.outcome-follow-ups.show', $followUp, absolute: false),
                 ])
                 ->values()
                 ->all(),

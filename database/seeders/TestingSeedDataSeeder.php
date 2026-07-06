@@ -26,6 +26,7 @@ use App\Models\NpoComplianceAlert;
 use App\Models\NpoDimensionScore;
 use App\Models\NpoTensionAnalysis;
 use App\Models\NpoValueCalculation;
+use App\Models\OutcomeFollowUp;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
 use App\Models\Proposal;
@@ -40,7 +41,7 @@ use App\Models\Template;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Learning\LayerCadenceRegistry;
-use App\Services\Pdf\SimpleTextPdf;
+use App\Services\Proposals\SignedProposalEvidenceRenderer;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Carbon\CarbonInterface;
@@ -109,6 +110,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedEngagementTouchpoints();
             $this->seedPanelAndReferralData();
             $this->seedDueDiligenceJourney();
+            $this->seedOutcomeFollowUpFixtures();
             $this->seedStrategicPlanTestData();
             $this->seedBulkCommunicationsAndExpiryReminders();
         });
@@ -1404,6 +1406,44 @@ XML);
             ]),
         ]);
 
+        $this->ids['pv_succession_target'] = $this->upsert('pv_calculations', [
+            'client_id' => $this->clients['advisory']->getKey(),
+            'type' => 'goal_target',
+            'discount_rate_rationale' => 'Seeded succession target exit value.',
+        ], [
+            'discount_method' => 'advisor_configured',
+            'discount_rate' => 0.125000,
+            'inputs' => $this->json(['target_exit_annual_cash_flow' => 640000, 'duration_years' => 5]),
+            'result' => $this->json(['present_value' => 2_650_000]),
+            'as_at' => $this->now->copy()->subDays(3),
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+            'source_attributions' => $this->json([
+                ['type' => 'client_goal', 'id' => 'seed-advisory-succession-target'],
+            ]),
+        ]);
+
+        $this->ids['succession_plan'] = $this->upsert('succession_plans', [
+            'client_id' => $this->clients['advisory']->getKey(),
+            'target_exit_pv_calculation_id' => $this->ids['pv_succession_target'],
+        ], [
+            'analysis_run_id' => null,
+            'exit_readiness_score' => 6,
+            'options' => $this->json([
+                ['name' => 'Trade sale', 'fit_score' => 7, 'rationale' => 'Best fit once debtor cadence and owner dependency are reduced.'],
+                ['name' => 'Management buy-out', 'fit_score' => 5, 'rationale' => 'Possible if second-tier leadership depth improves.'],
+                ['name' => 'Family transfer', 'fit_score' => 3, 'rationale' => 'No active family successor is recorded in the seeded profile.'],
+            ]),
+            'owner_dependency_plan' => $this->json([
+                'actions' => [
+                    'Document dispatch handover and debtor escalation rules.',
+                    'Nominate a second operational lead before sale preparation.',
+                ],
+            ]),
+            'target_exit_pv' => 2_650_000,
+            'owner_readiness_is_primary_constraint' => true,
+            'created_by_user_id' => $this->users['advisor']->getKey(),
+        ]);
+
         $this->ids['risk_people'] = $this->upsert('risk_costs', [
             'client_id' => $this->clients['advisory']->getKey(),
             'title' => 'Dispatch key-person dependency',
@@ -1893,10 +1933,8 @@ XML);
             ]),
         ]);
 
+        $signedAt = $this->now->copy()->subDays(4)->addMinutes(10);
         $signatureEvidencePath = 'seed/proposals/harbour-hive-signature.pdf';
-        $signatureEvidencePdf = $this->signedProposalFixtureContent($this->now->copy()->subDays(4)->addMinutes(10));
-        $signatureEvidenceHashEnvelope = app(KeyEnvelope::class)->encrypt(hash('sha256', $signatureEvidencePdf));
-        Storage::disk('secure_local')->put($signatureEvidencePath, $signatureEvidencePdf);
 
         $this->ids['proposal'] = $this->upsert('proposals', [
             'client_id' => $this->clients['advisory']->getKey(),
@@ -1933,12 +1971,12 @@ XML);
             'renewed_from_proposal_id' => null,
             'created_by_user_id' => $this->users['advisor']->getKey(),
             'awaiting_signature_at' => $this->now->copy()->subDays(5),
-            'signed_at' => $this->now->copy()->subDays(4),
+            'signed_at' => $signedAt,
             'signed_by_user_id' => $this->users['primary']->getKey(),
             'signature_evidence_path' => $signatureEvidencePath,
-            'signature_evidence_sha256_envelope' => $signatureEvidenceHashEnvelope,
-            'signature_envelope_meta' => $this->json(app(KeyEnvelope::class)->inspect($signatureEvidenceHashEnvelope)),
-            'signature_evidence_byte_size' => strlen($signatureEvidencePdf),
+            'signature_evidence_sha256_envelope' => null,
+            'signature_envelope_meta' => null,
+            'signature_evidence_byte_size' => null,
         ]);
 
         $this->ids['proposal_consent'] = $this->upsert('consents', [
@@ -2077,14 +2115,14 @@ XML);
                 ],
             ],
             ProposalSignoffStep::STEP_SIGNATURE => [
-                'completed_at' => $this->now->copy()->subDays(4)->addMinutes(10),
+                'completed_at' => $signedAt,
                 'payload' => [
                     'signature_name' => 'Seed Client Principal',
                     'signed_by_user_id' => $this->users['primary']->getKey(),
                     'signature_evidence_path' => $signatureEvidencePath,
                     'collection_day' => 1,
                     'identity_verification' => [
-                        'password_verified_at' => $this->now->copy()->subDays(4)->addMinutes(10)->toIso8601String(),
+                        'password_verified_at' => $signedAt->toIso8601String(),
                         'mfa_required' => false,
                         'mfa_verified_at' => null,
                         'mfa_method' => null,
@@ -2107,6 +2145,24 @@ XML);
                 'payload' => $this->json($data['payload']),
             ]);
         }
+
+        $this->writeSignedProposalFixture(
+            Proposal::query()->findOrFail($this->ids['proposal']),
+            $this->users['primary'],
+            'Seed Client Principal',
+            $signedAt,
+            $signatureEvidencePath,
+            [
+                'ip' => '127.0.0.1',
+                'user_agent' => 'FutureShift testing seed data',
+                'identity_verification' => [
+                    'password_verified_at' => $signedAt->toIso8601String(),
+                    'mfa_required' => false,
+                    'mfa_verified_at' => null,
+                    'mfa_method' => null,
+                ],
+            ],
+        );
 
         $this->ids['payment_schedule'] = $this->upsert('payment_schedules', [
             'client_id' => $this->clients['advisory']->getKey(),
@@ -3627,6 +3683,17 @@ XML);
                 'nzbn' => $this->clients['postAcquisition']->nzbn,
                 'sector' => 'Food manufacturing and retail fitout',
                 'headline_price_nzd' => 2_400_000,
+                'asking_price' => 2_400_000,
+                'gst_going_concern_zero_rating' => false,
+                'working_capital_adjustment_nzd' => 95_000,
+                'working_capital_peg' => 'Completion accounts should peg normal working capital at NZD 320,000.',
+                'vendor_finance' => 'Vendor finance is available for 10 percent of purchase price subject to security.',
+                'earnout' => 'Earn-out can protect the buyer against top-customer churn over the first 12 months.',
+                'holidays_act' => [
+                    'underpaid_hours' => 420,
+                    'hourly_rate' => 36,
+                    'buffer_rate' => 0.15,
+                ],
             ]),
             'status' => 'in_progress',
             'recommendation' => 'proceed_with_conditions',
@@ -3956,6 +4023,57 @@ XML);
             'migrated_by_user_id' => $this->users['advisor']->getKey(),
             'migrated_at' => $this->now->copy()->subHours(12),
         ]);
+    }
+
+    private function seedOutcomeFollowUpFixtures(): void
+    {
+        if (! Schema::hasTable('outcome_follow_ups')) {
+            return;
+        }
+
+        if (isset($this->ids['plan_assessment'], $this->ids['entrepreneur_profile'])) {
+            $this->upsert('outcome_follow_ups', [
+                'plan_assessment_id' => $this->ids['plan_assessment'],
+                'cadence_month' => 6,
+            ], [
+                'client_id' => null,
+                'entrepreneur_profile_id' => $this->ids['entrepreneur_profile'],
+                'dd_engagement_id' => null,
+                'service_activation_id' => null,
+                'conversion_outcome_id' => null,
+                'dd_outcome_record_id' => null,
+                'responded_by_user_id' => null,
+                'subject_type' => OutcomeFollowUp::SUBJECT_ENTREPRENEUR,
+                'status' => OutcomeFollowUp::STATUS_PENDING,
+                'engagement_completed_at' => $this->now->copy()->subMonthsNoOverflow(6)->subDays(2),
+                'due_at' => $this->now->copy()->subDay(),
+                'completed_at' => null,
+                'response_payload' => null,
+                'outcome_signal' => null,
+            ]);
+        }
+
+        if (isset($this->ids['dd_engagement'])) {
+            $this->upsert('outcome_follow_ups', [
+                'dd_engagement_id' => $this->ids['dd_engagement'],
+                'cadence_month' => 6,
+            ], [
+                'client_id' => $this->clients['dd']->getKey(),
+                'entrepreneur_profile_id' => null,
+                'plan_assessment_id' => null,
+                'service_activation_id' => null,
+                'conversion_outcome_id' => null,
+                'dd_outcome_record_id' => null,
+                'responded_by_user_id' => null,
+                'subject_type' => OutcomeFollowUp::SUBJECT_DUE_DILIGENCE,
+                'status' => OutcomeFollowUp::STATUS_PENDING,
+                'engagement_completed_at' => $this->now->copy()->subMonthsNoOverflow(6)->subDays(2),
+                'due_at' => $this->now->copy()->subDay(),
+                'completed_at' => null,
+                'response_payload' => null,
+                'outcome_signal' => null,
+            ]);
+        }
     }
 
     /**
@@ -4580,9 +4698,6 @@ XML);
             default => 3,
         });
         $signatureEvidencePath = "seed/proposals/{$idPrefix}-signed-proposal.pdf";
-        $signatureEvidencePdf = $this->signedProposalFixtureContentFor($client, $signer, $services[0] ?? 'Strategic advisory', $signedAt);
-        $signatureEvidenceHashEnvelope = app(KeyEnvelope::class)->encrypt(hash('sha256', $signatureEvidencePdf));
-        Storage::disk('secure_local')->put($signatureEvidencePath, $signatureEvidencePdf);
 
         $proposalId = $this->upsert('proposals', [
             'client_id' => $client->getKey(),
@@ -4626,12 +4741,29 @@ XML);
             'signed_at' => $signedAt,
             'signed_by_user_id' => $signer->getKey(),
             'signature_evidence_path' => $signatureEvidencePath,
-            'signature_evidence_sha256_envelope' => $signatureEvidenceHashEnvelope,
-            'signature_envelope_meta' => $this->json(app(KeyEnvelope::class)->inspect($signatureEvidenceHashEnvelope)),
-            'signature_evidence_byte_size' => strlen($signatureEvidencePdf),
+            'signature_evidence_sha256_envelope' => null,
+            'signature_envelope_meta' => null,
+            'signature_evidence_byte_size' => null,
         ]);
 
         $this->seedSignedProposalSteps($proposalId, $clientKey, $signedAt);
+        $this->writeSignedProposalFixture(
+            Proposal::query()->findOrFail($proposalId),
+            $signer,
+            $signer->name,
+            $signedAt,
+            $signatureEvidencePath,
+            [
+                'ip' => '127.0.0.1',
+                'user_agent' => 'FutureShift testing seed data',
+                'identity_verification' => [
+                    'password_verified_at' => $signedAt->toIso8601String(),
+                    'mfa_required' => false,
+                    'mfa_verified_at' => null,
+                    'mfa_method' => null,
+                ],
+            ],
+        );
 
         return $proposalId;
     }
@@ -5087,19 +5219,37 @@ XML);
         };
     }
 
-    private function signedProposalFixtureContentFor(Client $client, User $signedBy, string $scope, CarbonInterface $signedAt): string
-    {
-        return app(SimpleTextPdf::class)->render('Future Shift Advisory Proposal - Signed', [
-            'Proposal: Accepted strategic advisory fixture',
-            'Client: '.$client->legal_name,
-            'Scope: '.$scope,
-            'Status: signed',
-            'All rates and proposal amounts are GST exclusive.',
-            'Signed at: '.$signedAt->format('j M Y, g:i A T'),
-            'Signed by: '.$signedBy->name.' <'.$signedBy->email.'>',
-            'Payment authority: tokenised by Stripe; raw card details are not stored by Future Shift Advisory.',
-            'Fixture: strategic plan seed data',
-        ]);
+    /**
+     * @param  array<string, mixed>  $payload
+     */
+    private function writeSignedProposalFixture(
+        Proposal $proposal,
+        User $signedBy,
+        string $typedName,
+        CarbonInterface $signedAt,
+        string $path,
+        array $payload,
+    ): void {
+        $pdf = app(SignedProposalEvidenceRenderer::class)->renderPdf(
+            $proposal->refresh()->load(['client.primaryContact', 'feeCalculation', 'consents', 'createdBy', 'signoffSteps']),
+            $signedBy,
+            $typedName,
+            $payload,
+            $signedAt,
+        );
+        $hashEnvelope = app(KeyEnvelope::class)->encrypt(hash('sha256', $pdf));
+
+        Storage::disk('secure_local')->put($path, $pdf);
+
+        DB::table('proposals')
+            ->where('id', $proposal->getKey())
+            ->update([
+                'signature_evidence_path' => $path,
+                'signature_evidence_sha256_envelope' => $hashEnvelope,
+                'signature_envelope_meta' => $this->json(app(KeyEnvelope::class)->inspect($hashEnvelope)),
+                'signature_evidence_byte_size' => strlen($pdf),
+                'updated_at' => now(),
+            ]);
     }
 
     private function seedBulkCommunicationsAndExpiryReminders(): void
@@ -5297,32 +5447,6 @@ XML);
         }
 
         return $this->upsert('documents', ['stored_path' => $storedPath], $values);
-    }
-
-    private function signedProposalFixtureContent(CarbonInterface $signedAt): string
-    {
-        return app(SimpleTextPdf::class)->render('Future Shift Advisory Proposal v1 - Signed', [
-            'Proposal: Proposal v1',
-            'Client: Harbour Hive Advisory Limited',
-            'Status: signed',
-            'Scope: working capital, operational resilience, and reporting advisory.',
-            'Total proposal: NZD 24,000',
-            'Term: 6 months',
-            'Monthly collection: NZD 4,000 per month',
-            'Collection date: 1st of each month',
-            'Cancellation notice: 30 days',
-            'ROI ratio: 6.88',
-            'Signed proposal certificate',
-            'Signed at: '.$signedAt->format('j M Y, g:i A T'),
-            'Signed by: Seed Client Principal <seed.client.primary@futureshiftadvisory.test>',
-            'Typed signature: Seed Client Principal',
-            'Authorised by signature using password verification before signature.',
-            'Password verified at: '.$signedAt->format('j M Y, g:i A T'),
-            'MFA: not required in this test environment',
-            'Payment authority: tokenised by Stripe; raw card details are not stored by Future Shift Advisory.',
-            'IP address: 127.0.0.1',
-            'User agent: FutureShift testing seed data',
-        ]);
     }
 
     private function fixtureDocumentContent(string $filename, string $key, string $mimeType): string

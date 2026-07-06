@@ -105,12 +105,17 @@ final class ReportController extends Controller
             return in_array($report->review_status, ['not_required', 'reviewed'], true);
         }
 
+        if (in_array($type, [ReportType::Valuation, ReportType::SuccessionValueGap], true)) {
+            return $this->engagementType($client) === EngagementType::STANDARD_ADVISORY
+                && $report->reviewed();
+        }
+
         if ($type === ReportType::PostAcquisitionGap) {
             return $this->engagementType($client) === EngagementType::POST_ACQUISITION_ADVISORY
                 && in_array($report->review_status, ['not_required', 'reviewed'], true);
         }
 
-        if ($type === ReportType::DueDiligence) {
+        if (in_array($type, [ReportType::DueDiligence, ReportType::AcquisitionGoNoGo], true)) {
             return $this->engagementType($client) === EngagementType::DUE_DILIGENCE
                 && in_array($report->review_status, ['not_required', 'reviewed'], true);
         }

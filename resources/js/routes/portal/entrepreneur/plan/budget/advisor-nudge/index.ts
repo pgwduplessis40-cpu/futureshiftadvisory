@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::dismiss
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:379
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:428
  * @route '/portal/entrepreneur/plan/budget/advisor-nudge/dismiss'
  */
 export const dismiss = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ dismiss.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::dismiss
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:379
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:428
  * @route '/portal/entrepreneur/plan/budget/advisor-nudge/dismiss'
  */
 dismiss.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ dismiss.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::dismiss
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:379
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:428
  * @route '/portal/entrepreneur/plan/budget/advisor-nudge/dismiss'
  */
 dismiss.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ dismiss.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::dismiss
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:379
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:428
  * @route '/portal/entrepreneur/plan/budget/advisor-nudge/dismiss'
  */
     const dismissForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,14 +45,14 @@ dismiss.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::dismiss
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:379
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:428
  * @route '/portal/entrepreneur/plan/budget/advisor-nudge/dismiss'
  */
         dismissForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: dismiss.url(options),
             method: 'post',
         })
-    
+
     dismiss.form = dismissForm
 const advisorNudge = {
     dismiss: Object.assign(dismiss, dismiss),

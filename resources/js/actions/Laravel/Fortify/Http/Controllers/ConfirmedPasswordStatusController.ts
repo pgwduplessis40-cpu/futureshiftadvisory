@@ -75,7 +75,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const ConfirmedPasswordStatusController = { show }
 

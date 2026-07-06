@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:282
+ * @see app/Http/Controllers/Advisor/ReportController.php:298
  * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
  */
 export const store = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:282
+ * @see app/Http/Controllers/Advisor/ReportController.php:298
  * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
  */
 store.url = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ store.url = (args: { report: string | { id: string }, reportSection: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:282
+ * @see app/Http/Controllers/Advisor/ReportController.php:298
  * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
  */
 store.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -56,7 +56,7 @@ store.post = (args: { report: string | { id: string }, reportSection: string | {
 
     /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:282
+ * @see app/Http/Controllers/Advisor/ReportController.php:298
  * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
  */
     const storeForm = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -66,14 +66,14 @@ store.post = (args: { report: string | { id: string }, reportSection: string | {
 
             /**
 * @see \App\Http\Controllers\Advisor\ReportController::store
- * @see app/Http/Controllers/Advisor/ReportController.php:282
+ * @see app/Http/Controllers/Advisor/ReportController.php:298
  * @route '/advisor/reports/{report}/sections/{reportSection}/comments'
  */
         storeForm.post = (args: { report: string | { id: string }, reportSection: string | { id: string } } | [report: string | { id: string }, reportSection: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const comments = {
     store: Object.assign(store, store),

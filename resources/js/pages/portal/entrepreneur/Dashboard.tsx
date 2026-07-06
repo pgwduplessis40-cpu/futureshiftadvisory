@@ -113,6 +113,21 @@ type PendingSurvey = {
     url: string;
 };
 
+type PendingOutcomeFollowUpsPayload = {
+    total_open: number;
+    items: PendingOutcomeFollowUp[];
+};
+
+type PendingOutcomeFollowUp = {
+    id: string;
+    subject_type: string;
+    subject_label: string;
+    subject_name: string;
+    cadence_month: number;
+    due_at: string | null;
+    url: string;
+};
+
 type GamificationPayload = {
     enabled: boolean;
     seen_url?: string;
@@ -160,6 +175,7 @@ type Props = {
     notificationsUrl: string;
     settingsUrl: string;
     surveys: PendingSurveysPayload;
+    outcomeFollowUps: PendingOutcomeFollowUpsPayload;
     gamification: GamificationPayload;
     welcomeMessage: WelcomeMessage;
 };
@@ -173,6 +189,7 @@ export default function EntrepreneurDashboard({
     notificationsUrl,
     settingsUrl,
     surveys,
+    outcomeFollowUps,
     gamification,
     welcomeMessage,
 }: Props) {
@@ -188,6 +205,7 @@ export default function EntrepreneurDashboard({
     const latestAssessment = profile?.latest_plan?.latest_assessment ?? null;
     const readiness = profile?.advisory_readiness_signal ?? null;
     const nextSurvey = surveys.items[0] ?? null;
+    const nextOutcomeFollowUp = outcomeFollowUps.items[0] ?? null;
     const hasPlan = Boolean(profile?.latest_plan);
     const journeyPrompt = hasPlan
         ? {
@@ -347,6 +365,26 @@ export default function EntrepreneurDashboard({
                                                 {surveys.total_open > 1
                                                     ? 'Start first'
                                                     : 'Start survey'}
+                                            </Link>
+                                        </Button>
+                                    </ActionPanel>
+                                ) : null}
+
+                                {outcomeFollowUps.total_open > 0 &&
+                                nextOutcomeFollowUp ? (
+                                    <ActionPanel
+                                        icon={Hourglass}
+                                        title="Outcome follow-up"
+                                        value={`${outcomeFollowUps.total_open} pending`}
+                                        explanation={`Please complete the ${nextOutcomeFollowUp.cadence_month} month outcome follow-up for ${nextOutcomeFollowUp.subject_name}. It helps measure whether the advice changed the commercial outcome.`}
+                                    >
+                                        <Button asChild size="sm">
+                                            <Link
+                                                href={nextOutcomeFollowUp.url}
+                                            >
+                                                {outcomeFollowUps.total_open > 1
+                                                    ? 'Start first'
+                                                    : 'Complete'}
                                             </Link>
                                         </Button>
                                     </ActionPanel>

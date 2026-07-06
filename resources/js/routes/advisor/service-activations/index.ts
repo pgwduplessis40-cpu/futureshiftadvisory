@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
@@ -105,7 +105,7 @@ show.url = (args: { serviceActivation: string | { id: string } } | [serviceActiv
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -177,11 +177,11 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
- * @see app/Http/Controllers/Advisor/ServiceActivationController.php:66
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:67
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
 export const packageMethod = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -196,7 +196,7 @@ packageMethod.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
- * @see app/Http/Controllers/Advisor/ServiceActivationController.php:66
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:67
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
 packageMethod.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -207,7 +207,7 @@ packageMethod.url = (args: { serviceActivation: string | { id: string } } | [ser
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -229,7 +229,7 @@ packageMethod.url = (args: { serviceActivation: string | { id: string } } | [ser
 
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
- * @see app/Http/Controllers/Advisor/ServiceActivationController.php:66
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:67
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
 packageMethod.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -239,7 +239,7 @@ packageMethod.post = (args: { serviceActivation: string | { id: string } } | [se
 
     /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
- * @see app/Http/Controllers/Advisor/ServiceActivationController.php:66
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:67
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
     const packageMethodForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -249,19 +249,99 @@ packageMethod.post = (args: { serviceActivation: string | { id: string } } | [se
 
             /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
- * @see app/Http/Controllers/Advisor/ServiceActivationController.php:66
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:67
  * @route '/advisor/service-activations/{serviceActivation}/package'
  */
         packageMethodForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: packageMethod.url(args, options),
             method: 'post',
         })
-    
+
     packageMethod.form = packageMethodForm
+/**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:87
+ * @route '/advisor/service-activations/{serviceActivation}/balance-received'
+ */
+export const balanceReceived = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: balanceReceived.url(args, options),
+    method: 'post',
+})
+
+balanceReceived.definition = {
+    methods: ["post"],
+    url: '/advisor/service-activations/{serviceActivation}/balance-received',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:87
+ * @route '/advisor/service-activations/{serviceActivation}/balance-received'
+ */
+balanceReceived.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { serviceActivation: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { serviceActivation: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    serviceActivation: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        serviceActivation: typeof args.serviceActivation === 'object'
+                ? args.serviceActivation.id
+                : args.serviceActivation,
+                }
+
+    return balanceReceived.definition.url
+            .replace('{serviceActivation}', parsedArgs.serviceActivation.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:87
+ * @route '/advisor/service-activations/{serviceActivation}/balance-received'
+ */
+balanceReceived.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: balanceReceived.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:87
+ * @route '/advisor/service-activations/{serviceActivation}/balance-received'
+ */
+    const balanceReceivedForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: balanceReceived.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
+ * @see app/Http/Controllers/Advisor/ServiceActivationController.php:87
+ * @route '/advisor/service-activations/{serviceActivation}/balance-received'
+ */
+        balanceReceivedForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: balanceReceived.url(args, options),
+            method: 'post',
+        })
+
+    balanceReceived.form = balanceReceivedForm
 const serviceActivations = {
     index: Object.assign(index, index),
 show: Object.assign(show, show),
 package: Object.assign(packageMethod, packageMethod),
+balanceReceived: Object.assign(balanceReceived, balanceReceived),
 }
 
 export default serviceActivations

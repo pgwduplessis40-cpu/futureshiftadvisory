@@ -17,11 +17,8 @@ use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Payments\AuthorityCapture;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\ScheduleBuilder;
-use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\KeyEnvelope;
-use Carbon\CarbonInterface;
 use Illuminate\Support\Arr;
-use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -34,8 +31,7 @@ final class SignoffFlow
     public function __construct(
         private readonly AuthorityCapture $authorities,
         private readonly ScheduleBuilder $schedules,
-        private readonly PdfRenderer $renderer,
-        private readonly ProposalBuilder $proposals,
+        private readonly SignedProposalEvidenceRenderer $signedEvidence,
         private readonly ProposalInvoiceScheduler $invoiceScheduler,
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
@@ -265,13 +261,13 @@ final class SignoffFlow
             ])->save();
         });
 
-        $pdf = $this->renderer->render($this->signedProposalHtml(
+        $pdf = $this->signedEvidence->renderPdf(
             $proposal->refresh()->load(['client.primaryContact', 'feeCalculation', 'consents', 'createdBy']),
             $actor,
             $typedName,
             $payload,
             $signedAt,
-        ));
+        );
         $written = Storage::disk('secure_local')->put($path, $pdf);
 
         if ($written !== true) {
@@ -628,201 +624,5 @@ final class SignoffFlow
         $total = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
 
         return round(((float) $total) / max(1, $termMonths), 2);
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    private function signedProposalHtml(Proposal $proposal, User $actor, string $typedName, array $payload, CarbonInterface $signedAt): string
-    {
-        $proposalHtml = $this->proposals->previewHtml($proposal);
-        $certificate = $this->signatureCertificateHtml($proposal, $actor, $typedName, $payload, $signedAt);
-        $banner = $this->signatureBannerHtml($proposal, $actor, $signedAt);
-        $style = <<<'CSS'
-.proposal-signature-stamp {
-  border: 1px solid #214f44;
-  border-left: 5px solid #214f44;
-  color: #17211b;
-  font-family: Arial, sans-serif;
-  font-size: 11px;
-  margin: 0 0 14px;
-  padding: 10px 12px;
-}
-.proposal-signature-certificate {
-  background: #fff;
-  border: 1px solid #d8e2dc;
-  border-left: 5px solid #214f44;
-  break-before: page;
-  color: #17211b;
-  font-family: Arial, sans-serif;
-  font-size: 12px;
-  line-height: 1.55;
-  margin: 0;
-  padding: 16px;
-}
-.proposal-signature-certificate h1 {
-  color: #214f44;
-  font-size: 20px;
-  margin: 0 0 6px;
-}
-.proposal-signature-certificate h2 {
-  color: #214f44;
-  font-size: 14px;
-  margin: 18px 0 6px;
-}
-.proposal-signature-certificate dl {
-  display: grid;
-  grid-template-columns: 170px 1fr;
-  margin: 0;
-}
-.proposal-signature-certificate dt {
-  color: #5d6b63;
-  font-weight: 700;
-  padding: 4px 10px 4px 0;
-}
-.proposal-signature-certificate dd {
-  margin: 0;
-  padding: 4px 0;
-}
-CSS;
-
-        return $this->attachSignatureEvidence($proposalHtml, $banner, $certificate, $style);
-    }
-
-    private function signatureBannerHtml(Proposal $proposal, User $actor, CarbonInterface $signedAt): string
-    {
-        return sprintf(
-            '<aside class="proposal-signature-stamp"><strong>Signed proposal v%s</strong><br>Signed at %s by %s &lt;%s&gt;.</aside>',
-            $proposal->version,
-            $this->escape($signedAt->format('j M Y, g:i A T')),
-            $this->escape($actor->name),
-            $this->escape($actor->email),
-        );
-    }
-
-    /**
-     * @param  array<string, mixed>  $payload
-     */
-    private function signatureCertificateHtml(Proposal $proposal, User $actor, string $typedName, array $payload, CarbonInterface $signedAt): string
-    {
-        $identity = is_array($payload['identity_verification'] ?? null) ? $payload['identity_verification'] : [];
-        $method = $this->stepPayload($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD);
-        $authorityPayload = $this->stepPayload($proposal, ProposalSignoffStep::STEP_AUTHORITY);
-        $collectionDay = $this->validCollectionDay($authorityPayload['collection_day'] ?? $method['collection_day'] ?? null);
-        $termMonths = $this->proposalTermMonths($proposal);
-        $monthlyAmount = $this->proposalMonthlyAmount($proposal, $termMonths);
-
-        return sprintf(
-            <<<'HTML'
-<section class="proposal-signature-certificate">
-<h1>Signed proposal certificate</h1>
-<p>This certificate records the client acceptance, payment authority, and identity checks attached to the signed proposal.</p>
-<h2>Proposal</h2>
-<dl>
-<dt>Client</dt><dd>%s</dd>
-<dt>Proposal</dt><dd>Proposal v%s</dd>
-<dt>Total proposal</dt><dd>NZD %s</dd>
-<dt>Term</dt><dd>%s months</dd>
-<dt>Monthly collection</dt><dd>NZD %s per month</dd>
-<dt>GST</dt><dd>Amounts are GST exclusive. GST at 15%% is added to each payment collected.</dd>
-<dt>Collection date</dt><dd>%s of each month</dd>
-</dl>
-<h2>Signature</h2>
-<dl>
-<dt>Signed at</dt><dd>%s</dd>
-<dt>Signed by</dt><dd>%s &lt;%s&gt;</dd>
-<dt>Typed signature</dt><dd>%s</dd>
-<dt>User ID</dt><dd>%s</dd>
-<dt>IP address</dt><dd>%s</dd>
-<dt>User agent</dt><dd>%s</dd>
-</dl>
-<h2>Identity verification</h2>
-<dl>
-<dt>Password</dt><dd>Verified at %s</dd>
-<dt>MFA</dt><dd>%s</dd>
-</dl>
-<h2>Payment authority</h2>
-<p>Authorised using password%s before signature. The payment method is tokenised by the selected gateway; raw card details are not stored by Future Shift Advisory.</p>
-</section>
-HTML,
-            $this->escape($proposal->client?->legal_name ?? 'Client'),
-            $proposal->version,
-            number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
-            $termMonths,
-            number_format($monthlyAmount, 0),
-            $this->ordinal($collectionDay),
-            $this->escape($signedAt->format('j M Y, g:i A T')),
-            $this->escape($actor->name),
-            $this->escape($actor->email),
-            $this->escape($typedName),
-            $this->escape((string) $actor->getKey()),
-            $this->escape((string) ($payload['ip'] ?? '')),
-            $this->escape((string) ($payload['user_agent'] ?? '')),
-            $this->escape($this->formatEvidenceDate($identity['password_verified_at'] ?? null)),
-            $this->escape($this->mfaEvidenceLine($identity)),
-            (bool) ($identity['mfa_required'] ?? false) ? ' and MFA' : '',
-        );
-    }
-
-    private function attachSignatureEvidence(string $html, string $banner, string $certificate, string $style): string
-    {
-        if (str_contains($html, '</head>')) {
-            $html = str_replace('</head>', "<style>\n{$style}\n</style>\n</head>", $html);
-        } else {
-            $html = "<style>\n{$style}\n</style>\n".$html;
-        }
-
-        if (preg_match('/<body\b[^>]*>/i', $html) === 1) {
-            $html = preg_replace('/(<body\b[^>]*>)/i', '$1'.$banner, $html, 1) ?? $html;
-        } else {
-            $html = $banner.$html;
-        }
-
-        if (str_contains($html, '</body>')) {
-            return str_replace('</body>', $certificate."\n</body>", $html);
-        }
-
-        return $html.$certificate;
-    }
-
-    /**
-     * @param  array<string, mixed>  $identity
-     */
-    private function mfaEvidenceLine(array $identity): string
-    {
-        if (! (bool) ($identity['mfa_required'] ?? false)) {
-            return 'Not required in this environment';
-        }
-
-        $method = is_scalar($identity['mfa_method'] ?? null) ? (string) $identity['mfa_method'] : 'Authenticator app';
-
-        return 'Verified at '.$this->formatEvidenceDate($identity['mfa_verified_at'] ?? null).' using '.$method;
-    }
-
-    private function formatEvidenceDate(mixed $value): string
-    {
-        if (! is_scalar($value) || trim((string) $value) === '') {
-            return 'Recorded';
-        }
-
-        try {
-            return Carbon::parse((string) $value)->format('j M Y, g:i A T');
-        } catch (\Throwable) {
-            return (string) $value;
-        }
-    }
-
-    private function ordinal(int $day): string
-    {
-        return match ($day) {
-            1 => '1st',
-            15 => '15th',
-            default => (string) $day,
-        };
-    }
-
-    private function escape(string $value): string
-    {
-        return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
     }
 }

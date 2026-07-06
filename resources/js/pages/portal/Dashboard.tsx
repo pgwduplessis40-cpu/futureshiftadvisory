@@ -108,6 +108,7 @@ type Props = {
     };
     messagesUrl: string;
     surveys: PendingSurveysPayload;
+    outcomeFollowUps: PendingOutcomeFollowUpsPayload;
     welcomeMessage: WelcomeMessage;
     inspirationBoard: InspirationPost | null;
 };
@@ -433,6 +434,21 @@ type PendingSurvey = {
     url: string;
 };
 
+type PendingOutcomeFollowUpsPayload = {
+    total_open: number;
+    items: PendingOutcomeFollowUp[];
+};
+
+type PendingOutcomeFollowUp = {
+    id: string;
+    subject_type: string;
+    subject_label: string;
+    subject_name: string;
+    cadence_month: number;
+    due_at: string | null;
+    url: string;
+};
+
 type HealthFindingDimension = {
     dimension: string;
     label: string;
@@ -530,6 +546,7 @@ export default function PortalDashboard({
     reports,
     messageSummary,
     surveys,
+    outcomeFollowUps,
     welcomeMessage,
     inspirationBoard,
 }: Props) {
@@ -682,6 +699,7 @@ export default function PortalDashboard({
           )
         : 0;
     const nextSurvey = surveys.items[0] ?? null;
+    const nextOutcomeFollowUp = outcomeFollowUps.items[0] ?? null;
     const focusDashboardSection = (
         sectionId: string,
         tab: PortalDashboardTab,
@@ -797,6 +815,21 @@ export default function PortalDashboard({
                                             surveys.total_open > 1
                                                 ? 'Start first'
                                                 : 'Start'
+                                        }
+                                    />
+                                ) : null}
+                                {outcomeFollowUps.total_open > 0 &&
+                                nextOutcomeFollowUp ? (
+                                    <StatusPanel
+                                        icon={TrendingUp}
+                                        label="Outcome follow-up"
+                                        value={`${outcomeFollowUps.total_open} pending`}
+                                        explanation={`Please complete the ${nextOutcomeFollowUp.cadence_month} month ${nextOutcomeFollowUp.subject_label.toLowerCase()} for ${nextOutcomeFollowUp.subject_name}. This lets us measure whether the advice changed the commercial outcome.`}
+                                        href={nextOutcomeFollowUp.url}
+                                        actionLabel={
+                                            outcomeFollowUps.total_open > 1
+                                                ? 'Start first'
+                                                : 'Complete'
                                         }
                                     />
                                 ) : null}

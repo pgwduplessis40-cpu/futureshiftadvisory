@@ -649,7 +649,7 @@ HTML,
         }
 
         $items = collect($focusAreas)
-            ->filter('is_array')
+            ->filter(fn (mixed $item): bool => is_array($item))
             ->take(6)
             ->map(fn (array $area): string => sprintf(
                 '<li><strong>%s</strong><br><span>%s</span></li>',
