@@ -12,6 +12,7 @@ use App\Enums\ProposalStatus;
 use App\Models\Client;
 use App\Models\NpoEngagement;
 use App\Models\Proposal;
+use App\Models\ServiceRatePackage;
 use App\Models\ServiceRateSetting;
 use App\Models\User;
 use App\Services\Fees\FeeCalculator;
@@ -87,6 +88,59 @@ final class ServiceRateManagementTest extends TestCase
                 ->has('history', 1)
                 ->where('storeUrl', route('admin.service-rates.store', absolute: false))
             );
+    }
+
+    public function test_super_admin_can_update_workspace_package(): void
+    {
+        $admin = $this->superAdmin();
+        $package = ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
+            'package_name' => 'Stage 3 - Bundle',
+            'client_label' => 'Bundle - Idea + Business Plan + Budget',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 4450,
+            'hourly_rate' => null,
+            'retainer_amount' => null,
+            'purchase_price_min' => null,
+            'purchase_price_max' => null,
+            'currency' => 'NZD',
+            'scope_description' => 'Platform validation, graded plan, budget/runway and revision.',
+            'is_active' => true,
+            'effective_from' => now()->subDay(),
+            'created_by_user_id' => $admin->getKey(),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.service-rates.packages.update', $package), [
+                'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+                'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+                'package_name' => 'Stage 2 - Full plan + assessment + runway',
+                'client_label' => 'Full plan + assessment + runway',
+                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+                'fixed_fee' => 3450,
+                'hourly_rate' => null,
+                'retainer_amount' => null,
+                'purchase_price_min' => null,
+                'purchase_price_max' => null,
+                'scope_description' => 'Business plan workspace, budget/runway builder, advisor assessment, and revision round.',
+                'is_active' => true,
+            ])
+            ->assertRedirect(route('admin.service-rates.index', absolute: false));
+
+        $package->refresh();
+
+        $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET, $package->package_scope);
+        $this->assertSame('Stage 2 - Full plan + assessment + runway', $package->package_name);
+        $this->assertSame('Full plan + assessment + runway', $package->client_label);
+        $this->assertSame(3450.0, $package->fixed_fee);
+        $this->assertTrue($package->is_active);
+        $this->assertNull($package->effective_to);
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'service_rate_package.updated',
+            'subject_id' => $package->id,
+        ]);
     }
 
     public function test_hours_based_fees_only_use_admin_service_rate(): void

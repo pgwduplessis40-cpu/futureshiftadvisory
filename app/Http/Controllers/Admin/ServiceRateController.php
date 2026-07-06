@@ -50,6 +50,8 @@ final class ServiceRateController extends Controller
                 ->get()
                 ->map(fn (ServiceRatePackage $package): array => $this->packagePayload($package))
                 ->values(),
+            'dueDiligencePackageScopes' => ServiceRatePackage::dueDiligencePackageScopeOptions(),
+            'entrepreneurPackageScopes' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
             'packageStoreUrl' => route('admin.service-rates.packages.store', absolute: false),
         ]);
     }
@@ -79,43 +81,14 @@ final class ServiceRateController extends Controller
 
     public function storePackage(Request $request): RedirectResponse
     {
-        $validated = $request->validate([
-            'service_type' => ['required', Rule::in([
-                ServiceRatePackage::SERVICE_DUE_DILIGENCE,
-                ServiceRatePackage::SERVICE_ENTREPRENEUR,
-            ])],
-            'package_name' => ['required', 'string', 'max:160'],
-            'client_label' => ['required', 'string', 'max:160'],
-            'billing_model' => ['required', Rule::in([
-                ServiceRatePackage::BILLING_FIXED_FEE,
-                ServiceRatePackage::BILLING_HOURLY_RETAINER,
-                ServiceRatePackage::BILLING_PROPOSAL,
-            ])],
-            'fixed_fee' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
-            'hourly_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
-            'retainer_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
-            'purchase_price_min' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
-            'purchase_price_max' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'gte:purchase_price_min'],
-            'scope_description' => ['required', 'string', 'min:20', 'max:4000'],
-            'is_active' => ['nullable', 'boolean'],
-        ]);
+        $validated = $this->validatePackage($request);
 
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
         $package = ServiceRatePackage::query()->create([
-            'service_type' => $validated['service_type'],
-            'package_name' => trim((string) $validated['package_name']),
-            'client_label' => trim((string) $validated['client_label']),
-            'billing_model' => $validated['billing_model'],
-            'fixed_fee' => $validated['fixed_fee'] ?? null,
-            'hourly_rate' => $validated['hourly_rate'] ?? null,
-            'retainer_amount' => $validated['retainer_amount'] ?? null,
-            'purchase_price_min' => $validated['purchase_price_min'] ?? null,
-            'purchase_price_max' => $validated['purchase_price_max'] ?? null,
+            ...$this->packageAttributes($validated),
             'currency' => $this->rates->currency(),
-            'scope_description' => trim((string) $validated['scope_description']),
-            'is_active' => (bool) ($validated['is_active'] ?? true),
             'effective_from' => now(),
             'created_by_user_id' => $user->getKey(),
         ]);
@@ -123,6 +96,37 @@ final class ServiceRateController extends Controller
         $this->audit->record('service_rate_package.created', subject: $package, actor: $user, after: $package->snapshot());
 
         return to_route('admin.service-rates.index')->with('status', 'service-rate-package-created');
+    }
+
+    public function updatePackage(Request $request, ServiceRatePackage $serviceRatePackage): RedirectResponse
+    {
+        $validated = $this->validatePackage($request);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $before = [
+            ...$serviceRatePackage->snapshot(),
+            'is_active' => $serviceRatePackage->is_active,
+            'effective_to' => $serviceRatePackage->effective_to?->toIso8601String(),
+        ];
+
+        $attributes = $this->packageAttributes($validated);
+        $isActive = (bool) $attributes['is_active'];
+        $serviceRatePackage->forceFill([
+            ...$attributes,
+            'effective_to' => $isActive
+                ? null
+                : ($serviceRatePackage->effective_to ?? now()),
+        ])->save();
+
+        $this->audit->record('service_rate_package.updated', subject: $serviceRatePackage, actor: $user, before: $before, after: [
+            ...$serviceRatePackage->snapshot(),
+            'is_active' => $serviceRatePackage->is_active,
+            'effective_to' => $serviceRatePackage->effective_to?->toIso8601String(),
+        ]);
+
+        return to_route('admin.service-rates.index')->with('status', 'service-rate-package-updated');
     }
 
     public function togglePackage(Request $request, ServiceRatePackage $serviceRatePackage): RedirectResponse
@@ -177,7 +181,73 @@ final class ServiceRateController extends Controller
             'effective_to' => $package->effective_to?->toIso8601String(),
             'created_by_name' => $package->createdBy?->name,
             'created_at' => $package->created_at?->toIso8601String(),
+            'update_url' => route('admin.service-rates.packages.update', $package, absolute: false),
             'toggle_url' => route('admin.service-rates.packages.toggle', $package, absolute: false),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function validatePackage(Request $request): array
+    {
+        return $request->validate([
+            'service_type' => ['required', Rule::in([
+                ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+                ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            ])],
+            'package_scope' => ['nullable', 'string', Rule::in(ServiceRatePackage::packageScopes())],
+            'package_name' => ['required', 'string', 'max:160'],
+            'client_label' => ['required', 'string', 'max:160'],
+            'billing_model' => ['required', Rule::in([
+                ServiceRatePackage::BILLING_FIXED_FEE,
+                ServiceRatePackage::BILLING_HOURLY_RETAINER,
+                ServiceRatePackage::BILLING_PROPOSAL,
+            ])],
+            'fixed_fee' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'deposit_percent' => ['nullable', 'numeric', 'min:1', 'max:100'],
+            'hourly_rate' => ['nullable', 'numeric', 'min:0', 'max:99999.99'],
+            'retainer_amount' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'purchase_price_min' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99'],
+            'purchase_price_max' => ['nullable', 'numeric', 'min:0', 'max:999999999999.99', 'gte:purchase_price_min'],
+            'scope_description' => ['required', 'string', 'min:20', 'max:4000'],
+            'is_active' => ['nullable', 'boolean'],
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $validated
+     * @return array<string, mixed>
+     */
+    private function packageAttributes(array $validated): array
+    {
+        $serviceType = (string) $validated['service_type'];
+        $packageScope = match ($serviceType) {
+            ServiceRatePackage::SERVICE_DUE_DILIGENCE => ServiceRatePackage::normaliseDueDiligenceScope(
+                (string) ($validated['package_scope'] ?? ''),
+                $validated['purchase_price_min'] ?? null,
+                $validated['purchase_price_max'] ?? null,
+                (string) $validated['package_name'],
+                (string) $validated['client_label'],
+            ),
+            ServiceRatePackage::SERVICE_ENTREPRENEUR => ServiceRatePackage::normaliseEntrepreneurScope((string) ($validated['package_scope'] ?? '')),
+            default => null,
+        };
+
+        return [
+            'service_type' => $serviceType,
+            'package_scope' => $packageScope,
+            'package_name' => trim((string) $validated['package_name']),
+            'client_label' => trim((string) $validated['client_label']),
+            'billing_model' => $validated['billing_model'],
+            'fixed_fee' => $validated['fixed_fee'] ?? null,
+            'deposit_percent' => $validated['deposit_percent'] ?? 100,
+            'hourly_rate' => $validated['hourly_rate'] ?? null,
+            'retainer_amount' => $validated['retainer_amount'] ?? null,
+            'purchase_price_min' => $validated['purchase_price_min'] ?? null,
+            'purchase_price_max' => $validated['purchase_price_max'] ?? null,
+            'scope_description' => trim((string) $validated['scope_description']),
+            'is_active' => (bool) ($validated['is_active'] ?? true),
         ];
     }
 }

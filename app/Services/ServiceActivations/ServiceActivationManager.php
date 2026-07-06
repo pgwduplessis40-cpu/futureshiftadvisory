@@ -91,6 +91,7 @@ final class ServiceActivationManager
     public function selectPackage(ServiceActivation $activation, ServiceRatePackage $package, User $advisor): ServiceActivation
     {
         $activation->loadMissing('client');
+        $paymentStatus = $this->packagePaymentStatus($package);
 
         if (! in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
             throw ValidationException::withMessages(['advisor' => 'Only an advisor can select the workspace package.']);
@@ -105,11 +106,22 @@ final class ServiceActivationManager
             'approved_by_user_id' => $advisor->getKey(),
             'service_rate_package_id' => $package->getKey(),
             'selected_package_snapshot' => $package->snapshot(),
+            'payment_status' => $paymentStatus,
+            'payment_completed_at' => null,
+            'payment_completed_by_user_id' => null,
+            'payment_reference' => null,
+            'deposit_paid_at' => null,
+            'deposit_paid_by_user_id' => null,
+            'deposit_reference' => null,
+            'balance_received_at' => null,
+            'balance_received_by_user_id' => null,
+            'balance_reference' => null,
             'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
             'metadata' => [
                 ...(array) ($activation->metadata ?? []),
                 'package_selected_at' => now()->toIso8601String(),
                 'pricing_source' => 'admin_service_rate_package',
+                'payment_required_before_workspace_access' => $paymentStatus !== ServiceActivation::PAYMENT_NOT_REQUIRED,
             ],
         ])->save();
 
@@ -117,12 +129,159 @@ final class ServiceActivationManager
             'service_rate_package_id' => $package->getKey(),
             'service_type' => $activation->service_type,
             'fixed_fee' => $package->fixed_fee,
+            'payment_split' => $package->paymentSplit(),
             'billing_model' => $package->billing_model,
         ]);
 
         $this->queueLearning($activation->refresh(), 'package_selected', [
             'package_id' => $package->getKey(),
             'billing_model' => $package->billing_model,
+        ]);
+
+        return $activation->refresh();
+    }
+
+    public function completePayment(ServiceActivation $activation, User $actor): ServiceActivation
+    {
+        $activation->loadMissing('client');
+        $client = $activation->client;
+
+        if (! $client instanceof Client) {
+            throw ValidationException::withMessages(['activation' => 'The activation is not linked to a client.']);
+        }
+
+        $this->assertClientUser($client, $actor);
+
+        if ($activation->status !== ServiceActivation::STATUS_PACKAGE_SELECTED || ! is_array($activation->selected_package_snapshot)) {
+            throw ValidationException::withMessages(['activation' => 'The advisor must select the package before payment can be completed.']);
+        }
+
+        if (! $this->activationRequiresPayment($activation)) {
+            $activation->forceFill([
+                'payment_status' => ServiceActivation::PAYMENT_NOT_REQUIRED,
+                'payment_completed_at' => null,
+                'payment_completed_by_user_id' => null,
+                'payment_reference' => null,
+                'deposit_paid_at' => null,
+                'deposit_paid_by_user_id' => null,
+                'deposit_reference' => null,
+                'balance_received_at' => null,
+                'balance_received_by_user_id' => null,
+                'balance_reference' => null,
+            ])->save();
+
+            return $activation->refresh();
+        }
+
+        if ($activation->payment_status === ServiceActivation::PAYMENT_BALANCE_PENDING) {
+            throw ValidationException::withMessages([
+                'payment' => 'The card deposit has already been paid. The bank-transfer balance must be received and confirmed before workspace access opens.',
+            ]);
+        }
+
+        if ($activation->paymentComplete()) {
+            return $activation->refresh();
+        }
+
+        if (! $this->testPaymentCompletionAllowed()) {
+            throw ValidationException::withMessages([
+                'payment' => 'Activation package payments must be completed through the configured payment provider.',
+            ]);
+        }
+
+        $split = $this->paymentSplitForSnapshot((array) $activation->selected_package_snapshot);
+        $reference = 'activation-card-'.$activation->getKey().'-'.now()->format('YmdHis');
+        $now = now();
+        $requiresBankTransfer = (bool) $split['requires_bank_transfer'];
+
+        $activation->forceFill([
+            'payment_status' => $requiresBankTransfer
+                ? ServiceActivation::PAYMENT_BALANCE_PENDING
+                : ServiceActivation::PAYMENT_PAID,
+            'deposit_paid_at' => $now,
+            'deposit_paid_by_user_id' => $actor->getKey(),
+            'deposit_reference' => $reference,
+            'payment_completed_at' => $requiresBankTransfer ? null : $now,
+            'payment_completed_by_user_id' => $requiresBankTransfer ? null : $actor->getKey(),
+            'payment_reference' => $requiresBankTransfer ? null : $reference,
+            'metadata' => [
+                ...(array) ($activation->metadata ?? []),
+                'deposit_paid_at' => $now->toIso8601String(),
+                'payment_mode' => $requiresBankTransfer
+                    ? 'test_environment_card_deposit'
+                    : 'test_environment_card_full_payment',
+                'balance_required_before_workspace_access' => $requiresBankTransfer,
+            ],
+        ])->save();
+
+        $this->audit->record('service_activation.card_payment_completed', subject: $activation, actor: $actor, after: [
+            'service_type' => $activation->service_type,
+            'service_rate_package_id' => $activation->service_rate_package_id,
+            'payment_reference' => $reference,
+            'payment_status' => $activation->payment_status,
+            'payment_split' => $split,
+        ]);
+
+        $this->queueLearning($activation->refresh(), 'payment_completed', [
+            'package_snapshot' => $activation->selected_package_snapshot,
+            'payment_reference' => $reference,
+        ]);
+
+        return $activation->refresh();
+    }
+
+    public function confirmBalanceReceived(ServiceActivation $activation, User $actor): ServiceActivation
+    {
+        $activation->loadMissing('client');
+
+        if (! in_array($actor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+            throw ValidationException::withMessages(['advisor' => 'Only an advisor can confirm the bank-transfer balance.']);
+        }
+
+        if ($activation->status !== ServiceActivation::STATUS_PACKAGE_SELECTED || ! is_array($activation->selected_package_snapshot)) {
+            throw ValidationException::withMessages(['activation' => 'The package must be selected before the bank-transfer balance can be confirmed.']);
+        }
+
+        $split = $this->paymentSplitForSnapshot((array) $activation->selected_package_snapshot);
+
+        if (! (bool) $split['requires_bank_transfer']) {
+            throw ValidationException::withMessages(['payment' => 'This package does not require a bank-transfer balance.']);
+        }
+
+        if ($activation->deposit_paid_at === null || $activation->payment_status !== ServiceActivation::PAYMENT_BALANCE_PENDING) {
+            throw ValidationException::withMessages(['payment' => 'The card deposit must be paid before confirming the bank-transfer balance.']);
+        }
+
+        $reference = 'activation-balance-'.$activation->getKey().'-'.now()->format('YmdHis');
+        $now = now();
+
+        $activation->forceFill([
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'balance_received_at' => $now,
+            'balance_received_by_user_id' => $actor->getKey(),
+            'balance_reference' => $reference,
+            'payment_completed_at' => $now,
+            'payment_completed_by_user_id' => $actor->getKey(),
+            'payment_reference' => $reference,
+            'metadata' => [
+                ...(array) ($activation->metadata ?? []),
+                'balance_received_at' => $now->toIso8601String(),
+                'payment_completed_at' => $now->toIso8601String(),
+                'payment_mode' => 'test_environment_bank_transfer_balance_confirmed',
+            ],
+        ])->save();
+
+        $this->audit->record('service_activation.balance_received', subject: $activation, actor: $actor, after: [
+            'service_type' => $activation->service_type,
+            'service_rate_package_id' => $activation->service_rate_package_id,
+            'balance_reference' => $reference,
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_split' => $split,
+        ]);
+
+        $this->queueLearning($activation->refresh(), 'balance_received', [
+            'package_snapshot' => $activation->selected_package_snapshot,
+            'balance_reference' => $reference,
         ]);
 
         return $activation->refresh();
@@ -142,6 +301,11 @@ final class ServiceActivationManager
         }
 
         $this->assertClientUser($client, $actor);
+
+        if (! $activation->paymentComplete()) {
+            throw ValidationException::withMessages(['payment' => 'Full package payment must be received before opening this workspace.']);
+        }
+
         $acceptanceText = $this->acceptanceText($activation);
 
         $activation = DB::transaction(function () use ($activation, $actor, $acceptanceText): ServiceActivation {
@@ -153,6 +317,8 @@ final class ServiceActivationManager
                 'terms_reference' => [
                     'standard_terms_already_accepted' => true,
                     'workspace_specific_fee_scope_acknowledged' => true,
+                    'payment_status' => $activation->payment_status,
+                    'payment_completed_at' => $activation->payment_completed_at?->toIso8601String(),
                     'accepted_at' => now()->toIso8601String(),
                 ],
             ])->save();
@@ -376,6 +542,11 @@ final class ServiceActivationManager
             ? User::query()->whereKey($activation->advisor_id)->first()
             : $this->leadAdvisor($client);
         $intake = (array) ($activation->intake ?? []);
+        $access = $this->entrepreneurAccess($activation);
+        $includesPlanBudget = (bool) $access['includes_plan_budget'];
+        $stage = $includesPlanBudget && ! (bool) $access['includes_idea_validation']
+            ? EntrepreneurStage::BUILDING_PHASE_1->value
+            : EntrepreneurStage::IDEA_VALIDATION->value;
         $profile = EntrepreneurProfile::query()->updateOrCreate(
             ['user_id' => $actor->getKey()],
             [
@@ -383,19 +554,21 @@ final class ServiceActivationManager
                 'assigned_advisor_id' => $advisor?->getKey() ?? $actor->getKey(),
                 'name' => (string) ($intake['idea_name'] ?? $client->trading_name ?? $client->legal_name),
                 'email' => $actor->email,
-                'stage' => EntrepreneurStage::BUILDING_PHASE_1->value,
+                'stage' => $stage,
                 'concept_summary' => $this->conceptSummary($activation),
                 'gamification_on' => true,
             ],
         );
 
-        $plan = $this->plans->createOrUpdateForEntrepreneur($profile, [
-            'title' => 'Business plan: '.$profile->name,
-            'status' => BusinessPlan::STATUS_BUILDING,
-            'current_phase' => 1,
-        ], $actor);
+        if ($includesPlanBudget && ! (bool) $access['includes_idea_validation']) {
+            $plan = $this->plans->createOrUpdateForEntrepreneur($profile, [
+                'title' => 'Business plan: '.$profile->name,
+                'status' => BusinessPlan::STATUS_BUILDING,
+                'current_phase' => 1,
+            ], $actor);
 
-        $plan->forceFill(['client_id' => $client->getKey()])->save();
+            $plan->forceFill(['client_id' => $client->getKey()])->save();
+        }
 
         $activation->forceFill(['related_entrepreneur_profile_id' => $profile->getKey()])->save();
     }
@@ -434,11 +607,12 @@ final class ServiceActivationManager
         $currency = (string) ($snapshot['currency'] ?? 'NZD');
 
         return sprintf(
-            'I accept the %s workspace package "%s" for %s %s. I understand the standard Terms and Conditions I already accepted for portal access continue to apply, and this acknowledgement confirms the workspace-specific scope and fee.',
+            'I accept the %s workspace package "%s" for %s %s%s. I understand the standard Terms and Conditions I already accepted for portal access continue to apply, this acknowledgement confirms the workspace-specific scope and fee, and workspace access opens only after full package payment has been received and confirmed.',
             $activation->clientLabel(),
             (string) ($snapshot['client_label'] ?? $snapshot['package_name'] ?? 'selected package'),
             $currency,
             $fee,
+            $this->paymentSplitAcceptanceText($snapshot, $currency),
         );
     }
 
@@ -453,6 +627,120 @@ final class ServiceActivationManager
             isset($intake['problem']) ? 'Problem: '.$intake['problem'] : null,
             isset($intake['notes']) ? 'Notes: '.$intake['notes'] : null,
         ]))) ?: 'Client requested idea validation, business plan, and budget support from the advisory portal.';
+    }
+
+    private function packagePaymentStatus(ServiceRatePackage $package): string
+    {
+        if (! $this->packageRequiresPayment($package)) {
+            return ServiceActivation::PAYMENT_NOT_REQUIRED;
+        }
+
+        return $package->paymentSplit()['requires_bank_transfer'] === true
+            ? ServiceActivation::PAYMENT_DEPOSIT_PENDING
+            : ServiceActivation::PAYMENT_PENDING;
+    }
+
+    private function packageRequiresPayment(ServiceRatePackage $package): bool
+    {
+        return $package->billing_model === ServiceRatePackage::BILLING_FIXED_FEE
+            && (float) ($package->paymentSplit()['card_deposit_amount'] ?? 0) > 0;
+    }
+
+    private function activationRequiresPayment(ServiceActivation $activation): bool
+    {
+        $snapshot = (array) ($activation->selected_package_snapshot ?? []);
+
+        return (string) ($snapshot['billing_model'] ?? ServiceRatePackage::BILLING_FIXED_FEE) === ServiceRatePackage::BILLING_FIXED_FEE
+            && (float) ($this->paymentSplitForSnapshot($snapshot)['card_deposit_amount'] ?? 0) > 0;
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     * @return array{deposit_percent:float,card_deposit_amount:float|null,bank_transfer_amount:float|null,requires_bank_transfer:bool}
+     */
+    private function paymentSplitForSnapshot(array $snapshot): array
+    {
+        $paymentSplit = $snapshot['payment_split'] ?? null;
+
+        if (is_array($paymentSplit)) {
+            return [
+                'deposit_percent' => (float) ($paymentSplit['deposit_percent'] ?? $snapshot['deposit_percent'] ?? 100),
+                'card_deposit_amount' => isset($paymentSplit['card_deposit_amount'])
+                    ? (float) $paymentSplit['card_deposit_amount']
+                    : null,
+                'bank_transfer_amount' => isset($paymentSplit['bank_transfer_amount'])
+                    ? (float) $paymentSplit['bank_transfer_amount']
+                    : null,
+                'requires_bank_transfer' => (bool) ($paymentSplit['requires_bank_transfer'] ?? false),
+            ];
+        }
+
+        $fixedFee = isset($snapshot['fixed_fee']) ? (float) $snapshot['fixed_fee'] : null;
+        if ($fixedFee === null) {
+            return [
+                'deposit_percent' => 100.0,
+                'card_deposit_amount' => null,
+                'bank_transfer_amount' => null,
+                'requires_bank_transfer' => false,
+            ];
+        }
+
+        $depositPercent = min(max((float) ($snapshot['deposit_percent'] ?? 100), 0.0), 100.0);
+        $cardDeposit = round($fixedFee * ($depositPercent / 100), 2);
+        $bankTransfer = round(max($fixedFee - $cardDeposit, 0), 2);
+
+        return [
+            'deposit_percent' => $depositPercent,
+            'card_deposit_amount' => $cardDeposit,
+            'bank_transfer_amount' => $bankTransfer,
+            'requires_bank_transfer' => $bankTransfer > 0,
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function paymentSplitAcceptanceText(array $snapshot, string $currency): string
+    {
+        $split = $this->paymentSplitForSnapshot($snapshot);
+
+        if (! $split['requires_bank_transfer']) {
+            return '';
+        }
+
+        return sprintf(
+            ', including a %s%% card deposit of %s %s and a remaining bank-transfer balance of %s %s',
+            number_format($split['deposit_percent'], 2),
+            $currency,
+            number_format((float) $split['card_deposit_amount'], 2),
+            $currency,
+            number_format((float) $split['bank_transfer_amount'], 2),
+        );
+    }
+
+    private function testPaymentCompletionAllowed(): bool
+    {
+        if (! app()->environment('production')) {
+            return true;
+        }
+
+        $host = parse_url((string) config('app.url'), PHP_URL_HOST);
+
+        return is_string($host)
+            && (str_ends_with($host, '.test') || in_array($host, ['localhost', '127.0.0.1'], true));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function entrepreneurAccess(ServiceActivation $activation): array
+    {
+        $snapshot = (array) ($activation->selected_package_snapshot ?? []);
+
+        return ServiceRatePackage::accessFor(
+            ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
+        );
     }
 
     /**

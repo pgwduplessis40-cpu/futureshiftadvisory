@@ -31,6 +31,8 @@ use App\Models\PaymentSchedule;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\Questionnaire;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\StrategicBudget;
 use App\Models\StrategicPlan;
 use App\Models\StrategicPlanMilestone;
@@ -98,6 +100,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedProposalTemplate();
             $this->seedProspectIntake();
             $this->seedClients();
+            $this->seedServicePackagesAndActivationFlow();
             $this->seedClientDocumentsAndQuestionnaires();
             $this->seedFinancialsAndAnalysis();
             $this->seedEntrepreneurJourney();
@@ -764,6 +767,230 @@ XML);
                 'declared_at' => $this->now->copy()->subDays(5),
             ]);
         }
+    }
+
+    private function seedServicePackagesAndActivationFlow(): void
+    {
+        if (! Schema::hasTable('service_rate_packages') || ! Schema::hasTable('service_activations')) {
+            return;
+        }
+
+        $packageIds = [];
+
+        foreach ($this->servicePackageFixtures() as $key => $fixture) {
+            $packageIds[$key] = $this->upsert('service_rate_packages', [
+                'service_type' => $fixture['service_type'],
+                'package_name' => $fixture['package_name'],
+            ], [
+                'package_scope' => $fixture['package_scope'],
+                'package_name' => $fixture['package_name'],
+                'client_label' => $fixture['client_label'],
+                'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+                'fixed_fee' => $fixture['fixed_fee'],
+                'deposit_percent' => $fixture['deposit_percent'],
+                'hourly_rate' => null,
+                'retainer_amount' => null,
+                'purchase_price_min' => $fixture['purchase_price_min'] ?? null,
+                'purchase_price_max' => $fixture['purchase_price_max'] ?? null,
+                'currency' => 'NZD',
+                'scope_description' => $fixture['scope_description'],
+                'is_active' => true,
+                'effective_from' => $this->now->copy()->subDays(14),
+                'effective_to' => null,
+                'created_by_user_id' => $this->users['admin']->getKey(),
+            ]);
+        }
+
+        $this->seedServiceActivationScenario(
+            key: 'service_activation_dd_deposit_due',
+            clientKey: 'postAcquisition',
+            userKey: 'buyer',
+            packageId: $packageIds['dd_1m_3m'] ?? null,
+            serviceType: ServiceActivation::SERVICE_DUE_DILIGENCE,
+            paymentStatus: ServiceActivation::PAYMENT_DEPOSIT_PENDING,
+            intake: [
+                'target_name' => 'Canterbury Precision Manufacturing',
+                'vendor_name' => 'Private vendor',
+                'industry' => 'Specialised manufacturing',
+                'asking_price' => 1_850_000,
+                'timing' => 'Heads of terms expected this month',
+                'notes' => 'Seed scenario: card deposit still needs to be paid before the bank transfer balance can be confirmed.',
+            ],
+        );
+
+        $this->seedServiceActivationScenario(
+            key: 'service_activation_dd_balance_due',
+            clientKey: 'dd',
+            userKey: 'buyer',
+            packageId: $packageIds['dd_300k_1m'] ?? null,
+            serviceType: ServiceActivation::SERVICE_DUE_DILIGENCE,
+            paymentStatus: ServiceActivation::PAYMENT_BALANCE_PENDING,
+            intake: [
+                'target_name' => 'Target Panel Limited',
+                'vendor_name' => 'Seed vendor group',
+                'industry' => 'Wholesale and trade supply',
+                'asking_price' => 725_000,
+                'timing' => 'Indicative offer accepted',
+                'notes' => 'Seed scenario: card deposit paid; bank-transfer balance still due.',
+            ],
+            depositPaid: true,
+        );
+
+        $this->seedServiceActivationScenario(
+            key: 'service_activation_entrepreneur_payment_due',
+            clientKey: 'advisory',
+            userKey: 'primary',
+            packageId: $packageIds['entrepreneur_combo'] ?? null,
+            serviceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+            paymentStatus: ServiceActivation::PAYMENT_PENDING,
+            intake: [
+                'idea_name' => 'HiveOps Advisory Companion',
+                'industry' => 'Professional services technology',
+                'customer' => 'Small advisory practices',
+                'problem' => 'Founder-led advisory firms need a repeatable way to test demand before investing in buildout.',
+                'timing' => 'Ready to test in the next quarter',
+                'notes' => 'Seed scenario: full card payment required before Test new Business Idea opens.',
+            ],
+        );
+    }
+
+    /**
+     * @return array<string, array<string, mixed>>
+     */
+    private function servicePackageFixtures(): array
+    {
+        return [
+            'dd_under_300k' => [
+                'service_type' => ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+                'package_scope' => ServiceRatePackage::SCOPE_DD_UNDER_300K,
+                'package_name' => 'Purchase Price - below $300k',
+                'client_label' => 'Purchase Price - below $300k',
+                'fixed_fee' => 4500,
+                'deposit_percent' => 100,
+                'purchase_price_min' => 1,
+                'purchase_price_max' => 300000,
+                'scope_description' => 'Business purchase price under $300k.',
+            ],
+            'dd_300k_1m' => [
+                'service_type' => ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+                'package_scope' => ServiceRatePackage::SCOPE_DD_300K_1M,
+                'package_name' => 'Purchase price between $300k and $1m',
+                'client_label' => 'Purchase price between $300k and $1m',
+                'fixed_fee' => 8500,
+                'deposit_percent' => 50,
+                'purchase_price_min' => 300001,
+                'purchase_price_max' => 1000000,
+                'scope_description' => 'Business purchase price between $300k and $1m.',
+            ],
+            'dd_1m_3m' => [
+                'service_type' => ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+                'package_scope' => ServiceRatePackage::SCOPE_DD_1M_3M,
+                'package_name' => 'Purchase price between $1m and $3m',
+                'client_label' => 'Purchase price between $1m and $3m',
+                'fixed_fee' => 14500,
+                'deposit_percent' => 25,
+                'purchase_price_min' => 1000001,
+                'purchase_price_max' => 3000000,
+                'scope_description' => 'Business purchase price is between $1m and $3m.',
+            ],
+            'entrepreneur_combo' => [
+                'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+                'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
+                'package_name' => 'Bundle - Idea + Business Plan + Budget',
+                'client_label' => 'Bundle - Idea + Business Plan + Budget',
+                'fixed_fee' => 4450,
+                'deposit_percent' => 100,
+                'scope_description' => 'Platform validation, graded plan, budget/runway and revision.',
+            ],
+            'entrepreneur_plan_budget' => [
+                'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+                'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+                'package_name' => 'Full plan + assessment + runway',
+                'client_label' => 'Full plan + assessment + runway',
+                'fixed_fee' => 3450,
+                'deposit_percent' => 100,
+                'scope_description' => 'Business plan workspace, budget/runway builder, advisor assessment, and revision round. Up to 14 advisor hours.',
+            ],
+            'entrepreneur_idea_validation' => [
+                'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+                'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+                'package_name' => 'Idea Validation Sprint',
+                'client_label' => 'Idea Validation Sprint',
+                'fixed_fee' => 1650,
+                'deposit_percent' => 100,
+                'scope_description' => 'Platform idea validation, AI-supported viability review, advisor gate feedback. Up to 6 advisor hours.',
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $intake
+     */
+    private function seedServiceActivationScenario(
+        string $key,
+        string $clientKey,
+        string $userKey,
+        string|int|null $packageId,
+        string $serviceType,
+        string $paymentStatus,
+        array $intake,
+        bool $depositPaid = false,
+    ): void {
+        if ($packageId === null || ! isset($this->clients[$clientKey], $this->users[$userKey])) {
+            return;
+        }
+
+        $package = ServiceRatePackage::query()->find($packageId);
+
+        if (! $package instanceof ServiceRatePackage) {
+            return;
+        }
+
+        $snapshot = $package->snapshot();
+        $depositReference = $depositPaid ? "seed-card-{$key}" : null;
+        $depositPaidAt = $depositPaid ? $this->now->copy()->subDays(1) : null;
+
+        $this->ids[$key] = $this->upsert('service_activations', [
+            'client_id' => $this->clients[$clientKey]->getKey(),
+            'service_type' => $serviceType,
+            'client_label' => $serviceType === ServiceActivation::SERVICE_DUE_DILIGENCE
+                ? 'Explore buying a business'
+                : 'Test new Business Idea',
+        ], [
+            'requested_by_user_id' => $this->users[$userKey]->getKey(),
+            'advisor_id' => $this->users['advisor']->getKey(),
+            'approved_by_user_id' => $this->users['advisor']->getKey(),
+            'service_rate_package_id' => $package->getKey(),
+            'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+            'intake' => $this->json($intake),
+            'selected_package_snapshot' => $this->json($snapshot),
+            'payment_status' => $paymentStatus,
+            'payment_completed_at' => null,
+            'payment_completed_by_user_id' => null,
+            'payment_reference' => null,
+            'deposit_paid_at' => $depositPaidAt,
+            'deposit_paid_by_user_id' => $depositPaid ? $this->users[$userKey]->getKey() : null,
+            'deposit_reference' => $depositReference,
+            'balance_received_at' => null,
+            'balance_received_by_user_id' => null,
+            'balance_reference' => null,
+            'accepted_by_user_id' => null,
+            'accepted_at' => null,
+            'acceptance_text' => null,
+            'terms_reference' => null,
+            'related_dd_engagement_id' => null,
+            'related_entrepreneur_profile_id' => null,
+            'client_message_thread_id' => null,
+            'closed_at' => null,
+            'cancelled_at' => null,
+            'metadata' => $this->json([
+                'fixture' => true,
+                'fixture_key' => $key,
+                'pricing_source' => 'testing_seed_data',
+                'payment_required_before_workspace_access' => true,
+                'balance_required_before_workspace_access' => $paymentStatus === ServiceActivation::PAYMENT_BALANCE_PENDING,
+            ]),
+        ]);
     }
 
     private function seedClientDocumentsAndQuestionnaires(): void

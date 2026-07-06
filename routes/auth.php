@@ -70,6 +70,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
             Route::get('surveys', [SurveyController::class, 'index'])->name('surveys.index');
             Route::post('surveys', [SurveyController::class, 'store'])->name('surveys.store');
+            Route::get('surveys/{survey}', [SurveyController::class, 'show'])->name('surveys.show');
             Route::get('surveys/{survey}/edit', [SurveyController::class, 'edit'])->name('surveys.edit');
             Route::put('surveys/{survey}', [SurveyController::class, 'update'])->name('surveys.update');
             Route::post('surveys/{survey}/publish', [SurveyController::class, 'publish'])->name('surveys.publish');
@@ -104,7 +105,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
             Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');
             Route::post('service-rates/packages', [ServiceRateController::class, 'storePackage'])->name('service-rates.packages.store');
-            Route::patch('service-rates/packages/{serviceRatePackage}', [ServiceRateController::class, 'togglePackage'])->name('service-rates.packages.toggle');
+            Route::patch('service-rates/packages/{serviceRatePackage}', [ServiceRateController::class, 'updatePackage'])->name('service-rates.packages.update');
+            Route::patch('service-rates/packages/{serviceRatePackage}/status', [ServiceRateController::class, 'togglePackage'])->name('service-rates.packages.toggle');
 
             Route::get('rating-frameworks', [RatingFrameworkController::class, 'index'])->name('rating-frameworks.index');
             Route::post('rating-frameworks/drafts', [RatingFrameworkController::class, 'storeDraft'])->name('rating-frameworks.drafts.store');

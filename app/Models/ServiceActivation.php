@@ -28,11 +28,24 @@ final class ServiceActivation extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    public const PAYMENT_NOT_REQUIRED = 'not_required';
+
+    public const PAYMENT_PENDING = 'pending';
+
+    public const PAYMENT_DEPOSIT_PENDING = 'deposit_pending';
+
+    public const PAYMENT_BALANCE_PENDING = 'balance_pending';
+
+    public const PAYMENT_PAID = 'paid';
+
     protected $guarded = [];
 
     protected $casts = [
         'intake' => 'array',
         'selected_package_snapshot' => 'array',
+        'payment_completed_at' => 'datetime',
+        'deposit_paid_at' => 'datetime',
+        'balance_received_at' => 'datetime',
         'accepted_at' => 'datetime',
         'terms_reference' => 'array',
         'closed_at' => 'datetime',
@@ -128,5 +141,37 @@ final class ServiceActivation extends Model
             self::STATUS_CLOSED,
             self::STATUS_REJECTED,
         ], true);
+    }
+
+    public function paymentRequired(): bool
+    {
+        return in_array($this->payment_status, [
+            self::PAYMENT_PENDING,
+            self::PAYMENT_DEPOSIT_PENDING,
+            self::PAYMENT_BALANCE_PENDING,
+        ], true)
+            || (
+                is_array($this->selected_package_snapshot)
+                && (float) ($this->selected_package_snapshot['fixed_fee'] ?? 0) > 0
+                && $this->payment_status !== self::PAYMENT_PAID
+            );
+    }
+
+    public function paymentComplete(): bool
+    {
+        return in_array($this->payment_status, [
+            self::PAYMENT_NOT_REQUIRED,
+            self::PAYMENT_PAID,
+        ], true);
+    }
+
+    public function depositPaid(): bool
+    {
+        return $this->deposit_paid_at !== null || $this->paymentComplete();
+    }
+
+    public function balancePending(): bool
+    {
+        return $this->payment_status === self::PAYMENT_BALANCE_PENDING;
     }
 }

@@ -87,9 +87,18 @@ export function PwaInstallPrompt() {
             return;
         }
 
+        let fallbackTimer: number | undefined;
+
         const handleBeforeInstallPrompt = (event: Event) => {
             event.preventDefault();
+
+            if (fallbackTimer) {
+                window.clearTimeout(fallbackTimer);
+                fallbackTimer = undefined;
+            }
+
             setDeferredPrompt(event as BeforeInstallPromptEvent);
+            setHelpMode(null);
             setVisible(true);
         };
 
@@ -104,12 +113,14 @@ export function PwaInstallPrompt() {
         );
         window.addEventListener('appinstalled', handleAppInstalled);
 
-        let fallbackTimer: number | undefined;
-
         if (isIosSafari() && isLikelyMobile()) {
+            setHelpMode('ios');
             setVisible(true);
         } else {
-            fallbackTimer = window.setTimeout(() => setVisible(true), 1500);
+            fallbackTimer = window.setTimeout(() => {
+                setHelpMode('browser');
+                setVisible(true);
+            }, 1500);
         }
 
         return () => {
@@ -131,7 +142,12 @@ export function PwaInstallPrompt() {
     };
 
     const install = async () => {
-        if (deferredPrompt) {
+        if (!deferredPrompt) {
+            setHelpMode(iosSafari ? 'ios' : 'browser');
+            return;
+        }
+
+        try {
             await deferredPrompt.prompt();
             const choice = await deferredPrompt.userChoice;
 
@@ -144,14 +160,17 @@ export function PwaInstallPrompt() {
 
             dismiss();
             return;
+        } catch {
+            setDeferredPrompt(null);
+            setHelpMode(iosSafari ? 'ios' : 'browser');
         }
-
-        setHelpMode(iosSafari ? 'ios' : 'browser');
     };
 
     if (!visible) {
         return null;
     }
+
+    const canInstallDirectly = deferredPrompt !== null;
 
     return (
         <div
@@ -184,23 +203,30 @@ export function PwaInstallPrompt() {
                         </div>
                     ) : null}
                     <div className="mt-3 flex gap-2">
+                        {canInstallDirectly ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                onClick={install}
+                                aria-label="Install Future Shift Advisory"
+                            >
+                                <Download
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Install
+                            </Button>
+                        ) : null}
                         <Button
                             type="button"
                             size="sm"
-                            onClick={install}
-                            aria-label="Install Future Shift Advisory"
-                        >
-                            <Download className="size-4" aria-hidden="true" />
-                            Install
-                        </Button>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
+                            variant={
+                                canInstallDirectly ? 'outline' : 'secondary'
+                            }
                             onClick={dismiss}
                             aria-label="Dismiss install prompt"
                         >
-                            Later
+                            {canInstallDirectly ? 'Later' : 'Got it'}
                         </Button>
                     </div>
                 </div>
@@ -208,7 +234,7 @@ export function PwaInstallPrompt() {
                     type="button"
                     size="icon"
                     variant="ghost"
-                    className="-mr-2 -mt-2 size-8"
+                    className="-mt-2 -mr-2 size-8"
                     onClick={dismiss}
                     aria-label="Dismiss install prompt"
                 >

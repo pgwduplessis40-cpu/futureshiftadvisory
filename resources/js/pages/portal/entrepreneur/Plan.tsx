@@ -307,8 +307,20 @@ type GamificationPayload = {
     } | null;
 };
 
+type PackageAccessPayload = {
+    package_scope: 'idea_validation' | 'plan_budget' | 'combo';
+    package_scope_label: string;
+    package_label: string;
+    includes_idea_validation: boolean;
+    includes_plan_budget: boolean;
+    included_stages: string[];
+    client_outcomes: string[];
+    source_activation_id: string | null;
+};
+
 type Props = {
     profile: ProfilePayload;
+    packageAccess: PackageAccessPayload;
     ideaValidation: IdeaValidationPayload;
     plan: BusinessPlanPayload;
     planTemplate: PlanTemplatePhasePayload[];
@@ -338,6 +350,7 @@ type Tab = 'actions' | 'information';
 
 export default function EntrepreneurPlan({
     profile,
+    packageAccess,
     ideaValidation,
     plan,
     planTemplate,
@@ -399,40 +412,60 @@ export default function EntrepreneurPlan({
                       100,
               )
             : planCompletion.percent;
+    const includesIdeaValidation = packageAccess.includes_idea_validation;
+    const includesPlanBudget = packageAccess.includes_plan_budget;
+    const directPlanAccess = includesPlanBudget && !includesIdeaValidation;
     const hasIdeaValidation = Boolean(ideaValidation);
-    const planBuilderUnlocked = Boolean(ideaValidation?.plan_builder_unlocked);
+    const planBuilderUnlocked =
+        directPlanAccess || Boolean(ideaValidation?.plan_builder_unlocked);
     const hasPlan = Boolean(plan);
-    const nextSmallWin = !hasIdeaValidation
-        ? {
-              badge: 'Step 1',
-              title: 'Complete idea validation',
-              body: 'Answer the idea validation questions first. Your advisor reviews this before the plan sections open.',
-              action: 'Start idea validation',
-          }
-        : !planBuilderUnlocked
-          ? {
-                badge: 'Step 2',
-                title: 'Advisor review',
-                body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
-                action: null,
-            }
-          : !hasPlan
+    const nextSmallWin =
+        includesIdeaValidation && !hasIdeaValidation
             ? {
-                  badge: 'Step 3',
-                  title: 'Start the business plan',
-                  body: 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.',
-                  action: 'Start plan',
+                  badge: 'Step 1',
+                  title: 'Complete idea validation',
+                  body: 'Answer the idea validation questions first. Your advisor reviews this before the plan sections open.',
+                  action: 'Start idea validation',
               }
-            : {
-                  badge: `${planCompletion.completed}/${planCompletion.total} sections`,
-                  title: 'Next plan section',
-                  body: selectedRequirement
-                      ? selectedRequirement.complete
-                          ? 'This section is already complete. Choose the next needed section when you are ready.'
-                          : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
-                      : 'Select one requirement and complete that section first.',
-                  action: null,
-              };
+            : includesIdeaValidation && !planBuilderUnlocked
+              ? {
+                    badge: 'Step 2',
+                    title: 'Advisor review',
+                    body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
+                    action: null,
+                }
+              : includesPlanBudget && !hasPlan
+                ? {
+                      badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
+                      title: 'Start the business plan',
+                      body: includesIdeaValidation
+                          ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
+                          : 'Your package opens the business plan and budget workspace directly.',
+                      action: 'Start plan',
+                  }
+                : includesPlanBudget
+                  ? {
+                        badge: `${planCompletion.completed}/${planCompletion.total} sections`,
+                        title: 'Next plan section',
+                        body: selectedRequirement
+                            ? selectedRequirement.complete
+                                ? 'This section is already complete. Choose the next needed section when you are ready.'
+                                : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
+                            : 'Select one requirement and complete that section first.',
+                        action: null,
+                    }
+                  : {
+                        badge: packageAccess.package_scope_label,
+                        title: hasIdeaValidation
+                            ? 'Idea validation submitted'
+                            : 'Complete idea validation',
+                        body: hasIdeaValidation
+                            ? 'Your advisor can review the validation and provide gate feedback for this package.'
+                            : 'Answer the idea validation questions to test the concept before investing in detailed plan work.',
+                        action: hasIdeaValidation
+                            ? null
+                            : 'Start idea validation',
+                    };
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
@@ -785,9 +818,7 @@ export default function EntrepreneurPlan({
                                     Priority actions
                                 </h2>
                                 <p className="mt-1 text-sm text-muted-foreground">
-                                    Validate the idea, complete the plan
-                                    requirements, then request advisory when
-                                    assessment feedback is ready.
+                                    {packageAccess.package_scope_label}
                                 </p>
                             </div>
 
@@ -796,15 +827,21 @@ export default function EntrepreneurPlan({
                                     icon={Bot}
                                     title="Idea validation"
                                     value={
-                                        ideaValidation
-                                            ? planBuilderUnlocked
-                                                ? 'Advisor approved'
-                                                : 'Awaiting advisor gate'
-                                            : 'Not submitted'
+                                        !includesIdeaValidation
+                                            ? 'Not included'
+                                            : ideaValidation
+                                              ? planBuilderUnlocked
+                                                  ? 'Advisor approved'
+                                                  : 'Awaiting advisor gate'
+                                              : 'Not submitted'
                                     }
                                     explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
                                 >
-                                    {!ideaValidation ? (
+                                    {!includesIdeaValidation ? (
+                                        <Badge variant="outline">
+                                            Not in package
+                                        </Badge>
+                                    ) : !ideaValidation ? (
                                         <Button asChild size="sm">
                                             <a href="#idea-validation">
                                                 Start idea validation
@@ -825,17 +862,23 @@ export default function EntrepreneurPlan({
                                     icon={FileText}
                                     title="Plan completion"
                                     value={
-                                        plan
-                                            ? plan.requirements_complete
-                                                ? 'Complete'
-                                                : `${plan.missing_requirements.length} gaps`
-                                            : planBuilderUnlocked
-                                              ? 'Not started'
-                                              : 'Locked'
+                                        !includesPlanBudget
+                                            ? 'Not included'
+                                            : plan
+                                              ? plan.requirements_complete
+                                                  ? 'Complete'
+                                                  : `${plan.missing_requirements.length} gaps`
+                                              : planBuilderUnlocked
+                                                ? 'Not started'
+                                                : 'Locked'
                                     }
                                     explanation="Plan completion is based on all required business plan sections, not merely one section per phase."
                                 >
-                                    {plan ? (
+                                    {!includesPlanBudget ? (
+                                        <Badge variant="outline">
+                                            Not in package
+                                        </Badge>
+                                    ) : plan ? (
                                         <Button
                                             type="button"
                                             size="sm"
@@ -871,13 +914,19 @@ export default function EntrepreneurPlan({
                                     icon={Eye}
                                     title="Assessment"
                                     value={
-                                        plan?.latest_assessment
-                                            ? `${formatLabel(plan.latest_assessment.overall_grade)}`
-                                            : 'Pending'
+                                        !includesPlanBudget
+                                            ? 'Not included'
+                                            : plan?.latest_assessment
+                                              ? `${formatLabel(plan.latest_assessment.overall_grade)}`
+                                              : 'Pending'
                                     }
                                     explanation="Assessment appears once your advisor scores the submitted plan and finalises feedback."
                                 >
-                                    {plan?.latest_assessment ? (
+                                    {!includesPlanBudget ? (
+                                        <Badge variant="outline">
+                                            Not in package
+                                        </Badge>
+                                    ) : plan?.latest_assessment ? (
                                         <Button
                                             asChild
                                             size="sm"
@@ -902,16 +951,22 @@ export default function EntrepreneurPlan({
                                     icon={CheckCircle2}
                                     title="Advisory"
                                     value={
-                                        advisoryRequest.requested
-                                            ? 'Requested'
-                                            : advisoryRequest.available
-                                              ? 'Available'
-                                              : 'Locked'
+                                        !includesPlanBudget
+                                            ? 'Not included'
+                                            : advisoryRequest.requested
+                                              ? 'Requested'
+                                              : advisoryRequest.available
+                                                ? 'Available'
+                                                : 'Locked'
                                     }
                                     explanation="Request advisory once the plan has been assessed as advisory ready. This asks your advisor to convert the plan into a standard advisory engagement."
                                 >
-                                    {advisoryRequest.requested &&
-                                    advisoryRequest.thread_url ? (
+                                    {!includesPlanBudget ? (
+                                        <Badge variant="outline">
+                                            Not in package
+                                        </Badge>
+                                    ) : advisoryRequest.requested &&
+                                      advisoryRequest.thread_url ? (
                                         <Button
                                             asChild
                                             size="sm"
@@ -1035,77 +1090,80 @@ export default function EntrepreneurPlan({
                             </div>
                         </section>
 
-                        <section
-                            id="idea-validation"
-                            className="space-y-4 rounded-md border bg-background p-4"
-                        >
-                            <div className="flex flex-wrap items-start justify-between gap-3">
-                                <div>
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline">Step 1</Badge>
-                                        <h2 className="text-sm font-medium">
-                                            Idea validation
-                                        </h2>
-                                    </div>
-                                    <p className="mt-2 text-sm text-muted-foreground">
-                                        This is the starting point. Capture the
-                                        customer problem, solution, demand, and
-                                        revenue logic before the plan sections
-                                        open.
-                                    </p>
-                                </div>
-                                {ideaValidation?.advisor_gate_passed_at ? (
-                                    <Badge variant="secondary">
-                                        Gate passed
-                                    </Badge>
-                                ) : ideaValidation ? (
-                                    <Badge variant="outline">
-                                        Advisor review
-                                    </Badge>
-                                ) : (
-                                    <Badge variant="outline">
-                                        Not submitted
-                                    </Badge>
-                                )}
-                            </div>
-                            <form
-                                className="grid gap-3 lg:grid-cols-2"
-                                onSubmit={submitIdea}
+                        {includesIdeaValidation ? (
+                            <section
+                                id="idea-validation"
+                                className="space-y-4 rounded-md border bg-background p-4"
                             >
-                                {ideaFields.map((field) => (
-                                    <label
-                                        key={field.key}
-                                        className="grid gap-1 text-sm"
-                                    >
-                                        <span>{field.label}</span>
-                                        <textarea
-                                            value={
-                                                ideaForm[
-                                                    field.key as keyof typeof ideaForm
-                                                ]
-                                            }
-                                            onChange={(event) =>
-                                                setIdeaForm((current) => ({
-                                                    ...current,
-                                                    [field.key]:
-                                                        event.target.value,
-                                                }))
-                                            }
-                                            rows={4}
-                                            className="rounded-md border bg-background px-3 py-2 text-sm"
-                                            placeholder={field.placeholder}
-                                        />
-                                    </label>
-                                ))}
-                                <div className="lg:col-span-2">
-                                    <Button type="submit" size="sm">
-                                        {ideaValidation
-                                            ? 'Update idea validation'
-                                            : 'Submit idea validation'}
-                                    </Button>
+                                <div className="flex flex-wrap items-start justify-between gap-3">
+                                    <div>
+                                        <div className="flex flex-wrap items-center gap-2">
+                                            <Badge variant="outline">
+                                                Step 1
+                                            </Badge>
+                                            <h2 className="text-sm font-medium">
+                                                Idea validation
+                                            </h2>
+                                        </div>
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            Capture the customer problem,
+                                            solution, demand, and revenue logic
+                                            before detailed plan work starts.
+                                        </p>
+                                    </div>
+                                    {ideaValidation?.advisor_gate_passed_at ? (
+                                        <Badge variant="secondary">
+                                            Gate passed
+                                        </Badge>
+                                    ) : ideaValidation ? (
+                                        <Badge variant="outline">
+                                            Advisor review
+                                        </Badge>
+                                    ) : (
+                                        <Badge variant="outline">
+                                            Not submitted
+                                        </Badge>
+                                    )}
                                 </div>
-                            </form>
-                        </section>
+                                <form
+                                    className="grid gap-3 lg:grid-cols-2"
+                                    onSubmit={submitIdea}
+                                >
+                                    {ideaFields.map((field) => (
+                                        <label
+                                            key={field.key}
+                                            className="grid gap-1 text-sm"
+                                        >
+                                            <span>{field.label}</span>
+                                            <textarea
+                                                value={
+                                                    ideaForm[
+                                                        field.key as keyof typeof ideaForm
+                                                    ]
+                                                }
+                                                onChange={(event) =>
+                                                    setIdeaForm((current) => ({
+                                                        ...current,
+                                                        [field.key]:
+                                                            event.target.value,
+                                                    }))
+                                                }
+                                                rows={4}
+                                                className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                placeholder={field.placeholder}
+                                            />
+                                        </label>
+                                    ))}
+                                    <div className="lg:col-span-2">
+                                        <Button type="submit" size="sm">
+                                            {ideaValidation
+                                                ? 'Update idea validation'
+                                                : 'Submit idea validation'}
+                                        </Button>
+                                    </div>
+                                </form>
+                            </section>
+                        ) : null}
 
                         <section
                             id="business-plan-requirements"
@@ -1117,26 +1175,36 @@ export default function EntrepreneurPlan({
                                         Plan requirements
                                     </h2>
                                     <p className="mt-1 text-sm text-muted-foreground">
-                                        Complete every required section and
-                                        attach supporting evidence where it
-                                        helps the advisor rely on the plan.
+                                        {includesPlanBudget
+                                            ? 'Complete every required section and attach supporting evidence where it helps the advisor rely on the plan.'
+                                            : 'Business plan and budget are not included in this package.'}
                                     </p>
                                 </div>
-                                {!plan ? (
+                                {!plan && includesPlanBudget ? (
                                     <Button
                                         type="button"
                                         size="sm"
                                         onClick={startPlan}
-                                        disabled={
-                                            !ideaValidation?.plan_builder_unlocked
-                                        }
+                                        disabled={!planBuilderUnlocked}
                                     >
                                         Start plan
                                     </Button>
                                 ) : null}
                             </div>
 
-                            {hasPlan ? (
+                            {!includesPlanBudget ? (
+                                <div className="rounded-md border border-dashed bg-muted/20 p-4">
+                                    <h3 className="text-sm font-medium">
+                                        Not included in this package
+                                    </h3>
+                                    <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                                        This package covers idea validation
+                                        only. Your advisor can invite you to
+                                        Business Plan + Budget or the bundle
+                                        package if you decide to progress.
+                                    </p>
+                                </div>
+                            ) : hasPlan ? (
                                 <div className="grid gap-6 xl:grid-cols-[0.9fr_1.1fr]">
                                     <div className="space-y-3">
                                         {phases.map((phase) => (

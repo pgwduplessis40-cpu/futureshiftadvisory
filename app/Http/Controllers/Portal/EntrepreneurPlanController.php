@@ -18,6 +18,7 @@ use App\Models\PlanSection;
 use App\Models\ReadinessAssessment;
 use App\Models\Report;
 use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\BudgetPackBuilder;
@@ -88,9 +89,11 @@ final class EntrepreneurPlanController extends Controller
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
         $plan = $this->latestPlan($profile);
+        $packageAccess = $this->packageAccessPayload($profile);
 
         return Inertia::render('portal/entrepreneur/Plan', [
             'profile' => $this->profilePayload($profile),
+            'packageAccess' => $packageAccess,
             'readiness' => $this->readinessPayload($profile),
             'readinessFields' => collect(self::READINESS_FIELDS)
                 ->map(fn (string $label, string $key): array => ['key' => $key, 'label' => $label])
@@ -127,6 +130,7 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        abort_unless($this->packageIncludesPlanBudget($profile), 403);
         $plan = $this->latestPlan($profile);
         $phases = $plan instanceof BusinessPlan
             ? $this->planPayload($plan)['phases']
@@ -146,6 +150,7 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        abort_unless($this->packageIncludesPlanBudget($profile), 403);
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -168,6 +173,7 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        abort_unless($this->packageIncludesPlanBudget($profile), 403);
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan && $this->budgetUnlocked($plan), 404);
 
@@ -203,6 +209,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesIdeaValidation($profile)) {
+            return $this->packageLockedResponse('Idea validation is not included in your selected package.');
+        }
+
         $validated = $request->validate([
             'problem' => ['required', 'string', 'min:20', 'max:1200'],
             'target_customer' => ['required', 'string', 'min:20', 'max:1200'],
@@ -222,8 +232,35 @@ final class EntrepreneurPlanController extends Controller
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
 
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Business plan and budget are not included in your selected package.');
+        }
+
+        if (! $this->packageIncludesIdeaValidation($profile)) {
+            $plan = $this->sharedPlans->createOrUpdateForEntrepreneur($profile, [
+                'title' => 'Business plan: '.$profile->name,
+                'status' => BusinessPlan::STATUS_BUILDING,
+                'current_phase' => 1,
+            ], $user);
+
+            if ($profile->client_id !== null) {
+                $plan->forceFill(['client_id' => $profile->client_id])->save();
+            }
+            $profile->forceFill(['stage' => EntrepreneurStage::BUILDING_PHASE_1])->save();
+
+            $this->audit->record('entrepreneur.plan_started', subject: $plan, actor: $user, after: [
+                'entrepreneur_profile_id' => $profile->getKey(),
+                'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+            ]);
+
+            return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-plan-started');
+        }
+
         try {
-            $this->plans->start($profile, $user);
+            $plan = $this->plans->start($profile, $user);
+            if ($profile->client_id !== null) {
+                $plan->forceFill(['client_id' => $profile->client_id])->save();
+            }
         } catch (InvalidArgumentException $exception) {
             return to_route('portal.entrepreneur.plan.show')
                 ->with('status', 'entrepreneur-plan-locked')
@@ -237,6 +274,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Business plan and budget are not included in your selected package.');
+        }
+
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -291,6 +332,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Budget setup is not included in your selected package.');
+        }
+
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -362,6 +407,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Budget setup is not included in your selected package.');
+        }
+
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -380,6 +429,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Budget setup is not included in your selected package.');
+        }
+
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -395,6 +448,7 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        abort_unless($this->packageIncludesPlanBudget($profile), 403);
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -424,6 +478,7 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        abort_unless($this->packageIncludesPlanBudget($profile), 403);
         $this->assertSectionBelongsToProfile($planSection, $profile);
 
         $this->guidance->guide($planSection, $user);
@@ -435,6 +490,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Business plan assessment is not included in your selected package.');
+        }
+
         $plan = $this->latestPlan($profile);
         abort_unless($plan instanceof BusinessPlan, 404);
 
@@ -465,6 +524,10 @@ final class EntrepreneurPlanController extends Controller
     {
         $user = $this->entrepreneurUser($request);
         $profile = $this->profileFor($user);
+        if (! $this->packageIncludesPlanBudget($profile)) {
+            return $this->packageLockedResponse('Advisory conversion is available after a business plan and budget package.');
+        }
+
         $plan = $this->latestPlan($profile);
         $signal = $this->latestReadinessSignal($profile);
 
@@ -546,6 +609,67 @@ final class EntrepreneurPlanController extends Controller
             ->whereNotNull('related_entrepreneur_profile_id')
             ->latest()
             ->first();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function packageAccessPayload(EntrepreneurProfile $profile): array
+    {
+        $activation = $this->activeEntrepreneurActivationForProfile($profile);
+        $snapshot = (array) ($activation?->selected_package_snapshot ?? []);
+        $access = ServiceRatePackage::accessFor(
+            ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
+        );
+
+        return [
+            ...$access,
+            'package_label' => (string) ($snapshot['client_label'] ?? $snapshot['package_name'] ?? 'Entrepreneur workspace'),
+            'source_activation_id' => $activation?->getKey(),
+        ];
+    }
+
+    private function packageIncludesIdeaValidation(EntrepreneurProfile $profile): bool
+    {
+        return (bool) $this->packageAccessPayload($profile)['includes_idea_validation'];
+    }
+
+    private function packageIncludesPlanBudget(EntrepreneurProfile $profile): bool
+    {
+        return (bool) $this->packageAccessPayload($profile)['includes_plan_budget'];
+    }
+
+    private function activeEntrepreneurActivationForProfile(EntrepreneurProfile $profile): ?ServiceActivation
+    {
+        $activation = ServiceActivation::query()
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->where('related_entrepreneur_profile_id', $profile->getKey())
+            ->latest()
+            ->first();
+
+        if ($activation instanceof ServiceActivation) {
+            return $activation;
+        }
+
+        if ($profile->client_id === null) {
+            return null;
+        }
+
+        return ServiceActivation::query()
+            ->where('service_type', ServiceActivation::SERVICE_ENTREPRENEUR)
+            ->where('status', ServiceActivation::STATUS_ACTIVE)
+            ->where('client_id', $profile->client_id)
+            ->latest()
+            ->first();
+    }
+
+    private function packageLockedResponse(string $message): RedirectResponse
+    {
+        return to_route('portal.entrepreneur.plan.show')
+            ->with('status', 'entrepreneur-package-locked')
+            ->with('entrepreneur_plan_error', $message);
     }
 
     private function latestPlan(EntrepreneurProfile $profile): ?BusinessPlan

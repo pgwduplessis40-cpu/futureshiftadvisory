@@ -58,6 +58,7 @@ final class ServiceActivationController extends Controller
             'urls' => [
                 'index' => route('advisor.service-activations.index', absolute: false),
                 'package' => route('advisor.service-activations.package', $serviceActivation, absolute: false),
+                'balanceReceived' => route('advisor.service-activations.balance-received', $serviceActivation, absolute: false),
                 'client' => route('advisor.clients.show', $serviceActivation->client_id, absolute: false),
             ],
         ]);
@@ -81,6 +82,18 @@ final class ServiceActivationController extends Controller
 
         return to_route('advisor.service-activations.show', $serviceActivation)
             ->with('status', 'service-activation-package-selected');
+    }
+
+    public function balanceReceived(Request $request, ServiceActivation $serviceActivation): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+        $this->assertAdvisorCanView($serviceActivation, $user);
+
+        $this->activations->confirmBalanceReceived($serviceActivation, $user);
+
+        return to_route('advisor.service-activations.show', $serviceActivation)
+            ->with('status', 'service-activation-balance-received');
     }
 
     private function assertAdvisorCanView(ServiceActivation $activation, User $user): void
@@ -127,6 +140,13 @@ final class ServiceActivationController extends Controller
             'package' => is_array($activation->selected_package_snapshot)
                 ? $activation->selected_package_snapshot
                 : null,
+            'payment_status' => $activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED,
+            'payment_status_label' => str((string) ($activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED))->replace('_', ' ')->title()->toString(),
+            'payment_completed_at' => $activation->payment_completed_at?->toIso8601String(),
+            'deposit_paid_at' => $activation->deposit_paid_at?->toIso8601String(),
+            'deposit_reference' => $activation->deposit_reference,
+            'balance_received_at' => $activation->balance_received_at?->toIso8601String(),
+            'balance_reference' => $activation->balance_reference,
             'accepted_at' => $activation->accepted_at?->toIso8601String(),
             'workspace' => [
                 'dd_engagement_id' => $activation->related_dd_engagement_id,

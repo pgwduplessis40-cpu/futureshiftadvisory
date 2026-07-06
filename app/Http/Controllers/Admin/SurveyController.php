@@ -51,6 +51,7 @@ final class SurveyController extends Controller
                     'questions_count' => $survey->questions_count,
                     'assignments_count' => $survey->assignments_count,
                     'responses_count' => $survey->responses_count,
+                    'show_url' => route('admin.surveys.show', $survey, absolute: false),
                     'edit_url' => route('admin.surveys.edit', $survey, absolute: false),
                     'publish_url' => route('admin.surveys.publish', $survey, absolute: false),
                     'archive_url' => route('admin.surveys.archive', $survey, absolute: false),
@@ -92,6 +93,18 @@ final class SurveyController extends Controller
         ]);
 
         return to_route('admin.surveys.edit', $survey)->with('status', 'survey-created');
+    }
+
+    public function show(Survey $survey): Response
+    {
+        Gate::authorize('viewAny', Survey::class);
+
+        return Inertia::render('admin/surveys/Show', [
+            'survey' => $this->surveyPayload($survey->load('questions')),
+            'indexUrl' => route('admin.surveys.index', absolute: false),
+            'editUrl' => route('admin.surveys.edit', $survey, absolute: false),
+            'resultsUrl' => route('admin.surveys.results', $survey, absolute: false),
+        ]);
     }
 
     public function edit(Survey $survey): Response

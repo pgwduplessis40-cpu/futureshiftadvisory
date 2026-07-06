@@ -81,6 +81,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('service-activations/{serviceActivation}/package', [ServiceActivationController::class, 'package'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('service-activations.package');
+        Route::post('service-activations/{serviceActivation}/balance-received', [ServiceActivationController::class, 'balanceReceived'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('service-activations.balance-received');
         Route::get('clients/create', [ClientController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.create');

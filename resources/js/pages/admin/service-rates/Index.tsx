@@ -1,6 +1,14 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { BadgeDollarSign, History, Package, Save } from 'lucide-react';
-import type { FormEvent } from 'react';
+import {
+    BadgeDollarSign,
+    History,
+    Package,
+    Pencil,
+    Power,
+    Save,
+    X,
+} from 'lucide-react';
+import { useState, type FormEvent } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -20,13 +28,27 @@ type ServiceRate = {
     created_at: string | null;
 };
 
+type EntrepreneurPackageScope = 'idea_validation' | 'plan_budget' | 'combo';
+
+type DueDiligencePackageScope = 'dd_under_300k' | 'dd_300k_1m' | 'dd_1m_3m';
+
+type PackageScope = EntrepreneurPackageScope | DueDiligencePackageScope;
+
+type PackageScopeOption = {
+    value: PackageScope;
+    label: string;
+    description: string;
+};
+
 type ServiceRatePackage = {
     id: string;
     service_type: 'due_diligence' | 'entrepreneur';
+    package_scope: PackageScope | null;
     package_name: string;
     client_label: string;
     billing_model: string;
     fixed_fee: number | null;
+    deposit_percent: number;
     hourly_rate: number | null;
     retainer_amount: number | null;
     purchase_price_min: number | null;
@@ -38,7 +60,16 @@ type ServiceRatePackage = {
     effective_to: string | null;
     created_by_name: string | null;
     created_at: string | null;
+    payment_split?: PaymentSplit;
+    update_url: string;
     toggle_url: string;
+};
+
+type PaymentSplit = {
+    deposit_percent: number;
+    card_deposit_amount: number | null;
+    bank_transfer_amount: number | null;
+    requires_bank_transfer: boolean;
 };
 
 type Props = {
@@ -52,7 +83,25 @@ type Props = {
     history: ServiceRate[];
     storeUrl: string;
     packages: ServiceRatePackage[];
+    dueDiligencePackageScopes: PackageScopeOption[];
+    entrepreneurPackageScopes: PackageScopeOption[];
     packageStoreUrl: string;
+};
+
+const defaultPackageFormData = {
+    service_type: 'due_diligence',
+    package_scope: 'dd_300k_1m',
+    package_name: '',
+    client_label: '',
+    billing_model: 'fixed_fee',
+    fixed_fee: '',
+    deposit_percent: '100',
+    hourly_rate: '',
+    retainer_amount: '',
+    purchase_price_min: '',
+    purchase_price_max: '',
+    scope_description: '',
+    is_active: true,
 };
 
 export default function ServiceRatesIndex({
@@ -61,6 +110,8 @@ export default function ServiceRatesIndex({
     history,
     storeUrl,
     packages,
+    dueDiligencePackageScopes,
+    entrepreneurPackageScopes,
     packageStoreUrl,
 }: Props) {
     const effectiveRate = current?.hourly_rate ?? fallback.hourly_rate;
@@ -79,19 +130,13 @@ export default function ServiceRatesIndex({
         npo_retainer_discount_percent: npoRetainerDiscount.toString(),
         notes: '',
     });
-    const packageForm = useForm({
-        service_type: 'due_diligence',
-        package_name: '',
-        client_label: '',
-        billing_model: 'fixed_fee',
-        fixed_fee: '',
-        hourly_rate: '',
-        retainer_amount: '',
-        purchase_price_min: '',
-        purchase_price_max: '',
-        scope_description: '',
-        is_active: true,
-    });
+    const packageForm = useForm(defaultPackageFormData);
+    const [editingPackageId, setEditingPackageId] = useState<string | null>(
+        null,
+    );
+    const editingPackage =
+        packages.find((ratePackage) => ratePackage.id === editingPackageId) ??
+        null;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -105,20 +150,53 @@ export default function ServiceRatesIndex({
     function submitPackage(event: FormEvent) {
         event.preventDefault();
 
+        const onSuccess = () => {
+            setEditingPackageId(null);
+            packageForm.clearErrors();
+            packageForm.setData(defaultPackageFormData);
+        };
+
+        if (editingPackage) {
+            packageForm.patch(editingPackage.update_url, {
+                preserveScroll: true,
+                onSuccess,
+            });
+
+            return;
+        }
+
         packageForm.post(packageStoreUrl, {
             preserveScroll: true,
-            onSuccess: () =>
-                packageForm.reset(
-                    'package_name',
-                    'client_label',
-                    'fixed_fee',
-                    'hourly_rate',
-                    'retainer_amount',
-                    'purchase_price_min',
-                    'purchase_price_max',
-                    'scope_description',
-                ),
+            onSuccess,
         });
+    }
+
+    function editPackage(ratePackage: ServiceRatePackage) {
+        setEditingPackageId(ratePackage.id);
+        packageForm.clearErrors();
+        packageForm.setData({
+            service_type: ratePackage.service_type,
+            package_scope:
+                ratePackage.package_scope ??
+                defaultScope(ratePackage.service_type),
+            package_name: ratePackage.package_name,
+            client_label: ratePackage.client_label,
+            billing_model: ratePackage.billing_model,
+            fixed_fee: valueToString(ratePackage.fixed_fee),
+            deposit_percent: valueToString(ratePackage.deposit_percent),
+            hourly_rate: valueToString(ratePackage.hourly_rate),
+            retainer_amount: valueToString(ratePackage.retainer_amount),
+            purchase_price_min: valueToString(ratePackage.purchase_price_min),
+            purchase_price_max: valueToString(ratePackage.purchase_price_max),
+            scope_description: ratePackage.scope_description,
+            is_active: ratePackage.is_active,
+        });
+    }
+
+    function cancelPackageEdit() {
+        setEditingPackageId(null);
+        packageForm.clearErrors();
+        packageForm.setData(defaultPackageFormData);
     }
 
     function togglePackage(ratePackage: ServiceRatePackage) {
@@ -304,8 +382,15 @@ export default function ServiceRatesIndex({
                         <div className="flex items-center gap-2">
                             <Package className="size-4" aria-hidden="true" />
                             <h2 className="text-sm font-medium">
-                                Add workspace package
+                                {editingPackage
+                                    ? 'Edit workspace package'
+                                    : 'Add workspace package'}
                             </h2>
+                            {editingPackage ? (
+                                <Badge variant="outline">
+                                    {editingPackage.client_label}
+                                </Badge>
+                            ) : null}
                         </div>
 
                         <div className="grid gap-4 sm:grid-cols-2">
@@ -316,12 +401,18 @@ export default function ServiceRatesIndex({
                                 <select
                                     id="package_service_type"
                                     value={packageForm.data.service_type}
-                                    onChange={(event) =>
+                                    onChange={(event) => {
+                                        const serviceType = event.target
+                                            .value as ServiceRatePackage['service_type'];
                                         packageForm.setData(
                                             'service_type',
-                                            event.target.value,
-                                        )
-                                    }
+                                            serviceType,
+                                        );
+                                        packageForm.setData(
+                                            'package_scope',
+                                            defaultScope(serviceType),
+                                        );
+                                    }}
                                     className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                                 >
                                     <option value="due_diligence">
@@ -363,6 +454,86 @@ export default function ServiceRatesIndex({
                             </div>
                         </div>
 
+                        {packageForm.data.service_type === 'due_diligence' ? (
+                            <div className="grid gap-2">
+                                <Label htmlFor="package_scope">
+                                    Buying a business package band
+                                </Label>
+                                <select
+                                    id="package_scope"
+                                    value={packageForm.data.package_scope}
+                                    onChange={(event) =>
+                                        packageForm.setData(
+                                            'package_scope',
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                >
+                                    {dueDiligencePackageScopes.map((scope) => (
+                                        <option
+                                            key={scope.value}
+                                            value={scope.value}
+                                        >
+                                            {scope.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    {
+                                        dueDiligencePackageScopes.find(
+                                            (scope) =>
+                                                scope.value ===
+                                                packageForm.data.package_scope,
+                                        )?.description
+                                    }
+                                </p>
+                                <InputError
+                                    message={packageForm.errors.package_scope}
+                                />
+                            </div>
+                        ) : null}
+
+                        {packageForm.data.service_type === 'entrepreneur' ? (
+                            <div className="grid gap-2">
+                                <Label htmlFor="package_scope">
+                                    Entrepreneur package path
+                                </Label>
+                                <select
+                                    id="package_scope"
+                                    value={packageForm.data.package_scope}
+                                    onChange={(event) =>
+                                        packageForm.setData(
+                                            'package_scope',
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                >
+                                    {entrepreneurPackageScopes.map((scope) => (
+                                        <option
+                                            key={scope.value}
+                                            value={scope.value}
+                                        >
+                                            {scope.label}
+                                        </option>
+                                    ))}
+                                </select>
+                                <p className="text-xs text-muted-foreground">
+                                    {
+                                        entrepreneurPackageScopes.find(
+                                            (scope) =>
+                                                scope.value ===
+                                                packageForm.data.package_scope,
+                                        )?.description
+                                    }
+                                </p>
+                                <InputError
+                                    message={packageForm.errors.package_scope}
+                                />
+                            </div>
+                        ) : null}
+
                         <div className="grid gap-2">
                             <Label htmlFor="package_name">
                                 Internal package name
@@ -401,7 +572,7 @@ export default function ServiceRatesIndex({
                             />
                         </div>
 
-                        <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
                             <div className="grid gap-2">
                                 <Label htmlFor="fixed_fee">
                                     Fixed fee ex GST
@@ -421,6 +592,29 @@ export default function ServiceRatesIndex({
                                 />
                                 <InputError
                                     message={packageForm.errors.fixed_fee}
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
+                                <Label htmlFor="deposit_percent">
+                                    Card deposit %
+                                </Label>
+                                <Input
+                                    id="deposit_percent"
+                                    type="number"
+                                    min="1"
+                                    max="100"
+                                    step="0.01"
+                                    value={packageForm.data.deposit_percent}
+                                    onChange={(event) =>
+                                        packageForm.setData(
+                                            'deposit_percent',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={packageForm.errors.deposit_percent}
                                 />
                             </div>
 
@@ -468,6 +662,35 @@ export default function ServiceRatesIndex({
                                 />
                             </div>
                         </div>
+
+                        {packageForm.data.billing_model === 'fixed_fee' &&
+                        packageForm.data.fixed_fee !== '' ? (
+                            <div className="rounded-md border bg-muted/30 p-3 text-sm">
+                                <div className="font-medium">Payment split</div>
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                    <div>
+                                        <span className="text-muted-foreground">
+                                            Card deposit:{' '}
+                                        </span>
+                                        {formatMoney(
+                                            formPaymentSplit(packageForm.data)
+                                                .cardDeposit,
+                                            effectiveCurrency,
+                                        )}
+                                    </div>
+                                    <div>
+                                        <span className="text-muted-foreground">
+                                            Bank transfer balance:{' '}
+                                        </span>
+                                        {formatMoney(
+                                            formPaymentSplit(packageForm.data)
+                                                .bankTransfer,
+                                            effectiveCurrency,
+                                        )}
+                                    </div>
+                                </div>
+                            </div>
+                        ) : null}
 
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">
@@ -554,13 +777,25 @@ export default function ServiceRatesIndex({
                             Active for advisor selection
                         </label>
 
-                        <div className="flex justify-end">
+                        <div className="flex justify-end gap-2">
+                            {editingPackage ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={cancelPackageEdit}
+                                >
+                                    <X className="size-4" aria-hidden="true" />
+                                    Cancel
+                                </Button>
+                            ) : null}
                             <Button
                                 type="submit"
                                 disabled={packageForm.processing}
                             >
                                 <Save className="size-4" aria-hidden="true" />
-                                Save package
+                                {editingPackage
+                                    ? 'Update package'
+                                    : 'Save package'}
                             </Button>
                         </div>
                     </form>
@@ -593,7 +828,7 @@ export default function ServiceRatesIndex({
                                             Scope
                                         </th>
                                         <th className="w-[10%] px-3 py-2 font-medium">
-                                            Status
+                                            Actions
                                         </th>
                                     </tr>
                                 </thead>
@@ -636,12 +871,27 @@ export default function ServiceRatesIndex({
                                                             ratePackage.package_name
                                                         }
                                                     </div>
+                                                    {ratePackage.package_scope ? (
+                                                        <Badge
+                                                            className="mt-2"
+                                                            variant="outline"
+                                                        >
+                                                            {packageScopeLabel(
+                                                                ratePackage.package_scope,
+                                                            )}
+                                                        </Badge>
+                                                    ) : null}
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
                                                     data-label="Fee"
                                                 >
                                                     {packageFee(ratePackage)}
+                                                    <PaymentSplitSummary
+                                                        ratePackage={
+                                                            ratePackage
+                                                        }
+                                                    />
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
@@ -659,22 +909,44 @@ export default function ServiceRatesIndex({
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
-                                                    data-label="Status"
+                                                    data-label="Actions"
                                                 >
-                                                    <Button
-                                                        type="button"
-                                                        variant="outline"
-                                                        size="sm"
-                                                        onClick={() =>
-                                                            togglePackage(
-                                                                ratePackage,
-                                                            )
-                                                        }
-                                                    >
-                                                        {ratePackage.is_active
-                                                            ? 'Active'
-                                                            : 'Inactive'}
-                                                    </Button>
+                                                    <div className="flex flex-wrap gap-2">
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                editPackage(
+                                                                    ratePackage,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Pencil
+                                                                className="size-3.5"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Edit
+                                                        </Button>
+                                                        <Button
+                                                            type="button"
+                                                            variant="outline"
+                                                            size="sm"
+                                                            onClick={() =>
+                                                                togglePackage(
+                                                                    ratePackage,
+                                                                )
+                                                            }
+                                                        >
+                                                            <Power
+                                                                className="size-3.5"
+                                                                aria-hidden="true"
+                                                            />
+                                                            {ratePackage.is_active
+                                                                ? 'Active'
+                                                                : 'Inactive'}
+                                                        </Button>
+                                                    </div>
                                                 </td>
                                             </tr>
                                         ))
@@ -811,10 +1083,125 @@ function formatPercent(value: number) {
     }).format(value)}%`;
 }
 
+function valueToString(value: number | null) {
+    return value === null ? '' : String(value);
+}
+
+function defaultScope(serviceType: ServiceRatePackage['service_type']) {
+    return serviceType === 'due_diligence' ? 'dd_300k_1m' : 'combo';
+}
+
 function serviceLabel(serviceType: ServiceRatePackage['service_type']) {
     return serviceType === 'due_diligence'
         ? 'Explore buying a business'
         : 'Test new Business Idea';
+}
+
+function packageScopeLabel(scope: PackageScope | null) {
+    if (scope === 'dd_under_300k') {
+        return 'Purchase price below $300k';
+    }
+
+    if (scope === 'dd_300k_1m') {
+        return 'Purchase price $300k-$1m';
+    }
+
+    if (scope === 'dd_1m_3m') {
+        return 'Purchase price $1m-$3m';
+    }
+
+    if (scope === 'idea_validation') {
+        return 'Idea Validation';
+    }
+
+    if (scope === 'plan_budget') {
+        return 'Business Plan + Budget';
+    }
+
+    if (scope === 'combo') {
+        return 'Idea + Business Plan + Budget';
+    }
+
+    return 'Standard workspace';
+}
+
+function formPaymentSplit(data: typeof defaultPackageFormData) {
+    const fixedFee = Number(data.fixed_fee || 0);
+    const depositPercent = Math.min(
+        Math.max(Number(data.deposit_percent || 100), 0),
+        100,
+    );
+    const cardDeposit = roundCurrency(fixedFee * (depositPercent / 100));
+    const bankTransfer = roundCurrency(Math.max(fixedFee - cardDeposit, 0));
+
+    return { cardDeposit, bankTransfer };
+}
+
+function paymentSplit(ratePackage: ServiceRatePackage) {
+    if (ratePackage.payment_split) {
+        return {
+            depositPercent: ratePackage.payment_split.deposit_percent,
+            cardDeposit: ratePackage.payment_split.card_deposit_amount,
+            bankTransfer: ratePackage.payment_split.bank_transfer_amount,
+        };
+    }
+
+    if (ratePackage.fixed_fee === null) {
+        return {
+            depositPercent: 100,
+            cardDeposit: null,
+            bankTransfer: null,
+        };
+    }
+
+    const depositPercent = Math.min(
+        Math.max(ratePackage.deposit_percent ?? 100, 0),
+        100,
+    );
+    const cardDeposit = roundCurrency(
+        ratePackage.fixed_fee * (depositPercent / 100),
+    );
+    const bankTransfer = roundCurrency(
+        Math.max(ratePackage.fixed_fee - cardDeposit, 0),
+    );
+
+    return { depositPercent, cardDeposit, bankTransfer };
+}
+
+function roundCurrency(value: number) {
+    return Math.round(value * 100) / 100;
+}
+
+function PaymentSplitSummary({
+    ratePackage,
+}: {
+    ratePackage: ServiceRatePackage;
+}) {
+    if (
+        ratePackage.billing_model !== 'fixed_fee' ||
+        ratePackage.fixed_fee === null
+    ) {
+        return null;
+    }
+
+    const split = paymentSplit(ratePackage);
+
+    return (
+        <div className="mt-2 space-y-0.5 text-xs text-muted-foreground">
+            <div>
+                Card deposit {formatPercent(split.depositPercent)}:{' '}
+                {split.cardDeposit !== null
+                    ? formatMoney(split.cardDeposit, ratePackage.currency)
+                    : '-'}
+            </div>
+            <div>
+                Bank transfer:{' '}
+                {split.bankTransfer !== null
+                    ? formatMoney(split.bankTransfer, ratePackage.currency)
+                    : '-'}
+            </div>
+        </div>
+    );
 }
 
 function packageFee(ratePackage: ServiceRatePackage) {

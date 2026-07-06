@@ -1,5 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Archive, BarChart3, FilePlus, Pencil, Send } from 'lucide-react';
+import { Archive, BarChart3, Eye, FilePlus, Pencil, Send } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -22,6 +22,7 @@ type SurveySummary = {
     questions_count: number;
     assignments_count: number;
     responses_count: number;
+    show_url: string;
     edit_url: string;
     publish_url: string;
     archive_url: string;
@@ -170,6 +171,25 @@ export default function SurveysIndex({ surveys, storeUrl }: Props) {
                                         data-label="Actions"
                                     >
                                         <div className="flex justify-start gap-2 md:justify-end">
+                                            <ActionTooltip
+                                                label={`View ${survey.title}`}
+                                            >
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="outline"
+                                                >
+                                                    <Link
+                                                        href={survey.show_url}
+                                                        aria-label={`View ${survey.title}`}
+                                                    >
+                                                        <Eye
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                    </Link>
+                                                </Button>
+                                            </ActionTooltip>
                                             <ActionTooltip
                                                 label={`View results for ${survey.title}`}
                                             >

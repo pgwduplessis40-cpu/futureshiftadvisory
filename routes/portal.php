@@ -39,6 +39,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('service-activations/new/{serviceType}', [ServiceActivationController::class, 'create'])->name('service-activations.create');
         Route::post('service-activations', [ServiceActivationController::class, 'store'])->name('service-activations.store');
         Route::get('service-activations/{serviceActivation}', [ServiceActivationController::class, 'show'])->name('service-activations.show');
+        Route::post('service-activations/{serviceActivation}/payment-complete', [ServiceActivationController::class, 'paymentComplete'])->name('service-activations.payment-complete');
         Route::post('service-activations/{serviceActivation}/accept', [ServiceActivationController::class, 'accept'])->name('service-activations.accept');
         Route::get('npo-board', NpoBoardDashboardController::class)->name('npo-board.dashboard');
         Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');

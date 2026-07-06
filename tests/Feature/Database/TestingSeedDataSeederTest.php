@@ -21,6 +21,8 @@ use App\Models\ProposalSignoffStep;
 use App\Models\PvCalculation;
 use App\Models\QuestionnaireQuestion;
 use App\Models\Report;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -60,6 +62,8 @@ final class TestingSeedDataSeederTest extends TestCase
             'risk_costs',
             'templates',
             'proposals',
+            'service_rate_packages',
+            'service_activations',
             'business_plans',
             'dd_engagements',
             'npo_engagements',
@@ -143,6 +147,9 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'payment_schedules');
         $this->assertAtLeast(1, 'payments');
         $this->assertAtLeast(1, 'receipts');
+        $this->assertAtLeast(6, 'service_rate_packages');
+        $this->assertAtLeast(3, 'service_activations');
+        $this->assertSeededServiceActivationPricingFlow();
         $this->assertSeededProposalTemplate();
         $this->assertSeededProposalSignoffFlow();
 
@@ -339,6 +346,55 @@ final class TestingSeedDataSeederTest extends TestCase
         $structure = json_decode((string) $template->structure, true);
         $this->assertSame('uploaded_file', $structure['source_kind'] ?? null);
         $this->assertNotEmpty($structure['uploaded_file']['stored_path'] ?? null);
+    }
+
+    private function assertSeededServiceActivationPricingFlow(): void
+    {
+        $this->assertDatabaseHas('service_rate_packages', [
+            'service_type' => ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+            'package_scope' => ServiceRatePackage::SCOPE_DD_300K_1M,
+            'fixed_fee' => '8500.00',
+            'deposit_percent' => '50.00',
+        ]);
+
+        $this->assertDatabaseHas('service_rate_packages', [
+            'service_type' => ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+            'package_scope' => ServiceRatePackage::SCOPE_DD_1M_3M,
+            'fixed_fee' => '14500.00',
+            'deposit_percent' => '25.00',
+        ]);
+
+        $this->assertDatabaseHas('service_rate_packages', [
+            'service_type' => ServiceRatePackage::SERVICE_ENTREPRENEUR,
+            'package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
+            'fixed_fee' => '4450.00',
+            'deposit_percent' => '100.00',
+        ]);
+
+        $balancePending = DB::table('service_activations')
+            ->where('payment_status', ServiceActivation::PAYMENT_BALANCE_PENDING)
+            ->first();
+
+        $this->assertNotNull($balancePending, 'Expected a seeded activation with bank-transfer balance pending.');
+        $this->assertNotNull($balancePending->deposit_paid_at);
+        $this->assertNull($balancePending->payment_completed_at);
+
+        $snapshot = json_decode((string) $balancePending->selected_package_snapshot, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame(50.0, (float) data_get($snapshot, 'payment_split.deposit_percent'));
+        $this->assertSame(4250.0, (float) data_get($snapshot, 'payment_split.card_deposit_amount'));
+        $this->assertSame(4250.0, (float) data_get($snapshot, 'payment_split.bank_transfer_amount'));
+
+        $this->assertDatabaseHas('service_activations', [
+            'payment_status' => ServiceActivation::PAYMENT_DEPOSIT_PENDING,
+            'deposit_paid_at' => null,
+            'payment_completed_at' => null,
+        ]);
+
+        $this->assertDatabaseHas('service_activations', [
+            'service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'payment_status' => ServiceActivation::PAYMENT_PENDING,
+            'payment_completed_at' => null,
+        ]);
     }
 
     private function assertSeededProposalSignoffFlow(): void
