@@ -8,16 +8,22 @@ use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Pdf\PdfRenderer;
-use App\Services\Pdf\SimpleTextPdf;
 use DateTimeInterface;
 use Illuminate\Support\Str;
 use Throwable;
 
 final class PanelAgreementPdfRenderer
 {
+    public const BRANDED_FALLBACK_MARKER = 'FSA-PANEL-AGREEMENT-BRANDED-FALLBACK';
+
+    private const PAGE_WIDTH = 595;
+
+    private const PAGE_HEIGHT = 842;
+
+    private const MARGIN = 44;
+
     public function __construct(
         private readonly PdfRenderer $renderer,
-        private readonly SimpleTextPdf $fallbackPdf,
     ) {}
 
     public function renderPdf(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
@@ -27,7 +33,7 @@ final class PanelAgreementPdfRenderer
         } catch (Throwable $exception) {
             report($exception);
 
-            return $this->fallbackPdf->render($this->agreementTitle($agreement), $this->plainTextLines($agreement, $actor, $signedAt));
+            return $this->renderBrandedFallbackPdf($agreement, $actor, $signedAt);
         }
     }
 
@@ -264,64 +270,347 @@ HTML,
     }
 
     /**
-     * @return array<int, string>
+     * @return array<int, array{text:string,bold?:bool,indent?:bool,size?:int}>
      */
-    private function plainTextLines(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): array
+    private function agreementFallbackLines(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): array
     {
         $agreement = $agreement->loadMissing('panelMember.user');
         $member = $agreement->panelMember;
         $terms = $agreement->terms ?? [];
         $lines = [
-            'Future Shift Advisory partner agreement.',
-            'Partner: '.$this->partnerName($member, $actor),
-            'Partner type: '.($member instanceof PanelMember ? $this->panelTypeLabel($member) : 'Partner'),
-            'Agreement ID: '.$agreement->getKey(),
-            'Generated: '.$this->dateValue($agreement->generated_at),
-            'Signed at: '.$signedAt->format(DATE_ATOM),
-            'Signed by: '.$actor->name.' <'.$actor->email.'>',
-            '',
-            'Agreement summary:',
-            (string) ($terms['agreement_introduction'] ?? 'This agreement records the operating terms for approved Future Shift Advisory partners.'),
-            '',
-            'Standard partner terms:',
-            ...$this->textLines((string) ($terms['standard_terms'] ?? '')),
-            (string) ($terms['mutual_referral_terms'] ?? 'No referral fees are payable by either party unless separately agreed in writing.'),
+            ['text' => 'Agreement parties', 'bold' => true, 'size' => 12],
+            ['text' => 'Partner: '.$this->partnerName($member, $actor)],
+            ['text' => 'Partner type: '.($member instanceof PanelMember ? $this->panelTypeLabel($member) : 'Partner')],
+            ['text' => 'Agreement ID: '.$agreement->getKey()],
+            ['text' => 'Agreement status: Signed'],
+            ['text' => 'Generated: '.$this->dateValue($agreement->generated_at)],
+            ['text' => 'Signed: '.$signedAt->format('j M Y, g:i A T')],
+            ['text' => 'Signed by: '.$actor->name.' <'.$actor->email.'>'],
+            ['text' => ''],
+            ['text' => 'Agreement summary', 'bold' => true, 'size' => 12],
+            ['text' => (string) ($terms['agreement_introduction'] ?? 'This agreement records the operating terms for approved Future Shift Advisory partners.')],
+            ['text' => ''],
+            ['text' => 'Standard partner terms', 'bold' => true, 'size' => 12],
+            ['text' => 'Future Shift Advisory and the partner must protect confidential client and platform information.', 'indent' => true],
+            ['text' => 'Client referral information may only be shared where the relevant client consent has been obtained.', 'indent' => true],
+            ['text' => (string) ($terms['mutual_referral_terms'] ?? 'No referral fees are payable by either party unless separately agreed in writing.'), 'indent' => true],
+            ['text' => 'Reverse referrals do not give the partner automatic access to client records or advisory workspaces.', 'indent' => true],
         ];
 
         if ($member instanceof PanelMember && $member->panel_type === PanelMember::TYPE_BROKER) {
             $clauses = is_array($terms['broker_clauses'] ?? null) ? $terms['broker_clauses'] : [];
-            array_push(
-                $lines,
-                '',
-                'Broker operating terms:',
-                'FSP registration: '.$this->scalar($clauses['fsp_number'] ?? $member->fsp_number ?? 'Not recorded'),
-                'FSP status at approval: '.$this->scalar($clauses['fsp_status_at_approval'] ?? $member->fsp_status ?? 'Not recorded'),
-                'The broker must keep their FSP registration current and remains responsible for regulated financial advice.',
-                'Client consent is required before broker referral context or client information is shared.',
-                ...$this->additionalAdminLines($clauses['admin_terms'] ?? null, [
-                    'regulated financial advice',
-                    'fsp registration current',
-                    'lapsed or non-current fsp status',
-                ]),
-            );
+            $brokerLines = [
+                ['text' => ''],
+                ['text' => 'Broker operating terms', 'bold' => true, 'size' => 12],
+                ['text' => 'FSP registration recorded for this agreement: '.$this->scalar($clauses['fsp_number'] ?? $member->fsp_number ?? 'Not recorded').'.', 'indent' => true],
+                ['text' => 'FSP status at approval: '.$this->scalar($clauses['fsp_status_at_approval'] ?? $member->fsp_status ?? 'Not recorded').'.', 'indent' => true],
+                ['text' => 'The broker must keep their FSP registration current. A lapsed or non-current FSP status may suspend portal access until resolved.', 'indent' => true],
+                ['text' => 'The broker remains responsible for regulated financial advice and any client advice obligations outside the Future Shift Advisory platform.', 'indent' => true],
+                ['text' => 'Client consent is required before broker referral context or client information is shared.', 'indent' => true],
+            ];
+
+            foreach ($this->additionalAdminLines($clauses['admin_terms'] ?? null, [
+                'regulated financial advice',
+                'fsp registration current',
+                'lapsed or non-current fsp status',
+            ]) as $line) {
+                $brokerLines[] = ['text' => $line, 'indent' => true];
+            }
+
+            array_push($lines, ...$brokerLines);
         }
 
         if ($member instanceof PanelMember && $member->panel_type === PanelMember::TYPE_COACH) {
             $clauses = is_array($terms['coach_clauses'] ?? null) ? $terms['coach_clauses'] : [];
-            array_push(
-                $lines,
-                '',
-                'Coach operating terms:',
-                $this->scalar($clauses['wellbeing_scope_boundary'] ?? 'Coaching support only; no clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.'),
-                'Client authorisation is required before key-staff coaching context is shared.',
-                ...$this->additionalAdminLines($clauses['admin_terms'] ?? null, [
-                    'clinical mental-health',
-                    'client authorisation',
-                ]),
-            );
+            $coachLines = [
+                ['text' => ''],
+                ['text' => 'Coach operating terms', 'bold' => true, 'size' => 12],
+                ['text' => $this->scalar($clauses['wellbeing_scope_boundary'] ?? 'Coaching support only; no clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.'), 'indent' => true],
+                ['text' => 'Client authorisation is required before key-staff coaching context is shared.', 'indent' => true],
+                ['text' => 'Entrepreneur referrals must keep the relevant profile link and referral context attached.', 'indent' => true],
+            ];
+
+            foreach ($this->additionalAdminLines($clauses['admin_terms'] ?? null, [
+                'clinical mental-health',
+                'client authorisation',
+            ]) as $line) {
+                $coachLines[] = ['text' => $line, 'indent' => true];
+            }
+
+            array_push($lines, ...$coachLines);
         }
 
-        return array_values(array_filter($lines, fn (string $line): bool => trim($line) !== ''));
+        array_push(
+            $lines,
+            ['text' => ''],
+            ['text' => 'Signature certificate', 'bold' => true, 'size' => 12],
+            ['text' => 'This certificate records the partner acceptance and the signed agreement evidence retained by Future Shift Advisory.'],
+            ['text' => 'Signed at: '.$signedAt->format('j M Y, g:i A T')],
+            ['text' => 'Signed by: '.$actor->name.' <'.$actor->email.'>'],
+            ['text' => 'User ID: '.$actor->getKey()],
+            ['text' => 'Document note: Private portal credentials are not stored in this agreement certificate.'],
+        );
+
+        return array_values(array_filter($lines, fn (array $line): bool => trim($line['text']) !== ''));
+    }
+
+    private function renderBrandedFallbackPdf(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
+    {
+        $agreement = $agreement->loadMissing('panelMember.user');
+        $member = $agreement->panelMember;
+        $title = $this->agreementTitle($agreement);
+        $partnerType = $member instanceof PanelMember ? $this->panelTypeLabel($member) : 'Partner';
+        $partnerName = $this->partnerName($member, $actor);
+        $intro = (string) (($agreement->terms ?? [])['agreement_introduction'] ?? 'This agreement records the operating terms for approved Future Shift Advisory partners.');
+        $pages = [];
+        $ops = [];
+        $y = 0;
+        $pageNumber = 0;
+
+        $newPage = function () use (&$pages, &$ops, &$y, &$pageNumber): void {
+            if ($ops !== []) {
+                $this->drawFooter($ops, $pageNumber);
+                $pages[] = implode("\n", $ops)."\n";
+            }
+
+            $pageNumber++;
+            $ops = [];
+            $this->drawFallbackLetterhead($ops);
+            $y = 678;
+        };
+
+        $newPage();
+        $y = $this->drawHero($ops, $title, $partnerType, $intro, $partnerName);
+
+        foreach ($this->agreementFallbackLines($agreement, $actor, $signedAt) as $line) {
+            $text = $line['text'];
+            $size = (int) ($line['size'] ?? 10);
+            $bold = (bool) ($line['bold'] ?? false);
+            $indent = (bool) ($line['indent'] ?? false);
+            $lineHeight = $text === '' ? 8 : ($size + 4);
+
+            if ($text === '') {
+                $y -= 7;
+
+                continue;
+            }
+
+            $wrapped = $this->wrapPdfText($indent ? '- '.$text : $text, $indent ? 82 : 90);
+            $needed = max(1, count($wrapped)) * $lineHeight + ($bold ? 4 : 1);
+
+            if ($y - $needed < 64) {
+                $newPage();
+            }
+
+            if ($bold) {
+                $this->drawSectionBand($ops, $text, $y);
+                $y -= 24;
+
+                continue;
+            }
+
+            foreach ($wrapped as $index => $wrappedLine) {
+                $x = self::MARGIN + ($indent && $index > 0 ? 14 : 0);
+                $this->pdfText($ops, $wrappedLine, $x, $y, $size, 'F1', '#13233a');
+                $y -= $lineHeight;
+            }
+
+            $y -= 1;
+        }
+
+        $this->drawFooter($ops, $pageNumber);
+        $pages[] = implode("\n", $ops)."\n";
+
+        return $this->buildPdf($pages);
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function drawFallbackLetterhead(array &$ops): void
+    {
+        $this->pdfRect($ops, 0, 806, self::PAGE_WIDTH, 36, '#1c2f4a');
+        $this->pdfRect($ops, 0, 802, self::PAGE_WIDTH, 4, '#b8860b');
+        $this->pdfText($ops, 'Mentor', 291, 819, 10, 'F2', '#d4a020');
+        $this->pdfText($ops, 'Advisor', 338, 819, 10, 'F2', '#d4a020');
+        $this->pdfText($ops, 'Partner', 390, 819, 10, 'F2', '#d4a020');
+
+        $this->pdfRect($ops, self::MARGIN, 746, 138, 40, '#ffffff', '#ded6c7');
+        $this->pdfRect($ops, self::MARGIN + 12, 756, 7, 13, '#4a6a8a');
+        $this->pdfRect($ops, self::MARGIN + 22, 756, 7, 21, '#1b5070');
+        $this->pdfRect($ops, self::MARGIN + 32, 756, 7, 29, '#0d7a7a');
+        $this->pdfRect($ops, self::MARGIN + 42, 756, 7, 35, '#0d6a5a');
+        $this->pdfLine($ops, self::MARGIN + 12, 761, self::MARGIN + 49, 786, '#b8860b', 1.1);
+        $this->pdfText($ops, 'Future Shift', self::MARGIN + 58, 773, 9.5, 'F2', '#1c2f4a');
+        $this->pdfText($ops, 'ADVISORY', self::MARGIN + 58, 762, 6.5, 'F2', '#5a7a70');
+        $this->pdfLine($ops, self::MARGIN + 58, 770, self::MARGIN + 125, 770, '#d8b15a', 0.5);
+
+        $this->pdfRect($ops, 426, 759, 121, 22, '#f4efe3', '#d8d1c2');
+        $this->pdfText($ops, 'Signed agreement', 444, 766, 9, 'F2', '#1c2f4a');
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function drawHero(array &$ops, string $title, string $partnerType, string $intro, string $partnerName): int
+    {
+        $this->pdfRect($ops, self::MARGIN, 676, 507, 58, '#f8f5ee', '#ded6c7');
+        $this->pdfRect($ops, self::MARGIN, 676, 5, 58, '#b8860b');
+        $this->pdfText($ops, Str::upper($partnerType), self::MARGIN + 18, 716, 8, 'F2', '#0d6a5a');
+        $this->pdfText($ops, $title, self::MARGIN + 18, 698, 19, 'F2', '#13233a');
+        $this->pdfText($ops, $partnerName, self::MARGIN + 18, 683, 10, 'F2', '#13233a');
+
+        $wrapped = $this->wrapPdfText($intro, 86);
+        $y = 659;
+
+        foreach ($wrapped as $line) {
+            $this->pdfText($ops, $line, self::MARGIN, $y, 9.5, 'F1', '#435466');
+            $y -= 13;
+        }
+
+        return $y - 7;
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function drawSectionBand(array &$ops, string $title, int $y): void
+    {
+        $this->pdfRect($ops, self::MARGIN, $y - 15, 507, 20, '#f4efe3', '#ded6c7');
+        $this->pdfRect($ops, self::MARGIN, $y - 15, 4, 20, '#0d7a7a');
+        $this->pdfText($ops, $title, self::MARGIN + 12, $y - 3, 10.5, 'F2', '#1c2f4a');
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function drawFooter(array &$ops, int $pageNumber): void
+    {
+        $this->pdfLine($ops, self::MARGIN, 56, self::PAGE_WIDTH - self::MARGIN, 56, '#ded6c7', 0.6);
+        $this->pdfText($ops, 'Future Shift Advisory partner agreement', self::MARGIN, 38, 8, 'F1', '#667282');
+        $this->pdfText($ops, 'Page '.$pageNumber, self::PAGE_WIDTH - self::MARGIN - 38, 38, 8, 'F1', '#667282');
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function pdfRect(array &$ops, int|float $x, int|float $y, int|float $width, int|float $height, string $fill, ?string $stroke = null): void
+    {
+        $ops[] = 'q';
+        $ops[] = $this->pdfColor($fill, 'rg');
+        $ops[] = $stroke !== null ? $this->pdfColor($stroke, 'RG') : '';
+        $ops[] = sprintf('%.2F %.2F %.2F %.2F re %s', $x, $y, $width, $height, $stroke === null ? 'f' : 'B');
+        $ops[] = 'Q';
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function pdfLine(array &$ops, int|float $x1, int|float $y1, int|float $x2, int|float $y2, string $color, float $width): void
+    {
+        $ops[] = 'q';
+        $ops[] = $this->pdfColor($color, 'RG');
+        $ops[] = sprintf('%.2F w %.2F %.2F m %.2F %.2F l S', $width, $x1, $y1, $x2, $y2);
+        $ops[] = 'Q';
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function pdfText(array &$ops, string $text, int|float $x, int|float $y, int|float $size, string $font, string $color): void
+    {
+        $ops[] = 'BT';
+        $ops[] = '/'.$font.' '.sprintf('%.2F', $size).' Tf';
+        $ops[] = $this->pdfColor($color, 'rg');
+        $ops[] = sprintf('1 0 0 1 %.2F %.2F Tm', $x, $y);
+        $ops[] = '('.$this->pdfEscape($text).') Tj';
+        $ops[] = 'ET';
+    }
+
+    private function pdfColor(string $hex, string $operator): string
+    {
+        $hex = ltrim($hex, '#');
+        $r = hexdec(substr($hex, 0, 2)) / 255;
+        $g = hexdec(substr($hex, 2, 2)) / 255;
+        $b = hexdec(substr($hex, 4, 2)) / 255;
+
+        return sprintf('%.4F %.4F %.4F %s', $r, $g, $b, $operator);
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function wrapPdfText(string $text, int $characters): array
+    {
+        return explode("\n", wordwrap($this->normalisePdfText($text), $characters, "\n", true));
+    }
+
+    private function normalisePdfText(string $text): string
+    {
+        $ascii = Str::ascii($text);
+
+        return preg_replace('/[^\x09\x0A\x0D\x20-\x7E]/', '', $ascii) ?? '';
+    }
+
+    private function pdfEscape(string $text): string
+    {
+        return str_replace(['\\', '(', ')'], ['\\\\', '\\(', '\\)'], $this->normalisePdfText($text));
+    }
+
+    /**
+     * @param  array<int, string>  $pages
+     */
+    private function buildPdf(array $pages): string
+    {
+        $objectCount = 2 + (count($pages) * 2) + 2;
+        $regularFontObjectId = $objectCount - 1;
+        $boldFontObjectId = $objectCount;
+        $kids = [];
+        $objects = [
+            1 => '<< /Type /Catalog /Pages 2 0 R >>',
+        ];
+
+        foreach ($pages as $index => $content) {
+            $pageObjectId = 3 + ($index * 2);
+            $contentObjectId = $pageObjectId + 1;
+            $kids[] = "{$pageObjectId} 0 R";
+
+            $objects[$pageObjectId] = sprintf(
+                '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 %d %d] /Resources << /Font << /F1 %d 0 R /F2 %d 0 R >> >> /Contents %d 0 R >>',
+                self::PAGE_WIDTH,
+                self::PAGE_HEIGHT,
+                $regularFontObjectId,
+                $boldFontObjectId,
+                $contentObjectId,
+            );
+            $objects[$contentObjectId] = '<< /Length '.strlen($content)." >>\nstream\n{$content}endstream";
+        }
+
+        $objects[2] = sprintf('<< /Type /Pages /Kids [%s] /Count %d >>', implode(' ', $kids), count($pages));
+        $objects[$regularFontObjectId] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>';
+        $objects[$boldFontObjectId] = '<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>';
+        ksort($objects);
+
+        $pdf = "%PDF-1.4\n%".self::BRANDED_FALLBACK_MARKER."\n";
+        $offsets = [0 => 0];
+
+        foreach ($objects as $id => $body) {
+            $offsets[$id] = strlen($pdf);
+            $pdf .= "{$id} 0 obj\n{$body}\nendobj\n";
+        }
+
+        $xrefOffset = strlen($pdf);
+        $pdf .= "xref\n0 ".($objectCount + 1)."\n";
+        $pdf .= "0000000000 65535 f \n";
+
+        for ($id = 1; $id <= $objectCount; $id++) {
+            $pdf .= sprintf("%010d 00000 n \n", $offsets[$id]);
+        }
+
+        $pdf .= "trailer\n<< /Size ".($objectCount + 1)." /Root 1 0 R >>\n";
+        $pdf .= "startxref\n{$xrefOffset}\n%%EOF\n";
+
+        return $pdf;
     }
 
     private function agreementTitle(PanelAgreement $agreement): string

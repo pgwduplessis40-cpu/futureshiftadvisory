@@ -9,6 +9,7 @@ use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\User;
 use App\Services\Panels\PanelAccessException;
+use App\Services\Panels\PanelAgreementPdfRenderer;
 use App\Services\Panels\PanelOnboarding;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -129,12 +130,29 @@ final class PanelAgreementController extends Controller
             return false;
         }
 
-        return Str::contains($content, [
+        if (Str::contains($content, PanelAgreementPdfRenderer::BRANDED_FALLBACK_MARKER)) {
+            return false;
+        }
+
+        if (Str::contains($content, [
             'broker_clauses',
             'coach_clauses',
             'panel_type:',
             'client_consent_required:',
             'reverse_referrals_no_auto_access:',
+        ])) {
+            return true;
+        }
+
+        $looksLikePlainFallbackPdf = Str::contains($content, "BT\n/F1 16 Tf 50 792 Td")
+            && Str::contains($content, '/BaseFont /Helvetica >>');
+
+        return $looksLikePlainFallbackPdf && Str::contains($content, [
+            'Future Shift Advisory Partner Agreement',
+            'Future Shift Advisory partner agreement.',
+            'Agreement summary:',
+            'Broker operating terms:',
+            'Coach operating terms:',
         ]);
     }
 }
