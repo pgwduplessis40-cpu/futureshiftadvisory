@@ -24,6 +24,16 @@ final class OutcomeFollowUpService
      */
     private const CADENCE_MONTHS = [6, 12];
 
+    /**
+     * @var array<int, string>
+     */
+    private const FOCUS_AREA_STATUSES = [
+        'implemented',
+        'partially_implemented',
+        'not_started',
+        'not_applicable',
+    ];
+
     public function __construct(private readonly RequestContext $context) {}
 
     public function scheduleDue(?CarbonInterface $now = null): int
@@ -298,9 +308,11 @@ final class OutcomeFollowUpService
      */
     private function outcomeSignal(OutcomeFollowUp $followUp, array $payload, User $actor): array
     {
+        $focusAreaOutcomes = $this->focusAreaOutcomes($payload);
         $implemented = (int) ($payload['implemented_recommendations'] ?? 0);
         $total = (int) ($payload['total_recommendations'] ?? 0);
         $implementationRate = $total > 0 ? round($implemented / $total, 4) : null;
+        $focusAreaImplementationRate = $this->focusAreaImplementationRate($focusAreaOutcomes);
         $status = $this->normalisedStatus($followUp, $payload);
         $revenueGrowth = $this->numericOrNull($payload['revenue_growth_percent'] ?? null);
 
@@ -316,6 +328,10 @@ final class OutcomeFollowUpService
             'implemented_recommendations' => $implemented,
             'total_recommendations' => $total,
             'implementation_rate' => $implementationRate,
+            'focus_area_outcomes' => $focusAreaOutcomes,
+            'focus_area_implementation_rate' => $focusAreaImplementationRate,
+            'implemented_analysis_finding_ids' => $this->analysisFindingIdsForStatus($focusAreaOutcomes, 'implemented'),
+            'partially_implemented_analysis_finding_ids' => $this->analysisFindingIdsForStatus($focusAreaOutcomes, 'partially_implemented'),
             'success_score' => $this->successScore($status, $payload, $implementationRate, $revenueGrowth),
             'submitted_by_user_id' => (string) $actor->getKey(),
             'submitted_at' => now()->toIso8601String(),
@@ -397,8 +413,100 @@ final class OutcomeFollowUpService
             'recorded_price' => $this->numericOrNull($payload['recorded_price'] ?? null),
             'implemented_recommendations' => (int) ($payload['implemented_recommendations'] ?? 0),
             'total_recommendations' => (int) ($payload['total_recommendations'] ?? 0),
+            'focus_area_outcomes' => $this->focusAreaOutcomes($payload),
             'comments' => trim((string) ($payload['comments'] ?? '')),
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<int, array{proposal_id:string|null,analysis_finding_id:string|null,module:string|null,title:string,status:string,implemented:bool,notes:string}>
+     */
+    private function focusAreaOutcomes(array $payload): array
+    {
+        $items = $payload['focus_area_outcomes'] ?? [];
+
+        if (! is_array($items)) {
+            return [];
+        }
+
+        return collect($items)
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(function (array $item): array {
+                $status = $this->focusAreaStatus($item['status'] ?? null, $item['implemented'] ?? null);
+
+                return [
+                    'proposal_id' => $this->optionalString($item['proposal_id'] ?? null, 80),
+                    'analysis_finding_id' => $this->optionalString($item['analysis_finding_id'] ?? null, 80),
+                    'module' => $this->optionalString($item['module'] ?? null, 80),
+                    'title' => $this->limitedString($item['title'] ?? 'Advisory focus area', 180),
+                    'status' => $status,
+                    'implemented' => $status === 'implemented',
+                    'notes' => $this->limitedString($item['notes'] ?? '', 500),
+                ];
+            })
+            ->filter(
+                fn (array $item): bool => $item['title'] !== ''
+                    || $item['analysis_finding_id'] !== null
+                    || $item['module'] !== null
+            )
+            ->take(25)
+            ->values()
+            ->all();
+    }
+
+    private function focusAreaStatus(mixed $status, mixed $implemented): string
+    {
+        if (is_string($status) && in_array($status, self::FOCUS_AREA_STATUSES, true)) {
+            return $status;
+        }
+
+        return $this->nullableBoolean($implemented) === true ? 'implemented' : 'not_started';
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $focusAreaOutcomes
+     */
+    private function focusAreaImplementationRate(array $focusAreaOutcomes): ?float
+    {
+        $counted = collect($focusAreaOutcomes)
+            ->filter(fn (array $item): bool => ($item['status'] ?? null) !== 'not_applicable');
+
+        if ($counted->isEmpty()) {
+            return null;
+        }
+
+        return round(
+            $counted->where('status', 'implemented')->count() / $counted->count(),
+            4,
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $focusAreaOutcomes
+     * @return array<int, string>
+     */
+    private function analysisFindingIdsForStatus(array $focusAreaOutcomes, string $status): array
+    {
+        return collect($focusAreaOutcomes)
+            ->filter(fn (array $item): bool => ($item['status'] ?? null) === $status)
+            ->pluck('analysis_finding_id')
+            ->filter(fn (mixed $id): bool => is_string($id) && $id !== '')
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    private function optionalString(mixed $value, int $limit): ?string
+    {
+        $value = $this->limitedString($value, $limit);
+
+        return $value === '' ? null : $value;
+    }
+
+    private function limitedString(mixed $value, int $limit): string
+    {
+        return mb_substr(trim((string) $value), 0, $limit);
     }
 
     private function numericOrNull(mixed $value): ?float

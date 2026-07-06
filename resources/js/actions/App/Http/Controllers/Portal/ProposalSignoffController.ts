@@ -27,7 +27,7 @@ viewProposal.url = (args: { proposal: string | { id: string } } | [proposal: str
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -99,7 +99,7 @@ viewProposal.head = (args: { proposal: string | { id: string } } | [proposal: st
                     }),
             method: 'get',
         })
-
+    
     viewProposal.form = viewProposalForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
@@ -129,7 +129,7 @@ download.url = (args: { proposal: string | { id: string } } | [proposal: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -201,7 +201,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
@@ -231,7 +231,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -303,7 +303,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::paymentSetup
@@ -333,7 +333,7 @@ paymentSetup.url = (args: { proposal: string | { id: string } } | [proposal: str
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -382,7 +382,7 @@ paymentSetup.post = (args: { proposal: string | { id: string } } | [proposal: st
             action: paymentSetup.url(args, options),
             method: 'post',
         })
-
+    
     paymentSetup.form = paymentSetupForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::step
@@ -456,7 +456,7 @@ step.post = (args: { proposal: string | { id: string }, step: string | number } 
             action: step.url(args, options),
             method: 'post',
         })
-
+    
     step.form = stepForm
 const ProposalSignoffController = { viewProposal, download, show, paymentSetup, step }
 

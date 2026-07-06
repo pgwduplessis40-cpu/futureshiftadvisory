@@ -76,7 +76,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::update
@@ -141,7 +141,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::reset
@@ -206,7 +206,7 @@ reset.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-
+    
     reset.form = resetForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testEmail
@@ -261,7 +261,7 @@ testEmail.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: testEmail.url(options),
             method: 'post',
         })
-
+    
     testEmail.form = testEmailForm
 /**
 * @see \App\Http\Controllers\Admin\ProjectSettingsController::testSlack
@@ -316,7 +316,7 @@ testSlack.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: testSlack.url(options),
             method: 'post',
         })
-
+    
     testSlack.form = testSlackForm
 const projectSettings = {
     index: Object.assign(index, index),

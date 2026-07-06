@@ -20,6 +20,22 @@ type Option = {
     label: string;
 };
 
+type FocusAreaStatus =
+    | 'implemented'
+    | 'partially_implemented'
+    | 'not_started'
+    | 'not_applicable';
+
+type FocusAreaOutcome = {
+    proposal_id: string | null;
+    analysis_finding_id: string | null;
+    module: string | null;
+    title: string;
+    status: FocusAreaStatus;
+    implemented: boolean;
+    notes: string;
+};
+
 type FollowUp = {
     id: string;
     subject_type: 'entrepreneur' | 'due_diligence';
@@ -32,6 +48,7 @@ type FollowUp = {
     completed_at: string | null;
     engagement_completed_at: string | null;
     response: Record<string, unknown>;
+    focus_area_outcomes: FocusAreaOutcome[];
     status_options: Option[];
 };
 
@@ -43,6 +60,7 @@ type FormData = {
     recorded_price: string;
     implemented_recommendations: string;
     total_recommendations: string;
+    focus_area_outcomes: FocusAreaOutcome[];
     comments: string;
 };
 
@@ -60,11 +78,22 @@ const revenueDirections: Option[] = [
     { value: 'not_available', label: 'Not available' },
 ];
 
+const focusAreaStatuses: Option[] = [
+    { value: 'implemented', label: 'Implemented' },
+    { value: 'partially_implemented', label: 'Partially implemented' },
+    { value: 'not_started', label: 'Not started' },
+    { value: 'not_applicable', label: 'Not applicable' },
+];
+
 export default function OutcomeFollowUpShow({
     followUp,
     storeUrl,
     dashboardUrl,
 }: Props) {
+    const focusAreaOutcomes = focusAreaOutcomeValues(
+        followUp.response.focus_area_outcomes ?? followUp.focus_area_outcomes,
+    );
+    const initialFocusAreaCounts = focusAreaCounts(focusAreaOutcomes);
     const form = useForm<FormData>({
         status: textValue(followUp.response.status),
         still_trading: booleanValue(followUp.response.still_trading),
@@ -74,12 +103,17 @@ export default function OutcomeFollowUpShow({
             followUp.response.revenue_growth_percent,
         ),
         recorded_price: numberValue(followUp.response.recorded_price),
-        implemented_recommendations: numberValue(
-            followUp.response.implemented_recommendations,
-        ),
-        total_recommendations: numberValue(
-            followUp.response.total_recommendations,
-        ),
+        implemented_recommendations:
+            numberValue(followUp.response.implemented_recommendations) ||
+            (focusAreaOutcomes.length > 0
+                ? String(initialFocusAreaCounts.implemented)
+                : ''),
+        total_recommendations:
+            numberValue(followUp.response.total_recommendations) ||
+            (focusAreaOutcomes.length > 0
+                ? String(initialFocusAreaCounts.total)
+                : ''),
+        focus_area_outcomes: focusAreaOutcomes,
         comments: textValue(followUp.response.comments),
     });
 
@@ -92,6 +126,31 @@ export default function OutcomeFollowUpShow({
         followUp.subject_type === 'due_diligence'
             ? 'Post-engagement buying outcome'
             : 'Post-engagement idea outcome';
+
+    const setFocusAreaStatus = (index: number, status: FocusAreaStatus) => {
+        const next = form.data.focus_area_outcomes.map((area, areaIndex) =>
+            areaIndex === index
+                ? { ...area, status, implemented: status === 'implemented' }
+                : area,
+        );
+        const counts = focusAreaCounts(next);
+
+        form.setData({
+            ...form.data,
+            focus_area_outcomes: next,
+            implemented_recommendations: String(counts.implemented),
+            total_recommendations: String(counts.total),
+        });
+    };
+
+    const setFocusAreaNotes = (index: number, notes: string) => {
+        form.setData(
+            'focus_area_outcomes',
+            form.data.focus_area_outcomes.map((area, areaIndex) =>
+                areaIndex === index ? { ...area, notes } : area,
+            ),
+        );
+    };
 
     return (
         <>
@@ -107,9 +166,7 @@ export default function OutcomeFollowUpShow({
                             <ArrowLeft className="size-4" aria-hidden="true" />
                             Dashboard
                         </Link>
-                        <h1 className="mt-3 text-xl font-semibold">
-                            {title}
-                        </h1>
+                        <h1 className="mt-3 text-xl font-semibold">{title}</h1>
                         <p className="mt-1 text-sm text-muted-foreground">
                             {followUp.subject_label} / {followUp.subject_name}
                         </p>
@@ -169,9 +226,7 @@ export default function OutcomeFollowUpShow({
                             >
                                 <div className="grid grid-cols-2 gap-2">
                                     <ToggleButton
-                                        active={
-                                            form.data.still_trading === '1'
-                                        }
+                                        active={form.data.still_trading === '1'}
                                         disabled={!followUp.is_open}
                                         onClick={() =>
                                             form.setData('still_trading', '1')
@@ -180,9 +235,7 @@ export default function OutcomeFollowUpShow({
                                         Yes
                                     </ToggleButton>
                                     <ToggleButton
-                                        active={
-                                            form.data.still_trading === '0'
-                                        }
+                                        active={form.data.still_trading === '0'}
                                         disabled={!followUp.is_open}
                                         onClick={() =>
                                             form.setData('still_trading', '0')
@@ -201,10 +254,7 @@ export default function OutcomeFollowUpShow({
                                     value={form.data.revenue_direction}
                                     disabled={!followUp.is_open}
                                     onValueChange={(value) =>
-                                        form.setData(
-                                            'revenue_direction',
-                                            value,
-                                        )
+                                        form.setData('revenue_direction', value)
                                     }
                                 >
                                     <SelectTrigger>
@@ -241,9 +291,7 @@ export default function OutcomeFollowUpShow({
                                     }
                                 />
                                 <InputError
-                                    message={
-                                        form.errors.revenue_growth_percent
-                                    }
+                                    message={form.errors.revenue_growth_percent}
                                 />
                             </Field>
 
@@ -287,8 +335,7 @@ export default function OutcomeFollowUpShow({
                                 />
                                 <InputError
                                     message={
-                                        form.errors
-                                            .implemented_recommendations
+                                        form.errors.implemented_recommendations
                                     }
                                 />
                             </Field>
@@ -308,25 +355,111 @@ export default function OutcomeFollowUpShow({
                                     }
                                 />
                                 <InputError
-                                    message={
-                                        form.errors.total_recommendations
-                                    }
+                                    message={form.errors.total_recommendations}
                                 />
                             </Field>
                         </div>
+
+                        {form.data.focus_area_outcomes.length > 0 ? (
+                            <Field
+                                label="Proposal focus areas"
+                                className="mt-4"
+                            >
+                                <div className="space-y-3">
+                                    {form.data.focus_area_outcomes.map(
+                                        (area, index) => (
+                                            <div
+                                                key={
+                                                    area.analysis_finding_id ??
+                                                    `${area.title}-${index}`
+                                                }
+                                                className="grid gap-3 rounded-md border border-border bg-card p-3"
+                                            >
+                                                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                                                    <p className="text-sm font-medium text-foreground">
+                                                        {area.title ||
+                                                            'Advisory focus area'}
+                                                    </p>
+                                                    {area.module ? (
+                                                        <Badge variant="outline">
+                                                            {area.module.replace(
+                                                                /_/g,
+                                                                ' ',
+                                                            )}
+                                                        </Badge>
+                                                    ) : null}
+                                                </div>
+                                                <div className="grid gap-3 md:grid-cols-[minmax(0,16rem)_1fr]">
+                                                    <Select
+                                                        value={area.status}
+                                                        disabled={
+                                                            !followUp.is_open
+                                                        }
+                                                        onValueChange={(
+                                                            value,
+                                                        ) =>
+                                                            setFocusAreaStatus(
+                                                                index,
+                                                                value as FocusAreaStatus,
+                                                            )
+                                                        }
+                                                    >
+                                                        <SelectTrigger>
+                                                            <SelectValue />
+                                                        </SelectTrigger>
+                                                        <SelectContent>
+                                                            {focusAreaStatuses.map(
+                                                                (option) => (
+                                                                    <SelectItem
+                                                                        key={
+                                                                            option.value
+                                                                        }
+                                                                        value={
+                                                                            option.value
+                                                                        }
+                                                                    >
+                                                                        {
+                                                                            option.label
+                                                                        }
+                                                                    </SelectItem>
+                                                                ),
+                                                            )}
+                                                        </SelectContent>
+                                                    </Select>
+                                                    <Input
+                                                        value={area.notes}
+                                                        disabled={
+                                                            !followUp.is_open
+                                                        }
+                                                        placeholder="Optional note"
+                                                        onChange={(event) =>
+                                                            setFocusAreaNotes(
+                                                                index,
+                                                                event.target
+                                                                    .value,
+                                                            )
+                                                        }
+                                                    />
+                                                </div>
+                                            </div>
+                                        ),
+                                    )}
+                                </div>
+                                <InputError
+                                    message={form.errors.focus_area_outcomes}
+                                />
+                            </Field>
+                        ) : null}
 
                         <Field label="Comments" className="mt-4">
                             <textarea
                                 value={form.data.comments}
                                 disabled={!followUp.is_open}
                                 rows={5}
-                                className="min-h-28 w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+                                className="min-h-28 w-full rounded-md border border-input bg-card px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
                                 placeholder="What changed, which recommendations were implemented, and what still needs attention?"
                                 onChange={(event) =>
-                                    form.setData(
-                                        'comments',
-                                        event.target.value,
-                                    )
+                                    form.setData('comments', event.target.value)
                                 }
                             />
                             <InputError message={form.errors.comments} />
@@ -416,4 +549,65 @@ function booleanValue(value: unknown): string {
     }
 
     return '';
+}
+
+function focusAreaOutcomeValues(value: unknown): FocusAreaOutcome[] {
+    if (!Array.isArray(value)) {
+        return [];
+    }
+
+    return value
+        .map((item): FocusAreaOutcome | null => {
+            if (!isRecord(item)) {
+                return null;
+            }
+
+            const status = focusAreaStatusValue(item.status);
+
+            return {
+                proposal_id: nullableTextValue(item.proposal_id),
+                analysis_finding_id: nullableTextValue(
+                    item.analysis_finding_id,
+                ),
+                module: nullableTextValue(item.module),
+                title: textValue(item.title) || 'Advisory focus area',
+                status,
+                implemented:
+                    status === 'implemented' || item.implemented === true,
+                notes: textValue(item.notes),
+            };
+        })
+        .filter((item): item is FocusAreaOutcome => item !== null);
+}
+
+function focusAreaStatusValue(value: unknown): FocusAreaStatus {
+    return value === 'implemented' ||
+        value === 'partially_implemented' ||
+        value === 'not_started' ||
+        value === 'not_applicable'
+        ? value
+        : 'not_started';
+}
+
+function focusAreaCounts(items: FocusAreaOutcome[]): {
+    implemented: number;
+    total: number;
+} {
+    const counted = items.filter((item) => item.status !== 'not_applicable');
+
+    return {
+        implemented: counted.filter((item) => item.status === 'implemented')
+            .length,
+        total: counted.length,
+    };
+}
+
+function nullableTextValue(value: unknown): string | null {
+    const text = textValue(value);
+
+    return text === '' ? null : text;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
 }

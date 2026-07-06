@@ -22,6 +22,7 @@ import type {
     ReactNode,
     SetStateAction,
 } from 'react';
+import { BudgetCashChart } from '@/components/budget-cash-chart';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -2374,7 +2375,14 @@ function BudgetEditor({
                         />
                     </div>
 
-                    <BudgetMiniChart series={computed.monthly_series ?? []} />
+                    <BudgetCashChart
+                        series={computed.monthly_series ?? []}
+                        breakEvenMonth={computed.break_even_month}
+                        runwayMonths={computed.runway_months}
+                        runwayOpenEnded={computed.runway_open_ended}
+                        title="12-month cash curve"
+                        description="Revenue and cumulative cash use separate scales so a funding balance does not flatten monthly sales."
+                    />
 
                     <AdvisorBudgetPreview budget={budget} form={form} />
 
@@ -3202,83 +3210,6 @@ function AdvisorPreviewItem({
         <div className="grid gap-1 rounded-md border bg-muted/20 p-3">
             <dt className="text-xs text-muted-foreground">{label}</dt>
             <dd className="text-sm font-medium">{value}</dd>
-        </div>
-    );
-}
-
-function BudgetMiniChart({
-    series,
-}: {
-    series: NonNullable<BudgetPayload['computed']['monthly_series']>;
-}) {
-    if (series.length === 0) {
-        return null;
-    }
-
-    const width = 520;
-    const height = 150;
-    const padding = 18;
-    const values = series.flatMap((point) => [
-        point.revenue,
-        point.cumulative_cash,
-    ]);
-    const max = Math.max(1, ...values.map((value) => Math.abs(value)));
-    const x = (index: number) =>
-        padding +
-        (index / Math.max(1, series.length - 1)) * (width - padding * 2);
-    const y = (value: number) =>
-        height / 2 - (value / max) * ((height - padding * 2) / 2);
-    const revenuePoints = series
-        .map((point, index) => `${x(index)},${y(point.revenue)}`)
-        .join(' ');
-    const cashPoints = series
-        .map((point, index) => `${x(index)},${y(point.cumulative_cash)}`)
-        .join(' ');
-
-    return (
-        <div className="rounded-md border bg-background p-3">
-            <div className="mb-2 flex flex-wrap items-center gap-3 text-xs text-muted-foreground">
-                <span>12-month forecast</span>
-                <span className="inline-flex items-center gap-1">
-                    <span className="size-2 rounded-full bg-emerald-600" />
-                    Revenue
-                </span>
-                <span className="inline-flex items-center gap-1">
-                    <span className="size-2 rounded-full bg-sky-600" />
-                    Cash
-                </span>
-            </div>
-            <svg
-                role="img"
-                aria-label="Budget forecast"
-                viewBox={`0 0 ${width} ${height}`}
-                className="h-40 w-full"
-            >
-                <line
-                    x1={padding}
-                    x2={width - padding}
-                    y1={height / 2}
-                    y2={height / 2}
-                    stroke="currentColor"
-                    strokeOpacity="0.2"
-                />
-                <polyline
-                    points={revenuePoints}
-                    fill="none"
-                    stroke="rgb(5 150 105)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-                <polyline
-                    points={cashPoints}
-                    fill="none"
-                    stroke="rgb(2 132 199)"
-                    strokeWidth="3"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                />
-            </svg>
         </div>
     );
 }

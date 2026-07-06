@@ -8,6 +8,7 @@ use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
+use App\Models\PlanPhase;
 use App\Models\PlanSection;
 use App\Models\User;
 use App\Services\Entrepreneurs\EntrepreneurBudgetService;
@@ -23,6 +24,8 @@ final class BudgetRunwayTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
+
+        config()->set('security.mfa_required', false);
 
         $this->seed(RoleSeeder::class);
         app(RequestContext::class)->apply('system', []);
@@ -66,6 +69,7 @@ final class BudgetRunwayTest extends TestCase
     public function test_budget_cannot_be_saved_before_business_setup_requirement_is_complete(): void
     {
         [$actor, $plan] = $this->plan();
+        $phase = $plan->phases()->firstOrFail();
 
         $this->actingAs($actor)
             ->post(route('portal.entrepreneur.plan.budget.update'), [
@@ -83,6 +87,7 @@ final class BudgetRunwayTest extends TestCase
 
         PlanSection::query()->create([
             'business_plan_id' => $plan->id,
+            'plan_phase_id' => $phase->id,
             'key' => 'founder-foundation-business-type-location',
             'title' => 'Business type, location, and operating model',
             'body' => str_repeat('A practical service business operating locally. ', 3),
@@ -103,6 +108,7 @@ final class BudgetRunwayTest extends TestCase
 
         PlanSection::query()->create([
             'business_plan_id' => $plan->id,
+            'plan_phase_id' => $phase->id,
             'key' => 'founder-financial-financial-assumptions',
             'title' => 'Financial assumptions',
             'body' => str_repeat('Revenue grows by ten percent, cost inflation is three percent, and target margins are set for gross and net profit. ', 3),
@@ -163,6 +169,14 @@ final class BudgetRunwayTest extends TestCase
             'status' => BusinessPlan::STATUS_BUILDING,
             'current_phase' => 1,
             'created_by_user_id' => $entrepreneur->id,
+        ]);
+
+        PlanPhase::query()->create([
+            'business_plan_id' => $plan->id,
+            'key' => 'fixture',
+            'title' => 'Fixture phase',
+            'position' => 1,
+            'status' => PlanPhase::STATUS_PENDING,
         ]);
 
         return [$entrepreneur, $plan];

@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Outcomes;
 
+use App\Enums\AnalysisLens;
+use App\Enums\AnalysisModule;
 use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
+use App\Enums\FeeMethod;
+use App\Enums\FindingSeverity;
+use App\Enums\ProposalStatus;
+use App\Models\AnalysisFinding;
+use App\Models\AnalysisRun;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -14,8 +21,10 @@ use App\Models\ConversionOutcome;
 use App\Models\DdEngagement;
 use App\Models\DdOutcomeRecord;
 use App\Models\EntrepreneurProfile;
+use App\Models\FeeCalculation;
 use App\Models\OutcomeFollowUp;
 use App\Models\PlanAssessment;
+use App\Models\Proposal;
 use App\Models\RatingFramework;
 use App\Models\User;
 use App\Services\Outcomes\OutcomeFollowUpService;
@@ -24,6 +33,8 @@ use Database\Seeders\FoundingRatingFrameworkValuesSeeder;
 use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Artisan;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 final class OutcomeFollowUpTest extends TestCase
@@ -116,6 +127,79 @@ final class OutcomeFollowUpTest extends TestCase
         $this->assertSame(1_250_000.0, (float) $record->recorded_price);
         $this->assertSame('successful', $record->actual_outcome['status']);
         $this->assertSame('post_engagement_follow_up', $record->actual_outcome['source']);
+    }
+
+    public function test_follow_up_records_proposal_focus_area_outcomes_by_analysis_finding(): void
+    {
+        [$clientUser, $engagement] = $this->ddFixture();
+        $client = $engagement->client()->firstOrFail();
+        $finding = $this->analysisFinding($client);
+        $proposal = $this->signedProposalWithFocusArea($client, $finding);
+        $followUp = OutcomeFollowUp::query()->create([
+            'client_id' => $client->getKey(),
+            'dd_engagement_id' => $engagement->getKey(),
+            'subject_type' => OutcomeFollowUp::SUBJECT_DUE_DILIGENCE,
+            'cadence_month' => 6,
+            'status' => OutcomeFollowUp::STATUS_PENDING,
+            'engagement_completed_at' => now()->subMonths(6),
+            'due_at' => now()->subDay(),
+        ]);
+
+        $this->actingAs($clientUser)
+            ->get(route('portal.outcome-follow-ups.show', $followUp))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('followUp.focus_area_outcomes.0.proposal_id', $proposal->id)
+                ->where('followUp.focus_area_outcomes.0.analysis_finding_id', $finding->id)
+                ->where('followUp.focus_area_outcomes.0.status', 'not_started'));
+
+        $this->actingAs($clientUser)
+            ->post(route('portal.outcome-follow-ups.submit', $followUp), [
+                'status' => 'completed_acquisition',
+                'still_trading' => true,
+                'revenue_direction' => 'up',
+                'revenue_growth_percent' => 12.5,
+                'recorded_price' => 1_400_000,
+                'implemented_recommendations' => 1,
+                'total_recommendations' => 2,
+                'focus_area_outcomes' => [
+                    [
+                        'proposal_id' => $proposal->id,
+                        'analysis_finding_id' => $finding->id,
+                        'module' => AnalysisModule::Financial->value,
+                        'title' => $finding->title,
+                        'status' => 'implemented',
+                        'notes' => 'Implemented the cash cadence and reporting recommendation.',
+                    ],
+                    [
+                        'proposal_id' => $proposal->id,
+                        'analysis_finding_id' => null,
+                        'module' => AnalysisModule::Systems->value,
+                        'title' => 'Systems handoff',
+                        'status' => 'not_started',
+                        'notes' => '',
+                    ],
+                ],
+                'comments' => 'The signed proposal focus areas are now tracked item by item.',
+            ])
+            ->assertRedirect('/portal');
+
+        $record = DdOutcomeRecord::query()->firstOrFail();
+
+        $this->assertSame($finding->id, $record->actual_outcome['focus_area_outcomes'][0]['analysis_finding_id']);
+        $this->assertSame('implemented', $record->actual_outcome['focus_area_outcomes'][0]['status']);
+        $this->assertSame([$finding->id], $record->actual_outcome['implemented_analysis_finding_ids']);
+        $this->assertSame(0.5, $record->actual_outcome['focus_area_implementation_rate']);
+    }
+
+    public function test_outcome_follow_up_scheduler_is_registered_daily(): void
+    {
+        Artisan::call('schedule:list');
+
+        $this->assertMatchesRegularExpression(
+            '/15\s+5\s+\*\s+\*\s+\*\s+php artisan outcomes:schedule-follow-ups/',
+            Artisan::output(),
+        );
     }
 
     /**
@@ -252,5 +336,88 @@ final class OutcomeFollowUpTest extends TestCase
         ]);
 
         return [$clientUser, $engagement];
+    }
+
+    private function analysisFinding(Client $client): AnalysisFinding
+    {
+        $run = AnalysisRun::query()->create([
+            'client_id' => $client->getKey(),
+            'module' => AnalysisModule::Financial,
+            'status' => AnalysisRun::STATUS_COMPLETED,
+            'framework_lenses' => [],
+            'data_quality_snapshot' => [],
+            'tokens_in' => 0,
+            'tokens_out' => 0,
+            'started_at' => now(),
+            'completed_at' => now(),
+        ]);
+
+        return AnalysisFinding::query()->create([
+            'analysis_run_id' => $run->getKey(),
+            'client_id' => $client->getKey(),
+            'lens' => AnalysisLens::Prescriptive,
+            'severity' => FindingSeverity::High,
+            'title' => 'Cash runway pressure',
+            'body' => 'Improve weekly cash cadence and margin reporting.',
+            'attributions' => [[
+                'claim' => 'Fixture finding for outcome attribution.',
+                'source_reference' => 'test:outcome-focus-area',
+            ]],
+            'document_support' => AnalysisFinding::DOCUMENT_SUPPORT_NONE,
+        ]);
+    }
+
+    private function signedProposalWithFocusArea(Client $client, AnalysisFinding $finding): Proposal
+    {
+        $calculation = FeeCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'method' => FeeMethod::OutcomeBased,
+            'inputs' => ['fixture' => true],
+            'suggested_low' => 8000,
+            'suggested_mid' => 10000,
+            'suggested_high' => 12000,
+            'improvement_pv_total' => 25000,
+            'risk_cost_pv_total' => 3000,
+            'roi_ratio' => 2.5,
+            'justification' => ['services' => [['name' => 'Outcome fixture', 'line_total' => 10000]]],
+        ]);
+
+        $proposal = Proposal::query()->create([
+            'client_id' => $client->getKey(),
+            'fee_calculation_id' => $calculation->getKey(),
+            'status' => ProposalStatus::Released,
+            'version' => 1,
+            'scope' => [
+                'summary' => 'Outcome attribution fixture.',
+                'focus_areas' => [[
+                    'analysis_finding_id' => $finding->id,
+                    'module' => AnalysisModule::Financial->value,
+                    'lens' => AnalysisLens::Prescriptive->value,
+                    'severity' => FindingSeverity::High->value,
+                    'title' => $finding->title,
+                    'body' => $finding->body,
+                ]],
+            ],
+            'services' => [],
+            'pv_summary' => [],
+            'roi_ratio' => 2.5,
+            'acceptance_terms' => [],
+            'released_at' => now()->subMonths(7),
+        ]);
+
+        return Proposal::allowSignoffStatusTransition(function () use ($proposal, $client): Proposal {
+            $proposal->forceFill([
+                'status' => ProposalStatus::AwaitingSignature,
+                'awaiting_signature_at' => now()->subMonths(7),
+            ])->save();
+
+            $proposal->forceFill([
+                'status' => ProposalStatus::Signed,
+                'signed_at' => now()->subMonths(7),
+                'signed_by_user_id' => $client->primary_contact_user_id,
+            ])->save();
+
+            return $proposal->refresh();
+        });
     }
 }

@@ -27,7 +27,7 @@ analysis.url = (args: { npoEngagement: string | { id: string } } | [npoEngagemen
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { npoEngagement: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     npoEngagement: args[0],
@@ -76,7 +76,7 @@ analysis.post = (args: { npoEngagement: string | { id: string } } | [npoEngageme
             action: analysis.url(args, options),
             method: 'post',
         })
-
+    
     analysis.form = analysisForm
 const governanceReview = {
     analysis: Object.assign(analysis, analysis),

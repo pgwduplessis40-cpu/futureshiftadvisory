@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 export const show = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 show.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ show.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowU
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { outcomeFollowUp: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     outcomeFollowUp: args[0],
@@ -49,7 +49,7 @@ show.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowU
 
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 show.get = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -58,7 +58,7 @@ show.get = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowU
 })
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 show.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -68,7 +68,7 @@ show.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollow
 
     /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
     const showForm = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -78,7 +78,7 @@ show.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollow
 
             /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
         showForm.get = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -87,7 +87,7 @@ show.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollow
         })
             /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::show
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:19
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:21
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
         showForm.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -99,11 +99,11 @@ show.head = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollow
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:37
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:39
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 export const submit = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -118,7 +118,7 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:37
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:39
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 submit.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -129,7 +129,7 @@ submit.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollo
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { outcomeFollowUp: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     outcomeFollowUp: args[0],
@@ -151,7 +151,7 @@ submit.url = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollo
 
 /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:37
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:39
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
 submit.post = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -161,7 +161,7 @@ submit.post = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFoll
 
     /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:37
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:39
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
     const submitForm = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -171,14 +171,14 @@ submit.post = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFoll
 
             /**
 * @see \App\Http\Controllers\Portal\OutcomeFollowUpController::submit
- * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:37
+ * @see app/Http/Controllers/Portal/OutcomeFollowUpController.php:39
  * @route '/portal/outcome-follow-ups/{outcomeFollowUp}'
  */
         submitForm.post = (args: { outcomeFollowUp: string | { id: string } } | [outcomeFollowUp: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: submit.url(args, options),
             method: 'post',
         })
-
+    
     submit.form = submitForm
 const outcomeFollowUps = {
     show: Object.assign(show, show),

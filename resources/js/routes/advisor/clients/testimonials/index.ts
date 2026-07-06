@@ -27,7 +27,7 @@ nps.url = (args: { client: string | { id: string } } | [client: string | { id: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ nps.post = (args: { client: string | { id: string } } | [client: string | { id: 
             action: nps.url(args, options),
             method: 'post',
         })
-
+    
     nps.form = npsForm
 const testimonials = {
     nps: Object.assign(nps, nps),

@@ -185,7 +185,7 @@ RedirectController23384d69139023bcfa0cb4f527253ab0.options = (options?: RouteQue
                     }),
             method: 'get',
         })
-
+    
     RedirectController23384d69139023bcfa0cb4f527253ab0.form = RedirectController23384d69139023bcfa0cb4f527253ab0Form
     /**
 * @see \Illuminate\Routing\RedirectController::__invoke
@@ -373,7 +373,7 @@ RedirectController4b87d2df7e3aa853f6720faea796e36c.options = (options?: RouteQue
                     }),
             method: 'get',
         })
-
+    
     RedirectController4b87d2df7e3aa853f6720faea796e36c.form = RedirectController4b87d2df7e3aa853f6720faea796e36cForm
 
 /**

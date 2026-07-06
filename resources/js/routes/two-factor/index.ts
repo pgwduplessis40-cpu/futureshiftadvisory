@@ -76,7 +76,7 @@ login.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     login.form = loginForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController::enable
@@ -131,7 +131,7 @@ enable.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: enable.url(options),
             method: 'post',
         })
-
+    
     enable.form = enableForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\ConfirmedTwoFactorAuthenticationController::confirm
@@ -186,7 +186,7 @@ confirm.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: confirm.url(options),
             method: 'post',
         })
-
+    
     confirm.form = confirmForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorAuthenticationController::disable
@@ -251,7 +251,7 @@ disable.delete = (options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
                     }),
             method: 'post',
         })
-
+    
     disable.form = disableForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorQrCodeController::qrCode
@@ -329,7 +329,7 @@ qrCode.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     qrCode.form = qrCodeForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\TwoFactorSecretKeyController::secretKey
@@ -407,7 +407,7 @@ secretKey.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     secretKey.form = secretKeyForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\RecoveryCodeController::recoveryCodes
@@ -485,7 +485,7 @@ recoveryCodes.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => (
                     }),
             method: 'get',
         })
-
+    
     recoveryCodes.form = recoveryCodesForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\RecoveryCodeController::regenerateRecoveryCodes
@@ -540,7 +540,7 @@ regenerateRecoveryCodes.post = (options?: RouteQueryOptions): RouteDefinition<'p
             action: regenerateRecoveryCodes.url(options),
             method: 'post',
         })
-
+    
     regenerateRecoveryCodes.form = regenerateRecoveryCodesForm
 const twoFactor = {
     login: Object.assign(login, loginDf2c2a),

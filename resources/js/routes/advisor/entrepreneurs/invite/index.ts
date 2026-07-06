@@ -27,7 +27,7 @@ resend.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -76,7 +76,7 @@ resend.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
             action: resend.url(args, options),
             method: 'post',
         })
-
+    
     resend.form = resendForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancel
@@ -106,7 +106,7 @@ cancel.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -165,7 +165,7 @@ cancel.delete = (args: { entrepreneurProfile: string | { id: string } } | [entre
                     }),
             method: 'post',
         })
-
+    
     cancel.form = cancelForm
 const invite = {
     resend: Object.assign(resend, resend),

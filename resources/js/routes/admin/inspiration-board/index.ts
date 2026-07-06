@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
@@ -160,7 +160,7 @@ update.url = (args: { boardPost: string | { id: string } } | [boardPost: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { boardPost: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     boardPost: args[0],
@@ -219,7 +219,7 @@ update.patch = (args: { boardPost: string | { id: string } } | [boardPost: strin
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
@@ -249,7 +249,7 @@ publish.url = (args: { boardPost: string | { id: string } } | [boardPost: string
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { boardPost: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     boardPost: args[0],
@@ -298,7 +298,7 @@ publish.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
             action: publish.url(args, options),
             method: 'post',
         })
-
+    
     publish.form = publishForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
@@ -328,7 +328,7 @@ archive.url = (args: { boardPost: string | { id: string } } | [boardPost: string
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { boardPost: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     boardPost: args[0],
@@ -377,7 +377,7 @@ archive.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
             action: archive.url(args, options),
             method: 'post',
         })
-
+    
     archive.form = archiveForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
@@ -407,7 +407,7 @@ pin.url = (args: { boardPost: string | { id: string } } | [boardPost: string | {
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { boardPost: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     boardPost: args[0],
@@ -456,7 +456,7 @@ pin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | 
             action: pin.url(args, options),
             method: 'post',
         })
-
+    
     pin.form = pinForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
@@ -486,7 +486,7 @@ unpin.url = (args: { boardPost: string | { id: string } } | [boardPost: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { boardPost: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     boardPost: args[0],
@@ -535,7 +535,7 @@ unpin.post = (args: { boardPost: string | { id: string } } | [boardPost: string 
             action: unpin.url(args, options),
             method: 'post',
         })
-
+    
     unpin.form = unpinForm
 const inspirationBoard = {
     index: Object.assign(index, index),

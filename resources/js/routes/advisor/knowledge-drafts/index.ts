@@ -27,7 +27,7 @@ review.url = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledg
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntryDraft: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntryDraft: args[0],
@@ -99,7 +99,7 @@ review.head = (args: { knowledgeEntryDraft: string | { id: string } } | [knowled
                     }),
             method: 'get',
         })
-
+    
     review.form = reviewForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::accept
@@ -129,7 +129,7 @@ accept.url = (args: { knowledgeEntryDraft: string | { id: string } } | [knowledg
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntryDraft: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntryDraft: args[0],
@@ -188,7 +188,7 @@ accept.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [knowle
                     }),
             method: 'post',
         })
-
+    
     accept.form = acceptForm
 /**
 * @see \App\Http\Controllers\Advisor\KnowledgeController::discard
@@ -218,7 +218,7 @@ discard.url = (args: { knowledgeEntryDraft: string | { id: string } } | [knowled
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { knowledgeEntryDraft: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     knowledgeEntryDraft: args[0],
@@ -277,7 +277,7 @@ discard.patch = (args: { knowledgeEntryDraft: string | { id: string } } | [knowl
                     }),
             method: 'post',
         })
-
+    
     discard.form = discardForm
 const knowledgeDrafts = {
     review: Object.assign(review, review),

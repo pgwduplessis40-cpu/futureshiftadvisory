@@ -109,6 +109,8 @@ final class ProposalBuilderTest extends TestCase
                 'scope_summary' => 'Staged advisory roadmap for the next quarter.',
                 'insurance_consent' => Consent::ELECTION_OPT_IN,
                 'coach_consent' => Consent::ELECTION_OPT_OUT,
+                'budget_override_category' => 'advisor_judgement',
+                'budget_override_notes' => 'Fixture acknowledges proposal generation before Business Plan & Budget approval.',
             ])
             ->assertRedirect(route('advisor.clients.show', $client, absolute: false));
 

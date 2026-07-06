@@ -75,7 +75,7 @@ show.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\WellbeingController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\WellbeingController::destroy
@@ -160,7 +160,7 @@ destroy.url = (args: { wellbeingCheckin: string | { id: string } } | [wellbeingC
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { wellbeingCheckin: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     wellbeingCheckin: args[0],
@@ -219,7 +219,7 @@ destroy.delete = (args: { wellbeingCheckin: string | { id: string } } | [wellbei
                     }),
             method: 'post',
         })
-
+    
     destroy.form = destroyForm
 const wellbeing = {
     show: Object.assign(show, show),

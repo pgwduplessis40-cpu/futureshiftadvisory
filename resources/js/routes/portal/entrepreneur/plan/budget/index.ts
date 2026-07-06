@@ -54,7 +54,7 @@ update.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: update.url(options),
             method: 'post',
         })
-
+    
     update.form = updateForm
 const budget = {
     update: Object.assign(update, update),

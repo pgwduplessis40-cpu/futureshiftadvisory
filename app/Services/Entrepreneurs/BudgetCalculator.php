@@ -361,8 +361,9 @@ final class BudgetCalculator
         $breakEvenAnnual = collect($annual)->first(fn (array $row): bool => (float) $row['net_profit_before_tax'] >= 0 && (float) $row['revenue'] > 0);
         $breakEvenYear = is_array($breakEvenAnnual) ? (int) $breakEvenAnnual['year'] : null;
         $lastMonth = end($monthly);
-        $runwayOpenEnded = $runwayMonths === null && is_array($lastMonth) && (float) $lastMonth['cumulative_cash'] >= 0;
-        if ($runwayMonths === null && $this->hasAnyInput($launchRows, $fixedRows, $revenueRows, $fundingRows, $futureRows)) {
+        $hasAnyInput = $this->hasAnyInput($launchRows, $fixedRows, $revenueRows, $fundingRows, $futureRows);
+        $runwayOpenEnded = $hasAnyInput && $runwayMonths === null && is_array($lastMonth) && (float) $lastMonth['cumulative_cash'] >= 0;
+        if ($runwayMonths === null && $hasAnyInput) {
             $runwayMonths = $monthCount;
         }
 
@@ -659,6 +660,8 @@ final class BudgetCalculator
             'break_even_year' => 'Break-even year is the first forecast year where net profit before tax is zero or positive.',
             'first_profitable_year' => 'First profitable year is the first forecast year where net profit after tax is positive.',
             'cash_flow_positive_year' => 'Cash-flow-positive year is the first year where cumulative cash becomes zero or positive after startup losses and funding movements.',
+            'year_two_revenue_basis' => 'From year 2 onward, monthly revenue uses the average monthly revenue achieved in year 1, then applies annual revenue growth. If year 1 ramps quickly, month 13 can be lower than month 12.',
+            'tax_simplification' => 'Company tax is estimated month by month on positive net profit before tax. Earlier monthly losses are not carried forward, so after-tax profit is conservative and indicative.',
             'gst_exclusive' => 'The budget is GST exclusive by default, so GST collected and paid is not treated as business income or cost in this pack.',
         ];
     }

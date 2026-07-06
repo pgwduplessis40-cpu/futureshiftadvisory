@@ -75,7 +75,7 @@ redirect.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     redirect.form = redirectForm
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::show
@@ -102,7 +102,7 @@ show.url = (args: { step: string | number } | [step: string | number ] | string 
         args = { step: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     step: args[0],
@@ -172,7 +172,7 @@ show.head = (args: { step: string | number } | [step: string | number ] | string
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\OnboardingController::store
@@ -199,7 +199,7 @@ store.url = (args: { step: string | number } | [step: string | number ] | string
         args = { step: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     step: args[0],
@@ -246,7 +246,7 @@ store.post = (args: { step: string | number } | [step: string | number ] | strin
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const OnboardingController = { redirect, show, store }
 

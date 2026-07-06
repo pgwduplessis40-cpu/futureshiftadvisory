@@ -3,6 +3,7 @@ import { ArrowLeft, Download, FileText, Scale } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { BudgetCashChart } from '@/components/budget-cash-chart';
 
 type AnnualRow = {
     year: number;
@@ -56,6 +57,7 @@ type PackPayload = {
     tax_configured?: boolean;
     warnings: string[];
     summary: {
+        break_even_month?: number | null;
         break_even_year?: number | null;
         first_profitable_year?: number | null;
         cash_flow_positive_year?: number | null;
@@ -91,6 +93,7 @@ type Props = {
 
 export default function BudgetPack({ pack, urls }: Props) {
     const summary = pack.summary ?? {};
+    const monthlySeries = pack.monthly_by_year.flatMap((year) => year.rows);
 
     return (
         <>
@@ -181,6 +184,15 @@ export default function BudgetPack({ pack, urls }: Props) {
                         helper="Funding left after one-off setup costs."
                     />
                 </section>
+
+                <BudgetCashChart
+                    series={monthlySeries}
+                    breakEvenMonth={summary.break_even_month}
+                    runwayMonths={summary.runway_months}
+                    runwayOpenEnded={summary.runway_open_ended}
+                    title="Budget pack cash curve"
+                    description="The cumulative cash line is the bank and investor view; revenue is scaled separately so the sales curve remains readable."
+                />
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
                     <div className="flex flex-wrap items-center justify-between gap-3">
