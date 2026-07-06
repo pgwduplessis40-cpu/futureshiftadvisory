@@ -4,11 +4,12 @@ import {
     Download,
     Info,
     MonitorSmartphone,
+    Pin,
     Share2,
 } from 'lucide-react';
 import { useState } from 'react';
-import { BrandMark } from '@/components/public/brand-mark';
 import Heading from '@/components/heading';
+import { BrandMark } from '@/components/public/brand-mark';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -30,11 +31,13 @@ export default function InstallAppSettings() {
 
         if (installState.isInstalled) {
             setFeedback('installed');
+
             return;
         }
 
         if (!installState.canPrompt) {
             setFeedback('instructions');
+
             return;
         }
 
@@ -42,11 +45,13 @@ export default function InstallAppSettings() {
 
         if (outcome === 'accepted' || outcome === 'installed') {
             setFeedback('accepted');
+
             return;
         }
 
         if (outcome === 'dismissed') {
             setFeedback('dismissed');
+
             return;
         }
 
@@ -125,6 +130,55 @@ export default function InstallAppSettings() {
                                     mode={installState.instructionMode}
                                 />
                             ) : null}
+                        </div>
+                    </div>
+                </section>
+
+                <section className="rounded-md border bg-card p-4 shadow-sm">
+                    <div className="flex items-start gap-4">
+                        <div className="rounded-full bg-primary/10 p-3 text-primary">
+                            <Pin className="size-6" aria-hidden="true" />
+                        </div>
+                        <div className="min-w-0 flex-1 space-y-4">
+                            <div className="flex flex-wrap items-center justify-between gap-3">
+                                <div>
+                                    <h2 className="font-semibold">
+                                        Pin FSA to the Windows taskbar
+                                    </h2>
+                                    <p className="mt-1 text-sm text-muted-foreground">
+                                        Windows may not show Pin to taskbar when
+                                        you right-click a desktop shortcut.
+                                    </p>
+                                </div>
+                                <Badge variant="secondary">Windows</Badge>
+                            </div>
+
+                            <ol className="space-y-2 text-sm text-muted-foreground">
+                                <li>
+                                    1. Install Future Shift Advisory from this
+                                    page or your browser menu.
+                                </li>
+                                <li>
+                                    2. Open Future Shift Advisory from the
+                                    desktop shortcut or Start menu.
+                                </li>
+                                <li>
+                                    3. Right-click the FSA icon while it is
+                                    visible on the Windows taskbar.
+                                </li>
+                                <li>4. Choose Pin to taskbar.</li>
+                            </ol>
+
+                            <Alert>
+                                <Info className="size-4" aria-hidden="true" />
+                                <AlertTitle>Desktop shortcut menu</AlertTitle>
+                                <AlertDescription>
+                                    If the shortcut menu only shows Pin to
+                                    Start, open FSA first. The taskbar pin is
+                                    normally available from the running app icon
+                                    on the taskbar.
+                                </AlertDescription>
+                            </Alert>
                         </div>
                     </div>
                 </section>
