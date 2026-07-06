@@ -133,7 +133,7 @@ final class StrategicPlanController extends Controller
         $tradingName = e((string) ($client?->trading_name ?: $client?->legal_name ?: ''));
         $tradingSuffix = $this->tradingSuffix($clientName, $tradingName);
         $title = e((string) ($plan->title ?: 'Strategic Plan'));
-        $status = e(Str::of($plan->status)->replace('_', ' ')->title()->toString());
+        $status = e(Str::of((string) ($plan->status ?: StrategicPlan::STATUS_DRAFT))->replace('_', ' ')->title()->toString());
         $generated = e($plan->generated_at?->format('j M Y') ?? '-');
         $deployed = e($plan->deployed_at?->format('j M Y') ?? '-');
         $proposal = e($plan->proposal?->version ? 'Proposal v'.$plan->proposal->version : 'Accepted proposal');
@@ -142,6 +142,12 @@ final class StrategicPlanController extends Controller
         $summary = $this->richText((string) ($plan->summary ?? ''));
         $sections = $this->sectionsHtml($plan);
         $milestones = $this->milestonesHtml($plan);
+        $documentTag = e($plan->status === StrategicPlan::STATUS_DEPLOYED ? 'Deployed strategic plan' : 'Draft strategic plan');
+        $logo = $this->logoDataUri();
+        $brand = $logo === null
+            ? '<div class="brand-mark"><span></span><span></span><span></span></div><div><p class="brand-name">Future Shift</p><p class="brand-subtitle">ADVISORY</p></div>'
+            : '<img class="brand-logo" src="'.e($logo).'" alt="Future Shift Advisory">';
+        $css = $this->planPdfCss();
 
         return <<<HTML
 <!doctype html>
@@ -149,52 +155,44 @@ final class StrategicPlanController extends Controller
 <head>
     <meta charset="utf-8">
     <title>{$title}</title>
-    <style>
-        @page { margin: 32px; }
-        body { color: #111827; font-family: DejaVu Sans, Arial, sans-serif; font-size: 12px; line-height: 1.45; }
-        .rule { border-top: 6px solid #2f6f61; margin-bottom: 18px; }
-        .brand { color: #2f6f61; font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-        h1 { font-size: 25px; line-height: 1.15; margin: 4px 0 4px; }
-        h2 { color: #164e43; font-size: 15px; margin: 0 0 8px; }
-        h3 { font-size: 12px; margin: 0 0 4px; }
-        p { margin: 0 0 8px; }
-        .muted { color: #6b7280; }
-        .meta { background: #f8fafc; border-bottom: 1px solid #dbe3ea; border-top: 1px solid #dbe3ea; display: table; margin: 18px 0; width: 100%; }
-        .meta div { display: table-cell; padding: 10px 12px; width: 20%; }
-        .label { color: #6b7280; display: block; font-size: 9px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; }
-        .block { border-left: 4px solid #2f6f61; margin: 0 0 14px; padding: 0 0 4px 12px; page-break-inside: avoid; }
-        .summary { background: #f8fafc; margin-bottom: 14px; padding: 12px; }
-        table { border-collapse: collapse; margin-top: 8px; width: 100%; }
-        th { background: #f8fafc; color: #374151; font-size: 10px; text-align: left; text-transform: uppercase; }
-        th, td { border-bottom: 1px solid #e5e7eb; padding: 8px; vertical-align: top; }
-        .badge { background: #eef2f7; border-radius: 999px; display: inline-block; font-size: 10px; padding: 2px 7px; }
-        footer { border-top: 1px solid #e5e7eb; color: #6b7280; font-size: 9px; margin-top: 22px; padding-top: 8px; text-align: right; }
-    </style>
+    <style>{$css}</style>
 </head>
 <body>
-    <div class="rule"></div>
-    <div class="brand">Future Shift Advisory</div>
-    <h1>{$title}</h1>
-    <p class="muted">{$clientName}{$tradingSuffix}</p>
+    <header class="letterhead">
+        <div class="brand-lockup">{$brand}</div>
+        <div class="document-tag">{$documentTag}</div>
+    </header>
 
-    <div class="meta">
-        <div><span class="label">Status</span>{$status}</div>
-        <div><span class="label">Generated</span>{$generated}</div>
-        <div><span class="label">Deployed</span>{$deployed}</div>
-        <div><span class="label">Proposal</span>{$proposal}</div>
-        <div><span class="label">Budget readiness</span>{$budget}</div>
-    </div>
+    <section class="plan-hero">
+        <p class="eyebrow">Strategic plan</p>
+        <h1>{$title}</h1>
+        <p>{$clientName}{$tradingSuffix}</p>
+    </section>
 
-    <section class="summary">
+    <section class="plan-snapshot">
+        <h2>Plan snapshot</h2>
+        <dl class="plan-meta">
+            <div><dt>Status</dt><dd>{$status}</dd></div>
+            <div><dt>Generated</dt><dd>{$generated}</dd></div>
+            <div><dt>Deployed</dt><dd>{$deployed}</dd></div>
+            <div><dt>Proposal</dt><dd>{$proposal}</dd></div>
+            <div><dt>Budget readiness</dt><dd>{$budget}</dd></div>
+        </dl>
+    </section>
+
+    <main class="plan-content">
+    <section class="plan-section plan-summary">
         <h2>Summary</h2>
         {$summary}
     </section>
 
+    <div class="section-grid">
     {$sections}
+    </div>
 
-    <section class="block">
+    <section class="plan-section milestone-section">
         <h2>Milestone Tracker</h2>
-        <table>
+        <table class="milestone-table">
             <thead>
                 <tr>
                     <th>Milestone</th>
@@ -209,8 +207,8 @@ final class StrategicPlanController extends Controller
             </tbody>
         </table>
     </section>
-
-    <footer>Generated using the strategic plan draft in Future Shift Advisory</footer>
+    </main>
+    <footer class="plan-footer">Generated using the strategic plan draft in Future Shift Advisory</footer>
 </body>
 </html>
 HTML;
@@ -221,13 +219,13 @@ HTML;
         $sections = collect((array) ($plan->sections ?? []))
             ->filter(fn (mixed $section): bool => is_array($section))
             ->map(fn (array $section): string => sprintf(
-                '<section class="block"><h2>%s</h2>%s</section>',
+                '<section class="plan-section"><h2>%s</h2>%s</section>',
                 e((string) ($section['title'] ?? 'Plan section')),
                 $this->richText((string) ($section['body'] ?? '')),
             ))
             ->implode('');
 
-        return $sections !== '' ? $sections : '<section class="block"><h2>Plan sections</h2><p class="muted">No strategic plan sections recorded.</p></section>';
+        return $sections !== '' ? $sections : '<section class="plan-section"><h2>Plan sections</h2><p class="muted">No strategic plan sections recorded.</p></section>';
     }
 
     private function milestonesHtml(StrategicPlan $plan): string
@@ -244,7 +242,7 @@ HTML;
 
                 return <<<HTML
                 <tr>
-                    <td><strong>{$title}</strong><br><span class="muted">{$description}</span></td>
+                    <td><strong class="milestone-title">{$title}</strong><br><span class="muted">{$description}</span></td>
                     <td>{$owner}</td>
                     <td>{$due}</td>
                     <td><span class="badge">{$status}</span></td>
@@ -255,6 +253,246 @@ HTML;
             ->implode('');
 
         return $rows !== '' ? $rows : '<tr><td colspan="5" class="muted">No milestones recorded.</td></tr>';
+    }
+
+    private function planPdfCss(): string
+    {
+        return <<<'CSS'
+@page { margin: 15mm 15mm 18mm; }
+* { box-sizing: border-box; }
+body {
+  background: #ffffff;
+  color: #13233a;
+  font-family: Arial, sans-serif;
+  font-size: 10.5px;
+  line-height: 1.45;
+  margin: 0;
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+.letterhead {
+  align-items: center;
+  border-top: 7px solid #1c2f4a;
+  border-bottom: 1px solid #d8d1c2;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 12px;
+  padding: 10px 0 9px;
+}
+.brand-lockup {
+  align-items: center;
+  display: inline-flex;
+  gap: 13px;
+}
+.brand-logo {
+  display: block;
+  height: 38px;
+  width: 136px;
+}
+.brand-mark {
+  align-items: end;
+  display: inline-flex;
+  gap: 3px;
+  height: 36px;
+  width: 38px;
+}
+.brand-mark span {
+  background: #0d7a7a;
+  display: block;
+  width: 8px;
+}
+.brand-mark span:nth-child(1) { height: 14px; opacity: .55; }
+.brand-mark span:nth-child(2) { height: 24px; opacity: .78; }
+.brand-mark span:nth-child(3) { height: 34px; }
+.brand-name {
+  color: #1c2f4a;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1;
+  margin: 0;
+}
+.brand-subtitle {
+  color: #5a7a70;
+  font-size: 8px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  margin: 4px 0 0;
+}
+.document-tag {
+  background: #f4efe3;
+  border: 1px solid #d8d1c2;
+  border-radius: 999px;
+  color: #1c2f4a;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 5px 11px;
+}
+.plan-hero {
+  background: #f8f5ee;
+  border: 1px solid #ded6c7;
+  border-left: 5px solid #b8860b;
+  margin-bottom: 10px;
+  padding: 12px 15px;
+}
+.eyebrow {
+  color: #0d7a7a;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .04em;
+  margin: 0 0 5px;
+  text-transform: uppercase;
+}
+.plan-hero h1 {
+  color: #13233a;
+  font-size: 21px;
+  line-height: 1.15;
+  margin: 0 0 4px;
+}
+.plan-hero p {
+  color: #667282;
+  margin: 0;
+}
+.plan-snapshot {
+  background: #ffffff;
+  border: 1px solid #ded6c7;
+  border-left: 4px solid #0d7a7a;
+  break-inside: avoid;
+  margin-bottom: 10px;
+  padding: 10px 13px;
+}
+.plan-snapshot h2,
+.plan-section h2 {
+  color: #1c2f4a;
+  font-size: 12.5px;
+  line-height: 1.3;
+  margin: 0 0 6px;
+}
+.plan-meta {
+  border-top: 1px solid #eee7db;
+  display: grid;
+  gap: 7px 14px;
+  grid-template-columns: repeat(5, 1fr);
+  margin: 0;
+  padding: 7px 0 0;
+}
+.plan-meta div {
+  min-width: 0;
+}
+dt {
+  color: #667282;
+  font-size: 8.5px;
+  font-weight: 700;
+  margin: 0 0 2px;
+  text-transform: uppercase;
+}
+dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.plan-content {
+  display: grid;
+  gap: 8px;
+}
+.section-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+.plan-section {
+  background: #ffffff;
+  border: 1px solid #ded6c7;
+  border-left: 4px solid #0d7a7a;
+  break-inside: avoid;
+  padding: 8px 10px;
+}
+.section-grid .plan-section {
+  min-height: 58px;
+}
+.plan-summary {
+  background: #fbfaf6;
+}
+.plan-section p {
+  margin: 0 0 4px;
+}
+.plan-section p:last-child {
+  margin-bottom: 0;
+}
+.muted {
+  color: #667282;
+}
+.milestone-section {
+  padding-bottom: 10px;
+}
+.milestone-table {
+  border-collapse: collapse;
+  font-size: 9.5px;
+  line-height: 1.35;
+  table-layout: fixed;
+  width: 100%;
+}
+.milestone-table th {
+  background: #f4efe3;
+  border-bottom: 1px solid #d8d1c2;
+  color: #1c2f4a;
+  font-size: 8px;
+  font-weight: 700;
+  padding: 5px 6px;
+  text-align: left;
+  text-transform: uppercase;
+}
+.milestone-table th:nth-child(1) { width: 46%; }
+.milestone-table th:nth-child(2) { width: 12%; }
+.milestone-table th:nth-child(3) { width: 20%; }
+.milestone-table th:nth-child(4) { width: 13%; }
+.milestone-table th:nth-child(5) { width: 9%; }
+.milestone-table td {
+  border-bottom: 1px solid #eee7db;
+  padding: 5px 6px;
+  vertical-align: top;
+  overflow-wrap: anywhere;
+}
+.milestone-table tr:last-child td {
+  border-bottom: 0;
+}
+.milestone-title {
+  color: #13233a;
+}
+.badge {
+  background: #f4efe3;
+  border: 1px solid #ded6c7;
+  border-radius: 999px;
+  color: #1c2f4a;
+  display: inline-block;
+  font-size: 8.5px;
+  font-weight: 700;
+  padding: 1px 6px;
+}
+.plan-footer {
+  border-top: 1px solid #ded6c7;
+  color: #667282;
+  font-size: 8.5px;
+  margin-top: 13px;
+  padding-top: 6px;
+  text-align: right;
+}
+CSS;
+    }
+
+    private function logoDataUri(): ?string
+    {
+        $path = public_path('brand-assets/future-shift-advisory-logo.svg');
+
+        if (! is_file($path)) {
+            return null;
+        }
+
+        $content = file_get_contents($path);
+
+        if (! is_string($content) || $content === '') {
+            return null;
+        }
+
+        return 'data:image/svg+xml;base64,'.base64_encode($content);
     }
 
     private function richText(string $text): string
