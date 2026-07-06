@@ -269,91 +269,6 @@ HTML,
             ->all();
     }
 
-    /**
-     * @return array<int, array{text:string,bold?:bool,indent?:bool,size?:int}>
-     */
-    private function agreementFallbackLines(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): array
-    {
-        $agreement = $agreement->loadMissing('panelMember.user');
-        $member = $agreement->panelMember;
-        $terms = $agreement->terms ?? [];
-        $lines = [
-            ['text' => 'Agreement parties', 'bold' => true, 'size' => 12],
-            ['text' => 'Partner: '.$this->partnerName($member, $actor)],
-            ['text' => 'Partner type: '.($member instanceof PanelMember ? $this->panelTypeLabel($member) : 'Partner')],
-            ['text' => 'Agreement ID: '.$agreement->getKey()],
-            ['text' => 'Agreement status: Signed'],
-            ['text' => 'Generated: '.$this->dateValue($agreement->generated_at)],
-            ['text' => 'Signed: '.$signedAt->format('j M Y, g:i A T')],
-            ['text' => 'Signed by: '.$actor->name.' <'.$actor->email.'>'],
-            ['text' => ''],
-            ['text' => 'Agreement summary', 'bold' => true, 'size' => 12],
-            ['text' => (string) ($terms['agreement_introduction'] ?? 'This agreement records the operating terms for approved Future Shift Advisory partners.')],
-            ['text' => ''],
-            ['text' => 'Standard partner terms', 'bold' => true, 'size' => 12],
-            ['text' => 'Future Shift Advisory and the partner must protect confidential client and platform information.', 'indent' => true],
-            ['text' => 'Client referral information may only be shared where the relevant client consent has been obtained.', 'indent' => true],
-            ['text' => (string) ($terms['mutual_referral_terms'] ?? 'No referral fees are payable by either party unless separately agreed in writing.'), 'indent' => true],
-            ['text' => 'Reverse referrals do not give the partner automatic access to client records or advisory workspaces.', 'indent' => true],
-        ];
-
-        if ($member instanceof PanelMember && $member->panel_type === PanelMember::TYPE_BROKER) {
-            $clauses = is_array($terms['broker_clauses'] ?? null) ? $terms['broker_clauses'] : [];
-            $brokerLines = [
-                ['text' => ''],
-                ['text' => 'Broker operating terms', 'bold' => true, 'size' => 12],
-                ['text' => 'FSP registration recorded for this agreement: '.$this->scalar($clauses['fsp_number'] ?? $member->fsp_number ?? 'Not recorded').'.', 'indent' => true],
-                ['text' => 'FSP status at approval: '.$this->scalar($clauses['fsp_status_at_approval'] ?? $member->fsp_status ?? 'Not recorded').'.', 'indent' => true],
-                ['text' => 'The broker must keep their FSP registration current. A lapsed or non-current FSP status may suspend portal access until resolved.', 'indent' => true],
-                ['text' => 'The broker remains responsible for regulated financial advice and any client advice obligations outside the Future Shift Advisory platform.', 'indent' => true],
-                ['text' => 'Client consent is required before broker referral context or client information is shared.', 'indent' => true],
-            ];
-
-            foreach ($this->additionalAdminLines($clauses['admin_terms'] ?? null, [
-                'regulated financial advice',
-                'fsp registration current',
-                'lapsed or non-current fsp status',
-            ]) as $line) {
-                $brokerLines[] = ['text' => $line, 'indent' => true];
-            }
-
-            array_push($lines, ...$brokerLines);
-        }
-
-        if ($member instanceof PanelMember && $member->panel_type === PanelMember::TYPE_COACH) {
-            $clauses = is_array($terms['coach_clauses'] ?? null) ? $terms['coach_clauses'] : [];
-            $coachLines = [
-                ['text' => ''],
-                ['text' => 'Coach operating terms', 'bold' => true, 'size' => 12],
-                ['text' => $this->scalar($clauses['wellbeing_scope_boundary'] ?? 'Coaching support only; no clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.'), 'indent' => true],
-                ['text' => 'Client authorisation is required before key-staff coaching context is shared.', 'indent' => true],
-                ['text' => 'Entrepreneur referrals must keep the relevant profile link and referral context attached.', 'indent' => true],
-            ];
-
-            foreach ($this->additionalAdminLines($clauses['admin_terms'] ?? null, [
-                'clinical mental-health',
-                'client authorisation',
-            ]) as $line) {
-                $coachLines[] = ['text' => $line, 'indent' => true];
-            }
-
-            array_push($lines, ...$coachLines);
-        }
-
-        array_push(
-            $lines,
-            ['text' => ''],
-            ['text' => 'Signature certificate', 'bold' => true, 'size' => 12],
-            ['text' => 'This certificate records the partner acceptance and the signed agreement evidence retained by Future Shift Advisory.'],
-            ['text' => 'Signed at: '.$signedAt->format('j M Y, g:i A T')],
-            ['text' => 'Signed by: '.$actor->name.' <'.$actor->email.'>'],
-            ['text' => 'User ID: '.$actor->getKey()],
-            ['text' => 'Document note: Private portal credentials are not stored in this agreement certificate.'],
-        );
-
-        return array_values(array_filter($lines, fn (array $line): bool => trim($line['text']) !== ''));
-    }
-
     private function renderBrandedFallbackPdf(PanelAgreement $agreement, User $actor, DateTimeInterface $signedAt): string
     {
         $agreement = $agreement->loadMissing('panelMember.user');
@@ -381,47 +296,275 @@ HTML,
 
         $newPage();
         $y = $this->drawHero($ops, $title, $partnerType, $intro, $partnerName);
+        $partyItems = $this->fallbackPartyItems($agreement, $member, $actor, $signedAt);
+        $termSections = $this->fallbackTermSections($member, $agreement->terms ?? []);
+        $signatureItems = $this->fallbackSignatureItems($actor, $signedAt);
 
-        foreach ($this->agreementFallbackLines($agreement, $actor, $signedAt) as $line) {
-            $text = $line['text'];
-            $size = (int) ($line['size'] ?? 10);
-            $bold = (bool) ($line['bold'] ?? false);
-            $indent = (bool) ($line['indent'] ?? false);
-            $lineHeight = $text === '' ? 8 : ($size + 4);
-
-            if ($text === '') {
-                $y -= 7;
-
-                continue;
-            }
-
-            $wrapped = $this->wrapPdfText($indent ? '- '.$text : $text, $indent ? 82 : 90);
-            $needed = max(1, count($wrapped)) * $lineHeight + ($bold ? 4 : 1);
-
-            if ($y - $needed < 64) {
-                $newPage();
-            }
-
-            if ($bold) {
-                $this->drawSectionBand($ops, $text, $y);
-                $y -= 24;
-
-                continue;
-            }
-
-            foreach ($wrapped as $index => $wrappedLine) {
-                $x = self::MARGIN + ($indent && $index > 0 ? 14 : 0);
-                $this->pdfText($ops, $wrappedLine, $x, $y, $size, 'F1', '#13233a');
-                $y -= $lineHeight;
-            }
-
-            $y -= 1;
+        $partyHeight = $this->metadataCardHeight($partyItems);
+        if ($y - $partyHeight < 66) {
+            $newPage();
         }
+        $y = $this->drawMetadataCard($ops, 'Agreement snapshot', $partyItems, $y) - 10;
+
+        $termsHeight = $this->termsCardHeight($termSections);
+        if ($y - $termsHeight < 66) {
+            $newPage();
+        }
+        $y = $this->drawTermsCard($ops, 'Operating terms', $termSections, $y) - 10;
+
+        $signatureHeight = $this->signatureCardHeight($signatureItems);
+        if ($y - $signatureHeight < 66) {
+            $newPage();
+        }
+        $this->drawSignatureCard($ops, $signatureItems, $y);
 
         $this->drawFooter($ops, $pageNumber);
         $pages[] = implode("\n", $ops)."\n";
 
         return $this->buildPdf($pages);
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function fallbackPartyItems(PanelAgreement $agreement, ?PanelMember $member, User $actor, DateTimeInterface $signedAt): array
+    {
+        return [
+            'Partner' => $this->partnerName($member, $actor),
+            'Partner type' => $member instanceof PanelMember ? $this->panelTypeLabel($member) : 'Partner',
+            'Agreement status' => 'Signed',
+            'Agreement ID' => (string) $agreement->getKey(),
+            'Generated' => $this->dateValue($agreement->generated_at),
+            'Signed' => $signedAt->format('j M Y, g:i A T'),
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $terms
+     * @return array<int, array{title:string,items:array<int, string>}>
+     */
+    private function fallbackTermSections(?PanelMember $member, array $terms): array
+    {
+        $sections = [[
+            'title' => 'Standard partner terms',
+            'items' => [
+                'Future Shift Advisory and the partner must protect confidential client and platform information.',
+                'Client referral information may only be shared where the relevant client consent has been obtained.',
+                (string) ($terms['mutual_referral_terms'] ?? 'No referral fees are payable by either party unless separately agreed in writing.'),
+                'Reverse referrals do not give the partner automatic access to client records or advisory workspaces.',
+            ],
+        ]];
+
+        if ($member instanceof PanelMember && $member->panel_type === PanelMember::TYPE_BROKER) {
+            $clauses = is_array($terms['broker_clauses'] ?? null) ? $terms['broker_clauses'] : [];
+            $items = [
+                'FSP registration recorded for this agreement: '.$this->scalar($clauses['fsp_number'] ?? $member->fsp_number ?? 'Not recorded').'.',
+                'FSP status at approval: '.$this->scalar($clauses['fsp_status_at_approval'] ?? $member->fsp_status ?? 'Not recorded').'.',
+                'The broker must keep their FSP registration current. A lapsed or non-current FSP status may suspend portal access until resolved.',
+                'The broker remains responsible for regulated financial advice and any client advice obligations outside the Future Shift Advisory platform.',
+                'Client consent is required before broker referral context or client information is shared.',
+            ];
+
+            array_push($items, ...$this->additionalAdminLines($clauses['admin_terms'] ?? null, [
+                'regulated financial advice',
+                'fsp registration current',
+                'lapsed or non-current fsp status',
+            ]));
+
+            $sections[] = [
+                'title' => 'Broker operating terms',
+                'items' => $items,
+            ];
+        }
+
+        if ($member instanceof PanelMember && $member->panel_type === PanelMember::TYPE_COACH) {
+            $clauses = is_array($terms['coach_clauses'] ?? null) ? $terms['coach_clauses'] : [];
+            $items = [
+                $this->scalar($clauses['wellbeing_scope_boundary'] ?? 'Coaching support only; no clinical mental-health diagnosis, treatment, crisis support, or regulated health advice.'),
+                'Client authorisation is required before key-staff coaching context is shared.',
+                'Entrepreneur referrals must keep the relevant profile link and referral context attached.',
+            ];
+
+            array_push($items, ...$this->additionalAdminLines($clauses['admin_terms'] ?? null, [
+                'clinical mental-health',
+                'client authorisation',
+            ]));
+
+            $sections[] = [
+                'title' => 'Coach operating terms',
+                'items' => $items,
+            ];
+        }
+
+        return $sections;
+    }
+
+    /**
+     * @return array<string, string>
+     */
+    private function fallbackSignatureItems(User $actor, DateTimeInterface $signedAt): array
+    {
+        return [
+            'Signed at' => $signedAt->format('j M Y, g:i A T'),
+            'Signed by' => $actor->name.' <'.$actor->email.'>',
+            'User ID' => (string) $actor->getKey(),
+            'Document note' => 'Private portal credentials are not stored in this agreement certificate.',
+        ];
+    }
+
+    /**
+     * @param  array<string, string>  $items
+     */
+    private function metadataCardHeight(array $items): int
+    {
+        return 42 + ((int) ceil(count($items) / 2)) * 27;
+    }
+
+    /**
+     * @param  array<int, array{title:string,items:array<int, string>}>  $sections
+     */
+    private function termsCardHeight(array $sections): int
+    {
+        $height = 44;
+
+        foreach ($sections as $section) {
+            $height += 17;
+
+            foreach ($section['items'] as $item) {
+                $height += max(1, count($this->wrapPdfText($item, 82))) * 11 + 6;
+            }
+
+            $height += 5;
+        }
+
+        return $height;
+    }
+
+    /**
+     * @param  array<string, string>  $items
+     */
+    private function signatureCardHeight(array $items): int
+    {
+        $height = 62;
+
+        foreach ($items as $value) {
+            $height += max(1, count($this->wrapPdfText($value, 82))) * 11 + 5;
+        }
+
+        return $height;
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     * @param  array<string, string>  $items
+     */
+    private function drawMetadataCard(array &$ops, string $title, array $items, int $topY): int
+    {
+        $x = self::MARGIN;
+        $width = self::PAGE_WIDTH - (self::MARGIN * 2);
+        $height = $this->metadataCardHeight($items);
+        $this->drawCardFrame($ops, $x, $topY, $width, $height);
+        $this->pdfRect($ops, $x, $topY - $height, 4, $height, '#0d7a7a');
+        $this->pdfText($ops, $title, $x + 18, $topY - 23, 12, 'F2', '#1c2f4a');
+        $this->pdfLine($ops, $x + 18, $topY - 35, $x + $width - 18, $topY - 35, '#eee7db', 0.6);
+
+        $columnWidth = ($width - 48) / 2;
+        $rowY = $topY - 52;
+        $index = 0;
+
+        foreach ($items as $label => $value) {
+            $column = $index % 2;
+            $row = intdiv($index, 2);
+            $itemX = $x + 18 + ($column * ($columnWidth + 12));
+            $itemY = $rowY - ($row * 27);
+
+            $this->pdfText($ops, Str::upper($label), $itemX, $itemY + 8, 7.2, 'F2', '#667282');
+            $this->pdfText($ops, $value, $itemX, $itemY - 5, 9, 'F1', '#13233a');
+
+            $index++;
+        }
+
+        return $topY - $height;
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     * @param  array<int, array{title:string,items:array<int, string>}>  $sections
+     */
+    private function drawTermsCard(array &$ops, string $title, array $sections, int $topY): int
+    {
+        $x = self::MARGIN;
+        $width = self::PAGE_WIDTH - (self::MARGIN * 2);
+        $height = $this->termsCardHeight($sections);
+        $this->drawCardFrame($ops, $x, $topY, $width, $height);
+        $this->pdfText($ops, $title, $x + 18, $topY - 23, 12, 'F2', '#1c2f4a');
+        $this->pdfText($ops, 'Approved partner obligations and access boundaries', $x + 308, $topY - 23, 8.5, 'F1', '#667282');
+        $this->pdfLine($ops, $x + 18, $topY - 35, $x + $width - 18, $topY - 35, '#eee7db', 0.6);
+
+        $y = $topY - 53;
+
+        foreach ($sections as $sectionIndex => $section) {
+            if ($sectionIndex > 0) {
+                $this->pdfLine($ops, $x + 18, $y + 8, $x + $width - 18, $y + 8, '#eee7db', 0.5);
+                $y -= 5;
+            }
+
+            $this->pdfText($ops, Str::upper($section['title']), $x + 18, $y, 8.4, 'F2', '#0d6a5a');
+            $y -= 16;
+
+            foreach ($section['items'] as $item) {
+                $wrapped = $this->wrapPdfText($item, 82);
+                $this->pdfRect($ops, $x + 20, $y + 3, 3, 3, '#b8860b');
+
+                foreach ($wrapped as $lineIndex => $line) {
+                    $this->pdfText($ops, $line, $x + 30, $y - ($lineIndex * 11), 8.8, 'F1', '#13233a');
+                }
+
+                $y -= max(1, count($wrapped)) * 11 + 6;
+            }
+        }
+
+        return $topY - $height;
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     * @param  array<string, string>  $items
+     */
+    private function drawSignatureCard(array &$ops, array $items, int $topY): int
+    {
+        $x = self::MARGIN;
+        $width = self::PAGE_WIDTH - (self::MARGIN * 2);
+        $height = $this->signatureCardHeight($items);
+        $this->pdfRect($ops, $x, $topY - $height, $width, $height, '#f8f5ee', '#ded6c7');
+        $this->pdfRect($ops, $x, $topY - $height, 4, $height, '#b8860b');
+        $this->pdfText($ops, 'Signature certificate', $x + 18, $topY - 24, 12, 'F2', '#1c2f4a');
+        $this->pdfRect($ops, $x + $width - 82, $topY - 31, 58, 18, '#1c2f4a');
+        $this->pdfText($ops, 'SIGNED', $x + $width - 68, $topY - 25, 8, 'F2', '#ffffff');
+        $this->pdfText($ops, 'Acceptance evidence retained by Future Shift Advisory.', $x + 18, $topY - 43, 8.8, 'F1', '#435466');
+
+        $y = $topY - 62;
+
+        foreach ($items as $label => $value) {
+            $this->pdfText($ops, Str::upper($label), $x + 18, $y + 7, 7.1, 'F2', '#667282');
+            $wrapped = $this->wrapPdfText($value, 82);
+
+            foreach ($wrapped as $lineIndex => $line) {
+                $this->pdfText($ops, $line, $x + 116, $y + 7 - ($lineIndex * 11), 8.8, 'F1', '#13233a');
+            }
+
+            $y -= max(1, count($wrapped)) * 11 + 5;
+        }
+
+        return $topY - $height;
+    }
+
+    /**
+     * @param  array<int, string>  $ops
+     */
+    private function drawCardFrame(array &$ops, int $x, int $topY, int $width, int $height): void
+    {
+        $this->pdfRect($ops, $x, $topY - $height, $width, $height, '#ffffff', '#ded6c7');
     }
 
     /**
@@ -460,25 +603,10 @@ HTML,
         $this->pdfText($ops, $title, self::MARGIN + 18, 698, 19, 'F2', '#13233a');
         $this->pdfText($ops, $partnerName, self::MARGIN + 18, 683, 10, 'F2', '#13233a');
 
-        $wrapped = $this->wrapPdfText($intro, 86);
-        $y = 659;
+        $summary = $this->wrapPdfText($intro, 104)[0] ?? '';
+        $this->pdfText($ops, $summary, self::MARGIN, 660, 8.8, 'F1', '#435466');
 
-        foreach ($wrapped as $line) {
-            $this->pdfText($ops, $line, self::MARGIN, $y, 9.5, 'F1', '#435466');
-            $y -= 13;
-        }
-
-        return $y - 7;
-    }
-
-    /**
-     * @param  array<int, string>  $ops
-     */
-    private function drawSectionBand(array &$ops, string $title, int $y): void
-    {
-        $this->pdfRect($ops, self::MARGIN, $y - 15, 507, 20, '#f4efe3', '#ded6c7');
-        $this->pdfRect($ops, self::MARGIN, $y - 15, 4, 20, '#0d7a7a');
-        $this->pdfText($ops, $title, self::MARGIN + 12, $y - 3, 10.5, 'F2', '#1c2f4a');
+        return 644;
     }
 
     /**
