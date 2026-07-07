@@ -1914,6 +1914,8 @@ function BudgetEditor({
             launch_costs: mergeBudgetRows(
                 current.launch_costs,
                 template.launch_costs,
+                false,
+                true,
             ),
             monthly_fixed_costs: mergeBudgetRows(
                 current.monthly_fixed_costs,
@@ -1947,6 +1949,8 @@ function BudgetEditor({
             launch_costs: mergeBudgetRows(
                 current.launch_costs,
                 suggestions.launch_costs,
+                false,
+                true,
             ),
             monthly_fixed_costs: mergeBudgetRows(
                 current.monthly_fixed_costs,
@@ -2192,6 +2196,8 @@ function BudgetEditor({
                                 }
                                 className="h-9 rounded-md border bg-background px-3 text-sm"
                             >
+                                <option value="1">1 year</option>
+                                <option value="2">2 years</option>
                                 <option value="3">3 years</option>
                                 <option value="5">5 years</option>
                             </select>
@@ -2238,6 +2244,7 @@ function BudgetEditor({
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
                             quickAdds={template.launch_costs}
+                            timed
                         />
                         <BudgetRowsEditor
                             title="What will you pay every month even if sales are slow?"
@@ -2306,6 +2313,8 @@ function BudgetEditor({
                                 }
                                 className="h-9 rounded-md border bg-background px-3 text-sm"
                             >
+                                <option value="1">1 year</option>
+                                <option value="2">2 years</option>
                                 <option value="3">3 years</option>
                                 <option value="5">5 years</option>
                             </select>
@@ -2322,6 +2331,7 @@ function BudgetEditor({
                             group="launch_costs"
                             rows={form.launch_costs}
                             onFormChange={onFormChange}
+                            timed
                         />
                         <BudgetRowsEditor
                             title="Monthly fixed costs"
@@ -2461,6 +2471,7 @@ function BudgetRowsEditor({
     onFormChange,
     quickAdds = [],
     revenue = false,
+    timed = false,
 }: {
     title: string;
     helper?: string;
@@ -2469,6 +2480,7 @@ function BudgetRowsEditor({
     onFormChange: Dispatch<SetStateAction<BudgetFormState>>;
     quickAdds?: BudgetRow[];
     revenue?: boolean;
+    timed?: boolean;
 }) {
     return (
         <section className="space-y-2 rounded-md border bg-muted/20 p-3">
@@ -2483,7 +2495,7 @@ function BudgetRowsEditor({
                             ...current,
                             [group]: [
                                 ...current[group],
-                                blankBudgetRow(revenue),
+                                blankBudgetRow(revenue, timed),
                             ],
                         }))
                     }
@@ -2511,6 +2523,8 @@ function BudgetRowsEditor({
                                             [group]: mergeBudgetRows(
                                                 current[group],
                                                 [row],
+                                                revenue,
+                                                timed,
                                             ),
                                         }))
                                     }
@@ -2538,7 +2552,9 @@ function BudgetRowsEditor({
                             'grid gap-2',
                             revenue
                                 ? 'md:grid-cols-[minmax(0,1.2fr)_repeat(7,minmax(72px,0.5fr))_120px_auto]'
-                                : 'md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(92px,0.6fr))_120px_auto]',
+                                : timed
+                                  ? 'md:grid-cols-[minmax(0,1.4fr)_repeat(3,minmax(92px,0.6fr))_120px_auto]'
+                                  : 'md:grid-cols-[minmax(0,1.4fr)_repeat(2,minmax(92px,0.6fr))_120px_auto]',
                         )}
                     >
                         <BudgetInput
@@ -2570,11 +2586,28 @@ function BudgetRowsEditor({
                                 })
                             }
                         />
+                        {timed && !revenue ? (
+                            <BudgetInput
+                                label="Month"
+                                type="number"
+                                min={1}
+                                value={row.month ?? 1}
+                                onChange={(value) =>
+                                    updateBudgetRow(
+                                        onFormChange,
+                                        group,
+                                        index,
+                                        { month: value },
+                                    )
+                                }
+                            />
+                        ) : null}
                         {revenue ? (
                             <>
                                 <BudgetInput
                                     label="Start"
                                     type="number"
+                                    min={1}
                                     value={row.month ?? 1}
                                     onChange={(value) =>
                                         updateBudgetRow(
@@ -2588,6 +2621,7 @@ function BudgetRowsEditor({
                                 <BudgetInput
                                     label="Growth %"
                                     type="number"
+                                    min={-100}
                                     value={row.monthly_growth_percent ?? 0}
                                     onChange={(value) =>
                                         updateBudgetRow(
@@ -2731,8 +2765,13 @@ function BudgetAssumptionsEditor({
                     <span className="text-muted-foreground">{field.label}</span>
                     <input
                         type="number"
-                        min={0}
-                        max={500}
+                        min={
+                            field.key === 'revenue_growth_percent' ||
+                            field.key === 'cost_inflation_percent'
+                                ? -100
+                                : 0
+                        }
+                        max={field.key === 'cost_inflation_percent' ? 100 : 500}
                         value={assumptions[field.key]}
                         onChange={(event) =>
                             onFormChange((current) => ({
@@ -3070,11 +3109,13 @@ function BudgetInput({
     value,
     onChange,
     type = 'text',
+    min,
 }: {
     label: string;
     value: string | number;
     onChange: (value: string) => void;
     type?: 'text' | 'number';
+    min?: number;
 }) {
     return (
         <label className="grid gap-1 text-xs">
@@ -3082,7 +3123,7 @@ function BudgetInput({
             <input
                 type={type}
                 value={value}
-                min={type === 'number' ? 0 : undefined}
+                min={type === 'number' ? (min ?? 0) : undefined}
                 onChange={(event) => onChange(event.target.value)}
                 className="h-9 min-w-0 rounded-md border bg-background px-2 text-sm"
             />
@@ -3578,13 +3619,14 @@ function mergeBudgetRows(
     currentRows: BudgetRow[],
     suggestedRows: BudgetRow[],
     revenue = false,
+    timed = false,
 ) {
     return dedupeBudgetRows([
         ...currentRows
-            .map((row) => normaliseBudgetRow(row, revenue))
+            .map((row) => normaliseBudgetRow(row, revenue, timed))
             .filter((row) => !isBlankBudgetRow(row)),
         ...suggestedRows.map((row) => ({
-            ...normaliseBudgetRow(row, revenue),
+            ...normaliseBudgetRow(row, revenue, timed),
             confidence: row.confidence ?? 'guess',
         })),
     ]);
@@ -3688,7 +3730,7 @@ function budgetToForm(budget: BudgetPayload | undefined): BudgetFormState {
                 : String(budget.expected_runway_months),
         forecast_years: String(budget?.forecast_years ?? 3),
         assumptions: normaliseBudgetAssumptions(budget?.assumptions),
-        launch_costs: rowsOrBlank(budget?.launch_costs),
+        launch_costs: rowsOrBlank(budget?.launch_costs, false, true),
         monthly_fixed_costs: rowsOrBlank(budget?.monthly_fixed_costs),
         future_costs: futureRowsOrBlank(budget?.future_costs),
         revenue_forecast: rowsOrBlank(budget?.revenue_forecast, true),
@@ -3697,10 +3739,14 @@ function budgetToForm(budget: BudgetPayload | undefined): BudgetFormState {
     };
 }
 
-function rowsOrBlank(rows: BudgetRow[] | undefined, revenue = false) {
+function rowsOrBlank(
+    rows: BudgetRow[] | undefined,
+    revenue = false,
+    timed = false,
+) {
     return rows && rows.length > 0
-        ? rows.map((row) => normaliseBudgetRow(row, revenue))
-        : [blankBudgetRow(revenue)];
+        ? rows.map((row) => normaliseBudgetRow(row, revenue, timed))
+        : [blankBudgetRow(revenue, timed)];
 }
 
 function futureRowsOrBlank(rows: FutureCostRow[] | undefined) {
@@ -3715,7 +3761,7 @@ function fundingScenariosOrBlank(rows: FundingScenarioRow[] | undefined) {
         : [blankFundingScenario()];
 }
 
-function blankBudgetRow(revenue = false): BudgetRow {
+function blankBudgetRow(revenue = false, timed = false): BudgetRow {
     return revenue
         ? {
               label: '',
@@ -3728,12 +3774,20 @@ function blankBudgetRow(revenue = false): BudgetRow {
               gross_profit_percent: '',
               confidence: 'estimate',
           }
-        : {
-              label: '',
-              amount: '',
-              quantity: 1,
-              confidence: 'estimate',
-          };
+        : timed
+          ? {
+                label: '',
+                amount: '',
+                quantity: 1,
+                month: 1,
+                confidence: 'estimate',
+            }
+          : {
+                label: '',
+                amount: '',
+                quantity: 1,
+                confidence: 'estimate',
+            };
 }
 
 function blankFutureCostRow(): FutureCostRow {
@@ -3767,13 +3821,15 @@ function cleanBudgetForm(form: BudgetFormState) {
             form.expected_runway_months === ''
                 ? null
                 : numberFromInput(form.expected_runway_months),
-        forecast_years: numberFromInput(form.forecast_years) === 5 ? 5 : 3,
+        forecast_years: normaliseForecastYears(form.forecast_years),
         assumptions: {
-            revenue_growth_percent: numberFromInput(
+            revenue_growth_percent: signedNumberFromInput(
                 form.assumptions.revenue_growth_percent,
             ),
-            cost_inflation_percent: numberFromInput(
+            cost_inflation_percent: signedNumberFromInput(
                 form.assumptions.cost_inflation_percent,
+                -100,
+                100,
             ),
             target_gross_profit_percent: numberFromInput(
                 form.assumptions.target_gross_profit_percent,
@@ -3785,7 +3841,7 @@ function cleanBudgetForm(form: BudgetFormState) {
                 form.assumptions.target_net_profit_after_tax_percent,
             ),
         },
-        launch_costs: cleanBudgetRows(form.launch_costs),
+        launch_costs: cleanBudgetRows(form.launch_costs, false, true),
         monthly_fixed_costs: cleanBudgetRows(form.monthly_fixed_costs),
         future_costs: cleanFutureCostRows(form.future_costs),
         revenue_forecast: cleanBudgetRows(form.revenue_forecast, true),
@@ -3794,7 +3850,7 @@ function cleanBudgetForm(form: BudgetFormState) {
     };
 }
 
-function cleanBudgetRows(rows: BudgetRow[], revenue = false) {
+function cleanBudgetRows(rows: BudgetRow[], revenue = false, timed = false) {
     return rows
         .filter(
             (row) =>
@@ -3805,10 +3861,12 @@ function cleanBudgetRows(rows: BudgetRow[], revenue = false) {
             amount: numberFromInput(row.amount),
             quantity: numberFromInput(row.quantity ?? 1) || 1,
             confidence: budgetRowConfidence(row.confidence),
+            ...(timed || revenue
+                ? { month: numberFromInput(row.month ?? 1) || 1 }
+                : {}),
             ...(revenue
                 ? {
-                      month: numberFromInput(row.month ?? 1) || 1,
-                      monthly_growth_percent: numberFromInput(
+                      monthly_growth_percent: signedNumberFromInput(
                           row.monthly_growth_percent ?? 0,
                       ),
                       variable_cost_percent: numberFromInput(
@@ -3870,16 +3928,22 @@ function cleanFundingScenarios(rows: FundingScenarioRow[]) {
         }));
 }
 
-function normaliseBudgetRow(row: BudgetRow, revenue = false): BudgetRow {
+function normaliseBudgetRow(
+    row: BudgetRow,
+    revenue = false,
+    timed = false,
+): BudgetRow {
     return {
         label: budgetRowLabel(row),
         amount: row.amount ?? '',
         quantity: numberFromInput(row.quantity ?? 1) || 1,
         confidence: budgetRowConfidence(row.confidence),
+        ...(timed || revenue
+            ? { month: numberFromInput(row.month ?? 1) || 1 }
+            : {}),
         ...(revenue
             ? {
-                  month: numberFromInput(row.month ?? 1) || 1,
-                  monthly_growth_percent: numberFromInput(
+                  monthly_growth_percent: signedNumberFromInput(
                       row.monthly_growth_percent ?? 0,
                   ),
                   variable_cost_percent: numberFromInput(
@@ -3961,6 +4025,29 @@ function numberFromInput(value: string | number | null | undefined): number {
             : Number.parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
 
     return Number.isFinite(parsed) ? Math.max(0, parsed) : 0;
+}
+
+function signedNumberFromInput(
+    value: string | number | null | undefined,
+    min = -100,
+    max = 500,
+): number {
+    const parsed =
+        typeof value === 'number'
+            ? value
+            : Number.parseFloat(String(value ?? '').replace(/[^0-9.-]/g, ''));
+
+    if (!Number.isFinite(parsed)) {
+        return 0;
+    }
+
+    return Math.min(max, Math.max(min, parsed));
+}
+
+function normaliseForecastYears(value: string | number): number {
+    const years = numberFromInput(value);
+
+    return years === 1 || years === 2 || years === 5 ? years : 3;
 }
 
 function formatCurrency(value: number | null | undefined): string {

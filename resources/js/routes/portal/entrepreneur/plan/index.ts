@@ -216,7 +216,7 @@ start.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     start.form = startForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:489
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:490
  * @route '/portal/entrepreneur/plan/submit'
  */
 export const submit = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -231,7 +231,7 @@ submit.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:489
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:490
  * @route '/portal/entrepreneur/plan/submit'
  */
 submit.url = (options?: RouteQueryOptions) => {
@@ -240,7 +240,7 @@ submit.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:489
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:490
  * @route '/portal/entrepreneur/plan/submit'
  */
 submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -250,7 +250,7 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:489
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:490
  * @route '/portal/entrepreneur/plan/submit'
  */
     const submitForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -260,7 +260,7 @@ submit.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::submit
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:489
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:490
  * @route '/portal/entrepreneur/plan/submit'
  */
         submitForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

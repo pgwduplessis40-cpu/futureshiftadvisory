@@ -15,6 +15,7 @@ use App\Services\Entrepreneurs\EntrepreneurBudgetService;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 final class BudgetRunwayTest extends TestCase
@@ -64,6 +65,49 @@ final class BudgetRunwayTest extends TestCase
         $this->assertSame(3, $budget->forecast_years);
         $this->assertSame(-5000.0, (float) data_get($budget->computed, 'available_after_launch'));
         $this->assertContains('funding_shortfall', collect($budget->flags)->pluck('key')->all());
+    }
+
+    public function test_budget_uses_configurable_runway_tolerance_forecast_options_and_skips_noop_audit(): void
+    {
+        config()->set('entrepreneurs.budget.runway_mismatch_tolerance_months', 4);
+
+        [$actor, $plan] = $this->plan();
+        $payload = [
+            'expected_runway_months' => 8,
+            'forecast_years' => 2,
+            'assumptions' => [
+                'revenue_growth_percent' => -10,
+                'cost_inflation_percent' => -2,
+                'target_gross_profit_percent' => 55,
+                'target_net_profit_before_tax_percent' => 10,
+                'target_net_profit_after_tax_percent' => 7,
+            ],
+            'monthly_fixed_costs' => [
+                ['label' => 'Rent', 'amount' => 1_000, 'quantity' => 1],
+            ],
+            'funding_sources' => [
+                ['label' => 'Founder cash', 'amount' => 5_000, 'quantity' => 1],
+            ],
+        ];
+
+        $budget = app(EntrepreneurBudgetService::class)->update($plan, $payload, $actor);
+        $auditCount = DB::table('audit_events')
+            ->where('action', 'entrepreneur.budget_updated')
+            ->count();
+
+        $this->assertSame(2, $budget->forecast_years);
+        $this->assertEquals(-10.0, data_get($budget->computed, 'assumptions.revenue_growth_percent'));
+        $this->assertEquals(-2.0, data_get($budget->computed, 'assumptions.cost_inflation_percent'));
+        $this->assertNotContains('runway_mismatch', collect($budget->flags)->pluck('key')->all());
+
+        app(EntrepreneurBudgetService::class)->update($plan, $payload, $actor);
+
+        $this->assertSame(
+            $auditCount,
+            DB::table('audit_events')
+                ->where('action', 'entrepreneur.budget_updated')
+                ->count(),
+        );
     }
 
     public function test_budget_cannot_be_saved_before_business_setup_requirement_is_complete(): void
@@ -120,23 +164,35 @@ final class BudgetRunwayTest extends TestCase
         $this->actingAs($actor)
             ->post(route('portal.entrepreneur.plan.budget.update'), [
                 'expected_runway_months' => 6,
+                'forecast_years' => 1,
                 'assumptions' => [
-                    'revenue_growth_percent' => 10,
-                    'cost_inflation_percent' => 3,
+                    'revenue_growth_percent' => -10,
+                    'cost_inflation_percent' => -2,
                     'target_gross_profit_percent' => 55,
                     'target_net_profit_before_tax_percent' => 10,
                     'target_net_profit_after_tax_percent' => 7,
                 ],
                 'launch_costs' => [
-                    ['label' => 'Website', 'amount' => 500, 'quantity' => 1],
+                    ['label' => 'Website', 'amount' => 500, 'quantity' => 1, 'month' => 2],
+                ],
+                'revenue_forecast' => [
+                    ['label' => 'Sales', 'amount' => 1_000, 'quantity' => 1, 'month' => 1, 'monthly_growth_percent' => -5],
+                ],
+                'funding_sources' => [
+                    ['label' => 'Founder cash', 'amount' => 1_000, 'quantity' => 1],
                 ],
             ])
             ->assertRedirect(route('portal.entrepreneur.plan.show'))
             ->assertSessionHas('status', 'entrepreneur-budget-saved');
 
-        $this->assertDatabaseHas('entrepreneur_budgets', [
-            'business_plan_id' => $plan->id,
-        ]);
+        $budget = EntrepreneurBudget::query()
+            ->where('business_plan_id', $plan->id)
+            ->firstOrFail();
+
+        $this->assertSame(1, $budget->forecast_years);
+        $this->assertEquals(-10.0, data_get($budget->computed, 'assumptions.revenue_growth_percent'));
+        $this->assertEquals(-2.0, data_get($budget->computed, 'assumptions.cost_inflation_percent'));
+        $this->assertEquals(500.0, data_get($budget->computed, 'monthly_detail.1.launch_costs'));
     }
 
     /**

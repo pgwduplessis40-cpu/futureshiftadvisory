@@ -56,7 +56,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:477
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:478
  * @route '/portal/entrepreneur/plan/sections/{planSection}/guidance'
  */
 export const guidance = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -71,7 +71,7 @@ guidance.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:477
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:478
  * @route '/portal/entrepreneur/plan/sections/{planSection}/guidance'
  */
 guidance.url = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -104,7 +104,7 @@ guidance.url = (args: { planSection: string | { id: string } } | [planSection: s
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:477
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:478
  * @route '/portal/entrepreneur/plan/sections/{planSection}/guidance'
  */
 guidance.post = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -114,7 +114,7 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:477
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:478
  * @route '/portal/entrepreneur/plan/sections/{planSection}/guidance'
  */
     const guidanceForm = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -124,7 +124,7 @@ guidance.post = (args: { planSection: string | { id: string } } | [planSection: 
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::guidance
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:477
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:478
  * @route '/portal/entrepreneur/plan/sections/{planSection}/guidance'
  */
         guidanceForm.post = (args: { planSection: string | { id: string } } | [planSection: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

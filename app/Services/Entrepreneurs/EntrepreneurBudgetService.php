@@ -15,7 +15,22 @@ use Illuminate\Support\Facades\DB;
 
 final class EntrepreneurBudgetService
 {
-    private const RUNWAY_MISMATCH_TOLERANCE_MONTHS = 2;
+    private const SUPPORTED_FORECAST_YEARS = [1, 2, 3, 5];
+
+    private const CHANGE_TRACKED_FIELDS = [
+        'expected_runway_months',
+        'forecast_years',
+        'status',
+        'assumptions',
+        'launch_costs',
+        'monthly_fixed_costs',
+        'future_costs',
+        'revenue_forecast',
+        'funding_sources',
+        'funding_scenarios',
+        'computed',
+        'flags',
+    ];
 
     public function __construct(
         private readonly BudgetCalculator $calculator,
@@ -31,6 +46,7 @@ final class EntrepreneurBudgetService
         return DB::transaction(function () use ($plan, $input, $actor): EntrepreneurBudget {
             $budget = $plan->budgetRunway()->firstOrNew();
             $existingFlags = (array) ($budget->flags ?? []);
+            $beforeFingerprint = $budget->exists ? $this->changeFingerprint($budget) : null;
             $launchCosts = $this->calculator->normaliseRows((array) ($input['launch_costs'] ?? []));
             $monthlyFixedCosts = $this->calculator->normaliseRows((array) ($input['monthly_fixed_costs'] ?? []));
             $revenueForecast = $this->calculator->normaliseRows((array) ($input['revenue_forecast'] ?? []));
@@ -88,18 +104,27 @@ final class EntrepreneurBudgetService
                 'funding_scenarios' => $fundingScenarios,
                 'computed' => $computed,
                 'flags' => $flags,
-            ])->save();
-
-            $this->audit->record('entrepreneur.budget_updated', subject: $budget, actor: $actor, after: [
-                'business_plan_id' => $plan->getKey(),
-                'status' => $budget->status,
-                'runway_months' => data_get($computed, 'runway_months'),
-                'break_even_month' => data_get($computed, 'break_even_month'),
-                'break_even_year' => data_get($computed, 'break_even_year'),
-                'cash_flow_positive_year' => data_get($computed, 'cash_flow_positive_year'),
-                'forecast_years' => $forecastYears,
-                'flag_count' => count(collect($flags)->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))),
             ]);
+
+            $changed = $beforeFingerprint !== $this->changeFingerprint($budget);
+
+            if ($changed) {
+                $budget->save();
+
+                $this->audit->record('entrepreneur.budget_updated', subject: $budget, actor: $actor, after: [
+                    'business_plan_id' => $plan->getKey(),
+                    'status' => $budget->status,
+                    'runway_months' => data_get($computed, 'runway_months'),
+                    'break_even_month' => data_get($computed, 'break_even_month'),
+                    'break_even_year' => data_get($computed, 'break_even_year'),
+                    'cash_flow_positive_year' => data_get($computed, 'cash_flow_positive_year'),
+                    'forecast_years' => $forecastYears,
+                    'flag_count' => count(collect($flags)->filter(fn (array $flag): bool => empty($flag['acknowledged_at']))),
+                ]);
+            } else {
+                $budget->syncOriginal();
+            }
+
             $this->milestones->awardCompletedPhases($plan->refresh()->load('entrepreneurProfile', 'phases', 'sections', 'budgetRunway'));
             $this->queueBudgetLearning($budget->refresh(), $computed, $flags, $confidence);
 
@@ -304,12 +329,13 @@ final class EntrepreneurBudgetService
         }
 
         if ($expectedRunwayMonths !== null && is_int($runwayMonths)) {
-            $effectiveRunway = $runwayOpenEnded ? max($runwayMonths, self::RUNWAY_MISMATCH_TOLERANCE_MONTHS + $expectedRunwayMonths) : $runwayMonths;
-            if (abs($expectedRunwayMonths - $effectiveRunway) > self::RUNWAY_MISMATCH_TOLERANCE_MONTHS) {
+            $tolerance = $this->runwayMismatchToleranceMonths();
+            $effectiveRunway = $runwayOpenEnded ? max($runwayMonths, $tolerance + $expectedRunwayMonths) : $runwayMonths;
+            if (abs($expectedRunwayMonths - $effectiveRunway) > $tolerance) {
                 $flags[] = $this->flag(
                     'runway_mismatch',
                     'Runway needs checking',
-                    'The expected runway is more than two months away from the budget calculation. Check the assumptions or explain the difference.',
+                    'The expected runway is more than '.$tolerance.' months away from the budget calculation. Check the assumptions or explain the difference.',
                     'medium',
                     $existingByKey->get('runway_mismatch'),
                 );
@@ -323,7 +349,40 @@ final class EntrepreneurBudgetService
     {
         $years = is_numeric($value) ? (int) $value : 3;
 
-        return in_array($years, [3, 5], true) ? $years : 3;
+        return in_array($years, self::SUPPORTED_FORECAST_YEARS, true) ? $years : 3;
+    }
+
+    private function runwayMismatchToleranceMonths(): int
+    {
+        return max(0, (int) config('entrepreneurs.budget.runway_mismatch_tolerance_months', 2));
+    }
+
+    private function changeFingerprint(EntrepreneurBudget $budget): string
+    {
+        $payload = [];
+
+        foreach (self::CHANGE_TRACKED_FIELDS as $field) {
+            $payload[$field] = $this->canonicalValue($budget->getAttribute($field));
+        }
+
+        return (string) json_encode($payload, JSON_UNESCAPED_SLASHES);
+    }
+
+    private function canonicalValue(mixed $value): mixed
+    {
+        if (is_int($value) || is_float($value)) {
+            return round((float) $value, 4);
+        }
+
+        if (! is_array($value)) {
+            return $value;
+        }
+
+        if (! array_is_list($value)) {
+            ksort($value);
+        }
+
+        return array_map(fn (mixed $item): mixed => $this->canonicalValue($item), $value);
     }
 
     private function economicPercent(string $indicator): ?float

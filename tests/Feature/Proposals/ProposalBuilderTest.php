@@ -21,6 +21,7 @@ use App\Models\Consent;
 use App\Models\FeeCalculation;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
+use App\Models\ServiceActivation;
 use App\Models\StrategicPlan;
 use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
@@ -209,6 +210,71 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('What needs to be fixed', $this->renderer->html);
         $this->assertStringContainsString('Website audit action plan', $this->renderer->html);
         $this->assertStringContainsString('Align the product and service pages', $this->renderer->html);
+    }
+
+    public function test_engaged_client_proposal_focus_areas_use_severity_before_website_audit(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-engaged-severity-advisor@example.test');
+        $calculation = $this->feeCalculation($client, 15000, 4);
+
+        ServiceActivation::query()->create([
+            'client_id' => $client->getKey(),
+            'requested_by_user_id' => $advisor->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+            'client_label' => 'Engaged advisory client',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+        ]);
+
+        foreach ([
+            [
+                'module' => AnalysisModule::WebsiteAudit,
+                'severity' => FindingSeverity::Medium,
+                'title' => 'Website audit action plan',
+                'body' => 'Improve page structure and enquiry conversion.',
+            ],
+            [
+                'module' => AnalysisModule::Financial,
+                'severity' => FindingSeverity::High,
+                'title' => 'Solvency risk action plan',
+                'body' => 'Cash-flow stress needs urgent financing and margin action.',
+            ],
+        ] as $finding) {
+            $run = AnalysisRun::query()->create([
+                'client_id' => $client->getKey(),
+                'module' => $finding['module'],
+                'status' => AnalysisRun::STATUS_COMPLETED,
+                'framework_lenses' => [],
+                'data_quality_snapshot' => [],
+                'tokens_in' => 0,
+                'tokens_out' => 0,
+                'started_at' => now(),
+                'completed_at' => now(),
+                'created_by_user_id' => $advisor->getKey(),
+            ]);
+
+            AnalysisFinding::query()->create([
+                'analysis_run_id' => $run->getKey(),
+                'client_id' => $client->getKey(),
+                'lens' => AnalysisLens::Prescriptive,
+                'severity' => $finding['severity'],
+                'title' => $finding['title'],
+                'body' => $finding['body'],
+                'attributions' => [[
+                    'claim' => 'Engaged client fixture evidence.',
+                    'source_reference' => 'test:engaged-focus-order',
+                ]],
+                'document_support' => AnalysisFinding::DOCUMENT_SUPPORT_NONE,
+            ]);
+        }
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->assertSame('financial', $proposal->scope['focus_areas'][0]['module']);
+        $this->assertSame('Solvency risk action plan', $proposal->scope['focus_areas'][0]['title']);
+        $this->assertSame('website_audit', $proposal->scope['focus_areas'][1]['module']);
     }
 
     public function test_proposal_includes_operational_and_systems_automation_fixes(): void

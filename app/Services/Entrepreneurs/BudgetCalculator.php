@@ -120,7 +120,7 @@ final class BudgetCalculator
                 $amount = $this->number($row['amount'] ?? $row['value'] ?? 0);
                 $quantity = max(1.0, $this->number($row['quantity'] ?? 1));
                 $month = $this->month($row['month'] ?? 1);
-                $monthlyGrowthPercent = $this->number($row['monthly_growth_percent'] ?? $row['growth'] ?? 0);
+                $monthlyGrowthPercent = $this->signedPercent($row['monthly_growth_percent'] ?? $row['growth'] ?? 0);
                 $variableCostPercent = $this->number($row['variable_cost_percent'] ?? 0);
                 $unitCost = $this->number($row['unit_cost'] ?? 0);
                 $grossProfitPercent = $this->nullablePercent($row['gross_profit_percent'] ?? $row['gp_percent'] ?? null);
@@ -231,7 +231,9 @@ final class BudgetCalculator
             }
 
             $provided[] = $key;
-            $normalised[$key] = round($this->number($raw), 2);
+            $normalised[$key] = in_array($key, ['revenue_growth_percent', 'cost_inflation_percent'], true)
+                ? round($this->signedPercent($raw), 2)
+                : round($this->number($raw), 2);
         }
 
         $taxConfigured = $companyTaxRatePercent !== null;
@@ -285,7 +287,7 @@ final class BudgetCalculator
             $variableCosts = $this->variableCostsForMonth($revenueRows, $month, $assumptions);
             $fixedCosts = $this->fixedCostsForMonth($fixedRows, $year, $assumptions);
             $futureCosts = $this->futureCostsForMonth($futureRows, $year, $monthInYear);
-            $launchCosts = $month === 1 ? $this->sumRows($launchRows) : 0.0;
+            $launchCosts = $this->rowsForMonth($launchRows, $month);
             $fundingInflow = $this->fundingForMonth($fundingRows, $month) + $this->scenarioFundingForMonth($scenario, $month);
             $loanPayment = $this->loanPaymentForMonth($loan, $scenario, $month);
             $grossProfit = $revenue - $variableCosts;
@@ -405,9 +407,8 @@ final class BudgetCalculator
 
             if ($year === 1) {
                 $elapsed = max(0, $month - (int) $row['month']);
-                $growth = 1 + (((float) $row['monthly_growth_percent']) / 100);
 
-                return $total + ($base * ($growth > 0 ? $growth ** $elapsed : 1));
+                return $total + ($base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed));
             }
 
             if ((int) $row['month'] > self::MONTHS_PER_YEAR) {
@@ -415,9 +416,8 @@ final class BudgetCalculator
             }
 
             $yearOneAverage = $this->yearOneAverageRevenue($row);
-            $annualGrowth = 1 + (((float) $assumptions['revenue_growth_percent']) / 100);
 
-            return $total + ($yearOneAverage * ($annualGrowth > 0 ? $annualGrowth ** ($year - 1) : 1));
+            return $total + ($yearOneAverage * $this->growthFactor((float) $assumptions['revenue_growth_percent'], $year - 1));
         }, 0.0);
     }
 
@@ -429,8 +429,8 @@ final class BudgetCalculator
         return array_reduce($rows, function (float $total, array $row) use ($month, $assumptions): float {
             $revenue = $this->revenueForMonth([$row], $month, $assumptions);
             $year = (int) ceil($month / self::MONTHS_PER_YEAR);
-            $costInflation = 1 + (((float) $assumptions['cost_inflation_percent']) / 100);
-            $revenueGrowth = 1 + (((float) $assumptions['revenue_growth_percent']) / 100);
+            $costInflation = $this->growthFactor((float) $assumptions['cost_inflation_percent'], 1);
+            $revenueGrowth = $this->growthFactor((float) $assumptions['revenue_growth_percent'], 1);
             $ratioAdjustment = $year > 1 && $revenueGrowth > 0
                 ? ($costInflation ** ($year - 1)) / ($revenueGrowth ** ($year - 1))
                 : 1;
@@ -446,9 +446,8 @@ final class BudgetCalculator
     private function fixedCostsForMonth(array $rows, int $year, array $assumptions): float
     {
         $base = $this->sumRows($rows);
-        $inflation = 1 + (((float) $assumptions['cost_inflation_percent']) / 100);
 
-        return $base * ($inflation > 0 ? $inflation ** ($year - 1) : 1);
+        return $base * $this->growthFactor((float) $assumptions['cost_inflation_percent'], $year - 1);
     }
 
     /**
@@ -559,8 +558,7 @@ final class BudgetCalculator
 
             $elapsed = max(0, $month - (int) $row['month']);
             $base = ((float) $row['amount']) * ((float) $row['quantity']);
-            $growth = 1 + (((float) $row['monthly_growth_percent']) / 100);
-            $values[] = $base * ($growth > 0 ? $growth ** $elapsed : 1);
+            $values[] = $base * $this->growthFactor((float) $row['monthly_growth_percent'], $elapsed);
         }
 
         return count($values) > 0 ? array_sum($values) / self::MONTHS_PER_YEAR : 0.0;
@@ -574,6 +572,20 @@ final class BudgetCalculator
         return array_reduce(
             $rows,
             fn (float $total, array $row): float => $total + (((float) $row['amount']) * ((float) $row['quantity'])),
+            0.0,
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function rowsForMonth(array $rows, int $month): float
+    {
+        return array_reduce(
+            $rows,
+            fn (float $total, array $row): float => (int) $row['month'] === $month
+                ? $total + (((float) $row['amount']) * ((float) $row['quantity']))
+                : $total,
             0.0,
         );
     }
@@ -603,17 +615,38 @@ final class BudgetCalculator
 
     private function number(mixed $value): float
     {
+        return max(0.0, $this->numericValue($value));
+    }
+
+    private function signedPercent(mixed $value): float
+    {
+        return max(-100.0, min(500.0, $this->numericValue($value)));
+    }
+
+    private function numericValue(mixed $value): float
+    {
         if (is_int($value) || is_float($value)) {
-            return max(0.0, (float) $value);
+            return (float) $value;
         }
 
         if (is_string($value)) {
             $cleaned = preg_replace('/[^0-9.\-]/', '', $value);
 
-            return max(0.0, is_numeric($cleaned) ? (float) $cleaned : 0.0);
+            return is_numeric($cleaned) ? (float) $cleaned : 0.0;
         }
 
         return 0.0;
+    }
+
+    private function growthFactor(float $percent, int $periods): float
+    {
+        if ($periods <= 0) {
+            return 1.0;
+        }
+
+        $factor = 1 + ($percent / 100);
+
+        return $factor <= 0 ? 0.0 : $factor ** $periods;
     }
 
     private function nullablePercent(mixed $value): ?float
@@ -662,6 +695,7 @@ final class BudgetCalculator
             'cash_flow_positive_year' => 'Cash-flow-positive year is the first year where cumulative cash becomes zero or positive after startup losses and funding movements.',
             'year_two_revenue_basis' => 'From year 2 onward, monthly revenue uses the average monthly revenue achieved in year 1, then applies annual revenue growth. If year 1 ramps quickly, month 13 can be lower than month 12.',
             'tax_simplification' => 'Company tax is estimated month by month on positive net profit before tax. Earlier monthly losses are not carried forward, so after-tax profit is conservative and indicative.',
+            'downside_growth' => 'Revenue growth, monthly revenue growth, and cost/CPI assumptions can be negative down to -100%, so downside and deflation cases are modelled instead of silently flattened to zero growth.',
             'gst_exclusive' => 'The budget is GST exclusive by default, so GST collected and paid is not treated as business income or cost in this pack.',
         ];
     }

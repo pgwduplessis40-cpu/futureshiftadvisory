@@ -92,6 +92,57 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertStringContainsString('Earlier monthly losses are not carried forward', $computed['explanations']['tax_simplification']);
     }
 
+    public function test_negative_growth_and_deflation_are_modelled(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [['label' => 'Rent', 'amount' => 1_000]],
+            revenueForecast: [[
+                'label' => 'Subscriptions',
+                'amount' => 1_000,
+                'month' => 1,
+                'monthly_growth_percent' => -10,
+            ]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 2,
+            assumptions: [
+                'revenue_growth_percent' => -20,
+                'cost_inflation_percent' => -10,
+            ],
+        );
+
+        $expectedYearOneAverage = array_sum(array_map(
+            fn (int $elapsed): float => 1_000 * (0.9 ** $elapsed),
+            range(0, 11),
+        )) / 12;
+
+        $this->assertSame(900.0, $computed['monthly_detail'][1]['revenue']);
+        $this->assertEqualsWithDelta(round($expectedYearOneAverage * 0.8, 2), $computed['monthly_detail'][12]['revenue'], 0.01);
+        $this->assertSame(900.0, $computed['monthly_detail'][12]['fixed_costs']);
+        $this->assertSame(-20.0, $computed['assumptions']['revenue_growth_percent']);
+        $this->assertSame(-10.0, $computed['assumptions']['cost_inflation_percent']);
+        $this->assertStringContainsString('downside and deflation cases are modelled', $computed['explanations']['downside_growth']);
+    }
+
+    public function test_launch_cost_month_is_honoured_in_cash_curve(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [['label' => 'Second fit-out payment', 'amount' => 5_000, 'month' => 3]],
+            monthlyFixedCosts: [],
+            revenueForecast: [],
+            fundingSources: [['label' => 'Founder cash', 'amount' => 10_000]],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+        );
+
+        $this->assertSame(0.0, $computed['monthly_detail'][0]['launch_costs']);
+        $this->assertSame(5_000.0, $computed['monthly_detail'][2]['launch_costs']);
+        $this->assertSame(10_000.0, $computed['monthly_detail'][0]['cumulative_cash']);
+        $this->assertSame(5_000.0, $computed['monthly_detail'][2]['cumulative_cash']);
+        $this->assertSame(5_000.0, $computed['total_launch_costs']);
+    }
+
     public function test_runway_break_even_zero_runway_and_open_ended_edges(): void
     {
         $shortRunway = $this->calculator()->compute(

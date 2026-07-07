@@ -13,6 +13,8 @@ use App\Models\Consent;
 use App\Models\FeeCalculation;
 use App\Models\NpoEngagement;
 use App\Models\Proposal;
+use App\Models\ServiceActivation;
+use App\Models\StrategicPlan;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
@@ -20,6 +22,7 @@ use App\Services\Pdf\PdfRenderer;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Reports\UploadedReportTemplateRenderer;
 use Carbon\CarbonInterface;
+use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -403,17 +406,9 @@ final class ProposalBuilder
             return [];
         }
 
-        $websiteFinding = $findings->first(
-            fn (AnalysisFinding $finding): bool => $finding->run?->module?->value === 'website_audit',
-        );
-        $selected = collect([$websiteFinding])
-            ->filter()
-            ->merge($findings->reject(
-                fn (AnalysisFinding $finding): bool => $websiteFinding instanceof AnalysisFinding
-                    && (string) $finding->getKey() === (string) $websiteFinding->getKey(),
-            ))
-            ->take(6)
-            ->values();
+        $selected = $this->shouldLeadWithWebsiteFinding($client)
+            ? $this->websiteLedFindings($findings)
+            : $findings->take(6)->values();
 
         return $selected
             ->map(fn (AnalysisFinding $finding): array => [
@@ -436,6 +431,57 @@ final class ProposalBuilder
             'low' => 2,
             default => 1,
         };
+    }
+
+    /**
+     * Keep website-audit work prominent for first/prospect-style proposals, but
+     * let severity lead once a client has moved into delivery.
+     */
+    private function shouldLeadWithWebsiteFinding(Client $client): bool
+    {
+        $hasAcceptedProposal = Proposal::query()
+            ->where('client_id', $client->getKey())
+            ->where('status', ProposalStatus::Signed->value)
+            ->exists();
+
+        if ($hasAcceptedProposal) {
+            return false;
+        }
+
+        $hasStrategicPlan = StrategicPlan::query()
+            ->where('client_id', $client->getKey())
+            ->exists();
+
+        if ($hasStrategicPlan) {
+            return false;
+        }
+
+        return ! $client->serviceActivations()
+            ->whereIn('status', [
+                ServiceActivation::STATUS_ACTIVE,
+                ServiceActivation::STATUS_CLOSED,
+            ])
+            ->exists();
+    }
+
+    /**
+     * @param  Collection<int, AnalysisFinding>  $findings
+     * @return Collection<int, AnalysisFinding>
+     */
+    private function websiteLedFindings(Collection $findings): Collection
+    {
+        $websiteFinding = $findings->first(
+            fn (AnalysisFinding $finding): bool => $finding->run?->module?->value === 'website_audit',
+        );
+
+        return collect([$websiteFinding])
+            ->filter()
+            ->merge($findings->reject(
+                fn (AnalysisFinding $finding): bool => $websiteFinding instanceof AnalysisFinding
+                    && (string) $finding->getKey() === (string) $websiteFinding->getKey(),
+            ))
+            ->take(6)
+            ->values();
     }
 
     /**
