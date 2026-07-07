@@ -14,6 +14,7 @@ use Illuminate\Database\Eloquent\Collection as EloquentCollection;
 final class PvWaterfallBuilder implements ProvidesMethodology
 {
     private const MAX_RECOMMENDATION_STEPS = 8;
+    private const MODELLED_UPSIDE_RANGE_PERCENT = 0.15;
 
     public static function methodologyIds(): array
     {
@@ -51,6 +52,13 @@ final class PvWaterfallBuilder implements ProvidesMethodology
                 'improvement_pv' => round((float) $items->sum('improvement_pv'), 2),
                 'risk_mitigation_pv' => round((float) $items->sum('risk_mitigation_pv'), 2),
                 'target_pv' => round((float) $items->sum('target_pv'), 2),
+                'target_pv_label' => 'Modelled upside PV',
+                'target_pv_range' => [
+                    'low' => round((float) $items->sum('target_pv_range.low'), 2),
+                    'mid' => round((float) $items->sum('target_pv'), 2),
+                    'high' => round((float) $items->sum('target_pv_range.high'), 2),
+                ],
+                'target_pv_assumptions' => $this->targetAssumptions(),
             ],
             'clients' => $items->all(),
         ];
@@ -85,6 +93,7 @@ final class PvWaterfallBuilder implements ProvidesMethodology
         $improvement = (float) $improvements->sum('pv_of_impact');
         $riskMitigation = (float) $riskCosts->sum('pv_of_cost');
         $target = round($current + $improvement + $riskMitigation, 2);
+        $targetRange = $this->targetRange($target);
 
         return [
             'client_id' => $client->id,
@@ -95,6 +104,9 @@ final class PvWaterfallBuilder implements ProvidesMethodology
             'improvement_pv' => round($improvement, 2),
             'risk_mitigation_pv' => round($riskMitigation, 2),
             'target_pv' => $target,
+            'target_pv_label' => 'Modelled upside PV',
+            'target_pv_range' => $targetRange,
+            'target_pv_assumptions' => $this->targetAssumptions(),
             'waterfall' => $this->steps($client, $current, $improvements, $riskCosts, $target),
         ];
     }
@@ -111,6 +123,9 @@ final class PvWaterfallBuilder implements ProvidesMethodology
                 'improvement_pv' => 0.0,
                 'risk_mitigation_pv' => 0.0,
                 'target_pv' => 0.0,
+                'target_pv_label' => 'Modelled upside PV',
+                'target_pv_range' => ['low' => 0.0, 'mid' => 0.0, 'high' => 0.0, 'range_percent' => self::MODELLED_UPSIDE_RANGE_PERCENT],
+                'target_pv_assumptions' => $this->targetAssumptions(),
             ],
             'clients' => [],
         ];
@@ -146,7 +161,7 @@ final class PvWaterfallBuilder implements ProvidesMethodology
 
         $steps[] = [
             'key' => 'target',
-            'label' => 'Target PV',
+            'label' => 'Modelled upside PV',
             'kind' => 'total',
             'value' => $target,
             'start' => 0.0,
@@ -255,5 +270,31 @@ final class PvWaterfallBuilder implements ProvidesMethodology
             'focus' => 'analysis',
             'highlight' => $findingId,
         ], absolute: false);
+    }
+
+    /**
+     * @return array{low:float, mid:float, high:float, range_percent:float}
+     */
+    private function targetRange(float $target): array
+    {
+        return [
+            'low' => round(max(0.0, $target * (1 - self::MODELLED_UPSIDE_RANGE_PERCENT)), 2),
+            'mid' => round($target, 2),
+            'high' => round($target * (1 + self::MODELLED_UPSIDE_RANGE_PERCENT), 2),
+            'range_percent' => self::MODELLED_UPSIDE_RANGE_PERCENT,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function targetAssumptions(): array
+    {
+        return [
+            'improvement_capture_rate' => 1.0,
+            'risk_mitigation_capture_rate' => 1.0,
+            'range_percent' => self::MODELLED_UPSIDE_RANGE_PERCENT,
+            'basis' => 'Modelled midpoint assumes surfaced improvements and risk mitigations are fully captured before applying a +/-15% planning range.',
+        ];
     }
 }

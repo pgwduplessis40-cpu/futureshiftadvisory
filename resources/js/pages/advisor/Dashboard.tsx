@@ -326,6 +326,13 @@ type PvWaterfallPayload = {
         improvement_pv: number;
         risk_mitigation_pv: number;
         target_pv: number;
+        target_pv_label: string;
+        target_pv_range: {
+            low: number;
+            mid: number;
+            high: number;
+            range_percent: number;
+        };
     };
     clients: Array<{
         client_id: string;
@@ -336,6 +343,13 @@ type PvWaterfallPayload = {
         improvement_pv: number;
         risk_mitigation_pv: number;
         target_pv: number;
+        target_pv_label: string;
+        target_pv_range: {
+            low: number;
+            mid: number;
+            high: number;
+            range_percent: number;
+        };
         waterfall: WaterfallStep[];
     }>;
 };
@@ -809,11 +823,11 @@ export default function AdvisorDashboard({
                             href={messagesPending.index_url}
                         />
                         <Metric
-                            label="Target PV"
+                            label={pvWaterfall.summary.target_pv_label}
                             value={formatCurrency(
                                 pvWaterfall.summary.target_pv,
                             )}
-                            explanation="Target PV is the portfolio value if surfaced improvements and risk mitigations are realised."
+                            explanation={`Modelled upside assumes surfaced improvements and risk mitigations are fully captured. Planning range ${formatCurrency(pvWaterfall.summary.target_pv_range.low)} - ${formatCurrency(pvWaterfall.summary.target_pv_range.high)}.`}
                             href="#advisor-pv-waterfall"
                         />
                     </div>
@@ -1420,7 +1434,7 @@ function buildActionSummaryItems({
             tab: 'priorities',
             priority: 'neutral',
             explanation:
-                'PV waterfall bridges current portfolio value to target value using improvement opportunities and risk-mitigation value.',
+                'PV waterfall bridges current portfolio value to modelled upside using improvement opportunities and risk-mitigation value.',
             nextStep:
                 'Open the waterfall to see the featured client and hover each movement to understand the annual benefit, years, discount rate, and method.',
             icon: <TrendingUp className="size-4" aria-hidden="true" />,
@@ -2058,7 +2072,7 @@ function PracticeHealth({ payload }: { payload: PracticeHealthPayload }) {
 
             <div className="grid gap-2 sm:grid-cols-2">
                 <PortfolioMetric
-                    label="Target PV"
+                    label="Modelled upside PV"
                     value={formatCurrency(payload.summary.target_pv)}
                 />
                 <PortfolioMetric
@@ -2513,7 +2527,9 @@ function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
                     <p className="mt-1 max-w-2xl text-xs text-muted-foreground">
                         Totals include all visible clients with PV data. The
                         chart highlights the client with the largest improvement
-                        or risk-mitigation movement.
+                        or risk-mitigation movement. Modelled upside includes a
+                        +/-15% planning range and assumes surfaced improvements
+                        and risk mitigations are fully captured.
                     </p>
                 </div>
                 <div className="flex flex-wrap justify-start gap-2 sm:justify-end">
@@ -2523,6 +2539,7 @@ function PvWaterfallPanel({ payload }: { payload: PvWaterfallPayload }) {
                     <PvSummaryBadges
                         current={payload.summary.current_pv}
                         target={payload.summary.target_pv}
+                        targetRange={payload.summary.target_pv_range}
                     />
                 </div>
             </div>

@@ -176,10 +176,24 @@ final class RiskCostPv implements ProvidesMethodology
     private function sourceFingerprint(array $risk): string
     {
         return hash('sha256', implode('|', [
-            (string) ($risk['analysis_finding_id'] ?? ''),
             mb_strtolower(trim((string) ($risk['title'] ?? 'Risk cost'))),
-            mb_strtolower(trim((string) ($risk['source_reference'] ?? 'advisor:risk_cost'))),
+            $this->fingerprintSource($risk, 'advisor:risk_cost'),
         ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $risk
+     */
+    private function fingerprintSource(array $risk, string $default): string
+    {
+        $source = (string) (
+            $risk['source_fingerprint_key']
+            ?? $risk['stable_source_reference']
+            ?? $risk['source_reference']
+            ?? $default
+        );
+
+        return mb_strtolower(trim($source)) ?: $default;
     }
 
     /**

@@ -206,6 +206,50 @@ final class ImprovementAndRiskPvTest extends TestCase
             ->sum('pv_of_cost'), 2));
     }
 
+    public function test_re_ranking_risk_with_new_finding_and_stable_source_key_supersedes_prior_active_row(): void
+    {
+        [$client, $firstFinding] = $this->clientAndFinding(AnalysisModule::Compliance);
+        $secondFinding = $this->findingForClient($client, AnalysisModule::Compliance);
+        $input = [
+            'title' => 'Compliance penalty exposure',
+            'financial_impact' => 50000,
+            'probability' => 0.4,
+            'duration_years' => 2,
+            'source_fingerprint_key' => 'dd_risk:stable-compliance-penalty-exposure',
+        ];
+
+        $first = app(RiskCostPv::class)->rank($client, [[
+            ...$input,
+            'analysis_finding_id' => $firstFinding->id,
+            'source_reference' => "analysis_finding:{$firstFinding->id}",
+        ]], DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Test rate.',
+        ]);
+        $activeTotal = round((float) RiskCost::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_cost'), 2);
+
+        $second = app(RiskCostPv::class)->rank($client, [[
+            ...$input,
+            'analysis_finding_id' => $secondFinding->id,
+            'source_reference' => "analysis_finding:{$secondFinding->id}",
+        ]], DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Test rate.',
+        ]);
+
+        $this->assertNotSame($first[0]->id, $second[0]->id);
+        $this->assertSame(2, RiskCost::query()->where('client_id', $client->getKey())->count());
+        $this->assertSame(1, RiskCost::query()->where('client_id', $client->getKey())->active()->count());
+        $this->assertSame(1, RiskCost::query()->where('client_id', $client->getKey())->whereNotNull('superseded_at')->count());
+        $this->assertSame($activeTotal, round((float) RiskCost::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_cost'), 2));
+    }
+
     /**
      * @return array{0: Client, 1: AnalysisFinding}
      */
@@ -218,6 +262,13 @@ final class ImprovementAndRiskPvTest extends TestCase
             'data_quality' => Client::DATA_QUALITY_LOW,
         ]);
 
+        $finding = $this->findingForClient($client, $module);
+
+        return [$client, $finding];
+    }
+
+    private function findingForClient(Client $client, AnalysisModule $module): AnalysisFinding
+    {
         $run = AnalysisRun::query()->create([
             'client_id' => $client->id,
             'module' => $module,
@@ -228,7 +279,7 @@ final class ImprovementAndRiskPvTest extends TestCase
             'completed_at' => now(),
         ]);
 
-        $finding = AnalysisFinding::query()->create([
+        return AnalysisFinding::query()->create([
             'analysis_run_id' => $run->id,
             'client_id' => $client->id,
             'lens' => AnalysisLens::Prescriptive,
@@ -242,7 +293,5 @@ final class ImprovementAndRiskPvTest extends TestCase
             'uncertainty' => Uncertainty::Medium,
             'bias_signals' => [],
         ]);
-
-        return [$client, $finding];
     }
 }

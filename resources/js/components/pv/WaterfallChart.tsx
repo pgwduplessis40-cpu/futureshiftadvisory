@@ -83,14 +83,27 @@ export function WaterfallChart({ steps }: Props) {
 export function PvSummaryBadges({
     current,
     target,
+    targetRange,
 }: {
     current: number;
     target: number;
+    targetRange?: {
+        low: number;
+        high: number;
+    };
 }) {
     return (
         <div className="flex flex-wrap gap-2">
             <Badge variant="outline">{formatCurrency(current)} current</Badge>
-            <Badge variant="secondary">{formatCurrency(target)} target</Badge>
+            <Badge variant="secondary">
+                {formatCurrency(target)} modelled upside
+            </Badge>
+            {targetRange ? (
+                <Badge variant="outline">
+                    {formatCurrency(targetRange.low)} -{' '}
+                    {formatCurrency(targetRange.high)} range
+                </Badge>
+            ) : null}
         </div>
     );
 }

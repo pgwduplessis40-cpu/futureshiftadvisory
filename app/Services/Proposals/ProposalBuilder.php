@@ -516,6 +516,9 @@ final class ProposalBuilder
             'improvement_pv_total' => $feeCalculation->improvement_pv_total,
             'risk_cost_pv_total' => $feeCalculation->risk_cost_pv_total,
             'target_pv' => $waterfall['target_pv'],
+            'target_pv_label' => $waterfall['target_pv_label'] ?? 'Modelled upside PV',
+            'target_pv_range' => $waterfall['target_pv_range'] ?? null,
+            'target_pv_assumptions' => $waterfall['target_pv_assumptions'] ?? null,
             'roi_ratio' => $feeCalculation->roi_ratio,
             'fee_suggested_mid' => $feeCalculation->suggested_mid,
         ];
@@ -679,7 +682,8 @@ final class ProposalBuilder
 <h2>PV summary</h2>
 <p>Improvement PV: NZD %s</p>
 <p>Risk-cost PV: NZD %s</p>
-<p>Target PV: NZD %s</p>
+<p>Modelled upside PV: NZD %s (planning range NZD %s - NZD %s)</p>
+<p>This midpoint assumes surfaced improvements and risk mitigations are fully captured; the range is a planning sensitivity, not a guaranteed outcome.</p>
 </section>
 <section class="proposal-panel">
 <h2>Consent elections</h2>
@@ -702,6 +706,8 @@ HTML,
             number_format((float) data_get($proposal->pv_summary, 'improvement_pv_total', 0), 0),
             number_format((float) data_get($proposal->pv_summary, 'risk_cost_pv_total', 0), 0),
             number_format((float) data_get($proposal->pv_summary, 'target_pv', 0), 0),
+            number_format((float) data_get($proposal->pv_summary, 'target_pv_range.low', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
+            number_format((float) data_get($proposal->pv_summary, 'target_pv_range.high', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             $consents,
         );
     }

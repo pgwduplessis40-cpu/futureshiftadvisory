@@ -14,6 +14,7 @@ use App\Models\AnalysisRun;
 use App\Models\Client;
 use App\Models\EconomicIndicator;
 use App\Models\FinancialSnapshot;
+use App\Models\ImprovementOpportunity;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
@@ -77,6 +78,30 @@ final class FinancialAnalysisTest extends TestCase
             'analysis_finding_id' => $prescriptive->id,
             'title' => 'Financial margin and cash-conversion uplift',
         ]);
+    }
+
+    public function test_financial_analysis_rerun_supersedes_prior_improvement_pv_for_same_snapshot(): void
+    {
+        $client = $this->clientWithQuestionnaire();
+        $connection = $this->connection($client);
+        $this->snapshot($client, $connection);
+
+        $first = app(FinancialAnalysisRunner::class)->run($client);
+        $activeTotal = round((float) ImprovementOpportunity::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_impact'), 2);
+
+        $second = app(FinancialAnalysisRunner::class)->run($client);
+
+        $this->assertNotSame($first->id, $second->id);
+        $this->assertSame(2, ImprovementOpportunity::query()->where('client_id', $client->getKey())->count());
+        $this->assertSame(1, ImprovementOpportunity::query()->where('client_id', $client->getKey())->active()->count());
+        $this->assertSame(1, ImprovementOpportunity::query()->where('client_id', $client->getKey())->whereNotNull('superseded_at')->count());
+        $this->assertSame($activeTotal, round((float) ImprovementOpportunity::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_impact'), 2));
     }
 
     public function test_structured_financial_ai_findings_are_persisted_with_attributions(): void

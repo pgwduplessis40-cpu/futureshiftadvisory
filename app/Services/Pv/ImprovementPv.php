@@ -107,10 +107,24 @@ final class ImprovementPv implements ProvidesMethodology
     private function sourceFingerprint(array $opportunity): string
     {
         return hash('sha256', implode('|', [
-            (string) ($opportunity['analysis_finding_id'] ?? ''),
             mb_strtolower(trim((string) ($opportunity['title'] ?? 'Improvement opportunity'))),
-            mb_strtolower(trim((string) ($opportunity['source_reference'] ?? 'advisor:improvement_opportunity'))),
+            $this->fingerprintSource($opportunity, 'advisor:improvement_opportunity'),
         ]));
+    }
+
+    /**
+     * @param  array<string, mixed>  $opportunity
+     */
+    private function fingerprintSource(array $opportunity, string $default): string
+    {
+        $source = (string) (
+            $opportunity['source_fingerprint_key']
+            ?? $opportunity['stable_source_reference']
+            ?? $opportunity['source_reference']
+            ?? $default
+        );
+
+        return mb_strtolower(trim($source)) ?: $default;
     }
 
     /**

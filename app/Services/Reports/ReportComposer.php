@@ -2196,14 +2196,19 @@ final class ReportComposer implements ProvidesMethodology
         $baseValue = $this->ddValuationMidpoint($valuation) ?: 100000.0;
 
         $riskInputs = $findings
-            ->map(fn (AnalysisFinding $finding): array => [
-                'analysis_finding_id' => $finding->getKey(),
-                'title' => $finding->title,
-                'financial_impact' => $this->severityImpact($finding->severity, $baseValue),
-                'probability' => $this->severityProbability($finding->severity),
-                'duration_years' => 1,
-                'source_reference' => 'analysis_finding:'.$finding->getKey(),
-            ])
+            ->map(function (AnalysisFinding $finding) use ($engagement, $workstreamsByRun, $baseValue): array {
+                $workstream = (string) ($workstreamsByRun[$finding->analysis_run_id] ?? 'general');
+
+                return [
+                    'analysis_finding_id' => $finding->getKey(),
+                    'title' => $finding->title,
+                    'financial_impact' => $this->severityImpact($finding->severity, $baseValue),
+                    'probability' => $this->severityProbability($finding->severity),
+                    'duration_years' => 1,
+                    'source_reference' => 'analysis_finding:'.$finding->getKey(),
+                    'source_fingerprint_key' => $this->ddRiskSourceKey($engagement, $finding, $workstream),
+                ];
+            })
             ->all();
 
         $riskCosts = collect($this->riskCosts->rank($engagement->client, $riskInputs));
@@ -2233,6 +2238,22 @@ final class ReportComposer implements ProvidesMethodology
             })
             ->sortBy('rank')
             ->values();
+    }
+
+    private function ddRiskSourceKey(DdEngagement $engagement, AnalysisFinding $finding, string $workstream): string
+    {
+        $stableSource = collect($this->attributions($finding))
+            ->pluck('source_reference')
+            ->filter(fn (mixed $source): bool => is_string($source) && ! str_starts_with($source, 'analysis_finding:'))
+            ->first();
+        $basis = implode('|', [
+            (string) $engagement->getKey(),
+            $workstream,
+            Str::lower(trim((string) $finding->title)),
+            (string) ($stableSource ?: Str::lower(trim((string) $finding->body))),
+        ]);
+
+        return 'dd_risk:'.hash('sha256', $basis);
     }
 
     /**
@@ -3312,9 +3333,11 @@ final class ReportComposer implements ProvidesMethodology
                 number_format($valuation->reconciled_mid, 0),
             )
             : sprintf(
-                'Current PV is NZD %s and target PV is NZD %s from the latest platform waterfall.',
+                'Current PV is NZD %s and modelled upside PV is NZD %s from the latest platform waterfall, with a planning range of NZD %s to NZD %s.',
                 number_format((float) $waterfall['current_pv'], 0),
                 number_format((float) $waterfall['target_pv'], 0),
+                number_format((float) data_get($waterfall, 'target_pv_range.low', $waterfall['target_pv']), 0),
+                number_format((float) data_get($waterfall, 'target_pv_range.high', $waterfall['target_pv']), 0),
             );
 
         return $this->generatedSection(
@@ -3336,11 +3359,13 @@ final class ReportComposer implements ProvidesMethodology
             key: 'pv_waterfall',
             title: 'PV waterfall',
             body: sprintf(
-                'The advisor view includes current PV NZD %s, improvements NZD %s, risk mitigation NZD %s, and target PV NZD %s.',
+                'The advisor view includes current PV NZD %s, improvements NZD %s, risk mitigation NZD %s, and modelled upside PV NZD %s. The modelled upside range is NZD %s to NZD %s and assumes surfaced improvements and risk mitigations are fully captured.',
                 number_format((float) $waterfall['current_pv'], 0),
                 number_format((float) $waterfall['improvement_pv'], 0),
                 number_format((float) $waterfall['risk_mitigation_pv'], 0),
                 number_format((float) $waterfall['target_pv'], 0),
+                number_format((float) data_get($waterfall, 'target_pv_range.low', $waterfall['target_pv']), 0),
+                number_format((float) data_get($waterfall, 'target_pv_range.high', $waterfall['target_pv']), 0),
             ),
             sourceReference: 'pv_waterfall:'.$client->getKey(),
             dataQualityNote: 'Data quality note: waterfall values are assembled from the latest persisted PV rows.',

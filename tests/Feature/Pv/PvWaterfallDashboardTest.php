@@ -50,11 +50,16 @@ final class PvWaterfallDashboardTest extends TestCase
         $this->assertSame(25000.0, $payload['improvement_pv']);
         $this->assertSame(10000.0, $payload['risk_mitigation_pv']);
         $this->assertSame(135000.0, $payload['target_pv']);
+        $this->assertSame('Modelled upside PV', $payload['target_pv_label']);
+        $this->assertSame(114750.0, $payload['target_pv_range']['low']);
+        $this->assertSame(155250.0, $payload['target_pv_range']['high']);
+        $this->assertSame(0.15, $payload['target_pv_range']['range_percent']);
         $this->assertSame('Current PV', $payload['waterfall'][0]['label']);
         $this->assertSame('Automation upside', $payload['waterfall'][1]['label']);
         $this->assertSame(125000.0, $payload['waterfall'][1]['end']);
         $this->assertSame(0.12, $payload['waterfall'][1]['discount_rate']);
         $this->assertSame('Risk mitigation value', $payload['waterfall'][2]['label']);
+        $this->assertSame('Modelled upside PV', $payload['waterfall'][3]['label']);
         $this->assertSame(135000.0, $payload['waterfall'][3]['end']);
     }
 
