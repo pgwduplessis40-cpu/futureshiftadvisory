@@ -27,6 +27,7 @@ use App\Models\PvCalculation;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
+use App\Models\RiskCost;
 use App\Models\User;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Conflicts\ConflictDeclarer;
@@ -240,6 +241,51 @@ final class DdReportTest extends TestCase
             $purchaseRangeSection->metadata['dcf_range_nzd']['mid'],
             $purchaseRangeSection->metadata['purchase_price_range_nzd']['mid'],
         );
+    }
+
+    public function test_dd_recomposition_supersedes_legacy_risk_cost_fingerprint_after_repair_migration(): void
+    {
+        [$advisor, $engagement] = $this->ddEngagement('legacy-dd-risk-fingerprint@example.test');
+        $this->ddValuation($engagement, 800000);
+        $finding = $this->finding($engagement, 'tax', FindingSeverity::Medium, 'GST exposure', 'GST treatment needs review.');
+
+        app(ReportComposer::class)->composeDueDiligence($engagement, $advisor);
+
+        $riskCost = RiskCost::query()
+            ->where('client_id', $engagement->client_id)
+            ->where('analysis_finding_id', $finding->id)
+            ->sole();
+        $legacyFingerprint = hash('sha256', implode('|', [
+            mb_strtolower(trim($finding->title)),
+            'dd_test:tax',
+        ]));
+        $riskCost->forceFill(['source_fingerprint' => $legacyFingerprint])->save();
+
+        $migration = require database_path('migrations/2026_07_07_000700_stabilize_legacy_dd_risk_cost_fingerprints.php');
+        $migration->up();
+
+        $repairedFingerprint = $riskCost->refresh()->source_fingerprint;
+        $activeTotal = round((float) RiskCost::query()
+            ->where('client_id', $engagement->client_id)
+            ->active()
+            ->sum('pv_of_cost'), 2);
+
+        app(ReportComposer::class)->composeDueDiligence($engagement->refresh(), $advisor);
+
+        $activeRisk = RiskCost::query()
+            ->where('client_id', $engagement->client_id)
+            ->active()
+            ->sole();
+        $this->assertNotSame($riskCost->id, $activeRisk->id);
+        $this->assertSame($repairedFingerprint, $activeRisk->source_fingerprint);
+        $this->assertSame(2, RiskCost::query()->where('client_id', $engagement->client_id)->count());
+        $this->assertSame(1, RiskCost::query()->where('client_id', $engagement->client_id)->active()->count());
+        $this->assertSame(1, RiskCost::query()->where('client_id', $engagement->client_id)->whereNotNull('superseded_at')->count());
+        $this->assertSame($activeTotal, round((float) RiskCost::query()
+            ->where('client_id', $engagement->client_id)
+            ->active()
+            ->sum('pv_of_cost'), 2));
+        $this->assertSame(1, DdRiskRegisterItem::query()->where('dd_engagement_id', $engagement->id)->count());
     }
 
     public function test_due_diligence_recommendation_paths_are_proceed_renegotiate_and_abandon(): void
