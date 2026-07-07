@@ -11,8 +11,8 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Exceptions\AiIntegrityViolation;
 use App\Services\Ai\Exceptions\AiUnavailableException;
 use App\Services\Integration\IntegrationCredentials;
+use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
-use Illuminate\Support\Facades\Http;
 use JsonException;
 
 final class AnthropicClaudeClient implements AiClient
@@ -22,6 +22,7 @@ final class AnthropicClaudeClient implements AiClient
     public function __construct(
         private readonly IntegrationCredentials $credentials,
         private readonly AiUsageRecorder $usage,
+        private readonly ResilientHttp $http,
     ) {}
 
     public function analyse(PromptEnvelope $prompt): AiResponse
@@ -59,13 +60,10 @@ final class AnthropicClaudeClient implements AiClient
         $model = (string) Config::get('services.anthropic.model', 'claude-sonnet-4-6');
         $endpoint = (string) Config::get('services.anthropic.endpoint', 'https://api.anthropic.com/v1/messages');
 
-        $response = Http::withToken($key)
-            ->withHeaders([
-                'anthropic-version' => '2023-06-01',
-                'x-api-key' => $key,
-            ])
-            ->timeout(30)
-            ->post($endpoint, [
+        $result = $this->http->post(
+            service: 'anthropic',
+            endpoint: $endpoint,
+            payload: [
                 'model' => $model,
                 'max_tokens' => 2048,
                 'temperature' => 0,
@@ -75,15 +73,20 @@ final class AnthropicClaudeClient implements AiClient
                         'content' => $this->renderPrompt($prompt, $task),
                     ],
                 ],
-            ]);
+            ],
+            headers: [
+                'anthropic-version' => '2023-06-01',
+                'x-api-key' => $key,
+            ],
+        );
 
-        if ($response->failed()) {
+        if (! $result->successful() || $result->fromFallback) {
             throw new AiUnavailableException(
-                'Anthropic API request failed with status '.$response->status()
+                'Anthropic API request failed with status '.$result->statusCode
             );
         }
 
-        $payload = $response->json();
+        $payload = is_array($result->data) ? $result->data : null;
         $this->recordUsage($payload, $prompt, $task, $model);
 
         $text = $payload['content'][0]['text'] ?? null;
@@ -151,6 +154,23 @@ final class AnthropicClaudeClient implements AiClient
         if ($task === 'score_criterion') {
             $requiredSchema['metadata'] = [
                 'score' => 'integer from 0 to 100, calibrated to the supplied rating framework descriptors',
+            ];
+        }
+
+        if ($task === 'analyse') {
+            $requiredSchema['metadata'] = [
+                'findings' => [
+                    [
+                        'lens' => 'descriptive|diagnostic|predictive|prescriptive',
+                        'severity' => 'info|low|medium|high|critical',
+                        'title' => 'string',
+                        'body' => 'string',
+                        'attributions' => [
+                            ['claim' => 'string', 'source_reference' => 'string'],
+                        ],
+                        'uncertainty' => 'high|medium|low|none',
+                    ],
+                ],
             ];
         }
 

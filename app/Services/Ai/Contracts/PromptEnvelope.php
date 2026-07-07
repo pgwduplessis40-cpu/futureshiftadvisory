@@ -51,6 +51,20 @@ final readonly class PromptEnvelope
                     ['claim' => 'string', 'source_reference' => 'string'],
                 ],
                 'uncertainty' => ['high', 'medium', 'low', 'none'],
+                'metadata' => [
+                    'findings' => [
+                        [
+                            'lens' => 'descriptive|diagnostic|predictive|prescriptive',
+                            'severity' => 'info|low|medium|high|critical',
+                            'title' => 'string',
+                            'body' => 'string',
+                            'attributions' => [
+                                ['claim' => 'string', 'source_reference' => 'string'],
+                            ],
+                            'uncertainty' => 'high|medium|low|none',
+                        ],
+                    ],
+                ],
             ],
         ];
     }

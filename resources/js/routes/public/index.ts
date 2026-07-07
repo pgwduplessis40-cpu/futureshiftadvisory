@@ -76,7 +76,7 @@ services.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     services.form = servicesForm
 /**
 * @see \App\Http\Controllers\Public\AboutController::__invoke
@@ -154,7 +154,7 @@ about.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     about.form = aboutForm
 /**
 * @see \App\Http\Controllers\Public\FaqController::__invoke
@@ -232,7 +232,7 @@ faq.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     faq.form = faqForm
 /**
 * @see \App\Http\Controllers\Public\ContactController::contact
@@ -310,7 +310,7 @@ contact.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     contact.form = contactForm
 /**
 * @see \App\Http\Controllers\Public\SitemapController::__invoke
@@ -388,7 +388,7 @@ sitemap.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     sitemap.form = sitemapForm
 const publicMethod = {
     services: Object.assign(services, services),

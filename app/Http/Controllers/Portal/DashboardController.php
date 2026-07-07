@@ -375,13 +375,18 @@ final class DashboardController extends Controller
             ->latest('generated_at')
             ->limit(5)
             ->get()
-            ->map(fn (Report $report): array => [
-                'id' => $report->id,
-                'title' => $report->title,
-                'type' => $report->type->value,
-                'generated_at' => $report->generated_at?->toIso8601String(),
-                'download_url' => route('portal.reports.show', $report, absolute: false),
-            ])
+            ->map(function (Report $report): array {
+                $url = route('portal.reports.show', $report, absolute: false);
+
+                return [
+                    'id' => $report->id,
+                    'title' => $report->title,
+                    'type' => $report->type->value,
+                    'generated_at' => $report->generated_at?->toIso8601String(),
+                    'view_url' => $url,
+                    'download_url' => $url,
+                ];
+            })
             ->values()
             ->all();
     }

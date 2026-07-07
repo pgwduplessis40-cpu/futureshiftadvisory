@@ -14,6 +14,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Reports\ReportComposer;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Storage;
@@ -25,6 +26,7 @@ final class ReportController extends Controller
         private readonly ClientPortalResolver $clients,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
+        private readonly ReportComposer $reports,
     ) {}
 
     public function show(Request $request, Report $report): Response
@@ -40,6 +42,10 @@ final class ReportController extends Controller
         abort_unless($this->clientCanView($client, $report), 404);
 
         $disk = Storage::disk('secure_local');
+        if ($report->pdf_path === null || ! $disk->exists($report->pdf_path) || ! $this->reports->usesCurrentTemplate($report)) {
+            $report = $this->reports->rerenderArtifacts($report);
+        }
+
         abort_if($report->pdf_path === null || ! $disk->exists($report->pdf_path), 404);
 
         $contents = $disk->get($report->pdf_path);
@@ -74,6 +80,10 @@ final class ReportController extends Controller
         abort_unless($this->entrepreneurCanView($report), 404);
 
         $disk = Storage::disk('secure_local');
+        if ($report->pdf_path === null || ! $disk->exists($report->pdf_path) || ! $this->reports->usesCurrentTemplate($report)) {
+            $report = $this->reports->rerenderArtifacts($report);
+        }
+
         abort_if($report->pdf_path === null || ! $disk->exists($report->pdf_path), 404);
 
         $contents = $disk->get($report->pdf_path);

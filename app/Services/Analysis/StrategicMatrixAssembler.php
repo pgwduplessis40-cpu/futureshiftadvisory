@@ -25,10 +25,12 @@ final class StrategicMatrixAssembler
         )));
         $improvement = ImprovementOpportunity::query()
             ->where('client_id', $client->getKey())
+            ->active()
             ->orderByDesc('pv_of_impact')
             ->first();
         $risk = RiskCost::query()
             ->where('client_id', $client->getKey())
+            ->active()
             ->orderByDesc('pv_of_cost')
             ->first();
 

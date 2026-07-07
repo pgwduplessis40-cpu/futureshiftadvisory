@@ -7,10 +7,15 @@ namespace App\Services\Entrepreneurs;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
+use App\Services\Reports\BrandedReportLayout;
 use Illuminate\Support\Collection;
 
 final class BudgetPackBuilder
 {
+    public function __construct(
+        private readonly BrandedReportLayout $layout,
+    ) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -115,48 +120,10 @@ final class BudgetPackBuilder
             ->implode('');
         $cashChart = $this->cashChartHtml((array) ($payload['monthly_by_year'] ?? []), $summary);
 
-        return sprintf(
+        $generatedAt = now()->format('M j, Y g:i A');
+        $headline = sprintf(
             <<<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>%s</title>
-<style>
-:root { --chart-1: #0d7a7a; --chart-4: #b8860b; }
-body { color: #17211b; font-family: Arial, sans-serif; font-size: 11px; line-height: 1.5; margin: 0; }
-h1 { font-size: 22px; margin: 0 0 4px; }
-h2 { color: #214f44; font-size: 15px; margin: 0 0 8px; }
-p { margin: 0 0 8px; }
-.brand { border-bottom: 2px solid #2f6f5e; margin-bottom: 14px; padding-bottom: 10px; }
-.summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin: 12px 0; }
-.metric { border: 1px solid #d8e2dc; padding: 8px; }
-.metric span { color: #667085; display: block; font-size: 9px; text-transform: uppercase; }
-.metric strong { display: block; font-size: 13px; margin-top: 2px; }
-.warning { background: #fff7e6; border: 1px solid #f3d08f; margin: 10px 0; padding: 8px 10px; }
-.warning ul { margin: 0; padding-left: 16px; }
-.chart { border: 1px solid #d8e2dc; margin: 12px 0 14px; padding: 10px; page-break-inside: avoid; }
-.chart-header { display: flex; justify-content: space-between; gap: 12px; margin-bottom: 6px; }
-.chart-title { font-weight: 700; margin: 0; }
-.chart-note { color: #667085; font-size: 10px; margin: 0; }
-.chart-legend { color: #667085; font-size: 10px; white-space: nowrap; }
-.chart svg { display: block; height: auto; width: 100%%; }
-table { border-collapse: collapse; margin: 8px 0 14px; width: 100%%; }
-th, td { border: 1px solid #d8e2dc; padding: 5px 6px; text-align: right; vertical-align: top; }
-th:first-child, td:first-child { text-align: left; }
-th { background: #f5f8f6; color: #34443c; font-size: 10px; }
-.note { color: #667085; font-size: 10px; }
-.page { break-before: page; }
-</style>
-</head>
-<body>
-<header class="brand">
-<h1>Budget pack</h1>
-<p>Future Shift Advisory</p>
-<p>%s - %s</p>
-<p>Generated %s - GST exclusive by default</p>
-</header>
-<section>
+<article class="report-section budget-headline">
 <h2>Headline finance view</h2>
 <div class="summary">%s%s%s</div>
 %s
@@ -166,32 +133,42 @@ th { background: #f5f8f6; color: #34443c; font-size: 10px; }
 <tbody>%s</tbody>
 </table>
 <p class="note">Break-even means the first year where net profit before tax is zero or positive. Cash-flow-positive means cumulative cash becomes zero or positive after startup losses and funding movements.</p>
-</section>
-<section>
-<h2>Assumptions used</h2>
-<table><tbody>%s</tbody></table>
-</section>
-<section>
-<h2>Funding scenarios</h2>
-<table><thead><tr><th>Scenario</th><th>Type</th><th>Break-even</th><th>Cash positive</th></tr></thead><tbody>%s</tbody></table>
-</section>
-%s
-</body>
-</html>
+</article>
 HTML,
-            $this->escape('Budget pack - '.$profile->name),
-            $this->escape($profile->name),
-            $this->escape($plan->title),
-            $this->escape(now()->format('M j, Y g:i A')),
             $this->metricHtml('Break-even year', $this->yearValue($summary['break_even_year'] ?? null)),
             $this->metricHtml('Profit year', $this->yearValue($summary['first_profitable_year'] ?? null)),
             $this->metricHtml('Cash-flow-positive year', $this->yearValue($summary['cash_flow_positive_year'] ?? null)),
             $warnings === '' ? '' : '<div class="warning"><ul>'.$warnings.'</ul></div>',
             $cashChart,
-            $annualRows,
-            $assumptions,
+            $annualRows === '' ? '<tr><td colspan="10">No annual forecast saved.</td></tr>' : $annualRows,
+        );
+        $assumptionsSection = sprintf(
+            '<article class="report-section"><h2>Assumptions used</h2><table><tbody>%s</tbody></table></article>',
+            $assumptions === '' ? '<tr><td colspan="2">No assumptions saved.</td></tr>' : $assumptions,
+        );
+        $scenariosSection = sprintf(
+            '<article class="report-section"><h2>Funding scenarios</h2><table><thead><tr><th>Scenario</th><th>Type</th><th>Break-even</th><th>Cash positive</th></tr></thead><tbody>%s</tbody></table></article>',
             $scenarioRows === '' ? '<tr><td colspan="4">No scenarios saved.</td></tr>' : $scenarioRows,
-            $monthlyPages,
+        );
+
+        return $this->layout->document(
+            title: 'Budget pack - '.$profile->name,
+            templateKey: 'entrepreneur-budget-pack',
+            documentTag: 'Budget pack',
+            eyebrow: 'Entrepreneur business plan',
+            heading: 'Budget pack',
+            subheading: $profile->name.' - '.$plan->title,
+            meta: [
+                'Plan' => $plan->title,
+                'Forecast' => ($payload['forecast_years'] ?? 3).' years',
+                'Status' => $this->formatLabel((string) ($payload['status'] ?? 'not available')),
+                'GST basis' => (bool) ($payload['gst_exclusive'] ?? true) ? 'GST exclusive' : 'GST inclusive',
+            ],
+            contentHtml: $headline.$assumptionsSection.$scenariosSection.$monthlyPages,
+            footer: 'Generated '.$generatedAt.' using Future Shift Advisory budget pack',
+            snapshotTitle: 'Budget snapshot',
+            metaColumns: 4,
+            extraCss: $this->budgetPackCss(),
         );
     }
 
@@ -391,7 +368,7 @@ HTML,
             ->implode('');
 
         return sprintf(
-            '<section class="page"><h2>Year %s monthly detail</h2><table><thead><tr><th>Month</th><th>Revenue</th><th>Variable costs</th><th>Gross profit</th><th>Fixed costs</th><th>NPAT</th><th>Cash flow</th><th>Cumulative cash</th></tr></thead><tbody>%s</tbody></table></section>',
+            '<article class="report-section page"><h2>Year %s monthly detail</h2><table><thead><tr><th>Month</th><th>Revenue</th><th>Variable costs</th><th>Gross profit</th><th>Fixed costs</th><th>NPAT</th><th>Cash flow</th><th>Cumulative cash</th></tr></thead><tbody>%s</tbody></table></article>',
             $this->escape($year['year'] ?? ''),
             $rows,
         );
@@ -426,6 +403,26 @@ HTML,
             $this->escape($label),
             $this->escape($value),
         );
+    }
+
+    private function budgetPackCss(): string
+    {
+        return <<<'CSS'
+:root { --chart-1: #0d7a7a; --chart-4: #b8860b; }
+.summary { display: grid; gap: 8px; grid-template-columns: repeat(3, 1fr); margin: 12px 0; }
+.metric { border: 1px solid #d8e2dc; padding: 8px; }
+.metric span { color: #667085; display: block; font-size: 9px; font-weight: 700; text-transform: uppercase; }
+.metric strong { display: block; font-size: 13px; margin-top: 2px; }
+.warning { background: #fff7e6; border: 1px solid #f3d08f; margin: 10px 0; padding: 8px 10px; }
+.warning ul { margin: 0; padding-left: 16px; }
+.chart { border: 1px solid #d8e2dc; margin: 12px 0 14px; padding: 10px; page-break-inside: avoid; }
+.chart-header { display: flex; gap: 12px; justify-content: space-between; margin-bottom: 6px; }
+.chart-title { font-weight: 700; margin: 0; }
+.chart-note { color: #667085; font-size: 10px; margin: 0; }
+.chart-legend { color: #667085; font-size: 10px; white-space: nowrap; }
+.chart svg { display: block; height: auto; width: 100%; }
+.page { break-before: page; }
+CSS;
     }
 
     /**

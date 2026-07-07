@@ -37,6 +37,7 @@ final class FinancialAnalysis implements AnalysisModule
     public function promptInput(Client $client, DataQualityScore $score): array
     {
         $snapshot = $this->latestSnapshot($client);
+        $trend = $this->snapshotTrend($client);
 
         return [
             'client' => [
@@ -46,6 +47,8 @@ final class FinancialAnalysis implements AnalysisModule
             ],
             'basis' => $snapshot instanceof FinancialSnapshot ? 'financial_snapshot' : 'questionnaire_fallback',
             'latest_snapshot' => $snapshot instanceof FinancialSnapshot ? $this->snapshotPayload($snapshot) : null,
+            'snapshot_trend' => $this->trendPayload($trend),
+            'industry_benchmark' => $this->industryBenchmarkPayload($client),
             'questionnaire_context' => $snapshot instanceof FinancialSnapshot ? [] : $this->questionnaireContext($client),
             'economic_overlay' => $this->economicOverlay()
                 ->map(fn (EconomicIndicator $indicator): array => $this->indicatorPayload($indicator))
@@ -77,8 +80,10 @@ final class FinancialAnalysis implements AnalysisModule
         $metrics = $this->metrics($snapshot);
         $drivers = $this->drivers($metrics);
         $riskSeverity = $this->riskSeverity($metrics);
+        $trend = $this->snapshotTrend($client);
+        $benchmark = $this->industryBenchmarkPayload($client);
 
-        return [
+        $deterministic = [
             new AnalysisFindingData(
                 lens: AnalysisLens::Descriptive,
                 severity: FindingSeverity::Info,
@@ -101,7 +106,7 @@ final class FinancialAnalysis implements AnalysisModule
                 lens: AnalysisLens::Diagnostic,
                 severity: $riskSeverity,
                 title: 'Financial performance drivers',
-                body: 'Primary financial drivers: '.implode(' ', $drivers),
+                body: trim('Primary financial drivers: '.implode(' ', $drivers).' '.$this->trendBody($trend)),
                 attributions: $attributions,
                 documentSupport: AnalysisFinding::DOCUMENT_SUPPORT_NONE,
                 uncertainty: Uncertainty::Medium,
@@ -111,7 +116,7 @@ final class FinancialAnalysis implements AnalysisModule
                 lens: AnalysisLens::Predictive,
                 severity: FindingSeverity::Medium,
                 title: 'Economic overlay on financial trajectory',
-                body: $this->economicBody($economic, $metrics),
+                body: trim($this->economicBody($economic, $metrics).' '.$this->benchmarkBody($benchmark)),
                 attributions: $attributions,
                 documentSupport: AnalysisFinding::DOCUMENT_SUPPORT_NONE,
                 uncertainty: $response->uncertainty,
@@ -122,7 +127,7 @@ final class FinancialAnalysis implements AnalysisModule
                 severity: $riskSeverity,
                 title: 'Financial improvement opportunity',
                 body: sprintf(
-                    'A focused margin and cash-conversion programme should target at least %s annual benefit, based on 2%% of latest revenue, then validate the value through WO-42 improvement PV.',
+                    'A focused margin and cash-conversion programme should target at least %s annual benefit, based on 2%% of latest revenue, then validate the value through the improvement present-value calculation.',
                     $this->money($this->estimatedAnnualBenefit($snapshot)),
                 ),
                 attributions: $attributions,
@@ -130,6 +135,27 @@ final class FinancialAnalysis implements AnalysisModule
                 uncertainty: Uncertainty::Medium,
                 dataQualityDisclaimer: $disclaimer,
             ),
+        ];
+
+        $structured = $this->structuredFindings($response, $disclaimer);
+
+        if ($structured === []) {
+            return $deterministic;
+        }
+
+        $structuredLenses = collect($structured)
+            ->map(fn (AnalysisFindingData $finding): string => $finding->lens->value)
+            ->all();
+        $deterministicRemainder = collect($deterministic)
+            ->slice(1)
+            ->reject(fn (AnalysisFindingData $finding): bool => in_array($finding->lens->value, $structuredLenses, true))
+            ->values()
+            ->all();
+
+        return [
+            $deterministic[0],
+            ...$structured,
+            ...$deterministicRemainder,
         ];
     }
 
@@ -160,6 +186,22 @@ final class FinancialAnalysis implements AnalysisModule
             ->latest('pulled_at')
             ->latest()
             ->first();
+    }
+
+    /**
+     * @return Collection<int, FinancialSnapshot>
+     */
+    private function snapshotTrend(Client $client): Collection
+    {
+        return FinancialSnapshot::query()
+            ->where('client_id', $client->getKey())
+            ->latest('period_end')
+            ->latest('pulled_at')
+            ->latest()
+            ->limit(4)
+            ->get()
+            ->sortBy(fn (FinancialSnapshot $snapshot): string => (string) ($snapshot->period_end?->toDateString() ?? $snapshot->created_at?->toIso8601String() ?? ''))
+            ->values();
     }
 
     /**
@@ -197,6 +239,45 @@ final class FinancialAnalysis implements AnalysisModule
             'balance_sheet' => $snapshot->balance_sheet,
             'cash_flow' => $snapshot->cash_flow,
             'metrics' => $snapshot->metrics,
+        ];
+    }
+
+    /**
+     * @param  Collection<int, FinancialSnapshot>  $snapshots
+     * @return array<int, array<string, mixed>>
+     */
+    private function trendPayload(Collection $snapshots): array
+    {
+        return $snapshots
+            ->map(function (FinancialSnapshot $snapshot): array {
+                $metrics = $this->metrics($snapshot);
+
+                return [
+                    'snapshot_id' => $snapshot->id,
+                    'period_end' => $snapshot->period_end?->toDateString(),
+                    'revenue' => $metrics['revenue'],
+                    'gross_margin' => $metrics['gross_margin'],
+                    'net_margin' => $metrics['net_margin'],
+                    'operating_cash_flow' => $metrics['operating_cash_flow'],
+                    'current_ratio' => $metrics['current_ratio'],
+                    'source_reference' => "financial_snapshot:{$snapshot->id}",
+                ];
+            })
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{status:string, industry:string|null, message:string}
+     */
+    private function industryBenchmarkPayload(Client $client): array
+    {
+        $industry = trim((string) ($client->industry ?? $client->entity_type ?? ''));
+
+        return [
+            'status' => 'missing',
+            'industry' => $industry === '' ? null : $industry,
+            'message' => 'No verified industry financial benchmark is configured for this client industry.',
         ];
     }
 
@@ -378,6 +459,152 @@ final class FinancialAnalysis implements AnalysisModule
     }
 
     /**
+     * @return array<int, AnalysisFindingData>
+     */
+    private function structuredFindings(AiResponse $response, ?string $disclaimer): array
+    {
+        $items = data_get($response->metadata, 'findings', []);
+
+        if (! is_array($items) || $items === []) {
+            return [];
+        }
+
+        $findings = [];
+
+        foreach ($items as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $lens = AnalysisLens::tryFrom((string) ($item['lens'] ?? ''));
+            $severity = FindingSeverity::tryFrom((string) ($item['severity'] ?? 'medium')) ?? FindingSeverity::Medium;
+            $title = trim((string) ($item['title'] ?? ''));
+            $body = trim((string) ($item['body'] ?? ''));
+
+            if (! $lens instanceof AnalysisLens || $title === '' || $body === '') {
+                continue;
+            }
+
+            $findings[] = new AnalysisFindingData(
+                lens: $lens,
+                severity: $severity,
+                title: $title,
+                body: $body,
+                attributions: array_key_exists('attributions', $item) ? $this->normaliseAttributions($item['attributions']) : [],
+                documentSupport: AnalysisFinding::DOCUMENT_SUPPORT_NONE,
+                uncertainty: $this->structuredUncertainty($item, $response->uncertainty),
+                dataQualityDisclaimer: $disclaimer,
+                biasSignals: is_array($item['bias_signals'] ?? null)
+                    ? array_values(array_filter($item['bias_signals'], 'is_array'))
+                    : null,
+            );
+        }
+
+        return $findings;
+    }
+
+    /**
+     * @param  array<string, mixed>  $item
+     */
+    private function structuredUncertainty(array $item, Uncertainty $fallback): Uncertainty
+    {
+        $uncertainty = Uncertainty::tryFrom((string) ($item['uncertainty'] ?? ''));
+
+        if ($uncertainty instanceof Uncertainty) {
+            return $uncertainty;
+        }
+
+        $confidence = $item['confidence'] ?? null;
+
+        if (is_numeric($confidence)) {
+            return match (true) {
+                (float) $confidence >= 0.8 => Uncertainty::Low,
+                (float) $confidence >= 0.5 => Uncertainty::Medium,
+                default => Uncertainty::High,
+            };
+        }
+
+        return match (mb_strtolower(trim((string) $confidence))) {
+            'high' => Uncertainty::Low,
+            'medium' => Uncertainty::Medium,
+            'low' => Uncertainty::High,
+            default => $fallback,
+        };
+    }
+
+    /**
+     * @return array<int, array{claim:string, source_reference:string}>
+     */
+    private function normaliseAttributions(mixed $value): array
+    {
+        if (! is_array($value)) {
+            return [];
+        }
+
+        $out = [];
+
+        foreach ($value as $item) {
+            if (! is_array($item)) {
+                continue;
+            }
+
+            $out[] = [
+                'claim' => (string) ($item['claim'] ?? ''),
+                'source_reference' => (string) ($item['source_reference'] ?? ''),
+            ];
+        }
+
+        return $out;
+    }
+
+    /**
+     * @param  Collection<int, FinancialSnapshot>  $snapshots
+     */
+    private function trendBody(Collection $snapshots): string
+    {
+        if ($snapshots->count() < 2) {
+            return 'Only one connected accounting snapshot is available, so multi-period financial trend is not yet established.';
+        }
+
+        $first = $snapshots->first();
+        $last = $snapshots->last();
+
+        if (! $first instanceof FinancialSnapshot || ! $last instanceof FinancialSnapshot) {
+            return '';
+        }
+
+        $firstMetrics = $this->metrics($first);
+        $lastMetrics = $this->metrics($last);
+        $revenueChange = $firstMetrics['revenue'] === 0.0
+            ? 'not comparable because the first period revenue is zero'
+            : number_format((($lastMetrics['revenue'] - $firstMetrics['revenue']) / abs($firstMetrics['revenue'])) * 100, 1).'%';
+
+        return sprintf(
+            'Multi-period trend across %d snapshots: revenue moved from %s to %s (%s), net margin moved from %s to %s, and operating cash flow moved from %s to %s.',
+            $snapshots->count(),
+            $this->money($firstMetrics['revenue']),
+            $this->money($lastMetrics['revenue']),
+            $revenueChange,
+            $this->percent($firstMetrics['net_margin']),
+            $this->percent($lastMetrics['net_margin']),
+            $this->money($firstMetrics['operating_cash_flow']),
+            $this->money($lastMetrics['operating_cash_flow']),
+        );
+    }
+
+    /**
+     * @param  array{status:string, industry:string|null, message:string}  $benchmark
+     */
+    private function benchmarkBody(array $benchmark): string
+    {
+        if (($benchmark['status'] ?? '') !== 'missing') {
+            return '';
+        }
+
+        return 'Industry benchmark warning: '.(string) $benchmark['message'].' Use the client trend and advisor-reviewed evidence until a verified benchmark is available.';
+    }
+
+    /**
      * @return array<int, array{claim:string, source_reference:string}>
      */
     private function sourceAttributions(Client $client): array
@@ -401,6 +628,28 @@ final class FinancialAnalysis implements AnalysisModule
                     'source_reference' => "financial_snapshot:{$snapshot->id}:{$path}",
                 ];
             }
+
+            foreach ($this->snapshotTrend($client) as $trendSnapshot) {
+                if ((string) $trendSnapshot->getKey() === (string) $snapshot->getKey()) {
+                    continue;
+                }
+
+                foreach ([
+                    'profit_and_loss.revenue' => 'Revenue trend period comes from a connected accounting snapshot.',
+                    'cash_flow.operating_cash_flow' => 'Operating cash-flow trend period comes from a connected accounting snapshot.',
+                    'metrics.net_margin' => 'Net margin trend period comes from a connected accounting snapshot.',
+                ] as $path => $claim) {
+                    $attributions[] = [
+                        'claim' => $claim,
+                        'source_reference' => "financial_snapshot:{$trendSnapshot->id}:{$path}",
+                    ];
+                }
+            }
+
+            $attributions[] = [
+                'claim' => 'Client profile is used to check whether an industry financial benchmark can be mapped.',
+                'source_reference' => "client:{$client->id}",
+            ];
         } else {
             $responses = QuestionnaireResponse::query()
                 ->where('client_id', $client->getKey())

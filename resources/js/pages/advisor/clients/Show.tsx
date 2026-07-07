@@ -646,6 +646,7 @@ type ReportSummary = {
     generated_at: string | null;
     pdf_byte_size: number | null;
     pptx_byte_size: number | null;
+    view_url: string | null;
     download_url: string | null;
     pptx_url: string | null;
     review_status: string;
@@ -796,10 +797,28 @@ type StandardAdvisoryReportSummary = {
     generated_at: string | null;
     review_status: string;
     reviewed_at: string | null;
+    view_url: string | null;
     download_url: string | null;
     review_url: string;
     release_url: string | null;
 } | null;
+
+type StandardAdvisoryPackWaiverSummary = {
+    id: string;
+    modules: string[];
+    reason: string;
+    waived_at: string | null;
+    waived_by: {
+        id: string;
+        name: string;
+        email: string;
+    } | null;
+};
+
+type StandardAdvisoryGeneratePayload = {
+    waiver_reason?: string;
+    waiver_modules?: string[];
+};
 
 type StandardAdvisorySummary = {
     questionnaire_submitted: boolean;
@@ -818,11 +837,26 @@ type StandardAdvisorySummary = {
         module: string;
         label: string;
         status: string;
+        state: string;
+        raw_status: string | null;
         completed: boolean;
+        stale: boolean;
+        waived: boolean;
+        ready_for_pack: boolean;
+        waivable: boolean;
+        waiver: StandardAdvisoryPackWaiverSummary | null;
+        dropped_findings: {
+            missing_attribution: number;
+        };
         completed_at: string | null;
     }>;
     analysis_completed: number;
+    analysis_waived: number;
+    analysis_dropped_findings: number;
     analysis_total: number;
+    analysis_ready_for_pack: boolean;
+    pack_waivers: StandardAdvisoryPackWaiverSummary[];
+    waivable_modules: string[];
     website_audit: {
         status: string;
         status_label: string;
@@ -843,8 +877,10 @@ type StandardAdvisorySummary = {
     };
     latest_report_generated_at: string | null;
     missing: string[];
+    warnings: string[];
     can_run_analysis: boolean;
     can_generate_pack: boolean;
+    can_record_pack_waiver: boolean;
     status: string;
     status_label: string;
     next_action: string;
@@ -899,27 +935,30 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         );
     };
 
-    const generateStandardAdvisoryPack = () => {
-        if (!client.standard_advisory?.can_generate_pack) {
+    const generateStandardAdvisoryPack = (
+        payload: StandardAdvisoryGeneratePayload = {},
+    ) => {
+        const summary = client.standard_advisory;
+        const hasWaiverPayload =
+            (payload.waiver_modules?.length ?? 0) > 0 &&
+            (payload.waiver_reason?.trim() ?? '') !== '';
+
+        if (!summary || (!summary.can_generate_pack && !hasWaiverPayload)) {
             return;
         }
 
-        router.post(
-            client.standard_advisory.generate_pack_url,
-            {},
-            {
-                preserveScroll: true,
-                onStart: () => setGeneratingPack(true),
-                onFinish: () => setGeneratingPack(false),
-                onError: (errors) => {
-                    const message =
-                        errors.standard_advisory ??
-                        'The advisory pack could not be generated.';
+        router.post(summary.generate_pack_url, payload, {
+            preserveScroll: true,
+            onStart: () => setGeneratingPack(true),
+            onFinish: () => setGeneratingPack(false),
+            onError: (errors) => {
+                const message =
+                    errors.standard_advisory ??
+                    'The advisory pack could not be generated.';
 
-                    toast.error(message);
-                },
+                toast.error(message);
             },
-        );
+        });
     };
 
     const createKnowledgeDraft = () => {
@@ -3387,12 +3426,12 @@ function PaymentsPanel({ client }: { client: ClientDetail }) {
             <div className="flex flex-wrap items-center justify-between gap-3">
                 <div className="flex items-center gap-2">
                     <CreditCard className="size-4" aria-hidden="true" />
-                    <h2 className="text-sm font-medium">
-                        Payment exceptions
-                    </h2>
+                    <h2 className="text-sm font-medium">Payment exceptions</h2>
                 </div>
                 <Badge
-                    variant={client.payments.length > 0 ? 'secondary' : 'outline'}
+                    variant={
+                        client.payments.length > 0 ? 'secondary' : 'outline'
+                    }
                 >
                     {client.payments.length} open
                 </Badge>
@@ -3640,11 +3679,7 @@ function StrategicPlanEditor({
                 </div>
                 <div className="flex flex-wrap gap-2">
                     <Button asChild size="sm" variant="outline">
-                        <a
-                            href={plan.pdf_url}
-                            target="_blank"
-                            rel="noreferrer"
-                        >
+                        <a href={plan.pdf_url} target="_blank" rel="noreferrer">
                             <FileText className="size-4" aria-hidden="true" />
                             View PDF
                         </a>
@@ -4727,10 +4762,14 @@ function StandardAdvisoryPanel({
 }: {
     summary: StandardAdvisorySummary;
     onRunAnalysis: () => void;
-    onGeneratePack: () => void;
+    onGeneratePack: (payload?: StandardAdvisoryGeneratePayload) => void;
     generatingPack: boolean;
 }) {
+    const [waiverReason, setWaiverReason] = useState('');
     const clientReport = summary.reports.client;
+    const waivableModules = summary.analysis_modules.filter(
+        (module) => module.waivable,
+    );
     const releaseClientReport = () => {
         if (
             !clientReport ||
@@ -4741,6 +4780,22 @@ function StandardAdvisoryPanel({
         }
 
         router.patch(clientReport.release_url, {}, { preserveScroll: true });
+    };
+    const generateWithWaiver = () => {
+        const reason = waiverReason.trim();
+
+        if (reason === '' || waivableModules.length === 0) {
+            toast.error(
+                'Add a waiver reason before generating a partial pack.',
+            );
+
+            return;
+        }
+
+        onGeneratePack({
+            waiver_reason: reason,
+            waiver_modules: waivableModules.map((module) => module.module),
+        });
     };
 
     return (
@@ -4794,7 +4849,7 @@ function StandardAdvisoryPanel({
                                         !summary.can_generate_pack ||
                                         generatingPack
                                     }
-                                    onClick={onGeneratePack}
+                                    onClick={() => onGeneratePack()}
                                 >
                                     <FileText
                                         className="size-4"
@@ -4813,10 +4868,15 @@ function StandardAdvisoryPanel({
                     </Tooltip>
                     {clientReport?.review_status === 'pending_review' && (
                         <>
-                            {clientReport.download_url && (
+                            {(clientReport.view_url ??
+                                clientReport.download_url) && (
                                 <Button asChild size="sm" variant="outline">
                                     <a
-                                        href={clientReport.download_url}
+                                        href={
+                                            clientReport.view_url ??
+                                            clientReport.download_url ??
+                                            ''
+                                        }
                                         target="_blank"
                                         rel="noopener noreferrer"
                                     >
@@ -4865,7 +4925,11 @@ function StandardAdvisoryPanel({
                 />
                 <Metric
                     label="Analysis"
-                    value={`${summary.analysis_completed}/${summary.analysis_total} modules complete`}
+                    value={
+                        summary.analysis_waived > 0
+                            ? `${summary.analysis_completed}/${summary.analysis_total} complete, ${summary.analysis_waived} waived`
+                            : `${summary.analysis_completed}/${summary.analysis_total} modules complete`
+                    }
                 />
                 <Metric
                     label="Client report"
@@ -4935,6 +4999,107 @@ function StandardAdvisoryPanel({
                 </div>
             )}
 
+            {summary.warnings.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+                    <div className="text-sm font-medium text-amber-950">
+                        Advisor warnings
+                    </div>
+                    <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-amber-900">
+                        {summary.warnings.map((item) => (
+                            <li key={item}>{item}</li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+
+            {summary.can_record_pack_waiver && waivableModules.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                        <div className="flex items-center gap-2 text-sm font-medium text-amber-950">
+                            <ShieldAlert
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Partial pack waiver
+                        </div>
+                        <Badge variant="outline">
+                            {waivableModules.length} module
+                            {waivableModules.length === 1 ? '' : 's'}
+                        </Badge>
+                    </div>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {waivableModules.map((module) => (
+                            <Badge key={module.module} variant="outline">
+                                {module.label} · {formatLabel(module.status)}
+                            </Badge>
+                        ))}
+                    </div>
+                    <div className="mt-3 grid gap-2">
+                        <Label htmlFor="standard_advisory_waiver_reason">
+                            Advisor waiver reason
+                        </Label>
+                        <textarea
+                            id="standard_advisory_waiver_reason"
+                            value={waiverReason}
+                            onChange={(event) =>
+                                setWaiverReason(event.target.value)
+                            }
+                            className="min-h-20 rounded-md border bg-background px-3 py-2 text-sm"
+                            maxLength={1200}
+                        />
+                        <div>
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={
+                                    generatingPack || waiverReason.trim() === ''
+                                }
+                                onClick={generateWithWaiver}
+                            >
+                                <ShieldAlert
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                Generate with waiver
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {summary.pack_waivers.length > 0 && (
+                <div className="rounded-md border bg-muted/20 p-3">
+                    <div className="text-sm font-medium">
+                        Recorded pack waivers
+                    </div>
+                    <div className="mt-2 grid gap-2">
+                        {summary.pack_waivers.map((waiver) => (
+                            <div
+                                key={waiver.id}
+                                className="rounded border bg-background p-2 text-sm"
+                            >
+                                <div className="flex flex-wrap items-center justify-between gap-2">
+                                    <span className="font-medium">
+                                        {waiver.modules
+                                            .map((module) =>
+                                                formatLabel(module),
+                                            )
+                                            .join(', ')}
+                                    </span>
+                                    <span className="text-xs text-muted-foreground">
+                                        {formatDate(waiver.waived_at)}
+                                    </span>
+                                </div>
+                                <p className="mt-1 text-muted-foreground">
+                                    {waiver.reason}
+                                </p>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            )}
+
             <div className="grid gap-4 lg:grid-cols-2">
                 <div className="rounded-md border p-3">
                     <div className="text-sm font-medium">Analysis modules</div>
@@ -4947,14 +5112,16 @@ function StandardAdvisoryPanel({
                                 <span>{module.label}</span>
                                 <Badge
                                     variant={
-                                        module.completed
+                                        module.ready_for_pack
                                             ? 'secondary'
                                             : 'outline'
                                     }
                                 >
-                                    {module.completed
-                                        ? 'Completed'
-                                        : formatLabel(module.status)}
+                                    {module.waived
+                                        ? 'Waived'
+                                        : module.completed
+                                          ? 'Completed'
+                                          : formatLabel(module.status)}
                                 </Badge>
                             </div>
                         ))}
@@ -4978,7 +5145,8 @@ function StandardAdvisoryPanel({
                                                   )
                                                 : 'Not generated'}
                                         </Badge>
-                                        {report?.download_url && (
+                                        {(report?.view_url ??
+                                            report?.download_url) && (
                                             <Button
                                                 asChild
                                                 size="sm"
@@ -4986,7 +5154,11 @@ function StandardAdvisoryPanel({
                                                 className="h-7 px-2"
                                             >
                                                 <a
-                                                    href={report.download_url}
+                                                    href={
+                                                        report.view_url ??
+                                                        report.download_url ??
+                                                        ''
+                                                    }
                                                     target="_blank"
                                                     rel="noopener noreferrer"
                                                     aria-label={`View ${formatLabel(key)} report PDF`}
@@ -5224,10 +5396,14 @@ function ReportsPanel({ client }: { client: ClientDetail }) {
                                         ? ` / PPTX ${formatBytes(report.pptx_byte_size)}`
                                         : ''}
                                 </span>
-                                {report.download_url && (
+                                {(report.view_url ?? report.download_url) && (
                                     <Button asChild size="sm" variant="outline">
                                         <a
-                                            href={report.download_url}
+                                            href={
+                                                report.view_url ??
+                                                report.download_url ??
+                                                ''
+                                            }
                                             target="_blank"
                                             rel="noopener noreferrer"
                                         >

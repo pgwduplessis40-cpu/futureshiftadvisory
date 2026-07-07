@@ -347,7 +347,12 @@ final class StrategicPlanService
             [
                 'key' => 'budget',
                 'title' => 'Budget and affordability',
-                'body' => (string) ($planSections->get('evidence_documents') ?: 'Use the approved Business/Operating Plan & Budget and accepted proposal payment terms.'),
+                'body' => (string) (
+                    $planSections->get('budget_and_affordability')
+                    ?: $planSections->get('budget')
+                    ?: $planSections->get('payment_terms')
+                    ?: 'Use the approved Business/Operating Plan & Budget and accepted proposal payment terms.'
+                ),
             ],
             [
                 'key' => 'governance',

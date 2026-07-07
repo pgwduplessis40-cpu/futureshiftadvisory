@@ -88,9 +88,11 @@ final class FeeCalculator implements ProvidesMethodology
         return [
             'improvement' => round((float) ImprovementOpportunity::query()
                 ->where('client_id', $client->getKey())
+                ->active()
                 ->sum('pv_of_impact'), 2),
             'risk' => round((float) RiskCost::query()
                 ->where('client_id', $client->getKey())
+                ->active()
                 ->sum('pv_of_cost'), 2),
         ];
     }

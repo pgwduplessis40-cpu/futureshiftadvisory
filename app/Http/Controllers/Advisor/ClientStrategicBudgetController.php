@@ -28,7 +28,7 @@ final class ClientStrategicBudgetController extends Controller
         $budget = $this->budgets->ensureForClient($client);
         if (! $budget->isUnlocked()) {
             return to_route('advisor.clients.show', $client)
-                ->withErrors(['strategic_budget' => 'A P&L or management accounts file must be uploaded before approving the plan and budget.']);
+                ->withErrors(['strategic_budget' => 'A verified P&L or management accounts file must be available before approving the plan and budget.']);
         }
         if (($this->budgets->advisorPayload($budget)['business_plan_ready'] ?? false) !== true) {
             return to_route('advisor.clients.show', $client)

@@ -34,6 +34,10 @@ final class FinancialAnalysisRunner
             ->where('lens', AnalysisLens::Prescriptive)
             ->where('title', 'Financial improvement opportunity')
             ->first();
+        $finding ??= $run->findings()
+            ->where('lens', AnalysisLens::Prescriptive)
+            ->latest()
+            ->first();
         $opportunity = $this->module->improvementOpportunity($client);
 
         if ($finding instanceof AnalysisFinding && $opportunity !== null) {

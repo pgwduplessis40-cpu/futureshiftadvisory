@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useSyncExternalStore } from 'react';
 
 export type BeforeInstallPromptEvent = Event & {
     prompt: () => Promise<void>;
@@ -26,7 +26,17 @@ export const PWA_INSTALL_DISMISS_MS = 1000 * 60 * 60 * 24 * 7;
 let deferredPrompt: BeforeInstallPromptEvent | null = null;
 let installedInSession = false;
 let listening = false;
+let cachedSnapshot: PwaInstallSnapshot | null = null;
 const listeners = new Set<() => void>();
+
+const serverSnapshot: PwaInstallSnapshot = {
+    canPrompt: false,
+    dismissedUntil: 0,
+    instructionMode: 'browser',
+    isInstalled: false,
+    isIosSafari: false,
+    isLikelyMobile: false,
+};
 
 function hasWindow(): boolean {
     return typeof window !== 'undefined';
@@ -105,7 +115,7 @@ function snapshot(): PwaInstallSnapshot {
     const isIosSafari = isIosSafariBrowser();
     const isLikelyMobile = isLikelyMobileDevice();
 
-    return {
+    const nextSnapshot: PwaInstallSnapshot = {
         canPrompt: deferredPrompt !== null && !isInstalled,
         dismissedUntil: storageNumber(PWA_INSTALL_DISMISSED_UNTIL_KEY),
         instructionMode: isIosSafari && isLikelyMobile ? 'ios' : 'browser',
@@ -113,6 +123,22 @@ function snapshot(): PwaInstallSnapshot {
         isIosSafari,
         isLikelyMobile,
     };
+
+    if (
+        cachedSnapshot &&
+        cachedSnapshot.canPrompt === nextSnapshot.canPrompt &&
+        cachedSnapshot.dismissedUntil === nextSnapshot.dismissedUntil &&
+        cachedSnapshot.instructionMode === nextSnapshot.instructionMode &&
+        cachedSnapshot.isInstalled === nextSnapshot.isInstalled &&
+        cachedSnapshot.isIosSafari === nextSnapshot.isIosSafari &&
+        cachedSnapshot.isLikelyMobile === nextSnapshot.isLikelyMobile
+    ) {
+        return cachedSnapshot;
+    }
+
+    cachedSnapshot = nextSnapshot;
+
+    return nextSnapshot;
 }
 
 export function ensurePwaInstallListeners(): void {
@@ -143,6 +169,14 @@ export function subscribePwaInstall(listener: () => void): () => void {
     return () => {
         listeners.delete(listener);
     };
+}
+
+function subscribePwaInstallSnapshot(listener: () => void): () => void {
+    if (!hasWindow()) {
+        return () => {};
+    }
+
+    return subscribePwaInstall(listener);
 }
 
 export function dismissPwaInstallPrompt(
@@ -195,20 +229,11 @@ export async function promptPwaInstall(): Promise<
 }
 
 export function usePwaInstall() {
-    const [state, setState] = useState<PwaInstallSnapshot>(() => snapshot());
-
-    useEffect(() => {
-        if (!hasWindow()) {
-            return;
-        }
-
-        ensurePwaInstallListeners();
-        setState(snapshot());
-
-        return subscribePwaInstall(() => {
-            setState(snapshot());
-        });
-    }, []);
+    const state = useSyncExternalStore(
+        subscribePwaInstallSnapshot,
+        snapshot,
+        () => serverSnapshot,
+    );
 
     return {
         ...state,

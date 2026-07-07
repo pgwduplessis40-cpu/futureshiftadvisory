@@ -17,6 +17,7 @@ use App\Services\Clients\AdvisorClientCapacity;
 use App\Services\Clients\LifecycleManager;
 use App\Services\Knowledge\KnowledgeCaptureService;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Reports\BrandedReportLayout;
 use App\Services\Storage\SecureFileWriter;
 use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
@@ -35,6 +36,7 @@ final class OffboardingService
         private readonly SecureFileWriter $writer,
         private readonly LifecycleManager $lifecycle,
         private readonly KnowledgeCaptureService $knowledgeCapture,
+        private readonly BrandedReportLayout $layout,
     ) {}
 
     /**
@@ -191,61 +193,35 @@ final class OffboardingService
         $notes = trim((string) ($details['exit_interview_notes'] ?? ''));
         $handover = trim((string) ($details['handover_notes'] ?? ''));
 
-        return sprintf(
-            <<<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>%s</title>
-<style>
-body { color: #17211b; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; margin: 0; }
-.brand { border-bottom: 2px solid #2f6f5e; margin-bottom: 18px; padding-bottom: 12px; }
-.brand h1 { font-size: 22px; margin: 0 0 4px; }
-.brand p, .meta p { margin: 0; }
-.meta, .notice { background: #f4f7f5; border: 1px solid #d8e2dc; margin-bottom: 22px; padding: 12px; }
-.meta strong { display: inline-block; min-width: 120px; }
-h2 { color: #214f44; font-size: 15px; margin: 0 0 6px; }
-.body { white-space: pre-wrap; }
-</style>
-</head>
-<body>
-<header class="brand">
-<h1>Future Shift Advisory</h1>
-<p>%s</p>
-</header>
-<section class="meta">
-<p><strong>Client</strong> %s</p>
-<p><strong>NZBN</strong> %s</p>
-<p><strong>Engagement</strong> %s</p>
-<p><strong>Triggered by</strong> %s &lt;%s&gt;</p>
-<p><strong>Triggered at</strong> %s</p>
-</section>
-<section class="notice">
-<h2>Phase 1 placeholder</h2>
-<p>This offboarding artifact is a branded placeholder. Phase 2 will enrich it with detailed progress analysis, generated summaries, and richer handover material.</p>
-</section>
-<section>
-<h2>Advisor notes</h2>
-<p class="body">%s</p>
-</section>
-<section>
-<h2>Handover notes</h2>
-<p class="body">%s</p>
-</section>
-</body>
-</html>
-HTML,
-            $this->escape($title),
-            $this->escape($title),
-            $this->escape($client->legal_name),
-            $this->escape($client->nzbn ?? '-'),
-            $this->escape($this->engagementLabel($client)),
-            $this->escape($triggeredBy->name),
-            $this->escape($triggeredBy->email),
-            $this->escape($triggeredAt->format(DATE_ATOM)),
+        $clientName = (string) ($client->legal_name ?: $client->trading_name ?: 'Client');
+        $notice = '<article class="report-section missing-panel"><h2>Phase 1 placeholder</h2><p>This offboarding artifact is a branded placeholder. Phase 2 will enrich it with detailed progress analysis, generated summaries, and richer handover material.</p></article>';
+        $advisorNotes = sprintf(
+            '<article class="report-section"><h2>Advisor notes</h2><p class="section-body">%s</p></article>',
             $this->escape($notes !== '' ? $notes : 'No exit interview notes captured in Phase 1.'),
+        );
+        $handoverNotes = sprintf(
+            '<article class="report-section"><h2>Handover notes</h2><p class="section-body">%s</p></article>',
             $this->escape($handover !== '' ? $handover : 'No handover notes captured in Phase 1.'),
+        );
+
+        return $this->layout->document(
+            title: $title,
+            templateKey: 'offboarding-artifact',
+            documentTag: 'Offboarding artifact',
+            eyebrow: 'Client offboarding',
+            heading: $title,
+            subheading: $clientName,
+            meta: [
+                'Client' => $clientName,
+                'NZBN' => $client->nzbn ?? '-',
+                'Engagement' => $this->engagementLabel($client),
+                'Triggered by' => $triggeredBy->name.' <'.$triggeredBy->email.'>',
+                'Triggered at' => $triggeredAt->format(DATE_ATOM),
+            ],
+            contentHtml: $notice.$advisorNotes.$handoverNotes,
+            footer: 'Generated using Future Shift Advisory offboarding',
+            snapshotTitle: 'Offboarding snapshot',
+            metaColumns: 3,
         );
     }
 

@@ -12,6 +12,8 @@ use App\Enums\FindingSeverity;
 use App\Models\AnalysisFinding;
 use App\Models\AnalysisRun;
 use App\Models\Client;
+use App\Models\ImprovementOpportunity;
+use App\Models\RiskCost;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Pv\ImprovementPv;
 use App\Services\Pv\RiskCostPv;
@@ -96,6 +98,112 @@ final class ImprovementAndRiskPvTest extends TestCase
         $this->assertSame(100000.0, $ranked[0]->applied_impact);
         $this->assertSame(50000.0, $ranked[0]->annual_expected_cost);
         $this->assertGreaterThan($ranked[1]->pv_of_cost, $ranked[0]->pv_of_cost);
+    }
+
+    public function test_statutory_penalty_defaults_to_one_off_cash_flow_unless_overridden(): void
+    {
+        [$client, $finding] = $this->clientAndFinding(AnalysisModule::Compliance);
+        $risk = [
+            'title' => 'Statutory penalty exposure',
+            'financial_impact' => 0,
+            'probability' => 1,
+            'duration_years' => 5,
+            'statutory_penalty_range' => ['low' => 100000, 'high' => 100000],
+            'analysis_finding_id' => $finding->id,
+            'source_reference' => "analysis_finding:{$finding->id}",
+        ];
+
+        $oneOff = app(RiskCostPv::class)->rank($client, [$risk], DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Advisor selected risk PV rate.',
+        ]);
+
+        $this->assertSame('one_off', $oneOff[0]->recurrence);
+        $this->assertSame(1, $oneOff[0]->cash_flow_years);
+        $this->assertSame(90909.09, round($oneOff[0]->pv_of_cost, 2));
+        $this->assertCount(1, $oneOff[0]->pvCalculation->inputs['cash_flows']);
+
+        $recurring = app(RiskCostPv::class)->rank($client, [[...$risk, 'recurrence' => 'recurring']], DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Advisor selected risk PV rate.',
+        ]);
+
+        $this->assertSame('recurring', $recurring[0]->recurrence);
+        $this->assertSame(5, $recurring[0]->cash_flow_years);
+        $this->assertGreaterThan($oneOff[0]->pv_of_cost, $recurring[0]->pv_of_cost);
+        $this->assertCount(5, $recurring[0]->pvCalculation->inputs['cash_flows']);
+        $this->assertSame(1, RiskCost::query()->where('client_id', $client->getKey())->active()->count());
+    }
+
+    public function test_re_ranking_same_improvement_supersedes_prior_active_row(): void
+    {
+        [$client, $finding] = $this->clientAndFinding(AnalysisModule::Financial);
+        $input = [[
+            'title' => 'Margin improvement programme',
+            'annual_benefit' => 30000,
+            'duration_years' => 2,
+            'analysis_finding_id' => $finding->id,
+            'source_reference' => "analysis_finding:{$finding->id}",
+        ]];
+
+        $first = app(ImprovementPv::class)->rank($client, $input, DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Test rate.',
+        ]);
+        $activeTotal = round((float) ImprovementOpportunity::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_impact'), 2);
+
+        $second = app(ImprovementPv::class)->rank($client, $input, DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Test rate.',
+        ]);
+
+        $this->assertNotSame($first[0]->id, $second[0]->id);
+        $this->assertSame(2, ImprovementOpportunity::query()->where('client_id', $client->getKey())->count());
+        $this->assertSame(1, ImprovementOpportunity::query()->where('client_id', $client->getKey())->active()->count());
+        $this->assertSame(1, ImprovementOpportunity::query()->where('client_id', $client->getKey())->whereNotNull('superseded_at')->count());
+        $this->assertSame($activeTotal, round((float) ImprovementOpportunity::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_impact'), 2));
+    }
+
+    public function test_re_ranking_same_risk_supersedes_prior_active_row(): void
+    {
+        [$client, $finding] = $this->clientAndFinding(AnalysisModule::Compliance);
+        $input = [[
+            'title' => 'Compliance penalty exposure',
+            'financial_impact' => 50000,
+            'probability' => 0.4,
+            'duration_years' => 2,
+            'analysis_finding_id' => $finding->id,
+            'source_reference' => "analysis_finding:{$finding->id}",
+        ]];
+
+        $first = app(RiskCostPv::class)->rank($client, $input, DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Test rate.',
+        ]);
+        $activeTotal = round((float) RiskCost::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_cost'), 2);
+
+        $second = app(RiskCostPv::class)->rank($client, $input, DiscountMethod::AdvisorConfigured, [
+            'rate' => 0.1,
+            'rationale' => 'Test rate.',
+        ]);
+
+        $this->assertNotSame($first[0]->id, $second[0]->id);
+        $this->assertSame(2, RiskCost::query()->where('client_id', $client->getKey())->count());
+        $this->assertSame(1, RiskCost::query()->where('client_id', $client->getKey())->active()->count());
+        $this->assertSame(1, RiskCost::query()->where('client_id', $client->getKey())->whereNotNull('superseded_at')->count());
+        $this->assertSame($activeTotal, round((float) RiskCost::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->sum('pv_of_cost'), 2));
     }
 
     /**

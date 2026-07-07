@@ -105,6 +105,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         id: string;
         title: string;
         generated_at: string | null;
+        view_url: string;
         download_url: string;
     }[];
     conversion: {

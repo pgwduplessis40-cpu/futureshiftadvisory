@@ -376,6 +376,7 @@ function PracticeConnectionControl({ row }: { row: IntegrationRow }) {
     if (!connection) {
         return null;
     }
+
     const canConnect = row.effective_live;
 
     return (

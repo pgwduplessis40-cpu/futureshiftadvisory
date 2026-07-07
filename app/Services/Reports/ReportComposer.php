@@ -86,6 +86,7 @@ final class ReportComposer implements ProvidesMethodology
         private readonly AcquisitionPlanRequirements $acquisitionPlanRequirements,
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
         private readonly HolidaysActLiabilityCalculator $holidaysActLiability,
+        private readonly BrandedReportLayout $layout,
     ) {}
 
     public function compose(Client $client, ReportType $type, ?User $actor = null): Report
@@ -3003,7 +3004,7 @@ final class ReportComposer implements ProvidesMethodology
             sourceReference: $valuation instanceof BusinessValuation ? 'business_valuation:'.$valuation->getKey().':methodology' : 'client:'.$client->getKey().':valuation_methodology',
             dataQualityNote: 'Data quality note: this section surfaces methodology, uncertainty, and source-age checks so stale reference data is visible.',
             metadata: [
-                'methodology_ids' => ['valuation.business', 'pv.engine'],
+                'calculation_methods' => ['Business valuation reconciliation', 'Present-value engine'],
                 'source_attributions' => $valuation?->source_attributions ?? [],
                 'as_at' => $valuation?->as_at?->toIso8601String(),
             ],
@@ -4062,6 +4063,7 @@ final class ReportComposer implements ProvidesMethodology
     {
         return ImprovementOpportunity::query()
             ->where('client_id', $client->getKey())
+            ->active()
             ->orderBy('rank')
             ->latest()
             ->limit(6)
@@ -4939,100 +4941,27 @@ HTML,
             ? sprintf('%s v%d', $template->title, $template->version)
             : 'System report layout';
 
-        return sprintf(
-            <<<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>%s</title>
-<style>%s</style>
-</head>
-<body data-report-template="%s">
-<header class="letterhead">
-<div class="brand-lockup">
-<div class="brand-mark"><span></span><span></span><span></span></div>
-<div><p class="brand-name">Future Shift</p><p class="brand-subtitle">ADVISORY</p></div>
-</div>
-<div class="document-tag">%s</div>
-</header>
-<section class="report-hero">
-<p class="eyebrow">%s</p>
-<h1>%s</h1>
-<p>%s</p>
-</section>
-<section class="report-snapshot">
-<h2>Report snapshot</h2>
-<dl class="report-meta">
-<div><dt>Report type</dt><dd>%s</dd></div>
-<div><dt>Generated</dt><dd>%s</dd></div>
-<div><dt>Template</dt><dd>%s</dd></div>
-</dl>
-</section>
-<main class="report-content">
-%s
-</main>
-<footer class="report-footer">Generated using %s</footer>
-</body>
-</html>
-HTML,
-            $this->escape($report->title),
-            $this->reportCss($template),
-            $template instanceof Template ? $this->escape((string) $template->getKey()) : 'system',
-            $this->escape($report->type->label()),
-            $this->escape($report->type->label()),
-            $this->escape($report->title),
-            $this->escape($clientName),
-            $this->escape($report->type->label()),
-            $this->escape($report->generated_at?->format('j M Y') ?? now()->format('j M Y')),
-            $this->escape($templateLabel),
-            $sections,
-            $this->escape($templateLabel),
+        return $this->layout->document(
+            title: $report->title,
+            templateKey: $template instanceof Template ? (string) $template->getKey() : 'system',
+            documentTag: $report->type->label(),
+            eyebrow: $report->type->label(),
+            heading: $report->title,
+            subheading: $clientName,
+            meta: [
+                'Report type' => $report->type->label(),
+                'Generated' => $report->generated_at?->format('j M Y') ?? now()->format('j M Y'),
+                'Template' => $templateLabel,
+            ],
+            contentHtml: $sections,
+            footer: 'Generated using '.$templateLabel,
+            template: $template,
         );
     }
 
     private function reportCss(?Template $template): string
     {
-        $accent = $this->templateLayoutColor($template, 'accent_color', '#0d7a7a');
-        $accentDark = $this->templateLayoutColor($template, 'accent_dark', '#1c2f4a');
-        $ink = $this->templateLayoutColor($template, 'ink_color', '#13233a');
-        $muted = $this->templateLayoutColor($template, 'muted_color', '#667282');
-        $paper = $this->templateLayoutColor($template, 'paper_color', '#ffffff');
-
-        return <<<CSS
-@page { margin: 15mm 15mm 18mm; }
-* { box-sizing: border-box; }
-body { background: {$paper}; color: {$ink}; font-family: Arial, sans-serif; font-size: 11.5px; line-height: 1.55; margin: 0; }
-.letterhead { align-items: center; border-top: 7px solid #1c2f4a; border-bottom: 1px solid #d8d1c2; display: flex; justify-content: space-between; margin-bottom: 18px; padding: 13px 0 12px; }
-.brand-lockup { align-items: center; display: inline-flex; gap: 13px; }
-.brand-mark { align-items: end; display: inline-flex; gap: 3px; height: 36px; width: 38px; }
-.brand-mark span { background: {$accent}; display: block; width: 8px; }
-.brand-mark span:nth-child(1) { height: 14px; opacity: .55; }
-.brand-mark span:nth-child(2) { height: 24px; opacity: .78; }
-.brand-mark span:nth-child(3) { height: 34px; }
-.brand-name { color: {$accentDark}; font-size: 15px; font-weight: 700; line-height: 1; margin: 0; }
-.brand-subtitle { color: #5a7a70; font-size: 8px; font-weight: 700; letter-spacing: .06em; margin: 4px 0 0; }
-.document-tag { background: #f4efe3; border: 1px solid #d8d1c2; border-radius: 999px; color: {$accentDark}; font-size: 10px; font-weight: 700; padding: 5px 11px; }
-.report-hero { background: #f8f5ee; border: 1px solid #ded6c7; border-left: 5px solid #b8860b; margin-bottom: 14px; padding: 16px 18px; }
-.eyebrow { color: {$accent}; font-size: 9px; font-weight: 700; letter-spacing: .04em; margin: 0 0 5px; text-transform: uppercase; }
-.report-hero h1 { color: {$ink}; font-size: 24px; line-height: 1.15; margin: 0 0 6px; }
-.report-hero p { color: {$muted}; margin: 0; }
-.report-snapshot { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid {$accent}; break-inside: avoid; margin-bottom: 16px; padding: 15px 18px; }
-.report-snapshot h2 { color: {$accentDark}; font-size: 15px; margin: 0 0 10px; }
-.report-meta { border-top: 1px solid #eee7db; display: grid; gap: 12px; grid-template-columns: repeat(3, 1fr); margin: 0; padding: 10px 0 0; }
-.report-meta div { min-width: 0; }
-.report-meta dt { color: {$muted}; font-size: 8.5px; font-weight: 700; margin: 0 0 2px; text-transform: uppercase; }
-.report-meta dd { margin: 0; }
-.report-content { display: grid; gap: 14px; }
-.report-section { background: #fff; border: 1px solid #ded6c7; border-left: 4px solid {$accent}; break-inside: avoid; padding: 13px 15px; }
-.report-section h2 { color: {$accentDark}; font-size: 15px; line-height: 1.3; margin: 0 0 7px; }
-.section-body { white-space: pre-wrap; }
-.section-body p { margin: 0 0 8px; }
-.chart { margin: 12px 0; }
-.evidence { border-top: 1px solid #eee7db; color: {$muted}; font-size: 9.5px; margin-top: 10px; padding-top: 7px; }
-.evidence p { margin: 0 0 3px; }
-.report-footer { border-top: 1px solid #ded6c7; color: {$muted}; font-size: 9px; margin-top: 24px; padding-top: 8px; text-align: right; }
-CSS;
+        return $this->layout->css($template);
     }
 
     private function templateLayoutColor(?Template $template, string $key, string $default): string

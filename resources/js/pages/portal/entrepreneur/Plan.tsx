@@ -274,6 +274,7 @@ type ReportPayload = {
     title: string;
     type: string;
     generated_at: string | null;
+    view_url: string;
     download_url: string;
 };
 
@@ -499,6 +500,8 @@ export default function EntrepreneurPlan({
     }, [selectedRequirement, plan]);
 
     useEffect(() => {
+        // Keep the editable budget form aligned with Inertia refreshes after save.
+        /* eslint-disable-next-line react-hooks/set-state-in-effect */
         setBudgetForm(budgetToForm(plan?.budget));
     }, [plan?.budget]);
 
@@ -1539,11 +1542,14 @@ export default function EntrepreneurPlan({
                                                 variant="outline"
                                             >
                                                 <a
-                                                    href={report.download_url}
+                                                    href={
+                                                        report.view_url ??
+                                                        report.download_url
+                                                    }
                                                     target="_blank"
                                                     rel="noreferrer"
                                                 >
-                                                    Open
+                                                    View
                                                 </a>
                                             </Button>
                                         </article>
@@ -3481,6 +3487,7 @@ function budgetRowsFromPlan(
     }
 
     const revenueModel = ideaValidation?.revenue_model?.trim();
+
     if (revenueModel) {
         revenueForecast.push(
             budgetRow(

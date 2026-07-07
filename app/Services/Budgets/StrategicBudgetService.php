@@ -8,7 +8,9 @@ use App\Enums\EngagementType;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\Document;
+use App\Models\DocumentVerification;
 use App\Models\EconomicIndicator;
+use App\Models\FinancialSnapshot;
 use App\Models\Proposal;
 use App\Models\StrategicBudget;
 use App\Models\User;
@@ -398,7 +400,7 @@ final class StrategicBudgetService
             'descriptive' => [
                 'summary' => (bool) ($sourceFinancials['unlocked'] ?? false)
                     ? "Plan coverage is {$planCoverage}; Year 1 is forecasting {$this->money($yearOneRevenue)} revenue, {$this->money($yearOneFixedCosts)} fixed costs, {$this->money($totalFunding)} funding available, and {$runwayText} runway."
-                    : 'Budget is locked until a P&L or management accounts file is uploaded.',
+                    : 'Budget is locked until a verified P&L or management accounts file is available.',
                 'explanation' => 'Current budget view based on uploaded financial evidence and client-entered budget assumptions.',
                 'findings' => $descriptions,
                 'metrics' => [
@@ -821,7 +823,7 @@ final class StrategicBudgetService
                 return [
                     'priority' => (string) ($flag['severity'] ?? 'medium'),
                     'action' => match ($key) {
-                        'financial_upload_required' => 'Upload a P&L or management accounts file before relying on this budget.',
+                        'financial_upload_required' => 'Upload and verify a P&L or management accounts file before relying on this budget.',
                         'partial_financials' => 'Request an additional financial upload to strengthen the evidence base.',
                         'business_plan_incomplete' => 'Complete every plan section before advisor approval.',
                         'implementation_costs_missing' => 'Add one-off setup, transition, advisory, or project costs.',
@@ -829,6 +831,7 @@ final class StrategicBudgetService
                         'missing_assumptions' => 'Complete growth, margin, inflation, and profit-target assumptions.',
                         'too_many_guesses' => 'Replace guessed rows with uploaded evidence, client confirmation, or advisor-reviewed estimates.',
                         'tax_not_configured' => 'Configure current company tax reference data before relying on after-tax outputs.',
+                        'financial_snapshot_discrepancy' => 'Reconcile the budget forecast against the latest accounting snapshot before advisor approval.',
                         default => (string) ($flag['message'] ?? 'Review this budget signal before proposal reliance.'),
                     },
                     'reason' => (string) ($flag['message'] ?? ''),
@@ -883,9 +886,11 @@ final class StrategicBudgetService
         return Document::query()
             ->where('client_id', $client->getKey())
             ->where('scanner_result', Document::SCANNER_CLEAN)
+            ->with('verifications')
             ->latest()
             ->get()
-            ->filter(fn (Document $document): bool => $this->isBudgetFinancialDocument($document))
+            ->filter(fn (Document $document): bool => $this->isBudgetFinancialDocument($document)
+                && $this->hasVerifiedFinancialEvidence($document))
             ->values();
     }
 
@@ -906,6 +911,17 @@ final class StrategicBudgetService
         return false;
     }
 
+    private function hasVerifiedFinancialEvidence(Document $document): bool
+    {
+        if ($document->verifications->isEmpty()) {
+            return false;
+        }
+
+        return $document->verifications->every(
+            fn (DocumentVerification $verification): bool => $verification->outcome === DocumentVerification::OUTCOME_VERIFIED,
+        );
+    }
+
     /**
      * @param  Collection<int, Document>  $documents
      * @return array<string, mixed>
@@ -920,6 +936,7 @@ final class StrategicBudgetService
                 'category' => $document->category,
                 'uploaded_at' => $document->created_at?->toIso8601String(),
                 'detected_as' => $this->detectedFinancialType($document),
+                'verification_status' => 'verified',
             ])
             ->values()
             ->all();
@@ -930,8 +947,8 @@ final class StrategicBudgetService
             'items' => $items,
             'required_tags' => ['P&L', 'Management Accounts'],
             'system_review' => $documents->isNotEmpty()
-                ? 'Financial upload looks suitable as a starting point.'
-                : 'Upload a P&L or management accounts file to unlock the budget.',
+                ? 'Verified financial upload is suitable as a starting point.'
+                : 'Upload and verify a P&L or management accounts file to unlock the budget.',
         ];
     }
 
@@ -1275,7 +1292,7 @@ final class StrategicBudgetService
             : 'Business Plan';
 
         if (! (bool) ($sourceFinancials['unlocked'] ?? false)) {
-            $flags[] = $this->flag('financial_upload_required', 'Upload financials', 'Upload a P&L or management accounts file before the budget can be edited.', 'high');
+            $flags[] = $this->flag('financial_upload_required', 'Verify financials', 'Upload and verify a P&L or management accounts file before the budget can be edited.', 'high');
         } elseif ((int) ($sourceFinancials['count'] ?? 0) < 2) {
             $flags[] = $this->flag('partial_financials', 'Preliminary financial base', 'Only one qualifying financial upload is present. The budget can start, but more source files will improve the business plan and proposal.', 'medium');
         }
@@ -1300,6 +1317,21 @@ final class StrategicBudgetService
             $flags[] = $this->flag('too_many_guesses', 'Too many guessed rows', 'Replace the highest-value guesses with uploaded evidence, advisor-reviewed estimates, or client-confirmed figures.', 'medium');
         }
 
+        $snapshotDiscrepancy = $this->financialSnapshotDiscrepancy($budget, $computed);
+        if ($snapshotDiscrepancy !== null) {
+            $flags[] = $this->flag(
+                'financial_snapshot_discrepancy',
+                'Forecast differs from latest financial snapshot',
+                sprintf(
+                    'Year 1 budget revenue is %s while the latest accounting snapshot shows %s, a %s variance.',
+                    $this->money((float) $snapshotDiscrepancy['budget_revenue']),
+                    $this->money((float) $snapshotDiscrepancy['snapshot_revenue']),
+                    number_format((float) $snapshotDiscrepancy['variance_percent'], 1).'%',
+                ),
+                'medium',
+            );
+        }
+
         if (($computed['input_count'] ?? 0) > 0 && ! (bool) ($computed['break_even_reached'] ?? false)) {
             $flags[] = $this->flag('no_break_even', 'Break-even not visible', 'The current budget does not yet show a break-even year. This should be addressed before relying on the proposal.', 'medium');
         }
@@ -1309,6 +1341,46 @@ final class StrategicBudgetService
         }
 
         return $flags;
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     * @return array{budget_revenue:float,snapshot_revenue:float,variance_percent:float}|null
+     */
+    private function financialSnapshotDiscrepancy(StrategicBudget $budget, array $computed): ?array
+    {
+        $budgetRevenue = (float) data_get($computed, 'annual_totals.0.revenue', 0);
+        if ($budgetRevenue <= 0) {
+            return null;
+        }
+
+        $snapshot = FinancialSnapshot::query()
+            ->where('client_id', $budget->client_id)
+            ->latest('period_end')
+            ->latest('pulled_at')
+            ->first();
+
+        if (! $snapshot instanceof FinancialSnapshot) {
+            return null;
+        }
+
+        $snapshotRevenue = (float) data_get($snapshot->profit_and_loss, 'revenue', 0);
+        if ($snapshotRevenue <= 0) {
+            return null;
+        }
+
+        $variance = abs($budgetRevenue - $snapshotRevenue) / $snapshotRevenue;
+        $threshold = (float) config('entrepreneurs.budget.snapshot_revenue_variance_threshold', 0.2);
+
+        if ($variance < $threshold) {
+            return null;
+        }
+
+        return [
+            'budget_revenue' => round($budgetRevenue, 2),
+            'snapshot_revenue' => round($snapshotRevenue, 2),
+            'variance_percent' => round($variance * 100, 2),
+        ];
     }
 
     /**
@@ -1388,7 +1460,7 @@ final class StrategicBudgetService
     private function confidenceMessage(int $score, bool $hasFinancials): string
     {
         if (! $hasFinancials) {
-            return 'Upload a P&L or management accounts file to unlock this budget.';
+            return 'Upload and verify a P&L or management accounts file to unlock this budget.';
         }
 
         return match (true) {

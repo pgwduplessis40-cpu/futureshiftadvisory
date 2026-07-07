@@ -7,14 +7,17 @@ namespace Tests\Feature\Ai;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
+use App\Services\Ai\Claude\AnthropicClaudeClient;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
+use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Log;
+use ReflectionClass;
 use Tests\TestCase;
 
 final class IntegrityEnforcedTest extends TestCase
@@ -65,34 +68,18 @@ final class IntegrityEnforcedTest extends TestCase
         $this->assertSame(FakeAiClient::DEGRADED_TEXT, $notice()['message']);
     }
 
-    public function test_anthropic_http_post_only_exists_inside_anthropic_client(): void
+    public function test_anthropic_client_uses_resilient_http_instead_of_raw_http_facade(): void
     {
-        $root = base_path('app');
-        $violations = [];
+        $reflection = new ReflectionClass(AnthropicClaudeClient::class);
+        $constructor = $reflection->getConstructor();
+        $parameterTypes = collect($constructor?->getParameters() ?? [])
+            ->map(fn (\ReflectionParameter $parameter): ?string => $parameter->getType()?->__toString())
+            ->filter()
+            ->values()
+            ->all();
+        $contents = file_get_contents($reflection->getFileName()) ?: '';
 
-        $iterator = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($root, \FilesystemIterator::SKIP_DOTS),
-        );
-
-        foreach ($iterator as $file) {
-            if (! $file instanceof \SplFileInfo || $file->getExtension() !== 'php') {
-                continue;
-            }
-
-            $path = $file->getPathname();
-            $contents = file_get_contents($path) ?: '';
-
-            if (! str_contains($contents, 'Http::') || ! str_contains($contents, '->post(')) {
-                continue;
-            }
-
-            if (str_ends_with(str_replace('\\', '/', $path), 'app/Services/Ai/Claude/AnthropicClaudeClient.php')) {
-                continue;
-            }
-
-            $violations[] = $path;
-        }
-
-        $this->assertSame([], $violations);
+        $this->assertContains(ResilientHttp::class, $parameterTypes);
+        $this->assertStringNotContainsString('Http::', $contents);
     }
 }

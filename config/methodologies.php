@@ -5,6 +5,7 @@ declare(strict_types=1);
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
+use App\Services\Dashboards\CashFlowStatusMonitor;
 use App\Services\Dashboards\ClientEngagementScorer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\DataQuality\DataQualityScorer;
@@ -13,6 +14,7 @@ use App\Services\Dd\FxNormaliser;
 use App\Services\Dd\Valuation as DdValuationService;
 use App\Services\Entrepreneurs\AdvisoryReadiness;
 use App\Services\Entrepreneurs\Assessment;
+use App\Services\Entrepreneurs\BudgetCalculator;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Services\Entrepreneurs\RatingFrameworkManager;
 use App\Services\Entrepreneurs\Readiness;
@@ -20,6 +22,7 @@ use App\Services\Entrepreneurs\Revision;
 use App\Services\Fees\FeeCalculator;
 use App\Services\Integration\IntegrationHealthBander;
 use App\Services\Panels\Coach\SignalDetector as CoachSignalDetector;
+use App\Services\Payments\GstCalculator;
 use App\Services\Payments\PaymentProcessor;
 use App\Services\Pv\BusinessValuation as BusinessValuationService;
 use App\Services\Pv\DiscountRateResolver;
@@ -64,6 +67,7 @@ return [
         'advisor.analytics.funnel' => 'Advisor funnel analytics panel',
         'advisor.coach.referrals' => 'Advisor coach referral panel',
         'advisor.dashboard.business_health' => 'Advisor dashboard business health radar',
+        'advisor.dashboard.cash_flow' => 'Advisor dashboard cash-flow status monitor',
         'advisor.dashboard.economic_exposure' => 'Advisor dashboard economic exposure panel',
         'advisor.dashboard.engagement' => 'Advisor dashboard engagement panel',
         'advisor.data_quality' => 'Advisor data quality gate',
@@ -74,6 +78,7 @@ return [
         'advisor.fees.calculator' => 'Advisor fee calculator',
         'advisor.npo.governance_review_proposal' => 'Advisor NPO Governance Review proposal workflow',
         'advisor.npo.retainer_proposal' => 'Advisor NPO retainer proposal workflow',
+        'advisor.payments.gst' => 'Advisor payment GST calculation',
         'advisor.payments.retry' => 'Advisor payment retry workflow',
         'advisor.pv.calculations' => 'Advisor present-value calculations',
         'advisor.pv.waterfall' => 'Advisor PV waterfall dashboard',
@@ -82,6 +87,7 @@ return [
         'advisor.wellbeing.trends' => 'Advisor wellbeing trends dashboard',
         'client.portal.business_health' => 'Client portal business health radar',
         'entrepreneur.portal.idea_validation' => 'Entrepreneur idea validation workflow',
+        'entrepreneur.portal.budget_forecast' => 'Entrepreneur budget forecast workflow',
         'entrepreneur.portal.plan_assessment' => 'Entrepreneur plan assessment workflow',
         'entrepreneur.portal.readiness' => 'Entrepreneur readiness assessment',
         'entrepreneur.portal.revision_progress' => 'Entrepreneur revision progress workflow',
@@ -213,12 +219,13 @@ return [
             'id' => 'pv.risk_cost',
             'area' => 'Present value',
             'name' => 'Risk Cost PV',
-            'summary' => 'Ranks risk costs by expected annual cost discounted across the risk duration.',
-            'formula' => 'Applied impact = max(financial impact, statutory penalty midpoint); annual expected cost = applied impact * probability; PV is calculated over the bounded duration and ranked descending.',
+            'summary' => 'Ranks recurring risk costs and one-off statutory penalties by discounted expected cost.',
+            'formula' => 'Applied impact = max(financial impact, statutory penalty midpoint); annual expected cost = applied impact * probability. Recurring risks are discounted over the bounded duration; one-off statutory penalties are discounted as a single cash flow unless explicitly marked recurring.',
             'inputs' => [
                 'Financial impact',
                 'Probability',
                 'Duration years',
+                'Recurrence',
                 'Statutory penalty range',
                 'Discount method and discount options',
             ],
@@ -515,6 +522,29 @@ return [
             ],
             'owning_service' => EconomicExposureMapper::class,
             'version' => '2026-05-wo-m02',
+            'internal_only' => true,
+        ],
+
+        'cash_flow.status' => [
+            'id' => 'cash_flow.status',
+            'area' => 'Dashboards',
+            'name' => 'Cash-Flow Status Monitor',
+            'summary' => 'Classifies advisor-dashboard client cash-flow status from the latest financial snapshot, saved budget, and recent cash-flow alerts.',
+            'formula' => 'Negative status is assigned when a recent cash-flow alert exists or latest cash balance is negative; watch status is assigned when budget runway is at or below six months; positive status requires cash-flow evidence without watch or negative triggers, otherwise status is unknown.',
+            'inputs' => [
+                'Latest financial snapshot',
+                'Latest strategic budget runway',
+                'Recent cash-flow alerts',
+            ],
+            'config_refs' => [],
+            'where_used' => [
+                'advisor.dashboard.cash_flow',
+            ],
+            'sources' => [
+                'PLAN-METHODOLOGY-REGISTRY.md',
+            ],
+            'owning_service' => CashFlowStatusMonitor::class,
+            'version' => '2026-07-service-quality',
             'internal_only' => true,
         ],
 
@@ -831,6 +861,32 @@ return [
             'internal_only' => true,
         ],
 
+        'entrepreneur.budget_forecast' => [
+            'id' => 'entrepreneur.budget_forecast',
+            'area' => 'Entrepreneurs',
+            'name' => 'Entrepreneur Budget Forecast',
+            'summary' => 'Calculates launch funding, monthly cash flow, runway, profitability, tax, and automatic downside scenarios for entrepreneur plans.',
+            'formula' => 'Monthly cash is built from launch costs, fixed costs starting in their selected month, revenue rows, future costs, funding sources, and scenario funding. Tax is applied after same-year loss offsets; downside scenarios apply revenue and cost multipliers before recomputing the forecast.',
+            'inputs' => [
+                'Launch costs',
+                'Monthly fixed costs',
+                'Revenue forecast',
+                'Funding sources and funding scenarios',
+                'Future costs',
+                'Budget assumptions and company tax rate',
+            ],
+            'config_refs' => [],
+            'where_used' => [
+                'entrepreneur.portal.budget_forecast',
+            ],
+            'sources' => [
+                'PLAN-SERVICE-QUALITY-TEST-IMPLEMENTATION.md',
+            ],
+            'owning_service' => BudgetCalculator::class,
+            'version' => '2026-07-service-quality',
+            'internal_only' => true,
+        ],
+
         'entrepreneur.revision_progress' => [
             'id' => 'entrepreneur.revision_progress',
             'area' => 'Entrepreneurs',
@@ -947,6 +1003,28 @@ return [
             ],
             'owning_service' => PaymentProcessor::class,
             'version' => '2026-05-wo-m02',
+            'internal_only' => true,
+        ],
+
+        'payments.gst' => [
+            'id' => 'payments.gst',
+            'area' => 'Payments',
+            'name' => 'GST Calculation',
+            'summary' => 'Calculates GST-inclusive payment amounts and GST components from GST-exclusive advisor fees.',
+            'formula' => 'GST amount = GST-exclusive amount * GST rate; gross amount = GST-exclusive amount * (1 + GST rate). The current implemented reference-data rate is used when available, otherwise the New Zealand fallback rate is 15%.',
+            'inputs' => [
+                'GST-exclusive amount',
+                'Implemented GST reference-data rate',
+            ],
+            'config_refs' => [],
+            'where_used' => [
+                'advisor.payments.gst',
+            ],
+            'sources' => [
+                'PLAN-METHODOLOGY-REGISTRY.md',
+            ],
+            'owning_service' => GstCalculator::class,
+            'version' => '2026-07-service-quality',
             'internal_only' => true,
         ],
     ],

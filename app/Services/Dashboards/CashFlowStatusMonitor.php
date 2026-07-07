@@ -8,11 +8,17 @@ use App\Models\Client;
 use App\Models\FinancialAlert;
 use App\Models\FinancialSnapshot;
 use App\Models\StrategicBudget;
+use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\Schema;
 
-final class CashFlowStatusMonitor
+final class CashFlowStatusMonitor implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['cash_flow.status'];
+    }
+
     public const STATUS_POSITIVE = 'positive';
 
     public const STATUS_WATCH = 'watch';

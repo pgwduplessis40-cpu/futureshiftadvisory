@@ -104,6 +104,22 @@ final class PvEngineTest extends TestCase
         ]);
     }
 
+    public function test_present_value_uses_sequential_periods_for_list_style_cash_flows(): void
+    {
+        $engine = app(PvEngine::class);
+
+        $this->assertSame(
+            $engine->presentValue([1 => 100, 2 => 100, 3 => 100], 0.12),
+            $engine->presentValue(['year one' => 100, 'year two' => 100, 'year three' => 100], 0.12),
+        );
+        $this->assertSame(
+            [1, 2, 3],
+            collect($engine->discountedCashFlows(['year one' => 100, 'year two' => 100, 'year three' => 100], 0.12))
+                ->pluck('period')
+                ->all(),
+        );
+    }
+
     private function client(): Client
     {
         return Client::query()->create([

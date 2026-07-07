@@ -18,6 +18,10 @@ use App\Models\Questionnaire;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
+use App\Services\Ai\Contracts\AiClient;
+use App\Services\Ai\Contracts\AiResponse;
+use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Analysis\FinancialAnalysisRunner;
 use App\Services\Analysis\Modules\FinancialAnalysis;
@@ -65,12 +69,75 @@ final class FinancialAnalysisTest extends TestCase
 
         $prescriptive = $run->findings->firstWhere('lens', AnalysisLens::Prescriptive);
         $this->assertInstanceOf(AnalysisFinding::class, $prescriptive);
+        $this->assertStringContainsString('improvement present-value calculation', $prescriptive->body);
+        $this->assertStringNotContainsString('WO-42', $prescriptive->body);
         $this->assertNotNull($prescriptive->pv_link_id);
         $this->assertDatabaseHas('improvement_opportunities', [
             'id' => $prescriptive->pv_link_id,
             'analysis_finding_id' => $prescriptive->id,
             'title' => 'Financial margin and cash-conversion uplift',
         ]);
+    }
+
+    public function test_structured_financial_ai_findings_are_persisted_with_attributions(): void
+    {
+        $client = $this->clientWithQuestionnaire();
+        $connection = $this->connection($client);
+        $this->snapshot($client, $connection);
+        $this->app->instance(AiClient::class, new StructuredFinancialAiClient);
+
+        $run = app(FinancialAnalysisRunner::class)->run($client);
+
+        $this->assertSame(AnalysisRun::STATUS_COMPLETED, $run->status);
+        $this->assertTrue($run->findings->contains(
+            fn (AnalysisFinding $finding): bool => $finding->title === 'AI working-capital interpretation'
+                && str_contains($finding->body, 'collection timing is constraining cash'),
+        ));
+        $this->assertTrue($run->findings->contains(
+            fn (AnalysisFinding $finding): bool => $finding->title === 'AI pricing and collections action'
+                && collect($finding->attributions)->contains(
+                    fn (array $attribution): bool => str_starts_with($attribution['source_reference'], 'financial_snapshot:'),
+                ),
+        ));
+        $this->assertSame(4, $run->findings->count());
+    }
+
+    public function test_structured_financial_ai_finding_without_attribution_is_dropped_and_surfaced(): void
+    {
+        $client = $this->clientWithQuestionnaire();
+        $connection = $this->connection($client);
+        $this->snapshot($client, $connection);
+        $this->app->instance(AiClient::class, new MissingStructuredFinancialAttributionAiClient);
+
+        $run = app(AnalysisRunner::class)->run($client, app(FinancialAnalysis::class));
+
+        $this->assertSame(AnalysisRun::STATUS_COMPLETED, $run->status);
+        $this->assertSame(1, data_get($run->metadata, 'dropped_findings.missing_attribution'));
+        $this->assertSame('Uncited AI interpretation', data_get($run->metadata, 'dropped_findings.items.0.title'));
+        $this->assertFalse($run->findings->contains('title', 'Uncited AI interpretation'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'analysis.finding_dropped_missing_attribution',
+        ]);
+    }
+
+    public function test_financial_analysis_surfaces_multi_period_trend_and_missing_industry_benchmark(): void
+    {
+        $client = $this->clientWithQuestionnaire();
+        $connection = $this->connection($client);
+        $this->snapshot($client, $connection);
+        $this->olderSnapshot($client, $connection);
+
+        $run = app(FinancialAnalysisRunner::class)->run($client);
+
+        $diagnostic = $run->findings->firstWhere('lens', AnalysisLens::Diagnostic);
+        $this->assertInstanceOf(AnalysisFinding::class, $diagnostic);
+        $this->assertStringContainsString('Multi-period trend across 2 snapshots', $diagnostic->body);
+        $this->assertStringContainsString('revenue moved from NZD 200,000 to NZD 250,000', $diagnostic->body);
+
+        $predictive = $run->findings->firstWhere('lens', AnalysisLens::Predictive);
+        $this->assertInstanceOf(AnalysisFinding::class, $predictive);
+        $this->assertStringContainsString('Industry benchmark warning', $predictive->body);
+        $this->assertStringContainsString('No verified industry financial benchmark is configured', $predictive->body);
     }
 
     public function test_financial_module_uses_questionnaire_fallback_with_disclaimer_when_no_accounting_connection_exists(): void
@@ -201,6 +268,44 @@ final class FinancialAnalysisTest extends TestCase
         ]);
     }
 
+    private function olderSnapshot(Client $client, AccountingConnection $connection): FinancialSnapshot
+    {
+        return FinancialSnapshot::query()->create([
+            'client_id' => $client->getKey(),
+            'accounting_connection_id' => $connection->getKey(),
+            'provider' => $connection->provider,
+            'period_start' => '2026-03-01',
+            'period_end' => '2026-03-31',
+            'source' => AccountingConnection::PROVIDER_XERO,
+            'source_badge' => 'stub',
+            'degraded' => false,
+            'correlation_id' => null,
+            'profit_and_loss' => [
+                'revenue' => 200000,
+                'gross_profit' => 108000,
+                'operating_expenses' => 99000,
+                'net_profit' => 9000,
+            ],
+            'balance_sheet' => [
+                'assets' => 360000,
+                'liabilities' => 230000,
+                'equity' => 130000,
+            ],
+            'cash_flow' => [
+                'operating_cash_flow' => 7000,
+                'investing_cash_flow' => -6000,
+                'financing_cash_flow' => -4000,
+                'closing_cash' => 52000,
+            ],
+            'metrics' => [
+                'gross_margin' => 0.54,
+                'net_margin' => 0.045,
+                'current_ratio' => 1.09,
+            ],
+            'pulled_at' => now()->subMonth(),
+        ]);
+    }
+
     private function indicator(string $indicator, string $label, float $value, string $unit): EconomicIndicator
     {
         return EconomicIndicator::query()->create([
@@ -216,5 +321,109 @@ final class FinancialAnalysisTest extends TestCase
             'fetched_at' => now(),
             'payload' => [],
         ]);
+    }
+}
+
+class StructuredFinancialAiClient implements AiClient
+{
+    public function analyse(PromptEnvelope $prompt): AiResponse
+    {
+        $source = collect($prompt->sourceReferences)
+            ->first(fn (string $reference): bool => str_contains($reference, 'profit_and_loss.revenue'))
+            ?? $prompt->sourceReferences[0]
+            ?? 'client:unknown';
+
+        return AiResponse::fromStructuredPayload(
+            payload: [
+                'text' => 'Structured financial interpretation.',
+                'attributions' => [[
+                    'claim' => 'Structured financial response uses the supplied financial source references.',
+                    'source_reference' => $source,
+                ]],
+                'uncertainty' => Uncertainty::Medium->value,
+                'metadata' => [
+                    'findings' => [
+                        [
+                            'lens' => AnalysisLens::Diagnostic->value,
+                            'severity' => 'medium',
+                            'title' => 'AI working-capital interpretation',
+                            'body' => 'The connected data indicates collection timing is constraining cash conversion despite positive reported profit.',
+                            'attributions' => [[
+                                'claim' => 'Collection timing interpretation is grounded in the supplied financial snapshot references.',
+                                'source_reference' => $source,
+                            ]],
+                            'confidence' => 0.78,
+                        ],
+                        [
+                            'lens' => AnalysisLens::Prescriptive->value,
+                            'severity' => 'high',
+                            'title' => 'AI pricing and collections action',
+                            'body' => 'Prioritise price discipline and collections cadence before adding more overhead.',
+                            'attributions' => [[
+                                'claim' => 'Prescriptive action is grounded in the supplied financial snapshot references.',
+                                'source_reference' => $source,
+                            ]],
+                            'uncertainty' => Uncertainty::Medium->value,
+                        ],
+                    ],
+                ],
+            ],
+            model: 'fake-financial-structured',
+            promptVersion: $prompt->version,
+            promptHash: $prompt->hash(),
+        );
+    }
+
+    public function verifyDocument(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->analyse($prompt);
+    }
+
+    public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->analyse($prompt);
+    }
+
+    public function summarise(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->analyse($prompt);
+    }
+
+    public function redFlag(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->analyse($prompt);
+    }
+}
+
+final class MissingStructuredFinancialAttributionAiClient extends StructuredFinancialAiClient
+{
+    public function analyse(PromptEnvelope $prompt): AiResponse
+    {
+        $source = $prompt->sourceReferences[0] ?? 'client:unknown';
+
+        return AiResponse::fromStructuredPayload(
+            payload: [
+                'text' => 'Structured financial interpretation with one uncited row.',
+                'attributions' => [[
+                    'claim' => 'Top-level response is attributed so row-level dropping can be tested.',
+                    'source_reference' => $source,
+                ]],
+                'uncertainty' => Uncertainty::Medium->value,
+                'metadata' => [
+                    'findings' => [
+                        [
+                            'lens' => AnalysisLens::Diagnostic->value,
+                            'severity' => 'medium',
+                            'title' => 'Uncited AI interpretation',
+                            'body' => 'This row lacks row-level source attribution and must not be persisted.',
+                            'attributions' => [],
+                        ],
+                    ],
+                ],
+            ],
+            model: 'fake-financial-structured',
+            promptVersion: $prompt->version,
+            promptHash: $prompt->hash(),
+        );
     }
 }

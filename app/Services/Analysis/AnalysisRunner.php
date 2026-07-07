@@ -103,7 +103,8 @@ final class AnalysisRunner implements ProvidesMethodology
             );
 
             $findings = $module->mapFindings($client, $response, $score);
-            $persistedLenses = $this->persistFindings($run, $client, $response, $score, $findings, $options['actor'] ?? null);
+            $persistence = $this->persistFindings($run, $client, $response, $score, $findings, $options['actor'] ?? null);
+            $persistedLenses = $persistence['lenses'];
         } catch (MissingAttributionException $e) {
             return $this->failForIntegrityViolation($run, $e, $options['actor'] ?? null);
         } catch (Throwable $e) {
@@ -118,6 +119,14 @@ final class AnalysisRunner implements ProvidesMethodology
             'prompt_hash' => $response->promptHash,
             'tokens_in' => $response->tokensIn,
             'tokens_out' => $response->tokensOut,
+            'metadata' => [
+                'findings_input_count' => count($findings),
+                'findings_created_count' => count($persistedLenses),
+                'dropped_findings' => [
+                    'missing_attribution' => $persistence['dropped_missing_attribution'],
+                    'items' => $persistence['dropped'],
+                ],
+            ],
             'completed_at' => now(),
         ])->save();
 
@@ -128,6 +137,7 @@ final class AnalysisRunner implements ProvidesMethodology
             after: [
                 'module' => $module->module()->value,
                 'findings_created' => count($persistedLenses),
+                'findings_dropped_missing_attribution' => $persistence['dropped_missing_attribution'],
                 'framework_lenses' => $run->framework_lenses,
             ],
         );
@@ -143,6 +153,7 @@ final class AnalysisRunner implements ProvidesMethodology
             'status' => AnalysisRun::STATUS_RUNNING,
             'framework_lenses' => [],
             'data_quality_snapshot' => $score->toPayload(),
+            'metadata' => [],
             'tokens_in' => 0,
             'tokens_out' => 0,
             'started_at' => now(),
@@ -232,7 +243,7 @@ final class AnalysisRunner implements ProvidesMethodology
 
     /**
      * @param  array<int, AnalysisFindingData>  $findings
-     * @return array<int, AnalysisLens>
+     * @return array{lenses: array<int, AnalysisLens>, dropped_missing_attribution: int, dropped: array<int, array{title:string,lens:string,reason:string}>}
      */
     private function persistFindings(
         AnalysisRun $run,
@@ -243,12 +254,20 @@ final class AnalysisRunner implements ProvidesMethodology
         ?Authenticatable $actor,
     ): array {
         $persistedLenses = [];
+        $droppedMissingAttribution = 0;
+        $dropped = [];
         $disclaimer = $this->dataQualityDisclaimer($score);
 
         foreach ($findings as $finding) {
             $attributions = $finding->attributions ?? $response->attributions;
 
             if (! $this->hasCompleteAttributions($attributions)) {
+                $droppedMissingAttribution++;
+                $dropped[] = [
+                    'title' => $finding->title,
+                    'lens' => $finding->lens->value,
+                    'reason' => 'missing_attribution',
+                ];
                 $this->audit->record(
                     action: 'analysis.finding_dropped_missing_attribution',
                     subject: $run,
@@ -281,7 +300,11 @@ final class AnalysisRunner implements ProvidesMethodology
             $persistedLenses[] = $finding->lens;
         }
 
-        return $persistedLenses;
+        return [
+            'lenses' => $persistedLenses,
+            'dropped_missing_attribution' => $droppedMissingAttribution,
+            'dropped' => $dropped,
+        ];
     }
 
     /**

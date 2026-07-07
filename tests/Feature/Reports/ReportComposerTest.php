@@ -973,7 +973,32 @@ HTML,
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->has('reports', 1)
-                ->where('reports.0.title', ReportType::Client->label().' - '.$client->legal_name));
+                ->where('reports.0.title', ReportType::Client->label().' - '.$client->legal_name)
+                ->where('reports.0.view_url', route('portal.reports.show', $clientReport, absolute: false))
+                ->where('reports.0.download_url', route('portal.reports.show', $clientReport, absolute: false)));
+    }
+
+    public function test_client_portal_report_view_rerenders_when_pdf_missing(): void
+    {
+        [, $client, $clientUser] = $this->clientWithTeamAndClientUser('portal-missing-report@example.test');
+        $report = $this->storedReport($client);
+
+        $this->assertNull($report->pdf_path);
+
+        $response = $this->actingAsMfa($clientUser)
+            ->get(route('portal.reports.show', $report));
+
+        $response->assertOk();
+        $this->assertStringContainsString('application/pdf', (string) $response->headers->get('content-type'));
+        $this->assertStringContainsString('inline;', (string) $response->headers->get('content-disposition'));
+        $this->assertStringStartsWith('%PDF', $response->getContent());
+
+        $this->assertNotNull($report->refresh()->pdf_path);
+        Storage::disk('secure_local')->assertExists($report->pdf_path);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'portal.report.downloaded',
+            'subject_id' => $report->id,
+        ]);
     }
 
     public function test_reports_and_sections_are_isolated_by_client_rls(): void

@@ -19,16 +19,17 @@ use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\ServiceActivation;
 use App\Models\User;
+use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Dd\AcquisitionPlanRequirements;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Dd\PlanBuilder as DdPlanBuilder;
 use App\Services\Dd\PostAcquisition;
-use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Entrepreneurs\Guidance as EntrepreneurGuidance;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
 use App\Services\Portal\ClientPortalResolver;
+use App\Services\Reports\BrandedReportLayout;
 use App\Support\RequestContext;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -50,6 +51,7 @@ final class DdBusinessPlanController extends Controller
         private readonly EntrepreneurGuidance $guidance,
         private readonly PostAcquisition $postAcquisition,
         private readonly PdfRenderer $pdf,
+        private readonly BrandedReportLayout $layout,
         private readonly RequestContext $requestContext,
         private readonly StrategicBudgetService $strategicBudgets,
     ) {}
@@ -439,75 +441,24 @@ final class DdBusinessPlanController extends Controller
             ->implode('');
         $clientName = $client->trading_name ?: $client->legal_name;
         $planStatus = $plan instanceof BusinessPlan ? $plan->status : 'not populated';
+        $generatedAt = now()->format('M j, Y g:i A');
 
-        return sprintf(
-            <<<'HTML'
-<!doctype html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>%s</title>
-<style>
-body { color: #17211b; font-family: Arial, sans-serif; font-size: 12px; line-height: 1.55; margin: 0; }
-.brand { border-bottom: 2px solid #2f6f5e; margin-bottom: 18px; padding-bottom: 12px; }
-.brand h1 { font-size: 22px; margin: 0 0 4px; }
-.brand p { margin: 0; }
-.summary { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 16px; }
-.metric { border: 1px solid #d8e2dc; padding: 10px; }
-.metric span { color: #667085; display: block; font-size: 10px; text-transform: uppercase; }
-.metric strong { display: block; font-size: 14px; margin-top: 3px; }
-.section { border: 1px solid #d8e2dc; margin-bottom: 14px; padding: 12px; break-inside: avoid; }
-.section h2 { color: #214f44; font-size: 15px; margin: 0 0 8px; }
-.requirement { border-top: 1px solid #edf2ef; padding: 10px 0; }
-.requirement:first-of-type { border-top: 0; padding-top: 0; }
-.requirement h3 { font-size: 13px; margin: 0; }
-.status { border-radius: 999px; display: inline-block; font-size: 10px; margin-left: 6px; padding: 2px 7px; }
-.complete { background: #e8f5ef; color: #176b4d; }
-.pending { background: #fff7e6; color: #945a00; }
-.body { margin-top: 6px; white-space: pre-wrap; }
-.note { color: #667085; font-size: 10px; margin: 5px 0 0; }
-.missing { background: #fffaf0; border: 1px solid #f3d08f; margin-bottom: 16px; padding: 10px 12px; }
-.missing h2 { font-size: 13px; margin: 0 0 6px; }
-.missing ul { margin: 0; padding-left: 18px; }
-</style>
-</head>
-<body>
-<header class="brand">
-<h1>Business plan preview</h1>
-<p>Future Shift Advisory</p>
-<p>%s / %s</p>
-<p>Generated %s</p>
-</header>
-<section class="summary">
-%s
-%s
-%s
-%s
-</section>
-%s
-%s
-</body>
-</html>
-HTML,
-            $this->escape('Business plan preview - '.$engagement->target_name),
-            $this->escape($engagement->target_name),
-            $this->escape($clientName),
-            $this->escape(now()->format('M j, Y g:i A')),
-            $this->previewMetricHtml('Plan status', $this->formatPreviewLabel($planStatus)),
-            $this->previewMetricHtml('Requirements', "{$completedRequirements}/{$totalRequirements} complete"),
-            $this->previewMetricHtml('DD evidence', $readiness['data_room_item_count'].' uploaded'),
-            $this->previewMetricHtml('Advice report', (bool) $readiness['advice_report_ready'] ? 'Ready' : 'Pending'),
-            $this->previewMissingHtml($missingRequirements, $readinessMissing),
-            $phaseHtml,
-        );
-    }
-
-    private function previewMetricHtml(string $label, string $value): string
-    {
-        return sprintf(
-            '<div class="metric"><span>%s</span><strong>%s</strong></div>',
-            $this->escape($label),
-            $this->escape($value),
+        return $this->layout->document(
+            title: 'Business plan preview - '.$engagement->target_name,
+            templateKey: 'business-plan-preview',
+            documentTag: 'Business plan preview',
+            eyebrow: 'Due diligence acquisition plan',
+            heading: 'Business plan preview',
+            subheading: $engagement->target_name.' / '.$clientName,
+            meta: [
+                'Plan status' => $this->formatPreviewLabel($planStatus),
+                'Requirements' => "{$completedRequirements}/{$totalRequirements} complete",
+                'DD evidence' => $readiness['data_room_item_count'].' uploaded',
+                'Advice report' => (bool) $readiness['advice_report_ready'] ? 'Ready' : 'Pending',
+            ],
+            contentHtml: $this->previewMissingHtml($missingRequirements, $readinessMissing).$phaseHtml,
+            footer: 'Generated '.$generatedAt.' using Future Shift Advisory business plan preview',
+            metaColumns: 4,
         );
     }
 
@@ -525,7 +476,7 @@ HTML,
         }
 
         return sprintf(
-            '<section class="missing"><h2>Open items before finalising</h2><ul>%s%s</ul></section>',
+            '<article class="report-section missing-panel"><h2>Open items before finalising</h2><ul>%s%s</ul></article>',
             $items,
             $readinessMissing,
         );
@@ -553,7 +504,7 @@ HTML,
             ->implode('');
 
         return sprintf(
-            '<section class="section"><h2>%s</h2>%s%s</section>',
+            '<article class="report-section"><h2>%s</h2>%s%s</article>',
             $this->escape((string) $phase['title']),
             $requirementHtml,
             $additionalHtml,

@@ -75,7 +75,7 @@ login.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     login.form = loginForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\AuthenticatedSessionController::logout
@@ -130,7 +130,7 @@ logout.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: logout.url(options),
             method: 'post',
         })
-    
+
     logout.form = logoutForm
 /**
 * @see \App\Http\Controllers\Public\HomeController::__invoke
@@ -208,7 +208,7 @@ home.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     home.form = homeForm
 /**
 * @see \App\Http\Controllers\DashboardController::__invoke
@@ -286,5 +286,5 @@ dashboard.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     dashboard.form = dashboardForm

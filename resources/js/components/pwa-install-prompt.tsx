@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
 import { Download, Share2, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 import { BrandMark } from '@/components/public/brand-mark';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,7 @@ export function PwaInstallPrompt() {
     const [visible, setVisible] = useState(false);
     const [helpMode, setHelpMode] = useState<'browser' | 'ios' | null>(null);
 
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         if (typeof window === 'undefined') {
             return;
@@ -18,17 +19,20 @@ export function PwaInstallPrompt() {
 
         if (installState.isInstalled) {
             setVisible(false);
+
             return;
         }
 
         if (installState.dismissedUntil > Date.now()) {
             setVisible(false);
+
             return;
         }
 
         if (installState.canPrompt) {
             setHelpMode(null);
             setVisible(true);
+
             return;
         }
 
@@ -38,6 +42,7 @@ export function PwaInstallPrompt() {
         ) {
             setHelpMode('ios');
             setVisible(true);
+
             return;
         }
 
@@ -56,6 +61,7 @@ export function PwaInstallPrompt() {
         installState.isInstalled,
         installState.isLikelyMobile,
     ]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const dismiss = () => {
         setVisible(false);
@@ -65,6 +71,7 @@ export function PwaInstallPrompt() {
     const install = async () => {
         if (!installState.canPrompt) {
             setHelpMode(installState.instructionMode);
+
             return;
         }
 
@@ -72,11 +79,13 @@ export function PwaInstallPrompt() {
 
         if (outcome === 'accepted' || outcome === 'installed') {
             setVisible(false);
+
             return;
         }
 
         if (outcome === 'dismissed') {
             dismiss();
+
             return;
         }
 

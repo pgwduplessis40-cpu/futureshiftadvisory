@@ -70,12 +70,14 @@ final class PvWaterfallBuilder implements ProvidesMethodology
         $current = $valuation instanceof BusinessValuation ? $valuation->reconciled_mid : 0.0;
         $improvements = ImprovementOpportunity::query()
             ->where('client_id', $client->getKey())
+            ->active()
             ->with('pvCalculation')
             ->orderBy('rank')
             ->orderByDesc('pv_of_impact')
             ->get();
         $riskCosts = RiskCost::query()
             ->where('client_id', $client->getKey())
+            ->active()
             ->with('pvCalculation')
             ->orderBy('rank')
             ->orderByDesc('pv_of_cost')

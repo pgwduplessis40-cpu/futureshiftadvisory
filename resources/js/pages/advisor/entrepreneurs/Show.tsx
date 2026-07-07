@@ -83,9 +83,12 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
 
         router.delete(entrepreneur.invite_cancel_url, { preserveScroll: true });
     };
+
+    /* eslint-disable react-hooks/set-state-in-effect */
     useEffect(() => {
         setGamificationEnabled(gamification.enabled);
     }, [gamification.enabled]);
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     const toggleGamification = () => {
         const nextEnabled = !gamificationEnabled;
@@ -719,11 +722,19 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                             variant="outline"
                                             className="w-full justify-start"
                                         >
-                                            <a href={report.download_url}>
+                                            <a
+                                                href={
+                                                    report.view_url ??
+                                                    report.download_url
+                                                }
+                                                target="_blank"
+                                                rel="noreferrer"
+                                            >
                                                 <ArrowUpRight
                                                     className="size-4"
                                                     aria-hidden="true"
                                                 />
+                                                View{' '}
                                                 {formatDate(
                                                     report.generated_at,
                                                 )}

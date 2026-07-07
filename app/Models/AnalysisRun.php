@@ -32,6 +32,7 @@ final class AnalysisRun extends Model
         'module' => AnalysisModule::class,
         'framework_lenses' => 'array',
         'data_quality_snapshot' => 'array',
+        'metadata' => 'array',
         'tokens_in' => 'integer',
         'tokens_out' => 'integer',
         'started_at' => 'datetime',

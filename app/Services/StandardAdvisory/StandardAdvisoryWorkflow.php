@@ -18,6 +18,7 @@ use App\Models\Questionnaire;
 use App\Models\QuestionnaireAnswer;
 use App\Models\QuestionnaireResponse;
 use App\Models\Report;
+use App\Models\StandardAdvisoryPackWaiver;
 use App\Models\User;
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Analysis\Contracts\AnalysisModule as AnalysisModuleContract;
@@ -61,6 +62,14 @@ final class StandardAdvisoryWorkflow
         private readonly DataQualityScorer $dataQuality,
         private readonly ReportComposer $reports,
     ) {}
+
+    /**
+     * @return array<int, string>
+     */
+    public function requiredAnalysisModuleValues(): array
+    {
+        return array_keys(self::ANALYSIS_MODULES);
+    }
 
     /**
      * @return array<string, mixed>|null
@@ -113,14 +122,24 @@ final class StandardAdvisoryWorkflow
         $documents = $this->documents($client);
         $verifications = $this->verifications($client);
         $blockingVerifications = $verifications->filter(fn (DocumentVerification $verification): bool => $verification->isBlockingAnalysis());
-        $analysisModules = $this->analysisModuleSummaries($client);
+        $waivers = $this->activePackWaivers($client);
+        $analysisModules = $this->analysisModuleSummaries($client, $waivers);
         $analysisCompleted = collect($analysisModules)->where('completed', true)->count();
+        $analysisWaived = collect($analysisModules)->where('waived', true)->count();
+        $analysisDroppedFindings = (int) collect($analysisModules)->sum('dropped_findings.missing_attribution');
+        $analysisReadyForPack = collect($analysisModules)->every(fn (array $module): bool => (bool) ($module['ready_for_pack'] ?? false));
+        $canRecordPackWaiver = $response instanceof QuestionnaireResponse
+            && $documents->isNotEmpty()
+            && $blockingVerifications->isEmpty()
+            && ! $analysisReadyForPack
+            && $analysisCompleted > 0;
         $healthBatch = $this->latestHealthBatch($client);
         $reports = $this->reportSummaries($client);
         $dataQuality = $this->dataQuality->score($client);
         $latestValuation = $this->latestValuation($client);
 
         $missing = [];
+        $warnings = [];
         if (! $response instanceof QuestionnaireResponse) {
             $missing[] = 'Submit the Standard Advisory questionnaire.';
         }
@@ -130,8 +149,10 @@ final class StandardAdvisoryWorkflow
         if ($blockingVerifications->isNotEmpty()) {
             $missing[] = 'Resolve document verification flags before relying on analysis.';
         }
-        if ($analysisCompleted === 0) {
+        if ($analysisCompleted === 0 && $analysisWaived === 0) {
             $missing[] = 'Run Standard Advisory analysis.';
+        } elseif (! $analysisReadyForPack) {
+            $missing[] = 'Complete or waive Standard Advisory analysis modules: '.$this->incompleteAnalysisModuleLabels($analysisModules).'.';
         }
         if (! $healthBatch instanceof Collection) {
             $missing[] = 'Recompute the business health radar from the latest analysis.';
@@ -141,6 +162,9 @@ final class StandardAdvisoryWorkflow
         }
         if (($reports['client']['review_status'] ?? null) === 'pending_review') {
             $missing[] = 'Review and release the client report.';
+        }
+        if ($analysisDroppedFindings > 0) {
+            $warnings[] = "{$analysisDroppedFindings} analysis finding(s) were dropped because source attribution was incomplete.";
         }
 
         return [
@@ -160,7 +184,12 @@ final class StandardAdvisoryWorkflow
             ],
             'analysis_modules' => $analysisModules,
             'analysis_completed' => $analysisCompleted,
+            'analysis_waived' => $analysisWaived,
+            'analysis_dropped_findings' => $analysisDroppedFindings,
             'analysis_total' => count(self::ANALYSIS_MODULES),
+            'analysis_ready_for_pack' => $analysisReadyForPack,
+            'pack_waivers' => $waivers->map(fn (StandardAdvisoryPackWaiver $waiver): array => $this->waiverPayload($waiver))->values()->all(),
+            'waivable_modules' => $this->waivableModuleValues($analysisModules),
             'website_audit' => $this->websiteAuditReadiness($client),
             'health_recomputed_at' => $healthBatch instanceof Collection
                 ? $healthBatch->first()?->captured_at?->toIso8601String()
@@ -170,14 +199,18 @@ final class StandardAdvisoryWorkflow
             'reports' => $reports,
             'latest_report_generated_at' => $this->latestReportGeneratedAt($reports),
             'missing' => $missing,
+            'warnings' => $warnings,
             'can_run_analysis' => $response instanceof QuestionnaireResponse
                 && $documents->isNotEmpty()
                 && $blockingVerifications->isEmpty(),
-            'can_generate_pack' => $analysisCompleted > 0
+            'can_generate_pack' => $response instanceof QuestionnaireResponse
+                && $documents->isNotEmpty()
+                && $analysisReadyForPack
                 && $blockingVerifications->isEmpty(),
-            'status' => $this->status($response, $documents, $blockingVerifications, $analysisCompleted, $reports),
-            'status_label' => $this->statusLabel($response, $documents, $blockingVerifications, $analysisCompleted, $reports),
-            'next_action' => $this->nextAction($response, $documents, $blockingVerifications, $analysisCompleted, $reports),
+            'can_record_pack_waiver' => $canRecordPackWaiver,
+            'status' => $this->status($response, $documents, $blockingVerifications, $analysisCompleted, $analysisWaived, $analysisReadyForPack, $reports),
+            'status_label' => $this->statusLabel($response, $documents, $blockingVerifications, $analysisCompleted, $analysisWaived, $analysisReadyForPack, $reports),
+            'next_action' => $this->nextAction($response, $documents, $blockingVerifications, $analysisCompleted, $analysisWaived, $analysisReadyForPack, $reports),
         ];
     }
 
@@ -232,6 +265,60 @@ final class StandardAdvisoryWorkflow
         ]);
 
         return $reports;
+    }
+
+    /**
+     * @param  array<int, string>  $modules
+     */
+    public function recordPackWaiver(Client $client, User $actor, array $modules, string $reason): StandardAdvisoryPackWaiver
+    {
+        $this->assertStandardAdvisory($client);
+
+        $reason = trim($reason);
+        if ($reason === '') {
+            throw ValidationException::withMessages([
+                'waiver_reason' => 'Add the advisor reason before waiving incomplete Standard Advisory modules.',
+            ]);
+        }
+
+        $readiness = $this->readiness($client);
+        if ($readiness['can_generate_pack'] === true) {
+            throw ValidationException::withMessages([
+                'waiver_modules' => 'This advisory pack is already ready; no partial-pack waiver is required.',
+            ]);
+        }
+
+        if ($readiness['can_record_pack_waiver'] !== true) {
+            throw ValidationException::withMessages([
+                'standard_advisory' => implode(' ', $readiness['missing']),
+            ]);
+        }
+
+        $waivableModules = $this->waivableModuleValues($readiness['analysis_modules']);
+        $modules = $this->normaliseWaiverModules($modules === [] ? $waivableModules : $modules);
+        $invalid = array_values(array_diff($modules, $waivableModules));
+
+        if ($modules === [] || $invalid !== []) {
+            throw ValidationException::withMessages([
+                'waiver_modules' => 'Choose only incomplete, failed, or stale Standard Advisory modules for the waiver.',
+            ]);
+        }
+
+        $waiver = StandardAdvisoryPackWaiver::query()->create([
+            'client_id' => $client->getKey(),
+            'waived_by_user_id' => $actor->getKey(),
+            'modules' => $modules,
+            'reason' => $reason,
+            'waived_at' => now(),
+        ]);
+
+        $this->audit->record('standard_advisory.pack_waiver_recorded', subject: $client, actor: $actor, after: [
+            'waiver_id' => (string) $waiver->getKey(),
+            'modules' => $modules,
+            'reason' => $reason,
+        ]);
+
+        return $waiver;
     }
 
     private function isStandardAdvisory(Client $client): bool
@@ -530,7 +617,7 @@ final class StandardAdvisoryWorkflow
     /**
      * @return array<int, array<string, mixed>>
      */
-    private function analysisModuleSummaries(Client $client): array
+    private function analysisModuleSummaries(Client $client, Collection $waivers): array
     {
         return collect(self::ANALYSIS_MODULES)
             ->map(function (string $moduleClass, string $module): array {
@@ -542,19 +629,43 @@ final class StandardAdvisoryWorkflow
                     'class' => $moduleClass,
                 ];
             })
-            ->map(function (array $module) use ($client): array {
+            ->map(function (array $module) use ($client, $waivers): array {
                 $run = AnalysisRun::query()
                     ->where('client_id', $client->getKey())
                     ->where('module', $module['module'])
-                    ->latest('completed_at')
+                    ->latest('started_at')
                     ->latest()
                     ->first();
+                $stale = $run?->status === AnalysisRun::STATUS_COMPLETED
+                    && $run->completed_at !== null
+                    && $run->completed_at->lt(now()->subDays($this->analysisFreshnessDays()));
+                $completed = $run?->status === AnalysisRun::STATUS_COMPLETED && ! $stale;
+                $waiver = $completed ? null : $this->waiverForModule($waivers, (string) $module['module']);
+                $waived = $waiver instanceof StandardAdvisoryPackWaiver;
+                $state = match (true) {
+                    $completed => 'complete',
+                    $waived => 'waived',
+                    $stale => 'stale',
+                    $run?->status === AnalysisRun::STATUS_FAILED => 'failed',
+                    ! $run instanceof AnalysisRun => 'missing',
+                    default => $run->status,
+                };
 
                 return [
                     'module' => $module['module'],
                     'label' => $module['label'],
-                    'status' => $run?->status ?? AnalysisRun::STATUS_QUEUED,
-                    'completed' => $run?->status === AnalysisRun::STATUS_COMPLETED,
+                    'status' => $state === 'complete' ? AnalysisRun::STATUS_COMPLETED : $state,
+                    'state' => $state,
+                    'raw_status' => $run?->status,
+                    'completed' => $completed,
+                    'stale' => $stale,
+                    'waived' => $waived,
+                    'ready_for_pack' => $completed || $waived,
+                    'waivable' => ! $completed && ! $waived,
+                    'waiver' => $waiver instanceof StandardAdvisoryPackWaiver ? $this->waiverPayload($waiver) : null,
+                    'dropped_findings' => [
+                        'missing_attribution' => (int) data_get($run?->metadata, 'dropped_findings.missing_attribution', 0),
+                    ],
                     'completed_at' => $run?->completed_at?->toIso8601String(),
                 ];
             })
@@ -623,6 +734,7 @@ final class StandardAdvisoryWorkflow
             'generated_at' => $report->generated_at?->toIso8601String(),
             'review_status' => $report->review_status,
             'reviewed_at' => $report->reviewed_at?->toIso8601String(),
+            'view_url' => route('advisor.reports.download', $report, absolute: false),
             'download_url' => route('advisor.reports.download', $report, absolute: false),
             'review_url' => route('advisor.reports.review', $report, absolute: false),
             'release_url' => $type === ReportType::Client
@@ -641,6 +753,10 @@ final class StandardAdvisoryWorkflow
             return null;
         }
 
+        $url = in_array($report['review_status'], ['not_required', 'reviewed'], true)
+            ? route('portal.reports.show', $report['id'], absolute: false)
+            : null;
+
         return [
             'id' => $report['id'],
             'type' => $report['type'],
@@ -649,9 +765,8 @@ final class StandardAdvisoryWorkflow
             'generated_at' => $report['generated_at'],
             'review_status' => $report['review_status'],
             'reviewed_at' => $report['reviewed_at'],
-            'download_url' => in_array($report['review_status'], ['not_required', 'reviewed'], true)
-                ? route('portal.reports.show', $report['id'], absolute: false)
-                : null,
+            'view_url' => $url,
+            'download_url' => $url,
         ];
     }
 
@@ -687,6 +802,8 @@ final class StandardAdvisoryWorkflow
         Collection $documents,
         Collection $blockingVerifications,
         int $analysisCompleted,
+        int $analysisWaived,
+        bool $analysisReadyForPack,
         array $reports,
     ): string {
         if (! $response instanceof QuestionnaireResponse) {
@@ -701,8 +818,16 @@ final class StandardAdvisoryWorkflow
             return 'verification_blocked';
         }
 
-        if ($analysisCompleted === 0) {
+        if ($analysisCompleted === 0 && $analysisWaived === 0) {
             return 'ready_for_analysis';
+        }
+
+        if (! $analysisReadyForPack) {
+            return 'analysis_incomplete';
+        }
+
+        if ($analysisWaived > 0 && ($reports['client'] === null || $reports['advisor'] === null)) {
+            return 'ready_for_pack_with_waiver';
         }
 
         if ($reports['client'] === null || $reports['advisor'] === null) {
@@ -726,13 +851,17 @@ final class StandardAdvisoryWorkflow
         Collection $documents,
         Collection $blockingVerifications,
         int $analysisCompleted,
+        int $analysisWaived,
+        bool $analysisReadyForPack,
         array $reports,
     ): string {
-        return match ($this->status($response, $documents, $blockingVerifications, $analysisCompleted, $reports)) {
+        return match ($this->status($response, $documents, $blockingVerifications, $analysisCompleted, $analysisWaived, $analysisReadyForPack, $reports)) {
             'waiting_questionnaire' => 'Waiting for questionnaire',
             'waiting_documents' => 'Waiting for evidence',
             'verification_blocked' => 'Evidence review needed',
             'ready_for_analysis' => 'Ready for analysis',
+            'analysis_incomplete' => 'Analysis incomplete',
+            'ready_for_pack_with_waiver' => 'Ready with waiver',
             'ready_for_pack' => 'Ready for advisory pack',
             'awaiting_report_release' => 'Report awaiting release',
             default => 'Client report released',
@@ -749,17 +878,118 @@ final class StandardAdvisoryWorkflow
         Collection $documents,
         Collection $blockingVerifications,
         int $analysisCompleted,
+        int $analysisWaived,
+        bool $analysisReadyForPack,
         array $reports,
     ): string {
-        return match ($this->status($response, $documents, $blockingVerifications, $analysisCompleted, $reports)) {
+        return match ($this->status($response, $documents, $blockingVerifications, $analysisCompleted, $analysisWaived, $analysisReadyForPack, $reports)) {
             'waiting_questionnaire' => 'Ask the client to complete onboarding.',
             'waiting_documents' => 'Ask the client to upload supporting evidence.',
             'verification_blocked' => 'Resolve document verification flags.',
             'ready_for_analysis' => 'Run Standard Advisory analysis.',
+            'analysis_incomplete' => 'Complete every Standard Advisory analysis module before generating the pack.',
+            'ready_for_pack_with_waiver' => 'Generate the advisory pack with the recorded partial-analysis waiver.',
             'ready_for_pack' => 'Generate the advisory pack.',
             'awaiting_report_release' => 'Review and release the client report.',
             default => 'Discuss the released report with the client.',
         };
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $analysisModules
+     */
+    private function incompleteAnalysisModuleLabels(array $analysisModules): string
+    {
+        $labels = collect($analysisModules)
+            ->reject(fn (array $module): bool => (bool) ($module['ready_for_pack'] ?? false))
+            ->map(function (array $module): string {
+                $status = (string) ($module['status'] ?? AnalysisRun::STATUS_QUEUED);
+
+                return sprintf('%s (%s)', (string) ($module['label'] ?? 'Module'), str_replace('_', ' ', $status));
+            })
+            ->values()
+            ->all();
+
+        return implode(', ', $labels);
+    }
+
+    /**
+     * @return Collection<int, StandardAdvisoryPackWaiver>
+     */
+    private function activePackWaivers(Client $client): Collection
+    {
+        return StandardAdvisoryPackWaiver::query()
+            ->where('client_id', $client->getKey())
+            ->active()
+            ->with('waivedBy')
+            ->latest('waived_at')
+            ->latest()
+            ->get();
+    }
+
+    /**
+     * @param  Collection<int, StandardAdvisoryPackWaiver>  $waivers
+     */
+    private function waiverForModule(Collection $waivers, string $module): ?StandardAdvisoryPackWaiver
+    {
+        return $waivers->first(
+            fn (StandardAdvisoryPackWaiver $waiver): bool => $waiver->coversModule($module),
+        );
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $analysisModules
+     * @return array<int, string>
+     */
+    private function waivableModuleValues(array $analysisModules): array
+    {
+        return collect($analysisModules)
+            ->filter(fn (array $module): bool => (bool) ($module['waivable'] ?? false))
+            ->pluck('module')
+            ->map(fn (mixed $module): string => (string) $module)
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @param  array<int, string>  $modules
+     * @return array<int, string>
+     */
+    private function normaliseWaiverModules(array $modules): array
+    {
+        $allowed = $this->requiredAnalysisModuleValues();
+
+        return collect($modules)
+            ->map(fn (mixed $module): string => trim((string) $module))
+            ->filter(fn (string $module): bool => in_array($module, $allowed, true))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function waiverPayload(StandardAdvisoryPackWaiver $waiver): array
+    {
+        return [
+            'id' => $waiver->id,
+            'modules' => $waiver->modules ?? [],
+            'reason' => $waiver->reason,
+            'waived_at' => $waiver->waived_at?->toIso8601String(),
+            'waived_by' => $waiver->waivedBy instanceof User
+                ? [
+                    'id' => $waiver->waivedBy->id,
+                    'name' => $waiver->waivedBy->name,
+                    'email' => $waiver->waivedBy->email,
+                ]
+                : null,
+        ];
+    }
+
+    private function analysisFreshnessDays(): int
+    {
+        return max(1, (int) config('standard_advisory.analysis_freshness_days', 90));
     }
 
     private function analysisModuleLabel(AnalysisModule $module): string

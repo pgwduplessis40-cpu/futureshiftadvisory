@@ -6,12 +6,18 @@ namespace App\Services\Payments;
 
 use App\Models\LearningUpdate;
 use App\Models\ReferenceDataEntry;
+use App\Support\Methodology\ProvidesMethodology;
 use App\Support\RequestContext;
 use Illuminate\Support\Facades\Schema;
 use InvalidArgumentException;
 
-final class GstCalculator
+final class GstCalculator implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['payments.gst'];
+    }
+
     private const FALLBACK_RATE_PERCENT = 15.0;
 
     public function __construct(private readonly RequestContext $requestContext) {}

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -20,7 +21,17 @@ final class ImprovementOpportunity extends Model
         'pv_of_impact' => 'float',
         'rank' => 'integer',
         'source_attributions' => 'array',
+        'superseded_at' => 'datetime',
     ];
+
+    /**
+     * @param  Builder<ImprovementOpportunity>  $query
+     * @return Builder<ImprovementOpportunity>
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('superseded_at');
+    }
 
     /**
      * @return BelongsTo<Client, ImprovementOpportunity>

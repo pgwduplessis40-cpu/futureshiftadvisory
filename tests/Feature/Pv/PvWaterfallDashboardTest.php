@@ -58,6 +58,34 @@ final class PvWaterfallDashboardTest extends TestCase
         $this->assertSame(135000.0, $payload['waterfall'][3]['end']);
     }
 
+    public function test_waterfall_ignores_superseded_improvements_and_risks(): void
+    {
+        $client = $this->client();
+        $this->pvFixture($client, current: 100000, improvement: 25000, risk: 10000);
+        ImprovementOpportunity::query()
+            ->where('client_id', $client->getKey())
+            ->where('title', 'Automation upside')
+            ->update([
+                'source_fingerprint' => hash('sha256', 'old-improvement'),
+                'superseded_at' => now(),
+                'superseded_reason' => 'test',
+            ]);
+        RiskCost::query()
+            ->where('client_id', $client->getKey())
+            ->where('title', 'Risk mitigation value')
+            ->update([
+                'source_fingerprint' => hash('sha256', 'old-risk'),
+                'superseded_at' => now(),
+                'superseded_reason' => 'test',
+            ]);
+
+        $payload = app(PvWaterfallBuilder::class)->forClient($client);
+
+        $this->assertSame(0.0, $payload['improvement_pv']);
+        $this->assertSame(0.0, $payload['risk_mitigation_pv']);
+        $this->assertSame(100000.0, $payload['target_pv']);
+    }
+
     public function test_waterfall_caps_recommendations_with_remainders_and_finding_drills(): void
     {
         $client = $this->client();

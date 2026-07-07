@@ -110,6 +110,38 @@ final class BudgetRunwayTest extends TestCase
         );
     }
 
+    public function test_missing_financial_assumptions_keep_budget_partial_and_flagged(): void
+    {
+        [$actor, $plan] = $this->plan();
+
+        $budget = app(EntrepreneurBudgetService::class)->update($plan, [
+            'expected_runway_months' => 8,
+            'forecast_years' => 1,
+            'assumptions' => [
+                'revenue_growth_percent' => 5,
+            ],
+            'launch_costs' => [
+                ['label' => 'Website', 'amount' => 1_000, 'confidence' => 'known'],
+            ],
+            'monthly_fixed_costs' => [
+                ['label' => 'Software', 'amount' => 300, 'confidence' => 'known'],
+            ],
+            'revenue_forecast' => [
+                ['label' => 'Subscriptions', 'amount' => 2_000, 'month' => 1, 'confidence' => 'known'],
+            ],
+            'funding_sources' => [
+                ['label' => 'Founder cash', 'amount' => 15_000, 'confidence' => 'known'],
+            ],
+        ], $actor);
+
+        $this->assertSame(EntrepreneurBudget::STATUS_PARTIAL, $budget->status);
+        $this->assertContains(
+            'cost_inflation_percent',
+            data_get($budget->computed, 'missing_assumptions', []),
+        );
+        $this->assertContains('missing_financial_assumptions', collect($budget->flags)->pluck('key')->all());
+    }
+
     public function test_budget_cannot_be_saved_before_business_setup_requirement_is_complete(): void
     {
         [$actor, $plan] = $this->plan();

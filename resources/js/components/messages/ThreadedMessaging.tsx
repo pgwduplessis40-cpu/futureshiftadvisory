@@ -1,3 +1,4 @@
+import type { RequestPayload } from '@inertiajs/core';
 import { Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
@@ -19,7 +20,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
-import type { RequestPayload } from '@inertiajs/core';
 
 export type MessagingClient = {
     id: string;

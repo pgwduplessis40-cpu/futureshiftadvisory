@@ -249,6 +249,7 @@ type StandardAdvisoryPortalPayload = {
         generated_at: string | null;
         review_status: string;
         reviewed_at: string | null;
+        view_url: string | null;
         download_url: string | null;
     } | null;
     latest_report_generated_at: string | null;
@@ -417,6 +418,7 @@ type ReportPayload = {
     title: string;
     type: string;
     generated_at: string | null;
+    view_url: string;
     download_url: string;
 };
 
@@ -674,11 +676,13 @@ export default function PortalDashboard({
     const standardAdvisoryActionUrl = standardAdvisory
         ? standardAdvisory.status === 'waiting_questionnaire'
             ? onboardingUrl
-            : (standardAdvisoryReport?.download_url ?? '#section-reports')
+            : (standardAdvisoryReport?.view_url ??
+              standardAdvisoryReport?.download_url ??
+              '#section-reports')
         : '';
     const standardAdvisoryActionLabel = standardAdvisory
         ? standardAdvisoryReport
-            ? 'Open report'
+            ? 'View report'
             : standardAdvisory.status === 'waiting_questionnaire'
               ? 'Continue'
               : 'View status'
@@ -1422,6 +1426,7 @@ export default function PortalDashboard({
                                                 >
                                                     <a
                                                         href={
+                                                            report.view_url ??
                                                             report.download_url
                                                         }
                                                         target="_blank"
@@ -1431,7 +1436,7 @@ export default function PortalDashboard({
                                                             className="size-4"
                                                             aria-hidden="true"
                                                         />
-                                                        Open
+                                                        View
                                                     </a>
                                                 </Button>
                                             </article>
@@ -2702,7 +2707,7 @@ function formatDate(value: string | null) {
         return 'this month';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat('en-NZ', {
         day: 'numeric',
         month: 'short',
     }).format(new Date(value));
@@ -2713,7 +2718,7 @@ function formatOptionalDate(value: string | null) {
         return '-';
     }
 
-    return new Intl.DateTimeFormat(undefined, {
+    return new Intl.DateTimeFormat('en-NZ', {
         day: 'numeric',
         month: 'short',
     }).format(new Date(value));

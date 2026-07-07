@@ -6,10 +6,13 @@ namespace Tests\Feature\Pv;
 
 use App\Enums\DiscountMethod;
 use App\Enums\EngagementType;
+use App\Enums\PvType;
 use App\Models\AccountingConnection;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\FinancialSnapshot;
+use App\Models\PvCalculation;
+use App\Models\SuccessionPlan;
 use App\Models\ValuationMultiple;
 use App\Services\Pv\BusinessValuation as BusinessValuationService;
 use App\Services\Storage\KeyEnvelope;
@@ -58,6 +61,11 @@ final class BusinessValuationTest extends TestCase
         $this->assertEqualsWithDelta(500000.0, (float) $valuation->ebitda_value['high'], 0.01);
         $this->assertSame('dcf', $valuation->dcf_value['method']);
         $this->assertGreaterThan(0, $valuation->dcf_value['mid']);
+        $this->assertEqualsWithDelta(1 / 3, (float) $valuation->method_weights['sde'], 0.0001);
+        $this->assertSame('sde', $valuation->method_rationale['selected_method']);
+        $this->assertSame('Valuation reconciles SDE, EBITDA, and DCF using advisor-confirmed method weights.', $valuation->method_rationale['rationale']);
+        $this->assertCount(9, $valuation->dcf_sensitivity['rows']);
+        $this->assertStringStartsWith('pv_calculation:', $valuation->dcf_sensitivity['source_attributions'][0]['source_reference']);
 
         $expectedMid = round((
             $valuation->sde_value['mid']
@@ -66,6 +74,8 @@ final class BusinessValuationTest extends TestCase
         ) / 3 + 10000, 2);
 
         $this->assertEqualsWithDelta($expectedMid, $valuation->reconciled_mid, 0.01);
+        $this->assertEqualsWithDelta($expectedMid, $valuation->equity_bridge['enterprise_range']['mid'], 0.01);
+        $this->assertEqualsWithDelta($expectedMid, $valuation->equity_bridge['equity_range']['mid'], 0.01);
         $this->assertSame('Surplus cash', $valuation->adjustments[0]['label']);
         $this->assertNull($valuation->data_quality_disclaimer);
         $this->assertDatabaseHas('audit_events', [
@@ -100,6 +110,129 @@ final class BusinessValuationTest extends TestCase
         $this->assertContains('questionnaire:financial-summary', collect($valuation->source_attributions)->pluck('source_reference')->all());
     }
 
+    public function test_business_valuation_records_method_weights_rationale_and_equity_bridge(): void
+    {
+        $client = $this->client();
+        $this->snapshot($client, ebitda: 100000, sde: 120000, operatingCashFlow: 90000);
+
+        $valuation = app(BusinessValuationService::class)->calculate($client, [
+            'industry_code' => 'M6962',
+            'growth_rate' => 0.0,
+            'terminal_growth_rate' => 0.02,
+            'discount_options' => [
+                'rate' => 0.12,
+                'rationale' => 'Advisor valuation rate for test.',
+            ],
+            'method_weights' => [
+                'sde' => 0.2,
+                'ebitda' => 0.5,
+                'dcf' => 0.3,
+            ],
+            'method_rationale' => [
+                'selected_method' => 'ebitda',
+                'rationale' => 'EBITDA gets the primary weight because the owner adjustment is less reliable than audited earnings.',
+            ],
+            'equity_bridge' => [
+                'debt' => 50000,
+                'surplus_cash' => 12000,
+                'normalised_working_capital' => 3000,
+                'other_advisor_adjustments' => [
+                    ['label' => 'Minor settlement adjustment', 'amount' => 5000, 'rationale' => 'Advisor normalisation.'],
+                ],
+            ],
+        ]);
+
+        $expectedEnterpriseMid = round(
+            ($valuation->sde_value['mid'] * 0.2)
+            + ($valuation->ebitda_value['mid'] * 0.5)
+            + ($valuation->dcf_value['mid'] * 0.3),
+            2,
+        );
+        $expectedBridge = -30000.0;
+
+        $this->assertEqualsWithDelta(0.2, (float) $valuation->method_weights['sde'], 0.0001);
+        $this->assertSame('ebitda', $valuation->method_rationale['selected_method']);
+        $this->assertStringContainsString('primary weight', $valuation->method_rationale['rationale']);
+        $this->assertEqualsWithDelta($expectedEnterpriseMid, $valuation->equity_bridge['enterprise_range']['mid'], 0.01);
+        $this->assertEqualsWithDelta($expectedBridge, $valuation->equity_bridge['bridge_total'], 0.01);
+        $this->assertEqualsWithDelta($expectedEnterpriseMid + $expectedBridge, $valuation->reconciled_mid, 0.01);
+        $baseSensitivity = collect($valuation->dcf_sensitivity['rows'])
+            ->first(fn (array $row): bool => (float) $row['discount_rate'] === 0.12 && (float) $row['terminal_growth_rate'] === 0.02);
+        $this->assertIsArray($baseSensitivity);
+        $this->assertEqualsWithDelta($valuation->dcf_value['mid'], (float) $baseSensitivity['value'], 0.01);
+    }
+
+    public function test_stale_snapshot_and_ebitda_fallback_trigger_valuation_disclosures(): void
+    {
+        $client = $this->client();
+        $this->snapshot(
+            $client,
+            ebitda: null,
+            sde: 120000,
+            operatingCashFlow: 90000,
+            periodEnd: now()->subDays(240)->toDateString(),
+        );
+
+        $valuation = app(BusinessValuationService::class)->calculate($client, [
+            'industry_code' => 'M6962',
+            'snapshot_stale_after_days' => 180,
+            'discount_options' => [
+                'rate' => 0.12,
+                'rationale' => 'Advisor valuation rate for test.',
+            ],
+        ]);
+
+        $types = collect($valuation->valuation_disclosures)->pluck('type')->all();
+
+        $this->assertContains('stale_snapshot', $types);
+        $this->assertContains('ebitda_fallback', $types);
+        $this->assertEqualsWithDelta(85000.0, (float) $valuation->ebitda_value['input'], 0.01);
+        $this->assertStringContainsString('net profit was used as a temporary EBITDA proxy', $valuation->data_quality_disclaimer);
+    }
+
+    public function test_valuation_documents_succession_terminal_value_treatment(): void
+    {
+        $client = $this->client();
+        $this->snapshot($client, ebitda: 100000, sde: 120000, operatingCashFlow: 90000);
+        $targetExitPv = PvCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'type' => PvType::BusinessValuation,
+            'discount_method' => DiscountMethod::AdvisorConfigured,
+            'discount_rate' => 0.12,
+            'discount_rate_rationale' => 'Succession target fixture.',
+            'inputs' => ['cash_flows' => [['period' => 1, 'amount' => 100000.0]]],
+            'result' => ['present_value' => 89285.71],
+            'source_attributions' => [[
+                'claim' => 'Succession target fixture.',
+                'source_reference' => 'test:succession-target',
+            ]],
+            'as_at' => now(),
+        ]);
+        SuccessionPlan::query()->create([
+            'client_id' => $client->getKey(),
+            'exit_readiness_score' => 7,
+            'options' => [],
+            'owner_dependency_plan' => [],
+            'target_exit_pv_calculation_id' => $targetExitPv->getKey(),
+            'target_exit_pv' => 89285.71,
+            'owner_readiness_is_primary_constraint' => false,
+        ]);
+
+        $valuation = app(BusinessValuationService::class)->calculate($client, [
+            'industry_code' => 'M6962',
+            'terminal_growth_rate' => 0.025,
+            'discount_options' => [
+                'rate' => 0.12,
+                'rationale' => 'Advisor valuation rate for test.',
+            ],
+        ]);
+
+        $this->assertSame('documented_difference', $valuation->succession_comparison['status']);
+        $this->assertSame($targetExitPv->id, $valuation->succession_comparison['target_exit_pv_calculation_id']);
+        $this->assertStringContainsString('Business valuation DCF includes an explicit terminal value', $valuation->succession_comparison['explanation']);
+        $this->assertStringContainsString('Succession target-exit PV discounts the owner target cash-flow plan only', $valuation->succession_comparison['explanation']);
+    }
+
     private function client(): Client
     {
         return Client::query()->create([
@@ -131,7 +264,7 @@ final class BusinessValuationTest extends TestCase
         ]);
     }
 
-    private function snapshot(Client $client, float $ebitda, float $sde, float $operatingCashFlow): FinancialSnapshot
+    private function snapshot(Client $client, ?float $ebitda, float $sde, float $operatingCashFlow, string $periodEnd = '2026-04-30'): FinancialSnapshot
     {
         $connection = AccountingConnection::query()->create([
             'client_id' => $client->getKey(),
@@ -149,7 +282,7 @@ final class BusinessValuationTest extends TestCase
             'accounting_connection_id' => $connection->getKey(),
             'provider' => AccountingConnection::PROVIDER_XERO,
             'period_start' => '2026-04-01',
-            'period_end' => '2026-04-30',
+            'period_end' => $periodEnd,
             'source' => 'xero',
             'source_badge' => 'stub',
             'degraded' => false,
@@ -164,10 +297,10 @@ final class BusinessValuationTest extends TestCase
             'cash_flow' => [
                 'operating_cash_flow' => $operatingCashFlow,
             ],
-            'metrics' => [
+            'metrics' => array_filter([
                 'ebitda' => $ebitda,
                 'sde' => $sde,
-            ],
+            ], static fn (mixed $value): bool => $value !== null),
             'pulled_at' => now(),
         ]);
     }

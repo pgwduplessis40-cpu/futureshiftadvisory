@@ -75,7 +75,7 @@ notice.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     notice.form = noticeForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\VerifyEmailController::verify
@@ -170,7 +170,7 @@ verify.head = (args: { id: string | number, hash: string | number } | [id: strin
                     }),
             method: 'get',
         })
-    
+
     verify.form = verifyForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\EmailVerificationNotificationController::send
@@ -225,7 +225,7 @@ send.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: send.url(options),
             method: 'post',
         })
-    
+
     send.form = sendForm
 const verification = {
     notice: Object.assign(notice, notice),

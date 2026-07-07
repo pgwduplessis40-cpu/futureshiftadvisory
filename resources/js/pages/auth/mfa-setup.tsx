@@ -1,6 +1,6 @@
 import { Form, Head, Link } from '@inertiajs/react';
 import { ShieldCheck } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import TwoFactorSetupModal from '@/components/two-factor-setup-modal';
 import { Button } from '@/components/ui/button';
 import { useTwoFactorAuth } from '@/hooks/use-two-factor-auth';
@@ -31,12 +31,6 @@ export default function MfaSetup({
     const [showSetupModal, setShowSetupModal] = useState(
         hasPendingTwoFactorSetup,
     );
-
-    useEffect(() => {
-        if (hasPendingTwoFactorSetup) {
-            setShowSetupModal(true);
-        }
-    }, [hasPendingTwoFactorSetup]);
 
     return (
         <>

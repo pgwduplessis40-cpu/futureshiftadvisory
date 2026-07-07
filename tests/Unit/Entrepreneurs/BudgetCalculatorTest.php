@@ -73,7 +73,7 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertStringContainsString('month 13 can be lower than month 12', $computed['explanations']['year_two_revenue_basis']);
     }
 
-    public function test_tax_is_applied_to_profitable_months_without_loss_offset(): void
+    public function test_tax_carries_losses_forward_within_forecast_year(): void
     {
         $computed = $this->calculator()->compute(
             launchCosts: [],
@@ -88,8 +88,57 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(-1_000.0, $computed['monthly_detail'][0]['net_profit_before_tax']);
         $this->assertSame(0.0, $computed['monthly_detail'][0]['tax']);
         $this->assertSame(2_000.0, $computed['monthly_detail'][6]['net_profit_before_tax']);
-        $this->assertSame(560.0, $computed['monthly_detail'][6]['tax']);
-        $this->assertStringContainsString('Earlier monthly losses are not carried forward', $computed['explanations']['tax_simplification']);
+        $this->assertSame(0.0, $computed['monthly_detail'][6]['tax']);
+        $this->assertSame(-4_000.0, $computed['monthly_detail'][6]['tax_loss_carried_forward']);
+        $this->assertSame(560.0, $computed['monthly_detail'][9]['tax']);
+        $this->assertStringContainsString('carrying earlier losses forward within the same forecast year', $computed['explanations']['tax_simplification']);
+    }
+
+    public function test_automatic_downside_scenarios_are_generated(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [['label' => 'Rent', 'amount' => 1_000]],
+            revenueForecast: [['label' => 'Sales', 'amount' => 5_000]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+        );
+
+        $scenarios = collect($computed['scenarios'])->keyBy('key');
+
+        $this->assertTrue($scenarios->has('revenue_downside'));
+        $this->assertTrue($scenarios->has('cost_upside'));
+        $this->assertTrue($scenarios->has('combined_downside'));
+        $this->assertSame(4_000.0, $scenarios['revenue_downside']['monthly_detail'][0]['revenue']);
+        $this->assertSame(1_100.0, $scenarios['cost_upside']['monthly_detail'][0]['fixed_costs']);
+        $this->assertSame(1_100.0, $scenarios['combined_downside']['monthly_detail'][0]['fixed_costs']);
+        $this->assertStringContainsString('Automatic sensitivity scenarios', $computed['explanations']['automatic_scenarios']);
+    }
+
+    public function test_investor_scenario_discloses_equity_sold_and_founder_ownership(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+            fundingScenarios: [[
+                'name' => 'Seed investor',
+                'type' => 'investor',
+                'amount' => 50_000,
+                'investor_equity_percent' => 20,
+            ]],
+        );
+
+        $scenario = $computed['scenarios'][1];
+
+        $this->assertSame(20.0, $scenario['equity_sold_percent']);
+        $this->assertSame(80.0, $scenario['founder_ownership_percent']);
+        $this->assertSame(20.0, $scenario['summary']['equity_sold_percent']);
+        $this->assertStringContainsString('remaining founder ownership', $computed['explanations']['investor_equity']);
     }
 
     public function test_negative_growth_and_deflation_are_modelled(): void
@@ -141,6 +190,23 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(10_000.0, $computed['monthly_detail'][0]['cumulative_cash']);
         $this->assertSame(5_000.0, $computed['monthly_detail'][2]['cumulative_cash']);
         $this->assertSame(5_000.0, $computed['total_launch_costs']);
+    }
+
+    public function test_fixed_cost_start_month_is_honoured_in_monthly_simulation(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [['label' => 'Software subscription', 'amount' => 1_000, 'month' => 6]],
+            revenueForecast: [],
+            fundingSources: [['label' => 'Opening cash', 'amount' => 10_000, 'month' => 1]],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+            assumptions: ['cost_inflation_percent' => 0],
+        );
+
+        $this->assertSame(0.0, $computed['monthly_detail'][0]['fixed_costs']);
+        $this->assertSame(0.0, $computed['monthly_detail'][4]['fixed_costs']);
+        $this->assertSame(1_000.0, $computed['monthly_detail'][5]['fixed_costs']);
     }
 
     public function test_runway_break_even_zero_runway_and_open_ended_edges(): void

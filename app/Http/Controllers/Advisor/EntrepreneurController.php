@@ -484,12 +484,17 @@ final class EntrepreneurController extends Controller
             ->latest('generated_at')
             ->limit(5)
             ->get()
-            ->map(fn (Report $report): array => [
-                'id' => $report->id,
-                'title' => $report->title,
-                'generated_at' => $report->generated_at?->toIso8601String(),
-                'download_url' => route('advisor.reports.download', $report, absolute: false),
-            ])
+            ->map(function (Report $report): array {
+                $url = route('advisor.reports.download', $report, absolute: false);
+
+                return [
+                    'id' => $report->id,
+                    'title' => $report->title,
+                    'generated_at' => $report->generated_at?->toIso8601String(),
+                    'view_url' => $url,
+                    'download_url' => $url,
+                ];
+            })
             ->values()
             ->all();
     }

@@ -10,6 +10,7 @@ use App\Models\BusinessValuation as BusinessValuationModel;
 use App\Models\Client;
 use App\Models\FinancialSnapshot;
 use App\Models\PvCalculation;
+use App\Models\SuccessionPlan;
 use App\Models\ValuationMultiple;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
@@ -48,15 +49,29 @@ final class BusinessValuation implements ProvidesMethodology
         $sdeValue = $this->applyMultiple('sde', $financials['sde'], $sdeRange);
         $ebitdaValue = $this->applyMultiple('ebitda', $financials['ebitda'], $ebitdaRange);
         $pvCalculation = $this->dcfCalculation($client, $financials['cash_flows'], $discountMethod, $discountOptions);
-        $dcfValue = $this->dcfRange($pvCalculation, (float) ($options['terminal_growth_rate'] ?? 0.02));
+        $terminalGrowthRate = (float) ($options['terminal_growth_rate'] ?? 0.02);
+        $dcfValue = $this->dcfRange($pvCalculation, $terminalGrowthRate);
         $adjustments = $this->adjustments($options['adjustments'] ?? []);
+        $methodWeights = $this->methodWeights($options['method_weights'] ?? null);
+        $methodRationale = $this->methodRationale($methodWeights, $options['method_rationale'] ?? null);
+        $enterpriseReconciled = $this->reconcileWeighted([$sdeValue, $ebitdaValue, $dcfValue], $adjustments, $methodWeights);
+        $equityBridge = $this->equityBridge($options['equity_bridge'] ?? [], $enterpriseReconciled);
+        $reconciled = $equityBridge['equity_range'];
+        $dcfSensitivity = $this->dcfSensitivity(
+            calculation: $pvCalculation,
+            terminalGrowthRate: $terminalGrowthRate,
+            discountRates: $options['sensitivity_discount_rates'] ?? null,
+            terminalGrowthRates: $options['sensitivity_terminal_growth_rates'] ?? null,
+        );
+        $successionComparison = $this->successionComparison($client, $pvCalculation, $terminalGrowthRate);
+        $valuationDisclosures = array_values(array_filter($financials['disclosures']));
 
-        $reconciled = $this->reconcile([$sdeValue, $ebitdaValue, $dcfValue], $adjustments);
         $attributions = array_values(array_merge(
             $financials['attributions'],
             $sdeRange['source_attributions'],
             $ebitdaRange['source_attributions'],
             $pvCalculation->source_attributions,
+            $dcfSensitivity['source_attributions'],
         ));
 
         $valuation = BusinessValuationModel::query()->create([
@@ -65,11 +80,17 @@ final class BusinessValuation implements ProvidesMethodology
             'sde_value' => $sdeValue,
             'ebitda_value' => $ebitdaValue,
             'dcf_value' => $dcfValue,
+            'method_weights' => $methodWeights,
+            'method_rationale' => $methodRationale,
             'reconciled_low' => $reconciled['low'],
             'reconciled_mid' => $reconciled['mid'],
             'reconciled_high' => $reconciled['high'],
             'adjustments' => $adjustments,
             'data_quality_disclaimer' => $financials['data_quality_disclaimer'],
+            'valuation_disclosures' => $valuationDisclosures,
+            'equity_bridge' => $equityBridge,
+            'dcf_sensitivity' => $dcfSensitivity,
+            'succession_comparison' => $successionComparison,
             'source_attributions' => $attributions,
             'as_at' => now(),
         ]);
@@ -86,7 +107,7 @@ final class BusinessValuation implements ProvidesMethodology
 
     /**
      * @param  array<string, mixed>  $options
-     * @return array{sde:float, ebitda:float, cash_flows:array<int, float>, data_quality_disclaimer:?string, attributions:array<int, array{claim:string, source_reference:string}>}
+     * @return array{sde:float, ebitda:float, cash_flows:array<int, float>, data_quality_disclaimer:?string, disclosures:array<int, array<string, mixed>>, attributions:array<int, array{claim:string, source_reference:string}>}
      */
     private function financialInputs(Client $client, array $options): array
     {
@@ -100,15 +121,30 @@ final class BusinessValuation implements ProvidesMethodology
 
         if ($snapshot instanceof FinancialSnapshot) {
             $netProfit = (float) data_get($snapshot->profit_and_loss, 'net_profit', 0);
-            $ebitda = (float) data_get($snapshot->metrics, 'ebitda', $netProfit);
+            $rawEbitda = data_get($snapshot->metrics, 'ebitda');
+            $ebitdaFallbackUsed = ! is_numeric($rawEbitda);
+            $ebitda = $ebitdaFallbackUsed ? $netProfit : (float) $rawEbitda;
             $sde = (float) data_get($snapshot->metrics, 'sde', $ebitda + (float) ($options['owner_salary_adjustment'] ?? 0));
             $cashFlow = (float) data_get($snapshot->cash_flow, 'operating_cash_flow', $ebitda);
+            $disclosures = $this->snapshotDisclosures($snapshot, $options);
+
+            if ($ebitdaFallbackUsed) {
+                $disclosures[] = [
+                    'type' => 'ebitda_fallback',
+                    'severity' => 'medium',
+                    'message' => 'EBITDA was not present in the connected accounting snapshot, so net profit was used as a temporary EBITDA proxy.',
+                    'source_reference' => "financial_snapshot:{$snapshot->id}:profit_and_loss.net_profit",
+                ];
+            }
 
             return [
                 'sde' => $sde,
                 'ebitda' => $ebitda,
                 'cash_flows' => $this->projectCashFlows($cashFlow, (float) ($options['growth_rate'] ?? 0.03)),
-                'data_quality_disclaimer' => null,
+                'data_quality_disclaimer' => $disclosures === []
+                    ? null
+                    : collect($disclosures)->pluck('message')->implode(' '),
+                'disclosures' => $disclosures,
                 'attributions' => [
                     [
                         'claim' => 'Business valuation used the latest connected accounting snapshot.',
@@ -137,6 +173,12 @@ final class BusinessValuation implements ProvidesMethodology
             'ebitda' => $ebitda,
             'cash_flows' => $cashFlows,
             'data_quality_disclaimer' => 'Valuation used questionnaire financial inputs because no connected accounting snapshot was available.',
+            'disclosures' => [[
+                'type' => 'questionnaire_financials',
+                'severity' => 'medium',
+                'message' => 'Valuation used questionnaire financial inputs because no connected accounting snapshot was available.',
+                'source_reference' => (string) ($questionnaire['source_reference'] ?? 'questionnaire:financial_inputs'),
+            ]],
             'attributions' => [
                 [
                     'claim' => 'Business valuation used advisor-entered questionnaire financial inputs.',
@@ -232,6 +274,249 @@ final class BusinessValuation implements ProvidesMethodology
             'high' => round($mid * 1.1, 2),
             'terminal_value' => $terminal,
             'cash_flow_pv' => (float) $calculation->result['present_value'],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     * @return array<int, array<string, mixed>>
+     */
+    private function snapshotDisclosures(FinancialSnapshot $snapshot, array $options): array
+    {
+        $maxAgeDays = max(0, (int) ($options['snapshot_stale_after_days'] ?? 180));
+
+        if ($maxAgeDays === 0 || ! $snapshot->period_end) {
+            return [];
+        }
+
+        $ageDays = $snapshot->period_end->diffInDays(now());
+
+        if ($ageDays <= $maxAgeDays) {
+            return [];
+        }
+
+        return [[
+            'type' => 'stale_snapshot',
+            'severity' => 'medium',
+            'age_days' => $ageDays,
+            'threshold_days' => $maxAgeDays,
+            'message' => "Latest accounting snapshot is {$ageDays} days old, beyond the {$maxAgeDays}-day valuation freshness threshold.",
+            'source_reference' => "financial_snapshot:{$snapshot->id}",
+        ]];
+    }
+
+    /**
+     * @return array{sde:float, ebitda:float, dcf:float}
+     */
+    private function methodWeights(mixed $weights): array
+    {
+        $raw = is_array($weights) ? $weights : [];
+
+        $out = [
+            'sde' => max(0.0, (float) ($raw['sde'] ?? 1)),
+            'ebitda' => max(0.0, (float) ($raw['ebitda'] ?? 1)),
+            'dcf' => max(0.0, (float) ($raw['dcf'] ?? 1)),
+        ];
+        $total = array_sum($out);
+
+        if ($total <= 0.0) {
+            $out = ['sde' => 1.0, 'ebitda' => 1.0, 'dcf' => 1.0];
+            $total = 3.0;
+        }
+
+        return [
+            'sde' => $out['sde'] / $total,
+            'ebitda' => $out['ebitda'] / $total,
+            'dcf' => $out['dcf'] / $total,
+        ];
+    }
+
+    /**
+     * @param  array{sde:float, ebitda:float, dcf:float}  $weights
+     * @return array{selected_method:string|null, rationale:string, weights:array{sde:float, ebitda:float, dcf:float}}
+     */
+    private function methodRationale(array $weights, mixed $input): array
+    {
+        $payload = is_array($input) ? $input : [];
+        $selectedMethod = $payload['selected_method'] ?? null;
+
+        return [
+            'selected_method' => is_string($selectedMethod) && in_array($selectedMethod, ['sde', 'ebitda', 'dcf'], true)
+                ? $selectedMethod
+                : array_search(max($weights), $weights, true),
+            'rationale' => (string) ($payload['rationale'] ?? 'Valuation reconciles SDE, EBITDA, and DCF using advisor-confirmed method weights.'),
+            'weights' => $weights,
+        ];
+    }
+
+    /**
+     * @param  array<int, array{method:string, low:float, mid:float, high:float}>  $methods
+     * @param  array<int, array{amount:float}>  $adjustments
+     * @param  array{sde:float, ebitda:float, dcf:float}  $weights
+     * @return array{low:float, mid:float, high:float}
+     */
+    private function reconcileWeighted(array $methods, array $adjustments, array $weights): array
+    {
+        $adjustmentTotal = array_sum(array_column($adjustments, 'amount'));
+        $weighted = ['low' => 0.0, 'mid' => 0.0, 'high' => 0.0];
+
+        foreach ($methods as $method) {
+            $weight = $weights[$method['method']] ?? 0.0;
+
+            foreach (array_keys($weighted) as $key) {
+                $weighted[$key] += (float) $method[$key] * $weight;
+            }
+        }
+
+        return [
+            'low' => round($weighted['low'] + $adjustmentTotal, 2),
+            'mid' => round($weighted['mid'] + $adjustmentTotal, 2),
+            'high' => round($weighted['high'] + $adjustmentTotal, 2),
+        ];
+    }
+
+    /**
+     * @param  array{low:float, mid:float, high:float}  $enterpriseRange
+     * @return array{enterprise_range:array{low:float, mid:float, high:float}, bridge_adjustments:array<string, mixed>, bridge_total:float, equity_range:array{low:float, mid:float, high:float}, explanation:string}
+     */
+    private function equityBridge(mixed $input, array $enterpriseRange): array
+    {
+        $payload = is_array($input) ? $input : [];
+        $otherAdjustments = collect((array) ($payload['other_advisor_adjustments'] ?? []))
+            ->filter(fn (mixed $adjustment): bool => is_array($adjustment))
+            ->map(fn (array $adjustment): array => [
+                'label' => (string) ($adjustment['label'] ?? 'Advisor equity bridge adjustment'),
+                'amount' => round((float) ($adjustment['amount'] ?? 0), 2),
+                'rationale' => (string) ($adjustment['rationale'] ?? 'Advisor supplied equity bridge adjustment.'),
+            ])
+            ->values()
+            ->all();
+        $debt = round(max(0.0, (float) ($payload['debt'] ?? $payload['interest_bearing_debt'] ?? 0)), 2);
+        $surplusCash = round(max(0.0, (float) ($payload['surplus_cash'] ?? 0)), 2);
+        $workingCapital = round((float) ($payload['normalised_working_capital'] ?? 0), 2);
+        $otherTotal = round(array_sum(array_column($otherAdjustments, 'amount')), 2);
+        $bridgeTotal = round($surplusCash + $workingCapital + $otherTotal - $debt, 2);
+
+        return [
+            'enterprise_range' => $enterpriseRange,
+            'bridge_adjustments' => [
+                'debt' => $debt,
+                'surplus_cash' => $surplusCash,
+                'normalised_working_capital' => $workingCapital,
+                'other_advisor_adjustments' => $otherAdjustments,
+            ],
+            'bridge_total' => $bridgeTotal,
+            'equity_range' => [
+                'low' => round($enterpriseRange['low'] + $bridgeTotal, 2),
+                'mid' => round($enterpriseRange['mid'] + $bridgeTotal, 2),
+                'high' => round($enterpriseRange['high'] + $bridgeTotal, 2),
+            ],
+            'explanation' => 'Enterprise value is reconciled first, then debt, surplus cash, normalised working capital, and advisor bridge adjustments convert enterprise value to equity value.',
+        ];
+    }
+
+    /**
+     * @return array{rows:array<int, array{discount_rate:float, terminal_growth_rate:float, value:float|null, note:string|null}>, source_attributions:array<int, array{claim:string, source_reference:string}>}
+     */
+    private function dcfSensitivity(
+        PvCalculation $calculation,
+        float $terminalGrowthRate,
+        mixed $discountRates,
+        mixed $terminalGrowthRates,
+    ): array {
+        $cashFlows = [];
+
+        foreach (array_values((array) ($calculation->inputs['cash_flows'] ?? [])) as $index => $cashFlow) {
+            $cashFlows[$index + 1] = (float) data_get($cashFlow, 'amount', 0);
+        }
+
+        $rates = $this->sensitivityRates($discountRates, $calculation->discount_rate, 0.02);
+        $growthRates = $this->sensitivityRates($terminalGrowthRates, $terminalGrowthRate, 0.01, floorAtZero: true);
+        $rows = [];
+
+        foreach ($rates as $rate) {
+            foreach ($growthRates as $growthRate) {
+                if ($growthRate >= $rate) {
+                    $rows[] = [
+                        'discount_rate' => $rate,
+                        'terminal_growth_rate' => $growthRate,
+                        'value' => null,
+                        'note' => 'Terminal growth must remain below the discount rate.',
+                    ];
+                    continue;
+                }
+
+                $period = max(1, count($cashFlows));
+                $terminalCashFlow = (float) ($cashFlows[$period] ?? (end($cashFlows) ?: 0));
+                $rows[] = [
+                    'discount_rate' => $rate,
+                    'terminal_growth_rate' => $growthRate,
+                    'value' => round(
+                        $this->pv->presentValue($cashFlows, $rate)
+                        + $this->pv->terminalValue($terminalCashFlow, $rate, $growthRate, $period),
+                        2,
+                    ),
+                    'note' => null,
+                ];
+            }
+        }
+
+        return [
+            'rows' => $rows,
+            'source_attributions' => [[
+                'claim' => 'DCF sensitivity uses the valuation cash-flow forecast, discount-rate assumptions, and terminal-growth assumptions.',
+                'source_reference' => 'pv_calculation:'.$calculation->getKey().':dcf_sensitivity',
+            ]],
+        ];
+    }
+
+    /**
+     * @return array<int, float>
+     */
+    private function sensitivityRates(mixed $input, float $base, float $step, bool $floorAtZero = false): array
+    {
+        if (is_array($input) && $input !== []) {
+            $rates = array_map('floatval', array_values(array_filter($input, 'is_numeric')));
+        } else {
+            $rates = [$base - $step, $base, $base + $step];
+        }
+
+        return collect($rates)
+            ->map(fn (float $rate): float => round($floorAtZero ? max(0.0, $rate) : max(0.0001, $rate), 4))
+            ->unique()
+            ->values()
+            ->all();
+    }
+
+    /**
+     * @return array{status:string, explanation:string, succession_plan_id:string|null, target_exit_pv_calculation_id:string|null}
+     */
+    private function successionComparison(Client $client, PvCalculation $valuationDcf, float $terminalGrowthRate): array
+    {
+        $plan = SuccessionPlan::query()
+            ->with('targetExitPvCalculation')
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->first();
+
+        if (! $plan instanceof SuccessionPlan || ! $plan->targetExitPvCalculation instanceof PvCalculation) {
+            return [
+                'status' => 'not_available',
+                'explanation' => 'No succession target-exit PV is available to compare with the business valuation DCF.',
+                'succession_plan_id' => null,
+                'target_exit_pv_calculation_id' => null,
+            ];
+        }
+
+        return [
+            'status' => 'documented_difference',
+            'explanation' => sprintf(
+                'Business valuation DCF includes an explicit terminal value using %.2f%% terminal growth. Succession target-exit PV discounts the owner target cash-flow plan only, so it intentionally excludes a separate terminal-value assumption unless those terminal assumptions are entered as target exit cash flows.',
+                $terminalGrowthRate * 100,
+            ),
+            'succession_plan_id' => (string) $plan->getKey(),
+            'target_exit_pv_calculation_id' => (string) $plan->targetExitPvCalculation->getKey(),
+            'valuation_pv_calculation_id' => (string) $valuationDcf->getKey(),
         ];
     }
 

@@ -22,6 +22,7 @@ use App\Models\FeeCalculation;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\ServiceActivation;
+use App\Models\StrategicBudget;
 use App\Models\StrategicPlan;
 use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
@@ -204,12 +205,59 @@ final class ProposalBuilderTest extends TestCase
 
         $this->assertSame('website_audit', $proposal->scope['focus_areas'][0]['module']);
         $this->assertSame('Website audit action plan', $proposal->scope['focus_areas'][0]['title']);
+        $this->assertSame('client_signoff', $proposal->acceptance_terms['phase']);
+        $this->assertStringNotContainsString('phase_3_signoff_enabled', json_encode($proposal->acceptance_terms, JSON_THROW_ON_ERROR));
 
         app(ProposalBuilder::class)->rerenderPdf($proposal);
 
         $this->assertStringContainsString('What needs to be fixed', $this->renderer->html);
         $this->assertStringContainsString('Website audit action plan', $this->renderer->html);
         $this->assertStringContainsString('Align the product and service pages', $this->renderer->html);
+        $this->assertStringContainsString('Sources: questionnaire_answer:website-fixture', $this->renderer->html);
+    }
+
+    public function test_proposal_deduplicates_repeated_historical_focus_findings(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-focus-dedupe-advisor@example.test');
+        $calculation = $this->feeCalculation($client, 12000, 3.5);
+        $run = AnalysisRun::query()->create([
+            'client_id' => $client->getKey(),
+            'module' => AnalysisModule::Financial,
+            'status' => AnalysisRun::STATUS_COMPLETED,
+            'framework_lenses' => [],
+            'data_quality_snapshot' => [],
+            'tokens_in' => 0,
+            'tokens_out' => 0,
+            'started_at' => now(),
+            'completed_at' => now(),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        foreach (range(1, 2) as $index) {
+            AnalysisFinding::query()->create([
+                'analysis_run_id' => $run->getKey(),
+                'client_id' => $client->getKey(),
+                'lens' => AnalysisLens::Prescriptive,
+                'severity' => FindingSeverity::High,
+                'title' => 'Margin improvement action plan',
+                'body' => 'Improve pricing, collections, and margin reporting before adding overhead.',
+                'attributions' => [[
+                    'claim' => 'Financial fixture evidence.',
+                    'source_reference' => 'questionnaire_answer:margin-fixture',
+                ]],
+                'document_support' => AnalysisFinding::DOCUMENT_SUPPORT_NONE,
+                'created_at' => now()->addSeconds($index),
+                'updated_at' => now()->addSeconds($index),
+            ]);
+        }
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->assertCount(1, $proposal->scope['focus_areas']);
+        $this->assertSame('Margin improvement action plan', $proposal->scope['focus_areas'][0]['title']);
+        $this->assertSame('questionnaire_answer:margin-fixture', $proposal->scope['focus_areas'][0]['attributions'][0]['source_reference']);
     }
 
     public function test_engaged_client_proposal_focus_areas_use_severity_before_website_audit(): void
@@ -375,6 +423,26 @@ final class ProposalBuilderTest extends TestCase
                 'signed_by_user_id' => $advisor->getKey(),
             ])->save();
         });
+        StrategicBudget::query()->create([
+            'client_id' => $client->getKey(),
+            'pathway' => StrategicBudget::PATHWAY_ADVISORY,
+            'label' => 'Accepted advisory budget',
+            'status' => StrategicBudget::STATUS_ADVISOR_APPROVED,
+            'horizon_months' => 12,
+            'business_plan_sections' => [
+                [
+                    'key' => 'budget',
+                    'answer' => 'Budget allows a staged monthly retainer within current cash-flow tolerance.',
+                ],
+                [
+                    'key' => 'evidence_documents',
+                    'answer' => 'Uploaded annual accounts and management reports.',
+                ],
+            ],
+            'confidence' => ['score' => 82],
+            'approved_at' => now(),
+            'approved_by_user_id' => $advisor->getKey(),
+        ]);
 
         $plan = app(StrategicPlanService::class)->generateForProposal($proposal->refresh(), $advisor);
 
@@ -393,6 +461,14 @@ final class ProposalBuilderTest extends TestCase
             ->implode("\n");
         $this->assertStringContainsString('Website audit action plan', $milestoneText);
         $this->assertStringContainsString('Systems upgrade plan', $milestoneText);
+
+        $budgetSection = (string) data_get(
+            collect($plan->sections)->firstWhere('key', 'budget'),
+            'body',
+            '',
+        );
+        $this->assertStringContainsString('staged monthly retainer', $budgetSection);
+        $this->assertStringNotContainsString('Uploaded annual accounts', $budgetSection);
     }
 
     public function test_strategic_plan_deployment_moves_generated_due_dates_off_client_public_holidays(): void

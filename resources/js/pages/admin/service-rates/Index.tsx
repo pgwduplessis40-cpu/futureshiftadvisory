@@ -8,7 +8,8 @@ import {
     Save,
     X,
 } from 'lucide-react';
-import { useState, type FormEvent } from 'react';
+import type { FormEvent } from 'react';
+import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';

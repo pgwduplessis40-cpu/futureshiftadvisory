@@ -8,8 +8,8 @@ import AuthLayout from '@/layouts/auth-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
-import { ensurePwaInstallListeners } from '@/lib/pwa-install';
 import { registerPortalOffline } from '@/lib/portal-offline';
+import { ensurePwaInstallListeners } from '@/lib/pwa-install';
 import { registerTargetHighlighting } from '@/lib/target-highlight';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Future Shift Advisory';

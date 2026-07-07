@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -23,8 +24,19 @@ final class RiskCost extends Model
         'annual_expected_cost' => 'float',
         'pv_of_cost' => 'float',
         'rank' => 'integer',
+        'cash_flow_years' => 'integer',
         'source_attributions' => 'array',
+        'superseded_at' => 'datetime',
     ];
+
+    /**
+     * @param  Builder<RiskCost>  $query
+     * @return Builder<RiskCost>
+     */
+    public function scopeActive(Builder $query): Builder
+    {
+        return $query->whereNull('superseded_at');
+    }
 
     /**
      * @return BelongsTo<Client, RiskCost>

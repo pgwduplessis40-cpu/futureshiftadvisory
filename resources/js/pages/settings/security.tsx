@@ -44,7 +44,9 @@ export default function Security({
         fetchRecoveryCodes,
         errors,
     } = useTwoFactorAuth();
-    const [showSetupModal, setShowSetupModal] = useState<boolean>(false);
+    const [showSetupModal, setShowSetupModal] = useState<boolean>(
+        hasPendingTwoFactorSetup,
+    );
     const prevTwoFactorEnabled = useRef(twoFactorEnabled);
 
     useEffect(() => {
@@ -54,12 +56,6 @@ export default function Security({
 
         prevTwoFactorEnabled.current = twoFactorEnabled;
     }, [twoFactorEnabled, clearTwoFactorAuthData]);
-
-    useEffect(() => {
-        if (hasPendingTwoFactorSetup) {
-            setShowSetupModal(true);
-        }
-    }, [hasPendingTwoFactorSetup]);
 
     return (
         <>

@@ -231,8 +231,14 @@ final class PracticeHealthReport
     private function sumByClient(string $modelClass, string $column, array $clientIds): array
     {
         /** @var array<string, float> $totals */
-        $totals = $modelClass::query()
-            ->whereIn('client_id', $clientIds)
+        $query = $modelClass::query()
+            ->whereIn('client_id', $clientIds);
+
+        if (method_exists($modelClass, 'scopeActive')) {
+            $query->active();
+        }
+
+        $totals = $query
             ->select('client_id', DB::raw("sum({$column}) as aggregate"))
             ->groupBy('client_id')
             ->pluck('aggregate', 'client_id')

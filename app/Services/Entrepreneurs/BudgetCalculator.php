@@ -4,8 +4,15 @@ declare(strict_types=1);
 
 namespace App\Services\Entrepreneurs;
 
-final class BudgetCalculator
+use App\Support\Methodology\ProvidesMethodology;
+
+final class BudgetCalculator implements ProvidesMethodology
 {
+    public static function methodologyIds(): array
+    {
+        return ['entrepreneur.budget_forecast'];
+    }
+
     private const MONTHS_PER_YEAR = 12;
 
     private const DEFAULT_FORECAST_YEARS = 3;
@@ -55,7 +62,7 @@ final class BudgetCalculator
             'interest_only_months' => 0,
             'confidence' => 'estimate',
         ];
-        $scenarioOutputs = collect([$baseScenario, ...$scenarioRows])
+        $scenarioOutputs = collect([$baseScenario, ...$scenarioRows, ...$this->automaticSensitivityScenarios()])
             ->map(fn (array $scenario): array => $this->computeScenario(
                 scenario: $scenario,
                 launchRows: $launchRows,
@@ -279,23 +286,34 @@ final class BudgetCalculator
         $breakEvenMonth = null;
         $firstProfitYear = null;
         $cashPositiveYear = null;
+        $taxLossCarryByYear = [];
+        $revenueMultiplier = $this->scenarioMultiplier($scenario, 'revenue_multiplier');
+        $costMultiplier = $this->scenarioMultiplier($scenario, 'cost_multiplier');
 
         for ($month = 1; $month <= $monthCount; $month++) {
             $year = (int) ceil($month / self::MONTHS_PER_YEAR);
             $monthInYear = (($month - 1) % self::MONTHS_PER_YEAR) + 1;
-            $revenue = $this->revenueForMonth($revenueRows, $month, $assumptions);
-            $variableCosts = $this->variableCostsForMonth($revenueRows, $month, $assumptions);
-            $fixedCosts = $this->fixedCostsForMonth($fixedRows, $year, $assumptions);
-            $futureCosts = $this->futureCostsForMonth($futureRows, $year, $monthInYear);
-            $launchCosts = $this->rowsForMonth($launchRows, $month);
+            $revenue = $this->revenueForMonth($revenueRows, $month, $assumptions) * $revenueMultiplier;
+            $variableCosts = $this->variableCostsForMonth($revenueRows, $month, $assumptions) * $costMultiplier * $revenueMultiplier;
+            $fixedCosts = $this->fixedCostsForMonth($fixedRows, $month, $assumptions) * $costMultiplier;
+            $futureCosts = $this->futureCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier;
+            $launchCosts = $this->rowsForMonth($launchRows, $month) * $costMultiplier;
             $fundingInflow = $this->fundingForMonth($fundingRows, $month) + $this->scenarioFundingForMonth($scenario, $month);
             $loanPayment = $this->loanPaymentForMonth($loan, $scenario, $month);
             $grossProfit = $revenue - $variableCosts;
             $operatingProfit = $grossProfit - $fixedCosts - $futureCosts;
             $netProfitBeforeTax = $operatingProfit - $loanPayment['interest'];
-            $tax = (bool) $assumptions['company_tax_configured'] && $netProfitBeforeTax > 0
-                ? $netProfitBeforeTax * (((float) $assumptions['company_tax_rate_percent']) / 100)
-                : 0.0;
+            $taxableProfit = $netProfitBeforeTax;
+            $tax = 0.0;
+            if ((bool) $assumptions['company_tax_configured']) {
+                $taxableProfit += (float) ($taxLossCarryByYear[$year] ?? 0.0);
+                if ($taxableProfit > 0) {
+                    $tax = $taxableProfit * (((float) $assumptions['company_tax_rate_percent']) / 100);
+                    $taxLossCarryByYear[$year] = 0.0;
+                } else {
+                    $taxLossCarryByYear[$year] = $taxableProfit;
+                }
+            }
             $netProfitAfterTax = $netProfitBeforeTax - $tax;
             $netCashFlow = $netProfitAfterTax + $fundingInflow - $launchCosts - $loanPayment['principal'];
             $cumulativeCash += $netCashFlow;
@@ -322,6 +340,8 @@ final class BudgetCalculator
                 'funding_inflow' => round($fundingInflow, 2),
                 'launch_costs' => round($launchCosts, 2),
                 'net_profit_before_tax' => round($netProfitBeforeTax, 2),
+                'taxable_profit_after_loss_offset' => round($taxableProfit, 2),
+                'tax_loss_carried_forward' => round((float) ($taxLossCarryByYear[$year] ?? 0.0), 2),
                 'net_profit_after_tax' => round($netProfitAfterTax, 2),
                 'net_cash_flow' => round($netCashFlow, 2),
                 'cumulative_cash' => round($cumulativeCash, 2),
@@ -373,6 +393,13 @@ final class BudgetCalculator
             'key' => $scenario['key'],
             'name' => $scenario['name'],
             'type' => $scenario['type'],
+            'automatic' => (bool) ($scenario['automatic'] ?? false),
+            'equity_sold_percent' => $this->equitySoldPercent($scenario),
+            'founder_ownership_percent' => round(100.0 - $this->equitySoldPercent($scenario), 2),
+            'sensitivity' => [
+                'revenue_multiplier' => $revenueMultiplier,
+                'cost_multiplier' => $costMultiplier,
+            ],
             'annual_totals' => $annual,
             'monthly_detail' => $monthly,
             'summary' => [
@@ -387,6 +414,8 @@ final class BudgetCalculator
                 'first_profitable_year' => $firstProfitYear,
                 'cash_flow_positive_year' => $cashPositiveYear,
                 'expected_runway_months' => $expectedRunwayMonths,
+                'equity_sold_percent' => $this->equitySoldPercent($scenario),
+                'founder_ownership_percent' => round(100.0 - $this->equitySoldPercent($scenario), 2),
             ],
         ];
     }
@@ -443,11 +472,19 @@ final class BudgetCalculator
     /**
      * @param  array<int, array<string, mixed>>  $rows
      */
-    private function fixedCostsForMonth(array $rows, int $year, array $assumptions): float
+    private function fixedCostsForMonth(array $rows, int $month, array $assumptions): float
     {
-        $base = $this->sumRows($rows);
+        $year = (int) ceil($month / self::MONTHS_PER_YEAR);
 
-        return $base * $this->growthFactor((float) $assumptions['cost_inflation_percent'], $year - 1);
+        return array_reduce($rows, function (float $total, array $row) use ($month, $year, $assumptions): float {
+            if ((int) $row['month'] > $month) {
+                return $total;
+            }
+
+            $amount = ((float) $row['amount']) * ((float) $row['quantity']);
+
+            return $total + ($amount * $this->growthFactor((float) $assumptions['cost_inflation_percent'], $year - 1));
+        }, 0.0);
     }
 
     /**
@@ -495,6 +532,82 @@ final class BudgetCalculator
     private function scenarioFundingTotal(array $scenario): float
     {
         return $scenario['type'] === 'base' ? 0.0 : (float) $scenario['amount'];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function automaticSensitivityScenarios(): array
+    {
+        return [
+            [
+                'key' => 'revenue_downside',
+                'name' => 'Revenue downside',
+                'type' => 'sensitivity',
+                'amount' => 0.0,
+                'year' => 1,
+                'interest_rate_percent' => 0.0,
+                'term_years' => 0,
+                'interest_only_months' => 0,
+                'investor_equity_percent' => 0.0,
+                'revenue_multiplier' => 0.8,
+                'cost_multiplier' => 1.0,
+                'automatic' => true,
+                'confidence' => 'estimate',
+            ],
+            [
+                'key' => 'cost_upside',
+                'name' => 'Cost upside',
+                'type' => 'sensitivity',
+                'amount' => 0.0,
+                'year' => 1,
+                'interest_rate_percent' => 0.0,
+                'term_years' => 0,
+                'interest_only_months' => 0,
+                'investor_equity_percent' => 0.0,
+                'revenue_multiplier' => 1.0,
+                'cost_multiplier' => 1.1,
+                'automatic' => true,
+                'confidence' => 'estimate',
+            ],
+            [
+                'key' => 'combined_downside',
+                'name' => 'Combined downside',
+                'type' => 'sensitivity',
+                'amount' => 0.0,
+                'year' => 1,
+                'interest_rate_percent' => 0.0,
+                'term_years' => 0,
+                'interest_only_months' => 0,
+                'investor_equity_percent' => 0.0,
+                'revenue_multiplier' => 0.8,
+                'cost_multiplier' => 1.1,
+                'automatic' => true,
+                'confidence' => 'estimate',
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $scenario
+     */
+    private function scenarioMultiplier(array $scenario, string $key): float
+    {
+        $value = $scenario[$key] ?? 1.0;
+
+        return is_numeric($value) ? max(0.0, (float) $value) : 1.0;
+    }
+
+    /**
+     * @param  array<string, mixed>  $scenario
+     */
+    private function equitySoldPercent(array $scenario): float
+    {
+        if (! in_array($scenario['type'] ?? '', ['investor', 'mixed'], true)) {
+            return 0.0;
+        }
+
+        return round(max(0.0, min(100.0, (float) ($scenario['investor_equity_percent'] ?? 0))), 2);
     }
 
     /**
@@ -694,8 +807,10 @@ final class BudgetCalculator
             'first_profitable_year' => 'First profitable year is the first forecast year where net profit after tax is positive.',
             'cash_flow_positive_year' => 'Cash-flow-positive year is the first year where cumulative cash becomes zero or positive after startup losses and funding movements.',
             'year_two_revenue_basis' => 'From year 2 onward, monthly revenue uses the average monthly revenue achieved in year 1, then applies annual revenue growth. If year 1 ramps quickly, month 13 can be lower than month 12.',
-            'tax_simplification' => 'Company tax is estimated month by month on positive net profit before tax. Earlier monthly losses are not carried forward, so after-tax profit is conservative and indicative.',
+            'tax_simplification' => 'Company tax is estimated month by month after carrying earlier losses forward within the same forecast year. Losses are reset at each year boundary unless tax reference data is extended later.',
             'downside_growth' => 'Revenue growth, monthly revenue growth, and cost/CPI assumptions can be negative down to -100%, so downside and deflation cases are modelled instead of silently flattened to zero growth.',
+            'automatic_scenarios' => 'Automatic sensitivity scenarios compare base case against revenue downside, cost upside, and combined downside cases.',
+            'investor_equity' => 'Investor and mixed funding scenarios show the equity sold and remaining founder ownership so funding is not treated like free cash.',
             'gst_exclusive' => 'The budget is GST exclusive by default, so GST collected and paid is not treated as business income or cost in this pack.',
         ];
     }

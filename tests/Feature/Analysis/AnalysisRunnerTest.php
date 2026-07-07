@@ -98,6 +98,12 @@ final class AnalysisRunnerTest extends TestCase
 
         $this->assertSame(AnalysisRun::STATUS_COMPLETED, $run->status);
         $this->assertSame(4, $run->findings()->count());
+        $this->assertSame(5, $run->metadata['findings_input_count']);
+        $this->assertSame(4, $run->metadata['findings_created_count']);
+        $this->assertSame(1, data_get($run->metadata, 'dropped_findings.missing_attribution'));
+        $this->assertSame('Unattributed finding', data_get($run->metadata, 'dropped_findings.items.0.title'));
+        $this->assertSame(AnalysisLens::Diagnostic->value, data_get($run->metadata, 'dropped_findings.items.0.lens'));
+        $this->assertSame('missing_attribution', data_get($run->metadata, 'dropped_findings.items.0.reason'));
         $this->assertDatabaseMissing('analysis_findings', [
             'analysis_run_id' => $run->id,
             'title' => 'Unattributed finding',

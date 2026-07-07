@@ -2,6 +2,7 @@ import { usePage } from '@inertiajs/react';
 
 import { AiUnavailableNotice } from '@/components/ai-unavailable-notice';
 import type { AiNotice } from '@/components/ai-unavailable-notice';
+import { BackToTopButton } from '@/components/back-to-top-button';
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
 import type { BreadcrumbItem } from '@/types';
 
@@ -25,6 +26,7 @@ export default function AppLayout({
             <div className="fsa-app-surface flex-1 px-4 py-6 sm:px-6 lg:px-8">
                 {children}
             </div>
+            <BackToTopButton />
         </AppLayoutTemplate>
     );
 }

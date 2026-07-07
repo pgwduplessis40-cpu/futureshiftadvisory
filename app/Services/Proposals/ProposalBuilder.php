@@ -400,6 +400,7 @@ final class ProposalBuilder
                     $left->created_at?->getTimestamp() ?? 0,
                 ];
             })
+            ->unique(fn (AnalysisFinding $finding): string => $this->focusAreaFingerprint($finding))
             ->values();
 
         if ($findings->isEmpty()) {
@@ -418,8 +419,27 @@ final class ProposalBuilder
                 'severity' => $finding->severity->value,
                 'title' => $finding->title,
                 'body' => Str::limit($finding->body, 750),
+                'attributions' => $finding->attributions,
             ])
             ->all();
+    }
+
+    private function focusAreaFingerprint(AnalysisFinding $finding): string
+    {
+        $source = collect($finding->attributions)
+            ->filter(fn (mixed $attribution): bool => is_array($attribution))
+            ->pluck('source_reference')
+            ->filter()
+            ->map(fn (mixed $source): string => mb_strtolower(trim((string) $source)))
+            ->first();
+
+        return hash('sha256', implode('|', [
+            $finding->run?->module?->value ?? '',
+            mb_strtolower(trim($finding->title)),
+            $finding->lens->value,
+            $finding->severity->value,
+            $source ?? '',
+        ]));
     }
 
     private function severityRank(AnalysisFinding $finding): int
@@ -526,7 +546,7 @@ final class ProposalBuilder
     private function acceptanceTerms(FeeCalculation $feeCalculation): array
     {
         $terms = [
-            'phase' => 'phase_3_signoff_enabled',
+            'phase' => 'client_signoff',
             'client_acceptance_section_present' => true,
             'payment_authority_capture_enabled' => true,
             'digital_signature_enabled' => true,
@@ -698,9 +718,10 @@ HTML,
             ->filter(fn (mixed $item): bool => is_array($item))
             ->take(6)
             ->map(fn (array $area): string => sprintf(
-                '<li><strong>%s</strong><br><span>%s</span></li>',
+                '<li><strong>%s</strong><br><span>%s</span>%s</li>',
                 $this->escape((string) ($area['title'] ?? 'Advisory focus area')),
                 $this->escape((string) ($area['body'] ?? '')),
+                $this->focusAreaSourcesHtml($area),
             ))
             ->implode('');
 
@@ -716,6 +737,30 @@ HTML,
 </section>
 HTML,
             $items,
+        );
+    }
+
+    /**
+     * @param  array<string, mixed>  $area
+     */
+    private function focusAreaSourcesHtml(array $area): string
+    {
+        $sources = collect((array) ($area['attributions'] ?? []))
+            ->filter(fn (mixed $attribution): bool => is_array($attribution) && is_string($attribution['source_reference'] ?? null))
+            ->pluck('source_reference')
+            ->map(fn (mixed $source): string => trim((string) $source))
+            ->filter()
+            ->unique()
+            ->take(3)
+            ->values();
+
+        if ($sources->isEmpty()) {
+            return '';
+        }
+
+        return sprintf(
+            '<br><small>Sources: %s</small>',
+            $this->escape($sources->implode(', ')),
         );
     }
 

@@ -1,9 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, FileText, Scale } from 'lucide-react';
 import type { ReactNode } from 'react';
+import { BudgetCashChart } from '@/components/budget-cash-chart';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { BudgetCashChart } from '@/components/budget-cash-chart';
 
 type AnnualRow = {
     year: number;

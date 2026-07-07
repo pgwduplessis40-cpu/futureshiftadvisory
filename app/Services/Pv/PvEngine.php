@@ -34,14 +34,17 @@ final class PvEngine implements ProvidesMethodology
         $this->assertRate($discountRate);
         $total = 0.0;
 
+        $index = 0;
+
         foreach ($cashFlows as $period => $amount) {
             if (! is_numeric($amount)) {
                 throw new InvalidArgumentException('Cash flow amounts must be numeric.');
             }
 
-            $periodNumber = is_numeric($period) ? (int) $period : count($cashFlows);
+            $periodNumber = is_numeric($period) ? (int) $period : $index + 1;
             $periodNumber = max(1, $periodNumber);
             $total += (float) $amount / ((1 + $discountRate) ** $periodNumber);
+            $index++;
         }
 
         return round($total, 2);
