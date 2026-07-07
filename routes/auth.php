@@ -104,6 +104,7 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
 
             Route::get('service-rates', [ServiceRateController::class, 'index'])->name('service-rates.index');
             Route::post('service-rates', [ServiceRateController::class, 'store'])->name('service-rates.store');
+            Route::patch('service-rates/{serviceRateSetting}/status', [ServiceRateController::class, 'toggle'])->name('service-rates.toggle');
             Route::post('service-rates/packages', [ServiceRateController::class, 'storePackage'])->name('service-rates.packages.store');
             Route::patch('service-rates/packages/{serviceRatePackage}', [ServiceRateController::class, 'updatePackage'])->name('service-rates.packages.update');
             Route::patch('service-rates/packages/{serviceRatePackage}/status', [ServiceRateController::class, 'togglePackage'])->name('service-rates.packages.toggle');

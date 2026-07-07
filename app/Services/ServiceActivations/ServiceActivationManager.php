@@ -19,6 +19,7 @@ use App\Models\User;
 use App\Notifications\ServiceActivationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
+use App\Services\Fees\ServiceRateManager;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
@@ -35,6 +36,7 @@ final class ServiceActivationManager
         private readonly MessageThreadService $messages,
         private readonly SharedPlanBuilder $plans,
         private readonly RequestContext $context,
+        private readonly ServiceRateManager $serviceRates,
     ) {}
 
     /**
@@ -91,7 +93,8 @@ final class ServiceActivationManager
     public function selectPackage(ServiceActivation $activation, ServiceRatePackage $package, User $advisor): ServiceActivation
     {
         $activation->loadMissing('client');
-        $paymentStatus = $this->packagePaymentStatus($package);
+        $snapshot = $this->packageSnapshotForActivation($package);
+        $paymentStatus = $this->packagePaymentStatus($snapshot);
 
         if (! in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
             throw ValidationException::withMessages(['advisor' => 'Only an advisor can select the workspace package.']);
@@ -105,7 +108,7 @@ final class ServiceActivationManager
             'advisor_id' => $activation->advisor_id ?: $advisor->getKey(),
             'approved_by_user_id' => $advisor->getKey(),
             'service_rate_package_id' => $package->getKey(),
-            'selected_package_snapshot' => $package->snapshot(),
+            'selected_package_snapshot' => $snapshot,
             'payment_status' => $paymentStatus,
             'payment_completed_at' => null,
             'payment_completed_by_user_id' => null,
@@ -121,6 +124,7 @@ final class ServiceActivationManager
                 ...(array) ($activation->metadata ?? []),
                 'package_selected_at' => now()->toIso8601String(),
                 'pricing_source' => 'admin_service_rate_package',
+                'free_access_mode' => (bool) data_get($snapshot, 'free_access_mode.active', false),
                 'payment_required_before_workspace_access' => $paymentStatus !== ServiceActivation::PAYMENT_NOT_REQUIRED,
             ],
         ])->save();
@@ -128,8 +132,8 @@ final class ServiceActivationManager
         $this->audit->record('service_activation.package_selected', subject: $activation, actor: $advisor, after: [
             'service_rate_package_id' => $package->getKey(),
             'service_type' => $activation->service_type,
-            'fixed_fee' => $package->fixed_fee,
-            'payment_split' => $package->paymentSplit(),
+            'fixed_fee' => $snapshot['fixed_fee'] ?? null,
+            'payment_split' => $snapshot['payment_split'] ?? null,
             'billing_model' => $package->billing_model,
         ]);
 
@@ -605,14 +609,18 @@ final class ServiceActivationManager
             ? number_format((float) $snapshot['fixed_fee'], 2)
             : 'the selected fee';
         $currency = (string) ($snapshot['currency'] ?? 'NZD');
+        $paymentText = $this->activationRequiresPayment($activation)
+            ? 'workspace access opens only after full package payment has been received and confirmed'
+            : 'no payment is required before this workspace opens while fees are inactive';
 
         return sprintf(
-            'I accept the %s workspace package "%s" for %s %s%s. I understand the standard Terms and Conditions I already accepted for portal access continue to apply, this acknowledgement confirms the workspace-specific scope and fee, and workspace access opens only after full package payment has been received and confirmed.',
+            'I accept the %s workspace package "%s" for %s %s%s. I understand the standard Terms and Conditions I already accepted for portal access continue to apply, this acknowledgement confirms the workspace-specific scope and fee, and %s.',
             $activation->clientLabel(),
             (string) ($snapshot['client_label'] ?? $snapshot['package_name'] ?? 'selected package'),
             $currency,
             $fee,
             $this->paymentSplitAcceptanceText($snapshot, $currency),
+            $paymentText,
         );
     }
 
@@ -629,21 +637,57 @@ final class ServiceActivationManager
         ]))) ?: 'Client requested idea validation, business plan, and budget support from the advisory portal.';
     }
 
-    private function packagePaymentStatus(ServiceRatePackage $package): string
+    /**
+     * @return array<string, mixed>
+     */
+    private function packageSnapshotForActivation(ServiceRatePackage $package): array
     {
-        if (! $this->packageRequiresPayment($package)) {
+        $snapshot = $package->snapshot();
+
+        if (! $this->serviceRates->freeAccessModeActive()) {
+            return $snapshot;
+        }
+
+        return [
+            ...$snapshot,
+            'fixed_fee' => 0.0,
+            'deposit_percent' => 100.0,
+            'payment_split' => [
+                'deposit_percent' => 100.0,
+                'card_deposit_amount' => 0.0,
+                'bank_transfer_amount' => 0.0,
+                'requires_bank_transfer' => false,
+            ],
+            'free_access_mode' => [
+                'active' => true,
+                'reason' => 'Admin service rates are inactive; package payment is not required until rates are activated.',
+                'nominal_fixed_fee' => $snapshot['fixed_fee'] ?? null,
+                'stripe_required' => false,
+            ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function packagePaymentStatus(array $snapshot): string
+    {
+        if (! $this->packageRequiresPayment($snapshot)) {
             return ServiceActivation::PAYMENT_NOT_REQUIRED;
         }
 
-        return $package->paymentSplit()['requires_bank_transfer'] === true
+        return $this->paymentSplitForSnapshot($snapshot)['requires_bank_transfer'] === true
             ? ServiceActivation::PAYMENT_DEPOSIT_PENDING
             : ServiceActivation::PAYMENT_PENDING;
     }
 
-    private function packageRequiresPayment(ServiceRatePackage $package): bool
+    /**
+     * @param  array<string, mixed>  $snapshot
+     */
+    private function packageRequiresPayment(array $snapshot): bool
     {
-        return $package->billing_model === ServiceRatePackage::BILLING_FIXED_FEE
-            && (float) ($package->paymentSplit()['card_deposit_amount'] ?? 0) > 0;
+        return (string) ($snapshot['billing_model'] ?? ServiceRatePackage::BILLING_FIXED_FEE) === ServiceRatePackage::BILLING_FIXED_FEE
+            && (float) ($snapshot['fixed_fee'] ?? 0) > 0;
     }
 
     private function activationRequiresPayment(ServiceActivation $activation): bool
@@ -651,7 +695,7 @@ final class ServiceActivationManager
         $snapshot = (array) ($activation->selected_package_snapshot ?? []);
 
         return (string) ($snapshot['billing_model'] ?? ServiceRatePackage::BILLING_FIXED_FEE) === ServiceRatePackage::BILLING_FIXED_FEE
-            && (float) ($this->paymentSplitForSnapshot($snapshot)['card_deposit_amount'] ?? 0) > 0;
+            && (float) ($snapshot['fixed_fee'] ?? 0) > 0;
     }
 
     /**

@@ -42,6 +42,7 @@ use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\EconomicData\EconomicIndicatorRefresher;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
+use App\Services\Fees\ServiceRateManager;
 use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Panels\Coach\SignalDetector;
@@ -80,6 +81,7 @@ final class DashboardController extends Controller
         NpoFunderMonitor $npoFunders,
         ReferenceDataFreshness $referenceDataFreshness,
         EntrepreneurInviteReconciler $entrepreneurInvites,
+        ServiceRateManager $serviceRates,
     ): Response|RedirectResponse {
         $user = $request->user();
 
@@ -102,7 +104,7 @@ final class DashboardController extends Controller
         }
 
         if ($user instanceof User && $this->usesAdvisorDashboard($user)) {
-            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness));
+            return Inertia::render('advisor/Dashboard', $this->advisorDashboardPayload($user, $termsGate, $engagementScorer, $cashFlowStatus, $economicExposure, $paymentStatus, $pvWaterfalls, $funnels, $practiceHealth, $questionnaireOptimisation, $wellbeing, $coachSignals, $npoConversion, $npoFunders, $referenceDataFreshness, $serviceRates));
         }
 
         if ($user instanceof User && $user->user_type === User::TYPE_BROKER) {
@@ -672,6 +674,7 @@ final class DashboardController extends Controller
         GovernanceReviewConversion $npoConversion,
         NpoFunderMonitor $npoFunders,
         ReferenceDataFreshness $referenceDataFreshness,
+        ServiceRateManager $serviceRates,
     ): array {
         $clientIds = $this->visibleClientIds($user);
         $pvWaterfall = $pvWaterfalls->forClients($clientIds);
@@ -700,6 +703,7 @@ final class DashboardController extends Controller
             'integrationHealth' => $this->integrationHealth($user),
             'economicIndicators' => $this->economicIndicators($clientIds, $economicExposure),
             'paymentStatus' => $paymentStatus->forClientIds($clientIds),
+            'feeStatus' => $this->feeStatus($user, $serviceRates),
             'pvWaterfall' => [
                 ...$pvWaterfall,
                 'methodology_id' => 'pv.waterfall',
@@ -724,6 +728,21 @@ final class DashboardController extends Controller
                 'methodology_id' => 'funnel.drop_off',
             ],
             'panelOperations' => $this->panelOperations($user, $clientIds),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function feeStatus(User $user, ServiceRateManager $serviceRates): array
+    {
+        $payload = $serviceRates->chargingStatusPayload();
+        $canManageRates = $user->user_type === User::TYPE_SUPER_ADMIN;
+
+        return [
+            ...$payload,
+            'can_manage' => $canManageRates,
+            'manage_url' => $canManageRates ? $payload['manage_url'] : null,
         ];
     }
 

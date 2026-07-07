@@ -16,6 +16,7 @@ use App\Models\ServiceRatePackage;
 use App\Models\ServiceRateSetting;
 use App\Models\User;
 use App\Services\Fees\FeeCalculator;
+use App\Services\Fees\ServiceRateManager;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Proposals\ProposalBuilder;
 use App\Support\RequestContext;
@@ -56,6 +57,7 @@ final class ServiceRateManagementTest extends TestCase
         $this->assertSame('NZD', $rate->currency);
         $this->assertSame(30.0, $rate->npo_service_discount_percent);
         $this->assertSame(35.0, $rate->npo_retainer_discount_percent);
+        $this->assertTrue($rate->is_active);
         $this->assertSame($admin->getKey(), $rate->created_by_user_id);
 
         $this->assertDatabaseHas('audit_events', [
@@ -76,6 +78,8 @@ final class ServiceRateManagementTest extends TestCase
                 'notes' => 'Initial admin rate.',
             ]);
 
+        $rate = ServiceRateSetting::query()->firstOrFail();
+
         $this->actingAsMfa($admin)
             ->get(route('admin.service-rates.index'))
             ->assertOk()
@@ -84,10 +88,64 @@ final class ServiceRateManagementTest extends TestCase
                 ->where('current.hourly_rate', 310)
                 ->where('current.npo_service_discount_percent', 25)
                 ->where('current.npo_retainer_discount_percent', 40)
+                ->where('current.is_active', true)
+                ->where('current.toggle_url', route('admin.service-rates.toggle', $rate, absolute: false))
                 ->where('fallback.currency', 'NZD')
                 ->has('history', 1)
+                ->where('history.0.is_active', true)
                 ->where('storeUrl', route('admin.service-rates.store', absolute: false))
             );
+    }
+
+    public function test_super_admin_can_activate_and_deactivate_service_rate(): void
+    {
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.service-rates.store'), [
+                'hourly_rate' => 325,
+                'npo_service_discount_percent' => 30,
+                'npo_retainer_discount_percent' => 35,
+                'notes' => 'Toggle this admin rate.',
+            ]);
+
+        $rate = ServiceRateSetting::query()->firstOrFail();
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.service-rates.toggle', $rate), [
+                'is_active' => false,
+            ])
+            ->assertRedirect(route('admin.service-rates.index', absolute: false));
+
+        $this->assertFalse($rate->refresh()->is_active);
+        $this->assertNull(app(ServiceRateManager::class)->current());
+        $this->assertTrue(app(ServiceRateManager::class)->freeAccessModeActive());
+        $this->assertSame(0.0, app(ServiceRateManager::class)->currentHourlyRate());
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.service-rates.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('current', null)
+                ->has('history', 1)
+                ->where('history.0.is_active', false)
+            );
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.service-rates.toggle', $rate), [
+                'is_active' => true,
+            ])
+            ->assertRedirect(route('admin.service-rates.index', absolute: false));
+
+        $this->assertTrue($rate->refresh()->is_active);
+        $this->assertSame($rate->id, app(ServiceRateManager::class)->current()?->id);
+        $this->assertFalse(app(ServiceRateManager::class)->freeAccessModeActive());
+        $this->assertSame(325.0, app(ServiceRateManager::class)->currentHourlyRate());
+
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'service_rate.toggled',
+            'subject_id' => $rate->id,
+        ]);
     }
 
     public function test_super_admin_can_update_workspace_package(): void

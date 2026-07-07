@@ -23,6 +23,7 @@ use App\Models\DdValuation;
 use App\Models\DdWorkstream;
 use App\Models\DocumentVerification;
 use App\Models\FinancialSnapshot;
+use App\Models\Goal;
 use App\Models\GovernanceReviewFinding;
 use App\Models\ImprovementOpportunity;
 use App\Models\Milestone;
@@ -1255,6 +1256,7 @@ final class ReportComposer implements ProvidesMethodology
         return [
             $this->financialTrendSection($client, $snapshots),
             $this->pvMilestonesSection($client, $valuations),
+            $this->goalOutcomeSection($client),
             $this->trajectoryNarrativeSection($client, $snapshots, $valuations, $findings),
         ];
     }
@@ -3558,6 +3560,66 @@ final class ReportComposer implements ProvidesMethodology
             dataQualityNote: 'Data quality note: milestones are based on persisted business valuation rows.',
             metadata: [
                 'valuation_ids' => $valuations->pluck('id')->values()->all(),
+            ],
+        );
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function goalOutcomeSection(Client $client): array
+    {
+        $goals = Goal::query()
+            ->with(['baselineBusinessValuation', 'latestBusinessValuation', 'milestones'])
+            ->where('client_id', $client->getKey())
+            ->latest()
+            ->get();
+
+        if ($goals->isEmpty()) {
+            return $this->generatedSection(
+                key: 'goal_outcomes',
+                title: 'Goal outcome measurement',
+                body: 'No PV-linked goals have been recorded yet.',
+                sourceReference: 'goals:none:'.$client->getKey(),
+                dataQualityNote: 'Data quality note: goal outcome measurement starts once advisor goals have a baseline and target.',
+            );
+        }
+
+        $body = $goals
+            ->map(function (Goal $goal): string {
+                $baseline = $goal->baselineBusinessValuation;
+                $current = $goal->latestBusinessValuation;
+                $baselineValue = $baseline instanceof BusinessValuation ? $baseline->reconciled_mid : null;
+                $currentValue = $current instanceof BusinessValuation ? $current->reconciled_mid : null;
+                $target = (float) $goal->pv_target;
+                $gap = $currentValue === null || $target <= 0
+                    ? null
+                    : $target - $currentValue;
+                $realised = round((float) $goal->milestones
+                    ->where('status', Milestone::STATUS_COMPLETED)
+                    ->sum('pv_of_impact'), 2);
+
+                return sprintf(
+                    '%s: baseline %s; current %s; target %s%s; verified milestone PV %s; status %s.',
+                    $goal->title,
+                    $baselineValue === null ? 'not measured' : 'NZD '.number_format($baselineValue, 0),
+                    $currentValue === null ? 'not re-measured' : 'NZD '.number_format($currentValue, 0),
+                    $target > 0 ? 'NZD '.number_format($target, 0) : 'not set',
+                    $gap === null ? '' : '; gap '.($gap <= 0 ? 'met by NZD '.number_format(abs($gap), 0) : 'NZD '.number_format($gap, 0)),
+                    'NZD '.number_format($realised, 0),
+                    str_replace('_', ' ', $goal->status),
+                );
+            })
+            ->implode("\n");
+
+        return $this->generatedSection(
+            key: 'goal_outcomes',
+            title: 'Goal outcome measurement',
+            body: $body,
+            sourceReference: 'goals:'.$client->getKey(),
+            dataQualityNote: 'Data quality note: baseline and current PV use persisted business valuations; verified milestone PV explains the evidence-backed contribution and still requires advisor review.',
+            metadata: [
+                'goal_ids' => $goals->pluck('id')->values()->all(),
             ],
         );
     }

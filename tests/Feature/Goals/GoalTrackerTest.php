@@ -6,14 +6,18 @@ namespace Tests\Feature\Goals;
 
 use App\Enums\EngagementType;
 use App\Enums\PvType;
+use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\Goal;
 use App\Models\Milestone;
 use App\Models\ProofOfCompletion;
 use App\Models\User;
+use App\Models\ValuationMultiple;
 use App\Services\Goals\GoalTracker;
+use App\Services\Pv\BusinessValuation as BusinessValuationService;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -175,6 +179,89 @@ final class GoalTrackerTest extends TestCase
         ]);
     }
 
+    public function test_growth_goal_captures_baseline_remeasures_pv_and_requires_advisor_achievement(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('goals-growth-advisor@example.test');
+        $clientUser = $this->clientUserFor($client);
+        $tracker = app(GoalTracker::class);
+
+        $this->valuationMultiple('M6962', ValuationMultiple::METRIC_SDE, 2.0, 3.0, 4.0);
+        $this->valuationMultiple('M6962', ValuationMultiple::METRIC_EBITDA, 3.0, 4.0, 5.0);
+        $baseline = $this->businessValuation($client, ebitda: 80000, sde: 95000, cashFlow: 75000);
+        $baseline->forceFill(['as_at' => now()->subYears(2)])->save();
+
+        $goal = $tracker->createGoal($client, [
+            'title' => 'Lift enterprise value over two years',
+            'target_growth_percent' => 25,
+            'target_date' => now()->subDay()->toDateString(),
+        ], $advisor)->load(['baselineBusinessValuation', 'latestBusinessValuation']);
+
+        $this->assertSame($baseline->id, $goal->baseline_business_valuation_id);
+        $this->assertSame($baseline->id, $goal->latest_business_valuation_id);
+        $this->assertEqualsWithDelta(round($baseline->reconciled_mid * 1.25, 2), $goal->pv_target, 0.01);
+
+        $initialDashboard = $tracker->dashboard($client, includeAdvisorActions: true);
+        $this->assertTrue($initialDashboard['goals'][0]['measurement']['due_for_remeasurement']);
+        $this->assertArrayHasKey('remeasure_url', $initialDashboard['goals'][0]);
+        $this->assertArrayHasKey('achieve_url', $initialDashboard['goals'][0]);
+
+        $goal = $tracker->remeasureGoal($goal, [
+            'industry_code' => 'M6962',
+            'growth_rate' => 0,
+            'terminal_growth_rate' => 0.02,
+            'questionnaire_financials' => [
+                'ebitda' => 115000,
+                'sde' => 130000,
+                'cash_flow' => 110000,
+                'source_reference' => 'questionnaire:growth-review',
+            ],
+        ], $advisor)->load(['baselineBusinessValuation', 'latestBusinessValuation']);
+
+        $this->assertSame($baseline->id, $goal->baseline_business_valuation_id);
+        $this->assertNotSame($baseline->id, $goal->latest_business_valuation_id);
+        $this->assertGreaterThan($baseline->reconciled_mid, $goal->latestBusinessValuation->reconciled_mid);
+
+        $dashboard = $tracker->dashboard($client, includeAdvisorActions: true);
+        $measurement = $dashboard['goals'][0]['measurement'];
+        $this->assertFalse($measurement['due_for_remeasurement']);
+        $this->assertEqualsWithDelta($baseline->reconciled_mid, $measurement['baseline_pv'], 0.01);
+        $this->assertEqualsWithDelta($goal->latestBusinessValuation->reconciled_mid, $measurement['current_pv'], 0.01);
+        $this->assertGreaterThan(0, $measurement['pv_movement']);
+        $this->assertGreaterThan(0, $measurement['progress_percent']);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.show', $client))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/clients/Show')
+                ->where('client.goals.goals.0.measurement.baseline_business_valuation_id', $baseline->id)
+                ->where('client.goals.goals.0.measurement.current_business_valuation_id', $goal->latest_business_valuation_id)
+                ->where('client.goals.goals.0.remeasure_url', route('advisor.goals.remeasure', $goal, absolute: false))
+                ->where('client.goals.goals.0.achieve_url', route('advisor.goals.achieve', $goal, absolute: false)));
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/Dashboard')
+                ->where('goals.goals.0.measurement.current_business_valuation_id', $goal->latest_business_valuation_id));
+
+        $achieved = $tracker->confirmAchieved($goal, $advisor);
+
+        $this->assertSame(Goal::STATUS_ACHIEVED, $achieved->status);
+        $this->assertNotNull($achieved->achieved_at);
+        $this->assertSame($advisor->getKey(), $achieved->achieved_by_user_id);
+        $this->assertSame(0, $tracker->dashboard($client)['active_goals']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'goal.pv_remeasured',
+            'subject_id' => $goal->id,
+        ]);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'goal.achieved',
+            'subject_id' => $goal->id,
+        ]);
+    }
+
     public function test_public_holidays_block_milestone_and_action_due_dates_for_client_region(): void
     {
         [$advisor, $client] = $this->clientWithTeam('goals-holiday-advisor@example.test', 'South Canterbury');
@@ -309,6 +396,46 @@ final class GoalTrackerTest extends TestCase
             'uploaded_by_user_id' => $owner?->getKey(),
             'scanner_result' => Document::SCANNER_CLEAN,
             'scanner_payload' => ['engine' => 'test-fixture'],
+        ]);
+    }
+
+    private function businessValuation(Client $client, float $ebitda, float $sde, float $cashFlow): BusinessValuation
+    {
+        return app(BusinessValuationService::class)->calculate($client, [
+            'industry_code' => 'M6962',
+            'growth_rate' => 0.0,
+            'terminal_growth_rate' => 0.02,
+            'discount_options' => [
+                'rate' => 0.12,
+                'rationale' => 'Goal growth measurement test rate.',
+            ],
+            'questionnaire_financials' => [
+                'ebitda' => $ebitda,
+                'sde' => $sde,
+                'cash_flow' => $cashFlow,
+                'source_reference' => 'questionnaire:growth-baseline',
+            ],
+        ]);
+    }
+
+    private function valuationMultiple(string $industryCode, string $metric, float $low, float $mid, float $high): ValuationMultiple
+    {
+        return ValuationMultiple::query()->create([
+            'industry_code' => $industryCode,
+            'industry_label' => 'Management advice and related consulting services',
+            'metric' => $metric,
+            'multiple_low' => $low,
+            'multiple_mid' => $mid,
+            'multiple_high' => $high,
+            'source' => $metric === ValuationMultiple::METRIC_SDE
+                ? ValuationMultiple::SOURCE_NZ_BUSINESS_BROKERS
+                : ValuationMultiple::SOURCE_MBIE,
+            'source_badge' => 'stub',
+            'degraded' => false,
+            'quarter' => '2026Q2',
+            'fetched_at' => now(),
+            'record_hash' => hash('sha256', $industryCode.$metric.$low.$mid.$high),
+            'payload' => ['test' => true],
         ]);
     }
 

@@ -153,7 +153,7 @@ final class ServiceActivation extends Model
             || (
                 is_array($this->selected_package_snapshot)
                 && (float) ($this->selected_package_snapshot['fixed_fee'] ?? 0) > 0
-                && $this->payment_status !== self::PAYMENT_PAID
+                && ! in_array($this->payment_status, [self::PAYMENT_NOT_REQUIRED, self::PAYMENT_PAID], true)
             );
     }
 

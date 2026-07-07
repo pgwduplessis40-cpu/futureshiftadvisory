@@ -169,6 +169,7 @@ export default function NpoBoardDashboard({
                                 href={document.url}
                                 title={document.filename}
                                 meta={`${formatCategory(document.category)} / ${formatDate(document.uploaded_at)}`}
+                                newWindow
                             />
                         ))}
                     </BoardPanel>
@@ -212,18 +213,38 @@ function ListLink({
     href,
     title,
     meta,
+    newWindow = false,
 }: {
     href: string;
     title: string;
     meta: string;
+    newWindow?: boolean;
 }) {
-    return (
-        <Link
-            href={href}
-            className="block p-3 transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        >
+    const className =
+        'block p-3 transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50';
+    const content = (
+        <>
             <div className="font-medium">{title}</div>
             <div className="mt-1 text-xs text-muted-foreground">{meta}</div>
+        </>
+    );
+
+    if (newWindow) {
+        return (
+            <a
+                href={href}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={className}
+            >
+                {content}
+            </a>
+        );
+    }
+
+    return (
+        <Link href={href} className={className}>
+            {content}
         </Link>
     );
 }

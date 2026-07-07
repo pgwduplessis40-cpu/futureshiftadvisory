@@ -13,6 +13,7 @@ use App\Models\FeeCalculation;
 use App\Models\ImprovementOpportunity;
 use App\Models\PvCalculation;
 use App\Models\RiskCost;
+use App\Models\ServiceRateSetting;
 use App\Services\Fees\FeeCalculator;
 use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -81,6 +82,33 @@ final class FeeCalculatorTest extends TestCase
         $this->assertEquals(250.0, $calculation->justification['services'][1]['rate']);
         $this->assertSame('config_fallback', $calculation->justification['services'][1]['rate_source']);
         $this->assertArrayNotHasKey('rate', $calculation->inputs['services'][0]);
+    }
+
+    public function test_inactive_admin_rates_force_zero_fee_calculation(): void
+    {
+        Config::set('fees.service.default_hourly_rate', 250);
+        $client = $this->client();
+
+        ServiceRateSetting::query()->create([
+            'hourly_rate' => 325,
+            'currency' => 'NZD',
+            'npo_service_discount_percent' => 30,
+            'npo_retainer_discount_percent' => 35,
+            'effective_from' => now()->subMinute(),
+            'is_active' => false,
+        ]);
+
+        $calculation = app(FeeCalculator::class)->calculate($client, FeeMethod::OutcomeBased, [
+            'annual_revenue' => 500000,
+            'complexity' => 'high',
+        ]);
+
+        $this->assertSame(0.0, $calculation->suggested_low);
+        $this->assertSame(0.0, $calculation->suggested_mid);
+        $this->assertSame(0.0, $calculation->suggested_high);
+        $this->assertTrue($calculation->justification['free_access_mode']['active']);
+        $this->assertFalse($calculation->justification['free_access_mode']['stripe_required']);
+        $this->assertEquals(6250.0, $calculation->justification['free_access_mode']['nominal_range']['mid']);
     }
 
     public function test_outcome_based_method_references_pv_totals_and_roi_ratio(): void

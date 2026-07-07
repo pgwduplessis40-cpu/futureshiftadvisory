@@ -675,6 +675,16 @@ type PanelOperationsPayload = {
     approvals: PanelApprovalQueue;
 };
 
+type FeeStatusPayload = {
+    free_access_mode: boolean;
+    charging_enabled: boolean;
+    current_rate_id: string | null;
+    current_rate_effective_from: string | null;
+    currency: string;
+    can_manage: boolean;
+    manage_url: string | null;
+};
+
 type ActionSummaryItem = {
     key: string;
     label: string;
@@ -717,6 +727,7 @@ type Props = {
     practiceHealth: PracticeHealthPayload;
     proposalStatus: ProposalStatusPayload;
     paymentStatus: PaymentStatusPayload;
+    feeStatus: FeeStatusPayload;
     questionnaireOptimisation: QuestionnaireOptimisationPayload;
     wellbeingAnalytics: WellbeingAnalyticsPayload;
     coachSignals: CoachSignalsPayload;
@@ -744,6 +755,7 @@ export default function AdvisorDashboard({
     practiceHealth,
     proposalStatus,
     paymentStatus,
+    feeStatus,
     questionnaireOptimisation,
     wellbeingAnalytics,
     coachSignals,
@@ -765,6 +777,7 @@ export default function AdvisorDashboard({
         pendingTermsReacceptance,
         proposalStatus,
         paymentStatus,
+        feeStatus,
         pvWaterfall,
         practiceHealth,
         npoPendingConversions,
@@ -1126,6 +1139,10 @@ function ActionSummaryCard({
     onSelectTab: (tab: DashboardTab) => void;
 }) {
     const handleClick = (event: React.MouseEvent<HTMLAnchorElement>) => {
+        if (!item.href.startsWith('#')) {
+            return;
+        }
+
         event.preventDefault();
 
         if (item.tab !== activeTab) {
@@ -1224,6 +1241,7 @@ function buildActionSummaryItems({
     pendingTermsReacceptance,
     proposalStatus,
     paymentStatus,
+    feeStatus,
     pvWaterfall,
     practiceHealth,
     npoPendingConversions,
@@ -1241,6 +1259,7 @@ function buildActionSummaryItems({
     | 'pendingTermsReacceptance'
     | 'proposalStatus'
     | 'paymentStatus'
+    | 'feeStatus'
     | 'pvWaterfall'
     | 'practiceHealth'
     | 'npoPendingConversions'
@@ -1251,6 +1270,7 @@ function buildActionSummaryItems({
 >): ActionSummaryItem[] {
     const paymentActionCount =
         paymentStatus.summary.failed + paymentStatus.summary.retrying;
+    const feesDisabled = feeStatus.free_access_mode;
     const proposalActionCount =
         proposalStatus.summary.expired + proposalStatus.summary.expiring_soon;
     const learningActionCount =
@@ -1384,6 +1404,30 @@ function buildActionSummaryItems({
             nextStep:
                 'Follow up with the listed client contacts or confirm the terms gate is working as expected.',
             icon: <ShieldAlert className="size-4" aria-hidden="true" />,
+        },
+        {
+            key: 'fee-status',
+            label: 'Rates & fees',
+            value: feesDisabled ? 1 : 0,
+            displayValue: feesDisabled ? 'Free access' : 'Active',
+            statusLabel: feesDisabled ? 'Inactive' : 'Active',
+            href:
+                feeStatus.can_manage && feeStatus.manage_url
+                    ? feeStatus.manage_url
+                    : '#advisor-dashboard-priorities',
+            targetId: 'advisor-dashboard-priorities',
+            tab: 'priorities',
+            priority: feesDisabled ? 'warning' : 'neutral',
+            explanation: feesDisabled
+                ? 'Rates and fees are inactive. The app is in free-access mode, so fee calculations and package payments are set to zero.'
+                : 'Rates and fees are active. Fee calculations and payment steps use the current admin service-rate settings.',
+            nextStep:
+                feesDisabled && feeStatus.can_manage && feeStatus.manage_url
+                    ? 'Open Service rates when you are ready to reactivate fees and Stripe-backed collection.'
+                    : feesDisabled
+                      ? 'Ask a super admin to reactivate Service rates when charging should resume.'
+                      : 'No action is required while rates and fees remain active.',
+            icon: <Banknote className="size-4" aria-hidden="true" />,
         },
         {
             key: 'payments',

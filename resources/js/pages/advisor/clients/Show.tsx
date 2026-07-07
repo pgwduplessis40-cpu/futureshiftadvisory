@@ -191,9 +191,32 @@ type GoalSummary = {
     title: string;
     description: string | null;
     pv_target: number;
+    target_date: string | null;
+    target_growth_percent: number | null;
     status: string;
+    achieved_at: string | null;
+    measurement: GoalMeasurement;
     milestone_store_url?: string;
+    remeasure_url?: string;
+    achieve_url?: string;
     milestones: MilestoneSummary[];
+};
+
+type GoalMeasurement = {
+    baseline_pv: number | null;
+    baseline_as_at: string | null;
+    baseline_business_valuation_id: string | null;
+    baseline_pv_calculation_id: string | null;
+    current_pv: number | null;
+    current_as_at: string | null;
+    current_business_valuation_id: string | null;
+    current_pv_calculation_id: string | null;
+    pv_movement: number | null;
+    target_gap: number | null;
+    progress_percent: number | null;
+    realised_pv: number;
+    realised_explains_percent: number | null;
+    due_for_remeasurement: boolean;
 };
 
 type MilestoneSummary = {
@@ -750,6 +773,8 @@ type GoalForm = {
     annual_benefit: number | null;
     duration_years: number;
     pv_target: number | null;
+    target_date: string;
+    target_growth_percent: number | null;
 };
 
 type MilestoneForm = {
@@ -1698,6 +1723,8 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
         annual_benefit: null,
         duration_years: 1,
         pv_target: null,
+        target_date: '',
+        target_growth_percent: null,
     });
 
     const submit = (event: FormEvent) => {
@@ -1723,7 +1750,7 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
                 </div>
             </div>
 
-            <form onSubmit={submit} className="grid gap-4 lg:grid-cols-5">
+            <form onSubmit={submit} className="grid gap-4 lg:grid-cols-6">
                 <div className="grid gap-2 lg:col-span-2">
                     <Label htmlFor="goal_title">Goal</Label>
                     <input
@@ -1735,6 +1762,24 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
                         className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                     />
                     <InputError message={form.errors.title} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="goal_pv_target">Target PV</Label>
+                    <input
+                        id="goal_pv_target"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={form.data.pv_target ?? ''}
+                        onChange={(event) =>
+                            form.setData(
+                                'pv_target',
+                                nullableNumber(event.target.value),
+                            )
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.pv_target} />
                 </div>
                 <div className="grid gap-2">
                     <Label htmlFor="goal_benefit">Annual benefit</Label>
@@ -1755,7 +1800,7 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
                     <InputError message={form.errors.annual_benefit} />
                 </div>
                 <div className="grid gap-2">
-                    <Label htmlFor="goal_duration">Years</Label>
+                    <Label htmlFor="goal_duration">Benefit years</Label>
                     <input
                         id="goal_duration"
                         type="number"
@@ -1772,6 +1817,37 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
                     />
                     <InputError message={form.errors.duration_years} />
                 </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="goal_target_date">Target date</Label>
+                    <input
+                        id="goal_target_date"
+                        type="date"
+                        value={form.data.target_date}
+                        onChange={(event) =>
+                            form.setData('target_date', event.target.value)
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.target_date} />
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="goal_growth_percent">Growth %</Label>
+                    <input
+                        id="goal_growth_percent"
+                        type="number"
+                        min={0}
+                        step="0.01"
+                        value={form.data.target_growth_percent ?? ''}
+                        onChange={(event) =>
+                            form.setData(
+                                'target_growth_percent',
+                                nullableNumber(event.target.value),
+                            )
+                        }
+                        className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                    />
+                    <InputError message={form.errors.target_growth_percent} />
+                </div>
                 <div className="flex items-end">
                     <Button
                         type="submit"
@@ -1782,7 +1858,7 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
                         Add goal
                     </Button>
                 </div>
-                <div className="grid gap-2 lg:col-span-5">
+                <div className="grid gap-2 lg:col-span-6">
                     <Label htmlFor="goal_description">Description</Label>
                     <textarea
                         id="goal_description"
@@ -1813,6 +1889,38 @@ function GoalsPanel({ client }: { client: ClientDetail }) {
 }
 
 function GoalRow({ goal }: { goal: GoalSummary }) {
+    const remeasureGoal = () => {
+        if (!goal.remeasure_url) {
+            return;
+        }
+
+        router.post(
+            goal.remeasure_url,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Goal PV re-measured.'),
+                onError: () => toast.error('Goal PV could not be re-measured.'),
+            },
+        );
+    };
+    const markAchieved = () => {
+        if (!goal.achieve_url) {
+            return;
+        }
+
+        router.patch(
+            goal.achieve_url,
+            {},
+            {
+                preserveScroll: true,
+                onSuccess: () => toast.success('Goal marked achieved.'),
+                onError: () =>
+                    toast.error('Goal could not be marked achieved.'),
+            },
+        );
+    };
+
     return (
         <article className="space-y-4 rounded-md border p-4">
             <div className="flex flex-wrap items-start justify-between gap-3">
@@ -1829,10 +1937,106 @@ function GoalRow({ goal }: { goal: GoalSummary }) {
                         </p>
                     )}
                 </div>
-                <div className="text-sm font-medium">
-                    {formatCurrency(goal.pv_target)}
+                <div className="text-right">
+                    <div className="text-sm font-medium">
+                        {formatCurrency(goal.pv_target)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                        Target{' '}
+                        {goal.target_date
+                            ? formatDate(goal.target_date)
+                            : 'date not set'}
+                    </div>
                 </div>
             </div>
+
+            <div className="grid gap-2 rounded-md border bg-muted/20 p-3 text-sm sm:grid-cols-2 xl:grid-cols-5">
+                <Metric
+                    label="Baseline PV"
+                    value={
+                        goal.measurement.baseline_pv === null
+                            ? '-'
+                            : formatCurrency(goal.measurement.baseline_pv)
+                    }
+                    hint={formatDate(goal.measurement.baseline_as_at)}
+                />
+                <Metric
+                    label="Current PV"
+                    value={
+                        goal.measurement.current_pv === null
+                            ? '-'
+                            : formatCurrency(goal.measurement.current_pv)
+                    }
+                    hint={formatDate(goal.measurement.current_as_at)}
+                />
+                <Metric
+                    label="Movement"
+                    value={
+                        goal.measurement.pv_movement === null
+                            ? '-'
+                            : formatCurrency(goal.measurement.pv_movement)
+                    }
+                    hint={`${formatCurrency(goal.measurement.realised_pv)} verified`}
+                />
+                <Metric
+                    label="To target"
+                    value={
+                        goal.measurement.target_gap === null
+                            ? '-'
+                            : formatCurrency(goal.measurement.target_gap)
+                    }
+                    hint={
+                        goal.measurement.progress_percent === null
+                            ? 'progress pending'
+                            : `${formatPercent(goal.measurement.progress_percent)} progress`
+                    }
+                />
+                <Metric
+                    label="Evidence bridge"
+                    value={
+                        goal.measurement.realised_explains_percent === null
+                            ? '-'
+                            : formatPercent(
+                                  goal.measurement.realised_explains_percent,
+                              )
+                    }
+                    hint="of PV movement explained"
+                />
+            </div>
+
+            {goal.milestone_store_url && (
+                <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                        type="button"
+                        size="sm"
+                        variant={
+                            goal.measurement.due_for_remeasurement
+                                ? 'default'
+                                : 'outline'
+                        }
+                        disabled={!goal.remeasure_url}
+                        onClick={remeasureGoal}
+                    >
+                        <RotateCcw className="size-4" aria-hidden="true" />
+                        Re-measure PV
+                    </Button>
+                    {goal.status !== 'achieved' && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={!goal.achieve_url}
+                            onClick={markAchieved}
+                        >
+                            <CheckCircle2
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Mark achieved
+                        </Button>
+                    )}
+                </div>
+            )}
 
             {goal.milestone_store_url && <MilestoneFormPanel goal={goal} />}
 
@@ -6214,16 +6418,21 @@ function initialClientDetailTab(): ClientDetailTab {
 function Metric({
     label,
     value,
+    hint,
     children,
 }: {
     label: string;
     value?: string;
+    hint?: string | null;
     children?: ReactNode;
 }) {
     return (
         <div className="rounded-md border p-4">
             <div className="text-xs text-muted-foreground">{label}</div>
             <div className="mt-2 text-sm font-medium">{children ?? value}</div>
+            {hint && (
+                <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+            )}
         </div>
     );
 }
@@ -6418,6 +6627,13 @@ function formatCurrency(value: number) {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatPercent(value: number) {
+    return new Intl.NumberFormat(undefined, {
+        style: 'percent',
+        maximumFractionDigits: 1,
+    }).format(value / 100);
 }
 
 function formatMoney(value: number, currency: string) {

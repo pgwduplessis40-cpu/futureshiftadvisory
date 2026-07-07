@@ -367,8 +367,29 @@ type GoalSummary = {
     title: string;
     description: string | null;
     pv_target: number;
+    target_date: string | null;
+    target_growth_percent: number | null;
     status: string;
+    achieved_at: string | null;
+    measurement: GoalMeasurement;
     milestones: MilestoneSummary[];
+};
+
+type GoalMeasurement = {
+    baseline_pv: number | null;
+    baseline_as_at: string | null;
+    baseline_business_valuation_id: string | null;
+    baseline_pv_calculation_id: string | null;
+    current_pv: number | null;
+    current_as_at: string | null;
+    current_business_valuation_id: string | null;
+    current_pv_calculation_id: string | null;
+    pv_movement: number | null;
+    target_gap: number | null;
+    progress_percent: number | null;
+    realised_pv: number;
+    realised_explains_percent: number | null;
+    due_for_remeasurement: boolean;
 };
 
 type MilestoneSummary = {
@@ -2221,9 +2242,71 @@ function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
                                         </p>
                                     )}
                                 </div>
-                                <div className="text-sm font-medium">
-                                    {formatCurrency(goal.pv_target)}
+                                <div className="text-right">
+                                    <div className="text-sm font-medium">
+                                        {formatCurrency(goal.pv_target)}
+                                    </div>
+                                    <div className="text-xs text-muted-foreground">
+                                        Target{' '}
+                                        {formatOptionalDate(goal.target_date)}
+                                    </div>
                                 </div>
+                            </div>
+                            <div className="mt-3 grid gap-2 text-sm sm:grid-cols-2 xl:grid-cols-4">
+                                <GoalMetric
+                                    label="Baseline"
+                                    value={
+                                        goal.measurement.baseline_pv === null
+                                            ? '-'
+                                            : formatCurrency(
+                                                  goal.measurement.baseline_pv,
+                                              )
+                                    }
+                                    hint={formatOptionalDate(
+                                        goal.measurement.baseline_as_at,
+                                    )}
+                                />
+                                <GoalMetric
+                                    label="Current"
+                                    value={
+                                        goal.measurement.current_pv === null
+                                            ? '-'
+                                            : formatCurrency(
+                                                  goal.measurement.current_pv,
+                                              )
+                                    }
+                                    hint={formatOptionalDate(
+                                        goal.measurement.current_as_at,
+                                    )}
+                                />
+                                <GoalMetric
+                                    label="Movement"
+                                    value={
+                                        goal.measurement.pv_movement === null
+                                            ? '-'
+                                            : formatCurrency(
+                                                  goal.measurement.pv_movement,
+                                              )
+                                    }
+                                    hint={`${formatCurrency(goal.measurement.realised_pv)} verified`}
+                                />
+                                <GoalMetric
+                                    label="Progress"
+                                    value={
+                                        goal.measurement.progress_percent ===
+                                        null
+                                            ? '-'
+                                            : formatPercent(
+                                                  goal.measurement
+                                                      .progress_percent,
+                                              )
+                                    }
+                                    hint={
+                                        goal.measurement.target_gap === null
+                                            ? 'Target gap pending'
+                                            : `${formatCurrency(goal.measurement.target_gap)} to target`
+                                    }
+                                />
                             </div>
                             {goal.milestones.length > 0 && (
                                 <div className="mt-3 divide-y rounded-md border">
@@ -2264,6 +2347,24 @@ function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
                 </div>
             )}
         </section>
+    );
+}
+
+function GoalMetric({
+    label,
+    value,
+    hint,
+}: {
+    label: string;
+    value: string;
+    hint: string;
+}) {
+    return (
+        <div className="rounded-md border bg-muted/20 p-3">
+            <div className="text-xs text-muted-foreground">{label}</div>
+            <div className="mt-1 text-sm font-medium">{value}</div>
+            <div className="mt-1 text-xs text-muted-foreground">{hint}</div>
+        </div>
     );
 }
 
@@ -2688,7 +2789,13 @@ function DocumentTile({ document }: { document: DocumentPayload }) {
             )}
 
             <Button asChild variant="outline" size="sm">
-                <a href={document.url}>View document</a>
+                <a
+                    href={document.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                >
+                    View document
+                </a>
             </Button>
         </article>
     );
@@ -2752,6 +2859,13 @@ function formatCurrency(value: number): string {
         currency: 'NZD',
         maximumFractionDigits: 0,
     }).format(value);
+}
+
+function formatPercent(value: number): string {
+    return new Intl.NumberFormat(undefined, {
+        style: 'percent',
+        maximumFractionDigits: 1,
+    }).format(value / 100);
 }
 
 function formatMoney(value: number, currency: string): string {

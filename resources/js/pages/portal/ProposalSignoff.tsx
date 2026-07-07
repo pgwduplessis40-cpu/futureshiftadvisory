@@ -65,6 +65,7 @@ type SignoffPayload = {
     next_step: string | null;
     active_authority: boolean;
     authority_requires_token: boolean;
+    payment_required: boolean;
     payment_setup_url: string;
     signature_requires_password: boolean;
     signature_requires_mfa: boolean;
@@ -307,6 +308,7 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                         step={currentStep}
                         nextStepName={signoff.next_step}
                         activeAuthority={signoff.active_authority}
+                        paymentRequired={signoff.payment_required}
                         authorityRequiresToken={
                             signoff.authority_requires_token
                         }
@@ -329,6 +331,7 @@ function CurrentStepPanel({
     step,
     nextStepName,
     activeAuthority,
+    paymentRequired,
     authorityRequiresToken,
     paymentSetupUrl,
     signatureRequiresPassword,
@@ -340,6 +343,7 @@ function CurrentStepPanel({
     step: SignoffStep;
     nextStepName: string | null;
     activeAuthority: boolean;
+    paymentRequired: boolean;
     authorityRequiresToken: boolean;
     paymentSetupUrl: string;
     signatureRequiresPassword: boolean;
@@ -476,9 +480,9 @@ function CurrentStepPanel({
                                         </div>
                                     </div>
                                     <p className="text-sm text-muted-foreground">
-                                        Confirm your identity before authorising
-                                        the payment terms and signing this
-                                        proposal.
+                                        {paymentRequired
+                                            ? 'Confirm your identity before authorising the payment terms and signing this proposal.'
+                                            : 'Confirm your identity before signing this proposal.'}
                                     </p>
                                     <div className="grid gap-4 sm:grid-cols-2">
                                         <div className="grid gap-2">

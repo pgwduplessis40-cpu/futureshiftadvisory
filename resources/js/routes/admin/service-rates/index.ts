@@ -1,4 +1,4 @@
-import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 import packages from './packages'
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
@@ -133,9 +133,99 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
         })
 
     store.form = storeForm
+/**
+* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @route '/admin/service-rates/{serviceRateSetting}/status'
+ */
+export const toggle = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: toggle.url(args, options),
+    method: 'patch',
+})
+
+toggle.definition = {
+    methods: ["patch"],
+    url: '/admin/service-rates/{serviceRateSetting}/status',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @route '/admin/service-rates/{serviceRateSetting}/status'
+ */
+toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { serviceRateSetting: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { serviceRateSetting: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    serviceRateSetting: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        serviceRateSetting: typeof args.serviceRateSetting === 'object'
+                ? args.serviceRateSetting.id
+                : args.serviceRateSetting,
+                }
+
+    return toggle.definition.url
+            .replace('{serviceRateSetting}', parsedArgs.serviceRateSetting.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @route '/admin/service-rates/{serviceRateSetting}/status'
+ */
+toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: toggle.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @route '/admin/service-rates/{serviceRateSetting}/status'
+ */
+    const toggleForm = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: toggle.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\ServiceRateController::toggle
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @route '/admin/service-rates/{serviceRateSetting}/status'
+ */
+        toggleForm.patch = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: toggle.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+
+    toggle.form = toggleForm
 const serviceRates = {
     index: Object.assign(index, index),
 store: Object.assign(store, store),
+toggle: Object.assign(toggle, toggle),
 packages: Object.assign(packages, packages),
 }
 

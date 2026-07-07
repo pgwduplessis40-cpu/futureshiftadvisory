@@ -11,6 +11,7 @@ Artisan::command('inspire', function () {
 Schedule::command('learning:cadence')->hourly()->withoutOverlapping();
 Schedule::command('communications:bulk-send')->everyFiveMinutes()->withoutOverlapping();
 Schedule::command('documents:expiry-reminders')->dailyAt('08:00')->withoutOverlapping();
+Schedule::command('goals:remeasure-due-pv')->dailyAt('07:30')->withoutOverlapping();
 Schedule::command('entrepreneurs:recompute-streaks')
     ->dailyAt('00:15')
     ->timezone((string) config('gamification.timezone', 'Pacific/Auckland'))

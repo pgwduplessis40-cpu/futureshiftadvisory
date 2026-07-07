@@ -1331,10 +1331,13 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
             ]}
             drillHref={document.url}
             drillLabel="Open document"
+            drillNewWindow
             footer="Advisor document access opens the stored evidence file when the scan state allows it."
         >
-            <Link
+            <a
                 href={document.url}
+                target="_blank"
+                rel="noopener noreferrer"
                 className="grid gap-2 p-3 text-sm transition-colors outline-none hover:bg-muted/50 focus-visible:ring-[3px] focus-visible:ring-ring/50 sm:grid-cols-[minmax(0,1fr)_auto]"
             >
                 <div className="min-w-0">
@@ -1362,7 +1365,7 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
                     </span>
                     <ArrowUpRight className="size-4" aria-hidden="true" />
                 </div>
-            </Link>
+            </a>
         </InsightHoverCard>
     );
 }

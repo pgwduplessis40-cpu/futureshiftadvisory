@@ -24,9 +24,11 @@ type ServiceRate = {
     npo_service_discount_percent: number;
     npo_retainer_discount_percent: number;
     effective_from: string | null;
+    is_active: boolean;
     notes: string | null;
     created_by_name: string | null;
     created_at: string | null;
+    toggle_url: string;
 };
 
 type EntrepreneurPackageScope = 'idea_validation' | 'plan_budget' | 'combo';
@@ -200,6 +202,14 @@ export default function ServiceRatesIndex({
         packageForm.setData(defaultPackageFormData);
     }
 
+    function toggleRate(rate: ServiceRate) {
+        router.patch(
+            rate.toggle_url,
+            { is_active: !rate.is_active },
+            { preserveScroll: true },
+        );
+    }
+
     function togglePackage(ratePackage: ServiceRatePackage) {
         router.patch(
             ratePackage.toggle_url,
@@ -222,18 +232,40 @@ export default function ServiceRatesIndex({
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(0,0.8fr)_minmax(360px,1fr)]">
                     <div className="rounded-md border bg-background p-4">
-                        <div className="text-sm text-muted-foreground">
-                            Current effective rate ex GST
+                        <div className="flex items-start justify-between gap-3">
+                            <div className="text-sm text-muted-foreground">
+                                Current effective rate ex GST
+                            </div>
+                            {current ? (
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    aria-label={`${rateToggleActionLabel(current)} current service rate`}
+                                    onClick={() => toggleRate(current)}
+                                >
+                                    <Power
+                                        className="size-3.5"
+                                        aria-hidden="true"
+                                    />
+                                    {rateToggleActionLabel(current)}
+                                </Button>
+                            ) : null}
                         </div>
                         <div className="mt-2 text-3xl font-semibold">
                             {formatMoney(effectiveRate, effectiveCurrency)}
                         </div>
                         <div className="mt-3 flex flex-wrap gap-2">
                             {current ? (
-                                <Badge variant="secondary">
-                                    Effective{' '}
-                                    {formatDate(current.effective_from)}
-                                </Badge>
+                                <>
+                                    <Badge variant="secondary">
+                                        Effective{' '}
+                                        {formatDate(current.effective_from)}
+                                    </Badge>
+                                    <Badge variant="secondary">
+                                        {rateStatusLabel(current)}
+                                    </Badge>
+                                </>
                             ) : (
                                 <Badge variant="outline">Config fallback</Badge>
                             )}
@@ -805,7 +837,7 @@ export default function ServiceRatesIndex({
                         <div className="flex items-center gap-2">
                             <Package className="size-4" aria-hidden="true" />
                             <h2 className="text-sm font-medium">
-                                Active service packages
+                                Service packages
                             </h2>
                         </div>
 
@@ -872,16 +904,26 @@ export default function ServiceRatesIndex({
                                                             ratePackage.package_name
                                                         }
                                                     </div>
-                                                    {ratePackage.package_scope ? (
+                                                    <div className="mt-2 flex flex-wrap gap-1">
+                                                        {ratePackage.package_scope ? (
+                                                            <Badge variant="outline">
+                                                                {packageScopeLabel(
+                                                                    ratePackage.package_scope,
+                                                                )}
+                                                            </Badge>
+                                                        ) : null}
                                                         <Badge
-                                                            className="mt-2"
-                                                            variant="outline"
+                                                            variant={
+                                                                ratePackage.is_active
+                                                                    ? 'secondary'
+                                                                    : 'outline'
+                                                            }
                                                         >
-                                                            {packageScopeLabel(
-                                                                ratePackage.package_scope,
+                                                            {packageStatusLabel(
+                                                                ratePackage,
                                                             )}
                                                         </Badge>
-                                                    ) : null}
+                                                    </div>
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
@@ -933,6 +975,7 @@ export default function ServiceRatesIndex({
                                                             type="button"
                                                             variant="outline"
                                                             size="sm"
+                                                            aria-label={`${packageToggleActionLabel(ratePackage)} ${ratePackage.client_label}`}
                                                             onClick={() =>
                                                                 togglePackage(
                                                                     ratePackage,
@@ -943,9 +986,9 @@ export default function ServiceRatesIndex({
                                                                 className="size-3.5"
                                                                 aria-hidden="true"
                                                             />
-                                                            {ratePackage.is_active
-                                                                ? 'Active'
-                                                                : 'Inactive'}
+                                                            {packageToggleActionLabel(
+                                                                ratePackage,
+                                                            )}
                                                         </Button>
                                                     </div>
                                                 </td>
@@ -971,20 +1014,26 @@ export default function ServiceRatesIndex({
                                     <th className="w-[18%] px-3 py-2 font-medium">
                                         Rate ex GST
                                     </th>
-                                    <th className="w-[14%] px-3 py-2 font-medium">
+                                    <th className="w-[12%] px-3 py-2 font-medium">
                                         Service discount
                                     </th>
-                                    <th className="w-[14%] px-3 py-2 font-medium">
+                                    <th className="w-[12%] px-3 py-2 font-medium">
                                         Retainer discount
                                     </th>
-                                    <th className="w-[18%] px-3 py-2 font-medium">
+                                    <th className="w-[15%] px-3 py-2 font-medium">
                                         Effective
                                     </th>
-                                    <th className="w-[18%] px-3 py-2 font-medium">
+                                    <th className="w-[9%] px-3 py-2 font-medium">
+                                        Status
+                                    </th>
+                                    <th className="w-[12%] px-3 py-2 font-medium">
                                         Updated by
                                     </th>
-                                    <th className="w-[28%] px-3 py-2 font-medium">
+                                    <th className="w-[14%] px-3 py-2 font-medium">
                                         Notes
+                                    </th>
+                                    <th className="w-[8%] px-3 py-2 font-medium">
+                                        Actions
                                     </th>
                                 </tr>
                             </thead>
@@ -993,7 +1042,7 @@ export default function ServiceRatesIndex({
                                     <tr>
                                         <td
                                             className="px-3 py-3 text-muted-foreground"
-                                            colSpan={6}
+                                            colSpan={8}
                                         >
                                             No service-rate changes yet.
                                         </td>
@@ -1036,6 +1085,20 @@ export default function ServiceRatesIndex({
                                             </td>
                                             <td
                                                 className="px-3 py-3"
+                                                data-label="Status"
+                                            >
+                                                <Badge
+                                                    variant={
+                                                        rate.is_active
+                                                            ? 'secondary'
+                                                            : 'outline'
+                                                    }
+                                                >
+                                                    {rateStatusLabel(rate)}
+                                                </Badge>
+                                            </td>
+                                            <td
+                                                className="px-3 py-3"
                                                 data-label="Updated by"
                                             >
                                                 {rate.created_by_name ??
@@ -1046,6 +1109,28 @@ export default function ServiceRatesIndex({
                                                 data-label="Notes"
                                             >
                                                 {rate.notes ?? ''}
+                                            </td>
+                                            <td
+                                                className="px-3 py-3"
+                                                data-label="Actions"
+                                            >
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    aria-label={`${rateToggleActionLabel(rate)} service rate from ${formatDate(rate.effective_from)}`}
+                                                    onClick={() =>
+                                                        toggleRate(rate)
+                                                    }
+                                                >
+                                                    <Power
+                                                        className="size-3.5"
+                                                        aria-hidden="true"
+                                                    />
+                                                    {rateToggleActionLabel(
+                                                        rate,
+                                                    )}
+                                                </Button>
                                             </td>
                                         </tr>
                                     ))
@@ -1088,6 +1173,14 @@ function valueToString(value: number | null) {
     return value === null ? '' : String(value);
 }
 
+function rateStatusLabel(rate: ServiceRate) {
+    return rate.is_active ? 'Active' : 'Inactive';
+}
+
+function rateToggleActionLabel(rate: ServiceRate) {
+    return rate.is_active ? 'Deactivate' : 'Activate';
+}
+
 function defaultScope(serviceType: ServiceRatePackage['service_type']) {
     return serviceType === 'due_diligence' ? 'dd_300k_1m' : 'combo';
 }
@@ -1124,6 +1217,14 @@ function packageScopeLabel(scope: PackageScope | null) {
     }
 
     return 'Standard workspace';
+}
+
+function packageStatusLabel(ratePackage: ServiceRatePackage) {
+    return ratePackage.is_active ? 'Active' : 'Inactive';
+}
+
+function packageToggleActionLabel(ratePackage: ServiceRatePackage) {
+    return ratePackage.is_active ? 'Deactivate' : 'Activate';
 }
 
 function formPaymentSplit(data: typeof defaultPackageFormData) {

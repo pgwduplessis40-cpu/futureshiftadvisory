@@ -30,6 +30,7 @@ type InsightHoverCardProps = {
     drillHref?: InertiaLinkProps['href'];
     drillLabel?: string;
     drillAriaLabel?: string;
+    drillNewWindow?: boolean;
     footer?: ReactNode;
     children: ReactElement;
     className?: string;
@@ -42,6 +43,7 @@ export function InsightHoverCard({
     drillHref,
     drillLabel = 'Open',
     drillAriaLabel,
+    drillNewWindow = false,
     footer,
     children,
     className,
@@ -63,6 +65,7 @@ export function InsightHoverCard({
             drillHref={drillHref}
             drillLabel={drillLabel}
             drillAriaLabel={drillAriaLabel}
+            drillNewWindow={drillNewWindow}
             footer={footer}
             className={contentClassName}
         />
@@ -96,6 +99,7 @@ type InsightHoverCardContentProps = {
     drillHref?: InertiaLinkProps['href'];
     drillLabel: string;
     drillAriaLabel?: string;
+    drillNewWindow: boolean;
     footer?: ReactNode;
     className?: string;
 };
@@ -107,6 +111,7 @@ function InsightHoverCardContent({
     drillHref,
     drillLabel,
     drillAriaLabel,
+    drillNewWindow,
     footer,
     className,
 }: InsightHoverCardContentProps) {
@@ -149,19 +154,34 @@ function InsightHoverCardContent({
                     ) : (
                         <span />
                     )}
-                    {drillHref && (
-                        <Link
-                            href={drillHref}
-                            className="inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
-                            aria-label={drillAriaLabel}
-                        >
-                            {drillLabel}
-                            <ChevronRight
-                                className="size-3"
-                                aria-hidden="true"
-                            />
-                        </Link>
-                    )}
+                    {drillHref &&
+                        (drillNewWindow && typeof drillHref === 'string' ? (
+                            <a
+                                href={drillHref}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                aria-label={drillAriaLabel}
+                            >
+                                {drillLabel}
+                                <ChevronRight
+                                    className="size-3"
+                                    aria-hidden="true"
+                                />
+                            </a>
+                        ) : (
+                            <Link
+                                href={drillHref}
+                                className="inline-flex items-center gap-1 text-xs font-medium whitespace-nowrap text-primary underline-offset-4 hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:outline-none"
+                                aria-label={drillAriaLabel}
+                            >
+                                {drillLabel}
+                                <ChevronRight
+                                    className="size-3"
+                                    aria-hidden="true"
+                                />
+                            </Link>
+                        ))}
                 </div>
             )}
         </div>

@@ -6,6 +6,7 @@ namespace Tests\Feature\Advisor;
 
 use App\Enums\EngagementType;
 use App\Enums\EntrepreneurStage;
+use App\Enums\Permission;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -16,7 +17,9 @@ use App\Models\IdeaValidation;
 use App\Models\IntegrationHealthSample;
 use App\Models\ProspectLead;
 use App\Models\RedFlag;
+use App\Models\ServiceRateSetting;
 use App\Models\TermsAcceptance;
+use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Support\RequestContext;
@@ -40,6 +43,7 @@ final class DashboardTest extends TestCase
     public function test_advisor_dashboard_scopes_live_widgets_to_assigned_clients(): void
     {
         $advisor = $this->advisor('advisor@example.test');
+        $advisor->givePermissionTo(Permission::INTEGRATION_HEALTH_VIEW->value);
         $otherAdvisor = $this->advisor('other-advisor@example.test');
         $client = $this->clientFor($advisor, 'Scoped Health Limited', Client::DATA_QUALITY_LOW);
         $otherClient = $this->clientFor($otherAdvisor, 'Other Advisor Limited', Client::DATA_QUALITY_INSUFFICIENT);
@@ -47,6 +51,12 @@ final class DashboardTest extends TestCase
         $otherContact = $this->clientContactFor($otherClient, 'Other Contact', 'other-contact@example.test');
 
         [$priorTerms, $latestTerms] = $this->publishedTerms();
+        TermsEnforcement::query()->create([
+            'scope' => TermsEnforcement::SCOPE_PLATFORM,
+            'activated_by_user_id' => $advisor->getKey(),
+            'activated_at' => now(),
+        ]);
+
         $this->acceptTerms($advisor, $latestTerms);
         $this->acceptTerms($contact, $priorTerms, now()->subDay());
         $this->acceptTerms($otherContact, $priorTerms, now()->subDay());
@@ -96,7 +106,38 @@ final class DashboardTest extends TestCase
                 ->where('prospectInbox.total', 2)
                 ->where('prospectInbox.triage_enabled', true)
                 ->where('integrationHealth.summary.total', 1)
+                ->where('feeStatus.free_access_mode', false)
+                ->where('feeStatus.charging_enabled', true)
+                ->where('feeStatus.can_manage', false)
+                ->where('feeStatus.manage_url', null)
                 ->where('integrationHealth.services.0.service', 'nzbn'));
+    }
+
+    public function test_super_admin_dashboard_surfaces_inactive_rates_free_access_mode(): void
+    {
+        $admin = User::factory()->superAdmin()->withTwoFactor()->create([
+            'email' => 'dashboard-fees-admin@example.test',
+        ]);
+        $admin->assignRole(User::TYPE_SUPER_ADMIN);
+
+        ServiceRateSetting::query()->create([
+            'hourly_rate' => 325,
+            'currency' => 'NZD',
+            'npo_service_discount_percent' => 30,
+            'npo_retainer_discount_percent' => 35,
+            'effective_from' => now()->subMinute(),
+            'is_active' => false,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('advisor/Dashboard')
+                ->where('feeStatus.free_access_mode', true)
+                ->where('feeStatus.charging_enabled', false)
+                ->where('feeStatus.can_manage', true)
+                ->where('feeStatus.manage_url', route('admin.service-rates.index', absolute: false)));
     }
 
     public function test_advisor_dashboard_surfaces_entrepreneur_idea_and_plan_reviews(): void

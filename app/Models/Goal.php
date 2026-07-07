@@ -23,6 +23,9 @@ final class Goal extends Model
 
     protected $casts = [
         'pv_target' => 'float',
+        'target_date' => 'date',
+        'target_growth_percent' => 'float',
+        'achieved_at' => 'datetime',
     ];
 
     /**
@@ -42,11 +45,35 @@ final class Goal extends Model
     }
 
     /**
+     * @return BelongsTo<BusinessValuation, Goal>
+     */
+    public function baselineBusinessValuation(): BelongsTo
+    {
+        return $this->belongsTo(BusinessValuation::class, 'baseline_business_valuation_id');
+    }
+
+    /**
+     * @return BelongsTo<BusinessValuation, Goal>
+     */
+    public function latestBusinessValuation(): BelongsTo
+    {
+        return $this->belongsTo(BusinessValuation::class, 'latest_business_valuation_id');
+    }
+
+    /**
      * @return BelongsTo<User, Goal>
      */
     public function createdBy(): BelongsTo
     {
         return $this->belongsTo(User::class, 'created_by_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, Goal>
+     */
+    public function achievedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'achieved_by_user_id');
     }
 
     /**

@@ -265,6 +265,77 @@ final class ProposalSignoffFlowTest extends TestCase
             ->assertJsonPath('publishable_key', 'pk_test_fixture');
     }
 
+    public function test_zero_fee_proposal_skips_payment_setup_and_signs_without_payment_authority(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-zero-fee-advisor@example.test');
+        $proposal = $this->releasedProposal($client, $advisor, suggestedMid: 0);
+        $flow = app(SignoffFlow::class);
+
+        $payload = $flow->payload($proposal);
+
+        $this->assertFalse($payload['payment_required']);
+        $this->assertFalse($payload['authority_requires_token']);
+        $this->assertSame([
+            ProposalSignoffStep::STEP_REVIEW,
+            ProposalSignoffStep::STEP_INSURANCE_CONSENT,
+            ProposalSignoffStep::STEP_COACH_CONSENT,
+            ProposalSignoffStep::STEP_SIGNATURE,
+            ProposalSignoffStep::STEP_CONFIRMATION,
+        ], collect($payload['steps'])->pluck('step')->all());
+
+        $this->actingAsMfa($clientUser)
+            ->postJson(route('portal.proposals.signoff.payment-setup', $proposal), [
+                'type' => PaymentAuthority::TYPE_CARD,
+                'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment_method_ref');
+
+        $flow->complete($proposal, ProposalSignoffStep::STEP_REVIEW, [], $clientUser);
+        $flow->complete($proposal, ProposalSignoffStep::STEP_INSURANCE_CONSENT, [
+            'election' => Consent::ELECTION_OPT_IN,
+        ], $clientUser);
+        $flow->complete($proposal, ProposalSignoffStep::STEP_COACH_CONSENT, [
+            'election' => Consent::ELECTION_OPT_OUT,
+        ], $clientUser);
+
+        try {
+            $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
+                'type' => PaymentAuthority::TYPE_CARD,
+                'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+                'collection_day' => 1,
+            ], $clientUser);
+            $this->fail('Zero-fee proposals should not require a payment-method step.');
+        } catch (InvalidArgumentException $e) {
+            $this->assertStringContainsString('not required', $e->getMessage());
+        }
+
+        $proposal = $flow->complete($proposal->refresh(), ProposalSignoffStep::STEP_SIGNATURE, [
+            'signature_name' => 'Zero Fee Signer',
+            'accepted' => true,
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
+            'ip' => '203.0.113.20',
+            'user_agent' => 'Feature test',
+        ], $clientUser);
+
+        $this->assertSame(ProposalStatus::Signed, $proposal->status);
+        $this->assertDatabaseMissing('payment_authorities', [
+            'proposal_id' => $proposal->id,
+        ]);
+        $this->assertDatabaseMissing('payment_schedules', [
+            'proposal_id' => $proposal->id,
+        ]);
+
+        $flow->complete($proposal->refresh(), ProposalSignoffStep::STEP_CONFIRMATION, [], $clientUser);
+
+        $this->assertSame(5, $proposal->signoffSteps()->count());
+    }
+
     public function test_raw_card_numbers_are_rejected_before_persistence(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-pan-advisor@example.test');
@@ -313,9 +384,9 @@ final class ProposalSignoffFlowTest extends TestCase
                 ->where('proposal.payment_terms.term_months', 6)
                 ->where('proposal.payment_terms.monthly_amount', 1666.67)
                 ->where('proposal.payment_terms.monthly_amount_including_gst', 1916.67)
-                ->where('proposal.payment_terms.total_amount', 10000.0)
-                ->where('proposal.payment_terms.total_amount_including_gst', 11500.0)
-                ->where('proposal.payment_terms.gst_rate_percent', 15.0)
+                ->where('proposal.payment_terms.total_amount', 10000)
+                ->where('proposal.payment_terms.total_amount_including_gst', 11500)
+                ->where('proposal.payment_terms.gst_rate_percent', 15)
                 ->where('proposal.payment_terms.tax_mode', 'gst_exclusive')
                 ->where('signoff.next_step', ProposalSignoffStep::STEP_REVIEW)
                 ->where('signoff.authority_requires_token', false));
@@ -552,10 +623,10 @@ final class ProposalSignoffFlowTest extends TestCase
         return [$advisor, $client, $clientUser];
     }
 
-    private function releasedProposal(Client $client, User $advisor): Proposal
+    private function releasedProposal(Client $client, User $advisor, float $suggestedMid = 10000): Proposal
     {
         $builder = app(ProposalBuilder::class);
-        $proposal = $builder->generate($client, $this->feeCalculation($client), [
+        $proposal = $builder->generate($client, $this->feeCalculation($client, $suggestedMid), [
             'consents' => [
                 Consent::TYPE_INSURANCE_REFERRAL => Consent::ELECTION_UNDECIDED,
                 Consent::TYPE_COACH_REFERRAL => Consent::ELECTION_UNDECIDED,
@@ -567,21 +638,21 @@ final class ProposalSignoffFlowTest extends TestCase
         return $builder->release($proposal, $advisor);
     }
 
-    private function feeCalculation(Client $client): FeeCalculation
+    private function feeCalculation(Client $client, float $suggestedMid = 10000): FeeCalculation
     {
         return FeeCalculation::query()->create([
             'client_id' => $client->getKey(),
             'method' => FeeMethod::OutcomeBased,
             'inputs' => ['fixture' => true],
-            'suggested_low' => 8000,
-            'suggested_mid' => 10000,
-            'suggested_high' => 12000,
+            'suggested_low' => round($suggestedMid * 0.8, 2),
+            'suggested_mid' => $suggestedMid,
+            'suggested_high' => round($suggestedMid * 1.2, 2),
             'improvement_pv_total' => 25000,
             'risk_cost_pv_total' => 3000,
             'roi_ratio' => 2.5,
             'justification' => [
                 'services' => [
-                    ['name' => 'Sign-off fixture advisory', 'line_total' => 10000],
+                    ['name' => 'Sign-off fixture advisory', 'line_total' => $suggestedMid],
                 ],
             ],
         ]);

@@ -49,6 +49,7 @@ final class SignoffFlow
 
         $this->assertClientOwnsProposal($proposal);
         $this->assertProposalCanEnterSignoff($proposal);
+        $this->assertStepApplies($proposal, $step);
         $this->assertStepOrder($proposal, $step, $alreadyCompleted);
 
         try {
@@ -96,7 +97,7 @@ final class SignoffFlow
     {
         $proposal->loadMissing(['signoffSteps', 'paymentAuthorities']);
         $completed = $this->completedSteps($proposal);
-        $steps = collect(ProposalSignoffStep::orderedSteps())
+        $steps = collect($this->orderedSteps($proposal))
             ->map(function (string $step) use ($proposal, $completed): array {
                 $record = $proposal->signoffSteps->firstWhere('step', $step);
                 $payload = is_array($record?->payload) ? $record->payload : [];
@@ -120,6 +121,7 @@ final class SignoffFlow
             'next_step' => $this->nextStep($proposal),
             'active_authority' => $this->activeAuthority($proposal) instanceof PaymentAuthority,
             'authority_requires_token' => $this->authorityRequiresToken($proposal),
+            'payment_required' => $this->proposalRequiresPayment($proposal),
             'payment_setup_url' => route('portal.proposals.signoff.payment-setup', $proposal, absolute: false),
         ];
     }
@@ -238,7 +240,7 @@ final class SignoffFlow
     {
         $authority = $this->activeAuthority($proposal);
 
-        if (! $authority instanceof PaymentAuthority) {
+        if (! $authority instanceof PaymentAuthority && $this->proposalRequiresPayment($proposal)) {
             throw new InvalidArgumentException('A tokenised payment authority is required before signature.');
         }
 
@@ -252,6 +254,8 @@ final class SignoffFlow
         $payload['identity_verification'] = $identityVerification;
         $signedAt = now();
         $path = sprintf('proposals/%s/%s/signature-v%s.pdf', $proposal->client_id, Str::uuid(), $proposal->version);
+
+        $this->markAwaitingSignature($proposal);
 
         Proposal::allowSignoffStatusTransition(function () use ($proposal, $actor, $signedAt): void {
             $proposal->forceFill([
@@ -288,7 +292,9 @@ final class SignoffFlow
             ])->save();
         });
 
-        $schedule = $this->ensurePaymentSchedule($proposal->refresh(), $authority->refresh(), $actor);
+        $schedule = $authority instanceof PaymentAuthority
+            ? $this->ensurePaymentSchedule($proposal->refresh(), $authority->refresh(), $actor)
+            : null;
 
         $this->audit->record('proposal.signature_identity_verified', subject: $proposal, actor: $actor, after: [
             'password_verified_at' => $identityVerification['password_verified_at'],
@@ -320,7 +326,7 @@ final class SignoffFlow
 
     private function markAwaitingSignature(Proposal $proposal): void
     {
-        if ($proposal->refresh()->status === ProposalStatus::AwaitingSignature) {
+        if (in_array($proposal->refresh()->status, [ProposalStatus::AwaitingSignature, ProposalStatus::Signed], true)) {
             return;
         }
 
@@ -456,6 +462,10 @@ final class SignoffFlow
 
     private function authorityRequiresToken(Proposal $proposal): bool
     {
+        if (! $this->proposalRequiresPayment($proposal)) {
+            return false;
+        }
+
         $method = $this->stepPayload($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD);
         $gateway = $this->validPaymentGateway($method['gateway'] ?? null);
 
@@ -520,7 +530,7 @@ final class SignoffFlow
     {
         $completed = $this->completedSteps($proposal);
 
-        foreach (ProposalSignoffStep::orderedSteps() as $step) {
+        foreach ($this->orderedSteps($proposal) as $step) {
             if (! $completed->contains($step)) {
                 return $step;
             }
@@ -535,7 +545,7 @@ final class SignoffFlow
             return;
         }
 
-        $ordered = ProposalSignoffStep::orderedSteps();
+        $ordered = $this->orderedSteps($proposal);
         $position = array_search($step, $ordered, true);
         $completed = $this->completedSteps($proposal);
 
@@ -573,6 +583,44 @@ final class SignoffFlow
         }
 
         return $step;
+    }
+
+    private function assertStepApplies(Proposal $proposal, string $step): void
+    {
+        if (! in_array($step, $this->orderedSteps($proposal), true)) {
+            throw new InvalidArgumentException("Step [{$step}] is not required for this proposal.");
+        }
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function orderedSteps(Proposal $proposal): array
+    {
+        if ($this->proposalRequiresPayment($proposal)) {
+            return ProposalSignoffStep::orderedSteps();
+        }
+
+        return array_values(array_filter(
+            ProposalSignoffStep::orderedSteps(),
+            fn (string $step): bool => ! in_array($step, [
+                ProposalSignoffStep::STEP_PAYMENT_METHOD,
+                ProposalSignoffStep::STEP_AUTHORITY,
+            ], true),
+        ));
+    }
+
+    private function proposalRequiresPayment(Proposal $proposal): bool
+    {
+        $amount = $proposal->feeCalculation?->suggested_mid;
+
+        if (is_numeric($amount)) {
+            return (float) $amount > 0;
+        }
+
+        $summaryAmount = data_get($proposal->pv_summary, 'fee_suggested_mid');
+
+        return is_numeric($summaryAmount) && (float) $summaryAmount > 0;
     }
 
     private function ensurePaymentSchedule(Proposal $proposal, PaymentAuthority $authority, User $actor): ?PaymentSchedule

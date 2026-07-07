@@ -99,6 +99,12 @@ final class ProposalSignoffController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
+        if ($this->proposalTotalAmount($proposal) <= 0) {
+            throw ValidationException::withMessages([
+                'payment_method_ref' => 'No payment setup is required for a zero-fee proposal.',
+            ]);
+        }
+
         $validated = $request->validate([
             'type' => ['required', Rule::in(PaymentAuthority::types())],
             'gateway' => ['required', Rule::in(PaymentAuthority::gateways())],
@@ -272,15 +278,7 @@ final class ProposalSignoffController extends Controller
         $gst = app(GstCalculator::class);
         $termMonths = $this->proposalTermMonths($proposal);
         $monthlyAmount = $this->proposalMonthlyAmount($proposal, $termMonths);
-        $totalAmount = $proposal->feeCalculation?->suggested_mid;
-
-        if (! is_numeric($totalAmount) || (float) $totalAmount <= 0) {
-            $totalAmount = data_get($proposal->pv_summary, 'fee_suggested_mid');
-        }
-
-        if ((! is_numeric($totalAmount) || (float) $totalAmount <= 0) && $monthlyAmount > 0) {
-            $totalAmount = $monthlyAmount * $termMonths;
-        }
+        $totalAmount = $this->proposalTotalAmount($proposal, $monthlyAmount, $termMonths);
 
         return [
             'currency' => 'NZD',
@@ -320,6 +318,27 @@ final class ProposalSignoffController extends Controller
         $total = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
 
         return round(((float) $total) / max(1, $termMonths), 2);
+    }
+
+    private function proposalTotalAmount(Proposal $proposal, ?float $monthlyAmount = null, ?int $termMonths = null): float
+    {
+        $feeAmount = $proposal->feeCalculation?->suggested_mid;
+
+        if (is_numeric($feeAmount)) {
+            return round((float) $feeAmount, 2);
+        }
+
+        $summaryAmount = data_get($proposal->pv_summary, 'fee_suggested_mid');
+
+        if (is_numeric($summaryAmount)) {
+            return round((float) $summaryAmount, 2);
+        }
+
+        if ($monthlyAmount !== null && $monthlyAmount > 0) {
+            return round($monthlyAmount * max(1, $termMonths ?? $this->proposalTermMonths($proposal)), 2);
+        }
+
+        return 0.0;
     }
 
     private function positiveInteger(mixed $value): ?int

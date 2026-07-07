@@ -21,7 +21,9 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
+use App\Models\Goal;
 use App\Models\ImprovementOpportunity;
+use App\Models\Milestone;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\Report;
@@ -573,8 +575,26 @@ HTML,
             'cash_balance' => 32000,
             'debtor_days' => 31,
         ]);
-        $this->businessValuation($client, 400000, now()->subMonths(9));
-        $this->businessValuation($client, 560000, now());
+        $baseline = $this->businessValuation($client, 400000, now()->subMonths(9));
+        $current = $this->businessValuation($client, 560000, now());
+        $goal = Goal::query()->create([
+            'client_id' => $client->id,
+            'title' => 'Reach a measurable value target',
+            'baseline_business_valuation_id' => $baseline->id,
+            'latest_business_valuation_id' => $current->id,
+            'pv_target' => 650000,
+            'target_date' => now()->addYear()->toDateString(),
+            'status' => Goal::STATUS_ACTIVE,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        Milestone::query()->create([
+            'goal_id' => $goal->id,
+            'client_id' => $client->id,
+            'title' => 'Retention programme delivered',
+            'pv_of_impact' => 85000,
+            'status' => Milestone::STATUS_COMPLETED,
+            'completed_at' => now(),
+        ]);
         $this->analysisFixture($client);
 
         $report = app(ReportComposer::class)->compose($client, ReportType::Trajectory, $advisor);
@@ -583,9 +603,12 @@ HTML,
         $this->assertSame('pending_review', $report->review_status);
         $this->assertTrue($report->sections->contains('key', 'financial_trends'));
         $this->assertTrue($report->sections->contains('key', 'pv_milestones'));
+        $this->assertTrue($report->sections->contains('key', 'goal_outcomes'));
         $this->assertTrue($report->sections->contains('key', 'trajectory_narrative'));
         $this->assertStringContainsString('Revenue: 100,000 -> 145,000', $report->sections->firstWhere('key', 'financial_trends')->body);
         $this->assertStringContainsString('NZD 560,000 midpoint', $report->sections->firstWhere('key', 'pv_milestones')->body);
+        $this->assertStringContainsString('Reach a measurable value target', $report->sections->firstWhere('key', 'goal_outcomes')->body);
+        $this->assertStringContainsString('verified milestone PV NZD 85,000', $report->sections->firstWhere('key', 'goal_outcomes')->body);
         $this->assertStringContainsString('requires advisor review', $report->sections->firstWhere('key', 'trajectory_narrative')->data_quality_note);
     }
 

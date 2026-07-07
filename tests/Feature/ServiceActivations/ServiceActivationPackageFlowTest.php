@@ -12,6 +12,7 @@ use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
+use App\Models\ServiceRateSetting;
 use App\Models\User;
 use App\Services\ServiceActivations\ServiceActivationManager;
 use App\Support\RequestContext;
@@ -97,6 +98,37 @@ final class ServiceActivationPackageFlowTest extends TestCase
         $activation = $manager->accept($activation->refresh(), $clientUser);
 
         $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
+        $this->assertNotNull($activation->related_entrepreneur_profile_id);
+    }
+
+    public function test_inactive_service_rates_make_package_free_and_do_not_block_workspace_unlock(): void
+    {
+        ServiceRateSetting::query()->create([
+            'hourly_rate' => 325,
+            'currency' => 'NZD',
+            'npo_service_discount_percent' => 30,
+            'npo_retainer_discount_percent' => 35,
+            'effective_from' => now()->subMinute(),
+            'is_active' => false,
+        ]);
+
+        [$activation, $advisor, $clientUser] = $this->activationFixture('free-access-package@example.test');
+        $package = $this->package(ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO);
+        $manager = app(ServiceActivationManager::class);
+
+        $activation = $manager->selectPackage($activation, $package, $advisor);
+
+        $this->assertSame(ServiceActivation::PAYMENT_NOT_REQUIRED, $activation->payment_status);
+        $this->assertEquals(0.0, $activation->selected_package_snapshot['fixed_fee']);
+        $this->assertEquals(1650.0, $activation->selected_package_snapshot['free_access_mode']['nominal_fixed_fee']);
+        $this->assertFalse($activation->paymentRequired());
+        $this->assertTrue($activation->paymentComplete());
+        $this->assertTrue($activation->metadata['free_access_mode']);
+
+        $activation = $manager->accept($activation->refresh(), $clientUser);
+
+        $this->assertSame(ServiceActivation::STATUS_ACTIVE, $activation->status);
+        $this->assertSame(ServiceActivation::PAYMENT_NOT_REQUIRED, $activation->payment_status);
         $this->assertNotNull($activation->related_entrepreneur_profile_id);
     }
 

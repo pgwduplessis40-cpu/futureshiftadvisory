@@ -6,6 +6,7 @@ namespace App\Services\Goals;
 
 use App\Enums\DiscountMethod;
 use App\Enums\PvType;
+use App\Models\BusinessValuation as BusinessValuationModel;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
@@ -19,6 +20,7 @@ use App\Services\Ai\Verification\DocumentVerifier;
 use App\Services\Audit\AuditWriter;
 use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Documents\DocumentVerificationGate;
+use App\Services\Pv\BusinessValuation as BusinessValuationService;
 use App\Services\Pv\PvEngine;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -28,6 +30,7 @@ final class GoalTracker
 {
     public function __construct(
         private readonly PvEngine $pv,
+        private readonly BusinessValuationService $valuations,
         private readonly DocumentVerifier $verifier,
         private readonly DocumentVerificationGate $verificationGate,
         private readonly AuditWriter $audit,
@@ -41,6 +44,7 @@ final class GoalTracker
     {
         return DB::transaction(function () use ($client, $input, $actor): Goal {
             $pvCalculation = null;
+            $baselineValuation = $this->latestBusinessValuation($client);
             $pvTarget = (float) ($input['pv_target'] ?? 0);
 
             if ($this->hasCashFlows($input)) {
@@ -52,6 +56,9 @@ final class GoalTracker
                     discountOptions: $this->discountOptions($input, 'Advisor default goal PV target discount rate.'),
                 );
                 $pvTarget = (float) $pvCalculation->result['present_value'];
+            } elseif (is_numeric($input['target_growth_percent'] ?? null) && $baselineValuation instanceof BusinessValuationModel) {
+                $growthRate = max(0.0, (float) $input['target_growth_percent']) / 100;
+                $pvTarget = round($baselineValuation->reconciled_mid * (1 + $growthRate), 2);
             }
 
             $goal = Goal::query()->create([
@@ -59,7 +66,11 @@ final class GoalTracker
                 'title' => $this->requiredString($input, 'title'),
                 'description' => $this->nullableString($input['description'] ?? null),
                 'pv_target_calculation_id' => $pvCalculation?->getKey(),
+                'baseline_business_valuation_id' => $baselineValuation?->getKey(),
+                'latest_business_valuation_id' => $baselineValuation?->getKey(),
                 'pv_target' => round($pvTarget, 2),
+                'target_date' => $this->targetDate($input),
+                'target_growth_percent' => $this->targetGrowthPercent($input),
                 'status' => Goal::STATUS_ACTIVE,
                 'created_by_user_id' => $actor?->getKey(),
             ]);
@@ -67,10 +78,104 @@ final class GoalTracker
             $this->audit->record('goal.created', subject: $goal, actor: $actor, after: [
                 'pv_target' => $goal->pv_target,
                 'pv_target_calculation_id' => $goal->pv_target_calculation_id,
+                'baseline_business_valuation_id' => $goal->baseline_business_valuation_id,
+                'target_date' => $goal->target_date?->toDateString(),
+                'target_growth_percent' => $goal->target_growth_percent,
             ]);
 
             return $goal->refresh();
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $valuationOptions
+     */
+    public function remeasureGoal(Goal $goal, array $valuationOptions = [], ?User $actor = null): Goal
+    {
+        $goal->loadMissing('client');
+        $client = $goal->client;
+
+        if (! $client instanceof Client) {
+            throw new InvalidArgumentException('Goal must belong to a client.');
+        }
+
+        return DB::transaction(function () use ($goal, $client, $valuationOptions, $actor): Goal {
+            $valuation = $this->valuations->calculate($client, $valuationOptions);
+            $baselineValuationId = $goal->baseline_business_valuation_id ?: $valuation->getKey();
+
+            $goal->forceFill([
+                'baseline_business_valuation_id' => $baselineValuationId,
+                'latest_business_valuation_id' => $valuation->getKey(),
+            ])->save();
+
+            $this->audit->record('goal.pv_remeasured', subject: $goal, actor: $actor, after: [
+                'baseline_business_valuation_id' => $baselineValuationId,
+                'latest_business_valuation_id' => $valuation->getKey(),
+                'current_pv' => $valuation->reconciled_mid,
+                'target_pv' => $goal->pv_target,
+            ]);
+
+            return $goal->refresh();
+        });
+    }
+
+    public function confirmAchieved(Goal $goal, User $actor): Goal
+    {
+        if ($goal->status === Goal::STATUS_ABANDONED) {
+            throw new InvalidArgumentException('Abandoned goals cannot be marked achieved.');
+        }
+
+        $goal->forceFill([
+            'status' => Goal::STATUS_ACHIEVED,
+            'achieved_at' => now(),
+            'achieved_by_user_id' => $actor->getKey(),
+        ])->save();
+
+        $this->audit->record('goal.achieved', subject: $goal, actor: $actor, after: [
+            'pv_target' => $goal->pv_target,
+            'measurement' => $this->measurementPayload($goal->refresh()->load(['baselineBusinessValuation', 'latestBusinessValuation']), $this->goalRealisedTotal($goal)),
+        ]);
+
+        return $goal->refresh();
+    }
+
+    public function remeasureDueGoals(int $limit = 50): array
+    {
+        $goals = Goal::query()
+            ->where('status', Goal::STATUS_ACTIVE)
+            ->whereNotNull('target_date')
+            ->whereDate('target_date', '<=', now()->toDateString())
+            ->where(function ($query): void {
+                $query->whereNull('latest_business_valuation_id')
+                    ->orWhereDoesntHave('latestBusinessValuation')
+                    ->orWhereHas('latestBusinessValuation', function ($valuation): void {
+                        $valuation->whereColumn('business_valuations.as_at', '<', 'goals.target_date');
+                    });
+            })
+            ->with('client')
+            ->oldest('target_date')
+            ->limit(max(1, $limit))
+            ->get();
+
+        $result = [
+            'scanned' => $goals->count(),
+            'remeasured' => 0,
+            'failed' => 0,
+        ];
+
+        foreach ($goals as $goal) {
+            try {
+                $this->remeasureGoal($goal);
+                $result['remeasured']++;
+            } catch (\Throwable $exception) {
+                $result['failed']++;
+                $this->audit->record('goal.pv_remeasurement_failed', subject: $goal, after: [
+                    'message' => $exception->getMessage(),
+                ]);
+            }
+        }
+
+        return $result;
     }
 
     /**
@@ -251,7 +356,12 @@ final class GoalTracker
     private function dashboardPayload(Client $client, bool $includeAdvisorActions = false, ?NpoEngagement $engagement = null): array
     {
         $goals = Goal::query()
-            ->with(['milestones.actions', 'milestones.proofOfCompletion'])
+            ->with([
+                'baselineBusinessValuation.pvCalculation',
+                'latestBusinessValuation.pvCalculation',
+                'milestones.actions',
+                'milestones.proofOfCompletion',
+            ])
             ->where('client_id', $client->getKey())
             ->latest()
             ->get()
@@ -281,37 +391,173 @@ final class GoalTracker
             'pv_realised_total' => $completedTotal,
             'active_goals' => $goals->where('status', Goal::STATUS_ACTIVE)->count(),
             'goals' => $goals
-                ->map(fn (Goal $goal): array => [
-                    'id' => $goal->id,
-                    'title' => $goal->title,
-                    'description' => $goal->description,
-                    'pv_target' => $goal->pv_target,
-                    'status' => $goal->status,
+                ->map(fn (Goal $goal): array => $this->goalPayload($goal, $includeAdvisorActions))
+                ->values()
+                ->all(),
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function goalPayload(Goal $goal, bool $includeAdvisorActions): array
+    {
+        $realised = $this->goalRealisedTotal($goal);
+
+        return [
+            'id' => $goal->id,
+            'title' => $goal->title,
+            'description' => $goal->description,
+            'pv_target' => $goal->pv_target,
+            'target_date' => $goal->target_date?->toDateString(),
+            'target_growth_percent' => $goal->target_growth_percent,
+            'status' => $goal->status,
+            'achieved_at' => $goal->achieved_at?->toIso8601String(),
+            'measurement' => $this->measurementPayload($goal, $realised),
+            ...($includeAdvisorActions ? [
+                'milestone_store_url' => route('advisor.goals.milestones.store', $goal, absolute: false),
+                'remeasure_url' => route('advisor.goals.remeasure', $goal, absolute: false),
+                'achieve_url' => route('advisor.goals.achieve', $goal, absolute: false),
+            ] : []),
+            'milestones' => $goal->milestones
+                ->map(fn (Milestone $milestone): array => [
+                    'id' => $milestone->id,
+                    'title' => $milestone->title,
+                    'recommendation_ref' => $milestone->recommendation_ref,
+                    'pv_of_impact' => $milestone->pv_of_impact,
+                    'status' => $milestone->status,
+                    'due_date' => $milestone->due_date?->toDateString(),
+                    'completed_at' => $milestone->completed_at?->toIso8601String(),
+                    'actions_count' => $milestone->actions->count(),
+                    'proof_status' => $milestone->proofOfCompletion->last()?->status,
                     ...($includeAdvisorActions ? [
-                        'milestone_store_url' => route('advisor.goals.milestones.store', $goal, absolute: false),
+                        'action_store_url' => route('advisor.milestones.actions.store', $milestone, absolute: false),
+                        'proof_store_url' => route('advisor.milestones.proof.store', $milestone, absolute: false),
                     ] : []),
-                    'milestones' => $goal->milestones
-                        ->map(fn (Milestone $milestone): array => [
-                            'id' => $milestone->id,
-                            'title' => $milestone->title,
-                            'recommendation_ref' => $milestone->recommendation_ref,
-                            'pv_of_impact' => $milestone->pv_of_impact,
-                            'status' => $milestone->status,
-                            'due_date' => $milestone->due_date?->toDateString(),
-                            'completed_at' => $milestone->completed_at?->toIso8601String(),
-                            'actions_count' => $milestone->actions->count(),
-                            'proof_status' => $milestone->proofOfCompletion->last()?->status,
-                            ...($includeAdvisorActions ? [
-                                'action_store_url' => route('advisor.milestones.actions.store', $milestone, absolute: false),
-                                'proof_store_url' => route('advisor.milestones.proof.store', $milestone, absolute: false),
-                            ] : []),
-                        ])
-                        ->values()
-                        ->all(),
                 ])
                 ->values()
                 ->all(),
         ];
+    }
+
+    private function goalRealisedTotal(Goal $goal): float
+    {
+        return round((float) $goal->milestones
+            ->where('status', Milestone::STATUS_COMPLETED)
+            ->sum('pv_of_impact'), 2);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function measurementPayload(Goal $goal, float $realised): array
+    {
+        $baseline = $goal->baselineBusinessValuation;
+        $current = $goal->latestBusinessValuation;
+        $baselineValue = $baseline instanceof BusinessValuationModel ? round($baseline->reconciled_mid, 2) : null;
+        $currentValue = $current instanceof BusinessValuationModel ? round($current->reconciled_mid, 2) : null;
+        $movement = $baselineValue !== null && $currentValue !== null
+            ? round($currentValue - $baselineValue, 2)
+            : null;
+        $target = round((float) $goal->pv_target, 2);
+        $targetGap = $currentValue !== null && $target > 0
+            ? round($target - $currentValue, 2)
+            : null;
+
+        return [
+            'baseline_pv' => $baselineValue,
+            'baseline_as_at' => $baseline?->as_at?->toIso8601String(),
+            'baseline_business_valuation_id' => $baseline?->getKey(),
+            'baseline_pv_calculation_id' => $baseline?->pv_calculation_id,
+            'current_pv' => $currentValue,
+            'current_as_at' => $current?->as_at?->toIso8601String(),
+            'current_business_valuation_id' => $current?->getKey(),
+            'current_pv_calculation_id' => $current?->pv_calculation_id,
+            'pv_movement' => $movement,
+            'target_gap' => $targetGap,
+            'progress_percent' => $this->progressPercent($baselineValue, $currentValue, $target),
+            'realised_pv' => $realised,
+            'realised_explains_percent' => $this->realisedExplainsPercent($movement, $realised),
+            'due_for_remeasurement' => $this->dueForRemeasurement($goal, $current),
+        ];
+    }
+
+    private function latestBusinessValuation(Client $client): ?BusinessValuationModel
+    {
+        return BusinessValuationModel::query()
+            ->where('client_id', $client->getKey())
+            ->latest('as_at')
+            ->latest()
+            ->first();
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function targetDate(array $input): ?string
+    {
+        $targetDate = $input['target_date'] ?? null;
+
+        if (is_string($targetDate) && trim($targetDate) !== '') {
+            return $targetDate;
+        }
+
+        $horizonMonths = $input['horizon_months'] ?? null;
+
+        if (is_numeric($horizonMonths) && (int) $horizonMonths > 0) {
+            return now()->addMonths((int) $horizonMonths)->toDateString();
+        }
+
+        return null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    private function targetGrowthPercent(array $input): ?float
+    {
+        if (! is_numeric($input['target_growth_percent'] ?? null)) {
+            return null;
+        }
+
+        return round(max(0.0, (float) $input['target_growth_percent']), 4);
+    }
+
+    private function progressPercent(?float $baselineValue, ?float $currentValue, float $target): ?float
+    {
+        if ($currentValue === null || $target <= 0) {
+            return null;
+        }
+
+        if ($baselineValue !== null && $target > $baselineValue) {
+            return round(max(0.0, min(100.0, (($currentValue - $baselineValue) / ($target - $baselineValue)) * 100)), 1);
+        }
+
+        return round(max(0.0, min(100.0, ($currentValue / $target) * 100)), 1);
+    }
+
+    private function realisedExplainsPercent(?float $movement, float $realised): ?float
+    {
+        if ($movement === null || $movement <= 0.0) {
+            return null;
+        }
+
+        return round(max(0.0, min(100.0, ($realised / $movement) * 100)), 1);
+    }
+
+    private function dueForRemeasurement(Goal $goal, ?BusinessValuationModel $current): bool
+    {
+        if ($goal->status !== Goal::STATUS_ACTIVE || $goal->target_date === null) {
+            return false;
+        }
+
+        if ($goal->target_date->isFuture()) {
+            return false;
+        }
+
+        return ! $current instanceof BusinessValuationModel
+            || $current->as_at === null
+            || $current->as_at->lt($goal->target_date->copy()->startOfDay());
     }
 
     /**

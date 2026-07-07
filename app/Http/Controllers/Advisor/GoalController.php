@@ -15,6 +15,7 @@ use App\Services\Storage\SecureFileWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Gate;
+use InvalidArgumentException;
 
 final class GoalController extends Controller
 {
@@ -31,6 +32,8 @@ final class GoalController extends Controller
             'annual_benefit' => ['nullable', 'numeric', 'min:0'],
             'duration_years' => ['nullable', 'integer', 'min:1', 'max:10'],
             'pv_target' => ['nullable', 'numeric', 'min:0'],
+            'target_date' => ['nullable', 'date'],
+            'target_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:1000'],
         ]);
 
         $goals->createGoal($client, $validated, $user);
@@ -58,6 +61,47 @@ final class GoalController extends Controller
         $goals->createMilestone($goal, $validated, $user);
 
         return to_route('advisor.clients.show', $goal->client)->with('status', 'milestone-created');
+    }
+
+    public function remeasure(Request $request, Goal $goal, GoalTracker $goals): RedirectResponse
+    {
+        $goal->loadMissing('client');
+        Gate::authorize('view', $goal->client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'industry_code' => ['nullable', 'string', 'max:16'],
+            'growth_rate' => ['nullable', 'numeric', 'min:-0.5', 'max:1'],
+            'terminal_growth_rate' => ['nullable', 'numeric', 'min:0', 'max:0.5'],
+            'questionnaire_financials' => ['nullable', 'array'],
+        ]);
+
+        try {
+            $goals->remeasureGoal($goal, $validated, $user);
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['goal' => $exception->getMessage()]);
+        }
+
+        return to_route('advisor.clients.show', $goal->client)->with('status', 'goal-remeasured');
+    }
+
+    public function achieve(Request $request, Goal $goal, GoalTracker $goals): RedirectResponse
+    {
+        $goal->loadMissing('client');
+        Gate::authorize('view', $goal->client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        try {
+            $goals->confirmAchieved($goal, $user);
+        } catch (InvalidArgumentException $exception) {
+            return back()->withErrors(['goal' => $exception->getMessage()]);
+        }
+
+        return to_route('advisor.clients.show', $goal->client)->with('status', 'goal-achieved');
     }
 
     public function action(Request $request, Milestone $milestone, GoalTracker $goals): RedirectResponse

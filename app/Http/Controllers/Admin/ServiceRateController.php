@@ -79,6 +79,27 @@ final class ServiceRateController extends Controller
         return to_route('admin.service-rates.index')->with('status', 'service-rate-updated');
     }
 
+    public function toggle(Request $request, ServiceRateSetting $serviceRateSetting): RedirectResponse
+    {
+        $validated = $request->validate([
+            'is_active' => ['required', 'boolean'],
+        ]);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $before = ['is_active' => $serviceRateSetting->is_active];
+        $serviceRateSetting->forceFill([
+            'is_active' => (bool) $validated['is_active'],
+        ])->save();
+
+        $this->audit->record('service_rate.toggled', subject: $serviceRateSetting, actor: $user, before: $before, after: [
+            'is_active' => $serviceRateSetting->is_active,
+        ]);
+
+        return to_route('admin.service-rates.index')->with('status', 'service-rate-updated');
+    }
+
     public function storePackage(Request $request): RedirectResponse
     {
         $validated = $this->validatePackage($request);
@@ -164,9 +185,11 @@ final class ServiceRateController extends Controller
             'npo_service_discount_percent' => $setting->npo_service_discount_percent,
             'npo_retainer_discount_percent' => $setting->npo_retainer_discount_percent,
             'effective_from' => $setting->effective_from?->toIso8601String(),
+            'is_active' => $setting->is_active !== false,
             'notes' => $setting->notes,
             'created_by_name' => $setting->createdBy?->name,
             'created_at' => $setting->created_at?->toIso8601String(),
+            'toggle_url' => route('admin.service-rates.toggle', $setting, absolute: false),
         ];
     }
 

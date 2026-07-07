@@ -51,6 +51,10 @@ final class FeeCalculator implements ProvidesMethodology
             FeeMethod::NpoRetainer => $this->npoRetainer($inputs, $npoEngagement),
         };
 
+        if ($this->serviceRates->freeAccessModeActive()) {
+            $result = $this->freeAccessResult($result);
+        }
+
         $calculation = FeeCalculation::query()->create([
             'client_id' => $client->getKey(),
             'npo_engagement_id' => $npoEngagement?->getKey(),
@@ -162,6 +166,32 @@ final class FeeCalculator implements ProvidesMethodology
                 'line_total' => round($hours * $rate, 2),
             ];
         }, array_filter($rawServices, 'is_array')));
+    }
+
+    /**
+     * @param  array{low:float, mid:float, high:float, justification:array<string, mixed>}  $result
+     * @return array{low:float, mid:float, high:float, justification:array<string, mixed>}
+     */
+    private function freeAccessResult(array $result): array
+    {
+        return [
+            'low' => 0.0,
+            'mid' => 0.0,
+            'high' => 0.0,
+            'justification' => [
+                ...$result['justification'],
+                'free_access_mode' => [
+                    'active' => true,
+                    'reason' => 'Admin service rates are inactive; fees are calculated at zero until rates are activated.',
+                    'nominal_range' => [
+                        'low' => $result['low'],
+                        'mid' => $result['mid'],
+                        'high' => $result['high'],
+                    ],
+                    'stripe_required' => false,
+                ],
+            ],
+        ];
     }
 
     /**

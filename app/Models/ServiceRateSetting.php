@@ -19,6 +19,7 @@ final class ServiceRateSetting extends Model
         'npo_service_discount_percent' => 'float',
         'npo_retainer_discount_percent' => 'float',
         'effective_from' => 'datetime',
+        'is_active' => 'boolean',
     ];
 
     /**

@@ -271,6 +271,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('goals/{goal}/milestones', [GoalController::class, 'milestone'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('goals.milestones.store');
+        Route::post('goals/{goal}/remeasure', [GoalController::class, 'remeasure'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('goals.remeasure');
+        Route::patch('goals/{goal}/achieve', [GoalController::class, 'achieve'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('goals.achieve');
         Route::post('milestones/{milestone}/actions', [GoalController::class, 'action'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('milestones.actions.store');
