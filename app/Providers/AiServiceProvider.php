@@ -35,7 +35,7 @@ final class AiServiceProvider extends ServiceProvider
             fn (): PromptRegistry => new PromptRegistry($this->app->make(GovernancePreambleProvider::class)),
         );
 
-        $this->app->singleton(AiClient::class, function (): AiClient {
+        $this->app->bind(AiClient::class, function (): AiClient {
             $provider = $this->app->make(AiProviderManager::class);
             $forceFake = $this->app->environment('testing')
                 || (bool) Config::get('ai.force_fake', false);

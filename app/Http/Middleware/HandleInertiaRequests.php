@@ -6,6 +6,7 @@ use App\Enums\ClientStatus;
 use App\Models\Client;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
+use App\Services\Ai\AiProviderManager;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
@@ -50,7 +51,7 @@ class HandleInertiaRequests extends Middleware
                 'user' => $request->user(),
             ],
             'aiNotice' => fn () => $request->user()
-                ? app(AdvisorAiNotice::class)->latest()
+                ? $this->aiNotice()
                 : null,
             'notificationSummary' => fn () => $request->user() instanceof User
                 ? app(NotificationCenter::class)->summary($request->user())
@@ -62,6 +63,31 @@ class HandleInertiaRequests extends Middleware
             'portalServices' => fn () => $this->portalServices($request),
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function aiNotice(): ?array
+    {
+        $notice = app(AdvisorAiNotice::class);
+        $latest = $notice->latest();
+
+        if ($latest === null) {
+            return null;
+        }
+
+        $reason = (string) ($latest['reason'] ?? '');
+        if (
+            str_contains($reason, 'not active or its credentials are missing')
+            && app(AiProviderManager::class)->activeProviderIsLive()
+        ) {
+            $notice->clear();
+
+            return null;
+        }
+
+        return $latest;
     }
 
     private function portalClientModel(Request $request): ?Client

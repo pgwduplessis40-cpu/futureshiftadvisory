@@ -56,11 +56,7 @@ final class AiProviderManager
     {
         $provider = $this->activeProvider();
 
-        if ($provider === null || $provider['status'] !== 'available') {
-            return null;
-        }
-
-        if (! $this->activations->isLive((string) $provider['integration_key'])) {
+        if (! $this->activeProviderIsLive($provider)) {
             return null;
         }
 
@@ -70,6 +66,20 @@ final class AiProviderManager
         }
 
         return $this->container->make($clientClass);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $provider
+     */
+    public function activeProviderIsLive(?array $provider = null): bool
+    {
+        $provider ??= $this->activeProvider();
+
+        if ($provider === null || $provider['status'] !== 'available') {
+            return false;
+        }
+
+        return $this->activations->isLive((string) $provider['integration_key']);
     }
 
     public function unavailableReason(): string

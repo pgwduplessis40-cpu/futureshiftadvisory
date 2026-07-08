@@ -14,6 +14,11 @@ use Tests\TestCase;
 
 final class AiProviderSwitchingTest extends TestCase
 {
+    public function test_ai_client_binding_re_resolves_provider_state(): void
+    {
+        $this->assertNotSame(app(AiClient::class), app(AiClient::class));
+    }
+
     public function test_provider_manager_can_resolve_a_non_anthropic_ai_client(): void
     {
         Config::set('ai.active_provider', 'replacement');

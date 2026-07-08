@@ -531,11 +531,32 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                     !ideaValidation.advisor_gate_passed_at ? (
                         <div className="grid gap-3 rounded-md border bg-muted/30 p-3 md:grid-cols-[1fr_auto]">
                             {ideaValidation.ai_deferred ? (
-                                <p className="text-sm text-muted-foreground md:col-span-2">
-                                    AI review is deferred. Use the submitted
-                                    answers for manual review or rerun AI once
-                                    the provider is live.
-                                </p>
+                                <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
+                                    <p className="text-sm text-muted-foreground">
+                                        AI review is deferred. Use the submitted
+                                        answers for manual review or rerun AI
+                                        once the provider is live.
+                                    </p>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={ideaRefreshPending}
+                                        onClick={refreshIdeaValidation}
+                                    >
+                                        <RefreshCw
+                                            className={cn(
+                                                'size-4',
+                                                ideaRefreshPending &&
+                                                    'animate-spin',
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {ideaRefreshPending
+                                            ? 'Rerunning'
+                                            : 'Rerun AI review'}
+                                    </Button>
+                                </div>
                             ) : null}
                             <label className="grid gap-1 text-sm">
                                 <span>Idea gate note</span>
