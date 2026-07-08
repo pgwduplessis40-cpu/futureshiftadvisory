@@ -73,10 +73,17 @@ final class AnthropicClaudeClient implements AiClient
                 'model' => $model,
                 'max_tokens' => 2048,
                 'temperature' => 0,
+                'system' => 'Return the requested assessment as structured JSON only. Do not include prose outside the JSON object.',
                 'messages' => [
                     [
                         'role' => 'user',
                         'content' => $this->renderPrompt($prompt, $task),
+                    ],
+                ],
+                'output_config' => [
+                    'format' => [
+                        'type' => 'json_schema',
+                        'schema' => $this->responseSchema($task),
                     ],
                 ],
             ],
@@ -95,20 +102,7 @@ final class AnthropicClaudeClient implements AiClient
         $payload = is_array($result->data) ? $result->data : null;
         $this->recordUsage($payload, $prompt, $task, $model);
 
-        $text = $payload['content'][0]['text'] ?? null;
-        if (! is_string($text) || $text === '') {
-            throw new AiIntegrityViolation('Anthropic response did not contain structured text content.');
-        }
-
-        try {
-            /** @var array<string, mixed> $structured */
-            $structured = json_decode($text, true, flags: JSON_THROW_ON_ERROR);
-        } catch (JsonException $e) {
-            throw new AiIntegrityViolation(
-                'Anthropic response was freeform prose instead of the required JSON schema.',
-                previous: $e,
-            );
-        }
+        $structured = $this->structuredPayload($payload);
 
         return AiResponse::fromStructuredPayload(
             payload: $structured,
@@ -123,6 +117,183 @@ final class AnthropicClaudeClient implements AiClient
     private function timeoutSeconds(): int
     {
         return max(self::MIN_TIMEOUT_SECONDS, (int) Config::get('services.anthropic.timeout_seconds', self::MIN_TIMEOUT_SECONDS));
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $payload
+     * @return array<string, mixed>
+     */
+    private function structuredPayload(?array $payload): array
+    {
+        $content = $payload['content'] ?? null;
+        if (! is_array($content)) {
+            throw new AiIntegrityViolation('Anthropic response did not contain structured text content.');
+        }
+
+        foreach ($content as $block) {
+            if (! is_array($block)) {
+                continue;
+            }
+
+            $text = $block['text'] ?? null;
+            if (($block['type'] ?? null) === 'text' && is_string($text) && trim($text) !== '') {
+                return $this->decodeStructuredText($text);
+            }
+        }
+
+        throw new AiIntegrityViolation('Anthropic response did not contain structured text content.');
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function decodeStructuredText(string $text): array
+    {
+        try {
+            $decoded = json_decode($text, true, flags: JSON_THROW_ON_ERROR);
+            if (is_array($decoded)) {
+                return $decoded;
+            }
+        } catch (JsonException) {
+            $jsonObject = $this->extractJsonObject($text);
+            if ($jsonObject !== null) {
+                try {
+                    $decoded = json_decode($jsonObject, true, flags: JSON_THROW_ON_ERROR);
+                    if (is_array($decoded)) {
+                        return $decoded;
+                    }
+                } catch (JsonException) {
+                    // Fall through to the integrity violation below.
+                }
+            }
+        }
+
+        throw new AiIntegrityViolation('Anthropic response was freeform prose instead of the required JSON schema.');
+    }
+
+    private function extractJsonObject(string $text): ?string
+    {
+        $start = strpos($text, '{');
+        $end = strrpos($text, '}');
+
+        if ($start === false || $end === false || $end <= $start) {
+            return null;
+        }
+
+        return substr($text, $start, $end - $start + 1);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function responseSchema(string $task): array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'text' => [
+                    'type' => 'string',
+                    'description' => 'Client-safe assessment narrative.',
+                ],
+                'attributions' => [
+                    'type' => 'array',
+                    'items' => $this->attributionSchema(),
+                ],
+                'uncertainty' => [
+                    'type' => 'string',
+                    'enum' => ['high', 'medium', 'low', 'none'],
+                ],
+                'bias_signals' => [
+                    'type' => 'array',
+                    'items' => [
+                        'type' => 'object',
+                        'additionalProperties' => true,
+                    ],
+                ],
+                'metadata' => $this->metadataSchema($task),
+            ],
+            'required' => ['text', 'attributions', 'uncertainty', 'metadata'],
+            'additionalProperties' => false,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function metadataSchema(string $task): array
+    {
+        if ($task === 'analyse') {
+            return [
+                'type' => 'object',
+                'properties' => [
+                    'findings' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'lens' => [
+                                    'type' => 'string',
+                                    'enum' => ['descriptive', 'diagnostic', 'predictive', 'prescriptive'],
+                                ],
+                                'severity' => [
+                                    'type' => 'string',
+                                    'enum' => ['info', 'low', 'medium', 'high', 'critical'],
+                                ],
+                                'title' => ['type' => 'string'],
+                                'body' => ['type' => 'string'],
+                                'attributions' => [
+                                    'type' => 'array',
+                                    'items' => $this->attributionSchema(),
+                                ],
+                                'uncertainty' => [
+                                    'type' => 'string',
+                                    'enum' => ['high', 'medium', 'low', 'none'],
+                                ],
+                            ],
+                            'required' => ['lens', 'severity', 'title', 'body', 'attributions', 'uncertainty'],
+                            'additionalProperties' => false,
+                        ],
+                    ],
+                ],
+                'required' => ['findings'],
+                'additionalProperties' => false,
+            ];
+        }
+
+        if ($task === 'score_criterion') {
+            return [
+                'type' => 'object',
+                'properties' => [
+                    'score' => [
+                        'type' => 'integer',
+                        'description' => 'Score from 0 to 100.',
+                    ],
+                ],
+                'required' => ['score'],
+                'additionalProperties' => false,
+            ];
+        }
+
+        return [
+            'type' => 'object',
+            'additionalProperties' => true,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function attributionSchema(): array
+    {
+        return [
+            'type' => 'object',
+            'properties' => [
+                'claim' => ['type' => 'string'],
+                'source_reference' => ['type' => 'string'],
+            ],
+            'required' => ['claim', 'source_reference'],
+            'additionalProperties' => false,
+        ];
     }
 
     private function unavailableMessage(IntegrationResult $result): string

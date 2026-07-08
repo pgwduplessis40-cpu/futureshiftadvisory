@@ -9,6 +9,7 @@ use App\Services\Ai\Claude\AnthropicClaudeClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Tests\TestCase;
@@ -34,6 +35,7 @@ final class AnthropicUsageTrackingTest extends TestCase
                                 ['claim' => 'Claim', 'source_reference' => 'source-1'],
                             ],
                             'uncertainty' => 'low',
+                            'metadata' => [],
                         ], JSON_THROW_ON_ERROR),
                     ],
                 ],
@@ -64,5 +66,9 @@ final class AnthropicUsageTrackingTest extends TestCase
         $this->assertSame(1_000, $event->input_tokens);
         $this->assertSame(200, $event->output_tokens);
         $this->assertEqualsWithDelta(0.006, $event->estimated_cost_usd, 0.000001);
+
+        Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'output_config.format.type') === 'json_schema'
+            && data_get($request->data(), 'output_config.format.schema.properties.metadata.additionalProperties') === true
+            && data_get($request->data(), 'system') === 'Return the requested assessment as structured JSON only. Do not include prose outside the JSON object.');
     }
 }

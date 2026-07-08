@@ -6,10 +6,12 @@ namespace Tests\Feature\Ai;
 
 use App\Services\Ai\Claude\AnthropicClaudeClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Exceptions\AiUnavailableException;
 use App\Services\Integration\Resilience\ResilientHttp;
 use App\Services\Integration\Resilience\RetryPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use ReflectionMethod;
@@ -85,6 +87,61 @@ final class AnthropicClaudeClientTest extends TestCase
         $method = new ReflectionMethod($client, 'timeoutSeconds');
 
         $this->assertSame(60, $method->invoke($client));
+    }
+
+    public function test_analyse_request_uses_structured_output_schema_for_findings(): void
+    {
+        Http::fake(fn () => Http::response([
+            'content' => [
+                [
+                    'type' => 'text',
+                    'text' => json_encode([
+                        'text' => 'Idea validation reviewed.',
+                        'attributions' => [],
+                        'uncertainty' => 'high',
+                        'metadata' => ['findings' => []],
+                    ], JSON_THROW_ON_ERROR),
+                ],
+            ],
+            'usage' => [
+                'input_tokens' => 100,
+                'output_tokens' => 50,
+            ],
+        ]));
+
+        $response = app(AnthropicClaudeClient::class)->analyse($this->prompt());
+
+        $this->assertSame('Idea validation reviewed.', $response->text);
+        $this->assertSame(Uncertainty::High, $response->uncertainty);
+        Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'output_config.format.type') === 'json_schema'
+            && data_get($request->data(), 'output_config.format.schema.properties.metadata.properties.findings.items.properties.lens.enum.0') === 'descriptive'
+            && data_get($request->data(), 'output_config.format.schema.properties.metadata.required.0') === 'findings');
+    }
+
+    public function test_wrapped_json_text_response_is_still_parsed(): void
+    {
+        Http::fake(fn () => Http::response([
+            'content' => [
+                [
+                    'type' => 'text',
+                    'text' => "Here is the structured response:\n```json\n".json_encode([
+                        'text' => 'Wrapped structured result.',
+                        'attributions' => [],
+                        'uncertainty' => 'low',
+                        'metadata' => [],
+                    ], JSON_THROW_ON_ERROR)."\n```",
+                ],
+            ],
+            'usage' => [
+                'input_tokens' => 100,
+                'output_tokens' => 50,
+            ],
+        ]));
+
+        $response = app(AnthropicClaudeClient::class)->summarise($this->prompt());
+
+        $this->assertSame('Wrapped structured result.', $response->text);
+        $this->assertSame(Uncertainty::Low, $response->uncertainty);
     }
 
     private function prompt(): PromptEnvelope
