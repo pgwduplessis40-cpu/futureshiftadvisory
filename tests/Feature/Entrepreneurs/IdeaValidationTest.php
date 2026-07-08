@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Entrepreneurs;
 
 use App\Enums\EntrepreneurStage;
+use App\Jobs\RefreshIdeaValidationAiReview;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\User;
@@ -202,6 +203,83 @@ final class IdeaValidationTest extends TestCase
             'action' => 'entrepreneur.idea_validation_refresh_failed',
             'subject_id' => $validation->id,
         ]);
+    }
+
+    public function test_refresh_job_resolves_ai_after_system_context_is_applied(): void
+    {
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            $this->markTestSkipped('Job context assertion requires Postgres session settings.');
+        }
+
+        [$advisor, $profile] = $this->profile('refresh-job-context@example.test');
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+
+        app(RequestContext::class)->apply($advisor->fsaRole(), [], (string) $advisor->id);
+        $this->app->bind(AiClient::class, fn (): AiClient => new class implements AiClient
+        {
+            private readonly string $constructedRole;
+
+            public function __construct()
+            {
+                $this->constructedRole = (string) DB::selectOne(
+                    'SELECT current_setting(?, true) AS value',
+                    ['fsa.role'],
+                )?->value;
+            }
+
+            public function analyse(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function verifyDocument(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function summarise(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function redFlag(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            private function response(PromptEnvelope $prompt): AiResponse
+            {
+                return new AiResponse(
+                    text: 'System-context AI response.',
+                    attributions: [[
+                        'claim' => 'System-context AI response.',
+                        'source_reference' => 'system:job-context-test',
+                    ]],
+                    uncertainty: Uncertainty::Low,
+                    biasSignals: [],
+                    model: 'context-capturing-ai-client',
+                    promptVersion: $prompt->version,
+                    promptHash: $prompt->hash(),
+                    tokensIn: 1,
+                    tokensOut: 1,
+                    metadata: [
+                        'constructed_role' => $this->constructedRole,
+                    ],
+                );
+            }
+        });
+
+        RefreshIdeaValidationAiReview::dispatchSync((string) $validation->id, (int) $advisor->id);
+
+        $validation->refresh();
+        $this->assertSame('context-capturing-ai-client', data_get($validation->ai_evaluation, 'model'));
+        $this->assertSame('completed', data_get($validation->ai_evaluation, 'metadata.refresh_status'));
+        $this->assertSame('system', data_get($validation->ai_evaluation, 'metadata.constructed_role'));
     }
 
     public function test_idea_validations_are_profile_scoped_by_rls(): void

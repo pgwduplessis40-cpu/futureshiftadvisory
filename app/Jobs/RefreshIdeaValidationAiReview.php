@@ -31,9 +31,10 @@ final class RefreshIdeaValidationAiReview implements ShouldQueue
         public readonly int $advisorId,
     ) {}
 
-    public function handle(IdeaValidationService $ideas, RequestContext $context): void
+    public function handle(RequestContext $context): void
     {
         $context->apply('system', []);
+        $ideas = app(IdeaValidationService::class);
 
         $validation = IdeaValidation::query()->find($this->ideaValidationId);
         $advisor = User::query()->find($this->advisorId);
