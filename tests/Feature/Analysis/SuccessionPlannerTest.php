@@ -81,6 +81,8 @@ final class SuccessionPlannerTest extends TestCase
             'target_exit_annual_cash_flow' => 120000,
             'duration_years' => 3,
             'target_exit_growth_rate' => 0.03,
+            'target_exit_terminal_value' => 200000,
+            'owner_required_exit_proceeds' => 1000000,
             'options' => [
                 [
                     'name' => 'Trade sale',
@@ -105,6 +107,12 @@ final class SuccessionPlannerTest extends TestCase
         $this->assertFalse($plan->owner_readiness_is_primary_constraint);
         $this->assertNotNull($plan->target_exit_pv_calculation_id);
         $this->assertGreaterThan(0, $plan->target_exit_pv);
+        $this->assertSame('gap_to_close', $plan->owner_dependency_plan['wealth_gap']['status']);
+        $this->assertEqualsWithDelta(1000000.0, $plan->owner_dependency_plan['wealth_gap']['owner_required_exit_proceeds_nzd'], 0.01);
+        $this->assertGreaterThan(0, $plan->owner_dependency_plan['wealth_gap']['gap_nzd']);
+        $this->assertSame('developing', $plan->owner_dependency_plan['buyer_attractiveness']['classification']);
+        $this->assertTrue($plan->owner_dependency_plan['terminal_value_treatment']['included']);
+        $this->assertEqualsWithDelta(200000.0, $plan->owner_dependency_plan['terminal_value_treatment']['terminal_value_nzd'], 0.01);
         $this->assertSame("economic_indicator:{$ocr->id}", $plan->targetExitPvCalculation->source_attributions[0]['source_reference']);
         $this->assertDatabaseCount('coaching_signals', 0);
     }

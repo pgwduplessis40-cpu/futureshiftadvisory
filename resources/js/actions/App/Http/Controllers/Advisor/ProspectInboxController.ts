@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::index
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:25
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:27
  * @route '/advisor/prospects'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:45
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:44
  * @route '/advisor/prospects/{prospectLead}/triage'
  */
 export const triage = (args: { prospectLead: number | { id: number } } | [prospectLead: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ triage.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:45
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:44
  * @route '/advisor/prospects/{prospectLead}/triage'
  */
 triage.url = (args: { prospectLead: number | { id: number } } | [prospectLead: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -127,7 +127,7 @@ triage.url = (args: { prospectLead: number | { id: number } } | [prospectLead: n
 
 /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:45
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:44
  * @route '/advisor/prospects/{prospectLead}/triage'
  */
 triage.patch = (args: { prospectLead: number | { id: number } } | [prospectLead: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -137,7 +137,7 @@ triage.patch = (args: { prospectLead: number | { id: number } } | [prospectLead:
 
     /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:45
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:44
  * @route '/advisor/prospects/{prospectLead}/triage'
  */
     const triageForm = (args: { prospectLead: number | { id: number } } | [prospectLead: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -152,7 +152,7 @@ triage.patch = (args: { prospectLead: number | { id: number } } | [prospectLead:
 
             /**
 * @see \App\Http\Controllers\Advisor\ProspectInboxController::triage
- * @see app/Http/Controllers/Advisor/ProspectInboxController.php:45
+ * @see app/Http/Controllers/Advisor/ProspectInboxController.php:44
  * @route '/advisor/prospects/{prospectLead}/triage'
  */
         triageForm.patch = (args: { prospectLead: number | { id: number } } | [prospectLead: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

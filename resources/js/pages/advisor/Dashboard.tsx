@@ -104,6 +104,8 @@ type ClientHealth = {
 type ClientsHealthPayload = {
     summary: {
         total: number;
+        advisory_clients: number;
+        entrepreneurs: number;
         high: number;
         medium: number;
         low: number;
@@ -810,12 +812,18 @@ export default function AdvisorDashboard({
                         </p>
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-5">
+                    <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
                         <Metric
                             label="Clients"
-                            value={clientsHealth.summary.total}
-                            explanation="Clients counts the client workspaces visible to your current advisor role."
+                            value={clientsHealth.summary.advisory_clients}
+                            explanation="Clients counts advisory client records visible to your current advisor role."
                             href="/advisor/clients"
+                        />
+                        <Metric
+                            label="Entrepreneurs"
+                            value={clientsHealth.summary.entrepreneurs}
+                            explanation="Entrepreneurs counts founder workspaces visible to your current advisor role."
+                            href="/advisor/entrepreneurs"
                         />
                         <Metric
                             label="Action queues"

@@ -68,6 +68,8 @@ final class IdeaValidationTest extends TestCase
         $this->assertSame('fake-ai-client', data_get($validation->ai_evaluation, 'model'));
         $sources = collect(data_get($validation->ai_evaluation, 'attributions', []))->pluck('source_reference');
         $this->assertTrue($sources->contains(fn (string $source): bool => str_starts_with($source, 'past_plan_patterns:')));
+        $this->assertSame('experiments_recorded', data_get($validation->ai_evaluation, 'validation_evidence_loop.status'));
+        $this->assertSame(1, data_get($validation->ai_evaluation, 'validation_evidence_loop.completed_experiment_count'));
         $this->assertSame([], $validation->viability_alerts);
         $this->assertFalse(app(IdeaValidationService::class)->planBuilderUnlocked($profile));
         $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
@@ -89,6 +91,7 @@ final class IdeaValidationTest extends TestCase
         $this->assertNotEmpty($validation->viability_alerts);
         $this->assertFalse((bool) data_get($validation->viability_alerts, '0.blocking'));
         $this->assertSame('informational', data_get($validation->viability_alerts, '0.severity'));
+        $this->assertTrue(collect($validation->viability_alerts)->contains('type', 'experiment_loop_missing'));
         $this->assertFalse(app(IdeaValidationService::class)->planBuilderUnlocked($profile));
     }
 
@@ -165,7 +168,7 @@ final class IdeaValidationTest extends TestCase
     }
 
     /**
-     * @return array{problem:string,target_customer:string,solution:string,value_proposition:string,demand_signal:string,revenue_model:string}
+     * @return array<string, mixed>
      */
     private function strongPayload(): array
     {
@@ -176,6 +179,14 @@ final class IdeaValidationTest extends TestCase
             'value_proposition' => 'Stores reduce stockouts and owner admin time without adopting a full ERP.',
             'demand_signal' => 'Eight discovery calls and three paid pilots are already scheduled.',
             'revenue_model' => 'Monthly subscription with an onboarding fee for supplier mapping.',
+            'experiments' => [[
+                'name' => 'Paid pilot validation',
+                'hypothesis' => 'Retail owners will pay for weekly supplier reconciliation support.',
+                'evidence' => 'Three stores paid deposits after discovery calls.',
+                'result' => 'Paid willingness confirmed for a narrow first segment.',
+                'next_step' => 'Run the pilot for four weeks and measure retained usage.',
+                'status' => 'completed',
+            ]],
         ];
     }
 

@@ -64,9 +64,16 @@ final class BusinessValuation implements ProvidesMethodology
             terminalGrowthRates: $options['sensitivity_terminal_growth_rates'] ?? null,
         );
         $successionComparison = $this->successionComparison($client, $pvCalculation, $terminalGrowthRate);
-        $valuationDisclosures = array_values(array_filter($financials['disclosures']));
+        $valuationDisclosures = array_values(array_filter([
+            ...$this->professionalDisclosures($options, $pvCalculation, $terminalGrowthRate),
+            ...$financials['disclosures'],
+        ]));
 
         $attributions = array_values(array_merge(
+            [[
+                'claim' => 'Business valuation scope, basis, purpose, premise, and reliance limitations were recorded with the valuation row.',
+                'source_reference' => 'valuation_disclosures:business_valuation_scope',
+            ]],
             $financials['attributions'],
             $sdeRange['source_attributions'],
             $ebitdaRange['source_attributions'],
@@ -306,6 +313,79 @@ final class BusinessValuation implements ProvidesMethodology
     }
 
     /**
+     * @param  array<string, mixed>  $options
+     * @return array<int, array<string, mixed>>
+     */
+    private function professionalDisclosures(array $options, PvCalculation $pvCalculation, float $terminalGrowthRate): array
+    {
+        $basisOfValue = $this->disclosureText(
+            $options['basis_of_value'] ?? null,
+            'Indicative market value range for advisory planning',
+        );
+        $purpose = $this->disclosureText(
+            $options['valuation_purpose'] ?? $options['purpose'] ?? null,
+            'Advisor-led planning, value improvement, and negotiation preparation',
+        );
+        $premiseOfValue = $this->disclosureText(
+            $options['premise_of_value'] ?? null,
+            'Going concern',
+        );
+        $asAt = now()->toDateString();
+
+        return [
+            [
+                'type' => 'valuation_scope',
+                'severity' => 'high',
+                'engagement_type' => 'indicative_advisory_valuation',
+                'message' => 'Prepared as an indicative advisory valuation for planning use only; it is not an AES-2/APES 225 independent business valuation engagement.',
+                'source_reference' => 'valuation_disclosures:engagement_type',
+            ],
+            [
+                'type' => 'basis_and_purpose',
+                'severity' => 'high',
+                'basis_of_value' => $basisOfValue,
+                'valuation_purpose' => $purpose,
+                'premise_of_value' => $premiseOfValue,
+                'valuation_date' => $asAt,
+                'message' => "Basis of value: {$basisOfValue}. Purpose: {$purpose}. Premise: {$premiseOfValue}. Valuation date: {$asAt}.",
+                'source_reference' => 'valuation_disclosures:basis_purpose_premise',
+            ],
+            [
+                'type' => 'reliance_limitations',
+                'severity' => 'high',
+                'message' => 'Do not rely on this output for litigation, tax, matrimonial, statutory, lending, insolvency, or fairness-opinion purposes without a separately scoped valuation engagement.',
+                'source_reference' => 'valuation_disclosures:reliance_limitations',
+            ],
+            [
+                'type' => 'method_scope',
+                'severity' => 'medium',
+                'message' => 'The value range triangulates SDE, EBITDA, and DCF/PV methods. Asset floor and surplus-asset checks are sanity checks unless a separately scoped asset approach is commissioned.',
+                'source_reference' => 'valuation_disclosures:method_scope',
+            ],
+            [
+                'type' => 'dcf_terminal_value',
+                'severity' => 'medium',
+                'terminal_growth_rate' => round($terminalGrowthRate, 4),
+                'pv_calculation_id' => (string) $pvCalculation->getKey(),
+                'message' => sprintf(
+                    'DCF includes an explicit terminal-value assumption using %.2f%% terminal growth; advisor must confirm this is suitable for the business maturity and risk profile.',
+                    $terminalGrowthRate * 100,
+                ),
+                'source_reference' => 'pv_calculation:'.$pvCalculation->getKey().':terminal_value',
+            ],
+        ];
+    }
+
+    private function disclosureText(mixed $value, string $fallback): string
+    {
+        if (is_string($value) && trim($value) !== '') {
+            return trim($value);
+        }
+
+        return $fallback;
+    }
+
+    /**
      * @return array{sde:float, ebitda:float, dcf:float}
      */
     private function methodWeights(mixed $weights): array
@@ -443,6 +523,7 @@ final class BusinessValuation implements ProvidesMethodology
                         'value' => null,
                         'note' => 'Terminal growth must remain below the discount rate.',
                     ];
+
                     continue;
                 }
 

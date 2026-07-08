@@ -130,6 +130,11 @@ final class Valuation implements ProvidesMethodology
         $low = (float) data_get($fx, 'normalised_values.reconciled.low');
         $mid = (float) data_get($fx, 'normalised_values.reconciled.mid');
         $high = (float) data_get($fx, 'normalised_values.reconciled.high');
+        $dealStructure = $this->normaliseAdjustments($dealStructureAdjustments);
+        $synergies = $this->normaliseAdjustments($synergyAdjustments);
+        $dealStructureTotal = $this->adjustmentTotal($dealStructure);
+        $synergyTotal = $this->adjustmentTotal($synergies);
+        $buyerSpecificRange = $this->buyerSpecificRange($low, $mid, $high, $dealStructureTotal, $synergyTotal);
 
         $position = match (true) {
             $askingPriceNzd === null => 'no_asking_price',
@@ -137,9 +142,17 @@ final class Valuation implements ProvidesMethodology
             $askingPriceNzd > $high => 'renegotiate_or_walkaway',
             default => 'within_range',
         };
+        $buyerSpecificPosition = match (true) {
+            $askingPriceNzd === null => 'no_asking_price',
+            $askingPriceNzd < $buyerSpecificRange['low'] => 'below_buyer_specific_range',
+            $askingPriceNzd > $buyerSpecificRange['high'] => 'above_buyer_specific_range',
+            default => 'within_buyer_specific_range',
+        };
 
         return [
             'position' => $position,
+            'position_basis' => 'standalone_reconciled_equity_value_nzd',
+            'buyer_specific_position' => $buyerSpecificPosition,
             'asking_price_nzd' => $askingPriceNzd,
             'reconciled_low_nzd' => $low,
             'reconciled_mid_nzd' => $mid,
@@ -156,8 +169,23 @@ final class Valuation implements ProvidesMethodology
                 'precedent_transaction_cross_check' => 'supported_when_precedent_transactions_are_supplied',
             ],
             'precedent_transactions' => $this->normalisePrecedentTransactions($precedentTransactions),
-            'deal_structure_adjustments' => $this->normaliseAdjustments($dealStructureAdjustments),
-            'synergy_adjustments' => $this->normaliseAdjustments($synergyAdjustments),
+            'deal_structure_adjustments' => $dealStructure,
+            'synergy_adjustments' => $synergies,
+            'value_walk' => [
+                'basis' => 'standalone_value_separated_from_buyer_specific_synergies',
+                'standalone_value_range_nzd' => [
+                    'low' => $low,
+                    'mid' => $mid,
+                    'high' => $high,
+                ],
+                'deal_structure_adjustment_nzd' => $dealStructureTotal,
+                'synergy_adjustment_nzd' => $synergyTotal,
+                'buyer_specific_value_range_nzd' => $buyerSpecificRange,
+                'asking_price_nzd' => $askingPriceNzd,
+                'standalone_gap_to_mid_nzd' => $askingPriceNzd === null ? null : round($askingPriceNzd - $mid, 2),
+                'buyer_specific_gap_to_mid_nzd' => $askingPriceNzd === null ? null : round($askingPriceNzd - $buyerSpecificRange['mid'], 2),
+                'disclosure' => 'Standalone value is the target value before buyer-specific synergies. Buyer-specific value adds deal-structure and synergy adjustments for negotiation analysis only.',
+            ],
         ];
     }
 
@@ -211,5 +239,27 @@ final class Valuation implements ProvidesMethodology
             ],
             array_filter($values, 'is_array'),
         ));
+    }
+
+    /**
+     * @param  array<int, array{label:string, amount:float, rationale:string}>  $adjustments
+     */
+    private function adjustmentTotal(array $adjustments): float
+    {
+        return round(array_sum(array_column($adjustments, 'amount')), 2);
+    }
+
+    /**
+     * @return array{low:float, mid:float, high:float}
+     */
+    private function buyerSpecificRange(float $low, float $mid, float $high, float $dealStructureTotal, float $synergyTotal): array
+    {
+        $adjustment = $dealStructureTotal + $synergyTotal;
+
+        return [
+            'low' => round(max(0.0, $low + $adjustment), 2),
+            'mid' => round(max(0.0, $mid + $adjustment), 2),
+            'high' => round(max(0.0, $high + $adjustment), 2),
+        ];
     }
 }

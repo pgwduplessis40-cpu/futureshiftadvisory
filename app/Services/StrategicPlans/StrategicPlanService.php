@@ -342,7 +342,7 @@ final class StrategicPlanService
             [
                 'key' => 'milestones',
                 'title' => 'Milestone approach',
-                'body' => 'Milestones are calculated from deployment date and owned by Client, Advisor, or Joint.',
+                'body' => 'Milestone due dates are set from the agreed start date and owned by the client, advisor, or both.',
             ],
             [
                 'key' => 'budget',
@@ -510,7 +510,7 @@ final class StrategicPlanService
         ]));
 
         if ($parts === []) {
-            return 'Confirm the first priorities with the client before deployment.';
+            return 'Confirm the first priorities with the client before the plan starts.';
         }
 
         return implode("\n\n", $parts);

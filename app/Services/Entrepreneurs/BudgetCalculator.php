@@ -250,12 +250,31 @@ final class BudgetCalculator implements ProvidesMethodology
             $provided[] = 'opening_cash_balance';
             $openingCash = max(0.0, $this->number($openingCashRaw));
         }
+        $debtorDays = $this->nonNegativeDays($assumptions['debtor_days'] ?? $assumptions['accounts_receivable_days'] ?? null);
+        $creditorDays = $this->nonNegativeDays($assumptions['creditor_days'] ?? $assumptions['accounts_payable_days'] ?? null);
+
+        if ($debtorDays !== null) {
+            $provided[] = 'debtor_days';
+        }
+
+        if ($creditorDays !== null) {
+            $provided[] = 'creditor_days';
+        }
 
         $taxConfigured = $companyTaxRatePercent !== null;
 
         return [
             ...$normalised,
             'opening_cash_balance' => round($openingCash, 2),
+            'debtor_days' => $debtorDays ?? 0,
+            'creditor_days' => $creditorDays ?? 0,
+            'working_capital_timing' => [
+                'debtor_days' => $debtorDays ?? 0,
+                'creditor_days' => $creditorDays ?? 0,
+                'debtor_lag_months' => $this->lagMonthsFromDays($debtorDays ?? 0),
+                'creditor_lag_months' => $this->lagMonthsFromDays($creditorDays ?? 0),
+                'basis' => 'Optional debtor and creditor days convert forecast profit timing into cash timing. Defaults are zero days when not supplied.',
+            ],
             'company_tax_rate_percent' => $taxConfigured ? round(max(0.0, $companyTaxRatePercent), 2) : 0.0,
             'company_tax_configured' => $taxConfigured,
             'gst_exclusive' => true,
@@ -264,6 +283,8 @@ final class BudgetCalculator implements ProvidesMethodology
             'field_labels' => [
                 ...$fields,
                 'opening_cash_balance' => 'Opening cash balance',
+                'debtor_days' => 'Debtor days',
+                'creditor_days' => 'Creditor days',
             ],
         ];
     }
@@ -302,12 +323,17 @@ final class BudgetCalculator implements ProvidesMethodology
         $taxLossCarryByYear = [];
         $revenueMultiplier = $this->scenarioMultiplier($scenario, 'revenue_multiplier');
         $costMultiplier = $this->scenarioMultiplier($scenario, 'cost_multiplier');
+        $debtorLagMonths = $this->lagMonthsFromDays((int) ($assumptions['debtor_days'] ?? 0));
+        $creditorLagMonths = $this->lagMonthsFromDays((int) ($assumptions['creditor_days'] ?? 0));
 
         for ($month = 1; $month <= $monthCount; $month++) {
             $year = (int) ceil($month / self::MONTHS_PER_YEAR);
             $monthInYear = (($month - 1) % self::MONTHS_PER_YEAR) + 1;
             $revenue = $this->revenueForMonth($revenueRows, $month, $assumptions) * $revenueMultiplier;
             $variableCosts = $this->variableCostsForMonth($revenueRows, $month, $assumptions) * $costMultiplier * $revenueMultiplier;
+            $cashCollected = $this->cashCollectedForMonth($revenueRows, $month, $assumptions, $debtorLagMonths) * $revenueMultiplier;
+            $variableCostsPaid = $this->variableCostsPaidForMonth($revenueRows, $month, $assumptions, $creditorLagMonths) * $costMultiplier * $revenueMultiplier;
+            $workingCapitalTimingAdjustment = ($cashCollected - $revenue) + ($variableCosts - $variableCostsPaid);
             $fixedCosts = $this->fixedCostsForMonth($fixedRows, $month, $assumptions) * $costMultiplier;
             $futureCosts = $this->futureCostsForMonth($futureRows, $year, $monthInYear) * $costMultiplier;
             $launchCosts = $this->rowsForMonth($launchRows, $month) * $costMultiplier;
@@ -328,7 +354,7 @@ final class BudgetCalculator implements ProvidesMethodology
                 }
             }
             $netProfitAfterTax = $netProfitBeforeTax - $tax;
-            $netCashFlow = $netProfitAfterTax + $fundingInflow - $launchCosts - $loanPayment['principal'];
+            $netCashFlow = $netProfitAfterTax + $fundingInflow - $launchCosts - $loanPayment['principal'] + $workingCapitalTimingAdjustment;
             $cumulativeCash += $netCashFlow;
 
             if ($breakEvenMonth === null && $netProfitBeforeTax >= 0 && $revenue > 0) {
@@ -345,6 +371,9 @@ final class BudgetCalculator implements ProvidesMethodology
                 'month_in_year' => $monthInYear,
                 'revenue' => round($revenue, 2),
                 'variable_costs' => round($variableCosts, 2),
+                'cash_collected' => round($cashCollected, 2),
+                'variable_costs_paid' => round($variableCostsPaid, 2),
+                'working_capital_timing_adjustment' => round($workingCapitalTimingAdjustment, 2),
                 'gross_profit' => round($grossProfit, 2),
                 'fixed_costs' => round($fixedCosts + $futureCosts, 2),
                 'interest' => round($loanPayment['interest'], 2),
@@ -367,6 +396,9 @@ final class BudgetCalculator implements ProvidesMethodology
                 'year' => $year,
                 'revenue' => round((float) $yearRows->sum('revenue'), 2),
                 'variable_costs' => round((float) $yearRows->sum('variable_costs'), 2),
+                'cash_collected' => round((float) $yearRows->sum('cash_collected'), 2),
+                'variable_costs_paid' => round((float) $yearRows->sum('variable_costs_paid'), 2),
+                'working_capital_timing_adjustment' => round((float) $yearRows->sum('working_capital_timing_adjustment'), 2),
                 'gross_profit' => round((float) $yearRows->sum('gross_profit'), 2),
                 'fixed_costs' => round((float) $yearRows->sum('fixed_costs'), 2),
                 'interest' => round((float) $yearRows->sum('interest'), 2),
@@ -431,6 +463,12 @@ final class BudgetCalculator implements ProvidesMethodology
                 'expected_runway_months' => $expectedRunwayMonths,
                 'equity_sold_percent' => $this->equitySoldPercent($scenario),
                 'founder_ownership_percent' => round(100.0 - $this->equitySoldPercent($scenario), 2),
+                'working_capital_timing' => [
+                    'debtor_days' => (int) ($assumptions['debtor_days'] ?? 0),
+                    'creditor_days' => (int) ($assumptions['creditor_days'] ?? 0),
+                    'debtor_lag_months' => $debtorLagMonths,
+                    'creditor_lag_months' => $creditorLagMonths,
+                ],
             ],
         ];
     }
@@ -482,6 +520,34 @@ final class BudgetCalculator implements ProvidesMethodology
 
             return $total + ($revenue * ($percent / 100));
         }, 0.0);
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function cashCollectedForMonth(array $rows, int $month, array $assumptions, int $debtorLagMonths): float
+    {
+        if ($debtorLagMonths <= 0) {
+            return $this->revenueForMonth($rows, $month, $assumptions);
+        }
+
+        $sourceMonth = $month - $debtorLagMonths;
+
+        return $sourceMonth > 0 ? $this->revenueForMonth($rows, $sourceMonth, $assumptions) : 0.0;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $rows
+     */
+    private function variableCostsPaidForMonth(array $rows, int $month, array $assumptions, int $creditorLagMonths): float
+    {
+        if ($creditorLagMonths <= 0) {
+            return $this->variableCostsForMonth($rows, $month, $assumptions);
+        }
+
+        $sourceMonth = $month - $creditorLagMonths;
+
+        return $sourceMonth > 0 ? $this->variableCostsForMonth($rows, $sourceMonth, $assumptions) : 0.0;
     }
 
     /**
@@ -751,6 +817,20 @@ final class BudgetCalculator implements ProvidesMethodology
         return max(-100.0, min(500.0, $this->numericValue($value)));
     }
 
+    private function nonNegativeDays(mixed $value): ?int
+    {
+        if ($value === null || $value === '' || ! is_numeric($value)) {
+            return null;
+        }
+
+        return max(0, min(365, (int) round((float) $value)));
+    }
+
+    private function lagMonthsFromDays(int $days): int
+    {
+        return $days <= 0 ? 0 : (int) ceil($days / 30);
+    }
+
     private function numericValue(mixed $value): float
     {
         if (is_int($value) || is_float($value)) {
@@ -827,6 +907,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'automatic_scenarios' => 'Automatic sensitivity scenarios compare base case against revenue downside, cost upside, and combined downside cases.',
             'investor_equity' => 'Investor and mixed funding scenarios show the equity sold and remaining founder ownership so funding is not treated like free cash.',
             'gst_exclusive' => 'The budget is GST exclusive by default, so GST collected and paid is not treated as business income or cost in this pack.',
+            'working_capital_timing' => 'Debtor days delay forecast revenue into cash collected; creditor days delay direct variable-cost payments. If no timing is supplied, the budget assumes same-month cash movement.',
         ];
     }
 }

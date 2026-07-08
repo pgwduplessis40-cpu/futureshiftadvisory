@@ -70,7 +70,12 @@ final class SuccessionPlanner
             'analysis_run_id' => $run->getKey(),
             'exit_readiness_score' => $exitReadinessScore,
             'options' => $this->optionsAssessment($input, $exitReadinessScore),
-            'owner_dependency_plan' => $this->ownerDependencyPlan($input, $readinessInputs, $ownerIsConstraint),
+            'owner_dependency_plan' => $this->ownerDependencyPlan(
+                input: $input,
+                scores: $readinessInputs,
+                ownerIsConstraint: $ownerIsConstraint,
+                targetExitPv: (float) $targetExitPv->result['present_value'],
+            ),
             'target_exit_pv_calculation_id' => $targetExitPv->getKey(),
             'target_exit_pv' => (float) $targetExitPv->result['present_value'],
             'owner_readiness_is_primary_constraint' => $ownerIsConstraint,
@@ -225,7 +230,7 @@ final class SuccessionPlanner
                 $cashFlows[$index + 1] = round((float) $amount, 2);
             }
 
-            return $cashFlows;
+            return $this->withTargetExitTerminalValue($cashFlows, $input);
         }
 
         $annualCashFlow = (float) ($input['target_exit_annual_cash_flow'] ?? $input['maintainable_earnings'] ?? 0);
@@ -242,7 +247,7 @@ final class SuccessionPlanner
             $cashFlows[$year] = round($annualCashFlow * ((1 + $growthRate) ** ($year - 1)), 2);
         }
 
-        return $cashFlows;
+        return $this->withTargetExitTerminalValue($cashFlows, $input);
     }
 
     /**
@@ -329,20 +334,126 @@ final class SuccessionPlanner
      * @param  array{owner:int, management:int, process:int, financial:int, timeline:int}  $scores
      * @return array<string, mixed>
      */
-    private function ownerDependencyPlan(array $input, array $scores, bool $ownerIsConstraint): array
+    private function ownerDependencyPlan(array $input, array $scores, bool $ownerIsConstraint, float $targetExitPv): array
     {
-        if (is_array($input['owner_dependency_plan'] ?? null)) {
-            return $input['owner_dependency_plan'];
-        }
+        $base = is_array($input['owner_dependency_plan'] ?? null)
+            ? $input['owner_dependency_plan']
+            : [
+                'owner_readiness_score' => $scores['owner'],
+                'owner_readiness_is_primary_constraint' => $ownerIsConstraint,
+                'actions' => [
+                    'Document owner-held client, supplier, and operational routines.',
+                    'Delegate at least two recurring decisions to the leadership team.',
+                    'Run a 30-day owner-absence test and review gaps with the advisor.',
+                ],
+            ];
 
         return [
-            'owner_readiness_score' => $scores['owner'],
-            'owner_readiness_is_primary_constraint' => $ownerIsConstraint,
-            'actions' => [
-                'Document owner-held client, supplier, and operational routines.',
-                'Delegate at least two recurring decisions to the leadership team.',
-                'Run a 30-day owner-absence test and review gaps with the advisor.',
+            ...$base,
+            'wealth_gap' => $this->wealthGap($input, $targetExitPv),
+            'buyer_attractiveness' => $this->buyerAttractiveness($scores),
+            'terminal_value_treatment' => [
+                'included' => is_numeric($input['target_exit_terminal_value'] ?? null) && (float) $input['target_exit_terminal_value'] > 0,
+                'terminal_value_nzd' => is_numeric($input['target_exit_terminal_value'] ?? null)
+                    ? round(max(0.0, (float) $input['target_exit_terminal_value']), 2)
+                    : 0.0,
+                'message' => is_numeric($input['target_exit_terminal_value'] ?? null) && (float) $input['target_exit_terminal_value'] > 0
+                    ? 'Target-exit PV includes the advisor-supplied terminal value in the final forecast period.'
+                    : 'Target-exit PV discounts the entered cash-flow plan only; no separate terminal value was included.',
             ],
+        ];
+    }
+
+    /**
+     * @param  array<int, float>  $cashFlows
+     * @param  array<string, mixed>  $input
+     * @return array<int, float>
+     */
+    private function withTargetExitTerminalValue(array $cashFlows, array $input): array
+    {
+        $terminalValue = $input['target_exit_terminal_value'] ?? null;
+
+        if (! is_numeric($terminalValue) || (float) $terminalValue <= 0) {
+            return $cashFlows;
+        }
+
+        $lastPeriod = max(array_keys($cashFlows));
+        $cashFlows[$lastPeriod] = round((float) $cashFlows[$lastPeriod] + (float) $terminalValue, 2);
+
+        return $cashFlows;
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function wealthGap(array $input, float $targetExitPv): array
+    {
+        $required = $input['owner_required_exit_proceeds']
+            ?? $input['required_exit_proceeds']
+            ?? $input['owner_wealth_need']
+            ?? null;
+
+        if (! is_numeric($required) || (float) $required <= 0) {
+            return [
+                'status' => 'not_captured',
+                'owner_required_exit_proceeds_nzd' => null,
+                'target_exit_pv_nzd' => round($targetExitPv, 2),
+                'gap_nzd' => null,
+                'surplus_nzd' => null,
+                'message' => 'Owner wealth requirement has not been captured, so exit value cannot yet be compared with the owner need.',
+            ];
+        }
+
+        $requiredAmount = round((float) $required, 2);
+        $gap = round(max(0.0, $requiredAmount - $targetExitPv), 2);
+        $surplus = round(max(0.0, $targetExitPv - $requiredAmount), 2);
+
+        return [
+            'status' => $gap > 0 ? 'gap_to_close' : 'target_met_on_current_assumptions',
+            'owner_required_exit_proceeds_nzd' => $requiredAmount,
+            'target_exit_pv_nzd' => round($targetExitPv, 2),
+            'gap_nzd' => $gap,
+            'surplus_nzd' => $surplus,
+            'message' => $gap > 0
+                ? 'Target-exit PV is below the owner wealth requirement; succession actions should prioritise closing this quantified gap.'
+                : 'Target-exit PV meets or exceeds the captured owner wealth requirement on current assumptions.',
+        ];
+    }
+
+    /**
+     * @param  array{owner:int, management:int, process:int, financial:int, timeline:int}  $scores
+     * @return array<string, mixed>
+     */
+    private function buyerAttractiveness(array $scores): array
+    {
+        $score = (int) round((
+            ($scores['management'] * 0.30)
+            + ($scores['process'] * 0.25)
+            + ($scores['financial'] * 0.25)
+            + ($scores['timeline'] * 0.10)
+            + ($scores['owner'] * 0.10)
+        ) * 10);
+
+        $classification = match (true) {
+            $score >= 75 => 'attractive',
+            $score >= 55 => 'developing',
+            default => 'limited',
+        };
+
+        $constraints = collect($scores)
+            ->filter(fn (int $value): bool => $value <= 5)
+            ->keys()
+            ->values()
+            ->all();
+
+        return [
+            'score' => max(0, min(100, $score)),
+            'classification' => $classification,
+            'constraints' => $constraints,
+            'message' => $constraints === []
+                ? 'Buyer attractiveness is supported by the current readiness scores.'
+                : 'Buyer attractiveness is constrained by '.implode(', ', $constraints).'.',
         ];
     }
 

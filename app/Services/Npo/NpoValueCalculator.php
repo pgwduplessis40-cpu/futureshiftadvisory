@@ -72,10 +72,13 @@ final class NpoValueCalculator
                 ),
             'stable_assumption_disclosure' => $disclosure,
             'benchmark_note' => $benchmark['benchmark_note'] ?? null,
+            'impact_governance' => $this->impactGovernance($input),
             'projections' => $hasBenchmark ? [
                 $this->projection('annual_saving', 'Annual saving / reinvestment capacity', $annualSaving, 'nzd'),
                 $this->projection('additional_beneficiaries', 'Additional beneficiaries served', (float) $additionalBeneficiaries, 'beneficiaries'),
-            ] : [],
+            ] : [
+                $this->projection('benchmark_pending_baseline', 'Benchmark pending baseline', 0.0, 'nzd'),
+            ],
         ];
 
         return $this->persistCalculation(
@@ -158,6 +161,7 @@ final class NpoValueCalculator
                 number_format($riskExposure, 0),
             ),
             'stable_assumption_disclosure' => $disclosure,
+            'impact_governance' => $this->impactGovernance($input),
             'projections' => [
                 $this->projection('risk_exposure', 'Funding risk value', $riskExposure, 'nzd'),
             ],
@@ -298,6 +302,7 @@ final class NpoValueCalculator
             'projection_high' => $calculation->projection_high,
             'mission_framing' => (string) ($calculation->result['mission_framing'] ?? ''),
             'stable_assumption_disclosure' => $calculation->stable_assumption_disclosure,
+            'impact_governance' => $calculation->result['impact_governance'] ?? $this->defaultImpactGovernance(),
             'projections' => $calculation->result['projections'] ?? [],
             'calculated_at' => $calculation->calculated_at?->toIso8601String(),
         ];
@@ -649,6 +654,65 @@ final class NpoValueCalculator
                 'rate' => NpoValueCalculation::UNCERTAINTY_RATE,
                 'label' => '+/-15%',
             ],
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     * @return array<string, mixed>
+     */
+    private function impactGovernance(array $input): array
+    {
+        $theoryOfChange = $input['theory_of_change'] ?? $input['outcomes_pathway'] ?? null;
+        $stakeholders = $input['stakeholder_evidence'] ?? $input['stakeholders_consulted'] ?? [];
+        $verificationSource = $input['external_verification_source'] ?? $input['impact_verification_source'] ?? null;
+        $externallyVerified = (bool) ($input['externally_verified'] ?? false)
+            || (is_string($verificationSource) && trim($verificationSource) !== '');
+        $theoryCaptured = (is_string($theoryOfChange) && trim($theoryOfChange) !== '')
+            || (is_array($theoryOfChange) && $theoryOfChange !== []);
+        $stakeholdersCaptured = (is_string($stakeholders) && trim($stakeholders) !== '')
+            || (is_array($stakeholders) && $stakeholders !== []);
+
+        return [
+            'verification_status' => $externallyVerified ? 'externally_verified' : 'internal_estimate_unverified',
+            'verification_label' => $externallyVerified
+                ? 'Externally verified impact evidence'
+                : 'Internal estimate - not externally verified',
+            'verification_source' => is_string($verificationSource) && trim($verificationSource) !== ''
+                ? trim($verificationSource)
+                : null,
+            'theory_of_change_status' => $theoryCaptured ? 'captured' : 'not_captured',
+            'stakeholder_involvement_status' => $stakeholdersCaptured ? 'captured' : 'not_captured',
+            'principles_prompted' => [
+                'involve_stakeholders',
+                'understand_change',
+                'value_what_matters',
+                'do_not_overclaim',
+                'verify_the_result',
+            ],
+            'limitation' => 'Mission value is an advisory estimate until stakeholder evidence, theory of change, and independent verification are recorded.',
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function defaultImpactGovernance(): array
+    {
+        return [
+            'verification_status' => 'internal_estimate_unverified',
+            'verification_label' => 'Internal estimate - not externally verified',
+            'verification_source' => null,
+            'theory_of_change_status' => 'not_captured',
+            'stakeholder_involvement_status' => 'not_captured',
+            'principles_prompted' => [
+                'involve_stakeholders',
+                'understand_change',
+                'value_what_matters',
+                'do_not_overclaim',
+                'verify_the_result',
+            ],
+            'limitation' => 'Mission value is an advisory estimate until stakeholder evidence, theory of change, and independent verification are recorded.',
         ];
     }
 

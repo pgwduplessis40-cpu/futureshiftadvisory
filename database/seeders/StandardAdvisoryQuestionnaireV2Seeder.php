@@ -44,7 +44,7 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
             $sections = [
                 [
                     'title' => 'Business Overview',
-                    'help_text' => 'Foundational context for the entity, ownership, and operating model.',
+                    'help_text' => 'Tell us what the business does, who owns it, and how it operates.',
                     'questions' => [
                         $this->q('Describe the business in plain English.', QuestionnaireQuestionType::LONG_TEXT, 'Tell us what your business does and who it helps in one or two sentences.'),
                         $this->q('Legal structure of the business.', QuestionnaireQuestionType::SINGLE_SELECT, 'What legal form is the business? This affects tax and liability.', options: $this->options(['Sole trader', 'Partnership', 'Company', 'Trust', 'Other'])),
@@ -81,7 +81,7 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
                 ],
                 [
                     'title' => 'Financial Position',
-                    'help_text' => 'High-level financial signals and the evidence-attachment path.',
+                    'help_text' => 'The key numbers and documents that show how the business is performing.',
                     'questions' => [
                         $this->q('Approximate annual revenue for the last completed year.', QuestionnaireQuestionType::CURRENCY, 'Give the total sales for the last full year.'),
                         $this->q('Latest financial statements.', QuestionnaireQuestionType::FILE_ATTACH, 'Upload profit & loss and balance sheet if available.', required: false),
@@ -94,7 +94,7 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
                 ],
                 [
                     'title' => 'People and HR',
-                    'help_text' => 'Team size, people risks, and HR maturity.',
+                    'help_text' => 'Who works in the business, how work is covered, and where people risk sits.',
                     'questions' => [
                         $this->q('Number of staff and contractors.', QuestionnaireQuestionType::LONG_TEXT, 'List full-time, part-time and contractors separately.'),
                         $this->q('Do you have written employment contracts and contractor agreements?', QuestionnaireQuestionType::SINGLE_SELECT, 'Written agreements reduce employment risk. Upload if available.', options: $this->yesNo()),
@@ -109,7 +109,7 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
                     'help_text' => 'Operational systems, dependencies, and delivery risk.',
                     'questions' => [
                         $this->q('Core systems used day to day.', QuestionnaireQuestionType::LONG_TEXT, 'List accounting software, CRM, inventory system, POS, or spreadsheets.'),
-                        $this->q('System handoffs and duplicate entry.', QuestionnaireQuestionType::LONG_TEXT, 'List source system, destination system, data moved, frequency, owner, and whether the handoff is copy/paste, import/export, spreadsheet, or API.', required: false),
+                        $this->q('Where do you enter the same information more than once?', QuestionnaireQuestionType::LONG_TEXT, 'List the systems or spreadsheets involved, how often it happens, who does it, and whether it is copy/paste, upload/download, or automatic.', required: false),
                         $this->q('Supplier concentration (% from top three suppliers).', QuestionnaireQuestionType::NUMBER, 'What % of purchases come from your top three suppliers?', required: false),
                         $this->q('Do you have standard operating procedures (SOPs)?', QuestionnaireQuestionType::SINGLE_SELECT, 'Written procedures for core tasks reduce key-person risk. Upload if available.', options: $this->yesNo()),
                         $this->q('Do you have a business continuity or disaster recovery plan?', QuestionnaireQuestionType::SINGLE_SELECT, 'A simple plan for major disruptions.', options: $this->yesNo()),
@@ -124,7 +124,7 @@ final class StandardAdvisoryQuestionnaireV2Seeder extends Seeder
                         $this->q('Which channels generate paying customers?', QuestionnaireQuestionType::MULTI_SELECT, 'List the channels that actually produce sales (not just website visits).', options: $this->options(['Website', 'Social', 'Referrals', 'Marketplace', 'Wholesale', 'Email', 'Paid ads', 'Events', 'Other'])),
                         $this->q('Website URL and main product/service pages.', QuestionnaireQuestionType::LONG_TEXT, 'List the homepage and the pages that explain what you sell, including product, service, pricing, booking, or enquiry pages.', required: false),
                         $this->q('How accurately does the website describe what you sell?', QuestionnaireQuestionType::LONG_TEXT, 'Note any products/services, prices, locations, customer segments, proof points, or offers that are missing, outdated, or unclear online.', required: false),
-                        $this->q('Search and AI discoverability evidence.', QuestionnaireQuestionType::LONG_TEXT, 'Share known SEO, local search, structured data, FAQ, answer-engine, AI Overview, GEO, AEO, or AIO issues/opportunities.', required: false),
+                        $this->q('How do customers find you online?', QuestionnaireQuestionType::LONG_TEXT, 'Mention Google search, your website pages, FAQs, reviews, or any AI/search tools that bring enquiries. It is fine to write "not sure".', required: false),
                         $this->q('Leads per month and conversion to customers.', QuestionnaireQuestionType::LONG_TEXT, 'How many enquiries, and how many become paying customers?', required: false),
                         $this->q('Average sales cycle length.', QuestionnaireQuestionType::TEXT, 'From first contact to payment — days or weeks.', required: false),
                         $this->q('Monthly marketing spend and best-performing channels.', QuestionnaireQuestionType::LONG_TEXT, 'How much you spend and which channels give the best results.', required: false),

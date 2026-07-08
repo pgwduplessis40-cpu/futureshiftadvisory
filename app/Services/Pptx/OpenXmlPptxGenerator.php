@@ -7,6 +7,7 @@ namespace App\Services\Pptx;
 use App\Models\Report;
 use App\Models\ReportSection;
 use App\Services\Pptx\Contracts\PptxGenerator;
+use App\Support\Reports\SourceReferenceLabeler;
 use RuntimeException;
 use ZipArchive;
 
@@ -74,11 +75,23 @@ final class OpenXmlPptxGenerator implements PptxGenerator
     private function body(ReportSection $section): string
     {
         $sources = collect($section->attributions ?? [])
-            ->pluck('source_reference')
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $item): string => SourceReferenceLabeler::label(
+                (string) ($item['source_reference'] ?? ''),
+                isset($item['claim']) ? (string) $item['claim'] : null,
+            ))
             ->filter()
+            ->unique()
             ->implode(', ');
 
-        return trim($section->body."\n\n".$section->document_support_note."\n".$section->data_quality_note."\nSources: ".$sources);
+        $lines = collect([
+            $section->body,
+            $section->document_support_note,
+            $section->data_quality_note,
+            $sources === '' ? '' : 'Sources: '.$sources,
+        ])->filter(fn (mixed $line): bool => is_string($line) && trim($line) !== '');
+
+        return trim($lines->implode("\n\n"));
     }
 
     private function contentTypes(int $slides): string

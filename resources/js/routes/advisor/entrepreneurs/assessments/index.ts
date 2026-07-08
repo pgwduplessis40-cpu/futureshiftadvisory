@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
 export const finalise = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ finalise.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
 finalise.url = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ finalise.url = (args: { entrepreneurProfile: string | { id: string }, planAssess
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
 finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -56,7 +56,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
     const finaliseForm = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -71,7 +71,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
         finaliseForm.patch = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

@@ -139,9 +139,11 @@ final class ReportComposerTest extends TestCase
 
         $report->sections->each(function (ReportSection $section): void {
             $this->assertNotSame([], $section->attributions);
-            $this->assertNotSame('', $section->document_support_note);
-            $this->assertStringContainsString('Data quality note:', $section->data_quality_note);
         });
+        $this->assertStringContainsString('Backed by verified documents you uploaded.', $this->renderer->html);
+        $this->assertStringNotContainsString('no additional disclaimer recorded', $this->renderer->html);
+        $this->assertStringNotContainsString('no verified document support recorded', $this->renderer->html);
+        $this->assertStringNotContainsString('Sources: test:', $this->renderer->html);
     }
 
     public function test_client_report_includes_website_and_systems_findings_in_what_is_wrong_section(): void
@@ -179,6 +181,7 @@ final class ReportComposerTest extends TestCase
 
         $this->assertNotNull($whatIsWrong);
         $this->assertSame('What is wrong', $whatIsWrong->title);
+        $this->assertStringContainsString('[Medium] Website product/service mismatch', $whatIsWrong->body);
         $this->assertStringContainsString('Website product/service mismatch', $whatIsWrong->body);
         $this->assertStringContainsString('Systems automation gap', $whatIsWrong->body);
         $this->assertStringContainsString('What is wrong', $this->renderer->html);

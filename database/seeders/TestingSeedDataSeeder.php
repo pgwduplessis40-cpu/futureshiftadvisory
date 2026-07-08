@@ -4534,7 +4534,7 @@ XML);
             sections: [
                 ['outcomes', 'Target outcomes', 'Lift cash resilience before peak season, reduce debtor drag, and create a repeatable monthly evidence pack for advisor review.'],
                 ['priorities', 'Action priorities', 'Start with receivables discipline, then connect inventory controls and weekly cash visibility before the next trading peak.'],
-                ['milestones', 'Milestone approach', 'Milestones are calculated from deployment date and owned by the client, advisor, or jointly.'],
+                ['milestones', 'Milestone approach', 'Milestone due dates are set from the agreed start date and owned by the client, advisor, or both.'],
                 ['budget', 'Budget and affordability', 'Use the approved Business Plan & Budget snapshot and GST-exclusive accepted proposal payment terms.'],
                 ['governance', 'Review rhythm', 'Fortnightly check-ins for the first six weeks, then monthly evidence and progress review.'],
             ],
@@ -4553,11 +4553,11 @@ XML);
             proposalId: $ddProposalId,
             budgetId: $ddBudget->getKey(),
             status: StrategicPlan::STATUS_DRAFT,
-            summary: 'Southern Lights has accepted the DD advisory proposal. This draft strategic plan is ready for advisor review before deployment to the buyer portal.',
+            summary: 'Southern Lights has accepted the DD advisory proposal. This draft strategic plan is ready for advisor review before it is shared with the buyer portal.',
             sections: [
                 ['outcomes', 'Target outcomes', 'Protect purchase price, complete conditions precedent, and convert DD findings into first 100-day operating controls.'],
                 ['priorities', 'Action priorities', 'Confirm customer concentration protection, completion accounts process, funding buffer, and handover owner before settlement.'],
-                ['milestones', 'Milestone approach', 'Advisor reviews milestone ownership with the buyer before deployment.'],
+                ['milestones', 'Milestone approach', 'Advisor reviews milestone ownership with the buyer before the plan starts.'],
                 ['budget', 'Budget and affordability', 'Use the approved DD Business Plan & Budget and accepted advisory proposal over 12 months.'],
                 ['governance', 'Review rhythm', 'Weekly until settlement, then fortnightly for the first 90 days.'],
             ],
@@ -5081,7 +5081,7 @@ XML);
         return match ($scenario) {
             'due_diligence' => [
                 ['title' => 'Protect downside before settlement', 'measure' => 'Holdback or earnout treatment agreed before signing.'],
-                ['title' => 'Convert DD into operating cadence', 'measure' => 'First 100-day controls ready before proposal deployment.'],
+                ['title' => 'Convert DD into operating cadence', 'measure' => 'First 100-day controls ready before proposal sign-off.'],
             ],
             'post_acquisition' => [
                 ['title' => 'Stabilise first 90 days', 'measure' => 'Weekly reporting pack and risk register reviewed with advisor.'],

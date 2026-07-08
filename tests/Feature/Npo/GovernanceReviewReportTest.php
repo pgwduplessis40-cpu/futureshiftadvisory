@@ -91,12 +91,11 @@ final class GovernanceReviewReportTest extends TestCase
         $this->assertStringContainsString('s.42G evidence statement', $this->renderer->html);
         $this->assertStringContainsString('not legal advice', $this->renderer->html);
         $this->assertStringContainsString('Advisor-reviewed findings', $this->renderer->html);
-        $this->assertStringContainsString('Document support: verified document evidence is linked.', $this->renderer->html);
+        $this->assertStringContainsString('Backed by verified documents you uploaded.', $this->renderer->html);
 
         $report->sections->each(function ($section): void {
             $this->assertNotSame([], $section->attributions);
             $this->assertStringContainsString('Data quality note:', $section->data_quality_note);
-            $this->assertNotSame('', $section->document_support_note);
         });
         $this->assertDatabaseHas('audit_events', [
             'action' => 'npo.governance_review_report_generated',

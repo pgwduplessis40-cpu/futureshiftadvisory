@@ -447,6 +447,12 @@ type NpoValueCalculation = {
     projection_high: number;
     mission_framing: string;
     stable_assumption_disclosure: string;
+    impact_governance?: {
+        verification_status: string;
+        verification_label: string;
+        theory_of_change_status: string;
+        stakeholder_involvement_status: string;
+    };
     projections: NpoValueProjection[];
     calculated_at: string | null;
 };
@@ -3158,17 +3164,45 @@ function NpoValuePanel({ values }: { values: NpoValueSummary }) {
                             <div className="font-medium">
                                 {calculation.label}
                             </div>
-                            <Badge
-                                variant={
-                                    calculation.rating === 'critical' ||
-                                    calculation.rating === 'high_cost'
-                                        ? 'destructive'
-                                        : 'outline'
-                                }
-                            >
-                                {formatLabel(calculation.rating)}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {calculation.impact_governance && (
+                                    <Badge variant="secondary">
+                                        {
+                                            calculation.impact_governance
+                                                .verification_label
+                                        }
+                                    </Badge>
+                                )}
+                                <Badge
+                                    variant={
+                                        calculation.rating === 'critical' ||
+                                        calculation.rating === 'high_cost'
+                                            ? 'destructive'
+                                            : 'outline'
+                                    }
+                                >
+                                    {formatLabel(calculation.rating)}
+                                </Badge>
+                            </div>
                         </div>
+                        {calculation.impact_governance && (
+                            <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
+                                <span>
+                                    Theory:{' '}
+                                    {formatLabel(
+                                        calculation.impact_governance
+                                            .theory_of_change_status,
+                                    )}
+                                </span>
+                                <span>
+                                    Stakeholders:{' '}
+                                    {formatLabel(
+                                        calculation.impact_governance
+                                            .stakeholder_involvement_status,
+                                    )}
+                                </span>
+                            </div>
+                        )}
                         <div className="grid gap-2 text-sm sm:grid-cols-3">
                             <Detail
                                 label="Low"
@@ -3975,7 +4009,7 @@ function StrategicPlanEditor({
                             Milestone tracker
                         </h3>
                         <p className="text-xs text-muted-foreground">
-                            Due dates are calculated from deployment date.
+                            Due dates are set from the agreed start date.
                         </p>
                     </div>
                     {!deployed && (

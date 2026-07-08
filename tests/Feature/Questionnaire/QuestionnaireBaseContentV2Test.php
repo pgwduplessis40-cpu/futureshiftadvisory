@@ -45,8 +45,8 @@ final class QuestionnaireBaseContentV2Test extends TestCase
         $prompts = $questions->pluck('prompt')->all();
         $this->assertContains('Website URL and main product/service pages.', $prompts);
         $this->assertContains('How accurately does the website describe what you sell?', $prompts);
-        $this->assertContains('Search and AI discoverability evidence.', $prompts);
-        $this->assertContains('System handoffs and duplicate entry.', $prompts);
+        $this->assertContains('How do customers find you online?', $prompts);
+        $this->assertContains('Where do you enter the same information more than once?', $prompts);
         $this->assertContains('Manual tasks that take a lot of time each week.', $prompts);
         $this->assertContains('Automation constraints and approvals.', $prompts);
         // Every question carries its "why we need this" as help_text.

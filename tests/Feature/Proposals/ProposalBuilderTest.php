@@ -165,7 +165,7 @@ final class ProposalBuilderTest extends TestCase
         Storage::disk('secure_local')->assertExists($proposal->pdf_path);
         $this->assertGreaterThan(100, $proposal->pdf_byte_size);
         $this->assertStringContainsString('Future Shift Advisory', $this->renderer->html);
-        $this->assertStringContainsString('ROI ratio', $this->renderer->html);
+        $this->assertStringContainsString('For every NZD 1 of advisory fee', $this->renderer->html);
     }
 
     public function test_zero_fee_proposal_suppresses_roi_ratio_copy(): void
@@ -182,7 +182,7 @@ final class ProposalBuilderTest extends TestCase
         app(ProposalBuilder::class)->rerenderPdf($proposal);
 
         $this->assertStringContainsString('Suggested range: NZD 0 - NZD 0 - NZD 0', $this->renderer->html);
-        $this->assertStringNotContainsString('ROI ratio', $this->renderer->html);
+        $this->assertStringNotContainsString('For every NZD 1 of advisory fee', $this->renderer->html);
     }
 
     public function test_proposal_includes_analysis_fixes_from_website_audit_findings(): void
@@ -230,7 +230,8 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('What needs to be fixed', $this->renderer->html);
         $this->assertStringContainsString('Website audit action plan', $this->renderer->html);
         $this->assertStringContainsString('Align the product and service pages', $this->renderer->html);
-        $this->assertStringContainsString('Sources: questionnaire_answer:website-fixture', $this->renderer->html);
+        $this->assertStringContainsString('Sources: Website audit evidence comes from the submitted questionnaire. (Client questionnaire answer)', $this->renderer->html);
+        $this->assertStringNotContainsString('Sources: questionnaire_answer:website-fixture', $this->renderer->html);
     }
 
     public function test_proposal_deduplicates_repeated_historical_focus_findings(): void

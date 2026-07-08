@@ -212,6 +212,37 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(7_000.0, $computed['monthly_detail'][1]['cumulative_cash']);
     }
 
+    public function test_working_capital_timing_delays_revenue_and_supplier_cash(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [],
+            monthlyFixedCosts: [],
+            revenueForecast: [[
+                'label' => 'Sales',
+                'amount' => 3_000,
+                'gross_profit_percent' => 50,
+            ]],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+            assumptions: [
+                'debtor_days' => 30,
+                'creditor_days' => 60,
+            ],
+        );
+
+        $this->assertSame(30, $computed['assumptions']['working_capital_timing']['debtor_days']);
+        $this->assertSame(1, $computed['assumptions']['working_capital_timing']['debtor_lag_months']);
+        $this->assertSame(60, $computed['assumptions']['working_capital_timing']['creditor_days']);
+        $this->assertSame(2, $computed['assumptions']['working_capital_timing']['creditor_lag_months']);
+        $this->assertSame(0.0, $computed['monthly_detail'][0]['cash_collected']);
+        $this->assertSame(0.0, $computed['monthly_detail'][0]['variable_costs_paid']);
+        $this->assertSame(0.0, $computed['monthly_detail'][0]['net_cash_flow']);
+        $this->assertSame(3_000.0, $computed['monthly_detail'][1]['cash_collected']);
+        $this->assertSame(0.0, $computed['monthly_detail'][1]['variable_costs_paid']);
+        $this->assertStringContainsString('Debtor days delay forecast revenue', $computed['explanations']['working_capital_timing']);
+    }
+
     public function test_fixed_cost_start_month_is_honoured_in_monthly_simulation(): void
     {
         $computed = $this->calculator()->compute(

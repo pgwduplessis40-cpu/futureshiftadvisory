@@ -94,10 +94,18 @@ final class DdValuationTest extends TestCase
             $valuation->sensitivity['plus_10_percent_rate']['reconciled']['mid'],
         );
         $this->assertSame('within_range', $valuation->buyer_position['position']);
+        $this->assertSame('standalone_reconciled_equity_value_nzd', $valuation->buyer_position['position_basis']);
         $this->assertSame('dcf', $valuation->buyer_position['valuation_basis']['primary_method']);
         $this->assertSame('Comparable target', $valuation->buyer_position['precedent_transactions'][0]['label']);
         $this->assertEqualsWithDelta(-25000.0, $valuation->buyer_position['deal_structure_adjustments'][0]['amount'], 0.01);
         $this->assertEqualsWithDelta(40000.0, $valuation->buyer_position['synergy_adjustments'][0]['amount'], 0.01);
+        $valueWalk = $valuation->buyer_position['value_walk'];
+        $this->assertSame('standalone_value_separated_from_buyer_specific_synergies', $valueWalk['basis']);
+        $this->assertEqualsWithDelta($valuation->normalised_values['reconciled']['mid'], $valueWalk['standalone_value_range_nzd']['mid'], 0.01);
+        $this->assertEqualsWithDelta(-25000.0, $valueWalk['deal_structure_adjustment_nzd'], 0.01);
+        $this->assertEqualsWithDelta(40000.0, $valueWalk['synergy_adjustment_nzd'], 0.01);
+        $this->assertEqualsWithDelta($valuation->normalised_values['reconciled']['mid'] + 15000.0, $valueWalk['buyer_specific_value_range_nzd']['mid'], 0.01);
+        $this->assertStringContainsString('Standalone value', $valueWalk['disclosure']);
         $this->assertContains(
             "exchange_rate:{$rate->id}:NZD/USD",
             collect($valuation->source_attributions)->pluck('source_reference')->all(),

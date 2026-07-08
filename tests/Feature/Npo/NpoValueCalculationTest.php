@@ -69,6 +69,9 @@ final class NpoValueCalculationTest extends TestCase
             'programme_type' => 'food_rescue',
             'programme_expenditure' => 60000,
             'beneficiary_count' => 80,
+            'theory_of_change' => 'Food rescue reduces household food insecurity by redirecting surplus meals.',
+            'stakeholder_evidence' => ['beneficiary interviews', 'funder outcome report'],
+            'external_verification_source' => 'Independent impact review 2026',
         ]);
 
         $this->assertSame(NpoValueCalculation::TYPE_COST_PER_BENEFICIARY, $calculation->type);
@@ -80,6 +83,9 @@ final class NpoValueCalculationTest extends TestCase
         $this->assertEqualsWithDelta(17000.0, $calculation->projection_low, 0.01);
         $this->assertEqualsWithDelta(23000.0, $calculation->projection_high, 0.01);
         $this->assertSame(0.15, $calculation->result['projections'][0]['uncertainty']['rate']);
+        $this->assertSame('externally_verified', $calculation->result['impact_governance']['verification_status']);
+        $this->assertSame('captured', $calculation->result['impact_governance']['theory_of_change_status']);
+        $this->assertSame('captured', $calculation->result['impact_governance']['stakeholder_involvement_status']);
         $this->assertStringContainsString('mission delivery', $calculation->result['mission_framing']);
         $this->assertStringContainsString('+/-15%', $calculation->stable_assumption_disclosure);
     }
@@ -112,7 +118,9 @@ final class NpoValueCalculationTest extends TestCase
         $this->assertNull($calculation->result['variance_to_benchmark']);
         $this->assertSame('benchmark_pending', $calculation->rating);
         $this->assertSame(0.0, $calculation->projection_mid);
-        $this->assertSame([], $calculation->result['projections']);
+        $this->assertSame('benchmark_pending_baseline', $calculation->result['projections'][0]['key']);
+        $this->assertSame(0.15, $calculation->result['projections'][0]['uncertainty']['rate']);
+        $this->assertSame('internal_estimate_unverified', $calculation->result['impact_governance']['verification_status']);
         $this->assertStringContainsString('No official external NZ cost-per-beneficiary benchmark is available', $calculation->result['mission_framing']);
         $this->assertStringContainsString('pending a sufficient comparable sample', $calculation->source_attributions[0]['claim']);
     }
@@ -206,6 +214,7 @@ final class NpoValueCalculationTest extends TestCase
                 ->component('advisor/clients/Show')
                 ->has('client.npo_values.calculations', 2)
                 ->where('client.npo_values.calculations.0.projections.0.uncertainty.rate', 0.15)
+                ->where('client.npo_values.calculations.0.impact_governance.verification_status', 'internal_estimate_unverified')
                 ->where('client.npo_values.calculations', fn (mixed $calculations): bool => collect($calculations)
                     ->pluck('type')
                     ->sort()

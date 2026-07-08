@@ -442,7 +442,7 @@ final class StrategicBudgetService
                 ],
             ],
             'predictive' => [
-                'summary' => "Runway is {$runwayText}; break-even is {$breakEvenText}; cash-flow positive timing is {$cashFlowPositiveText}.",
+                'summary' => "Runway is {$runwayText}.",
                 'explanation' => 'Projects runway, break-even timing, cash-flow timing, and scenario outcomes.',
                 'findings' => $predictions,
                 'key_events' => [

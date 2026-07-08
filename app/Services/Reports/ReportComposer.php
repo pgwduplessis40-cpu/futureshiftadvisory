@@ -60,6 +60,7 @@ use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Pv\PvWaterfallReportChart;
 use App\Services\Pv\RiskCostPv;
 use App\Support\Methodology\ProvidesMethodology;
+use App\Support\Reports\SourceReferenceLabeler;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -2090,8 +2091,8 @@ final class ReportComposer implements ProvidesMethodology
         return [
             'support' => $support,
             'note' => $count > 0
-                ? "verified document evidence is linked ({$count} attachment(s))."
-                : 'no verified document support recorded for the scored sections.',
+                ? "Backed by {$count} uploaded document".($count === 1 ? '' : 's').'.'
+                : '',
             'data_quality_indicator' => $count > 0 ? 'document-supported draft' : 'draft-only evidence',
         ];
     }
@@ -2594,8 +2595,9 @@ final class ReportComposer implements ProvidesMethodology
         $businessValuation = $valuation->businessValuation;
         $dcfRange = $this->ddValuationRange($valuation, 'dcf_value');
         $reconciledRange = $this->ddValuationRange($valuation, 'reconciled');
+        $valueWalkNote = $this->ddValueWalkNote($valuation);
         $body = sprintf(
-            "Primary DCF/PV value: %s midpoint, with a %s to %s DCF range.\nMarket-multiple cross-checks: SDE %s; EBITDA %s.\nReconciled NZD range: %s low, %s midpoint, %s high.\nFX: %s to NZD at %s, timestamp %s.\nBuyer position: %s.",
+            "Primary DCF/PV value: %s midpoint, with a %s to %s DCF range.\nMarket-multiple cross-checks: SDE %s; EBITDA %s.\nReconciled standalone NZD range: %s low, %s midpoint, %s high.%s\nFX: %s to NZD at %s, timestamp %s.\nBuyer position: %s.",
             $this->money($dcfRange['mid'] ?? null),
             $this->money($dcfRange['low'] ?? null),
             $this->money($dcfRange['high'] ?? null),
@@ -2604,6 +2606,7 @@ final class ReportComposer implements ProvidesMethodology
             $this->money($reconciledRange['low'] ?? null),
             $this->money($reconciledRange['mid'] ?? null),
             $this->money($reconciledRange['high'] ?? null),
+            $valueWalkNote,
             $valuation->source_currency,
             number_format($valuation->source_to_nzd_rate, 4),
             $valuation->rate_timestamp?->toDateTimeString() ?? 'n/a',
@@ -2656,12 +2659,14 @@ final class ReportComposer implements ProvidesMethodology
         $purchaseRange = $dcfRange === null
             ? null
             : $this->applyPurchasePriceAdjustments($dcfRange, $dealStructureAdjustment, $synergyAdjustment, $riskAdjustment);
+        $valueWalkNote = $this->ddValueWalkNote($valuation);
 
         $body = sprintf(
-            "Primary basis: Discounted Cash Flow (DCF), %s low, %s midpoint, %s high.\nCross-checks: market multiples indicate %s low, %s midpoint, %s high; precedent transactions indicate %s low, %s midpoint, %s high.\nAdjustments applied to the DCF range: deal structure %s, synergies %s, due-diligence risk %s.\nEstimated purchase-price range for advisor review: %s low, %s midpoint, %s high.",
+            "Primary basis: Discounted Cash Flow (DCF), %s low, %s midpoint, %s high.%s\nCross-checks: market multiples indicate %s low, %s midpoint, %s high; precedent transactions indicate %s low, %s midpoint, %s high.\nAdjustments applied to the DCF range: deal structure %s, synergies %s, due-diligence risk %s.\nEstimated purchase-price range for advisor review: %s low, %s midpoint, %s high.",
             $this->money($dcfRange['low'] ?? null),
             $this->money($dcfRange['mid'] ?? null),
             $this->money($dcfRange['high'] ?? null),
+            $valueWalkNote,
             $this->money($marketRange['low'] ?? null),
             $this->money($marketRange['mid'] ?? null),
             $this->money($marketRange['high'] ?? null),
@@ -2691,6 +2696,7 @@ final class ReportComposer implements ProvidesMethodology
                 'synergy_adjustment_nzd' => $synergyAdjustment,
                 'due_diligence_risk_adjustment_nzd' => $riskAdjustment,
                 'purchase_price_range_nzd' => $purchaseRange,
+                'value_walk' => data_get($valuation->buyer_position, 'value_walk'),
             ],
         );
     }
@@ -3021,11 +3027,15 @@ final class ReportComposer implements ProvidesMethodology
             ->filter()
             ->values()
             ->all();
+        $disclosures = $valuation instanceof BusinessValuation
+            ? $this->valuationDisclosureLines($valuation)
+            : [];
 
         $body = sprintf(
-            "Methodology version: valuation.business; report-layer composition %s.\nUncertainty standard: forward-looking valuation outputs are presented as ranges.\nInput attribution: %s.\nAdvisor review: confirm earnings add-backs, surplus assets, multiple feed date, and DCF assumptions before releasing to a client.",
+            "Methodology version: valuation.business; report-layer composition %s.\nUncertainty standard: forward-looking valuation outputs are presented as ranges.\nInput attribution: %s.\nProfessional scope and reliance notes:\n%s\nAdvisor review: confirm earnings add-backs, surplus assets, multiple feed date, DCF assumptions, basis of value, purpose, and reliance limitations before releasing to a client.",
             now()->toDateString(),
             $sources === [] ? 'No explicit source attribution recorded on the valuation row.' : implode(', ', $sources),
+            $disclosures === [] ? 'No structured valuation disclosures are recorded yet.' : implode("\n", $disclosures),
         );
 
         return $this->generatedSection(
@@ -3037,6 +3047,7 @@ final class ReportComposer implements ProvidesMethodology
             metadata: [
                 'calculation_methods' => ['Business valuation reconciliation', 'Present-value engine'],
                 'source_attributions' => $valuation?->source_attributions ?? [],
+                'valuation_disclosures' => $valuation?->valuation_disclosures ?? [],
                 'as_at' => $valuation?->as_at?->toIso8601String(),
             ],
         );
@@ -3161,15 +3172,21 @@ final class ReportComposer implements ProvidesMethodology
         $riskSources = $risks
             ->flatMap(fn (DdRiskRegisterItem $risk): array => $risk->source_attributions ?? [])
             ->filter(fn (mixed $item): bool => is_array($item))
-            ->map(fn (array $source): string => (string) ($source['source_reference'] ?? $source['id'] ?? 'source'))
+            ->map(fn (array $source): string => SourceReferenceLabeler::label(
+                (string) ($source['source_reference'] ?? $source['id'] ?? ''),
+                (string) ($source['claim'] ?? ''),
+            ))
             ->filter()
             ->unique()
             ->values()
             ->all();
+        $valuationSource = $valuation instanceof DdValuation
+            ? SourceReferenceLabeler::label('dd_valuation:'.$valuation->getKey(), 'DD valuation').' as at '.($valuation->as_at?->toDateString() ?? 'not dated')
+            : 'no DD valuation available';
 
         $body = sprintf(
             "Valuation source: %s.\nRisk-register rows used: %d.\nEvidence sources: %s.\nAdvisor review: confirm any unquantified legal, tax, employment, and financing conditions before issuing the decision to the client.",
-            $valuation instanceof DdValuation ? 'dd_valuation:'.$valuation->getKey().' as at '.($valuation->as_at?->toDateString() ?? 'not dated') : 'no DD valuation available',
+            $valuationSource,
             $risks->count(),
             $riskSources === [] ? 'No explicit risk source attribution recorded.' : implode(', ', $riskSources),
         );
@@ -3337,17 +3354,19 @@ final class ReportComposer implements ProvidesMethodology
     {
         $body = $valuation instanceof BusinessValuation
             ? sprintf(
-                'Current valuation range is NZD %s to NZD %s, with reconciled midpoint NZD %s.',
+                "Current valuation range is NZD %s to NZD %s, with reconciled midpoint NZD %s.\n%s",
                 number_format($valuation->reconciled_low, 0),
                 number_format($valuation->reconciled_high, 0),
                 number_format($valuation->reconciled_mid, 0),
+                $this->metricExplanation('valuation_range'),
             )
             : sprintf(
-                'Current PV is NZD %s and modelled upside PV is NZD %s from the latest platform waterfall, with a planning range of NZD %s to NZD %s.',
+                "Current PV is NZD %s and modelled upside PV is NZD %s from the latest platform waterfall, with a planning range of NZD %s to NZD %s.\n%s",
                 number_format((float) $waterfall['current_pv'], 0),
                 number_format((float) $waterfall['target_pv'], 0),
                 number_format((float) data_get($waterfall, 'target_pv_range.low', $waterfall['target_pv']), 0),
                 number_format((float) data_get($waterfall, 'target_pv_range.high', $waterfall['target_pv']), 0),
+                $this->metricExplanation('pv'),
             );
 
         return $this->generatedSection(
@@ -3369,13 +3388,15 @@ final class ReportComposer implements ProvidesMethodology
             key: 'pv_waterfall',
             title: 'PV waterfall',
             body: sprintf(
-                'The advisor view includes current PV NZD %s, improvements NZD %s, risk mitigation NZD %s, and modelled upside PV NZD %s. The modelled upside range is NZD %s to NZD %s and assumes surfaced improvements and risk mitigations are fully captured.',
+                "The advisor view includes current PV NZD %s, improvements NZD %s, risk mitigation NZD %s, and modelled upside PV NZD %s. The modelled upside range is NZD %s to NZD %s and assumes surfaced improvements and risk mitigations are fully captured.\n%s\n%s",
                 number_format((float) $waterfall['current_pv'], 0),
                 number_format((float) $waterfall['improvement_pv'], 0),
                 number_format((float) $waterfall['risk_mitigation_pv'], 0),
                 number_format((float) $waterfall['target_pv'], 0),
                 number_format((float) data_get($waterfall, 'target_pv_range.low', $waterfall['target_pv']), 0),
                 number_format((float) data_get($waterfall, 'target_pv_range.high', $waterfall['target_pv']), 0),
+                $this->metricExplanation('pv'),
+                $this->metricExplanation('modelled_upside'),
             ),
             sourceReference: 'pv_waterfall:'.$client->getKey(),
             dataQualityNote: 'Data quality note: waterfall values are assembled from the latest persisted PV rows.',
@@ -3394,16 +3415,16 @@ final class ReportComposer implements ProvidesMethodology
         return [
             'key' => 'finding_'.$finding->getKey(),
             'title' => $finding->title,
-            'body' => $finding->body,
+            'body' => 'Key takeaway: '.$this->keyTakeaway($finding)."\n\n".$finding->body,
             'lens' => $finding->lens->value,
             'attributions' => $this->attributions($finding),
             'document_support' => $finding->document_support,
             'document_support_note' => $this->documentSupportNote($finding->document_support),
-            'data_quality_note' => $finding->data_quality_disclaimer
-                ?: 'Data quality note: no additional disclaimer recorded for this finding.',
+            'data_quality_note' => $finding->data_quality_disclaimer ?: '',
             'metadata' => [
                 'analysis_finding_id' => $finding->getKey(),
                 'severity' => $finding->severity->value,
+                'key_takeaway' => $this->keyTakeaway($finding),
                 'module' => $finding->run?->module?->value,
             ],
         ];
@@ -3459,8 +3480,14 @@ final class ReportComposer implements ProvidesMethodology
         }
 
         $body = $selected
+            ->sortByDesc(fn (AnalysisFinding $finding): int => $this->severityRank($finding->severity))
             ->take(8)
-            ->map(fn (AnalysisFinding $finding): string => $finding->title.': '.$finding->body)
+            ->map(fn (AnalysisFinding $finding): string => sprintf(
+                '[%s] %s: %s',
+                $this->severityLabel($finding->severity),
+                $finding->title,
+                $this->keyTakeaway($finding),
+            ))
             ->implode("\n\n");
 
         return $this->generatedSection(
@@ -3471,9 +3498,56 @@ final class ReportComposer implements ProvidesMethodology
             documentSupport: $this->strongestDocumentSupport($selected),
             dataQualityNote: $this->combinedDataQualityNote($selected),
             metadata: [
-                'diagnostic_finding_ids' => $selected->pluck('id')->values()->all(),
+                'diagnostic_finding_ids' => $selected
+                    ->sortByDesc(fn (AnalysisFinding $finding): int => $this->severityRank($finding->severity))
+                    ->take(8)
+                    ->pluck('id')
+                    ->values()
+                    ->all(),
             ],
         );
+    }
+
+    private function keyTakeaway(AnalysisFinding $finding): string
+    {
+        $body = trim((string) $finding->body);
+        $normalised = trim((string) preg_replace('/\s+/', ' ', $body));
+        $parts = preg_split('/(?<=[.!?])\s+/', $normalised, 2);
+        $firstSentence = trim((string) ($parts[0] ?? ''));
+
+        if ($firstSentence === '') {
+            return $finding->title;
+        }
+
+        return Str::limit($firstSentence, 180, '');
+    }
+
+    private function severityRank(FindingSeverity $severity): int
+    {
+        return match ($severity) {
+            FindingSeverity::Critical => 5,
+            FindingSeverity::High => 4,
+            FindingSeverity::Medium => 3,
+            FindingSeverity::Low => 2,
+            FindingSeverity::Info => 1,
+        };
+    }
+
+    private function severityLabel(FindingSeverity $severity): string
+    {
+        return Str::headline($severity->value);
+    }
+
+    private function metricExplanation(string $metric): string
+    {
+        return match ($metric) {
+            'pv' => "PV (present value) means future benefits expressed as a single today's-dollars figure.",
+            'modelled_upside' => 'Modelled upside is the value the plan could unlock if the identified improvements and risk reductions are actually achieved.',
+            'valuation_range' => 'A valuation range gives a low-to-high planning view; the midpoint is a guide, not a guaranteed sale price.',
+            'roi' => 'ROI compares modelled value with the advisory fee; for example, 3.25 means every NZD 1 of fee is modelled to unlock NZD 3.25 of value.',
+            'goal_target' => 'A goal target is the value outcome the advisor and client agree to track over time.',
+            default => '',
+        };
     }
 
     /**
@@ -3493,11 +3567,11 @@ final class ReportComposer implements ProvidesMethodology
 
         $fee = $proposal->feeCalculation;
         $body = sprintf(
-            'Latest proposal v%s has suggested midpoint fee NZD %s and ROI ratio %s. Proposal status is %s.',
+            'Latest proposal v%s has suggested midpoint fee NZD %s. For every NZD 1 of advisory fee, the model shows NZD %s of potential value. Proposal status: %s.',
             $proposal->version,
             number_format($fee?->suggested_mid ?? 0, 0),
             number_format($proposal->roi_ratio, 2),
-            $proposal->status->value,
+            Str::headline($proposal->status->value),
         );
 
         return $this->generatedSection(
@@ -3944,7 +4018,7 @@ final class ReportComposer implements ProvidesMethodology
                 body: $calculations->isEmpty()
                     ? 'No NPO value calculations have been recorded yet.'
                     : $calculations
-                        ->map(fn (NpoValueCalculation $calculation): string => "{$calculation->type}: {$this->money($calculation->projection_mid)} midpoint, range {$this->money($calculation->projection_low)} to {$this->money($calculation->projection_high)}. Mission framing: ".(string) ($calculation->result['mission_framing'] ?? 'Mission impact framing retained.'))
+                        ->map(fn (NpoValueCalculation $calculation): string => "{$calculation->type}: {$this->money($calculation->projection_mid)} midpoint, range {$this->money($calculation->projection_low)} to {$this->money($calculation->projection_high)}. Verification: ".(string) data_get($calculation->result, 'impact_governance.verification_label', 'Internal estimate - not externally verified').'. Theory of change: '.(string) data_get($calculation->result, 'impact_governance.theory_of_change_status', 'not_captured').'. Stakeholders: '.(string) data_get($calculation->result, 'impact_governance.stakeholder_involvement_status', 'not_captured').'. Mission framing: '.(string) ($calculation->result['mission_framing'] ?? 'Mission impact framing retained.'))
                         ->implode("\n"),
                 sourceReference: 'npo_value_calculations:'.$engagement->getKey(),
                 dataQualityNote: 'Data quality note: values include the mandatory +/-15% uncertainty range and are framed as mission ROI, not commercial profit.',
@@ -4087,7 +4161,7 @@ final class ReportComposer implements ProvidesMethodology
             ]],
             'document_support' => $documentSupport,
             'document_support_note' => $this->documentSupportNote($documentSupport),
-            'data_quality_note' => $dataQualityNote ?: 'Data quality note: platform-generated section from persisted records.',
+            'data_quality_note' => $dataQualityNote ?: '',
             'metadata' => $metadata,
         ];
     }
@@ -4121,10 +4195,10 @@ final class ReportComposer implements ProvidesMethodology
     private function documentSupportNote(string $support): string
     {
         return match ($support) {
-            AnalysisFinding::DOCUMENT_SUPPORT_VERIFIED => 'Document support: verified document evidence is linked.',
-            AnalysisFinding::DOCUMENT_SUPPORT_ADVISORY_FLAG => 'Document support: advisor flag is noted and must be considered.',
-            AnalysisFinding::DOCUMENT_SUPPORT_ACCURACY_DISCREPANCY => 'Document support: accuracy discrepancy is noted.',
-            default => 'Document support: no verified document support recorded.',
+            AnalysisFinding::DOCUMENT_SUPPORT_VERIFIED => 'Backed by verified documents you uploaded.',
+            AnalysisFinding::DOCUMENT_SUPPORT_ADVISORY_FLAG => 'Includes a document point that needs advisor review.',
+            AnalysisFinding::DOCUMENT_SUPPORT_ACCURACY_DISCREPANCY => 'Includes a document discrepancy that needs resolution.',
+            default => '',
         };
     }
 
@@ -4158,7 +4232,7 @@ final class ReportComposer implements ProvidesMethodology
             ->values();
 
         return $notes->isEmpty()
-            ? 'Data quality note: no additional disclaimer recorded for implementation findings.'
+            ? ''
             : $notes->implode("\n");
     }
 
@@ -4228,6 +4302,24 @@ final class ReportComposer implements ProvidesMethodology
                 is_numeric($range['input'] ?? null) ? ' from input '.$this->money($range['input']) : '',
             );
         })->values()->all();
+    }
+
+    /**
+     * @return array<int, string>
+     */
+    private function valuationDisclosureLines(BusinessValuation $valuation): array
+    {
+        return collect($valuation->valuation_disclosures ?? [])
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(function (array $disclosure): string {
+                $type = str((string) ($disclosure['type'] ?? 'disclosure'))->replace('_', ' ')->title();
+                $message = trim((string) ($disclosure['message'] ?? ''));
+
+                return $message === '' ? null : "{$type}: {$message}";
+            })
+            ->filter()
+            ->values()
+            ->all();
     }
 
     /**
@@ -4796,6 +4888,25 @@ final class ReportComposer implements ProvidesMethodology
             ->sum(fn (array $adjustment): float => (float) ($adjustment['amount'] ?? $adjustment['value'] ?? 0)), 2);
     }
 
+    private function ddValueWalkNote(DdValuation $valuation): string
+    {
+        $walk = data_get($valuation->buyer_position, 'value_walk');
+        if (! is_array($walk)) {
+            return '';
+        }
+
+        $standaloneMid = data_get($walk, 'standalone_value_range_nzd.mid');
+        $buyerSpecificMid = data_get($walk, 'buyer_specific_value_range_nzd.mid');
+
+        return sprintf(
+            "\nValue walk: standalone midpoint %s; deal-structure adjustment %s; synergy adjustment %s; buyer-specific midpoint %s. Standalone and buyer-specific values are deliberately separated.",
+            $this->money($standaloneMid),
+            $this->money($walk['deal_structure_adjustment_nzd'] ?? null),
+            $this->money($walk['synergy_adjustment_nzd'] ?? null),
+            $this->money($buyerSpecificMid),
+        );
+    }
+
     /**
      * @param  array{low:float, mid:float, high:float}  $range
      * @return array{low:float, mid:float, high:float}
@@ -5119,13 +5230,19 @@ HTML,
 
     private function sectionHtml(ReportSection $section): string
     {
-        $sources = collect($section->attributions ?? [])
-            ->map(fn (array $item): string => (string) ($item['source_reference'] ?? 'source'))
-            ->filter()
-            ->implode(', ');
+        $sources = $this->sectionSourceLabels($section);
         $chart = is_string($section->metadata['chart_html'] ?? null)
             ? '<div class="chart">'.$section->metadata['chart_html'].'</div>'
             : '';
+        $evidenceLines = collect([
+            $section->document_support_note,
+            $section->data_quality_note,
+            $sources === '' ? '' : 'Sources: '.$sources,
+        ])
+            ->filter(fn (mixed $line): bool => is_string($line) && trim($line) !== '')
+            ->map(fn (string $line): string => '<p>'.$this->escape($line).'</p>')
+            ->implode('');
+        $evidence = $evidenceLines === '' ? '' : '<div class="evidence">'.$evidenceLines.'</div>';
 
         return sprintf(
             <<<'HTML'
@@ -5133,21 +5250,29 @@ HTML,
 <h2>%s</h2>
 <div class="section-body">%s</div>
 %s
-<div class="evidence">
-<p>%s</p>
-<p>%s</p>
-<p>Sources: %s</p>
-</div>
+%s
 </article>
 HTML,
             $this->escape($section->key),
             $this->escape($section->title),
             nl2br($this->escape($section->body)),
             $chart,
-            $this->escape($section->document_support_note),
-            $this->escape($section->data_quality_note),
-            $this->escape($sources),
+            $evidence,
         );
+    }
+
+    private function sectionSourceLabels(ReportSection $section): string
+    {
+        return collect($section->attributions ?? [])
+            ->filter(fn (mixed $item): bool => is_array($item))
+            ->map(fn (array $item): string => SourceReferenceLabeler::label(
+                (string) ($item['source_reference'] ?? ''),
+                isset($item['claim']) ? (string) $item['claim'] : null,
+            ))
+            ->filter()
+            ->unique()
+            ->take(5)
+            ->implode(', ');
     }
 
     private function escape(string $value): string

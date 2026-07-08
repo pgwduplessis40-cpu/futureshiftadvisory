@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:31
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
 export const gate = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ gate.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:31
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
 gate.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -46,7 +46,7 @@ gate.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:31
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
 gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -56,7 +56,7 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:31
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
     const gateForm = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -71,7 +71,7 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::gate
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:30
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:31
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate'
  */
         gateForm.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -85,8 +85,85 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
         })
 
     gate.form = gateForm
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
+ */
+export const refresh = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: refresh.url(args, options),
+    method: 'post',
+})
+
+refresh.definition = {
+    methods: ["post"],
+    url: '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
+ */
+refresh.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+                    entrepreneurProfile: args[0],
+                    ideaValidation: args[1],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+                ? args.entrepreneurProfile.id
+                : args.entrepreneurProfile,
+                                ideaValidation: typeof args.ideaValidation === 'object'
+                ? args.ideaValidation.id
+                : args.ideaValidation,
+                }
+
+    return refresh.definition.url
+            .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
+            .replace('{ideaValidation}', parsedArgs.ideaValidation.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
+ */
+refresh.post = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: refresh.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
+ */
+    const refreshForm = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: refresh.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
+ */
+        refreshForm.post = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: refresh.url(args, options),
+            method: 'post',
+        })
+
+    refresh.form = refreshForm
 const ideaValidations = {
     gate: Object.assign(gate, gate),
+refresh: Object.assign(refresh, refresh),
 }
 
 export default ideaValidations

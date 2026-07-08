@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::assist
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:450
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:452
  * @route '/portal/entrepreneur/plan/requirements/assist'
  */
 export const assist = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ assist.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::assist
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:450
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:452
  * @route '/portal/entrepreneur/plan/requirements/assist'
  */
 assist.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ assist.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::assist
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:450
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:452
  * @route '/portal/entrepreneur/plan/requirements/assist'
  */
 assist.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ assist.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::assist
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:450
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:452
  * @route '/portal/entrepreneur/plan/requirements/assist'
  */
     const assistForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,7 +45,7 @@ assist.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::assist
- * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:450
+ * @see app/Http/Controllers/Portal/EntrepreneurPlanController.php:452
  * @route '/portal/entrepreneur/plan/requirements/assist'
  */
         assistForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

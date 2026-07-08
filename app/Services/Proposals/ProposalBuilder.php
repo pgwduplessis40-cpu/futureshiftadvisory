@@ -21,6 +21,7 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Reports\UploadedReportTemplateRenderer;
+use App\Support\Reports\SourceReferenceLabeler;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Auth;
@@ -662,7 +663,10 @@ final class ProposalBuilder
         $budgetReadiness = $this->budgetReadinessHtml($proposal);
         $focusAreas = $this->proposalFocusAreasHtml($proposal);
         $roiLine = $this->proposalHasPositiveFee($proposal)
-            ? sprintf('<p>ROI ratio: %s</p>', number_format($proposal->roi_ratio, 2))
+            ? sprintf(
+                '<p>For every NZD 1 of advisory fee, the model shows NZD %s of potential value.</p>',
+                number_format($proposal->roi_ratio, 2),
+            )
             : '';
 
         return sprintf(
@@ -683,6 +687,7 @@ final class ProposalBuilder
 %s
 <section class="proposal-panel">
 <h2>PV summary</h2>
+<p>PV (present value) means future benefits expressed as a single today's-dollars figure.</p>
 <p>Improvement PV: NZD %s</p>
 <p>Risk-cost PV: NZD %s</p>
 <p>Modelled upside PV: NZD %s (planning range NZD %s - NZD %s)</p>
@@ -756,8 +761,10 @@ HTML,
     {
         $sources = collect((array) ($area['attributions'] ?? []))
             ->filter(fn (mixed $attribution): bool => is_array($attribution) && is_string($attribution['source_reference'] ?? null))
-            ->pluck('source_reference')
-            ->map(fn (mixed $source): string => trim((string) $source))
+            ->map(fn (array $attribution): string => SourceReferenceLabeler::label(
+                (string) $attribution['source_reference'],
+                isset($attribution['claim']) ? (string) $attribution['claim'] : null,
+            ))
             ->filter()
             ->unique()
             ->take(3)
@@ -780,7 +787,7 @@ HTML,
         $feeMid = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
         $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
         $roiSnapshot = $this->proposalHasPositiveFee($proposal)
-            ? sprintf('<div><dt>ROI ratio</dt><dd>%s</dd></div>', number_format($proposal->roi_ratio, 2).'x')
+            ? sprintf('<div><dt>Modelled fee return</dt><dd>NZD %s per NZD 1 fee</dd></div>', number_format($proposal->roi_ratio, 2))
             : '';
 
         return sprintf(

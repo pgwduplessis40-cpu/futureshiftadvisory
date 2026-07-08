@@ -66,6 +66,9 @@ final class BusinessValuationTest extends TestCase
         $this->assertSame('Valuation reconciles SDE, EBITDA, and DCF using advisor-confirmed method weights.', $valuation->method_rationale['rationale']);
         $this->assertCount(9, $valuation->dcf_sensitivity['rows']);
         $this->assertStringStartsWith('pv_calculation:', $valuation->dcf_sensitivity['source_attributions'][0]['source_reference']);
+        $this->assertContains('valuation_scope', collect($valuation->valuation_disclosures)->pluck('type')->all());
+        $this->assertContains('basis_and_purpose', collect($valuation->valuation_disclosures)->pluck('type')->all());
+        $this->assertStringContainsString('not an AES-2/APES 225 independent business valuation engagement', collect($valuation->valuation_disclosures)->firstWhere('type', 'valuation_scope')['message']);
 
         $expectedMid = round((
             $valuation->sde_value['mid']
@@ -96,6 +99,9 @@ final class BusinessValuationTest extends TestCase
                 'rate' => 0.12,
                 'rationale' => 'Advisor valuation rate for test.',
             ],
+            'basis_of_value' => 'Indicative fair market value range',
+            'valuation_purpose' => 'Shareholder planning discussion',
+            'premise_of_value' => 'Going concern with current management',
             'questionnaire_financials' => [
                 'ebitda' => 80000,
                 'sde' => 95000,
@@ -108,6 +114,10 @@ final class BusinessValuationTest extends TestCase
         $this->assertStringContainsString('questionnaire financial inputs', $valuation->data_quality_disclaimer);
         $this->assertEqualsWithDelta(190000.0, (float) $valuation->sde_value['low'], 0.01);
         $this->assertContains('questionnaire:financial-summary', collect($valuation->source_attributions)->pluck('source_reference')->all());
+        $basis = collect($valuation->valuation_disclosures)->firstWhere('type', 'basis_and_purpose');
+        $this->assertSame('Indicative fair market value range', $basis['basis_of_value']);
+        $this->assertSame('Shareholder planning discussion', $basis['valuation_purpose']);
+        $this->assertSame('Going concern with current management', $basis['premise_of_value']);
     }
 
     public function test_business_valuation_records_method_weights_rationale_and_equity_bridge(): void
