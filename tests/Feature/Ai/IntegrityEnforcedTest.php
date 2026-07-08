@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Ai;
 
 use App\Http\Middleware\HandleInertiaRequests;
+use App\Models\AiUsageEvent;
 use App\Models\User;
 use App\Services\Ai\AdvisorAiNotice;
 use App\Services\Ai\Claude\AnthropicClaudeClient;
@@ -13,6 +14,7 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Integration\Resilience\ResilientHttp;
+use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Config;
@@ -22,6 +24,8 @@ use Tests\TestCase;
 
 final class IntegrityEnforcedTest extends TestCase
 {
+    use RefreshDatabase;
+
     public function test_empty_anthropic_key_returns_degraded_high_uncertainty_response(): void
     {
         Config::set('services.anthropic.key', '');
@@ -67,6 +71,39 @@ final class IntegrityEnforcedTest extends TestCase
 
         $this->assertIsCallable($notice);
         $this->assertSame(FakeAiClient::DEGRADED_TEXT, $notice()['message']);
+    }
+
+    public function test_degraded_ai_notice_clears_after_later_successful_ai_usage(): void
+    {
+        Cache::put(AdvisorAiNotice::CACHE_KEY, [
+            'message' => FakeAiClient::DEGRADED_TEXT,
+            'reason' => 'Anthropic API request failed with status 400.',
+            'prompt_id' => 'entrepreneur.idea_validation',
+            'recorded_at' => now()->subMinutes(2)->toIso8601String(),
+        ], now()->addMinute());
+
+        AiUsageEvent::query()->create([
+            'provider' => 'anthropic',
+            'task' => 'analyse',
+            'model' => 'claude-sonnet-4-6',
+            'input_tokens' => 1_579,
+            'output_tokens' => 1_797,
+            'estimated_cost_usd' => 0.0317,
+            'occurred_at' => now()->subMinute(),
+        ]);
+
+        $request = Request::create('/advisor/entrepreneurs/example');
+        $request->setUserResolver(fn () => new User([
+            'name' => 'Advisor',
+            'email' => 'advisor@example.test',
+        ]));
+
+        $shared = app(HandleInertiaRequests::class)->share($request);
+        $notice = $shared['aiNotice'];
+
+        $this->assertIsCallable($notice);
+        $this->assertNull($notice());
+        $this->assertNull(Cache::get(AdvisorAiNotice::CACHE_KEY));
     }
 
     public function test_anthropic_client_uses_resilient_http_instead_of_raw_http_facade(): void

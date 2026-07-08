@@ -313,11 +313,14 @@ final class IntegrationHealthController extends Controller
             ->where('occurred_at', '>=', $start)
             ->where('occurred_at', '<=', $end);
 
-        /** @var IntegrationCall|null $latestFailure */
-        $latestFailure = (clone $base)
-            ->whereIn('status', [IntegrationCall::STATUS_RETRY, IntegrationCall::STATUS_FAILURE])
-            ->latest('occurred_at')
+        /** @var IntegrationCall|null $latestAttempt */
+        $latestAttempt = (clone $base)
+            ->orderByDesc('occurred_at')
             ->first();
+        $latestFailure = $latestAttempt instanceof IntegrationCall
+            && in_array($latestAttempt->status, [IntegrationCall::STATUS_RETRY, IntegrationCall::STATUS_FAILURE], true)
+                ? $latestAttempt
+                : null;
 
         return [
             'attempts' => (clone $base)->count(),

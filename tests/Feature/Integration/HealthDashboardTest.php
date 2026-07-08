@@ -134,6 +134,31 @@ final class HealthDashboardTest extends TestCase
             && str_starts_with((string) $request->url(), 'https://api.anthropic.com/v1/organizations/cost_report'));
     }
 
+    public function test_provider_error_is_suppressed_after_later_anthropic_success(): void
+    {
+        $this->travelTo('2026-07-08 21:30:00');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN, 'admin-health-recovered@example.test');
+
+        $this->recordCall('anthropic', IntegrationCall::STATUS_FAILURE, 1_650, now()->subMinutes(10), [
+            'http_status' => 400,
+            'message' => 'output_config.format.schema rejected additionalProperties',
+        ]);
+        $this->recordCall('anthropic', IntegrationCall::STATUS_SUCCESS, 1_650, now()->subMinute());
+        $this->aiUsage('claude-sonnet-4-6', 1_579, 1_797, 0.0317, now()->subMinute());
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.integration-health.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/integration-health/Index')
+                ->where('aiUsage.today.requests', 1)
+                ->where('aiUsage.today.estimated_cost_usd', 0.0317)
+                ->where('aiUsage.provider_attempts.today.attempts', 2)
+                ->where('aiUsage.provider_attempts.today.successes', 1)
+                ->where('aiUsage.provider_attempts.today.failures', 1)
+                ->where('aiUsage.provider_attempts.today.latest_error', null));
+    }
+
     public function test_client_users_cannot_view_integration_health_dashboard(): void
     {
         $client = $this->userWithRole(User::TYPE_CLIENT_PRIMARY, 'client@example.test');
