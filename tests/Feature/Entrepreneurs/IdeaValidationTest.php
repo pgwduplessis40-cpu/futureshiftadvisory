@@ -9,6 +9,9 @@ use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
+use App\Services\Ai\Contracts\AiResponse;
+use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\IdeaValidationService;
 use App\Support\RequestContext;
@@ -118,6 +121,85 @@ final class IdeaValidationTest extends TestCase
         $this->assertSame(EntrepreneurStage::BUILDING_PHASE_1, $profile->refresh()->stage);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.idea_gate_passed',
+            'subject_id' => $validation->id,
+        ]);
+    }
+
+    public function test_refresh_retry_clears_stale_failure_and_records_provider_failure_reason(): void
+    {
+        [$advisor, $profile] = $this->profile('refresh-failure@example.test');
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+        $staleEvaluation = $validation->ai_evaluation ?? [];
+        data_set($staleEvaluation, 'metadata.refresh_status', 'failed');
+        data_set($staleEvaluation, 'metadata.refresh_failed_at', now()->subMinute()->toIso8601String());
+        data_set($staleEvaluation, 'metadata.refresh_failure', 'AI provider [anthropic] is not active or its credentials are missing.');
+        $validation->forceFill(['ai_evaluation' => $staleEvaluation])->save();
+
+        $queued = app(IdeaValidationService::class)->markRefreshQueued($validation->refresh(), $advisor);
+
+        $this->assertSame('queued', data_get($queued->ai_evaluation, 'metadata.refresh_status'));
+        $this->assertNull(data_get($queued->ai_evaluation, 'metadata.refresh_failed_at'));
+        $this->assertNull(data_get($queued->ai_evaluation, 'metadata.refresh_failure'));
+
+        $this->app->instance(AiClient::class, new class implements AiClient
+        {
+            public function analyse(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function verifyDocument(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function scoreCriterion(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function summarise(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            public function redFlag(PromptEnvelope $prompt): AiResponse
+            {
+                return $this->response($prompt);
+            }
+
+            private function response(PromptEnvelope $prompt): AiResponse
+            {
+                return new AiResponse(
+                    text: 'AI unavailable - analysis deferred',
+                    attributions: [[
+                        'claim' => 'AI unavailable - analysis deferred',
+                        'source_reference' => 'system:degraded-mode',
+                    ]],
+                    uncertainty: Uncertainty::High,
+                    biasSignals: [],
+                    model: 'fake-ai-client',
+                    promptVersion: $prompt->version,
+                    promptHash: $prompt->hash(),
+                    tokensIn: 0,
+                    tokensOut: 0,
+                    metadata: [
+                        'degraded' => true,
+                        'unavailable_reason' => 'Anthropic API request failed with status 503: Overloaded',
+                    ],
+                );
+            }
+        });
+
+        $refreshed = app(IdeaValidationService::class)->refreshEvaluation($queued->refresh(), $advisor);
+
+        $this->assertSame('failed', data_get($refreshed->ai_evaluation, 'metadata.refresh_status'));
+        $this->assertSame(
+            'Anthropic API request failed with status 503: Overloaded',
+            data_get($refreshed->ai_evaluation, 'metadata.refresh_failure'),
+        );
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.idea_validation_refresh_failed',
             'subject_id' => $validation->id,
         ]);
     }

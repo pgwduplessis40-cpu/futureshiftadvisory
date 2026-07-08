@@ -134,6 +134,7 @@ final class IdeaValidationService implements ProvidesMethodology
     public function markRefreshQueued(IdeaValidation $validation, User $actor): IdeaValidation
     {
         $evaluation = $validation->ai_evaluation ?? [];
+        $this->clearRefreshOutcome($evaluation);
         data_set($evaluation, 'metadata.refresh_status', 'queued');
         data_set($evaluation, 'metadata.refresh_requested_at', now()->toIso8601String());
         data_set($evaluation, 'metadata.refresh_requested_by_user_id', $actor->getKey());
@@ -152,6 +153,7 @@ final class IdeaValidationService implements ProvidesMethodology
     public function markRefreshRunning(IdeaValidation $validation, User $actor): IdeaValidation
     {
         $evaluation = $validation->ai_evaluation ?? [];
+        $this->clearRefreshOutcome($evaluation);
         data_set($evaluation, 'metadata.refresh_status', 'running');
         data_set($evaluation, 'metadata.refresh_started_at', now()->toIso8601String());
         data_set($evaluation, 'metadata.refresh_started_by_user_id', $actor->getKey());
@@ -165,6 +167,25 @@ final class IdeaValidationService implements ProvidesMethodology
         ]);
 
         return $validation->refresh();
+    }
+
+    /**
+     * @param  array<string, mixed>  $evaluation
+     */
+    private function clearRefreshOutcome(array &$evaluation): void
+    {
+        $metadata = data_get($evaluation, 'metadata', []);
+        if (! is_array($metadata)) {
+            $metadata = [];
+        }
+
+        unset(
+            $metadata['refresh_completed_at'],
+            $metadata['refresh_failed_at'],
+            $metadata['refresh_failure'],
+        );
+
+        data_set($evaluation, 'metadata', $metadata);
     }
 
     public function markRefreshFailed(IdeaValidation $validation, User $actor, Throwable $exception): IdeaValidation

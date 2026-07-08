@@ -11,8 +11,10 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Exceptions\AiIntegrityViolation;
 use App\Services\Ai\Exceptions\AiUnavailableException;
 use App\Services\Integration\IntegrationCredentials;
+use App\Services\Integration\Resilience\IntegrationResult;
 use App\Services\Integration\Resilience\ResilientHttp;
 use Illuminate\Support\Facades\Config;
+use Illuminate\Support\Str;
 use JsonException;
 
 final class AnthropicClaudeClient implements AiClient
@@ -83,9 +85,7 @@ final class AnthropicClaudeClient implements AiClient
         );
 
         if (! $result->successful() || $result->fromFallback) {
-            throw new AiUnavailableException(
-                'Anthropic API request failed with status '.$result->statusCode
-            );
+            throw new AiUnavailableException($this->unavailableMessage($result));
         }
 
         $payload = is_array($result->data) ? $result->data : null;
@@ -114,6 +114,56 @@ final class AnthropicClaudeClient implements AiClient
             tokensIn: (int) ($payload['usage']['input_tokens'] ?? 0),
             tokensOut: (int) ($payload['usage']['output_tokens'] ?? 0),
         );
+    }
+
+    private function unavailableMessage(IntegrationResult $result): string
+    {
+        $statusCode = $this->upstreamStatusCode($result);
+        $message = 'Anthropic API request failed';
+
+        if ($statusCode !== null) {
+            $message .= ' with status '.$statusCode;
+        }
+
+        $reason = $this->upstreamFailureReason($result);
+        if ($reason !== null) {
+            $message .= ': '.$reason;
+        }
+
+        return Str::limit($message, 300, '');
+    }
+
+    private function upstreamStatusCode(IntegrationResult $result): ?int
+    {
+        $statusCode = data_get($result->data, 'error_payload.http_status');
+
+        if (is_numeric($statusCode)) {
+            return (int) $statusCode;
+        }
+
+        return $result->statusCode > 0 ? $result->statusCode : null;
+    }
+
+    private function upstreamFailureReason(IntegrationResult $result): ?string
+    {
+        $body = data_get($result->data, 'error_payload.body');
+
+        if (! is_string($body) || trim($body) === '') {
+            return null;
+        }
+
+        $decoded = json_decode($body, true);
+        if (is_array($decoded)) {
+            $candidate = data_get($decoded, 'error.message')
+                ?? data_get($decoded, 'error.type')
+                ?? data_get($decoded, 'message');
+
+            if (is_scalar($candidate) && trim((string) $candidate) !== '') {
+                return Str::limit(trim((string) $candidate), 160, '');
+            }
+        }
+
+        return Str::limit(trim($body), 160, '');
     }
 
     /**
