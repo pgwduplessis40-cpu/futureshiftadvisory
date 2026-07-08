@@ -13,6 +13,7 @@ use App\Services\Fees\ServiceRateManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -83,18 +84,32 @@ final class ServiceRateController extends Controller
     {
         $validated = $request->validate([
             'is_active' => ['required', 'boolean'],
+            'free_access_acknowledged' => ['nullable', 'boolean'],
         ]);
 
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
+        $isActive = (bool) $validated['is_active'];
+        $enablesFreeAccess = $this->deactivationLeavesNoCurrentRate($serviceRateSetting, $isActive);
+
+        if ($enablesFreeAccess && ! (bool) ($validated['free_access_acknowledged'] ?? false)) {
+            throw ValidationException::withMessages([
+                'free_access_acknowledged' => 'Deactivating the last active service rate enables free-access mode. Confirm this explicitly before continuing.',
+            ]);
+        }
+
         $before = ['is_active' => $serviceRateSetting->is_active];
         $serviceRateSetting->forceFill([
-            'is_active' => (bool) $validated['is_active'],
+            'is_active' => $isActive,
+            'free_access_enabled' => $enablesFreeAccess,
+            'free_access_enabled_at' => $enablesFreeAccess ? now() : null,
+            'free_access_enabled_by_user_id' => $enablesFreeAccess ? $user->getKey() : null,
         ])->save();
 
         $this->audit->record('service_rate.toggled', subject: $serviceRateSetting, actor: $user, before: $before, after: [
             'is_active' => $serviceRateSetting->is_active,
+            'free_access_enabled' => $serviceRateSetting->free_access_enabled,
         ]);
 
         return to_route('admin.service-rates.index')->with('status', 'service-rate-updated');
@@ -186,6 +201,8 @@ final class ServiceRateController extends Controller
             'npo_retainer_discount_percent' => $setting->npo_retainer_discount_percent,
             'effective_from' => $setting->effective_from?->toIso8601String(),
             'is_active' => $setting->is_active !== false,
+            'free_access_enabled' => $setting->free_access_enabled === true,
+            'free_access_enabled_at' => $setting->free_access_enabled_at?->toIso8601String(),
             'notes' => $setting->notes,
             'created_by_name' => $setting->createdBy?->name,
             'created_at' => $setting->created_at?->toIso8601String(),
@@ -272,5 +289,23 @@ final class ServiceRateController extends Controller
             'scope_description' => trim((string) $validated['scope_description']),
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ];
+    }
+
+    private function deactivationLeavesNoCurrentRate(ServiceRateSetting $setting, bool $nextActive): bool
+    {
+        if ($nextActive || $setting->is_active === false) {
+            return false;
+        }
+
+        $eligibleActiveRates = ServiceRateSetting::query()
+            ->where('effective_from', '<=', now())
+            ->where(function ($query): void {
+                $query->where('is_active', true)
+                    ->orWhereNull('is_active');
+            })
+            ->count();
+
+        return $eligibleActiveRates <= 1
+            && (string) $this->rates->current()?->getKey() === (string) $setting->getKey();
     }
 }

@@ -27,7 +27,9 @@ final class IntegrationActivationResolver
     public function isLive(string $integrationKey): bool
     {
         $definition = $this->registry->integration($integrationKey);
-        if ($definition === null || ($definition['wiring_status'] ?? 'wired') !== 'wired') {
+        if ($definition === null
+            || ($definition['availability_status'] ?? null) === 'deferred'
+            || ($definition['wiring_status'] ?? 'wired') !== 'wired') {
             return false;
         }
 
@@ -62,7 +64,8 @@ final class IntegrationActivationResolver
             return false;
         }
 
-        if (($definition['wiring_status'] ?? 'wired') !== 'wired') {
+        if (($definition['availability_status'] ?? null) === 'deferred'
+            || ($definition['wiring_status'] ?? 'wired') !== 'wired') {
             return false;
         }
 
@@ -80,6 +83,7 @@ final class IntegrationActivationResolver
         $definition = $this->registry->integration($integrationKey);
         abort_if($definition === null, 404);
         abort_if(($definition['managed_via'] ?? 'vault') !== 'vault', 422);
+        abort_if(($definition['availability_status'] ?? null) === 'deferred', 422, (string) ($definition['availability_note'] ?? 'Integration is deferred and cannot be activated yet.'));
         abort_if(($definition['wiring_status'] ?? 'wired') !== 'wired', 422);
         abort_unless($this->credentialsReady($integrationKey), 422);
 

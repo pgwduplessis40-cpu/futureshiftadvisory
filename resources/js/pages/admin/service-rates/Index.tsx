@@ -25,6 +25,8 @@ type ServiceRate = {
     npo_retainer_discount_percent: number;
     effective_from: string | null;
     is_active: boolean;
+    free_access_enabled: boolean;
+    free_access_enabled_at: string | null;
     notes: string | null;
     created_by_name: string | null;
     created_at: string | null;
@@ -203,9 +205,23 @@ export default function ServiceRatesIndex({
     }
 
     function toggleRate(rate: ServiceRate) {
+        const enablingFreeAccess = rate.is_active;
+
+        if (
+            enablingFreeAccess &&
+            !window.confirm(
+                'Deactivating the current service rate can enable free access if no other active rate is available. Continue?',
+            )
+        ) {
+            return;
+        }
+
         router.patch(
             rate.toggle_url,
-            { is_active: !rate.is_active },
+            {
+                is_active: !rate.is_active,
+                free_access_acknowledged: enablingFreeAccess,
+            },
             { preserveScroll: true },
         );
     }
@@ -1094,7 +1110,9 @@ export default function ServiceRatesIndex({
                                                             : 'outline'
                                                     }
                                                 >
-                                                    {rateStatusLabel(rate)}
+                                                    {rate.free_access_enabled
+                                                        ? 'Free access enabled'
+                                                        : rateStatusLabel(rate)}
                                                 </Badge>
                                             </td>
                                             <td

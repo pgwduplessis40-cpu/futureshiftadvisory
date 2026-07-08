@@ -661,6 +661,9 @@ final class ProposalBuilder
         $conversionCredit = $this->conversionCreditHtml($proposal);
         $budgetReadiness = $this->budgetReadinessHtml($proposal);
         $focusAreas = $this->proposalFocusAreasHtml($proposal);
+        $roiLine = $this->proposalHasPositiveFee($proposal)
+            ? sprintf('<p>ROI ratio: %s</p>', number_format($proposal->roi_ratio, 2))
+            : '';
 
         return sprintf(
             <<<'HTML'
@@ -674,7 +677,7 @@ final class ProposalBuilder
 <p>Method: %s</p>
 <p>Suggested range: NZD %s - NZD %s - NZD %s</p>
 <p>All proposal rates and amounts are GST exclusive. GST at 15%% is added to any final payment collected.</p>
-<p>ROI ratio: %s</p>
+%s
 </section>
 %s
 %s
@@ -700,7 +703,7 @@ HTML,
             number_format($proposal->feeCalculation?->suggested_low ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
             number_format($proposal->feeCalculation?->suggested_high ?? 0, 0),
-            number_format($proposal->roi_ratio, 2),
+            $roiLine,
             $conversionCredit,
             $budgetReadiness,
             number_format((float) data_get($proposal->pv_summary, 'improvement_pv_total', 0), 0),
@@ -776,6 +779,9 @@ HTML,
         $proposalDate = $this->proposalDate($proposal);
         $feeMid = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
         $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
+        $roiSnapshot = $this->proposalHasPositiveFee($proposal)
+            ? sprintf('<div><dt>ROI ratio</dt><dd>%s</dd></div>', number_format($proposal->roi_ratio, 2).'x')
+            : '';
 
         return sprintf(
             <<<'HTML'
@@ -809,7 +815,7 @@ HTML,
 <div><dt>Generated</dt><dd>%s</dd></div>
 <div><dt>Prepared by</dt><dd>%s</dd></div>
 <div><dt>Suggested fee</dt><dd>%s</dd></div>
-<div><dt>ROI ratio</dt><dd>%s</dd></div>
+%s
 </dl>
 </section>
 %s
@@ -825,7 +831,7 @@ HTML,
             $this->escape($proposalDate),
             $this->escape($createdBy),
             $this->money($feeMid),
-            number_format($proposal->roi_ratio, 2).'x',
+            $roiSnapshot,
             $sections,
         );
     }
@@ -893,8 +899,8 @@ HTML,
             '{{monthly_investment_plain}}' => number_format($monthlyInvestment, 0),
             '{{ engagement_months }}' => (string) $termMonths,
             '{{engagement_months}}' => (string) $termMonths,
-            '{{ roi_ratio }}' => number_format($proposal->roi_ratio, 2),
-            '{{roi_ratio}}' => number_format($proposal->roi_ratio, 2),
+            '{{ roi_ratio }}' => $this->proposalHasPositiveFee($proposal) ? number_format($proposal->roi_ratio, 2) : 'not applicable',
+            '{{roi_ratio}}' => $this->proposalHasPositiveFee($proposal) ? number_format($proposal->roi_ratio, 2) : 'not applicable',
             '{{ improvement_pv_total }}' => $this->money($improvementPv),
             '{{improvement_pv_total}}' => $this->money($improvementPv),
             '{{ improvement_pv_total_plain }}' => number_format($improvementPv, 0),
@@ -995,6 +1001,14 @@ HTML,
             ?? 0;
 
         return (float) $value;
+    }
+
+    private function proposalHasPositiveFee(Proposal $proposal): bool
+    {
+        $mid = $proposal->feeCalculation?->suggested_mid
+            ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
+
+        return is_numeric($mid) && (float) $mid > 0;
     }
 
     /**

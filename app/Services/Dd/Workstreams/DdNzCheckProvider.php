@@ -8,6 +8,7 @@ use App\Models\DdEngagement;
 use App\Services\Analysis\HolidaysActLiabilityCalculator;
 use App\Services\Integration\Iponz\Contracts\IponzClient;
 use App\Services\Integration\Ird\Contracts\IrdClient;
+use App\Services\Integration\Ird\IrdGatewayPolicy;
 use App\Services\Integration\Linz\Contracts\LinzClient;
 use App\Services\Integration\Ppsr\Contracts\PpsrClient;
 
@@ -50,7 +51,10 @@ final class DdNzCheckProvider
         if (in_array($workstream, ['tax', 'nz_regulatory'], true)) {
             $checks['ird_gst'] = [
                 'record' => $this->ird->gstStatus($targetNzbn),
-                'source_reference' => "ird:gst:{$targetNzbn}",
+                'status' => IrdGatewayPolicy::STATUS_DEFERRED,
+                'finding' => IrdGatewayPolicy::finding(),
+                'required_action' => IrdGatewayPolicy::action(),
+                'source_reference' => IrdGatewayPolicy::SOURCE_REFERENCE,
             ];
         }
 

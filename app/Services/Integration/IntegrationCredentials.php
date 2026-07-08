@@ -170,6 +170,9 @@ final class IntegrationCredentials
                     'fallback_mode' => $integration['fallback_mode'] ?? 'optional',
                     'managed_via' => $integration['managed_via'] ?? 'vault',
                     'wiring_status' => $integration['wiring_status'] ?? 'wired',
+                    'availability_status' => $integration['availability_status'] ?? null,
+                    'availability_label' => $integration['availability_label'] ?? null,
+                    'availability_note' => $integration['availability_note'] ?? null,
                     'purpose' => $this->description($integrationKey, $integration, 'purpose'),
                     'api_outcome' => $this->description($integrationKey, $integration, 'api_outcome'),
                     'credentials' => is_array($credentials)

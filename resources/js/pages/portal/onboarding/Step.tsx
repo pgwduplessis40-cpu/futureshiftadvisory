@@ -390,7 +390,7 @@ function StepContent({
                         <Detail label="Entity" value={client.entity_type} />
                         <Detail
                             label="GST"
-                            value={client.gst_registered ? 'registered' : 'no'}
+                            value={client.gst_registration_status}
                         />
                         <Detail label="Filing" value={client.filing_status} />
                     </dl>

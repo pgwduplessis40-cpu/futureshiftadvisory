@@ -10,6 +10,7 @@ import {
     ShieldAlert,
 } from 'lucide-react';
 import { useState } from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -39,6 +40,12 @@ type HealthAlert = {
     stuck_started_at: string | null;
     last_red_window_end: string | null;
     notified_at: string | null;
+};
+
+type GovernanceNotice = {
+    service: string;
+    label: string;
+    note: string;
 };
 
 type AiUsagePeriod = {
@@ -99,6 +106,7 @@ type Props = {
     services: ServiceHealth[];
     recentAlerts: HealthAlert[];
     aiUsage: AiUsage;
+    governanceNotices: GovernanceNotice[];
     generatedAt: string;
 };
 
@@ -107,6 +115,7 @@ export default function IntegrationHealthIndex({
     services,
     recentAlerts,
     aiUsage,
+    governanceNotices,
     generatedAt,
 }: Props) {
     const [refreshing, setRefreshing] = useState(false);
@@ -184,6 +193,28 @@ export default function IntegrationHealthIndex({
                         </div>
                     </div>
                 </header>
+
+                {governanceNotices.length > 0 ? (
+                    <section className="space-y-3">
+                        {governanceNotices.map((notice) => (
+                            <Alert key={notice.service}>
+                                <ShieldAlert
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <AlertTitle className="flex flex-wrap items-center gap-2">
+                                    {notice.service}
+                                    <Badge variant="outline">
+                                        {notice.label}
+                                    </Badge>
+                                </AlertTitle>
+                                <AlertDescription>
+                                    {notice.note}
+                                </AlertDescription>
+                            </Alert>
+                        ))}
+                    </section>
+                ) : null}
 
                 <section className="space-y-4 rounded-md border bg-background p-4">
                     <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">

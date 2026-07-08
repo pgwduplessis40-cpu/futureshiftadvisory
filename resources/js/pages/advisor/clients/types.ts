@@ -23,7 +23,10 @@ export type RegistryLookup = {
         legal_name: string | null;
         entity_type: string | null;
         status: string | null;
-        gst_registered: boolean;
+        gst_registered: boolean | null;
+        gst_registration_status: string | null;
+        ird_verification_status: string | null;
+        ird_regulatory_note: string | null;
         directors: Array<Record<string, string | null>>;
         filing_status: string | null;
     };

@@ -78,6 +78,28 @@ final class IntegrationActivationResolverTest extends TestCase
         $this->assertTrue($resolver->isLive('companies_entity_role_search'));
     }
 
+    public function test_ird_gateway_stays_deferred_even_when_live_flag_and_key_are_present(): void
+    {
+        config([
+            'integrations.ird.live' => true,
+            'integrations.ird.api_key' => 'ird-env-key',
+        ]);
+
+        $resolver = app(IntegrationActivationResolver::class);
+
+        $this->assertTrue($resolver->credentialsReady('ird'));
+        $this->assertFalse($resolver->readiness('ird'));
+        $this->assertFalse($resolver->isLive('ird'));
+
+        try {
+            $resolver->activate('ird', $this->admin());
+            $this->fail('IRD activation should remain blocked while the regulatory category is deferred.');
+        } catch (HttpException $exception) {
+            $this->assertSame(422, $exception->getStatusCode());
+            $this->assertStringContainsString('Data Consumer', $exception->getMessage());
+        }
+    }
+
     public function test_activation_is_blocked_until_exact_required_credentials_are_present(): void
     {
         config([

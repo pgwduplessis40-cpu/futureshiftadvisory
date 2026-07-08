@@ -171,6 +171,9 @@ final class OnboardingController extends Controller
                 'nzbn' => $client->nzbn,
                 'entity_type' => $client->entity_type,
                 'gst_registered' => $client->gst_registered,
+                'gst_registration_status' => ($client->registry_sources['ird'] ?? null) === 'client_supplied_not_ird_verified'
+                    ? 'Client supplied - not verified with IRD'
+                    : ($client->gst_registered ? 'registered' : 'not registered'),
                 'filing_status' => $client->filing_status,
             ],
             'step' => $step,

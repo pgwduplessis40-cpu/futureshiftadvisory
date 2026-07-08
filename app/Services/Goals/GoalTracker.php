@@ -100,12 +100,17 @@ final class GoalTracker
         }
 
         return DB::transaction(function () use ($goal, $client, $valuationOptions, $actor): Goal {
-            $valuation = $this->valuations->calculate($client, $valuationOptions);
+            $options = $this->valuationOptionsForRemeasurement($goal, $valuationOptions);
+            $valuation = $this->valuations->calculate($client, $options);
             $baselineValuationId = $goal->baseline_business_valuation_id ?: $valuation->getKey();
 
             $goal->forceFill([
                 'baseline_business_valuation_id' => $baselineValuationId,
                 'latest_business_valuation_id' => $valuation->getKey(),
+                'pv_remeasurement_failure_count' => 0,
+                'pv_remeasurement_failed_at' => null,
+                'pv_remeasurement_next_retry_at' => null,
+                'pv_remeasurement_failure_reason' => null,
             ])->save();
 
             $this->audit->record('goal.pv_remeasured', subject: $goal, actor: $actor, after: [
@@ -113,6 +118,7 @@ final class GoalTracker
                 'latest_business_valuation_id' => $valuation->getKey(),
                 'current_pv' => $valuation->reconciled_mid,
                 'target_pv' => $goal->pv_target,
+                'valuation_options_source' => $options['methodology_source'] ?? 'baseline_or_explicit',
             ]);
 
             return $goal->refresh();
@@ -146,6 +152,10 @@ final class GoalTracker
             ->whereNotNull('target_date')
             ->whereDate('target_date', '<=', now()->toDateString())
             ->where(function ($query): void {
+                $query->whereNull('pv_remeasurement_next_retry_at')
+                    ->orWhere('pv_remeasurement_next_retry_at', '<=', now());
+            })
+            ->where(function ($query): void {
                 $query->whereNull('latest_business_valuation_id')
                     ->orWhereDoesntHave('latestBusinessValuation')
                     ->orWhereHas('latestBusinessValuation', function ($valuation): void {
@@ -165,13 +175,11 @@ final class GoalTracker
 
         foreach ($goals as $goal) {
             try {
-                $this->remeasureGoal($goal);
+                $this->remeasureGoal($goal, ['remeasurement_source' => 'scheduled']);
                 $result['remeasured']++;
             } catch (\Throwable $exception) {
                 $result['failed']++;
-                $this->audit->record('goal.pv_remeasurement_failed', subject: $goal, after: [
-                    'message' => $exception->getMessage(),
-                ]);
+                $this->recordRemeasurementFailure($goal, $exception);
             }
         }
 
@@ -489,6 +497,128 @@ final class GoalTracker
             ->latest('as_at')
             ->latest()
             ->first();
+    }
+
+    private function recordRemeasurementFailure(Goal $goal, \Throwable $exception): void
+    {
+        $failureCount = min(30, ((int) $goal->pv_remeasurement_failure_count) + 1);
+        $retryDays = min(7, 2 ** min(3, $failureCount - 1));
+        $nextRetryAt = now()->addDays($retryDays);
+        $message = str($exception->getMessage())->limit(1000)->toString();
+
+        $goal->forceFill([
+            'pv_remeasurement_failure_count' => $failureCount,
+            'pv_remeasurement_failed_at' => now(),
+            'pv_remeasurement_next_retry_at' => $nextRetryAt,
+            'pv_remeasurement_failure_reason' => $message,
+        ])->save();
+
+        $this->audit->record('goal.pv_remeasurement_failed', subject: $goal, after: [
+            'message' => $message,
+            'failure_count' => $failureCount,
+            'next_retry_at' => $nextRetryAt->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $valuationOptions
+     * @return array<string, mixed>
+     */
+    private function valuationOptionsForRemeasurement(Goal $goal, array $valuationOptions): array
+    {
+        $goal->loadMissing([
+            'baselineBusinessValuation.pvCalculation',
+        ]);
+
+        $baseline = $goal->baselineBusinessValuation;
+        $baselineOptions = $baseline instanceof BusinessValuationModel
+            ? $this->baselineValuationOptions($baseline)
+            : [];
+
+        unset($valuationOptions['remeasurement_source']);
+
+        return [
+            ...$baselineOptions,
+            ...$valuationOptions,
+        ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function baselineValuationOptions(BusinessValuationModel $baseline): array
+    {
+        $calculation = $baseline->pvCalculation;
+        $options = [
+            'methodology_source' => 'baseline_business_valuation:'.$baseline->getKey(),
+        ];
+
+        if (is_array($baseline->method_weights)) {
+            $options['method_weights'] = $baseline->method_weights;
+        }
+
+        if (is_array($baseline->method_rationale)) {
+            $options['method_rationale'] = $baseline->method_rationale;
+        }
+
+        if (is_array($baseline->adjustments)) {
+            $options['adjustments'] = $baseline->adjustments;
+        }
+
+        if (is_array($baseline->equity_bridge)) {
+            $bridgeAdjustments = $baseline->equity_bridge['bridge_adjustments'] ?? null;
+
+            if (is_array($bridgeAdjustments)) {
+                $options['equity_bridge'] = $bridgeAdjustments;
+            }
+        }
+
+        $industryCode = data_get($baseline->sde_value, 'multiple.industry_code')
+            ?? data_get($baseline->ebitda_value, 'multiple.industry_code');
+        if (is_string($industryCode) && trim($industryCode) !== '') {
+            $options['industry_code'] = strtoupper(trim($industryCode));
+        }
+
+        $terminalGrowthRate = data_get($calculation?->result, 'terminal_growth_rate');
+        if (is_numeric($terminalGrowthRate)) {
+            $options['terminal_growth_rate'] = (float) $terminalGrowthRate;
+        }
+
+        if ($calculation !== null) {
+            $options['discount_method'] = $calculation->discount_method instanceof DiscountMethod
+                ? $calculation->discount_method
+                : DiscountMethod::AdvisorConfigured;
+            $options['discount_options'] = [
+                ...(array) data_get($calculation->inputs, 'discount_options', []),
+                'rate' => $calculation->discount_rate,
+                'rationale' => $calculation->discount_rate_rationale,
+                'source_reference' => 'baseline_pv_calculation:'.$calculation->getKey(),
+            ];
+
+            $sensitivityRates = collect(data_get($baseline->dcf_sensitivity, 'rows', []))
+                ->pluck('discount_rate')
+                ->filter(fn (mixed $rate): bool => is_numeric($rate))
+                ->map(fn (mixed $rate): float => (float) $rate)
+                ->unique()
+                ->values()
+                ->all();
+            if ($sensitivityRates !== []) {
+                $options['sensitivity_discount_rates'] = $sensitivityRates;
+            }
+
+            $sensitivityGrowthRates = collect(data_get($baseline->dcf_sensitivity, 'rows', []))
+                ->pluck('terminal_growth_rate')
+                ->filter(fn (mixed $rate): bool => is_numeric($rate))
+                ->map(fn (mixed $rate): float => (float) $rate)
+                ->unique()
+                ->values()
+                ->all();
+            if ($sensitivityGrowthRates !== []) {
+                $options['sensitivity_terminal_growth_rates'] = $sensitivityGrowthRates;
+            }
+        }
+
+        return $options;
     }
 
     /**

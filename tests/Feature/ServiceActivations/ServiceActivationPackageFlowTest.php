@@ -110,6 +110,8 @@ final class ServiceActivationPackageFlowTest extends TestCase
             'npo_retainer_discount_percent' => 35,
             'effective_from' => now()->subMinute(),
             'is_active' => false,
+            'free_access_enabled' => true,
+            'free_access_enabled_at' => now(),
         ]);
 
         [$activation, $advisor, $clientUser] = $this->activationFixture('free-access-package@example.test');

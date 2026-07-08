@@ -13,6 +13,7 @@ export type ClientPayload = {
     nzbn: string | null;
     entity_type: string | null;
     gst_registered: boolean;
+    gst_registration_status: string;
     filing_status: string | null;
 };
 

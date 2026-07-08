@@ -168,6 +168,23 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('ROI ratio', $this->renderer->html);
     }
 
+    public function test_zero_fee_proposal_suppresses_roi_ratio_copy(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-zero-fee-advisor@example.test');
+        $this->businessValuation($client, 450000);
+        $calculation = $this->feeCalculation($client, 0, 0);
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+            'scope_summary' => 'Zero-fee access while service rates are deliberately disabled.',
+        ]);
+
+        app(ProposalBuilder::class)->rerenderPdf($proposal);
+
+        $this->assertStringContainsString('Suggested range: NZD 0 - NZD 0 - NZD 0', $this->renderer->html);
+        $this->assertStringNotContainsString('ROI ratio', $this->renderer->html);
+    }
+
     public function test_proposal_includes_analysis_fixes_from_website_audit_findings(): void
     {
         [$advisor, $client] = $this->clientWithTeam('proposal-website-fix-advisor@example.test');

@@ -170,6 +170,20 @@ final class DdWorkstreamModule implements AnalysisModule
             return "No NZ-specific register or statute check is required for the {$this->label()} workstream at this stage; evidence still needs advisor review before release.";
         }
 
-        return 'NZ checks run for this workstream: '.implode(', ', array_keys($this->nzChecks)).'.';
+        $details = collect($this->nzChecks)
+            ->map(function (mixed $check, string $key): string {
+                if (! is_array($check)) {
+                    return $key;
+                }
+
+                $finding = is_string($check['finding'] ?? null) ? $check['finding'] : null;
+                $action = is_string($check['required_action'] ?? null) ? $check['required_action'] : null;
+
+                return trim($key.': '.implode(' ', array_filter([$finding, $action])));
+            })
+            ->values()
+            ->implode(' ');
+
+        return 'NZ checks run for this workstream: '.implode(', ', array_keys($this->nzChecks)).'. '.$details;
     }
 }

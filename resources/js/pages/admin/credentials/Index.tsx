@@ -57,6 +57,9 @@ type IntegrationRow = {
     fallback_mode: string;
     managed_via: 'vault' | 'environment' | string;
     wiring_status: 'wired' | 'not_wired' | string;
+    availability_status: 'deferred' | string | null;
+    availability_label: string | null;
+    availability_note: string | null;
     purpose: string;
     api_outcome: string;
     credentials_ready: boolean;
@@ -125,7 +128,10 @@ function IntegrationCredentialGroup({
     const [addAiOpen, setAddAiOpen] = useState(false);
     const categoryTitle = formatCategoryTitle(category);
     const contentId = `integration-credentials-${category}`;
-    const completed = rows.filter((row) => row.credentials_ready).length;
+    const completed = rows.filter(
+        (row) =>
+            row.credentials_ready || row.availability_status === 'deferred',
+    ).length;
     const isAiGroup = category === 'ai';
     const activeAi =
         rows.find((row) => row.ai_provider && row.effective_live) ?? null;
@@ -325,13 +331,27 @@ function IntegrationRowView({ row }: { row: IntegrationRow }) {
                 </div>
                 <div className="mt-2 flex flex-wrap gap-1">
                     <Badge variant="outline">{row.fallback_mode}</Badge>
+                    {row.availability_status === 'deferred' ? (
+                        <Badge variant="outline">
+                            {row.availability_label ?? 'Deferred'}
+                        </Badge>
+                    ) : null}
                     {row.managed_via === 'environment' ? (
                         <Badge variant="secondary">Environment</Badge>
                     ) : null}
                     {row.wiring_status !== 'wired' ? (
-                        <Badge variant="destructive">Not wired</Badge>
+                        <Badge variant="destructive">
+                            {row.wiring_status === 'deferred'
+                                ? 'Deferred'
+                                : 'Not wired'}
+                        </Badge>
                     ) : null}
                 </div>
+                {row.availability_note ? (
+                    <div className="mt-3 rounded-md border bg-muted/30 p-2 text-xs leading-5 text-muted-foreground">
+                        {row.availability_note}
+                    </div>
+                ) : null}
                 <PracticeConnectionControl row={row} />
             </td>
             <td className="px-3 py-3" data-label="Required keys">
@@ -643,6 +663,10 @@ function formatCategoryTitle(category: string) {
 }
 
 function ReadinessBadge({ row }: { row: IntegrationRow }) {
+    if (row.availability_status === 'deferred') {
+        return <Badge variant="outline">Deferred</Badge>;
+    }
+
     if (row.credentials_ready) {
         return (
             <Badge variant="secondary">
@@ -668,6 +692,22 @@ function LiveControl({ row }: { row: IntegrationRow }) {
             <Badge variant="secondary">Configured</Badge>
         ) : (
             <Badge variant="outline">Environment</Badge>
+        );
+    }
+
+    if (row.availability_status === 'deferred') {
+        return (
+            <ActionTooltip
+                label={
+                    row.availability_note ??
+                    `${row.display_name} is not available for live activation.`
+                }
+            >
+                <Button type="button" size="sm" variant="outline" disabled>
+                    <Ban className="size-4" aria-hidden="true" />
+                    Unavailable
+                </Button>
+            </ActionTooltip>
         );
     }
 

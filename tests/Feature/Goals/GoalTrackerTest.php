@@ -6,11 +6,13 @@ namespace Tests\Feature\Goals;
 
 use App\Enums\EngagementType;
 use App\Enums\PvType;
+use App\Models\AccountingConnection;
 use App\Models\BusinessValuation;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Document;
 use App\Models\DocumentVerification;
+use App\Models\FinancialSnapshot;
 use App\Models\Goal;
 use App\Models\Milestone;
 use App\Models\ProofOfCompletion;
@@ -18,6 +20,7 @@ use App\Models\User;
 use App\Models\ValuationMultiple;
 use App\Services\Goals\GoalTracker;
 use App\Services\Pv\BusinessValuation as BusinessValuationService;
+use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -262,6 +265,88 @@ final class GoalTrackerTest extends TestCase
         ]);
     }
 
+    public function test_scheduled_goal_remeasurement_reuses_baseline_valuation_methodology(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('goals-baseline-methodology@example.test');
+        $tracker = app(GoalTracker::class);
+
+        $this->valuationMultiple('M6962', ValuationMultiple::METRIC_SDE, 2.0, 3.0, 4.0);
+        $this->valuationMultiple('M6962', ValuationMultiple::METRIC_EBITDA, 3.0, 4.0, 5.0);
+        $baseline = app(BusinessValuationService::class)->calculate($client, [
+            'industry_code' => 'M6962',
+            'growth_rate' => 0.0,
+            'terminal_growth_rate' => 0.035,
+            'discount_options' => [
+                'rate' => 0.18,
+                'rationale' => 'Advisor-selected baseline methodology rate.',
+            ],
+            'method_weights' => [
+                'sde' => 0.0,
+                'ebitda' => 1.0,
+                'dcf' => 3.0,
+            ],
+            'method_rationale' => [
+                'selected_method' => 'dcf',
+                'rationale' => 'Baseline methodology favours DCF for this client.',
+            ],
+            'questionnaire_financials' => [
+                'ebitda' => 90000,
+                'sde' => 100000,
+                'cash_flow' => 85000,
+                'source_reference' => 'questionnaire:baseline-methodology',
+            ],
+        ]);
+        $baseline->forceFill(['as_at' => now()->subYears(2)])->save();
+
+        $goal = $tracker->createGoal($client, [
+            'title' => 'Protect valuation methodology during outcome measurement',
+            'target_growth_percent' => 20,
+            'target_date' => now()->subDay()->toDateString(),
+        ], $advisor);
+        $this->financialSnapshot($client, ebitda: 125000, sde: 140000, operatingCashFlow: 120000);
+
+        $result = $tracker->remeasureDueGoals();
+        $goal = $goal->refresh()->load('latestBusinessValuation.pvCalculation');
+        $latest = $goal->latestBusinessValuation;
+
+        $this->assertSame(1, $result['remeasured']);
+        $this->assertSame(0, $result['failed']);
+        $this->assertNotSame($baseline->id, $latest?->id);
+        $this->assertEqualsWithDelta(0.18, (float) $latest?->pvCalculation?->discount_rate, 0.0001);
+        $this->assertSame('Advisor-selected baseline methodology rate.', $latest?->pvCalculation?->discount_rate_rationale);
+        $this->assertEqualsWithDelta(0.035, (float) data_get($latest?->pvCalculation?->result, 'terminal_growth_rate'), 0.0001);
+        $this->assertEqualsWithDelta(0.75, (float) data_get($latest?->method_weights, 'dcf'), 0.0001);
+        $this->assertSame('Baseline methodology favours DCF for this client.', data_get($latest?->method_rationale, 'rationale'));
+        $this->assertSame(0, $goal->pv_remeasurement_failure_count);
+        $this->assertNull($goal->pv_remeasurement_next_retry_at);
+    }
+
+    public function test_failed_due_goal_remeasurement_sets_retry_backoff(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('goals-retry-backoff@example.test');
+        $tracker = app(GoalTracker::class);
+
+        $goal = $tracker->createGoal($client, [
+            'title' => 'Needs valuation data before measuring',
+            'pv_target' => 50000,
+            'target_date' => now()->subDay()->toDateString(),
+        ], $advisor);
+
+        $firstRun = $tracker->remeasureDueGoals();
+        $goal = $goal->refresh();
+
+        $this->assertSame(1, $firstRun['scanned']);
+        $this->assertSame(0, $firstRun['remeasured']);
+        $this->assertSame(1, $firstRun['failed']);
+        $this->assertSame(1, $goal->pv_remeasurement_failure_count);
+        $this->assertNotNull($goal->pv_remeasurement_failed_at);
+        $this->assertTrue($goal->pv_remeasurement_next_retry_at?->isFuture());
+
+        $secondRun = $tracker->remeasureDueGoals();
+
+        $this->assertSame(0, $secondRun['scanned']);
+    }
+
     public function test_public_holidays_block_milestone_and_action_due_dates_for_client_region(): void
     {
         [$advisor, $client] = $this->clientWithTeam('goals-holiday-advisor@example.test', 'South Canterbury');
@@ -415,6 +500,47 @@ final class GoalTrackerTest extends TestCase
                 'cash_flow' => $cashFlow,
                 'source_reference' => 'questionnaire:growth-baseline',
             ],
+        ]);
+    }
+
+    private function financialSnapshot(Client $client, float $ebitda, float $sde, float $operatingCashFlow): FinancialSnapshot
+    {
+        $connection = AccountingConnection::query()->create([
+            'client_id' => $client->getKey(),
+            'provider' => AccountingConnection::PROVIDER_XERO,
+            'external_tenant_id' => 'tenant-goal-remeasurement',
+            'status' => AccountingConnection::STATUS_CONNECTED,
+            'token_envelope' => app(KeyEnvelope::class)->encrypt('{"access_token":"test"}'),
+            'token_envelope_meta' => ['version' => 1],
+            'scopes' => ['accounting.reports.read'],
+            'connected_at' => now(),
+        ]);
+
+        return FinancialSnapshot::query()->create([
+            'client_id' => $client->getKey(),
+            'accounting_connection_id' => $connection->getKey(),
+            'provider' => AccountingConnection::PROVIDER_XERO,
+            'period_start' => now()->subMonth()->startOfMonth()->toDateString(),
+            'period_end' => now()->subMonth()->endOfMonth()->toDateString(),
+            'source' => 'xero',
+            'source_badge' => 'stub',
+            'degraded' => false,
+            'profit_and_loss' => [
+                'revenue' => 650000,
+                'net_profit' => 90000,
+            ],
+            'balance_sheet' => [
+                'assets' => 1000000,
+                'liabilities' => 350000,
+            ],
+            'cash_flow' => [
+                'operating_cash_flow' => $operatingCashFlow,
+            ],
+            'metrics' => [
+                'ebitda' => $ebitda,
+                'sde' => $sde,
+            ],
+            'pulled_at' => now(),
         ]);
     }
 

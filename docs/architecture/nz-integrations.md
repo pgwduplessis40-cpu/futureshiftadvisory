@@ -11,7 +11,7 @@ The active Phase 1 clients are:
 - `CompaniesOfficeClient::directorsForCompany(string $nzbn)`
 - `CompaniesEntityRoleSearchClient::search(string $name, string $roleType = 'ALL')`
 - `PpsrClient::securityInterests(string $nzbn)`
-- `IrdClient::gstStatus(string $nzbn)`
+- `IrdClient::gstStatus(string $nzbn)` (regulatory-deferred; returns a client-supplied/not-IRD-verified status until approval is available)
 - `FspClient::lookup(string $fspNumber)` (WO-71 broker panel validation)
 
 Application code resolves the interfaces from the container. It should not instantiate live or fake clients directly.
@@ -26,9 +26,11 @@ Live mode is controlled by:
 - `FEATURE_COMPANIES_OFFICE_LIVE`
 - `FEATURE_COMPANIES_ENTITY_ROLE_SEARCH_LIVE`
 - `FEATURE_PPSR_LIVE`
-- `FEATURE_IRD_LIVE`
+- `FEATURE_IRD_LIVE` (ignored while the IRD registry entry remains deferred)
 
 When a live flag is on but no credential is configured, the live client still routes through `ResilientHttp`. The call fails into the WO-05 resilience ledger, then returns cached data if available or the fixture-backed stub with a `source_badge` of `stub_live_fallback`.
+
+IRD is the exception. Inland Revenue declined FSA's current Gateway Services use case because it relies on accessing IRD data for advisory/customer verification purposes rather than helping customers meet tax obligations or sending data back to IRD. The registry marks IRD as `deferred` pending the proposed Data Consumer intermediary category, currently anticipated from 2027. Until that category is available and FSA is approved, the app must label IRD/GST values as client supplied and not verified with IRD, and reports/proposals must treat this as a regulatory limitation rather than a successful source check.
 
 MBIE confirmed that public company profile, directors, shareholdings, registration status, and Incorporated Societies public data should be sourced through the NZBN API rather than the Companies API. The live `CompaniesOfficeClient` therefore uses the NZBN subscription-key gateway and exists as a compatibility adapter for older application call sites. Companies Entity Role Search is a separate live client for director/shareholder name searches.
 
@@ -40,7 +42,7 @@ MBIE also confirmed there is no FSPR API. Broker FSP checks remain fixture/manua
 
 Stub data lives in `database/fixtures/integration/*.json`.
 
-The known test NZBN is `9429000000000`, which resolves to canned NZBN, Companies Office, PPSR, and IRD/GST records. The known broker FSP fixtures are `FSP100001` (current) and `FSP999999` (lapsed). Stub payloads include:
+The known test NZBN is `9429000000000`, which resolves to canned NZBN, Companies Office, and PPSR records. IRD/GST stubs intentionally return a regulatory-deferred payload rather than verified IRD data. The known broker FSP fixtures are `FSP100001` (current) and `FSP999999` (lapsed). Stub payloads include:
 
 - `source_badge` for UI/source stamping
 - `degraded` when the response came from fallback or a missing fixture

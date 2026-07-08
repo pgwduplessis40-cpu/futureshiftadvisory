@@ -39,7 +39,10 @@ final class AddClientTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('advisor/clients/Create')
                 ->where('lookup.summary.legal_name', 'Future Shift Advisory Test Limited')
+                ->where('lookup.summary.gst_registered', null)
+                ->where('lookup.summary.gst_registration_status', 'Client supplied - not verified with IRD')
                 ->where('lookup.source_badges.nzbn', 'stub')
+                ->where('lookup.source_badges.ird', 'client_supplied_not_ird_verified')
                 ->where('defaults.legal_name', 'Future Shift Advisory Test Limited')
             );
     }
@@ -71,8 +74,9 @@ final class AddClientTest extends TestCase
         $this->assertSame('Future Shift', $client->trading_name);
         $this->assertSame(EngagementType::STANDARD_ADVISORY, $client->engagement_type);
         $this->assertSame(Client::DATA_QUALITY_INSUFFICIENT, $client->data_quality);
-        $this->assertTrue($client->gst_registered);
+        $this->assertFalse($client->gst_registered);
         $this->assertSame('stub', $client->registry_sources['nzbn']);
+        $this->assertSame('client_supplied_not_ird_verified', $client->registry_sources['ird']);
         $this->assertDatabaseHas('client_team', [
             'client_id' => $client->id,
             'user_id' => $advisor->id,

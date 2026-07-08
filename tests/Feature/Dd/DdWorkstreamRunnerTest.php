@@ -94,6 +94,10 @@ final class DdWorkstreamRunnerTest extends TestCase
         $this->assertArrayHasKey('ird_gst', $tax->nz_checks);
         $this->assertArrayHasKey('holidays_act', $hr->nz_checks);
         $this->assertArrayHasKey('owner_dependency', $operational->nz_checks);
+        $this->assertSame('declined_current_gateway_pending_data_consumer', $tax->nz_checks['ird_gst']['status']);
+        $this->assertSame('ird:gateway:regulatory-deferred', $tax->nz_checks['ird_gst']['source_reference']);
+        $this->assertStringContainsString('cannot be independently verified', $tax->nz_checks['ird_gst']['finding']);
+        $this->assertStringContainsString('reapply for IRD Data Consumer access', $tax->nz_checks['ird_gst']['required_action']);
 
         $this->assertNotSame([], app(PpsrClient::class)->securityInterests('9429000000999'));
         $this->assertNotSame([], app(LinzClient::class)->titleInterests('9429000000999'));

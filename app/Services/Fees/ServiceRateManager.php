@@ -131,13 +131,22 @@ final class ServiceRateManager
 
     public function freeAccessModeActive(): bool
     {
-        if (! Schema::hasTable('service_rate_settings') || ! Schema::hasColumn('service_rate_settings', 'is_active')) {
+        if (
+            ! Schema::hasTable('service_rate_settings')
+            || ! Schema::hasColumn('service_rate_settings', 'is_active')
+            || ! Schema::hasColumn('service_rate_settings', 'free_access_enabled')
+        ) {
             return false;
         }
 
-        $hasConfiguredRates = ServiceRateSetting::query()->exists();
+        if ($this->current() instanceof ServiceRateSetting) {
+            return false;
+        }
 
-        return $hasConfiguredRates && ! ($this->current() instanceof ServiceRateSetting);
+        return ServiceRateSetting::query()
+            ->where('free_access_enabled', true)
+            ->where('effective_from', '<=', now())
+            ->exists();
     }
 
     /**
@@ -197,6 +206,12 @@ final class ServiceRateManager
 
         if (Schema::hasColumn('service_rate_settings', 'is_active')) {
             $attributes['is_active'] = true;
+        }
+
+        if (Schema::hasColumn('service_rate_settings', 'free_access_enabled')) {
+            $attributes['free_access_enabled'] = false;
+            $attributes['free_access_enabled_at'] = null;
+            $attributes['free_access_enabled_by_user_id'] = null;
         }
 
         $setting = ServiceRateSetting::query()->create($attributes);

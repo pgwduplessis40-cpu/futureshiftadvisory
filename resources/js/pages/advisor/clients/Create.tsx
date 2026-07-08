@@ -335,12 +335,19 @@ export default function ClientsCreate({
                                             GST
                                         </div>
                                         <div>
-                                            {lookup.summary.gst_registered
-                                                ? 'registered'
-                                                : 'not registered'}
+                                            {lookup.summary
+                                                .gst_registration_status ??
+                                                (lookup.summary.gst_registered
+                                                    ? 'registered'
+                                                    : 'not registered')}
                                         </div>
                                     </div>
                                 </div>
+                                {lookup.summary.ird_regulatory_note ? (
+                                    <div className="rounded-md border bg-muted/30 p-3 text-xs leading-5 text-muted-foreground">
+                                        {lookup.summary.ird_regulatory_note}
+                                    </div>
+                                ) : null}
                                 <div className="flex flex-wrap gap-2">
                                     {Object.entries(lookup.source_badges).map(
                                         ([service, badge]) => (

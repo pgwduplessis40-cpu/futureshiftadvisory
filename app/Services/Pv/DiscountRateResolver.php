@@ -40,6 +40,22 @@ final class DiscountRateResolver implements ProvidesMethodology
      */
     private function ocrLinked(Client $client, array $options): DiscountRateResult
     {
+        if (array_key_exists('rate', $options)) {
+            $rate = $this->rate($options['rate']);
+
+            return new DiscountRateResult(
+                method: DiscountMethod::OcrLinked,
+                rate: $rate,
+                rationale: (string) ($options['rationale'] ?? "OCR-linked baseline rate reused for {$client->legal_name}."),
+                sourceAttributions: [
+                    [
+                        'claim' => 'OCR-linked discount rate was reused from a baseline valuation remeasurement assumption.',
+                        'source_reference' => (string) ($options['source_reference'] ?? 'baseline_ocr_linked_rate'),
+                    ],
+                ],
+            );
+        }
+
         $ocr = EconomicIndicator::query()
             ->where('indicator', EconomicIndicator::OCR)
             ->latest('period_date')

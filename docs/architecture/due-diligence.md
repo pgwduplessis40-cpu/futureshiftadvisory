@@ -88,7 +88,7 @@ block Financial.
 NZ-specific checks are attached to relevant workstreams:
 
 - Legal / NZ Regulatory: PPSR, LINZ, and IPONZ fixtures/contracts
-- Tax / NZ Regulatory: IRD GST status
+- Tax / NZ Regulatory: IRD Gateway limitation and GST/IRD client-supplied status; live IRD verification is deferred pending the proposed Data Consumer category
 - HR / People / NZ Regulatory: Holidays Act liability scaffold
 - Commercial / Market, Operational, NZ Regulatory: owner-dependency score
 

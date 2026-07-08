@@ -26,6 +26,8 @@ final class Goal extends Model
         'target_date' => 'date',
         'target_growth_percent' => 'float',
         'achieved_at' => 'datetime',
+        'pv_remeasurement_failed_at' => 'datetime',
+        'pv_remeasurement_next_retry_at' => 'datetime',
     ];
 
     /**

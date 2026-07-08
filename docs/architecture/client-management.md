@@ -23,7 +23,7 @@ The initial `clients.data_quality` value is always `insufficient`. WO-19 owns th
 
 ## Registry population
 
-`PopulateFromNzbn` calls the WO-13 NZBN, Companies Office, and IRD clients and returns:
+`PopulateFromNzbn` calls the WO-13 NZBN and Companies Office clients and includes the IRD client status. IRD is regulatory-deferred pending the proposed Data Consumer category, so it returns a client-supplied/not-IRD-verified status rather than live Inland Revenue verification.
 
 - raw service payloads
 - a normalized summary for the create form

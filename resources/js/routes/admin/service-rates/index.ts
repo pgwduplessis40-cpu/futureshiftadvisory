@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import packages from './packages'
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -64,7 +64,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::index
- * @see app/Http/Controllers/Admin/ServiceRateController.php:26
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:27
  * @route '/admin/service-rates'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -80,7 +80,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:59
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:60
  * @route '/admin/service-rates'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -95,7 +95,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:59
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:60
  * @route '/admin/service-rates'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -104,7 +104,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:59
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:60
  * @route '/admin/service-rates'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -114,7 +114,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:59
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:60
  * @route '/admin/service-rates'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -124,7 +124,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:59
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:60
  * @route '/admin/service-rates'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -135,7 +135,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:83
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
 export const toggle = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -150,7 +150,7 @@ toggle.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:83
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
 toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -183,7 +183,7 @@ toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRa
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:83
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
 toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -193,7 +193,7 @@ toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [service
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:83
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
     const toggleForm = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -208,7 +208,7 @@ toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [service
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:82
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:83
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
         toggleForm.patch = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

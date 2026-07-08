@@ -10,6 +10,7 @@ use App\Models\AiUsageEvent;
 use App\Models\IntegrationHealthAlert;
 use App\Models\IntegrationHealthSample;
 use App\Services\Integration\IntegrationCredentials;
+use App\Services\Integration\IntegrationRegistry;
 use Carbon\CarbonInterface;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Support\Collection;
@@ -22,7 +23,10 @@ use Throwable;
 
 final class IntegrationHealthController extends Controller
 {
-    public function __construct(private readonly IntegrationCredentials $credentials) {}
+    public function __construct(
+        private readonly IntegrationCredentials $credentials,
+        private readonly IntegrationRegistry $registry,
+    ) {}
 
     public function index(): Response
     {
@@ -51,6 +55,7 @@ final class IntegrationHealthController extends Controller
                 ])
                 ->values(),
             'aiUsage' => $this->aiUsagePayload(),
+            'governanceNotices' => $this->governanceNotices(),
             'generatedAt' => now()->toIso8601String(),
         ]);
     }
@@ -105,6 +110,22 @@ final class IntegrationHealthController extends Controller
     private function isStale(IntegrationHealthSample $sample): bool
     {
         return $sample->window_end === null || $sample->window_end->lt(now()->subMinutes(5));
+    }
+
+    /**
+     * @return array<int, array{service:string,label:string,note:string}>
+     */
+    private function governanceNotices(): array
+    {
+        return $this->registry->all()
+            ->filter(fn (array $integration): bool => is_string($integration['availability_status'] ?? null))
+            ->map(fn (array $integration): array => [
+                'service' => (string) ($integration['display_name'] ?? $integration['integration_key']),
+                'label' => (string) ($integration['availability_label'] ?? $integration['availability_status']),
+                'note' => (string) ($integration['availability_note'] ?? ''),
+            ])
+            ->values()
+            ->all();
     }
 
     /**

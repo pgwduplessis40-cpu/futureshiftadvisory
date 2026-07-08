@@ -115,9 +115,19 @@ final class ServiceRateManagementTest extends TestCase
             ->patch(route('admin.service-rates.toggle', $rate), [
                 'is_active' => false,
             ])
+            ->assertSessionHasErrors('free_access_acknowledged');
+
+        $this->assertTrue($rate->refresh()->is_active);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.service-rates.toggle', $rate), [
+                'is_active' => false,
+                'free_access_acknowledged' => true,
+            ])
             ->assertRedirect(route('admin.service-rates.index', absolute: false));
 
         $this->assertFalse($rate->refresh()->is_active);
+        $this->assertTrue($rate->free_access_enabled);
         $this->assertNull(app(ServiceRateManager::class)->current());
         $this->assertTrue(app(ServiceRateManager::class)->freeAccessModeActive());
         $this->assertSame(0.0, app(ServiceRateManager::class)->currentHourlyRate());
@@ -129,6 +139,7 @@ final class ServiceRateManagementTest extends TestCase
                 ->where('current', null)
                 ->has('history', 1)
                 ->where('history.0.is_active', false)
+                ->where('history.0.free_access_enabled', true)
             );
 
         $this->actingAsMfa($admin)
@@ -138,6 +149,7 @@ final class ServiceRateManagementTest extends TestCase
             ->assertRedirect(route('admin.service-rates.index', absolute: false));
 
         $this->assertTrue($rate->refresh()->is_active);
+        $this->assertFalse($rate->free_access_enabled);
         $this->assertSame($rate->id, app(ServiceRateManager::class)->current()?->id);
         $this->assertFalse(app(ServiceRateManager::class)->freeAccessModeActive());
         $this->assertSame(325.0, app(ServiceRateManager::class)->currentHourlyRate());

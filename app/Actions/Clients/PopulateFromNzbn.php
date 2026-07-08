@@ -52,7 +52,12 @@ final class PopulateFromNzbn
                 'entity_type' => Arr::get($nzbnRecord, 'entity_type'),
                 'status' => Arr::get($nzbnRecord, 'status') ?: Arr::get($companyRecord, 'status'),
                 'address' => Arr::get($nzbnRecord, 'registered_address'),
-                'gst_registered' => (bool) Arr::get($irdRecord, 'gst_registered', false),
+                'gst_registered' => Arr::get($irdRecord, 'verification_status') === null
+                    ? (bool) Arr::get($irdRecord, 'gst_registered', false)
+                    : null,
+                'gst_registration_status' => Arr::get($irdRecord, 'verification_label', 'Not verified with IRD'),
+                'ird_verification_status' => Arr::get($irdRecord, 'verification_status'),
+                'ird_regulatory_note' => Arr::get($irdRecord, 'regulatory_note'),
                 'directors' => Arr::get($companyRecord, 'directors', []),
                 'filing_status' => Arr::get($companyRecord, 'status'),
             ],

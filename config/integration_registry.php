@@ -104,14 +104,14 @@ return [
             'category' => 'registers',
             'fallback_mode' => 'manual',
             'managed_via' => 'vault',
-            'wiring_status' => 'wired',
+            'wiring_status' => 'deferred',
             'live_config_path' => 'integrations.ird.live',
-            'credentials' => [
-                'api_key' => [
-                    'config_path' => 'integrations.ird.api_key',
-                    'env_fallback_path' => 'IRD_API_KEY',
-                ],
-            ],
+            'availability_status' => 'deferred',
+            'availability_label' => 'Deferred pending IRD Data Consumer category',
+            'availability_note' => 'IRD declined the current Gateway Services application because FSA needs IRD data for advisory verification rather than helping the client meet tax obligations. Reassess when the proposed Data Consumer intermediary category becomes available, currently anticipated from 2027.',
+            'purpose' => 'IRD Gateway access is deferred. FSA may record client-supplied IRD/GST information, but the platform must not present it as independently verified with Inland Revenue.',
+            'api_outcome' => 'Live IRD verification is unavailable under the current Gateway framework. When the Data Consumer category is enacted and approved, this integration can be reassessed and re-enabled through the governed credential workflow.',
+            'credentials' => [],
         ],
         'mbie' => [
             'display_name' => 'MBIE',
