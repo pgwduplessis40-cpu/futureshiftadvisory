@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     Banknote,
@@ -64,6 +64,15 @@ type IdeaValidationPayload = {
     advisor_gate_note: string | null;
     plan_builder_unlocked: boolean;
 } | null;
+
+type IdeaValidationForm = {
+    problem: string;
+    target_customer: string;
+    solution: string;
+    value_proposition: string;
+    demand_signal: string;
+    revenue_model: string;
+};
 
 type BusinessPlanPayload = {
     id: string;
@@ -364,7 +373,7 @@ export default function EntrepreneurPlan({
     urls,
 }: Props) {
     const [activeTab, setActiveTab] = useState<Tab>('actions');
-    const [ideaForm, setIdeaForm] = useState({
+    const ideaForm = useForm<IdeaValidationForm>({
         problem: ideaValidation?.problem ?? '',
         target_customer: ideaValidation?.target_customer ?? '',
         solution: ideaValidation?.solution ?? '',
@@ -431,7 +440,7 @@ export default function EntrepreneurPlan({
         !ideaValidationApproved || showValidatedIdeaForm;
     const ideaValidationSummary = ideaFields.map((field) => ({
         label: field.label,
-        value: ideaValidation?.[field.key as keyof typeof ideaForm] ?? '-',
+        value: ideaValidation?.[field.key as keyof IdeaValidationForm] ?? '-',
     }));
     const hasPlan = Boolean(plan);
     const nextSmallWin =
@@ -518,9 +527,36 @@ export default function EntrepreneurPlan({
         setBudgetForm(budgetToForm(plan?.budget));
     }, [plan?.budget]);
 
+    const validateIdeaForm = () => {
+        let valid = true;
+        ideaForm.clearErrors();
+
+        for (const field of ideaFields) {
+            const value = ideaForm.data[field.key].trim();
+
+            if (value.length === 0) {
+                ideaForm.setError(field.key, `${field.label} is required.`);
+                valid = false;
+            } else if (value.length < field.minimum) {
+                ideaForm.setError(
+                    field.key,
+                    `${field.label} must be at least ${field.minimum} characters.`,
+                );
+                valid = false;
+            }
+        }
+
+        return valid;
+    };
+
     const submitIdea = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        router.post(urls.ideaValidation, ideaForm, {
+
+        if (!validateIdeaForm()) {
+            return;
+        }
+
+        ideaForm.post(urls.ideaValidation, {
             preserveScroll: true,
             onSuccess: () => {
                 if (ideaValidationApproved) {
@@ -1221,18 +1257,14 @@ export default function EntrepreneurPlan({
                                                 <span>{field.label}</span>
                                                 <textarea
                                                     value={
-                                                        ideaForm[
-                                                            field.key as keyof typeof ideaForm
+                                                        ideaForm.data[
+                                                            field.key as keyof IdeaValidationForm
                                                         ]
                                                     }
                                                     onChange={(event) =>
-                                                        setIdeaForm(
-                                                            (current) => ({
-                                                                ...current,
-                                                                [field.key]:
-                                                                    event.target
-                                                                        .value,
-                                                            }),
+                                                        ideaForm.setData(
+                                                            field.key as keyof IdeaValidationForm,
+                                                            event.target.value,
                                                         )
                                                     }
                                                     rows={4}
@@ -1241,14 +1273,33 @@ export default function EntrepreneurPlan({
                                                         field.placeholder
                                                     }
                                                 />
+                                                <InputError
+                                                    message={
+                                                        ideaForm.errors[
+                                                            field.key as keyof IdeaValidationForm
+                                                        ]
+                                                    }
+                                                />
                                             </label>
                                         ))}
                                         <div className="lg:col-span-2">
-                                            <Button type="submit" size="sm">
-                                                {ideaValidation
-                                                    ? 'Update idea validation'
-                                                    : 'Submit idea validation'}
+                                            <Button
+                                                type="submit"
+                                                size="sm"
+                                                disabled={ideaForm.processing}
+                                            >
+                                                {ideaForm.processing
+                                                    ? 'Submitting...'
+                                                    : ideaValidation
+                                                      ? 'Update idea validation'
+                                                      : 'Submit idea validation'}
                                             </Button>
+                                            {ideaForm.recentlySuccessful ? (
+                                                <p className="mt-2 text-xs text-muted-foreground">
+                                                    Idea validation submitted
+                                                    for advisor review.
+                                                </p>
+                                            ) : null}
                                         </div>
                                     </form>
                                 )}
@@ -3317,7 +3368,7 @@ function AdvisorBudgetPreview({
                 />
                 <AdvisorPreviewItem
                     label="Confidence"
-                    value={`${confidence.known} known, ${confidence.estimate} estimates, ${confidence.guess} guesses`}
+                    value={`${confidence.known} known, ${countLabel(confidence.estimate, 'estimate')}, ${countLabel(confidence.guess, 'guess', 'guesses')}`}
                 />
                 <AdvisorPreviewItem
                     label="Coaching prompts"
@@ -4151,6 +4202,14 @@ function formatCurrency(value: number | null | undefined): string {
     }).format(value ?? 0);
 }
 
+function countLabel(
+    count: number,
+    singular: string,
+    plural = `${singular}s`,
+): string {
+    return `${count} ${count === 1 ? singular : plural}`;
+}
+
 function formatRunway(
     months: number | null | undefined,
     openEnded: boolean | undefined,
@@ -4283,34 +4342,45 @@ const ideaFields = [
     {
         key: 'problem',
         label: 'Problem',
+        minimum: 5,
         placeholder: 'What specific customer problem are you solving?',
     },
     {
         key: 'target_customer',
         label: 'Target customer',
+        minimum: 3,
         placeholder: 'Who has this problem and how do you know?',
     },
     {
         key: 'solution',
         label: 'Solution',
+        minimum: 10,
         placeholder: 'What will you offer and how will it work?',
     },
     {
         key: 'value_proposition',
         label: 'Value proposition',
+        minimum: 10,
         placeholder: 'Why would the customer choose this over alternatives?',
     },
     {
         key: 'demand_signal',
         label: 'Demand signal',
+        minimum: 5,
         placeholder: 'What evidence shows people want or need this?',
     },
     {
         key: 'revenue_model',
         label: 'Revenue model',
+        minimum: 5,
         placeholder: 'How will the business earn, collect, and retain revenue?',
     },
-];
+] satisfies {
+    key: keyof IdeaValidationForm;
+    label: string;
+    minimum: number;
+    placeholder: string;
+}[];
 
 EntrepreneurPlan.layout = {
     breadcrumbs: [

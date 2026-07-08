@@ -7,10 +7,13 @@ namespace Tests\Feature\Portal;
 use App\Enums\EntrepreneurStage;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\InviteToken;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
+use App\Services\Ai\Contracts\AiClient;
+use App\Services\Ai\Fake\FakeAiClient;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -227,6 +230,85 @@ final class EntrepreneurNavigationTest extends TestCase
             ->post(route('portal.entrepreneur.plan.start'))
             ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
             ->assertSessionHas('entrepreneur_plan_error', 'Business plan and budget are not included in your selected package.');
+    }
+
+    public function test_idea_validation_submission_surfaces_advisor_review_queue(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $this->app->bind(AiClient::class, FakeAiClient::class);
+
+        $advisor = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $advisor->assignRole(User::TYPE_ADVISOR);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'queue-founder@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $invite = InviteToken::query()->create([
+            'email' => $entrepreneur->email,
+            'target_role' => User::TYPE_ENTREPRENEUR,
+            'target_user_type' => User::TYPE_ENTREPRENEUR,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'token_hash' => InviteToken::hashToken('queue-idea-token'),
+            'expires_at' => now()->addDays(5),
+            'accepted_at' => now(),
+            'accepted_by_user_id' => $entrepreneur->getKey(),
+            'issued_by_user_id' => $advisor->getKey(),
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $invite->getKey(),
+            'name' => 'Queue Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Founder is testing a Business Idea package submission.',
+        ]);
+        $payload = [
+            'problem' => 'Business Advisory',
+            'target_customer' => "SME's",
+            'solution' => 'System that can evaluate their current state, analyse, develop a strategic plan and track implementation thereof.',
+            'value_proposition' => 'It supports them in growing/improving there business and ultimately increasing the business cash flow position.',
+            'demand_signal' => "Struggling SME's",
+            'revenue_model' => 'Service fee for advisory support',
+        ];
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.idea-validation.store'), $payload)
+            ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-submitted');
+
+        $validation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->firstOrFail();
+
+        $this->assertNull($validation->advisor_gate_passed_at);
+        $this->assertSame($payload['problem'], $validation->problem);
+        $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('ideaValidation.id', $validation->id)
+                ->where('ideaValidation.plan_builder_unlocked', false)
+                ->where('ideaValidation.problem', $payload['problem']));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('advisor/Dashboard')
+                ->where('entrepreneurReviews.summary.idea_validations', 1)
+                ->where('entrepreneurReviews.items.0.id', $validation->id)
+                ->where('entrepreneurReviews.items.0.type', 'idea_validation')
+                ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Queue Founder')
+                ->where('entrepreneurReviews.items.0.action_label', 'Review idea'));
     }
 
     public function test_entrepreneur_can_start_buying_business_service_from_portal(): void
