@@ -6,25 +6,47 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type { CapacitySummary } from './types';
+
+type ServiceOption = {
+    value: string;
+    label: string;
+    description: string;
+};
 
 type Props = {
     capacity: CapacitySummary;
+    serviceOptions: ServiceOption[];
 };
 
 type EntrepreneurForm = {
     name: string;
     email: string;
     concept_summary: string;
+    intended_package_scope: string;
 };
 
-export default function EntrepreneursCreate({ capacity }: Props) {
+export default function EntrepreneursCreate({
+    capacity,
+    serviceOptions,
+}: Props) {
     const form = useForm<EntrepreneurForm>({
         name: '',
         email: '',
         concept_summary: '',
+        intended_package_scope: '',
     });
     const errors = form.errors as Record<string, string | undefined>;
+    const selectedService = serviceOptions.find(
+        (option) => option.value === form.data.intended_package_scope,
+    );
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
@@ -93,6 +115,46 @@ export default function EntrepreneursCreate({ capacity }: Props) {
                             </div>
 
                             <div className="grid gap-2">
+                                <Label htmlFor="intended_package_scope">
+                                    Invite service
+                                </Label>
+                                <Select
+                                    value={form.data.intended_package_scope}
+                                    onValueChange={(value) =>
+                                        form.setData(
+                                            'intended_package_scope',
+                                            value,
+                                        )
+                                    }
+                                >
+                                    <SelectTrigger
+                                        id="intended_package_scope"
+                                        className="w-full"
+                                    >
+                                        <SelectValue placeholder="Select client access" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {serviceOptions.map((option) => (
+                                            <SelectItem
+                                                key={option.value}
+                                                value={option.value}
+                                            >
+                                                {option.label}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {selectedService ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        {selectedService.description}
+                                    </p>
+                                ) : null}
+                                <InputError
+                                    message={form.errors.intended_package_scope}
+                                />
+                            </div>
+
+                            <div className="grid gap-2">
                                 <Label htmlFor="concept_summary">
                                     Concept summary
                                 </Label>
@@ -118,7 +180,11 @@ export default function EntrepreneursCreate({ capacity }: Props) {
 
                         <Button
                             type="submit"
-                            disabled={form.processing || capacity.blocked}
+                            disabled={
+                                form.processing ||
+                                capacity.blocked ||
+                                form.data.intended_package_scope === ''
+                            }
                         >
                             <Send className="size-4" aria-hidden="true" />
                             Send invite

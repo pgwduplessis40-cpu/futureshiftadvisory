@@ -12,10 +12,10 @@ final class LearningCapabilityProfile
 {
     private const CAPABILITY_RULES = [
         'Data' => ['data', 'source', 'quality', 'reference', 'integration', 'document', 'evidence', 'questionnaire', 'benchmark', 'registry', 'attribution'],
-        'Finance' => ['financial', 'finance', 'pv', 'fee', 'proposal', 'valuation', 'accounting', 'funding', 'invoice', 'grant', 'cost', 'beneficiary'],
+        'Finance' => ['financial', 'finance', 'pv', 'fee', 'proposal', 'valuation', 'accounting', 'funding', 'invoice', 'grant', 'cost', 'beneficiary', 'calculation', 'methodology', 'multiple', 'discount rate', 'dcf', 'ebitda', 'sde', 'wacc'],
         'Productivity' => ['voice', 'assistant', 'template', 'knowledge', 'notification', 'communication', 'meeting', 'action', 'email', 'workflow aid'],
         'Operations' => ['operations', 'operational', 'systems', 'process', 'sop', 'lifecycle', 'handoff', 'workflow', 'activation'],
-        'Financial Planning and Analysis' => ['budget', 'forecast', 'scenario', 'runway', 'cash flow', 'variance', 'model', 'plan', 'trend'],
+        'Financial Planning and Analysis' => ['budget', 'budget principle', 'forecast', 'scenario', 'runway', 'cash flow', 'variance', 'model', 'plan', 'trend'],
         'decision-toolkit' => ['decision', 'approve', 'review', 'proposal', 'strategic', 'priority', 'red flag', 'recommendation', 'conversion', 'trade-off'],
         'fact-checker' => ['fact', 'verify', 'verification', 'accuracy', 'document', 'regulatory', 'legislative', 'compliance', 'source attribution', 'website'],
         'skill-creator' => ['skill', 'claude', 'prompt operating', 'template suggestion', 'reusable', 'project memory'],

@@ -146,6 +146,12 @@ const acquisitionPlanNavItem: NavItem = {
     icon: Scale,
 };
 
+const entrepreneurBuyingBusinessNavItem: NavItem = {
+    title: 'Explore buying a business',
+    href: '/portal/service-activations/new/due_diligence',
+    icon: BriefcaseBusiness,
+};
+
 const strategicPlanBudgetNavItem: NavItem = {
     title: 'Business Plan & Budget',
     href: '/portal/business-plan-budget',
@@ -507,6 +513,7 @@ function navGroupsFor(
                 portalInspirationNavItem,
                 entrepreneurSurveysNavItem,
             ],
+            serviceItems: [entrepreneurBuyingBusinessNavItem],
         });
     }
 

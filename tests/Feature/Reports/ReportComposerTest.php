@@ -144,6 +144,49 @@ final class ReportComposerTest extends TestCase
         });
     }
 
+    public function test_client_report_includes_website_and_systems_findings_in_what_is_wrong_section(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-what-is-wrong@example.test');
+        $this->businessValuation($client, 520000);
+
+        foreach ([
+            [
+                'module' => AnalysisModule::WebsiteAudit,
+                'title' => 'Website product/service mismatch',
+                'body' => 'The website pages do not yet support the products and services the client says it sells, and SEO evidence is missing.',
+            ],
+            [
+                'module' => AnalysisModule::Systems,
+                'title' => 'Systems automation gap',
+                'body' => 'CRM and inventory data still rely on duplicate-entry spreadsheets, delaying reporting and increasing rework risk.',
+            ],
+        ] as $fixture) {
+            $run = AnalysisRun::query()->create([
+                'client_id' => $client->id,
+                'module' => $fixture['module'],
+                'status' => AnalysisRun::STATUS_COMPLETED,
+                'framework_lenses' => AnalysisLens::values(),
+                'data_quality_snapshot' => ['level' => Client::DATA_QUALITY_LOW],
+                'started_at' => now(),
+                'completed_at' => now(),
+            ]);
+
+            $this->finding($client, $run, AnalysisLens::Diagnostic, $fixture['title'], $fixture['body']);
+        }
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $whatIsWrong = $report->sections->firstWhere('key', 'what_is_wrong');
+
+        $this->assertNotNull($whatIsWrong);
+        $this->assertSame('What is wrong', $whatIsWrong->title);
+        $this->assertStringContainsString('Website product/service mismatch', $whatIsWrong->body);
+        $this->assertStringContainsString('Systems automation gap', $whatIsWrong->body);
+        $this->assertStringContainsString('What is wrong', $this->renderer->html);
+        $this->assertStringContainsString('Website product/service mismatch', $this->renderer->html);
+        $this->assertStringContainsString('Systems automation gap', $this->renderer->html);
+        $this->assertFalse($report->sections->contains('key', 'implementation_plan'));
+    }
+
     public function test_valuation_report_triangulates_methods_and_requires_review(): void
     {
         [$advisor, $client] = $this->clientWithTeam('valuation-report-advisor@example.test');

@@ -7,6 +7,8 @@ type Invite = {
     email: string;
     target_role: string;
     target_user_type: string;
+    service_intent_label: string | null;
+    package_scope_label: string | null;
     expires_at: string;
     accepted_at: string | null;
 };
@@ -37,6 +39,9 @@ export default function InvitationsIndex({ invites }: Props) {
                             <tr>
                                 <th className="px-3 py-2 font-medium">Email</th>
                                 <th className="px-3 py-2 font-medium">Type</th>
+                                <th className="px-3 py-2 font-medium">
+                                    Access path
+                                </th>
                                 <th className="px-3 py-2 font-medium">Role</th>
                                 <th className="px-3 py-2 font-medium">
                                     Status
@@ -54,6 +59,14 @@ export default function InvitationsIndex({ invites }: Props) {
                                     </td>
                                     <td className="px-3 py-2" data-label="Type">
                                         {invite.target_user_type}
+                                    </td>
+                                    <td
+                                        className="px-3 py-2"
+                                        data-label="Access path"
+                                    >
+                                        {invite.service_intent_label
+                                            ? `${invite.service_intent_label} / ${invite.package_scope_label ?? 'Scope not set'}`
+                                            : 'Not set'}
                                     </td>
                                     <td className="px-3 py-2" data-label="Role">
                                         {invite.target_role}

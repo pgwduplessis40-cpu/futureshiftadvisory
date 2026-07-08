@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     Bell,
+    BriefcaseBusiness,
     ClipboardCheck,
     Eye,
     FileText,
@@ -171,6 +172,7 @@ type Props = {
     inspirationBoard: InspirationPost | null;
     messagesUrl: string;
     planWorkspaceUrl: string;
+    buyingBusinessServiceUrl: string;
     documentUploadUrl: string;
     notificationsUrl: string;
     settingsUrl: string;
@@ -185,6 +187,7 @@ export default function EntrepreneurDashboard({
     inspirationBoard,
     messagesUrl,
     planWorkspaceUrl,
+    buyingBusinessServiceUrl,
     documentUploadUrl,
     notificationsUrl,
     settingsUrl,
@@ -405,6 +408,23 @@ export default function EntrepreneurDashboard({
                                             {hasPlan
                                                 ? 'Open workspace'
                                                 : 'Start idea validation'}
+                                        </Link>
+                                    </Button>
+                                </ActionPanel>
+
+                                <ActionPanel
+                                    icon={BriefcaseBusiness}
+                                    title="Explore buying a business"
+                                    value="Due diligence workspace"
+                                    explanation="Explore buying a business opens the acquisition due-diligence service request, then follows advisor package selection and the standard fee/scope acceptance flow."
+                                >
+                                    <Button asChild size="sm" variant="outline">
+                                        <Link href={buyingBusinessServiceUrl}>
+                                            <Eye
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Open service
                                         </Link>
                                     </Button>
                                 </ActionPanel>

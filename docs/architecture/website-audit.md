@@ -42,9 +42,10 @@ run before AI is called or findings are persisted.
 
 ## Downstream Flow
 
-Prescriptive website-audit findings can flow into proposal focus areas, render
-under "What needs to be fixed", and carry into signed-proposal strategic plan
-priorities and milestones.
+Diagnostic website-audit findings render into the client report's "What is
+wrong" section. Prescriptive website-audit findings can flow into proposal focus
+areas, render under "What needs to be fixed", and carry into signed-proposal
+strategic plan priorities and milestones.
 
 ## Boundaries
 

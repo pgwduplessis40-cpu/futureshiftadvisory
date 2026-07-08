@@ -3,6 +3,8 @@ import {
     AlertTriangle,
     Banknote,
     Bot,
+    ChevronDown,
+    ChevronUp,
     CheckCircle2,
     Eye,
     FileText,
@@ -370,6 +372,7 @@ export default function EntrepreneurPlan({
         demand_signal: ideaValidation?.demand_signal ?? '',
         revenue_model: ideaValidation?.revenue_model ?? '',
     });
+    const [showValidatedIdeaForm, setShowValidatedIdeaForm] = useState(false);
     const phases = plan?.phases ?? planTemplate;
     const requirements = useMemo(
         () => phases.flatMap((phase) => phase.requirements),
@@ -420,6 +423,16 @@ export default function EntrepreneurPlan({
     const hasIdeaValidation = Boolean(ideaValidation);
     const planBuilderUnlocked =
         directPlanAccess || Boolean(ideaValidation?.plan_builder_unlocked);
+    const ideaValidationApproved = Boolean(
+        ideaValidation?.advisor_gate_passed_at ||
+        ideaValidation?.plan_builder_unlocked,
+    );
+    const showIdeaValidationEditor =
+        !ideaValidationApproved || showValidatedIdeaForm;
+    const ideaValidationSummary = ideaFields.map((field) => ({
+        label: field.label,
+        value: ideaValidation?.[field.key as keyof typeof ideaForm] ?? '-',
+    }));
     const hasPlan = Boolean(plan);
     const nextSmallWin =
         includesIdeaValidation && !hasIdeaValidation
@@ -507,7 +520,14 @@ export default function EntrepreneurPlan({
 
     const submitIdea = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        router.post(urls.ideaValidation, ideaForm, { preserveScroll: true });
+        router.post(urls.ideaValidation, ideaForm, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (ideaValidationApproved) {
+                    setShowValidatedIdeaForm(false);
+                }
+            },
+        });
     };
 
     const startPlan = () => {
@@ -1115,57 +1135,123 @@ export default function EntrepreneurPlan({
                                             before detailed plan work starts.
                                         </p>
                                     </div>
-                                    {ideaValidation?.advisor_gate_passed_at ? (
-                                        <Badge variant="secondary">
-                                            Gate passed
-                                        </Badge>
-                                    ) : ideaValidation ? (
-                                        <Badge variant="outline">
-                                            Advisor review
-                                        </Badge>
-                                    ) : (
-                                        <Badge variant="outline">
-                                            Not submitted
-                                        </Badge>
-                                    )}
-                                </div>
-                                <form
-                                    className="grid gap-3 lg:grid-cols-2"
-                                    onSubmit={submitIdea}
-                                >
-                                    {ideaFields.map((field) => (
-                                        <label
-                                            key={field.key}
-                                            className="grid gap-1 text-sm"
-                                        >
-                                            <span>{field.label}</span>
-                                            <textarea
-                                                value={
-                                                    ideaForm[
-                                                        field.key as keyof typeof ideaForm
-                                                    ]
+                                    <div className="flex flex-wrap items-center gap-2">
+                                        {ideaValidationApproved ? (
+                                            <Badge variant="secondary">
+                                                Gate passed
+                                            </Badge>
+                                        ) : ideaValidation ? (
+                                            <Badge variant="outline">
+                                                Advisor review
+                                            </Badge>
+                                        ) : (
+                                            <Badge variant="outline">
+                                                Not submitted
+                                            </Badge>
+                                        )}
+                                        {ideaValidationApproved ? (
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                onClick={() =>
+                                                    setShowValidatedIdeaForm(
+                                                        (current) => !current,
+                                                    )
                                                 }
-                                                onChange={(event) =>
-                                                    setIdeaForm((current) => ({
-                                                        ...current,
-                                                        [field.key]:
-                                                            event.target.value,
-                                                    }))
-                                                }
-                                                rows={4}
-                                                className="rounded-md border bg-background px-3 py-2 text-sm"
-                                                placeholder={field.placeholder}
-                                            />
-                                        </label>
-                                    ))}
-                                    <div className="lg:col-span-2">
-                                        <Button type="submit" size="sm">
-                                            {ideaValidation
-                                                ? 'Update idea validation'
-                                                : 'Submit idea validation'}
-                                        </Button>
+                                            >
+                                                {showIdeaValidationEditor ? (
+                                                    <ChevronUp
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                ) : (
+                                                    <ChevronDown
+                                                        className="size-4"
+                                                        aria-hidden="true"
+                                                    />
+                                                )}
+                                                {showIdeaValidationEditor
+                                                    ? 'Roll up'
+                                                    : 'Review details'}
+                                            </Button>
+                                        ) : null}
                                     </div>
-                                </form>
+                                </div>
+
+                                {ideaValidationApproved &&
+                                !showIdeaValidationEditor ? (
+                                    <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                                        {ideaValidationSummary.map((item) => (
+                                            <div
+                                                key={item.label}
+                                                className="rounded-md border bg-muted/20 p-3"
+                                            >
+                                                <div className="text-xs font-medium text-muted-foreground">
+                                                    {item.label}
+                                                </div>
+                                                <p className="mt-1 line-clamp-2 text-sm">
+                                                    {item.value || '-'}
+                                                </p>
+                                            </div>
+                                        ))}
+                                        {ideaValidation?.advisor_gate_note ? (
+                                            <div className="rounded-md border bg-muted/20 p-3 md:col-span-2 xl:col-span-3">
+                                                <div className="text-xs font-medium text-muted-foreground">
+                                                    Advisor note
+                                                </div>
+                                                <p className="mt-1 text-sm">
+                                                    {
+                                                        ideaValidation.advisor_gate_note
+                                                    }
+                                                </p>
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                ) : (
+                                    <form
+                                        className="grid gap-3 lg:grid-cols-2"
+                                        onSubmit={submitIdea}
+                                    >
+                                        {ideaFields.map((field) => (
+                                            <label
+                                                key={field.key}
+                                                className="grid gap-1 text-sm"
+                                            >
+                                                <span>{field.label}</span>
+                                                <textarea
+                                                    value={
+                                                        ideaForm[
+                                                            field.key as keyof typeof ideaForm
+                                                        ]
+                                                    }
+                                                    onChange={(event) =>
+                                                        setIdeaForm(
+                                                            (current) => ({
+                                                                ...current,
+                                                                [field.key]:
+                                                                    event.target
+                                                                        .value,
+                                                            }),
+                                                        )
+                                                    }
+                                                    rows={4}
+                                                    className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                    placeholder={
+                                                        field.placeholder
+                                                    }
+                                                />
+                                            </label>
+                                        ))}
+                                        <div className="lg:col-span-2">
+                                            <Button type="submit" size="sm">
+                                                {ideaValidation
+                                                    ? 'Update idea validation'
+                                                    : 'Submit idea validation'}
+                                            </Button>
+                                        </div>
+                                    </form>
+                                )}
                             </section>
                         ) : null}
 

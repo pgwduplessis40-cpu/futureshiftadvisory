@@ -13,6 +13,8 @@ use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
 use App\Models\PlanAssessment;
 use App\Models\RatingFramework;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
@@ -37,6 +39,7 @@ final class AddEntrepreneurTest extends TestCase
                 'name' => 'Aroha Founder',
                 'email' => 'Aroha.Founder@example.com',
                 'concept_summary' => 'Circular retail analytics for regional stores.',
+                'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
                 'stage' => EntrepreneurStage::READINESS->value,
             ])
             ->assertRedirect();
@@ -52,9 +55,30 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertTrue($profile->gamification_on);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_user_type);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_role);
+        $this->assertSame(ServiceActivation::SERVICE_ENTREPRENEUR, $invite->intended_service_type);
+        $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET, $invite->intended_package_scope);
         $this->assertNotEmpty($invite->token_envelope);
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.created']);
         Mail::assertSent(InvitationMail::class, 1);
+    }
+
+    public function test_advisor_must_choose_invite_service_when_creating_entrepreneur(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.store'), [
+                'name' => 'Scope Missing',
+                'email' => 'scope-missing@example.com',
+                'concept_summary' => 'Valid concept, missing access selection.',
+            ])
+            ->assertSessionHasErrors('intended_package_scope');
+
+        $this->assertDatabaseCount('entrepreneur_profiles', 0);
+        $this->assertDatabaseCount('invite_tokens', 0);
+        Mail::assertNothingSent();
     }
 
     public function test_advisor_can_resend_pending_entrepreneur_invite(): void
@@ -313,6 +337,9 @@ final class AddEntrepreneurTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page) => $page
                 ->component('advisor/entrepreneurs/Create')
+                ->where('serviceOptions.0.value', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
+                ->where('serviceOptions.1.value', ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET)
+                ->where('serviceOptions.2.value', ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO)
                 ->where('capacity.active_count', 24)
                 ->where('capacity.warning_threshold', 24)
                 ->where('capacity.warning', true)
@@ -332,6 +359,7 @@ final class AddEntrepreneurTest extends TestCase
                 'name' => 'Blocked Founder',
                 'email' => 'blocked@example.com',
                 'concept_summary' => 'Should not be invited.',
+                'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
             ])
             ->assertSessionHasErrors('capacity');
 

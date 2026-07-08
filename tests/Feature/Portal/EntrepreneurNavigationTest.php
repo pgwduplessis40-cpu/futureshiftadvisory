@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace Tests\Feature\Portal;
 
 use App\Enums\EntrepreneurStage;
+use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
 use App\Models\InviteToken;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -174,6 +177,129 @@ final class EntrepreneurNavigationTest extends TestCase
         $this->assertSame((string) $invite->getKey(), (string) $profile->invite_token_id);
         $this->assertSame($entrepreneur->email, $profile->email);
         $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+    }
+
+    public function test_business_idea_invite_limits_direct_entrepreneur_access_to_idea_validation(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'idea-only-founder@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $invite = InviteToken::query()->create([
+            'email' => $entrepreneur->email,
+            'target_role' => User::TYPE_ENTREPRENEUR,
+            'target_user_type' => User::TYPE_ENTREPRENEUR,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'token_hash' => InviteToken::hashToken('idea-only-token'),
+            'expires_at' => now()->addDays(5),
+            'accepted_at' => now(),
+            'accepted_by_user_id' => $entrepreneur->getKey(),
+            'issued_by_user_id' => $advisor->getKey(),
+        ]);
+        EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'invite_token_id' => $invite->getKey(),
+            'name' => 'Idea Only Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Advisor selected the Business Idea invite path.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('packageAccess.package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
+                ->where('packageAccess.includes_idea_validation', true)
+                ->where('packageAccess.includes_plan_budget', false));
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.plan.start'))
+            ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
+            ->assertSessionHas('entrepreneur_plan_error', 'Business plan and budget are not included in your selected package.');
+    }
+
+    public function test_entrepreneur_can_start_buying_business_service_from_portal(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'buyer-founder@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Buyer Founder',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Founder also wants to buy a business.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('buyingBusinessServiceUrl', route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false)));
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE]))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->component('portal/ServiceActivationRequest')
+                ->where('service.service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->where('dashboardUrl', route('portal.entrepreneur.dashboard', absolute: false)));
+
+        $profile->refresh();
+
+        $this->assertNotNull($profile->client_id);
+        $this->assertDatabaseHas('client_team', [
+            'client_id' => $profile->client_id,
+            'user_id' => $entrepreneur->getKey(),
+            'role' => 'primary_contact',
+        ]);
+        $this->assertTrue(ClientTeamMember::query()
+            ->where('client_id', $profile->client_id)
+            ->where('user_id', $advisor->getKey())
+            ->where('role', 'lead_advisor')
+            ->exists());
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.service-activations.store'), [
+                'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+                'target_name' => 'Kauri Kitchens Group Limited',
+                'vendor_name' => 'Kauri Vendors',
+                'industry' => 'Food service',
+                'asking_price' => 850000,
+                'timing' => 'Shortlisting now',
+                'notes' => 'I want due diligence support before submitting an offer.',
+            ])
+            ->assertRedirect();
+
+        $activation = ServiceActivation::query()
+            ->where('client_id', $profile->client_id)
+            ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+            ->firstOrFail();
+
+        $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
+        $this->assertSame((string) $advisor->getKey(), (string) $activation->advisor_id);
+        $this->assertSame('Kauri Kitchens Group Limited', $activation->intake['target_name']);
     }
 
     public function test_entrepreneur_navigation_reclaims_same_email_profile_from_stale_user(): void

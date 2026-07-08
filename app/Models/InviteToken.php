@@ -40,6 +40,49 @@ final class InviteToken extends Model
         return ! $this->isAccepted() && ! $this->isExpired($now);
     }
 
+    public function serviceIntentLabel(): ?string
+    {
+        return match ($this->intended_service_type) {
+            ServiceActivation::SERVICE_ENTREPRENEUR => 'Business Idea',
+            ServiceActivation::SERVICE_DUE_DILIGENCE => 'Buying a Business',
+            default => null,
+        };
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function serviceIntentPayload(): ?array
+    {
+        $label = $this->serviceIntentLabel();
+
+        if ($label === null) {
+            return null;
+        }
+
+        return [
+            'service_type' => $this->intended_service_type,
+            'package_scope' => $this->intended_package_scope,
+            'label' => $label,
+            'package_scope_label' => $this->intended_package_scope !== null
+                ? ServiceRatePackage::packageScopeLabel($this->intended_package_scope)
+                : $this->serviceIntentFallbackScopeLabel(),
+            'access' => ServiceRatePackage::accessFor(
+                (string) $this->intended_service_type,
+                is_string($this->intended_package_scope) ? $this->intended_package_scope : null,
+            ),
+        ];
+    }
+
+    private function serviceIntentFallbackScopeLabel(): string
+    {
+        return match ($this->intended_service_type) {
+            ServiceActivation::SERVICE_DUE_DILIGENCE => 'Due diligence workspace',
+            ServiceActivation::SERVICE_ENTREPRENEUR => 'Entrepreneur workspace',
+            default => 'Standard workspace',
+        };
+    }
+
     public function markAccepted(User $user): void
     {
         $this->forceFill([

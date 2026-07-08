@@ -58,7 +58,7 @@ final class DdBusinessPlanController extends Controller
 
     public function show(Request $request): Response
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $plan = $this->latestPlan($engagement);
 
@@ -101,7 +101,7 @@ final class DdBusinessPlanController extends Controller
 
     public function preview(Request $request): SymfonyResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $plan = $this->latestPlan($engagement);
         $readiness = $this->readiness($engagement);
@@ -121,7 +121,7 @@ final class DdBusinessPlanController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -134,7 +134,7 @@ final class DdBusinessPlanController extends Controller
 
     public function section(Request $request): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -179,7 +179,7 @@ final class DdBusinessPlanController extends Controller
 
     public function guidance(Request $request, PlanSection $planSection): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -192,7 +192,7 @@ final class DdBusinessPlanController extends Controller
 
     public function complete(Request $request): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -219,7 +219,7 @@ final class DdBusinessPlanController extends Controller
 
     public function requestAdvice(Request $request): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $engagement = $this->engagementFor($client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);

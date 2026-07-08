@@ -39,6 +39,7 @@ final class ClaudeSkillFileTest extends TestCase
         $this->assertStringContainsString('skill-creator', $body);
         $this->assertStringContainsString('forecasting-time-series-data', $body);
         $this->assertStringContainsString('AiClient', $body);
+        $this->assertStringContainsString('platform learning, knowledge records, governance principles, prompt versions, source evidence, and audit history stay in FSA', $body);
         $this->assertStringContainsString('Every uploaded file must be virus-scanned', $body);
         $this->assertStringContainsString('public holidays for the client region', $body);
     }

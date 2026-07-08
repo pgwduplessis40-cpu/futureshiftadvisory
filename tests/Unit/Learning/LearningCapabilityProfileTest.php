@@ -60,4 +60,32 @@ final class LearningCapabilityProfileTest extends TestCase
         $this->assertTrue($profile['advice_quality']['budget_principle_review_required']);
         $this->assertTrue($profile['advice_quality']['calculation_validation_required']);
     }
+
+    public function test_profiles_methodology_valuation_calculation_and_budget_principle_learning(): void
+    {
+        $profile = app(LearningCapabilityProfile::class)->forUpdate(new LearningUpdate([
+            'summary' => 'Review valuation methodology, DCF discount rate calculation logic, and budget principles after outcome variance.',
+            'proposed_change' => [
+                'action' => 'revise_methodology',
+                'requires_approval' => true,
+                'automatic_application' => false,
+            ],
+            'impact_scope' => [
+                'modules' => ['valuation', 'budget_forecast'],
+            ],
+            'evidence' => [
+                'outcome_review' => 'actual results underperformed the forecast and valuation sensitivity.',
+            ],
+        ]));
+
+        $this->assertContains('Finance', $profile['capabilities']);
+        $this->assertContains('Financial Planning and Analysis', $profile['capabilities']);
+        $this->assertContains('budget_forecast', $profile['ai_surfaces']);
+        $this->assertTrue($profile['advice_quality']['methodology_review_required']);
+        $this->assertTrue($profile['advice_quality']['valuation_review_required']);
+        $this->assertTrue($profile['advice_quality']['calculation_validation_required']);
+        $this->assertTrue($profile['advice_quality']['budget_principle_review_required']);
+        $this->assertTrue($profile['advice_quality']['truthfulness_review_required']);
+        $this->assertFalse($profile['governance']['automatic_application']);
+    }
 }

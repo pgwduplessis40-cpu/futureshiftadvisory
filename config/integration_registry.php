@@ -495,6 +495,28 @@ return [
                 ],
             ],
         ],
+        'virus_scanner' => [
+            'display_name' => 'ClamAV malware scanner',
+            'category' => 'security',
+            'fallback_mode' => 'fail_closed',
+            'managed_via' => 'environment',
+            'wiring_status' => 'wired',
+            'live_config_path' => 'virus-scanner.live',
+            'purpose' => 'ClamAV scans uploaded documents before encrypted persistence. Infected files are rejected, and scanner failures are quarantined so clients cannot rely on unscanned files.',
+            'api_outcome' => 'Production must run ClamAV live scanning. Local and testing may use the no-op scanner only for development fixtures; production falls closed to quarantine if ClamAV is not configured.',
+            'credentials' => [
+                'host' => [
+                    'config_path' => 'virus-scanner.clamav.host',
+                    'env_fallback_path' => 'CLAMAV_HOST',
+                    'required' => false,
+                ],
+                'port' => [
+                    'config_path' => 'virus-scanner.clamav.port',
+                    'env_fallback_path' => 'CLAMAV_PORT',
+                    'required' => false,
+                ],
+            ],
+        ],
         'ses_sendgrid' => [
             'display_name' => 'SES / SendGrid scaffold',
             'category' => 'notifications',

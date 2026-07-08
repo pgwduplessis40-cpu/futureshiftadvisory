@@ -6,6 +6,8 @@ namespace App\Services\Security;
 
 use App\Mail\InvitationMail;
 use App\Models\InviteToken;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Contracts\Auth\Authenticatable;
@@ -26,17 +28,22 @@ final class InviteIssuer
         string $email,
         string $targetUserType,
         string $targetRole,
+        ?string $intendedServiceType = null,
+        ?string $intendedPackageScope = null,
         ?Authenticatable $issuedBy = null,
         bool $deliver = false,
     ): IssuedInvite {
         $email = Str::lower(trim($email));
-        $this->validateTarget($email, $targetUserType, $targetRole);
+        [$intendedServiceType, $intendedPackageScope] = $this->normaliseServiceIntent($intendedServiceType, $intendedPackageScope);
+        $this->validateTarget($email, $targetUserType, $targetRole, $intendedServiceType);
 
         $plainToken = Str::random(64);
         $invite = InviteToken::query()->create([
             'email' => $email,
             'target_role' => $targetRole,
             'target_user_type' => $targetUserType,
+            'intended_service_type' => $intendedServiceType,
+            'intended_package_scope' => $intendedPackageScope,
             'token_hash' => InviteToken::hashToken($plainToken),
             'token_envelope' => Crypt::encryptString($plainToken),
             'expires_at' => now()->addHours((int) config('security.invite_token_ttl_hours', 72)),
@@ -52,6 +59,9 @@ final class InviteIssuer
                 'email' => $email,
                 'target_user_type' => $targetUserType,
                 'target_role' => $targetRole,
+                'intended_service_type' => $intendedServiceType,
+                'intended_package_scope' => $intendedPackageScope,
+                'service_intent_label' => $invite->serviceIntentLabel(),
                 'expires_at' => $invite->expires_at?->toIso8601String(),
                 'delivery_mode' => $deliver ? 'app_mail' : 'token_issued',
             ],
@@ -105,7 +115,28 @@ final class InviteIssuer
         ];
     }
 
-    private function validateTarget(string $email, string $targetUserType, string $targetRole): void
+    private function validateTarget(
+        string $email,
+        string $targetUserType,
+        string $targetRole,
+        ?string $intendedServiceType,
+    ): void {
+        if ($intendedServiceType === ServiceActivation::SERVICE_ENTREPRENEUR && $targetUserType !== User::TYPE_ENTREPRENEUR) {
+            throw ValidationException::withMessages([
+                'target_user_type' => 'Business Idea invites must create an entrepreneur account.',
+            ]);
+        }
+
+        if ($intendedServiceType === ServiceActivation::SERVICE_DUE_DILIGENCE && $targetUserType !== User::TYPE_CLIENT_PRIMARY) {
+            throw ValidationException::withMessages([
+                'target_user_type' => 'Buying a Business invites must create a client-primary account.',
+            ]);
+        }
+
+        $this->validateUserTarget($email, $targetUserType, $targetRole);
+    }
+
+    private function validateUserTarget(string $email, string $targetUserType, string $targetRole): void
     {
         if (! filter_var($email, FILTER_VALIDATE_EMAIL)) {
             throw ValidationException::withMessages(['email' => 'A valid invitee email address is required.']);
@@ -124,16 +155,57 @@ final class InviteIssuer
         }
     }
 
+    /**
+     * @return array{0:string|null,1:string|null}
+     */
+    private function normaliseServiceIntent(?string $serviceType, ?string $packageScope): array
+    {
+        $serviceType = is_string($serviceType) ? trim($serviceType) : null;
+        $packageScope = is_string($packageScope) ? trim($packageScope) : null;
+
+        if ($serviceType === '') {
+            $serviceType = null;
+        }
+
+        if ($packageScope === '') {
+            $packageScope = null;
+        }
+
+        if ($serviceType === null) {
+            return [null, null];
+        }
+
+        if (! in_array($serviceType, [ServiceActivation::SERVICE_ENTREPRENEUR, ServiceActivation::SERVICE_DUE_DILIGENCE], true)) {
+            throw ValidationException::withMessages(['intended_service_type' => 'Choose a supported invite access path.']);
+        }
+
+        return [
+            $serviceType,
+            match ($serviceType) {
+                ServiceActivation::SERVICE_ENTREPRENEUR => ServiceRatePackage::normaliseEntrepreneurScope($packageScope),
+                ServiceActivation::SERVICE_DUE_DILIGENCE => $packageScope !== null
+                    ? ServiceRatePackage::normaliseDueDiligenceScope($packageScope)
+                    : null,
+                default => null,
+            },
+        ];
+    }
+
     private function inviteBody(InviteToken $invite, string $acceptUrl): string
     {
         $expiresAt = $invite->expires_at?->format('j M Y, g:i A T') ?? 'the expiry date shown in Future Shift Advisory';
         $accountLabel = $this->accountLabel((string) $invite->target_user_type);
+        $serviceIntent = $invite->serviceIntentLabel();
+        $serviceLine = $serviceIntent !== null
+            ? ["Your advisor selected the {$serviceIntent} access path for this invitation.", '']
+            : [];
 
         return implode("\n", [
             'Hello,',
             '',
             "Future Shift Advisory has invited you to create your {$accountLabel}.",
             '',
+            ...$serviceLine,
             'Please use this secure invitation link to set up your account:',
             $acceptUrl,
             '',

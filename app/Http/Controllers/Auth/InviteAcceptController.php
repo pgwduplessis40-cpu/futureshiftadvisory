@@ -85,6 +85,7 @@ final class InviteAcceptController extends Controller
             'email' => $invite->email,
             'targetRole' => $invite->target_role,
             'targetUserType' => $invite->target_user_type,
+            'serviceIntent' => $invite->serviceIntentPayload(),
             'expiresAt' => $invite->expires_at?->toIso8601String(),
             'passwordRules' => Password::defaults()->toPasswordRulesString(),
         ]);
@@ -131,6 +132,9 @@ final class InviteAcceptController extends Controller
                         'accepted_by_user_id' => $user->getKey(),
                         'target_user_type' => $invite->target_user_type,
                         'target_role' => $invite->target_role,
+                        'intended_service_type' => $invite->intended_service_type,
+                        'intended_package_scope' => $invite->intended_package_scope,
+                        'service_intent_label' => $invite->serviceIntentLabel(),
                         'mobile_phone_captured' => true,
                         'entrepreneur_profile_id' => $profile?->getKey(),
                         'panel_member_id' => $panelMember?->getKey(),
@@ -210,6 +214,8 @@ final class InviteAcceptController extends Controller
             ->where('email', $invite->email)
             ->where('target_role', $invite->target_role)
             ->where('target_user_type', $invite->target_user_type)
+            ->where('intended_service_type', $invite->intended_service_type)
+            ->where('intended_package_scope', $invite->intended_package_scope)
             ->whereNull('accepted_at')
             ->where('expires_at', '>', now())
             ->latest('expires_at')

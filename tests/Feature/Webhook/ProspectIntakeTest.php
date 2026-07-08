@@ -6,6 +6,8 @@ namespace Tests\Feature\Webhook;
 
 use App\Models\InviteToken;
 use App\Models\ProspectLead;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -99,13 +101,15 @@ final class ProspectIntakeTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/prospects/Index')
                 ->where('leads.0.name', 'Kai Owner')
+                ->where('inviteOptions.0.value', 'business_idea')
+                ->where('inviteOptions.1.value', 'buying_business')
                 ->where('canTriage', true));
 
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.prospects.triage', $lead), [
                 'outcome' => ProspectLead::STATUS_INVITED,
-                'target_user_type' => User::TYPE_CLIENT_PRIMARY,
-                'triage_notes' => 'Good fit for advisory.',
+                'invite_path' => 'buying_business',
+                'triage_notes' => 'Good fit for buying-a-business support.',
             ])
             ->assertRedirect(route('advisor.prospects.index', absolute: false));
 
@@ -114,15 +118,39 @@ final class ProspectIntakeTest extends TestCase
 
         $this->assertSame(ProspectLead::STATUS_INVITED, $lead->status);
         $this->assertSame(ProspectLead::STATUS_INVITED, $lead->triage_outcome);
-        $this->assertSame('Good fit for advisory.', $lead->triage_notes);
+        $this->assertSame('Good fit for buying-a-business support.', $lead->triage_notes);
         $this->assertSame($advisor->getKey(), $lead->triaged_by_user_id);
         $this->assertSame($invite->getKey(), $lead->invite_token_id);
         $this->assertSame('kai@example.test', $invite->email);
         $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_user_type);
+        $this->assertSame(ServiceActivation::SERVICE_DUE_DILIGENCE, $invite->intended_service_type);
+        $this->assertNull($invite->intended_package_scope);
+        $this->assertSame('Buying a Business', $invite->serviceIntentLabel());
         $this->assertDatabaseHas('audit_events', [
             'action' => 'prospect_lead.triaged',
             'subject_id' => (string) $lead->id,
         ]);
+    }
+
+    public function test_advisor_business_idea_invite_sets_entrepreneur_access_intent(): void
+    {
+        $advisor = $this->advisor();
+        $lead = $this->lead('idea-founder@example.test');
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.prospects.triage', $lead), [
+                'outcome' => ProspectLead::STATUS_INVITED,
+                'invite_path' => 'business_idea',
+                'triage_notes' => 'Start with idea validation.',
+            ])
+            ->assertRedirect(route('advisor.prospects.index', absolute: false));
+
+        $invite = InviteToken::query()->firstOrFail();
+
+        $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_user_type);
+        $this->assertSame(ServiceActivation::SERVICE_ENTREPRENEUR, $invite->intended_service_type);
+        $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION, $invite->intended_package_scope);
+        $this->assertSame('Business Idea', $invite->serviceIntentLabel());
     }
 
     public function test_advisor_can_record_parked_and_declined_triage_outcomes(): void

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Integration;
 
+use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
 use App\Services\Integration\VirusScanner\UnavailableScanner;
@@ -50,5 +51,29 @@ final class VirusScannerBindingTest extends TestCase
         $this->app->forgetInstance(FileScanner::class);
 
         $this->assertInstanceOf(NoopScanner::class, app(FileScanner::class));
+    }
+
+    public function test_virus_scanner_registry_readiness_matches_fail_closed_binding(): void
+    {
+        $resolver = app(IntegrationActivationResolver::class);
+
+        Config::set('app.env', 'production');
+        Config::set('virus-scanner.live', false);
+        Config::set('virus-scanner.allow_noop', true);
+
+        $this->assertFalse($resolver->readiness('virus_scanner'));
+        $this->assertFalse($resolver->isLive('virus_scanner'));
+
+        Config::set('virus-scanner.live', true);
+
+        $this->assertTrue($resolver->readiness('virus_scanner'));
+        $this->assertTrue($resolver->isLive('virus_scanner'));
+
+        Config::set('app.env', 'local');
+        Config::set('virus-scanner.live', false);
+        Config::set('virus-scanner.allow_noop', true);
+
+        $this->assertTrue($resolver->readiness('virus_scanner'));
+        $this->assertFalse($resolver->isLive('virus_scanner'));
     }
 }

@@ -13,6 +13,7 @@ use App\Models\Document;
 use App\Models\EntrepreneurBudget;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
+use App\Models\InviteToken;
 use App\Models\MessageThread;
 use App\Models\PlanSection;
 use App\Models\ReadinessAssessment;
@@ -621,14 +622,23 @@ final class EntrepreneurPlanController extends Controller
     {
         $activation = $this->activeEntrepreneurActivationForProfile($profile);
         $snapshot = (array) ($activation?->selected_package_snapshot ?? []);
+        $profile->loadMissing('inviteToken');
+        $invite = $profile->inviteToken;
+        $inviteScope = $invite instanceof InviteToken
+            && $invite->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
+            ? $invite->intended_package_scope
+            : null;
+        $scope = $activation instanceof ServiceActivation
+            ? (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO)
+            : (string) ($inviteScope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO);
         $access = ServiceRatePackage::accessFor(
             ServiceRatePackage::SERVICE_ENTREPRENEUR,
-            (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
+            $scope,
         );
 
         return [
             ...$access,
-            'package_label' => (string) ($snapshot['client_label'] ?? $snapshot['package_name'] ?? 'Entrepreneur workspace'),
+            'package_label' => (string) ($snapshot['client_label'] ?? $snapshot['package_name'] ?? $invite?->serviceIntentLabel() ?? 'Entrepreneur workspace'),
             'source_activation_id' => $activation?->getKey(),
         ];
     }

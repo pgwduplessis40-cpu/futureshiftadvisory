@@ -1175,12 +1175,20 @@ final class ReportComposer implements ProvidesMethodology
      */
     private function clientSections(Client $client, Collection $findings, array $waterfall, ?BusinessValuation $valuation): array
     {
+        $visibleFindings = $findings
+            ->reject(fn (AnalysisFinding $finding): bool => $finding->lens === AnalysisLens::Prescriptive)
+            ->values();
+
         $sections = [
             $this->valuationSection($client, $waterfall, $valuation),
         ];
 
-        $findings
-            ->reject(fn (AnalysisFinding $finding): bool => $finding->lens === AnalysisLens::Prescriptive)
+        $whatIsWrong = $this->whatIsWrongSection($client, $visibleFindings);
+        if ($whatIsWrong !== null) {
+            $sections[] = $whatIsWrong;
+        }
+
+        $visibleFindings
             ->each(function (AnalysisFinding $finding) use (&$sections): void {
                 $sections[] = $this->findingSection($finding);
             });
@@ -3426,6 +3434,44 @@ final class ReportComposer implements ProvidesMethodology
             dataQualityNote: $this->combinedDataQualityNote($prescriptive),
             metadata: [
                 'prescriptive_finding_ids' => $prescriptive->pluck('id')->values()->all(),
+            ],
+        );
+    }
+
+    /**
+     * @param  Collection<int, AnalysisFinding>  $findings
+     * @return array<string, mixed>|null
+     */
+    private function whatIsWrongSection(Client $client, Collection $findings): ?array
+    {
+        $diagnosticFindings = $findings
+            ->filter(fn (AnalysisFinding $finding): bool => $finding->lens === AnalysisLens::Diagnostic)
+            ->values();
+
+        $selected = $diagnosticFindings->isNotEmpty()
+            ? $diagnosticFindings
+            : $findings
+                ->filter(fn (AnalysisFinding $finding): bool => in_array($finding->lens, [AnalysisLens::Predictive, AnalysisLens::Descriptive], true))
+                ->values();
+
+        if ($selected->isEmpty()) {
+            return null;
+        }
+
+        $body = $selected
+            ->take(8)
+            ->map(fn (AnalysisFinding $finding): string => $finding->title.': '.$finding->body)
+            ->implode("\n\n");
+
+        return $this->generatedSection(
+            key: 'what_is_wrong',
+            title: 'What is wrong',
+            body: $body,
+            sourceReference: 'analysis_findings:'.$client->getKey().':what_is_wrong',
+            documentSupport: $this->strongestDocumentSupport($selected),
+            dataQualityNote: $this->combinedDataQualityNote($selected),
+            metadata: [
+                'diagnostic_finding_ids' => $selected->pluck('id')->values()->all(),
             ],
         );
     }

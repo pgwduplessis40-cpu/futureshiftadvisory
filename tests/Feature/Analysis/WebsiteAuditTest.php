@@ -117,6 +117,13 @@ final class WebsiteAuditTest extends TestCase
             'value' => 'https://irrelevant.example has slow mobile pages, no schema, and a hidden CTA.',
             'attached_document_ids' => [],
         ]);
+        foreach (['products', 'discoverability', 'mobile', 'cta'] as $key) {
+            $response->answers()->create([
+                'question_id' => $questions[$key]->id,
+                'value' => 'Non-Standard Advisory evidence should not drive the website audit.',
+                'attached_document_ids' => [],
+            ]);
+        }
 
         $run = app(AnalysisRunner::class)->run($client, app(WebsiteAudit::class));
 

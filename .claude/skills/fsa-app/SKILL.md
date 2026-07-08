@@ -3,12 +3,12 @@ name: FSA App Guardrails
 description: Apply Future Shift Advisory app guardrails and AI-assistant skill routing when changing Laravel/Inertia code, analysis modules, reports, proposals, strategic plans, calendar rules, document handling, AI prompts, voice/assistant flows, learning layers, or Claude skills.
 when_to_use: Use for FSA feature work, reviews, tests, or docs changes where client workflows, AI integrity, security, Standard Advisory scope, reporting, proposals, strategic plans, uploaded documents, data, finance, productivity, operations, FP&A, decisions, fact checks, skill creation, or forecasting/time-series AI may be affected.
 paths:
-  - app/**
-  - resources/js/**
-  - routes/**
-  - database/**
-  - tests/**
-  - docs/**
+    - app/**
+    - resources/js/**
+    - routes/**
+    - database/**
+    - tests/**
+    - docs/**
 ---
 
 ## FSA App Guardrails
@@ -26,6 +26,7 @@ Apply these rules before editing and again before finishing.
 ## AI Integrity
 
 - All AI calls go through `App\Services\Ai\Contracts\AiClient`; never construct direct Anthropic API requests outside `AnthropicClaudeClient`.
+- AI providers are replaceable behind `AiClient`; platform learning, knowledge records, governance principles, prompt versions, source evidence, and audit history stay in FSA and must not be treated as provider memory.
 - Every factual AI claim needs source attribution. Missing attribution is a hard failure.
 - Bias signals and accuracy discrepancies are surfaced through the governed learning/document-verification paths; never silently suppress them.
 - Tests use fake or recording AI clients unless a live-integration test is explicitly gated.
@@ -34,17 +35,17 @@ Apply these rules before editing and again before finishing.
 
 Whenever adding or changing AI or AI-assistant behaviour, identify which capability areas apply and encode the rule in prompts, services, reports, proposals, UI copy, and tests.
 
-| Capability | Apply When | Required Behaviour |
-|---|---|---|
-| Data | Analysis modules, document verification, data-quality gates, integrations, dashboards, learning signals, and source references | Preserve provenance, quality state, uncertainty, tenant/RLS boundaries, and evidence links. Do not infer missing data as fact. |
-| Finance | Financial analysis, PV, fees, accounting, funding, proposals, budgets, invoices, valuation, grant accountability, and business-case outputs | Use NZ context, show assumptions, quantify value/risk where supportable, and keep financial claims attributed and reviewable. |
-| Productivity | Voice notes, voice assistant shortcuts, template suggestions, knowledge capture, notifications, meeting notes, action extraction, and advisor workflow aids | Create useful drafts or actions without bypassing approval, audit, document verification, client scope, or public-holiday scheduling rules. |
-| Operations | OperationalAnalysis, SystemsReview, SOP/process evidence, automation candidates, handoffs, duplicate entry, reporting lag, and workflow constraints | Convert process gaps into measurable business impact and specific fixes; avoid generic automation recommendations. |
-| Financial Planning and Analysis | Cash flow, budgets, runway, scenario planning, variance, forecasts, strategic budgets, and plan milestones | Separate historicals, assumptions, forecast outputs, and confidence. Surface sensitivity/range and advisor-review requirements. |
-| decision-toolkit | Recommendations, prioritisation, proposal focus areas, strategic-plan priorities, red flags, and trade-off decisions | Present options, evidence, consequences, risks, and the recommended decision path; do not hide material downsides. |
-| fact-checker | Website audit, document claims, reports, AI narratives, regulatory content, proposal claims, and client-facing guidance | Verify against supplied sources or current official sources; flag unsupported, stale, contradictory, or missing evidence. |
-| skill-creator | Updates to `.claude/skills/**/SKILL.md`, project memory, reusable prompt operating rules, or AI-assistant capability documentation | Keep skills concise, triggerable, frontmatter-valid, and tested; move repeatable workflow guidance into skills rather than bloating `CLAUDE.md`. |
-| forecasting-time-series-data | Time-series trends, cash-flow forecasts, wellbeing trends, sales/revenue history, budget runway, valuation history, and economic indicators | Use appropriate time windows, label seasonality/outliers, avoid overfitting sparse data, and state forecast uncertainty plainly. |
+| Capability                      | Apply When                                                                                                                                                  | Required Behaviour                                                                                                                               |
+| ------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Data                            | Analysis modules, document verification, data-quality gates, integrations, dashboards, learning signals, and source references                              | Preserve provenance, quality state, uncertainty, tenant/RLS boundaries, and evidence links. Do not infer missing data as fact.                   |
+| Finance                         | Financial analysis, PV, fees, accounting, funding, proposals, budgets, invoices, valuation, grant accountability, and business-case outputs                 | Use NZ context, show assumptions, quantify value/risk where supportable, and keep financial claims attributed and reviewable.                    |
+| Productivity                    | Voice notes, voice assistant shortcuts, template suggestions, knowledge capture, notifications, meeting notes, action extraction, and advisor workflow aids | Create useful drafts or actions without bypassing approval, audit, document verification, client scope, or public-holiday scheduling rules.      |
+| Operations                      | OperationalAnalysis, SystemsReview, SOP/process evidence, automation candidates, handoffs, duplicate entry, reporting lag, and workflow constraints         | Convert process gaps into measurable business impact and specific fixes; avoid generic automation recommendations.                               |
+| Financial Planning and Analysis | Cash flow, budgets, runway, scenario planning, variance, forecasts, strategic budgets, and plan milestones                                                  | Separate historicals, assumptions, forecast outputs, and confidence. Surface sensitivity/range and advisor-review requirements.                  |
+| decision-toolkit                | Recommendations, prioritisation, proposal focus areas, strategic-plan priorities, red flags, and trade-off decisions                                        | Present options, evidence, consequences, risks, and the recommended decision path; do not hide material downsides.                               |
+| fact-checker                    | Website audit, document claims, reports, AI narratives, regulatory content, proposal claims, and client-facing guidance                                     | Verify against supplied sources or current official sources; flag unsupported, stale, contradictory, or missing evidence.                        |
+| skill-creator                   | Updates to `.claude/skills/**/SKILL.md`, project memory, reusable prompt operating rules, or AI-assistant capability documentation                          | Keep skills concise, triggerable, frontmatter-valid, and tested; move repeatable workflow guidance into skills rather than bloating `CLAUDE.md`. |
+| forecasting-time-series-data    | Time-series trends, cash-flow forecasts, wellbeing trends, sales/revenue history, budget runway, valuation history, and economic indicators                 | Use appropriate time windows, label seasonality/outliers, avoid overfitting sparse data, and state forecast uncertainty plainly.                 |
 
 Current AI surfaces to check include `AnalysisRunner`, `PromptRegistry`, `DocumentVerifier`, entrepreneur assessment/guidance/idea validation, voice note processing, voice assistant shortcuts, knowledge capture, template suggestions, NPO AI assessments, report narratives, learning layers, and budget/forecast helpers.
 

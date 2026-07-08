@@ -7,6 +7,8 @@ namespace App\Http\Controllers\Advisor;
 use App\Http\Controllers\Controller;
 use App\Models\InviteToken;
 use App\Models\ProspectLead;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Security\InviteIssuer;
@@ -34,10 +36,7 @@ final class ProspectInboxController extends Controller
                 ->get()
                 ->map(fn (ProspectLead $lead): array => $this->leadPayload($lead))
                 ->values(),
-            'targetUserTypes' => [
-                User::TYPE_CLIENT_PRIMARY,
-                User::TYPE_ENTREPRENEUR,
-            ],
+            'inviteOptions' => array_values($this->invitePathOptions()),
             'canTriage' => Gate::allows('triage', ProspectLead::class),
         ]);
     }
@@ -52,11 +51,11 @@ final class ProspectInboxController extends Controller
         $validated = $request->validate([
             'outcome' => ['required', 'string', Rule::in(ProspectLead::triageOutcomes())],
             'triage_notes' => ['nullable', 'string', 'max:2000'],
-            'target_user_type' => [
+            'invite_path' => [
                 Rule::requiredIf(fn (): bool => $request->input('outcome') === ProspectLead::STATUS_INVITED),
                 'nullable',
                 'string',
-                Rule::in([User::TYPE_CLIENT_PRIMARY, User::TYPE_ENTREPRENEUR]),
+                Rule::in(array_keys($this->invitePathOptions())),
             ],
         ]);
 
@@ -114,12 +113,15 @@ final class ProspectInboxController extends Controller
             return null;
         }
 
-        $targetUserType = (string) ($validated['target_user_type'] ?? User::TYPE_CLIENT_PRIMARY);
+        $option = $this->invitePathOption((string) ($validated['invite_path'] ?? ''));
+        $targetUserType = (string) $option['target_user_type'];
 
         return $issuer->issue(
             email: $lead->email,
             targetUserType: $targetUserType,
             targetRole: $targetUserType,
+            intendedServiceType: (string) $option['intended_service_type'],
+            intendedPackageScope: $option['intended_package_scope'],
             issuedBy: $actor,
             deliver: true,
         )->invite;
@@ -150,6 +152,45 @@ final class ProspectInboxController extends Controller
                 ? ($lead->inviteToken instanceof InviteToken ? 'pending' : null)
                 : 'accepted',
             'triage_url' => route('advisor.prospects.triage', $lead, absolute: false),
+            'invite_path_label' => $lead->inviteToken?->serviceIntentLabel(),
+            'invite_package_scope_label' => $lead->inviteToken instanceof InviteToken
+                ? ServiceRatePackage::packageScopeLabel($lead->inviteToken->intended_package_scope)
+                : null,
         ];
+    }
+
+    /**
+     * @return array<string, array{value:string,label:string,description:string,target_user_type:string,intended_service_type:string,intended_package_scope:string|null}>
+     */
+    private function invitePathOptions(): array
+    {
+        return [
+            'business_idea' => [
+                'value' => 'business_idea',
+                'label' => 'Business Idea',
+                'description' => 'Creates an entrepreneur account and opens the idea-validation path first.',
+                'target_user_type' => User::TYPE_ENTREPRENEUR,
+                'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            ],
+            'buying_business' => [
+                'value' => 'buying_business',
+                'label' => 'Buying a Business',
+                'description' => 'Creates a client-primary account for the buying-a-business/DD access path.',
+                'target_user_type' => User::TYPE_CLIENT_PRIMARY,
+                'intended_service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+                'intended_package_scope' => null,
+            ],
+        ];
+    }
+
+    /**
+     * @return array{value:string,label:string,description:string,target_user_type:string,intended_service_type:string,intended_package_scope:string|null}
+     */
+    private function invitePathOption(string $value): array
+    {
+        $options = $this->invitePathOptions();
+
+        return $options[$value] ?? $options['business_idea'];
     }
 }

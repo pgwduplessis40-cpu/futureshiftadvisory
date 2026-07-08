@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\InviteToken;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Http\RedirectResponse;
@@ -24,7 +25,20 @@ final class InvitationController extends Controller
             'invites' => InviteToken::query()
                 ->latest()
                 ->limit(50)
-                ->get(['id', 'email', 'target_role', 'target_user_type', 'expires_at', 'accepted_at']),
+                ->get(['id', 'email', 'target_role', 'target_user_type', 'intended_service_type', 'intended_package_scope', 'expires_at', 'accepted_at'])
+                ->map(fn (InviteToken $invite): array => [
+                    'id' => $invite->id,
+                    'email' => $invite->email,
+                    'target_role' => $invite->target_role,
+                    'target_user_type' => $invite->target_user_type,
+                    'service_intent_label' => $invite->serviceIntentLabel(),
+                    'package_scope_label' => $invite->intended_package_scope !== null
+                        ? ServiceRatePackage::packageScopeLabel($invite->intended_package_scope)
+                        : null,
+                    'expires_at' => $invite->expires_at?->toIso8601String(),
+                    'accepted_at' => $invite->accepted_at?->toIso8601String(),
+                ])
+                ->values(),
         ]);
     }
 

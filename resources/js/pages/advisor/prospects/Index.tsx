@@ -28,18 +28,29 @@ type ProspectLead = {
     assigned_advisor_name: string | null;
     triaged_by_name: string | null;
     invite_status: string | null;
+    invite_path_label: string | null;
+    invite_package_scope_label: string | null;
     triage_url: string;
+};
+
+type InviteOption = {
+    value: string;
+    label: string;
+    description: string;
+    target_user_type: string;
+    intended_service_type: string;
+    intended_package_scope: string | null;
 };
 
 type Props = {
     leads: ProspectLead[];
-    targetUserTypes: string[];
+    inviteOptions: InviteOption[];
     canTriage: boolean;
 };
 
 export default function ProspectInboxIndex({
     leads,
-    targetUserTypes,
+    inviteOptions,
     canTriage,
 }: Props) {
     return (
@@ -65,7 +76,7 @@ export default function ProspectInboxIndex({
                             <LeadCard
                                 key={lead.id}
                                 lead={lead}
-                                targetUserTypes={targetUserTypes}
+                                inviteOptions={inviteOptions}
                                 canTriage={canTriage}
                             />
                         ))}
@@ -78,17 +89,20 @@ export default function ProspectInboxIndex({
 
 function LeadCard({
     lead,
-    targetUserTypes,
+    inviteOptions,
     canTriage,
 }: {
     lead: ProspectLead;
-    targetUserTypes: string[];
+    inviteOptions: InviteOption[];
     canTriage: boolean;
 }) {
     const form = useForm({
         triage_notes: lead.triage_notes ?? '',
-        target_user_type: targetUserTypes[0] ?? 'client_primary',
+        invite_path: inviteOptions[0]?.value ?? 'business_idea',
     });
+    const selectedInvite = inviteOptions.find(
+        (option) => option.value === form.data.invite_path,
+    );
 
     const submit = (outcome: 'invited' | 'parked' | 'declined') => {
         router.patch(
@@ -117,6 +131,11 @@ function LeadCard({
                                 {lead.invite_status && (
                                     <Badge variant="secondary">
                                         invite {lead.invite_status}
+                                    </Badge>
+                                )}
+                                {lead.invite_path_label && (
+                                    <Badge variant="outline">
+                                        {lead.invite_path_label}
                                     </Badge>
                                 )}
                             </div>
@@ -179,28 +198,34 @@ function LeadCard({
                 {canTriage && (
                     <div className="space-y-4 rounded-md border bg-muted/20 p-3">
                         <div className="grid gap-2">
-                            <Label htmlFor={`target_user_type_${lead.id}`}>
-                                Invite type
+                            <Label htmlFor={`invite_path_${lead.id}`}>
+                                Invite path
                             </Label>
                             <Select
-                                value={form.data.target_user_type}
+                                value={form.data.invite_path}
                                 onValueChange={(value) =>
-                                    form.setData('target_user_type', value)
+                                    form.setData('invite_path', value)
                                 }
                             >
-                                <SelectTrigger
-                                    id={`target_user_type_${lead.id}`}
-                                >
+                                <SelectTrigger id={`invite_path_${lead.id}`}>
                                     <SelectValue />
                                 </SelectTrigger>
                                 <SelectContent>
-                                    {targetUserTypes.map((type) => (
-                                        <SelectItem key={type} value={type}>
-                                            {type}
+                                    {inviteOptions.map((option) => (
+                                        <SelectItem
+                                            key={option.value}
+                                            value={option.value}
+                                        >
+                                            {option.label}
                                         </SelectItem>
                                     ))}
                                 </SelectContent>
                             </Select>
+                            {selectedInvite ? (
+                                <p className="text-xs leading-5 text-muted-foreground">
+                                    {selectedInvite.description}
+                                </p>
+                            ) : null}
                         </div>
 
                         <div className="grid gap-2">

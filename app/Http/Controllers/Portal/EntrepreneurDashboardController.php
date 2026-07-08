@@ -111,6 +111,7 @@ final class EntrepreneurDashboardController extends Controller
             'inspirationBoard' => $this->inspirationBoardPayload(),
             'messagesUrl' => route('portal.messages.index', absolute: false),
             'planWorkspaceUrl' => route('portal.entrepreneur.plan.show', absolute: false),
+            'buyingBusinessServiceUrl' => route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE], absolute: false),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),

@@ -31,7 +31,7 @@ final class ServiceActivationController extends Controller
             ServiceActivation::SERVICE_ENTREPRENEUR,
         ], true), 404);
 
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $currentActivation = ServiceActivation::query()
             ->where('client_id', $client->getKey())
             ->where('service_type', $serviceType)
@@ -58,13 +58,13 @@ final class ServiceActivationController extends Controller
         return Inertia::render('portal/ServiceActivationRequest', [
             'service' => $option,
             'requestUrl' => route('portal.service-activations.store', absolute: false),
-            'dashboardUrl' => route('portal.dashboard', absolute: false),
+            'dashboardUrl' => $this->dashboardUrl($request),
         ]);
     }
 
     public function store(Request $request): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
@@ -94,13 +94,13 @@ final class ServiceActivationController extends Controller
 
     public function show(Request $request, ServiceActivation $serviceActivation): Response
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $this->assertBelongsToClient($serviceActivation, $client);
 
         return Inertia::render('portal/ServiceActivation', [
             'activation' => $this->activationPayload($serviceActivation->refresh()),
             'urls' => [
-                'dashboard' => route('portal.dashboard', absolute: false),
+                'dashboard' => $this->dashboardUrl($request),
                 'paymentComplete' => route('portal.service-activations.payment-complete', $serviceActivation, absolute: false),
                 'accept' => route('portal.service-activations.accept', $serviceActivation, absolute: false),
                 'ddWorkspace' => route('portal.dd-plan.show', absolute: false),
@@ -111,7 +111,7 @@ final class ServiceActivationController extends Controller
 
     public function paymentComplete(Request $request, ServiceActivation $serviceActivation): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $this->assertBelongsToClient($serviceActivation, $client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -124,7 +124,7 @@ final class ServiceActivationController extends Controller
 
     public function accept(Request $request, ServiceActivation $serviceActivation): RedirectResponse
     {
-        $client = $this->clients->resolveFor($request);
+        $client = $this->clients->resolveForServiceWorkspace($request);
         $this->assertBelongsToClient($serviceActivation, $client);
         $user = $request->user();
         abort_unless($user instanceof User, 403);
@@ -145,6 +145,13 @@ final class ServiceActivationController extends Controller
     private function assertBelongsToClient(ServiceActivation $activation, Client $client): void
     {
         abort_unless((string) $activation->client_id === (string) $client->getKey(), 404);
+    }
+
+    private function dashboardUrl(Request $request): string
+    {
+        return $request->user() instanceof User && $request->user()->user_type === User::TYPE_ENTREPRENEUR
+            ? route('portal.entrepreneur.dashboard', absolute: false)
+            : route('portal.dashboard', absolute: false);
     }
 
     /**

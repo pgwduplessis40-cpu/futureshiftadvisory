@@ -252,8 +252,19 @@ final class IntegrationActivationResolver
         return match ($integrationKey) {
             'mail_delivery' => $this->mailReady((string) Config::get('mail.default', 'log')),
             'logging_slack' => filled(Config::get('logging.channels.slack.url')),
+            'virus_scanner' => $this->virusScannerReady(),
             default => $this->environmentCredentialsReady($integrationKey),
         };
+    }
+
+    private function virusScannerReady(): bool
+    {
+        if ((bool) Config::get('virus-scanner.live', false)) {
+            return true;
+        }
+
+        return (bool) Config::get('virus-scanner.allow_noop', false)
+            && in_array((string) Config::get('app.env', 'production'), ['local', 'testing'], true);
     }
 
     private function credentialPresent(string $integrationKey, string $field): bool

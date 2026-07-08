@@ -10,6 +10,10 @@ type Props = {
     email: string;
     targetRole: string;
     targetUserType: string;
+    serviceIntent: {
+        label: string;
+        package_scope_label: string;
+    } | null;
     expiresAt: string | null;
     passwordRules: string;
 };
@@ -19,6 +23,7 @@ export default function InviteAccept({
     email,
     targetRole,
     targetUserType,
+    serviceIntent,
     expiresAt,
     passwordRules,
 }: Props) {
@@ -45,6 +50,12 @@ export default function InviteAccept({
                     <span>
                         {targetUserType} / {targetRole}
                     </span>
+                    {serviceIntent ? (
+                        <span>
+                            {serviceIntent.label} /{' '}
+                            {serviceIntent.package_scope_label}
+                        </span>
+                    ) : null}
                     {expiresAt ? (
                         <span>Invite expires {formatDateTime(expiresAt)}</span>
                     ) : null}

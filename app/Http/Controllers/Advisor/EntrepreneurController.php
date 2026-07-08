@@ -22,6 +22,8 @@ use App\Models\PlanAssessment;
 use App\Models\PlanRevision;
 use App\Models\ReadinessAssessment;
 use App\Models\Report;
+use App\Models\ServiceActivation;
+use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
@@ -71,6 +73,7 @@ final class EntrepreneurController extends Controller
 
         return Inertia::render('advisor/entrepreneurs/Create', [
             'capacity' => $this->capacity->summary($this->actor($request)),
+            'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
         ]);
     }
 
@@ -94,14 +97,24 @@ final class EntrepreneurController extends Controller
                 Rule::unique('entrepreneur_profiles', 'email'),
             ],
             'concept_summary' => ['nullable', 'string', 'max:2000'],
+            'intended_package_scope' => [
+                'required',
+                'string',
+                Rule::in(ServiceRatePackage::entrepreneurPackageScopes()),
+            ],
         ]);
         $email = (string) $validated['email'];
+        $packageScope = ServiceRatePackage::normaliseEntrepreneurScope(
+            (string) $validated['intended_package_scope'],
+        );
 
-        $profile = DB::transaction(function () use ($advisor, $email, $validated): EntrepreneurProfile {
+        $profile = DB::transaction(function () use ($advisor, $email, $packageScope, $validated): EntrepreneurProfile {
             $issued = $this->inviteIssuer->issue(
                 email: $email,
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
+                intendedServiceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+                intendedPackageScope: $packageScope,
                 issuedBy: $advisor,
                 deliver: true,
             );
@@ -120,6 +133,8 @@ final class EntrepreneurController extends Controller
                 'stage' => EntrepreneurStage::INVITED->value,
                 'assigned_advisor_id' => $advisor->getKey(),
                 'invite_token_id' => $issued->invite->getKey(),
+                'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'intended_package_scope' => $packageScope,
             ]);
 
             return $profile;
@@ -152,6 +167,8 @@ final class EntrepreneurController extends Controller
                 email: $entrepreneurProfile->email,
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
+                intendedServiceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+                intendedPackageScope: $previousInvite?->intended_package_scope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
                 issuedBy: $advisor,
                 deliver: true,
             );
@@ -327,15 +344,15 @@ final class EntrepreneurController extends Controller
 
     private function profileStageLabel(EntrepreneurProfile $profile, EntrepreneurStage $stage): string
     {
+        if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
+            return 'Invite accepted';
+        }
+
         if (
             in_array($stage, [EntrepreneurStage::INVITED, EntrepreneurStage::ONBOARDING], true)
             && ($profile->user_id !== null || $profile->user instanceof User || $profile->inviteToken?->isAccepted())
         ) {
             return 'Active';
-        }
-
-        if ($stage === EntrepreneurStage::INVITED && $profile->inviteToken?->isAccepted()) {
-            return 'Invite accepted';
         }
 
         return $stage->label();

@@ -39,5 +39,7 @@ WO-49 adds no schema and does not create implementation tasks, vendor
 recommendations, procurement workflows, or automated monitoring. Prescriptive
 findings can flow into proposal focus areas, render under "What needs to be
 fixed", and carry into signed-proposal strategic plan priorities and milestones.
-Later work is still needed to turn them into PV-ranked initiatives, delivery
-tasks, or automation backlogs.
+Diagnostic operational and systems findings also render into the client report's
+"What is wrong" section, so the problem statement and proposed fix stay tied
+together across report, proposal, and strategic plan. Later work is still needed
+to turn them into PV-ranked initiatives, delivery tasks, or automation backlogs.
