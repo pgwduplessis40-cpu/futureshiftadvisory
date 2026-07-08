@@ -207,7 +207,12 @@ final class AnthropicClaudeClient implements AiClient
                     'type' => 'array',
                     'items' => [
                         'type' => 'object',
-                        'additionalProperties' => true,
+                        'properties' => [
+                            'signal' => ['type' => 'string'],
+                            'mitigation' => ['type' => 'string'],
+                        ],
+                        'required' => ['signal', 'mitigation'],
+                        'additionalProperties' => false,
                     ],
                 ],
                 'metadata' => $this->metadataSchema($task),
@@ -276,7 +281,8 @@ final class AnthropicClaudeClient implements AiClient
 
         return [
             'type' => 'object',
-            'additionalProperties' => true,
+            'properties' => [],
+            'additionalProperties' => false,
         ];
     }
 

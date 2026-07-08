@@ -113,9 +113,15 @@ final class AnthropicClaudeClientTest extends TestCase
 
         $this->assertSame('Idea validation reviewed.', $response->text);
         $this->assertSame(Uncertainty::High, $response->uncertainty);
-        Http::assertSent(fn (Request $request): bool => data_get($request->data(), 'output_config.format.type') === 'json_schema'
-            && data_get($request->data(), 'output_config.format.schema.properties.metadata.properties.findings.items.properties.lens.enum.0') === 'descriptive'
-            && data_get($request->data(), 'output_config.format.schema.properties.metadata.required.0') === 'findings');
+        Http::assertSent(function (Request $request): bool {
+            $schema = data_get($request->data(), 'output_config.format.schema');
+
+            return is_array($schema)
+                && data_get($request->data(), 'output_config.format.type') === 'json_schema'
+                && data_get($schema, 'properties.metadata.properties.findings.items.properties.lens.enum.0') === 'descriptive'
+                && data_get($schema, 'properties.metadata.required.0') === 'findings'
+                && $this->allObjectSchemasAreClosed($schema);
+        });
     }
 
     public function test_wrapped_json_text_response_is_still_parsed(): void
@@ -158,5 +164,23 @@ final class AnthropicClaudeClientTest extends TestCase
             ],
             sourceReferences: ['test:idea'],
         );
+    }
+
+    /**
+     * @param  array<mixed>  $schema
+     */
+    private function allObjectSchemasAreClosed(array $schema): bool
+    {
+        if (($schema['type'] ?? null) === 'object' && ($schema['additionalProperties'] ?? null) !== false) {
+            return false;
+        }
+
+        foreach ($schema as $value) {
+            if (is_array($value) && ! $this->allObjectSchemasAreClosed($value)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 }
