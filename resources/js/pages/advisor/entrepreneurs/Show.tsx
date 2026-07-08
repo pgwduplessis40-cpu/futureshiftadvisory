@@ -50,13 +50,23 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const ideaValidation = entrepreneur.idea_validation;
-    const ideaRefreshQueued = ideaValidation?.refresh_status === 'queued';
-    const ideaRefreshBusy = ideaRefreshPending || ideaRefreshQueued;
-    const ideaRefreshButtonLabel = ideaRefreshQueued
-        ? 'AI review queued'
+    const ideaRefreshInFlight =
+        (ideaValidation?.refresh_status === 'queued' ||
+            ideaValidation?.refresh_status === 'running') &&
+        !ideaValidation?.refresh_stale;
+    const ideaRefreshBusy = ideaRefreshPending || ideaRefreshInFlight;
+    const ideaRefreshFailed =
+        ideaValidation?.refresh_status === 'failed' ||
+        ideaValidation?.refresh_stale;
+    const ideaRefreshButtonLabel = ideaRefreshInFlight
+        ? ideaValidation?.refresh_status === 'running'
+            ? 'AI review running'
+            : 'AI review queued'
         : ideaRefreshPending
           ? 'Queueing'
-          : 'Rerun AI review';
+          : ideaRefreshFailed
+            ? 'Retry AI review'
+            : 'Rerun AI review';
     const submittedIdeaFields = ideaValidation
         ? [
               { label: 'Problem', value: ideaValidation.problem },
@@ -115,7 +125,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     }, [gamification.enabled]);
 
     useEffect(() => {
-        if (!ideaRefreshQueued) {
+        if (!ideaRefreshInFlight) {
             return;
         }
 
@@ -126,7 +136,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
         }, 8000);
 
         return () => window.clearInterval(interval);
-    }, [ideaRefreshQueued]);
+    }, [ideaRefreshInFlight]);
     /* eslint-enable react-hooks/set-state-in-effect */
 
     const toggleGamification = () => {
@@ -554,9 +564,11 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             {ideaValidation.ai_deferred ? (
                                 <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
                                     <p className="text-sm text-muted-foreground">
-                                        {ideaRefreshQueued
+                                        {ideaRefreshInFlight
                                             ? 'AI review is queued and will update this record when complete.'
-                                            : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
+                                            : ideaRefreshFailed
+                                              ? 'AI review did not complete. Retry the AI review or continue manual review with the submitted answers.'
+                                              : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
                                     </p>
                                     <Button
                                         type="button"

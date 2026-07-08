@@ -41,6 +41,7 @@ return [
         'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
         'endpoint' => env('ANTHROPIC_ENDPOINT', 'https://api.anthropic.com/v1/messages'),
         'timeout_seconds' => (int) env('ANTHROPIC_TIMEOUT_SECONDS', 20),
+        'refresh_stale_minutes' => (int) env('ANTHROPIC_REFRESH_STALE_MINUTES', 2),
     ],
 
     'whisper' => [

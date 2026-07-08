@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Advisor;
 
 use App\Enums\EntrepreneurStage;
 use App\Http\Controllers\Controller;
+use App\Jobs\RefreshIdeaValidationAiReview;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurProfile;
@@ -24,7 +25,6 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
-use Throwable;
 
 final class EntrepreneurActionController extends Controller
 {
@@ -57,24 +57,7 @@ final class EntrepreneurActionController extends Controller
         $advisor = $this->advisor($request);
 
         $ideas->markRefreshQueued($ideaValidation, $advisor);
-        $validationId = (string) $ideaValidation->getKey();
-        $advisorId = (int) $advisor->getKey();
-
-        app()->terminating(static function () use ($validationId, $advisorId): void {
-            $validation = IdeaValidation::query()->find($validationId);
-            $advisor = User::query()->find($advisorId);
-
-            if (! $validation instanceof IdeaValidation || ! $advisor instanceof User) {
-                return;
-            }
-
-            try {
-                app(IdeaValidationService::class)->refreshEvaluation($validation, $advisor);
-            } catch (Throwable $exception) {
-                app(IdeaValidationService::class)->markRefreshFailed($validation->refresh(), $advisor, $exception);
-                report($exception);
-            }
-        });
+        RefreshIdeaValidationAiReview::dispatch((string) $ideaValidation->getKey(), (int) $advisor->getKey());
 
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-refresh-queued');
     }

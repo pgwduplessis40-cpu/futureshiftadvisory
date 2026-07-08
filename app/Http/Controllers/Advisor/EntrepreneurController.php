@@ -32,6 +32,7 @@ use App\Services\Security\InviteIssuer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Str;
@@ -460,6 +461,10 @@ final class EntrepreneurController extends Controller
         $evaluation = $validation->ai_evaluation ?? [];
         $aiDeferred = (bool) data_get($evaluation, 'metadata.degraded', false)
             || data_get($evaluation, 'model') === 'fake-ai-client';
+        $refreshStatus = data_get($evaluation, 'metadata.refresh_status');
+        $refreshRequestedAt = data_get($evaluation, 'metadata.refresh_requested_at');
+        $refreshStartedAt = data_get($evaluation, 'metadata.refresh_started_at');
+        $refreshStale = $this->refreshStale($refreshStatus, $refreshStartedAt ?? $refreshRequestedAt);
 
         return [
             'id' => $validation->id,
@@ -473,8 +478,10 @@ final class EntrepreneurController extends Controller
             'viability_alerts' => $validation->viability_alerts ?? [],
             'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
             'ai_deferred' => $aiDeferred,
-            'refresh_status' => data_get($evaluation, 'metadata.refresh_status'),
-            'refresh_requested_at' => data_get($evaluation, 'metadata.refresh_requested_at'),
+            'refresh_status' => $refreshStatus,
+            'refresh_stale' => $refreshStale,
+            'refresh_requested_at' => $refreshRequestedAt,
+            'refresh_started_at' => $refreshStartedAt,
             'refresh_completed_at' => data_get($evaluation, 'metadata.refresh_completed_at'),
             'refresh_failed_at' => data_get($evaluation, 'metadata.refresh_failed_at'),
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
@@ -482,6 +489,17 @@ final class EntrepreneurController extends Controller
             'gate_url' => route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false),
             'refresh_url' => route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false),
         ];
+    }
+
+    private function refreshStale(mixed $status, mixed $timestamp): bool
+    {
+        if (! in_array($status, ['queued', 'running'], true) || ! is_string($timestamp) || trim($timestamp) === '') {
+            return false;
+        }
+
+        $staleMinutes = max(1, (int) config('services.anthropic.refresh_stale_minutes', 2));
+
+        return Carbon::parse($timestamp)->lessThan(now()->subMinutes($staleMinutes));
     }
 
     /**

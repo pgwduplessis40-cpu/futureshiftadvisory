@@ -130,6 +130,24 @@ final class IdeaValidationService implements ProvidesMethodology
         return $validation->refresh();
     }
 
+    public function markRefreshRunning(IdeaValidation $validation, User $actor): IdeaValidation
+    {
+        $evaluation = $validation->ai_evaluation ?? [];
+        data_set($evaluation, 'metadata.refresh_status', 'running');
+        data_set($evaluation, 'metadata.refresh_started_at', now()->toIso8601String());
+        data_set($evaluation, 'metadata.refresh_started_by_user_id', $actor->getKey());
+
+        $validation->forceFill([
+            'ai_evaluation' => $evaluation,
+        ])->save();
+
+        $this->audit->record('entrepreneur.idea_validation_refresh_started', subject: $validation, actor: $actor, after: [
+            'entrepreneur_profile_id' => $validation->entrepreneur_profile_id,
+        ]);
+
+        return $validation->refresh();
+    }
+
     public function markRefreshFailed(IdeaValidation $validation, User $actor, Throwable $exception): IdeaValidation
     {
         $evaluation = $validation->ai_evaluation ?? [];

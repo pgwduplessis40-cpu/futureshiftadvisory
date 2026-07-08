@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Advisor;
 
 use App\Enums\EntrepreneurStage;
+use App\Jobs\RefreshIdeaValidationAiReview;
 use App\Mail\InvitationMail;
 use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
@@ -21,6 +22,7 @@ use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -330,6 +332,7 @@ final class AddEntrepreneurTest extends TestCase
     public function test_advisor_can_review_and_refresh_deferred_idea_validation(): void
     {
         $this->seed(RoleSeeder::class);
+        Queue::fake();
         $advisor = $this->advisor();
         $entrepreneur = User::factory()->create([
             'user_type' => User::TYPE_ENTREPRENEUR,
@@ -369,6 +372,7 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.idea_validation.id', $validation->id)
                 ->where('entrepreneur.idea_validation.ai_deferred', true)
                 ->where('entrepreneur.idea_validation.refresh_status', null)
+                ->where('entrepreneur.idea_validation.refresh_stale', false)
                 ->where('entrepreneur.idea_validation.problem', 'Business Advisory')
                 ->where('entrepreneur.idea_validation.target_customer', "SME's")
                 ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
@@ -382,14 +386,15 @@ final class AddEntrepreneurTest extends TestCase
         $validation->refresh();
 
         $this->assertSame('fake-ai-client', data_get($validation->ai_evaluation, 'model'));
-        $this->assertSame($advisor->id, $validation->evaluated_by_user_id);
-        $this->assertSame('completed', data_get($validation->ai_evaluation, 'metadata.refresh_status'));
+        $this->assertSame($entrepreneur->id, $validation->evaluated_by_user_id);
+        $this->assertSame('queued', data_get($validation->ai_evaluation, 'metadata.refresh_status'));
+        Queue::assertPushed(
+            RefreshIdeaValidationAiReview::class,
+            fn (RefreshIdeaValidationAiReview $job): bool => $job->ideaValidationId === $validation->id
+                && $job->advisorId === $advisor->id,
+        );
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.idea_validation_refresh_queued',
-            'subject_id' => $validation->id,
-        ]);
-        $this->assertDatabaseHas('audit_events', [
-            'action' => 'entrepreneur.idea_validation_refreshed',
             'subject_id' => $validation->id,
         ]);
     }
