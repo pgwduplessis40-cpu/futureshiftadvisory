@@ -12,6 +12,7 @@ use App\Services\Integration\Resilience\RetryPolicy;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
+use ReflectionMethod;
 use Tests\TestCase;
 
 final class AnthropicClaudeClientTest extends TestCase
@@ -74,6 +75,16 @@ final class AnthropicClaudeClientTest extends TestCase
         }
 
         Http::assertSentCount(1);
+    }
+
+    public function test_anthropic_timeout_has_sixty_second_floor(): void
+    {
+        Config::set('services.anthropic.timeout_seconds', 20);
+
+        $client = app(AnthropicClaudeClient::class);
+        $method = new ReflectionMethod($client, 'timeoutSeconds');
+
+        $this->assertSame(60, $method->invoke($client));
     }
 
     private function prompt(): PromptEnvelope

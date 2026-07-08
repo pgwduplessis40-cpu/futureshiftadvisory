@@ -51,7 +51,10 @@ final class HealthDashboardTest extends TestCase
         $this->aiUsage('claude-sonnet-4-6', 1_000, 200, 0.006, now()->subHour());
         $this->aiUsage('claude-sonnet-4-6', 2_000, 400, 0.012, now()->subDays(2));
         $this->aiUsage('claude-sonnet-4-6', 5_000, 500, 0.0225, now()->subMonth());
-        $this->recordCall('anthropic', IntegrationCall::STATUS_FAILURE, 20_051, now()->subMinutes(4));
+        $this->recordCall('anthropic', IntegrationCall::STATUS_FAILURE, 20_051, now()->subMinutes(4), [
+            'reason' => 'exception',
+            'message' => 'cURL error 28: Operation timed out after 20000 milliseconds',
+        ]);
 
         $this->actingAsMfa($admin)
             ->get(route('admin.integration-health.index'))
@@ -81,7 +84,7 @@ final class HealthDashboardTest extends TestCase
                 ->where('aiUsage.official.credit_balance_supported', false)
                 ->where('aiUsage.provider_attempts.today.attempts', 1)
                 ->where('aiUsage.provider_attempts.today.failures', 1)
-                ->where('aiUsage.provider_attempts.today.latest_error', 'fixture')
+                ->where('aiUsage.provider_attempts.today.latest_error', 'cURL error 28: Operation timed out after 20000 milliseconds')
                 ->where('aiUsage.breakdown.0.model', 'claude-sonnet-4-6')
                 ->where('aiUsage.breakdown.0.requests', 2));
     }
@@ -246,6 +249,7 @@ final class HealthDashboardTest extends TestCase
         string $status,
         int $latencyMs,
         CarbonInterface $occurredAt,
+        ?array $errorPayload = null,
     ): IntegrationCall {
         return IntegrationCall::query()->create([
             'service' => $service,
@@ -254,7 +258,7 @@ final class HealthDashboardTest extends TestCase
             'latency_ms' => $latencyMs,
             'attempt' => 1,
             'error_payload' => $status === IntegrationCall::STATUS_FAILURE
-                ? ['reason' => 'fixture']
+                ? ($errorPayload ?? ['reason' => 'fixture'])
                 : null,
             'correlation_id' => (string) Str::uuid(),
             'occurred_at' => $occurredAt,

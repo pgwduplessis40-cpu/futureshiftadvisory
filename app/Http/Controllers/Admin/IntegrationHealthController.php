@@ -353,7 +353,7 @@ final class IntegrationHealthController extends Controller
         if (is_numeric($status)) {
             $parts[] = 'HTTP '.((int) $status);
         }
-        foreach ([$reason, $message, $bodyMessage] as $part) {
+        foreach ([$bodyMessage, $message, $reason] as $part) {
             if (is_scalar($part) && trim((string) $part) !== '') {
                 $parts[] = trim((string) $part);
                 break;

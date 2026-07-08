@@ -21,6 +21,8 @@ final class AnthropicClaudeClient implements AiClient
 {
     private const PROVIDER = 'anthropic';
 
+    private const MIN_TIMEOUT_SECONDS = 60;
+
     public function __construct(
         private readonly IntegrationCredentials $credentials,
         private readonly AiUsageRecorder $usage,
@@ -61,7 +63,7 @@ final class AnthropicClaudeClient implements AiClient
 
         $model = (string) Config::get('services.anthropic.model', 'claude-sonnet-4-6');
         $endpoint = (string) Config::get('services.anthropic.endpoint', 'https://api.anthropic.com/v1/messages');
-        $timeoutSeconds = max(1, (int) Config::get('services.anthropic.timeout_seconds', 60));
+        $timeoutSeconds = $this->timeoutSeconds();
         $retryAttempts = max(1, (int) Config::get('services.anthropic.retry_attempts', 1));
 
         $result = $this->http->post(
@@ -116,6 +118,11 @@ final class AnthropicClaudeClient implements AiClient
             tokensIn: (int) ($payload['usage']['input_tokens'] ?? 0),
             tokensOut: (int) ($payload['usage']['output_tokens'] ?? 0),
         );
+    }
+
+    private function timeoutSeconds(): int
+    {
+        return max(self::MIN_TIMEOUT_SECONDS, (int) Config::get('services.anthropic.timeout_seconds', self::MIN_TIMEOUT_SECONDS));
     }
 
     private function unavailableMessage(IntegrationResult $result): string
