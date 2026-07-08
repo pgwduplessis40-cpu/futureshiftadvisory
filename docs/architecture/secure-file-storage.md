@@ -35,6 +35,11 @@ executables, and external Office relationships.
 - `UnavailableScanner` for fail-closed operation when live scanning is disabled and no-op scanning is not allowed. It returns `error`, which quarantines uploads rather than marking them clean.
 
 If ClamAV cannot connect or returns an unknown response, the scan result is `error`.
+Local environments may set `VIRUS_SCAN_FAIL_OPEN_ON_ERROR=true` together with
+`VIRUS_SCAN_ALLOW_NOOP=true`; in that case scanner outages are recorded as a
+clean development fallback with the original scanner error preserved in
+`scanner_payload`. Production ignores this fallback because it is additionally
+gated by `APP_ENV`.
 The admin integration credentials screen surfaces `virus_scanner` readiness so
 production operators can see whether ClamAV live scanning is configured. Local
 and testing environments may opt into the no-op scanner; production cannot.

@@ -39,6 +39,13 @@ final class SecureFileWriter
         }
 
         $scanResult = $this->threatInspector->inspect($uploadedFile, $realPath) ?? $this->scan($realPath);
+        if ($scanResult->isError() && $this->canFailOpenScannerError()) {
+            $scanResult = ScanResult::clean([
+                'engine' => 'development-fail-open',
+                'original_error' => $scanResult->toPayload(),
+            ]);
+        }
+
         if ($scanResult->isInfected()) {
             $this->recordInfectedRejection($uploadedFile, $owner, $category, $clientId, $scanResult);
 
@@ -174,5 +181,12 @@ final class SecureFileWriter
             Document::CATEGORY_REFERENCE_DATA_EVIDENCE,
             Document::CATEGORY_OTHER,
         ], true) ? $normalised : Document::CATEGORY_OTHER;
+    }
+
+    private function canFailOpenScannerError(): bool
+    {
+        return (bool) config('virus-scanner.fail_open_on_error', false)
+            && (bool) config('virus-scanner.allow_noop', false)
+            && in_array((string) config('app.env', 'production'), ['local', 'testing'], true);
     }
 }

@@ -2,11 +2,17 @@
 
 declare(strict_types=1);
 
+$appEnv = env('APP_ENV', 'production');
+
 return [
     'live' => env('FEATURE_VIRUS_SCAN_LIVE', false),
 
-    'allow_noop' => in_array(env('APP_ENV', 'production'), ['local', 'testing'], true)
+    'allow_noop' => in_array($appEnv, ['local', 'testing'], true)
         && (bool) env('VIRUS_SCAN_ALLOW_NOOP', true),
+
+    'fail_open_on_error' => in_array($appEnv, ['local', 'testing'], true)
+        && (bool) env('VIRUS_SCAN_ALLOW_NOOP', true)
+        && (bool) env('VIRUS_SCAN_FAIL_OPEN_ON_ERROR', $appEnv === 'local'),
 
     'clamav' => [
         'host' => env('CLAMAV_HOST', '127.0.0.1'),

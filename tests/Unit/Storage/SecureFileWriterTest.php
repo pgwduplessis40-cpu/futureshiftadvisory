@@ -149,6 +149,48 @@ final class SecureFileWriterTest extends TestCase
         $this->assertSame($document->id, $notice['document_id']);
     }
 
+    public function test_local_scanner_error_can_fail_open_when_noop_is_allowed(): void
+    {
+        Config::set('app.env', 'local');
+        Config::set('virus-scanner.allow_noop', true);
+        Config::set('virus-scanner.fail_open_on_error', true);
+        $this->bindScanner(ScanResult::error('daemon offline', ['engine' => 'fake-clamav']));
+
+        $document = app(SecureFileWriter::class)->write(
+            uploadedFile: UploadedFile::fake()->createWithContent('letterhead.docx', 'clean local fixture'),
+            owner: User::factory()->create(),
+            category: Document::CATEGORY_TEMPLATE_FILE,
+        );
+
+        $this->assertSame(Document::SCANNER_CLEAN, $document->scanner_result);
+        $this->assertTrue($document->isVisibleToClients());
+        $this->assertStringStartsWith('documents/template_file/', $document->stored_path);
+        $this->assertSame('development-fail-open', $document->scanner_payload['payload']['engine']);
+        $this->assertSame('daemon offline', $document->scanner_payload['payload']['original_error']['message']);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'document.uploaded',
+            'subject_id' => $document->id,
+        ]);
+    }
+
+    public function test_production_scanner_error_still_quarantines_even_if_fail_open_is_set(): void
+    {
+        Config::set('app.env', 'production');
+        Config::set('virus-scanner.allow_noop', true);
+        Config::set('virus-scanner.fail_open_on_error', true);
+        $this->bindScanner(ScanResult::error('daemon offline', ['engine' => 'fake-clamav']));
+
+        $document = app(SecureFileWriter::class)->write(
+            uploadedFile: UploadedFile::fake()->createWithContent('contract.txt', 'production fixture'),
+            owner: User::factory()->create(),
+            category: Document::CATEGORY_CONTRACT,
+        );
+
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/contract/', $document->stored_path);
+        $this->assertFalse($document->isVisibleToClients());
+    }
+
     private function bindScanner(ScanResult $result): void
     {
         $this->app->instance(FileScanner::class, new class($result) implements FileScanner

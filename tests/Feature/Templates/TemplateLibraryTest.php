@@ -30,6 +30,7 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -441,6 +442,48 @@ final class TemplateLibraryTest extends TestCase
         $this->assertSame(0, Template::query()->count());
         $this->assertSame(1, Document::query()->count());
         $this->assertSame(Document::SCANNER_ERROR, Document::query()->firstOrFail()->scanner_result);
+    }
+
+    public function test_local_scanner_error_on_template_upload_can_fail_open_when_noop_is_allowed(): void
+    {
+        Storage::fake('secure_local');
+        Config::set('app.env', 'local');
+        Config::set('virus-scanner.allow_noop', true);
+        Config::set('virus-scanner.fail_open_on_error', true);
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $upload = UploadedFile::fake()->create(
+            'FSA_Letterhead_Template.docx',
+            24,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+        );
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_REPORT,
+                'title' => 'FSA Letterhead',
+                'body' => '',
+                'status' => Template::STATUS_ACTIVE,
+                'file' => $upload,
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $template = Template::query()->firstOrFail();
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame(Document::SCANNER_CLEAN, $document->scanner_result);
+        $this->assertSame('uploaded_file', $template->structure['source_kind']);
+        $this->assertSame($document->id, data_get($template->structure, 'uploaded_file.document_id'));
+        $this->assertSame('development-fail-open', $document->scanner_payload['payload']['engine']);
     }
 
     /**
