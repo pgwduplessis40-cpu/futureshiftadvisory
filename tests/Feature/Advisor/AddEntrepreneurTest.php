@@ -84,6 +84,41 @@ final class AddEntrepreneurTest extends TestCase
         Mail::assertNothingSent();
     }
 
+    public function test_advisor_can_add_entrepreneur_manually_without_invite(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.create-manual'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Create')
+                ->where('mode', 'manual')
+                ->where('capacity.blocked', false)
+            );
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.store-manual'), [
+                'name' => 'Manual Founder',
+                'email' => 'Manual.Founder@example.com',
+                'concept_summary' => 'Advisor entered profile after an offline conversation.',
+            ])
+            ->assertRedirect();
+
+        $profile = EntrepreneurProfile::query()->firstOrFail();
+
+        $this->assertSame('manual.founder@example.com', $profile->email);
+        $this->assertSame('Manual Founder', $profile->name);
+        $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
+        $this->assertSame($advisor->id, $profile->assigned_advisor_id);
+        $this->assertNull($profile->invite_token_id);
+        $this->assertDatabaseCount('invite_tokens', 0);
+        $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.created_manual']);
+        Mail::assertNothingSent();
+    }
+
     public function test_advisor_can_resend_pending_entrepreneur_invite(): void
     {
         Mail::fake();

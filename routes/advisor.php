@@ -87,6 +87,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients/create', [ClientController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.create');
+        Route::get('clients/invite', [ClientController::class, 'invite'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.invite');
+        Route::post('clients/invite', [ClientController::class, 'storeInvite'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.invite.store');
         Route::post('clients/lookup-nzbn', [ClientController::class, 'lookupNzbn'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.lookup-nzbn');
@@ -314,9 +320,15 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/create', [EntrepreneurController::class, 'create'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.create');
+        Route::get('entrepreneurs/create/manual', [EntrepreneurController::class, 'createManual'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.create-manual');
         Route::post('entrepreneurs', [EntrepreneurController::class, 'store'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.store');
+        Route::post('entrepreneurs/manual', [EntrepreneurController::class, 'storeManual'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.store-manual');
         Route::get('entrepreneurs/{entrepreneurProfile}/messages', [EntrepreneurMessageController::class, 'index'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.messages.index');

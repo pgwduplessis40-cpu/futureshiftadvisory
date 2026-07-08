@@ -92,7 +92,7 @@ __invoke.head = (args: { id: string | number, hash: string | number } | [id: str
                     }),
             method: 'get',
         })
-
+    
     __invoke.form = __invokeForm
 const VerifyEmailController = { __invoke }
 

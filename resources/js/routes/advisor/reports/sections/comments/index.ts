@@ -73,7 +73,7 @@ store.post = (args: { report: string | { id: string }, reportSection: string | {
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const comments = {
     store: Object.assign(store, store),

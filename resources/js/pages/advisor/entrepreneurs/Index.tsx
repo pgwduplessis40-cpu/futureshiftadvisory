@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Plus, Search, UsersRound } from 'lucide-react';
+import { Plus, Search, Send, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -27,19 +27,47 @@ export default function EntrepreneursIndex({ entrepreneurs, capacity }: Props) {
                             {capacity.active_count} active of {capacity.limit}
                         </div>
                     </div>
-                    {capacity.blocked ? (
-                        <Button size="sm" disabled>
-                            <Plus className="size-4" aria-hidden="true" />
-                            New
-                        </Button>
-                    ) : (
-                        <Button asChild size="sm">
-                            <Link href="/advisor/entrepreneurs/create">
-                                <Plus className="size-4" aria-hidden="true" />
-                                New
-                            </Link>
-                        </Button>
-                    )}
+                    <div className="flex flex-wrap justify-end gap-2">
+                        {capacity.blocked ? (
+                            <>
+                                <Button size="sm" disabled>
+                                    <Send
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Invite entrepreneur
+                                </Button>
+                                <Button size="sm" variant="outline" disabled>
+                                    <Plus
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Add manually
+                                </Button>
+                            </>
+                        ) : (
+                            <>
+                                <Button asChild size="sm">
+                                    <Link href="/advisor/entrepreneurs/create">
+                                        <Send
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Invite entrepreneur
+                                    </Link>
+                                </Button>
+                                <Button asChild size="sm" variant="outline">
+                                    <Link href="/advisor/entrepreneurs/create/manual">
+                                        <Plus
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Add manually
+                                    </Link>
+                                </Button>
+                            </>
+                        )}
+                    </div>
                 </div>
 
                 <div className="grid gap-4 md:grid-cols-3">

@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\MessageController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\MessageController::show
@@ -160,7 +160,7 @@ show.url = (args: { messageThread: string | { id: string } } | [messageThread: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { messageThread: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     messageThread: args[0],
@@ -232,7 +232,7 @@ show.head = (args: { messageThread: string | { id: string } } | [messageThread: 
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\MessageController::reply
@@ -262,7 +262,7 @@ reply.url = (args: { messageThread: string | { id: string } } | [messageThread: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { messageThread: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     messageThread: args[0],
@@ -311,7 +311,7 @@ reply.post = (args: { messageThread: string | { id: string } } | [messageThread:
             action: reply.url(args, options),
             method: 'post',
         })
-
+    
     reply.form = replyForm
 const messages = {
     index: Object.assign(index, index),

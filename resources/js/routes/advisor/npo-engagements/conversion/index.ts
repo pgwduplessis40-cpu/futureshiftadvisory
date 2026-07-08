@@ -27,7 +27,7 @@ reportDelivered.url = (args: { npoEngagement: string | { id: string } } | [npoEn
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { npoEngagement: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     npoEngagement: args[0],
@@ -86,7 +86,7 @@ reportDelivered.patch = (args: { npoEngagement: string | { id: string } } | [npo
                     }),
             method: 'post',
         })
-
+    
     reportDelivered.form = reportDeliveredForm
 /**
 * @see \App\Http\Controllers\Advisor\NpoConversionController::decline
@@ -116,7 +116,7 @@ decline.url = (args: { npoEngagement: string | { id: string } } | [npoEngagement
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { npoEngagement: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     npoEngagement: args[0],
@@ -175,7 +175,7 @@ decline.patch = (args: { npoEngagement: string | { id: string } } | [npoEngageme
                     }),
             method: 'post',
         })
-
+    
     decline.form = declineForm
 /**
 * @see \App\Http\Controllers\Advisor\NpoConversionController::convert
@@ -205,7 +205,7 @@ convert.url = (args: { npoEngagement: string | { id: string } } | [npoEngagement
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { npoEngagement: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     npoEngagement: args[0],
@@ -264,7 +264,7 @@ convert.patch = (args: { npoEngagement: string | { id: string } } | [npoEngageme
                     }),
             method: 'post',
         })
-
+    
     convert.form = convertForm
 const conversion = {
     reportDelivered: Object.assign(reportDelivered, reportDelivered),

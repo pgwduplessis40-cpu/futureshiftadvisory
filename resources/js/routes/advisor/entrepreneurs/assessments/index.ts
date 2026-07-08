@@ -83,7 +83,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
                     }),
             method: 'post',
         })
-
+    
     finalise.form = finaliseForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurAssessmentController::show
@@ -182,7 +182,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, planAssessmen
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const assessments = {
     finalise: Object.assign(finalise, finalise),

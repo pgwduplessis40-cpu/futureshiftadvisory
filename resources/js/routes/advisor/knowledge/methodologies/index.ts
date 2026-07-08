@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\MethodologyController::show
@@ -102,7 +102,7 @@ show.url = (args: { methodology: string | number } | [methodology: string | numb
         args = { methodology: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     methodology: args[0],
@@ -172,7 +172,7 @@ show.head = (args: { methodology: string | number } | [methodology: string | num
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const methodologies = {
     index: Object.assign(index, index),

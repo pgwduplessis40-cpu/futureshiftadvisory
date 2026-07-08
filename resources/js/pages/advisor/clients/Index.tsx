@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, Send } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ClientSummary } from './types';
@@ -30,6 +30,11 @@ export default function ClientsIndex({
     const emptyLabel = engagementFilter
         ? `${engagementFilter.label} clients`
         : 'clients';
+    const engagementQuery = engagementFilter
+        ? `?engagement_type=${encodeURIComponent(engagementFilter.key)}`
+        : '';
+    const inviteUrl = `/advisor/clients/invite${engagementQuery}`;
+    const manualCreateUrl = `/advisor/clients/create${engagementQuery}`;
 
     return (
         <>
@@ -45,12 +50,20 @@ export default function ClientsIndex({
                             </p>
                         )}
                     </div>
-                    <Button asChild size="sm">
-                        <Link href="/advisor/clients/create">
-                            <Plus className="size-4" aria-hidden="true" />
-                            New
-                        </Link>
-                    </Button>
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <Button asChild size="sm">
+                            <Link href={inviteUrl}>
+                                <Send className="size-4" aria-hidden="true" />
+                                Invite client
+                            </Link>
+                        </Button>
+                        <Button asChild size="sm" variant="outline">
+                            <Link href={manualCreateUrl}>
+                                <Plus className="size-4" aria-hidden="true" />
+                                Add manually
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 {engagementFilter && (

@@ -28,7 +28,7 @@ remeasure.url = (args: { goal: string | { id: string } } | [goal: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { goal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     goal: args[0],
@@ -77,7 +77,7 @@ remeasure.post = (args: { goal: string | { id: string } } | [goal: string | { id
             action: remeasure.url(args, options),
             method: 'post',
         })
-
+    
     remeasure.form = remeasureForm
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
@@ -107,7 +107,7 @@ achieve.url = (args: { goal: string | { id: string } } | [goal: string | { id: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { goal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     goal: args[0],
@@ -166,7 +166,7 @@ achieve.patch = (args: { goal: string | { id: string } } | [goal: string | { id:
                     }),
             method: 'post',
         })
-
+    
     achieve.form = achieveForm
 const goals = {
     milestones: Object.assign(milestones, milestones),

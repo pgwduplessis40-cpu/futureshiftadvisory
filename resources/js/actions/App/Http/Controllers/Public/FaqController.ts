@@ -75,6 +75,6 @@ FaqController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => (
                     }),
             method: 'get',
         })
-
+    
     FaqController.form = FaqControllerForm
 export default FaqController

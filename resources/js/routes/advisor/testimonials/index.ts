@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\TestimonialController::capture
@@ -105,7 +105,7 @@ capture.url = (args: { testimonial: string | { id: string } } | [testimonial: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { testimonial: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     testimonial: args[0],
@@ -164,7 +164,7 @@ capture.patch = (args: { testimonial: string | { id: string } } | [testimonial: 
                     }),
             method: 'post',
         })
-
+    
     capture.form = captureForm
 const testimonials = {
     index: Object.assign(index, index),

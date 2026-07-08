@@ -52,7 +52,7 @@ stripe.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: stripe.url(options),
             method: 'post',
         })
-
+    
     stripe.form = stripeForm
 /**
 * @see \App\Http\Controllers\Webhook\PaymentWebhookController::windcave
@@ -107,7 +107,7 @@ windcave.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: windcave.url(options),
             method: 'post',
         })
-
+    
     windcave.form = windcaveForm
 const PaymentWebhookController = { stripe, windcave }
 

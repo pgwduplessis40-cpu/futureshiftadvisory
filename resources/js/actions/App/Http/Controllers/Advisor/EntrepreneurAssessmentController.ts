@@ -96,7 +96,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string }, planAssessmen
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const EntrepreneurAssessmentController = { show }
 

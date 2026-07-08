@@ -80,11 +80,13 @@ export default function ClientsCreate({
 
     return (
         <>
-            <Head title="Add client" />
+            <Head title="Add manually" />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
-                    <h1 className="text-xl font-semibold">Add client</h1>
+                    <h1 className="text-xl font-semibold">
+                        Add client manually
+                    </h1>
                     <Button asChild size="sm" variant="outline">
                         <Link href="/advisor/clients">
                             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -384,7 +386,7 @@ ClientsCreate.layout = {
             href: '/advisor/clients',
         },
         {
-            title: 'Add client',
+            title: 'Add manually',
             href: '/advisor/clients/create',
         },
     ],

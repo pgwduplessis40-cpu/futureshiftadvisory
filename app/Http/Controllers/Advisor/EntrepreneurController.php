@@ -74,6 +74,18 @@ final class EntrepreneurController extends Controller
 
         return Inertia::render('advisor/entrepreneurs/Create', [
             'capacity' => $this->capacity->summary($this->actor($request)),
+            'mode' => 'invite',
+            'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
+        ]);
+    }
+
+    public function createManual(Request $request): Response
+    {
+        Gate::authorize('create', EntrepreneurProfile::class);
+
+        return Inertia::render('advisor/entrepreneurs/Create', [
+            'capacity' => $this->capacity->summary($this->actor($request)),
+            'mode' => 'manual',
             'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
         ]);
     }
@@ -142,6 +154,45 @@ final class EntrepreneurController extends Controller
         });
 
         return to_route('advisor.entrepreneurs.show', $profile)->with('status', 'entrepreneur-invited');
+    }
+
+    public function storeManual(Request $request): RedirectResponse
+    {
+        Gate::authorize('create', EntrepreneurProfile::class);
+
+        $advisor = $this->actor($request);
+        $this->capacity->ensureCanAdd($advisor);
+
+        $request->merge([
+            'email' => Str::lower(trim((string) $request->input('email'))),
+        ]);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('entrepreneur_profiles', 'email'),
+            ],
+            'concept_summary' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => $validated['name'],
+            'email' => $validated['email'],
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => $validated['concept_summary'] ?? null,
+        ]);
+
+        $this->auditWriter->record('entrepreneur.created_manual', subject: $profile, actor: $advisor, after: [
+            'entrepreneur_profile_id' => $profile->getKey(),
+            'stage' => EntrepreneurStage::ONBOARDING->value,
+            'assigned_advisor_id' => $advisor->getKey(),
+        ]);
+
+        return to_route('advisor.entrepreneurs.show', $profile)->with('status', 'entrepreneur-created');
     }
 
     public function resendInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse

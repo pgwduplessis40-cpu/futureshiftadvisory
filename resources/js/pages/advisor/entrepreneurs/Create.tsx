@@ -23,6 +23,7 @@ type ServiceOption = {
 
 type Props = {
     capacity: CapacitySummary;
+    mode: 'invite' | 'manual';
     serviceOptions: ServiceOption[];
 };
 
@@ -35,6 +36,7 @@ type EntrepreneurForm = {
 
 export default function EntrepreneursCreate({
     capacity,
+    mode,
     serviceOptions,
 }: Props) {
     const form = useForm<EntrepreneurForm>({
@@ -47,19 +49,26 @@ export default function EntrepreneursCreate({
     const selectedService = serviceOptions.find(
         (option) => option.value === form.data.intended_package_scope,
     );
+    const isManual = mode === 'manual';
+    const pageTitle = isManual
+        ? 'Add entrepreneur manually'
+        : 'Invite entrepreneur';
+    const submitUrl = isManual
+        ? '/advisor/entrepreneurs/manual'
+        : '/advisor/entrepreneurs';
 
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
-        form.post('/advisor/entrepreneurs');
+        form.post(submitUrl);
     };
 
     return (
         <>
-            <Head title="Add entrepreneur" />
+            <Head title={isManual ? 'Add manually' : 'Invite entrepreneur'} />
 
             <div className="space-y-6">
                 <div className="flex items-center justify-between gap-4">
-                    <h1 className="text-xl font-semibold">Add entrepreneur</h1>
+                    <h1 className="text-xl font-semibold">{pageTitle}</h1>
                     <Button asChild size="sm" variant="outline">
                         <Link href="/advisor/entrepreneurs">
                             <ArrowLeft className="size-4" aria-hidden="true" />
@@ -114,45 +123,49 @@ export default function EntrepreneursCreate({
                                 </div>
                             </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="intended_package_scope">
-                                    Invite service
-                                </Label>
-                                <Select
-                                    value={form.data.intended_package_scope}
-                                    onValueChange={(value) =>
-                                        form.setData(
-                                            'intended_package_scope',
-                                            value,
-                                        )
-                                    }
-                                >
-                                    <SelectTrigger
-                                        id="intended_package_scope"
-                                        className="w-full"
+                            {!isManual && (
+                                <div className="grid gap-2">
+                                    <Label htmlFor="intended_package_scope">
+                                        Invite service
+                                    </Label>
+                                    <Select
+                                        value={form.data.intended_package_scope}
+                                        onValueChange={(value) =>
+                                            form.setData(
+                                                'intended_package_scope',
+                                                value,
+                                            )
+                                        }
                                     >
-                                        <SelectValue placeholder="Select client access" />
-                                    </SelectTrigger>
-                                    <SelectContent>
-                                        {serviceOptions.map((option) => (
-                                            <SelectItem
-                                                key={option.value}
-                                                value={option.value}
-                                            >
-                                                {option.label}
-                                            </SelectItem>
-                                        ))}
-                                    </SelectContent>
-                                </Select>
-                                {selectedService ? (
-                                    <p className="text-sm text-muted-foreground">
-                                        {selectedService.description}
-                                    </p>
-                                ) : null}
-                                <InputError
-                                    message={form.errors.intended_package_scope}
-                                />
-                            </div>
+                                        <SelectTrigger
+                                            id="intended_package_scope"
+                                            className="w-full"
+                                        >
+                                            <SelectValue placeholder="Select client access" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {serviceOptions.map((option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    {selectedService ? (
+                                        <p className="text-sm text-muted-foreground">
+                                            {selectedService.description}
+                                        </p>
+                                    ) : null}
+                                    <InputError
+                                        message={
+                                            form.errors.intended_package_scope
+                                        }
+                                    />
+                                </div>
+                            )}
 
                             <div className="grid gap-2">
                                 <Label htmlFor="concept_summary">
@@ -183,11 +196,19 @@ export default function EntrepreneursCreate({
                             disabled={
                                 form.processing ||
                                 capacity.blocked ||
-                                form.data.intended_package_scope === ''
+                                (!isManual &&
+                                    form.data.intended_package_scope === '')
                             }
                         >
-                            <Send className="size-4" aria-hidden="true" />
-                            Send invite
+                            {isManual ? (
+                                <UserPlus
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                            ) : (
+                                <Send className="size-4" aria-hidden="true" />
+                            )}
+                            {isManual ? 'Save profile' : 'Send invite'}
                         </Button>
                     </form>
 
@@ -254,7 +275,7 @@ EntrepreneursCreate.layout = {
             href: '/advisor/entrepreneurs',
         },
         {
-            title: 'Add entrepreneur',
+            title: 'Entrepreneur details',
             href: '/advisor/entrepreneurs/create',
         },
     ],

@@ -28,7 +28,7 @@ release.url = (args: { proposal: string | { id: string } } | [proposal: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -87,7 +87,7 @@ release.patch = (args: { proposal: string | { id: string } } | [proposal: string
                     }),
             method: 'post',
         })
-
+    
     release.form = releaseForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
@@ -117,7 +117,7 @@ recall.url = (args: { proposal: string | { id: string } } | [proposal: string | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -176,7 +176,7 @@ recall.patch = (args: { proposal: string | { id: string } } | [proposal: string 
                     }),
             method: 'post',
         })
-
+    
     recall.form = recallForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
@@ -206,7 +206,7 @@ renew.url = (args: { proposal: string | { id: string } } | [proposal: string | {
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -265,7 +265,7 @@ renew.patch = (args: { proposal: string | { id: string } } | [proposal: string |
                     }),
             method: 'post',
         })
-
+    
     renew.form = renewForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
@@ -295,7 +295,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -367,7 +367,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
@@ -397,7 +397,7 @@ download.url = (args: { proposal: string | { id: string } } | [proposal: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -469,7 +469,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 const proposals = {
     strategicPlan: Object.assign(strategicPlan, strategicPlan),

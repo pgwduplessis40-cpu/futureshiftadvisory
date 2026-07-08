@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
@@ -160,7 +160,7 @@ toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRa
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRateSetting: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceRateSetting: args[0],
@@ -219,7 +219,7 @@ toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [service
                     }),
             method: 'post',
         })
-
+    
     toggle.form = toggleForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::storePackage
@@ -274,7 +274,7 @@ storePackage.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: storePackage.url(options),
             method: 'post',
         })
-
+    
     storePackage.form = storePackageForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::updatePackage
@@ -304,7 +304,7 @@ updatePackage.url = (args: { serviceRatePackage: string | { id: string } } | [se
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRatePackage: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceRatePackage: args[0],
@@ -363,7 +363,7 @@ updatePackage.patch = (args: { serviceRatePackage: string | { id: string } } | [
                     }),
             method: 'post',
         })
-
+    
     updatePackage.form = updatePackageForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::togglePackage
@@ -393,7 +393,7 @@ togglePackage.url = (args: { serviceRatePackage: string | { id: string } } | [se
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRatePackage: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceRatePackage: args[0],
@@ -452,7 +452,7 @@ togglePackage.patch = (args: { serviceRatePackage: string | { id: string } } | [
                     }),
             method: 'post',
         })
-
+    
     togglePackage.form = togglePackageForm
 const ServiceRateController = { index, store, toggle, storePackage, updatePackage, togglePackage }
 

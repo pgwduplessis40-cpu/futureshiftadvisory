@@ -8,15 +8,20 @@ use App\Enums\EngagementType;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Enums\QuestionnaireSet;
+use App\Mail\InvitationMail;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\InviteToken;
 use App\Models\NpoEngagement;
 use App\Models\Questionnaire;
+use App\Models\ServiceActivation;
 use App\Models\User;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -143,6 +148,129 @@ final class AddClientTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->where('clients.0.is_npo', true)
                 ->where('clients.0.engagement_type_label', 'NPO'));
+    }
+
+    public function test_advisor_can_open_filtered_client_invite_form(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.clients.invite', ['engagement_type' => EngagementType::NPO->value]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/clients/Invite')
+                ->where('defaults.engagement_type', EngagementType::NPO->value)
+                ->where('defaults.return_to', route('advisor.clients.index', ['engagement_type' => EngagementType::NPO->value], absolute: false))
+                ->where('engagementTypes.0.value', EngagementType::STANDARD_ADVISORY->value)
+                ->where('engagementTypes.1.value', EngagementType::DUE_DILIGENCE->value)
+                ->where('engagementTypes.2.value', EngagementType::NPO->value)
+                ->has('engagementTypes', 3));
+    }
+
+    public function test_advisor_can_invite_due_diligence_client_from_filtered_path(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $returnTo = route('advisor.clients.index', ['engagement_type' => EngagementType::DUE_DILIGENCE->value], absolute: false);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => ' Buyer.Client@Example.com ',
+                'engagement_type' => EngagementType::DUE_DILIGENCE->value,
+                'return_to' => $returnTo,
+            ])
+            ->assertRedirect($returnTo)
+            ->assertSessionHas('status', 'client-invited');
+
+        $invite = InviteToken::query()->firstOrFail();
+
+        $this->assertSame('buyer.client@example.com', $invite->email);
+        $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_user_type);
+        $this->assertSame(User::TYPE_CLIENT_PRIMARY, $invite->target_role);
+        $this->assertSame(ServiceActivation::SERVICE_DUE_DILIGENCE, $invite->intended_service_type);
+        $this->assertNotEmpty($invite->token_envelope);
+        $client = Client::query()->firstOrFail();
+        $this->assertSame(EngagementType::DUE_DILIGENCE, $client->engagement_type);
+        $this->assertSame('buyer.client@example.com', $client->registry_sources['invite_email']);
+        $this->assertSame((string) $invite->getKey(), (string) $client->registry_sources['invite_token_id']);
+        $this->assertDatabaseHas('client_team', [
+            'client_id' => $client->id,
+            'user_id' => $advisor->id,
+            'role' => 'lead_advisor',
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_issued']);
+        Mail::assertSent(InvitationMail::class, 1);
+    }
+
+    public function test_accepting_advisor_client_invite_links_pending_workspace(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'owner@example.com',
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'return_to' => route('advisor.clients.index', absolute: false),
+            ])
+            ->assertRedirect(route('advisor.clients.index', absolute: false));
+
+        $invite = InviteToken::query()->firstOrFail();
+        $client = Client::query()->firstOrFail();
+        $plainToken = Crypt::decryptString((string) $invite->token_envelope);
+
+        auth()->guard()->logout();
+        $this->flushSession();
+
+        $this->post(route('invite.store', $plainToken), [
+            'name' => 'Owner Person',
+            'mobile_phone' => '+64 21 123 4567',
+            'password' => 'A-secure-password-123',
+            'password_confirmation' => 'A-secure-password-123',
+        ])->assertRedirect(route('mfa.setup', absolute: false));
+
+        $user = User::query()->where('email', 'owner@example.com')->firstOrFail();
+        $client->refresh();
+
+        $this->assertAuthenticatedAs($user);
+        $this->assertSame((string) $user->getKey(), (string) $client->primary_contact_user_id);
+        $this->assertSame('Owner Person', $client->legal_name);
+        $this->assertContains((string) $client->getKey(), $user->accessibleClientIds());
+        $this->assertDatabaseHas('client_team', [
+            'client_id' => $client->id,
+            'user_id' => $user->id,
+            'role' => 'primary_contact',
+        ]);
+        $this->assertDatabaseHas('audit_events', ['action' => 'client.invite_accepted']);
+        $this->assertDatabaseHas('audit_events', ['action' => 'invite.accepted']);
+    }
+
+    public function test_npo_client_invite_prepares_governance_review_workspace(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'npo.owner@example.com',
+                'engagement_type' => EngagementType::NPO->value,
+                'return_to' => route('advisor.clients.index', ['engagement_type' => EngagementType::NPO->value], absolute: false),
+            ])
+            ->assertRedirect(route('advisor.clients.index', ['engagement_type' => EngagementType::NPO->value], absolute: false));
+
+        $client = Client::query()->firstOrFail();
+        $engagement = NpoEngagement::query()->firstOrFail();
+
+        $this->assertSame(EngagementType::NPO, $client->engagement_type);
+        $this->assertSame((string) $client->getKey(), (string) $engagement->client_id);
+        $this->assertSame(NpoEngagementSubType::GovernanceReview, $engagement->sub_type);
+        $this->assertSame(NpoLegalStructure::UnincorporatedCommunityOrganisation, $engagement->legal_structure);
+        $this->assertDatabaseHas('audit_events', ['action' => 'npo_engagement.created']);
+        Mail::assertSent(InvitationMail::class, 1);
     }
 
     public function test_conflict_declaration_is_required_before_client_save(): void

@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::edit
@@ -160,7 +160,7 @@ edit.url = (args: { questionnaire: string | { id: string } } | [questionnaire: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -232,7 +232,7 @@ edit.head = (args: { questionnaire: string | { id: string } } | [questionnaire: 
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::update
@@ -262,7 +262,7 @@ update.url = (args: { questionnaire: string | { id: string } } | [questionnaire:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -321,7 +321,7 @@ update.put = (args: { questionnaire: string | { id: string } } | [questionnaire:
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::preview
@@ -351,7 +351,7 @@ preview.url = (args: { questionnaire: string | { id: string } } | [questionnaire
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -423,7 +423,7 @@ preview.head = (args: { questionnaire: string | { id: string } } | [questionnair
                     }),
             method: 'get',
         })
-
+    
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Admin\QuestionnaireController::publish
@@ -453,7 +453,7 @@ publish.url = (args: { questionnaire: string | { id: string } } | [questionnaire
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { questionnaire: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     questionnaire: args[0],
@@ -502,7 +502,7 @@ publish.post = (args: { questionnaire: string | { id: string } } | [questionnair
             action: publish.url(args, options),
             method: 'post',
         })
-
+    
     publish.form = publishForm
 const QuestionnaireController = { index, store, edit, update, preview, publish }
 
