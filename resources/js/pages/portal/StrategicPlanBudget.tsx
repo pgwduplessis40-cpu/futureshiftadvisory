@@ -18,6 +18,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import type { ComponentType, CSSProperties, ReactNode } from 'react';
+import { BudgetCashChart } from '@/components/budget-cash-chart';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -126,7 +127,9 @@ type BudgetPayload = {
         total_launch_costs?: number;
         monthly_fixed_costs?: number;
         total_funding?: number;
+        opening_cash_balance?: number;
         available_after_launch?: number;
+        break_even_month?: number | null;
         break_even_year?: number | null;
         cash_flow_positive_year?: number | null;
         runway_months?: number | null;
@@ -175,6 +178,8 @@ type BudgetScenario = {
     break_even_year: number | null;
     cash_flow_positive_year: number | null;
     total_funding: number;
+    automatic?: boolean;
+    sensitivity?: Record<string, number>;
     ending_cash: number;
 };
 
@@ -226,8 +231,13 @@ type BudgetAnalytics = {
             gross_profit_percent: number;
             net_profit_before_tax_percent: number;
             net_profit_after_tax_percent: number;
+            target_gross_profit_percent?: number | null;
+            target_net_profit_before_tax_percent?: number | null;
+            target_net_profit_after_tax_percent?: number | null;
         }>;
         monthly_cash: Array<{
+            month: number;
+            month_in_year?: number;
             label: string;
             revenue: number;
             costs: number;
@@ -258,6 +268,7 @@ type BudgetForm = {
     horizon_months: number;
     expected_runway_months: string;
     assumptions: {
+        opening_cash_balance: string;
         revenue_growth_percent: string;
         cost_inflation_percent: string;
         target_gross_profit_percent: string;
@@ -309,6 +320,9 @@ export default function StrategicPlanBudget({
                 ? ''
                 : String(budget.expected_runway_months),
         assumptions: {
+            opening_cash_balance: String(
+                budget.assumptions.opening_cash_balance ?? '',
+            ),
             revenue_growth_percent: String(
                 budget.assumptions.revenue_growth_percent ?? '',
             ),
@@ -837,6 +851,7 @@ export default function StrategicPlanBudget({
                             ) : (
                                 <BudgetAnalyticsPanel
                                     analytics={budget.analytics}
+                                    computed={budget.computed}
                                 />
                             )}
 
@@ -1185,7 +1200,13 @@ function ProgressBand({ score, message }: { score: number; message: string }) {
     );
 }
 
-function BudgetAnalyticsPanel({ analytics }: { analytics: BudgetAnalytics }) {
+function BudgetAnalyticsPanel({
+    analytics,
+    computed,
+}: {
+    analytics: BudgetAnalytics;
+    computed: BudgetPayload['computed'];
+}) {
     const frameworkCards = [
         {
             title: 'Descriptions',
@@ -1256,7 +1277,10 @@ function BudgetAnalyticsPanel({ analytics }: { analytics: BudgetAnalytics }) {
                 <AnnualRevenueCostChart
                     rows={analytics.charts.annual_revenue_costs}
                 />
-                <MonthlyCashChart rows={analytics.charts.monthly_cash} />
+                <MonthlyCashChart
+                    rows={analytics.charts.monthly_cash}
+                    computed={computed}
+                />
                 <ScenarioComparisonChart
                     rows={analytics.charts.scenario_comparison}
                 />
@@ -1300,9 +1324,7 @@ function FrameworkCard({
                         </TooltipContent>
                     </Tooltip>
                 </div>
-                <p className="mt-1 text-sm text-muted-foreground">
-                    {summary}
-                </p>
+                <p className="mt-1 text-sm text-muted-foreground">{summary}</p>
             </div>
             <ul className="space-y-2 text-sm">
                 {items.length > 0 ? (
@@ -1334,6 +1356,9 @@ function MarginChart({
                 row.gross_profit_percent,
                 row.net_profit_before_tax_percent,
                 row.net_profit_after_tax_percent,
+                row.target_gross_profit_percent ?? 0,
+                row.target_net_profit_before_tax_percent ?? 0,
+                row.target_net_profit_after_tax_percent ?? 0,
             ]),
         ),
     );
@@ -1361,6 +1386,7 @@ function MarginChart({
                                     max={max}
                                     className="bg-emerald-600"
                                     label="GP %"
+                                    target={row.target_gross_profit_percent}
                                 />
                                 <PercentBar
                                     value={row.net_profit_before_tax_percent}
@@ -1371,6 +1397,9 @@ function MarginChart({
                                             : 'bg-red-500'
                                     }
                                     label="NPBT %"
+                                    target={
+                                        row.target_net_profit_before_tax_percent
+                                    }
                                 />
                                 <PercentBar
                                     value={row.net_profit_after_tax_percent}
@@ -1381,6 +1410,9 @@ function MarginChart({
                                             : 'bg-red-500'
                                     }
                                     label="NPAT %"
+                                    target={
+                                        row.target_net_profit_after_tax_percent
+                                    }
                                 />
                             </div>
                         </div>
@@ -1390,6 +1422,7 @@ function MarginChart({
                             ['GP %', 'bg-emerald-600'],
                             ['NPBT %', 'bg-cyan-700'],
                             ['NPAT %', 'bg-slate-700'],
+                            ['Target', 'bg-foreground'],
                         ]}
                     />
                 </div>
@@ -1403,9 +1436,7 @@ function AnnualRevenueCostChart({
 }: {
     rows: BudgetAnalytics['charts']['annual_revenue_costs'];
 }) {
-    const max = chartMax(
-        rows.flatMap((row) => [row.revenue, row.costs, row.net_cash_flow]),
-    );
+    const max = chartMax(rows.flatMap((row) => [row.revenue, row.costs]));
 
     return (
         <ChartPanel
@@ -1423,13 +1454,13 @@ function AnnualRevenueCostChart({
                         >
                             <div className="font-medium">{row.label}</div>
                             <div className="space-y-1.5">
-                                <ChartBar
+                                <LabeledChartBar
                                     value={row.revenue}
                                     max={max}
                                     className="bg-emerald-600"
                                     label="Revenue"
                                 />
-                                <ChartBar
+                                <LabeledChartBar
                                     value={row.costs}
                                     max={max}
                                     className="bg-amber-500"
@@ -1438,13 +1469,18 @@ function AnnualRevenueCostChart({
                             </div>
                             <div
                                 className={cn(
-                                    'text-right text-xs font-medium',
+                                    'grid gap-0.5 text-right text-xs',
                                     row.net_cash_flow >= 0
                                         ? 'text-emerald-700'
                                         : 'text-red-600',
                                 )}
                             >
-                                {formatCompactCurrency(row.net_cash_flow)}
+                                <span className="text-muted-foreground">
+                                    Net
+                                </span>
+                                <span className="font-medium">
+                                    {formatCompactCurrency(row.net_cash_flow)}
+                                </span>
                             </div>
                         </div>
                     ))}
@@ -1452,7 +1488,6 @@ function AnnualRevenueCostChart({
                         items={[
                             ['Revenue', 'bg-emerald-600'],
                             ['Costs', 'bg-amber-500'],
-                            ['Net cash flow', 'bg-foreground'],
                         ]}
                     />
                 </div>
@@ -1463,88 +1498,34 @@ function AnnualRevenueCostChart({
 
 function MonthlyCashChart({
     rows,
+    computed,
 }: {
     rows: BudgetAnalytics['charts']['monthly_cash'];
+    computed: BudgetPayload['computed'];
 }) {
-    const values = rows.map((row) => row.cumulative_cash);
-    const min = Math.min(...values, 0);
-    const max = Math.max(...values, 0);
-    const range = Math.max(1, max - min);
-    const width = 360;
-    const height = 140;
-    const paddingX = 18;
-    const top = 18;
-    const chartHeight = 92;
-    const chartWidth = width - paddingX * 2;
-    const points = rows
-        .map((row, index) => {
-            const x =
-                rows.length === 1
-                    ? width / 2
-                    : paddingX + (index / (rows.length - 1)) * chartWidth;
-            const y =
-                top +
-                chartHeight -
-                ((row.cumulative_cash - min) / range) * chartHeight;
+    const series = rows.map((row, index) => ({
+        month: row.month || index + 1,
+        month_in_year: row.month_in_year,
+        revenue: row.revenue,
+        cumulative_cash: row.cumulative_cash,
+    }));
 
-            return `${x.toFixed(2)},${y.toFixed(2)}`;
-        })
-        .join(' ');
-    const zeroY =
-        top + chartHeight - ((0 - min) / range) * chartHeight;
-    const last = rows[rows.length - 1];
-
-    return (
+    return rows.length === 0 ? (
         <ChartPanel
             title="Cash available over time"
             explanation="Shows the forecast cash balance month by month. This is the runway view: it helps answer how long the business can keep operating before cash runs out, and whether cash improves or tightens over the budget period."
         >
-            {rows.length === 0 ? (
-                <EmptyChart label="No monthly forecast yet." />
-            ) : (
-                <div className="space-y-3">
-                    <svg
-                        viewBox={`0 0 ${width} ${height}`}
-                        role="img"
-                        aria-label="Monthly cumulative cash forecast"
-                        className="h-44 w-full overflow-visible"
-                    >
-                        <line
-                            x1={paddingX}
-                            y1={zeroY}
-                            x2={width - paddingX}
-                            y2={zeroY}
-                            className="stroke-muted-foreground/30"
-                            strokeWidth="1"
-                        />
-                        <polyline
-                            points={points}
-                            fill="none"
-                            className="stroke-cyan-700"
-                            strokeWidth="3"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
-                    <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground">
-                        <ChartStat
-                            label="Low"
-                            value={formatCompactCurrency(min)}
-                        />
-                        <ChartStat
-                            label="High"
-                            value={formatCompactCurrency(max)}
-                        />
-                        <ChartStat
-                            label="End"
-                            value={formatCompactCurrency(
-                                last?.cumulative_cash ?? 0,
-                            )}
-                        />
-                    </div>
-                </div>
-            )}
+            <EmptyChart label="No monthly forecast yet." />
         </ChartPanel>
+    ) : (
+        <BudgetCashChart
+            series={series}
+            breakEvenMonth={computed.break_even_month ?? null}
+            runwayMonths={computed.runway_months ?? null}
+            runwayOpenEnded={computed.runway_open_ended ?? false}
+            title="Cash available over time"
+            description="Monthly revenue uses the right axis; cumulative cash uses the left axis. Break-even and runway markers show when the plan starts paying for itself and how long cash lasts."
+        />
     );
 }
 
@@ -1553,17 +1534,15 @@ function ScenarioComparisonChart({
 }: {
     rows: BudgetAnalytics['charts']['scenario_comparison'];
 }) {
-    const max = chartMax(
-        rows.flatMap((row) => [row.total_funding, row.ending_cash]),
-    );
+    const max = chartMax(rows.map((row) => row.ending_cash));
 
     return (
         <ChartPanel
-            title="Scenario funding impact"
-            explanation="Compares funding options against the cash left at the end of the plan. It helps show whether the proposed funding is enough to support the budget."
+            title="Scenario sensitivity impact"
+            explanation="Compares the ending cash and runway for the base case and automatic downside scenarios. It helps show whether the plan stays resilient if revenue drops or costs rise."
         >
             {rows.length === 0 ? (
-                <EmptyChart label="No funding scenarios yet." />
+                <EmptyChart label="No sensitivity scenarios yet." />
             ) : (
                 <div className="space-y-3">
                     {rows.map((row) => (
@@ -1571,6 +1550,11 @@ function ScenarioComparisonChart({
                             <div className="flex items-center justify-between gap-3 text-sm">
                                 <span className="min-w-0 font-medium">
                                     {row.name}
+                                    {row.automatic ? (
+                                        <span className="ml-2 rounded-full bg-muted px-1.5 py-0.5 text-[10px] font-medium text-muted-foreground">
+                                            Auto
+                                        </span>
+                                    ) : null}
                                 </span>
                                 <span className="text-xs text-muted-foreground">
                                     {row.runway_open_ended
@@ -1578,13 +1562,7 @@ function ScenarioComparisonChart({
                                         : `${row.runway_months ?? 0} months`}
                                 </span>
                             </div>
-                            <ChartBar
-                                value={row.total_funding}
-                                max={max}
-                                className="bg-sky-600"
-                                label="Funding"
-                            />
-                            <ChartBar
+                            <LabeledChartBar
                                 value={row.ending_cash}
                                 max={max}
                                 className={
@@ -1598,7 +1576,6 @@ function ScenarioComparisonChart({
                     ))}
                     <ChartLegend
                         items={[
-                            ['Funding', 'bg-sky-600'],
                             ['Positive ending cash', 'bg-emerald-600'],
                             ['Negative ending cash', 'bg-red-500'],
                         ]}
@@ -1615,7 +1592,6 @@ function ConfidenceMixChart({
     rows: BudgetAnalytics['charts']['confidence_mix'];
 }) {
     const total = rows.reduce((sum, row) => sum + row.value, 0);
-    const max = chartMax(rows.map((row) => row.value));
     const toneByLabel: Record<string, string> = {
         Known: 'bg-emerald-600',
         Estimate: 'bg-amber-500',
@@ -1631,20 +1607,41 @@ function ConfidenceMixChart({
                 <EmptyChart label="No confidence rows yet." />
             ) : (
                 <div className="space-y-3">
+                    <div
+                        className="flex h-3 overflow-hidden rounded-full bg-muted"
+                        aria-label="Evidence confidence composition"
+                    >
+                        {rows.map((row) => (
+                            <div
+                                key={row.label}
+                                className={toneByLabel[row.label] ?? 'bg-muted'}
+                                style={{
+                                    width: `${(row.value / total) * 100}%`,
+                                }}
+                                title={`${row.label}: ${formatPercent((row.value / total) * 100)}`}
+                            />
+                        ))}
+                    </div>
                     {rows.map((row) => (
                         <div
-                            key={row.label}
-                            className="grid grid-cols-[5rem_minmax(0,1fr)_4.5rem] items-center gap-3 text-sm"
+                            key={`${row.label}-detail`}
+                            className="grid grid-cols-[5rem_4rem_minmax(0,1fr)] items-center gap-3 text-sm"
                         >
                             <span className="font-medium">{row.label}</span>
-                            <ChartBar
-                                value={row.value}
-                                max={max}
-                                className={toneByLabel[row.label] ?? 'bg-muted'}
-                                label={row.label}
-                            />
-                            <span className="text-right text-xs text-muted-foreground">
-                                {Math.round((row.value / total) * 100)}%
+                            <span className="text-xs text-muted-foreground">
+                                {row.value}
+                            </span>
+                            <span className="inline-flex items-center justify-end gap-1.5">
+                                <span
+                                    className={cn(
+                                        'size-2 rounded-full',
+                                        toneByLabel[row.label] ?? 'bg-muted',
+                                    )}
+                                    aria-hidden="true"
+                                />
+                                <span className="text-xs text-muted-foreground">
+                                    {formatPercent((row.value / total) * 100)}
+                                </span>
                             </span>
                         </div>
                     ))}
@@ -1711,7 +1708,7 @@ function ChartBar({
     );
 }
 
-function PercentBar({
+function LabeledChartBar({
     value,
     max,
     className,
@@ -1723,16 +1720,71 @@ function PercentBar({
     label: string;
 }) {
     return (
+        <div className="grid grid-cols-[minmax(0,1fr)_4.75rem] items-center gap-2">
+            <ChartBar
+                value={value}
+                max={max}
+                className={className}
+                label={label}
+            />
+            <span
+                className={cn(
+                    'text-right text-xs font-medium',
+                    value >= 0 ? 'text-foreground' : 'text-red-600',
+                )}
+            >
+                {formatCompactCurrency(value)}
+            </span>
+        </div>
+    );
+}
+
+function PercentBar({
+    value,
+    max,
+    className,
+    label,
+    target,
+}: {
+    value: number;
+    max: number;
+    className: string;
+    label: string;
+    target?: number | null;
+}) {
+    const targetValue =
+        typeof target === 'number' && Number.isFinite(target) ? target : null;
+    const targetLeft =
+        targetValue === null
+            ? 0
+            : Math.min(
+                  100,
+                  Math.max(0, (targetValue / Math.max(1, max)) * 100),
+              );
+
+    return (
         <div className="grid grid-cols-[4rem_minmax(0,1fr)_4rem] items-center gap-2 text-xs">
             <span className="font-medium text-muted-foreground">{label}</span>
             <div
-                className="h-2.5 overflow-hidden rounded-full bg-muted"
-                aria-label={`${label}: ${formatPercent(value)}`}
+                className="relative h-2.5 rounded-full bg-muted"
+                aria-label={
+                    targetValue === null
+                        ? `${label}: ${formatPercent(value)}`
+                        : `${label}: ${formatPercent(value)}, target ${formatPercent(targetValue)}`
+                }
             >
                 <div
                     className={cn('h-full rounded-full', className)}
                     style={barStyle(value, max)}
                 />
+                {targetValue === null ? null : (
+                    <span
+                        className="absolute top-1/2 h-4 w-0.5 -translate-y-1/2 rounded bg-foreground"
+                        style={{ left: `${targetLeft}%` }}
+                        title={`Target ${formatPercent(targetValue)}`}
+                        aria-hidden="true"
+                    />
+                )}
             </div>
             <span
                 className={cn(
@@ -1762,15 +1814,6 @@ function ChartLegend({ items }: { items: Array<[string, string]> }) {
     );
 }
 
-function ChartStat({ label, value }: { label: string; value: string }) {
-    return (
-        <div className="rounded-md border bg-muted/20 px-2 py-1.5">
-            <div>{label}</div>
-            <div className="mt-0.5 font-medium text-foreground">{value}</div>
-        </div>
-    );
-}
-
 function EmptyChart({ label }: { label: string }) {
     return (
         <div className="flex min-h-32 items-center justify-center rounded-md border border-dashed text-sm text-muted-foreground">
@@ -1793,6 +1836,11 @@ function AssumptionsEditor({
         label: string;
         help: string;
     }> = [
+        {
+            key: 'opening_cash_balance',
+            label: 'Opening cash',
+            help: 'Cash already available at the start of the forecast. It keeps runway from assuming the business begins from zero cash.',
+        },
         {
             key: 'revenue_growth_percent',
             label: 'Revenue growth %',
@@ -1831,7 +1879,7 @@ function AssumptionsEditor({
             style={budgetTargetHighlightStyle(highlighted)}
         >
             <h2 className="text-sm font-medium">Financial assumptions</h2>
-            <div className="grid gap-3 md:grid-cols-5">
+            <div className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
                 {fields.map((field) => (
                     <label key={field.key} className="grid gap-1 text-sm">
                         <span className="flex items-center gap-1.5">
@@ -2309,9 +2357,7 @@ function SummaryMetric({ label, value }: { label: string; value: ReactNode }) {
 function chartMax(values: number[]): number {
     return Math.max(
         1,
-        ...values.map((value) =>
-            Math.abs(Number.isFinite(value) ? value : 0),
-        ),
+        ...values.map((value) => Math.abs(Number.isFinite(value) ? value : 0)),
     );
 }
 

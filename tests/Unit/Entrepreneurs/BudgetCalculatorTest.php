@@ -192,6 +192,26 @@ final class BudgetCalculatorTest extends TestCase
         $this->assertSame(5_000.0, $computed['total_launch_costs']);
     }
 
+    public function test_opening_cash_balance_starts_cash_curve_without_becoming_funding(): void
+    {
+        $computed = $this->calculator()->compute(
+            launchCosts: [['label' => 'Fit-out', 'amount' => 5_000, 'month' => 2]],
+            monthlyFixedCosts: [],
+            revenueForecast: [],
+            fundingSources: [],
+            expectedRunwayMonths: null,
+            forecastYears: 1,
+            assumptions: ['opening_cash_balance' => 12_000],
+        );
+
+        $this->assertSame(12_000.0, $computed['opening_cash_balance']);
+        $this->assertSame(0.0, $computed['total_funding']);
+        $this->assertSame(7_000.0, $computed['available_after_launch']);
+        $this->assertSame(12_000.0, $computed['monthly_detail'][0]['cumulative_cash']);
+        $this->assertSame(5_000.0, $computed['monthly_detail'][1]['launch_costs']);
+        $this->assertSame(7_000.0, $computed['monthly_detail'][1]['cumulative_cash']);
+    }
+
     public function test_fixed_cost_start_month_is_honoured_in_monthly_simulation(): void
     {
         $computed = $this->calculator()->compute(

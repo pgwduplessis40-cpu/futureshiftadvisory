@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\BudgetCalculator;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 
 final class StrategicBudgetService
@@ -41,6 +42,12 @@ final class StrategicBudgetService
         'management accounts',
         'management_accounts',
         'management-account',
+    ];
+
+    private const AUTOMATIC_SCENARIO_KEYS = [
+        'revenue_downside',
+        'cost_upside',
+        'combined_downside',
     ];
 
     public function __construct(
@@ -326,7 +333,7 @@ final class StrategicBudgetService
      */
     public function analyticsPayload(StrategicBudget $budget): array
     {
-        $computed = (array) ($budget->computed ?? []);
+        $computed = $this->computedForRead($budget);
         $confidence = (array) ($budget->confidence ?? []);
         $annualForecast = $this->annualForecastRows($computed);
         $monthlyForecast = $this->monthlyForecastRows($computed);
@@ -347,6 +354,14 @@ final class StrategicBudgetService
         $knownRows = (int) ($rowConfidence['known'] ?? 0);
         $estimateRows = (int) ($rowConfidence['estimate'] ?? 0);
         $guessRows = (int) ($rowConfidence['guess'] ?? 0);
+        $evidenceText = sprintf(
+            '%s known, %s %s, %s %s',
+            $knownRows,
+            $estimateRows,
+            $this->plural('estimate', $estimateRows),
+            $guessRows,
+            $this->plural('guess', $guessRows),
+        );
         $topDriver = collect($costDrivers)->first(fn (array $driver): bool => (float) ($driver['value'] ?? 0) > 0);
         $firstFlag = collect($flags)->first(fn (mixed $flag): bool => is_array($flag));
         $planSections = collect((array) ($budget->business_plan_sections ?? []))
@@ -377,11 +392,10 @@ final class StrategicBudgetService
             ...$diagnoses,
             $riskExcerpt ? "Plan risk noted: {$riskExcerpt}" : null,
             count($missingAssumptions) > 0 ? count($missingAssumptions).' missing budget assumption'.(count($missingAssumptions) === 1 ? '' : 's') : 'No missing budget assumptions',
-            "Evidence base: {$knownRows} known, {$estimateRows} estimates, {$guessRows} guesses",
+            "Evidence base: {$evidenceText}",
             $topDriver ? 'Largest cost driver: '.(string) ($topDriver['label'] ?? 'Cost driver').' at '.$this->money((float) ($topDriver['value'] ?? 0)) : null,
         ]));
         $predictions = array_values(array_filter([
-            "Runway is {$runwayText}.",
             "Break-even is {$breakEvenText}.",
             "Cash-flow positive timing is {$cashFlowPositiveText}.",
             $scenarioRows !== [] ? 'Base scenario ending cash is '.$this->money((float) ($scenarioRows[0]['ending_cash'] ?? 0)).'.' : null,
@@ -413,7 +427,7 @@ final class StrategicBudgetService
             ],
             'diagnostic' => [
                 'summary' => $flags === []
-                    ? "No active budget warnings are present; evidence mix is {$knownRows} known, {$estimateRows} estimates, and {$guessRows} guesses."
+                    ? "No active budget warnings are present; evidence mix is {$evidenceText}."
                     : count($flags).' active budget warning'.(count($flags) === 1 ? '' : 's').': '.(string) ($firstFlag['title'] ?? 'Review budget risk').'.',
                 'explanation' => 'Explains why the budget is strong, weak, incomplete, or risky.',
                 'findings' => $diagnoses,
@@ -453,7 +467,7 @@ final class StrategicBudgetService
             ],
             'charts' => [
                 'annual_revenue_costs' => $this->annualChartRows($annualForecast),
-                'margin_percentages' => $this->marginChartRows($annualForecast),
+                'margin_percentages' => $this->marginChartRows($annualForecast, $computed, (array) ($budget->assumptions ?? [])),
                 'monthly_cash' => $this->monthlyChartRows($monthlyForecast),
                 'scenario_comparison' => $scenarioRows,
                 'confidence_mix' => [
@@ -470,7 +484,7 @@ final class StrategicBudgetService
      */
     private function basePayload(StrategicBudget $budget): array
     {
-        $computed = (array) ($budget->computed ?? []);
+        $computed = $this->computedForRead($budget);
         $confidence = (array) ($budget->confidence ?? []);
 
         return [
@@ -518,7 +532,25 @@ final class StrategicBudgetService
             return $this->refreshReadiness($budget);
         }
 
-        $computed = $this->calculator->compute(
+        $computed = $this->calculate($budget);
+        $confidence = $this->confidence($budget, $computed);
+        $flags = $this->flags($budget, $computed, $confidence);
+
+        $budget->forceFill([
+            'computed' => $computed,
+            'confidence' => $confidence,
+            'flags' => $flags,
+        ])->save();
+
+        return $budget->refresh();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function calculate(StrategicBudget $budget): array
+    {
+        return $this->calculator->compute(
             launchCosts: (array) ($budget->implementation_costs ?? []),
             monthlyFixedCosts: (array) ($budget->monthly_fixed_costs ?? []),
             revenueForecast: (array) ($budget->revenue_forecast ?? []),
@@ -531,16 +563,59 @@ final class StrategicBudgetService
             companyTaxRatePercent: $this->economicPercent(EconomicIndicator::COMPANY_TAX_RATE),
             defaultCostInflationPercent: $this->economicPercent(EconomicIndicator::CPI_ANNUAL),
         );
-        $confidence = $this->confidence($budget, $computed);
-        $flags = $this->flags($budget, $computed, $confidence);
+    }
 
-        $budget->forceFill([
-            'computed' => $computed,
-            'confidence' => $confidence,
-            'flags' => $flags,
-        ])->save();
+    /**
+     * @return array<string, mixed>
+     */
+    private function computedForRead(StrategicBudget $budget): array
+    {
+        $computed = (array) ($budget->computed ?? []);
 
-        return $budget->refresh();
+        if ($this->computedNeedsScenarioRefresh($computed) && $this->hasBudgetInputs($budget)) {
+            return $this->calculate($budget);
+        }
+
+        return $computed;
+    }
+
+    /**
+     * @param  array<string, mixed>  $computed
+     */
+    private function computedNeedsScenarioRefresh(array $computed): bool
+    {
+        $keys = collect((array) data_get($computed, 'scenarios', []))
+            ->filter(fn (mixed $scenario): bool => is_array($scenario))
+            ->map(fn (array $scenario): string => (string) ($scenario['key'] ?? ''))
+            ->filter()
+            ->values()
+            ->all();
+
+        foreach (self::AUTOMATIC_SCENARIO_KEYS as $requiredKey) {
+            if (! in_array($requiredKey, $keys, true)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private function hasBudgetInputs(StrategicBudget $budget): bool
+    {
+        foreach ([
+            $budget->implementation_costs,
+            $budget->monthly_fixed_costs,
+            $budget->future_costs,
+            $budget->revenue_forecast,
+            $budget->funding_sources,
+            $budget->funding_scenarios,
+        ] as $rows) {
+            if ((array) $rows !== []) {
+                return true;
+            }
+        }
+
+        return (array) ($budget->assumptions ?? []) !== [];
     }
 
     /**
@@ -631,6 +706,7 @@ final class StrategicBudgetService
             ->filter(fn (mixed $row): bool => is_array($row))
             ->map(fn (array $row): array => [
                 'month' => (int) ($row['month'] ?? 0),
+                'month_in_year' => (int) ($row['month_in_year'] ?? 0),
                 'year' => (int) ($row['year'] ?? 0),
                 'revenue' => (float) ($row['revenue'] ?? 0),
                 'variable_costs' => (float) ($row['variable_costs'] ?? 0),
@@ -671,6 +747,8 @@ final class StrategicBudgetService
                     'break_even_year' => $summary['break_even_year'] ?? null,
                     'cash_flow_positive_year' => $summary['cash_flow_positive_year'] ?? null,
                     'total_funding' => (float) ($summary['total_funding'] ?? 0),
+                    'automatic' => (bool) ($scenario['automatic'] ?? false),
+                    'sensitivity' => (array) ($scenario['sensitivity'] ?? []),
                     'ending_cash' => is_array($lastYear) ? (float) ($lastYear['ending_cash'] ?? 0) : 0.0,
                 ];
             })
@@ -702,28 +780,42 @@ final class StrategicBudgetService
 
     /**
      * @param  array<int, array<string, mixed>>  $annualForecast
+     * @param  array<string, mixed>  $computed
+     * @param  array<string, mixed>  $storedAssumptions
      * @return array<int, array<string, mixed>>
      */
-    private function marginChartRows(array $annualForecast): array
+    private function marginChartRows(array $annualForecast, array $computed, array $storedAssumptions): array
     {
+        $assumptions = array_replace($storedAssumptions, (array) data_get($computed, 'assumptions', []));
+
         return collect($annualForecast)
-            ->map(fn (array $row): array => [
-                'label' => 'Year '.(int) ($row['year'] ?? 0),
-                'gross_profit_percent' => $this->marginPercent(
-                    (float) ($row['gross_profit'] ?? 0),
-                    (float) ($row['revenue'] ?? 0),
-                ),
-                'net_profit_before_tax_percent' => $this->marginPercent(
-                    (float) ($row['net_profit_before_tax'] ?? 0),
-                    (float) ($row['revenue'] ?? 0),
-                ),
-                'net_profit_after_tax_percent' => $this->marginPercent(
-                    (float) ($row['net_profit_after_tax'] ?? 0),
-                    (float) ($row['revenue'] ?? 0),
-                ),
-            ])
+            ->map(function (array $row) use ($assumptions): array {
+                return [
+                    'label' => 'Year '.(int) ($row['year'] ?? 0),
+                    'gross_profit_percent' => $this->marginPercent(
+                        (float) ($row['gross_profit'] ?? 0),
+                        (float) ($row['revenue'] ?? 0),
+                    ),
+                    'net_profit_before_tax_percent' => $this->marginPercent(
+                        (float) ($row['net_profit_before_tax'] ?? 0),
+                        (float) ($row['revenue'] ?? 0),
+                    ),
+                    'net_profit_after_tax_percent' => $this->marginPercent(
+                        (float) ($row['net_profit_after_tax'] ?? 0),
+                        (float) ($row['revenue'] ?? 0),
+                    ),
+                    'target_gross_profit_percent' => $this->nullableChartPercent($assumptions['target_gross_profit_percent'] ?? null),
+                    'target_net_profit_before_tax_percent' => $this->nullableChartPercent($assumptions['target_net_profit_before_tax_percent'] ?? null),
+                    'target_net_profit_after_tax_percent' => $this->nullableChartPercent($assumptions['target_net_profit_after_tax_percent'] ?? null),
+                ];
+            })
             ->values()
             ->all();
+    }
+
+    private function nullableChartPercent(mixed $value): ?float
+    {
+        return is_numeric($value) ? round((float) $value, 1) : null;
     }
 
     private function marginPercent(float $profit, float $revenue): float
@@ -744,6 +836,8 @@ final class StrategicBudgetService
         return collect($monthlyForecast)
             ->take(36)
             ->map(fn (array $row): array => [
+                'month' => (int) ($row['month'] ?? 0),
+                'month_in_year' => (int) ($row['month_in_year'] ?? 0),
                 'label' => 'M'.(int) ($row['month'] ?? 0),
                 'revenue' => (float) ($row['revenue'] ?? 0),
                 'costs' => (float) ($row['variable_costs'] ?? 0)
@@ -863,6 +957,11 @@ final class StrategicBudgetService
         }
 
         return $actions->values()->all();
+    }
+
+    private function plural(string $word, int $count): string
+    {
+        return $count === 1 ? $word : $word.'s';
     }
 
     private function refreshReadiness(StrategicBudget $budget): StrategicBudget
@@ -1443,11 +1542,15 @@ final class StrategicBudgetService
 
     private function economicPercent(string $indicator): ?float
     {
-        $value = EconomicIndicator::query()
-            ->where('indicator', $indicator)
-            ->latest('period_date')
-            ->latest('fetched_at')
-            ->value('value');
+        try {
+            $value = EconomicIndicator::query()
+                ->where('indicator', $indicator)
+                ->latest('period_date')
+                ->latest('fetched_at')
+                ->value('value');
+        } catch (QueryException) {
+            return null;
+        }
 
         return is_numeric($value) ? (float) $value : null;
     }

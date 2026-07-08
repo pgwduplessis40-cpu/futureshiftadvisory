@@ -113,6 +113,7 @@ final class StrategicBudgetController extends Controller
             'horizon_months' => ['required', 'integer', Rule::in([12, 24, 36])],
             'expected_runway_months' => ['nullable', 'integer', 'min:0', 'max:60'],
             'assumptions' => ['array'],
+            'assumptions.opening_cash_balance' => ['nullable', 'numeric', 'min:0', 'max:999999999'],
             'assumptions.revenue_growth_percent' => ['nullable', 'numeric', 'min:0', 'max:500'],
             'assumptions.cost_inflation_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],
             'assumptions.target_gross_profit_percent' => ['nullable', 'numeric', 'min:0', 'max:100'],

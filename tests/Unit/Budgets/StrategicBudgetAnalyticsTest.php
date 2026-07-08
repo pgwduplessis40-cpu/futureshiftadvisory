@@ -42,7 +42,8 @@ final class StrategicBudgetAnalyticsTest extends TestCase
             'Projects runway, break-even timing, cash-flow timing, and scenario outcomes.',
             $analytics['predictive']['explanation'],
         );
-        $this->assertContains('Runway is 8 months.', $analytics['predictive']['findings']);
+        $this->assertStringContainsString('Runway is 8 months', $analytics['predictive']['summary']);
+        $this->assertNotContains('Runway is 8 months.', $analytics['predictive']['findings']);
         $this->assertStringStartsWith('Next action:', $analytics['prescriptive']['summary']);
         $this->assertSame(
             'Turns budget signals into advisor/client actions before proposal reliance.',
@@ -59,6 +60,7 @@ final class StrategicBudgetAnalyticsTest extends TestCase
         $this->assertSame(64.7, $analytics['charts']['margin_percentages'][0]['gross_profit_percent']);
         $this->assertSame(6.9, $analytics['charts']['margin_percentages'][0]['net_profit_before_tax_percent']);
         $this->assertSame(6.9, $analytics['charts']['margin_percentages'][0]['net_profit_after_tax_percent']);
+        $this->assertSame(55.0, $analytics['charts']['margin_percentages'][0]['target_gross_profit_percent']);
         $this->assertSame('Revenue growth %', $analytics['diagnostic']['missing_assumptions'][0]['label']);
         $this->assertSame('Known', $analytics['charts']['confidence_mix'][0]['label']);
         $this->assertSame('Base case', $analytics['charts']['scenario_comparison'][0]['name']);
@@ -67,6 +69,25 @@ final class StrategicBudgetAnalyticsTest extends TestCase
 
         $this->assertContains('Complete growth, margin, inflation, and profit-target assumptions.', $actions);
         $this->assertContains('Confirm extra funding, delay implementation spend, or reduce launch costs.', $actions);
+    }
+
+    public function test_analytics_refreshes_stale_computed_scenarios_on_read(): void
+    {
+        $budget = $this->budget();
+        $computed = $budget->computed;
+        $computed['scenarios'] = [
+            collect($computed['scenarios'])->firstWhere('key', 'base'),
+        ];
+        $budget->forceFill(['computed' => $computed]);
+
+        $analytics = app(StrategicBudgetService::class)->analyticsPayload($budget);
+        $keys = collect($analytics['charts']['scenario_comparison'])->pluck('key')->all();
+
+        $this->assertContains('base', $keys);
+        $this->assertContains('revenue_downside', $keys);
+        $this->assertContains('cost_upside', $keys);
+        $this->assertContains('combined_downside', $keys);
+        $this->assertSame(['base'], collect($budget->computed['scenarios'])->pluck('key')->all());
     }
 
     public function test_excel_export_contains_framework_sheets_forecasts_and_prescriptive_actions(): void
@@ -242,6 +263,54 @@ final class StrategicBudgetAnalyticsTest extends TestCase
                         ],
                         'annual_totals' => [
                             ['ending_cash' => 171300],
+                        ],
+                    ],
+                    [
+                        'key' => 'revenue_downside',
+                        'name' => 'Revenue downside',
+                        'type' => 'sensitivity',
+                        'automatic' => true,
+                        'summary' => [
+                            'runway_months' => 6,
+                            'runway_open_ended' => false,
+                            'break_even_year' => 2,
+                            'cash_flow_positive_year' => 2,
+                            'total_funding' => 110000,
+                        ],
+                        'annual_totals' => [
+                            ['ending_cash' => 120000],
+                        ],
+                    ],
+                    [
+                        'key' => 'cost_upside',
+                        'name' => 'Cost upside',
+                        'type' => 'sensitivity',
+                        'automatic' => true,
+                        'summary' => [
+                            'runway_months' => 7,
+                            'runway_open_ended' => false,
+                            'break_even_year' => 2,
+                            'cash_flow_positive_year' => 2,
+                            'total_funding' => 110000,
+                        ],
+                        'annual_totals' => [
+                            ['ending_cash' => 140000],
+                        ],
+                    ],
+                    [
+                        'key' => 'combined_downside',
+                        'name' => 'Combined downside',
+                        'type' => 'sensitivity',
+                        'automatic' => true,
+                        'summary' => [
+                            'runway_months' => 5,
+                            'runway_open_ended' => false,
+                            'break_even_year' => 2,
+                            'cash_flow_positive_year' => 2,
+                            'total_funding' => 110000,
+                        ],
+                        'annual_totals' => [
+                            ['ending_cash' => 90000],
                         ],
                     ],
                 ],

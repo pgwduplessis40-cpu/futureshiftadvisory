@@ -99,6 +99,7 @@ final class BudgetCalculator implements ProvidesMethodology
             'total_launch_costs' => $base['summary']['total_launch_costs'],
             'monthly_fixed_costs' => $base['summary']['year_one_monthly_fixed_costs'],
             'total_funding' => $base['summary']['total_funding'],
+            'opening_cash_balance' => $base['summary']['opening_cash_balance'],
             'available_after_launch' => $base['summary']['available_after_launch'],
             'runway_months' => $base['summary']['runway_months'],
             'runway_open_ended' => $base['summary']['runway_open_ended'],
@@ -223,6 +224,8 @@ final class BudgetCalculator implements ProvidesMethodology
         $missing = [];
         $provided = [];
         $normalised = [];
+        $openingCashRaw = $assumptions['opening_cash_balance'] ?? null;
+        $openingCash = 0.0;
 
         foreach ($fields as $key => $label) {
             $raw = $assumptions[$key] ?? null;
@@ -243,16 +246,25 @@ final class BudgetCalculator implements ProvidesMethodology
                 : round($this->number($raw), 2);
         }
 
+        if ($openingCashRaw !== null && $openingCashRaw !== '' && is_numeric($openingCashRaw)) {
+            $provided[] = 'opening_cash_balance';
+            $openingCash = max(0.0, $this->number($openingCashRaw));
+        }
+
         $taxConfigured = $companyTaxRatePercent !== null;
 
         return [
             ...$normalised,
+            'opening_cash_balance' => round($openingCash, 2),
             'company_tax_rate_percent' => $taxConfigured ? round(max(0.0, $companyTaxRatePercent), 2) : 0.0,
             'company_tax_configured' => $taxConfigured,
             'gst_exclusive' => true,
             'provided_fields' => $provided,
             'missing_fields' => $missing,
-            'field_labels' => $fields,
+            'field_labels' => [
+                ...$fields,
+                'opening_cash_balance' => 'Opening cash balance',
+            ],
         ];
     }
 
@@ -280,7 +292,8 @@ final class BudgetCalculator implements ProvidesMethodology
         $monthCount = $forecastYears * self::MONTHS_PER_YEAR;
         $monthly = [];
         $annual = [];
-        $cumulativeCash = 0.0;
+        $openingCashBalance = (float) ($assumptions['opening_cash_balance'] ?? 0.0);
+        $cumulativeCash = $openingCashBalance;
         $loan = $this->loanState($scenario);
         $runwayMonths = null;
         $breakEvenMonth = null;
@@ -383,7 +396,8 @@ final class BudgetCalculator implements ProvidesMethodology
         $breakEvenAnnual = collect($annual)->first(fn (array $row): bool => (float) $row['net_profit_before_tax'] >= 0 && (float) $row['revenue'] > 0);
         $breakEvenYear = is_array($breakEvenAnnual) ? (int) $breakEvenAnnual['year'] : null;
         $lastMonth = end($monthly);
-        $hasAnyInput = $this->hasAnyInput($launchRows, $fixedRows, $revenueRows, $fundingRows, $futureRows);
+        $hasAnyInput = $this->hasAnyInput($launchRows, $fixedRows, $revenueRows, $fundingRows, $futureRows)
+            || $openingCashBalance > 0.0;
         $runwayOpenEnded = $hasAnyInput && $runwayMonths === null && is_array($lastMonth) && (float) $lastMonth['cumulative_cash'] >= 0;
         if ($runwayMonths === null && $hasAnyInput) {
             $runwayMonths = $monthCount;
@@ -406,7 +420,8 @@ final class BudgetCalculator implements ProvidesMethodology
                 'total_launch_costs' => round($this->sumRows($launchRows), 2),
                 'year_one_monthly_fixed_costs' => round($this->sumRows($fixedRows), 2),
                 'total_funding' => round($this->sumRows($fundingRows) + $this->scenarioFundingTotal($scenario), 2),
-                'available_after_launch' => round($this->sumRows($fundingRows) + $this->scenarioFundingTotal($scenario) - $this->sumRows($launchRows), 2),
+                'opening_cash_balance' => round($openingCashBalance, 2),
+                'available_after_launch' => round($openingCashBalance + $this->sumRows($fundingRows) + $this->scenarioFundingTotal($scenario) - $this->sumRows($launchRows), 2),
                 'runway_months' => $runwayMonths,
                 'runway_open_ended' => $runwayOpenEnded,
                 'break_even_month' => $breakEvenMonth,
