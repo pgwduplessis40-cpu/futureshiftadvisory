@@ -335,6 +335,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::patch('entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/gate', [EntrepreneurActionController::class, 'gateIdea'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.idea-validations.gate');
+        Route::post('entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh', [EntrepreneurActionController::class, 'refreshIdea'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.idea-validations.refresh');
         Route::post('entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments', [EntrepreneurActionController::class, 'assess'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.plans.assessments.store');

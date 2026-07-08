@@ -54,7 +54,10 @@ final class FallbackAiClient implements AiClient
         }
 
         try {
-            return $this->live->{$method}($prompt);
+            $response = $this->live->{$method}($prompt);
+            $this->notice->clear();
+
+            return $response;
         } catch (AiUnavailableException $e) {
             $this->notice->recordUnavailable($prompt, $e->getMessage());
 

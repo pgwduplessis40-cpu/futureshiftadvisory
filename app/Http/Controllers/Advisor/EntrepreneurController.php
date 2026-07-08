@@ -457,14 +457,26 @@ final class EntrepreneurController extends Controller
             return null;
         }
 
+        $evaluation = $validation->ai_evaluation ?? [];
+        $aiDeferred = (bool) data_get($evaluation, 'metadata.degraded', false)
+            || data_get($evaluation, 'model') === 'fake-ai-client';
+
         return [
             'id' => $validation->id,
             'summary' => (string) data_get($validation->ai_evaluation, 'summary', ''),
+            'problem' => $validation->problem,
+            'target_customer' => $validation->target_customer,
+            'solution' => $validation->solution,
+            'value_proposition' => $validation->value_proposition,
+            'demand_signal' => $validation->demand_signal,
+            'revenue_model' => $validation->revenue_model,
             'viability_alerts' => $validation->viability_alerts ?? [],
             'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
+            'ai_deferred' => $aiDeferred,
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             'advisor_gate_note' => $validation->advisor_gate_note,
             'gate_url' => route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false),
+            'refresh_url' => route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false),
         ];
     }
 

@@ -45,6 +45,21 @@ final class EntrepreneurActionController extends Controller
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-gate-passed');
     }
 
+    public function refreshIdea(
+        Request $request,
+        EntrepreneurProfile $entrepreneurProfile,
+        IdeaValidation $ideaValidation,
+        IdeaValidationService $ideas,
+    ): RedirectResponse {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertIdeaBelongsToProfile($ideaValidation, $entrepreneurProfile);
+        $advisor = $this->advisor($request);
+
+        $ideas->refreshEvaluation($ideaValidation, $advisor);
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-refreshed');
+    }
+
     public function assess(
         Request $request,
         EntrepreneurProfile $entrepreneurProfile,

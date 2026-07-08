@@ -90,11 +90,23 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     idea_validation: {
         id: string;
         summary: string;
-        viability_alerts: { message?: string; severity?: string }[];
+        problem: string;
+        target_customer: string;
+        solution: string;
+        value_proposition: string;
+        demand_signal: string;
+        revenue_model: string;
+        viability_alerts: {
+            message?: string;
+            severity?: string;
+            type?: string;
+        }[];
         evaluated_at: string | null;
+        ai_deferred: boolean;
         advisor_gate_passed_at: string | null;
         advisor_gate_note: string | null;
         gate_url: string;
+        refresh_url: string;
     } | null;
     advisory_readiness: {
         id: string;

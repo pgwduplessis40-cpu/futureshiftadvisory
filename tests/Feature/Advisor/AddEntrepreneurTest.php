@@ -10,6 +10,7 @@ use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
+use App\Models\IdeaValidation;
 use App\Models\InviteToken;
 use App\Models\PlanAssessment;
 use App\Models\RatingFramework;
@@ -324,6 +325,67 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertSame($user->id, $profile->refresh()->user_id);
         $this->assertSame(EntrepreneurStage::ONBOARDING, $profile->stage);
         $this->assertDatabaseHas('audit_events', ['action' => 'entrepreneur.onboarding_started']);
+    }
+
+    public function test_advisor_can_review_and_refresh_deferred_idea_validation(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $entrepreneur = User::factory()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->id,
+            'assigned_advisor_id' => $advisor->id,
+            'name' => 'Deferred Founder',
+            'email' => 'deferred-founder@example.test',
+            'stage' => EntrepreneurStage::IDEA_VALIDATION,
+            'concept_summary' => 'Advisor-supported business validation.',
+        ]);
+        $validation = IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'evaluated_by_user_id' => $entrepreneur->id,
+            'problem' => 'Business Advisory',
+            'target_customer' => "SME's",
+            'solution' => 'System that can evaluate their current state.',
+            'value_proposition' => 'It supports them in growing the business.',
+            'demand_signal' => "Struggling SME's",
+            'revenue_model' => 'Service fee for advisory support',
+            'ai_evaluation' => [
+                'summary' => 'AI unavailable - analysis deferred',
+                'model' => 'fake-ai-client',
+                'metadata' => ['degraded' => true],
+            ],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.idea_validation.id', $validation->id)
+                ->where('entrepreneur.idea_validation.ai_deferred', true)
+                ->where('entrepreneur.idea_validation.problem', 'Business Advisory')
+                ->where('entrepreneur.idea_validation.target_customer', "SME's")
+                ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
+                ->where('entrepreneur.idea_validation.gate_url', route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false)));
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation]))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-refreshed');
+
+        $validation->refresh();
+
+        $this->assertSame('fake-ai-client', data_get($validation->ai_evaluation, 'model'));
+        $this->assertSame($advisor->id, $validation->evaluated_by_user_id);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.idea_validation_refreshed',
+            'subject_id' => $validation->id,
+        ]);
     }
 
     public function test_capacity_warning_is_exposed_at_twenty_four_active_entrepreneurs(): void

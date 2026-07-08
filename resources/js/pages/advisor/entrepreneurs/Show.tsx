@@ -47,7 +47,25 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     );
     const [gamificationPending, setGamificationPending] = useState(false);
     const [gateNote, setGateNote] = useState('');
+    const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
+    const ideaValidation = entrepreneur.idea_validation;
+    const submittedIdeaFields = ideaValidation
+        ? [
+              { label: 'Problem', value: ideaValidation.problem },
+              {
+                  label: 'Target customer',
+                  value: ideaValidation.target_customer,
+              },
+              { label: 'Solution', value: ideaValidation.solution },
+              {
+                  label: 'Value proposition',
+                  value: ideaValidation.value_proposition,
+              },
+              { label: 'Demand signal', value: ideaValidation.demand_signal },
+              { label: 'Revenue model', value: ideaValidation.revenue_model },
+          ]
+        : [];
 
     const copyText = (text: string, onCopied: (value: boolean) => void) => {
         void navigator.clipboard.writeText(text).then(() => {
@@ -103,6 +121,22 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                 preserveScroll: true,
                 onError: () => setGamificationEnabled(!nextEnabled),
                 onFinish: () => setGamificationPending(false),
+            },
+        );
+    };
+
+    const refreshIdeaValidation = () => {
+        if (!ideaValidation?.refresh_url) {
+            return;
+        }
+
+        setIdeaRefreshPending(true);
+        router.post(
+            ideaValidation.refresh_url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setIdeaRefreshPending(false),
             },
         );
     };
@@ -493,9 +527,16 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                         </div>
                     ) : null}
 
-                    {entrepreneur.idea_validation &&
-                    !entrepreneur.idea_validation.advisor_gate_passed_at ? (
+                    {ideaValidation &&
+                    !ideaValidation.advisor_gate_passed_at ? (
                         <div className="grid gap-3 rounded-md border bg-muted/30 p-3 md:grid-cols-[1fr_auto]">
+                            {ideaValidation.ai_deferred ? (
+                                <p className="text-sm text-muted-foreground md:col-span-2">
+                                    AI review is deferred. Use the submitted
+                                    answers for manual review or rerun AI once
+                                    the provider is live.
+                                </p>
+                            ) : null}
                             <label className="grid gap-1 text-sm">
                                 <span>Idea gate note</span>
                                 <textarea
@@ -515,8 +556,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     disabled={gateNote.trim().length < 10}
                                     onClick={() =>
                                         router.patch(
-                                            entrepreneur.idea_validation
-                                                ?.gate_url ?? '',
+                                            ideaValidation.gate_url,
                                             {
                                                 advisor_gate_note: gateNote,
                                             },
@@ -682,19 +722,73 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                     Idea validation
                                 </h2>
                             </div>
-                            <Badge variant="outline">
-                                {entrepreneur.idea_validation
-                                    ? entrepreneur.idea_validation
-                                          .advisor_gate_passed_at
-                                        ? 'Gate passed'
-                                        : 'Gate needed'
-                                    : 'Needed'}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-2">
+                                {ideaValidation?.ai_deferred ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={ideaRefreshPending}
+                                        onClick={refreshIdeaValidation}
+                                    >
+                                        <RefreshCw
+                                            className={cn(
+                                                'size-4',
+                                                ideaRefreshPending &&
+                                                    'animate-spin',
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {ideaRefreshPending
+                                            ? 'Rerunning'
+                                            : 'Rerun AI review'}
+                                    </Button>
+                                ) : null}
+                                <Badge variant="outline">
+                                    {ideaValidation
+                                        ? ideaValidation.advisor_gate_passed_at
+                                            ? 'Gate passed'
+                                            : 'Gate needed'
+                                        : 'Needed'}
+                                </Badge>
+                            </div>
                         </div>
-                        <p className="line-clamp-4 text-sm text-muted-foreground">
-                            {entrepreneur.idea_validation?.summary ||
-                                'No idea validation submitted yet.'}
-                        </p>
+                        {ideaValidation ? (
+                            <div className="space-y-4">
+                                <p className="text-sm text-muted-foreground">
+                                    {ideaValidation.summary ||
+                                        'Submitted for advisor review.'}
+                                </p>
+                                <dl className="grid gap-3 text-sm">
+                                    {submittedIdeaFields.map((field) => (
+                                        <Detail
+                                            key={field.label}
+                                            label={field.label}
+                                            value={field.value}
+                                        />
+                                    ))}
+                                </dl>
+                                {ideaValidation.viability_alerts.length > 0 ? (
+                                    <div className="space-y-2 text-sm">
+                                        {ideaValidation.viability_alerts.map(
+                                            (alert, index) => (
+                                                <div
+                                                    key={`${alert.type ?? 'alert'}-${index}`}
+                                                    className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950"
+                                                >
+                                                    {alert.message ??
+                                                        'Review this validation detail before approval.'}
+                                                </div>
+                                            ),
+                                        )}
+                                    </div>
+                                ) : null}
+                            </div>
+                        ) : (
+                            <p className="text-sm text-muted-foreground">
+                                No idea validation submitted yet.
+                            </p>
+                        )}
                     </section>
 
                     <section className="space-y-4 rounded-md border bg-background p-4">

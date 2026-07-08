@@ -42,6 +42,11 @@ final class AdvisorAiNotice
         }
     }
 
+    public function clear(): void
+    {
+        Cache::forget(self::CACHE_KEY);
+    }
+
     /**
      * @return array<string, mixed>|null
      */
