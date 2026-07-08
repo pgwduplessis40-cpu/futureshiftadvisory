@@ -8,7 +8,9 @@ use App\Enums\EntrepreneurStage;
 use App\Jobs\RefreshIdeaValidationAiReview;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
+use App\Models\MessageThread;
 use App\Models\User;
+use App\Notifications\NewMessageNotification;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
@@ -19,6 +21,7 @@ use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
@@ -124,6 +127,44 @@ final class IdeaValidationTest extends TestCase
             'action' => 'entrepreneur.idea_gate_passed',
             'subject_id' => $validation->id,
         ]);
+    }
+
+    public function test_advisor_can_request_idea_changes_and_notify_founder(): void
+    {
+        Notification::fake();
+        [$advisor, $profile] = $this->profile('changes-requested@example.test');
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+
+        $updated = app(IdeaValidationService::class)->requestChanges(
+            $validation,
+            $advisor,
+            'Please run one more customer experiment and resubmit the validation evidence.',
+        );
+
+        $this->assertSame('changes_requested', data_get($updated->ai_evaluation, 'metadata.advisor_gate_status'));
+        $this->assertSame(
+            'Please run one more customer experiment and resubmit the validation evidence.',
+            data_get($updated->ai_evaluation, 'metadata.change_request_note'),
+        );
+        $this->assertNotNull(data_get($updated->ai_evaluation, 'metadata.changes_requested_at'));
+        $this->assertFalse(app(IdeaValidationService::class)->planBuilderUnlocked($profile));
+        $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.idea_changes_requested',
+            'subject_id' => $validation->id,
+        ]);
+
+        $thread = MessageThread::query()
+            ->where('entrepreneur_profile_id', $profile->id)
+            ->where('subject', 'Idea validation changes requested')
+            ->first();
+
+        $this->assertInstanceOf(MessageThread::class, $thread);
+        $this->assertStringContainsString(
+            'Please run one more customer experiment',
+            (string) $thread->messages()->first()?->body,
+        );
+        Notification::assertSentTo($profile->user, NewMessageNotification::class);
     }
 
     public function test_refresh_retry_clears_stale_failure_and_records_provider_failure_reason(): void

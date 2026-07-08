@@ -62,6 +62,24 @@ final class EntrepreneurActionController extends Controller
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-refresh-queued');
     }
 
+    public function requestIdeaChanges(
+        Request $request,
+        EntrepreneurProfile $entrepreneurProfile,
+        IdeaValidation $ideaValidation,
+        IdeaValidationService $ideas,
+    ): RedirectResponse {
+        Gate::authorize('view', $entrepreneurProfile);
+        $this->assertIdeaBelongsToProfile($ideaValidation, $entrepreneurProfile);
+        $advisor = $this->advisor($request);
+        $validated = $request->validate([
+            'change_request_note' => ['required', 'string', 'min:10', 'max:4000'],
+        ]);
+
+        $ideas->requestChanges($ideaValidation, $advisor, (string) $validated['change_request_note']);
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-changes-requested');
+    }
+
     public function assess(
         Request $request,
         EntrepreneurProfile $entrepreneurProfile,

@@ -756,10 +756,24 @@ final class EntrepreneurPlanController extends Controller
             'summary' => (string) data_get($validation->ai_evaluation, 'summary', ''),
             'viability_alerts' => $validation->viability_alerts ?? [],
             'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
+            'advisor_gate_status' => $this->ideaGateStatus($validation),
+            'change_request_note' => data_get($validation->ai_evaluation, 'metadata.change_request_note'),
+            'changes_requested_at' => data_get($validation->ai_evaluation, 'metadata.changes_requested_at'),
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             'advisor_gate_note' => $validation->advisor_gate_note,
             'plan_builder_unlocked' => $validation->advisor_gate_passed_at !== null,
         ];
+    }
+
+    private function ideaGateStatus(IdeaValidation $validation): string
+    {
+        if ($validation->advisor_gate_passed_at !== null) {
+            return 'approved';
+        }
+
+        $status = data_get($validation->ai_evaluation, 'metadata.advisor_gate_status');
+
+        return is_string($status) && trim($status) !== '' ? $status : 'advisor_review';
     }
 
     private function latestIdeaValidation(EntrepreneurProfile $profile): ?IdeaValidation

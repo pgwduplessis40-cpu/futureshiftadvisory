@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
+use App\Services\Messaging\MessageThreadService;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -30,6 +31,7 @@ final class IdeaValidationService implements ProvidesMethodology
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
+        private readonly MessageThreadService $messages,
     ) {}
 
     /**
@@ -276,7 +278,13 @@ final class IdeaValidationService implements ProvidesMethodology
         }
 
         return DB::transaction(function () use ($validation, $advisor, $note): IdeaValidation {
+            $evaluation = $validation->ai_evaluation ?? [];
+            data_set($evaluation, 'metadata.advisor_gate_status', 'approved');
+            data_set($evaluation, 'metadata.advisor_gate_approved_at', now()->toIso8601String());
+            data_set($evaluation, 'metadata.advisor_gate_approved_by_user_id', $advisor->getKey());
+
             $validation->forceFill([
+                'ai_evaluation' => $evaluation,
                 'advisor_gate_passed_at' => now(),
                 'advisor_gate_passed_by_user_id' => $advisor->getKey(),
                 'advisor_gate_note' => $note,
@@ -294,6 +302,74 @@ final class IdeaValidationService implements ProvidesMethodology
 
             return $validation->refresh();
         });
+    }
+
+    public function requestChanges(IdeaValidation $validation, User $advisor, string $feedback): IdeaValidation
+    {
+        $feedback = trim($feedback);
+
+        if ($feedback === '') {
+            throw ValidationException::withMessages([
+                'change_request_note' => 'Advisor feedback is required before sending the idea back.',
+            ]);
+        }
+
+        if ($validation->advisor_gate_passed_at !== null) {
+            throw ValidationException::withMessages([
+                'change_request_note' => 'The builder gate has already been approved for this idea validation.',
+            ]);
+        }
+
+        $updated = DB::transaction(function () use ($validation, $advisor, $feedback): IdeaValidation {
+            $validation->loadMissing('entrepreneurProfile');
+            $profile = $validation->entrepreneurProfile;
+
+            if (! $profile instanceof EntrepreneurProfile) {
+                throw new InvalidArgumentException('Idea validation must belong to an entrepreneur profile before changes can be requested.');
+            }
+
+            $evaluation = $validation->ai_evaluation ?? [];
+            data_set($evaluation, 'metadata.advisor_gate_status', 'changes_requested');
+            data_set($evaluation, 'metadata.changes_requested_at', now()->toIso8601String());
+            data_set($evaluation, 'metadata.changes_requested_by_user_id', $advisor->getKey());
+            data_set($evaluation, 'metadata.change_request_note', $feedback);
+
+            $validation->forceFill([
+                'ai_evaluation' => $evaluation,
+            ])->save();
+
+            $profile->forceFill([
+                'stage' => EntrepreneurStage::IDEA_VALIDATION,
+            ])->save();
+
+            $this->audit->record('entrepreneur.idea_changes_requested', subject: $validation, actor: $advisor, after: [
+                'entrepreneur_profile_id' => $profile->getKey(),
+                'feedback' => $feedback,
+            ]);
+
+            return $validation->refresh();
+        });
+
+        $updated->loadMissing('entrepreneurProfile');
+        if ($updated->entrepreneurProfile instanceof EntrepreneurProfile) {
+            $this->messages->startEntrepreneurThread(
+                $updated->entrepreneurProfile,
+                $advisor,
+                'Idea validation changes requested',
+                $this->changeRequestMessage($feedback),
+            );
+        }
+
+        return $updated->refresh();
+    }
+
+    private function changeRequestMessage(string $feedback): string
+    {
+        return implode("\n\n", [
+            'Thanks for submitting your idea validation. I am not ready to approve the business plan builder gate yet.',
+            $feedback,
+            'Please update the idea validation and resubmit it for review.',
+        ]);
     }
 
     public function planBuilderUnlocked(EntrepreneurProfile $profile): bool

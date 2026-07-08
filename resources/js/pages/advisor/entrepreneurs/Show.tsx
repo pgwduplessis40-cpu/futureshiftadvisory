@@ -47,6 +47,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     );
     const [gamificationPending, setGamificationPending] = useState(false);
     const [gateNote, setGateNote] = useState('');
+    const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const ideaValidation = entrepreneur.idea_validation;
@@ -92,6 +93,33 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
               { label: 'Revenue model', value: ideaValidation.revenue_model },
           ]
         : [];
+    const ideaGateStatus = ideaValidation
+        ? ideaValidation.advisor_gate_passed_at
+            ? 'approved'
+            : ideaValidation.advisor_gate_status
+        : null;
+    const ideaGateLabel = ideaValidation
+        ? ideaGateStatus === 'approved'
+            ? 'Gate passed'
+            : ideaGateStatus === 'changes_requested'
+              ? 'Changes requested'
+              : 'Gate needed'
+        : 'Needed';
+    const ideaGateBadgeVariant: 'secondary' | 'destructive' | 'outline' =
+        ideaGateStatus === 'approved'
+            ? 'secondary'
+            : ideaGateStatus === 'changes_requested'
+              ? 'destructive'
+              : 'outline';
+    const ideaVerdict = firstSentence(ideaValidation?.summary ?? null);
+    const ideaSummaryRemainder = summaryRemainder(
+        ideaValidation?.summary ?? null,
+        ideaVerdict,
+    );
+    const canDecideIdeaGate =
+        !!ideaValidation &&
+        !ideaValidation.advisor_gate_passed_at &&
+        ideaGateStatus !== 'changes_requested';
 
     const copyText = (text: string, onCopied: (value: boolean) => void) => {
         void navigator.clipboard.writeText(text).then(() => {
@@ -177,6 +205,40 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
             {
                 preserveScroll: true,
                 onFinish: () => setIdeaRefreshPending(false),
+            },
+        );
+    };
+
+    const approveIdeaGate = () => {
+        if (!ideaValidation?.gate_url) {
+            return;
+        }
+
+        router.patch(
+            ideaValidation.gate_url,
+            {
+                advisor_gate_note: gateNote,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setGateNote(''),
+            },
+        );
+    };
+
+    const requestIdeaChanges = () => {
+        if (!ideaValidation?.request_changes_url) {
+            return;
+        }
+
+        router.patch(
+            ideaValidation.request_changes_url,
+            {
+                change_request_note: changeRequestNote,
+            },
+            {
+                preserveScroll: true,
+                onSuccess: () => setChangeRequestNote(''),
             },
         );
     };
@@ -566,172 +628,6 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             </Button>
                         </div>
                     ) : null}
-
-                    {ideaValidation &&
-                    !ideaValidation.advisor_gate_passed_at ? (
-                        <div className="grid gap-3 rounded-md border bg-muted/30 p-3 md:grid-cols-[1fr_auto]">
-                            {ideaValidation.ai_deferred ? (
-                                <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
-                                    <p className="text-sm text-muted-foreground">
-                                        {ideaRefreshInFlight
-                                            ? 'AI review is queued and will update this record when complete.'
-                                            : ideaRefreshFailed
-                                              ? ideaRefreshFailureMessage
-                                              : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
-                                    </p>
-                                    <Button
-                                        type="button"
-                                        size="sm"
-                                        variant="outline"
-                                        disabled={ideaRefreshBusy}
-                                        onClick={refreshIdeaValidation}
-                                    >
-                                        <RefreshCw
-                                            className={cn(
-                                                'size-4',
-                                                ideaRefreshBusy &&
-                                                    'animate-spin',
-                                            )}
-                                            aria-hidden="true"
-                                        />
-                                        {ideaRefreshButtonLabel}
-                                    </Button>
-                                </div>
-                            ) : null}
-                            <label className="grid gap-1 text-sm">
-                                <span>Idea gate note</span>
-                                <textarea
-                                    value={gateNote}
-                                    onChange={(event) =>
-                                        setGateNote(event.target.value)
-                                    }
-                                    rows={2}
-                                    className="rounded-md border bg-background px-3 py-2 text-sm"
-                                    placeholder="Record why the idea is ready to enter the business plan builder."
-                                />
-                            </label>
-                            <div className="flex items-end">
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    disabled={gateNote.trim().length < 10}
-                                    onClick={() =>
-                                        router.patch(
-                                            ideaValidation.gate_url,
-                                            {
-                                                advisor_gate_note: gateNote,
-                                            },
-                                            { preserveScroll: true },
-                                        )
-                                    }
-                                >
-                                    Approve builder gate
-                                </Button>
-                            </div>
-                        </div>
-                    ) : null}
-                </section>
-
-                <section className="space-y-4 rounded-md border bg-background p-4">
-                    <div className="flex flex-wrap items-start justify-between gap-3">
-                        <div className="space-y-2">
-                            <div className="flex items-center gap-2">
-                                <Trophy className="size-4" aria-hidden="true" />
-                                <h2 className="text-sm font-medium">
-                                    Gamification
-                                </h2>
-                            </div>
-                            <Badge
-                                variant={
-                                    gamificationEnabled
-                                        ? 'secondary'
-                                        : 'outline'
-                                }
-                            >
-                                {gamificationEnabled
-                                    ? 'Gamification enabled'
-                                    : 'Gamification disabled'}
-                            </Badge>
-                        </div>
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant={
-                                gamificationEnabled ? 'outline' : 'default'
-                            }
-                            disabled={gamificationPending}
-                            onClick={toggleGamification}
-                        >
-                            {gamificationPending
-                                ? gamificationEnabled
-                                    ? 'Enabling'
-                                    : 'Disabling'
-                                : gamificationEnabled
-                                  ? 'Disable gamification'
-                                  : 'Enable gamification'}
-                        </Button>
-                    </div>
-
-                    {gamificationEnabled ? (
-                        <div className="grid gap-4 md:grid-cols-4">
-                            <ActionMetric
-                                label="Journey"
-                                value={gamification.current_level?.label ?? '-'}
-                                hoverTitle="Journey level"
-                                rows={[
-                                    {
-                                        label: 'Stage',
-                                        value:
-                                            gamification.current_level
-                                                ?.stage_label ?? '-',
-                                    },
-                                    {
-                                        label: 'Phase',
-                                        value:
-                                            gamification.current_level?.phase ??
-                                            '-',
-                                    },
-                                ]}
-                            />
-                            <ActionMetric
-                                label="Plan completion"
-                                value={`${gamification.plan_completion?.percent ?? 0}%`}
-                                hoverTitle="Plan completion"
-                                rows={[
-                                    {
-                                        label: 'Completed',
-                                        value: `${gamification.plan_completion?.completed ?? 0}/${gamification.plan_completion?.total ?? 0}`,
-                                    },
-                                    {
-                                        label: 'Next badge',
-                                        value:
-                                            gamification.next_milestone
-                                                ?.label ?? 'Complete',
-                                    },
-                                ]}
-                            />
-                            <ActionMetric
-                                label="Badges"
-                                value={`${gamification.badges?.length ?? 0} earned`}
-                                hoverTitle="Earned badges"
-                                rows={[
-                                    {
-                                        label: 'New',
-                                        value:
-                                            gamification.new_badge_count ?? 0,
-                                    },
-                                    {
-                                        label: 'Streak',
-                                        value: `${gamification.current_streak ?? 0} days`,
-                                    },
-                                ]}
-                            />
-                        </div>
-                    ) : (
-                        <p className="text-sm text-muted-foreground">
-                            Off for this entrepreneur.
-                        </p>
-                    )}
                 </section>
 
                 <div className="grid gap-6 lg:grid-cols-3">
@@ -770,9 +666,27 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 )}
                             />
                         </dl>
+                        <Button
+                            asChild
+                            size="sm"
+                            variant={
+                                entrepreneur.readiness.completed
+                                    ? 'outline'
+                                    : 'default'
+                            }
+                            className="w-full justify-start"
+                        >
+                            <Link href={entrepreneur.readiness.action_url}>
+                                <ClipboardCheck
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                {entrepreneur.readiness.action_label}
+                            </Link>
+                        </Button>
                     </section>
 
-                    <section className="space-y-4 rounded-md border bg-background p-4">
+                    <section className="space-y-4 rounded-md border bg-background p-4 lg:col-span-2">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <UserRoundCheck
@@ -803,21 +717,76 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                         {ideaRefreshButtonLabel}
                                     </Button>
                                 ) : null}
-                                <Badge variant="outline">
-                                    {ideaValidation
-                                        ? ideaValidation.advisor_gate_passed_at
-                                            ? 'Gate passed'
-                                            : 'Gate needed'
-                                        : 'Needed'}
+                                <Badge variant={ideaGateBadgeVariant}>
+                                    {ideaGateLabel}
                                 </Badge>
                             </div>
                         </div>
                         {ideaValidation ? (
-                            <div className="space-y-4">
-                                <p className="text-sm text-muted-foreground">
-                                    {ideaValidation.summary ||
-                                        'Submitted for advisor review.'}
-                                </p>
+                            <div className="space-y-5">
+                                {ideaValidation.ai_deferred ? (
+                                    <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                                        <p>
+                                            {ideaRefreshInFlight
+                                                ? 'AI review is queued and will update this record when complete.'
+                                                : ideaRefreshFailed
+                                                  ? ideaRefreshFailureMessage
+                                                  : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
+                                        </p>
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            disabled={ideaRefreshBusy}
+                                            onClick={refreshIdeaValidation}
+                                            className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                        >
+                                            <RefreshCw
+                                                className={cn(
+                                                    'size-4',
+                                                    ideaRefreshBusy &&
+                                                        'animate-spin',
+                                                )}
+                                                aria-hidden="true"
+                                            />
+                                            {ideaRefreshButtonLabel}
+                                        </Button>
+                                    </div>
+                                ) : null}
+
+                                {ideaGateStatus === 'changes_requested' &&
+                                ideaValidation.change_request_note ? (
+                                    <div className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
+                                        <p className="font-medium">
+                                            Advisor feedback sent to founder
+                                        </p>
+                                        <p className="mt-1">
+                                            {ideaValidation.change_request_note}
+                                        </p>
+                                        <p className="mt-2 text-xs">
+                                            Requested{' '}
+                                            {formatDate(
+                                                ideaValidation.changes_requested_at,
+                                            )}
+                                        </p>
+                                    </div>
+                                ) : null}
+
+                                <div className="rounded-md border bg-muted/30 p-3">
+                                    <p className="text-xs font-medium text-muted-foreground uppercase">
+                                        Decision read
+                                    </p>
+                                    <p className="mt-2 text-sm font-medium">
+                                        {ideaVerdict ||
+                                            'Submitted for advisor review.'}
+                                    </p>
+                                    {ideaSummaryRemainder ? (
+                                        <p className="mt-2 text-sm text-muted-foreground">
+                                            {ideaSummaryRemainder}
+                                        </p>
+                                    ) : null}
+                                </div>
+
                                 <dl className="grid gap-3 text-sm">
                                     {submittedIdeaFields.map((field) => (
                                         <Detail
@@ -827,8 +796,35 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                         />
                                     ))}
                                 </dl>
+
+                                <div className="grid gap-3 rounded-md border bg-muted/20 p-3 text-sm md:grid-cols-2">
+                                    <Detail
+                                        label="AI uncertainty"
+                                        value={
+                                            ideaValidation.uncertainty
+                                                ? gradeLabel(
+                                                      ideaValidation.uncertainty,
+                                                  )
+                                                : null
+                                        }
+                                    />
+                                    <Detail
+                                        label="Cohort comparison"
+                                        value={
+                                            ideaValidation.past_plan_pattern
+                                                ?.note ??
+                                            cohortPatternLabel(
+                                                ideaValidation.past_plan_pattern,
+                                            )
+                                        }
+                                    />
+                                </div>
+
                                 {ideaValidation.viability_alerts.length > 0 ? (
                                     <div className="space-y-2 text-sm">
+                                        <h3 className="text-xs font-medium text-muted-foreground">
+                                            Viability alerts
+                                        </h3>
                                         {ideaValidation.viability_alerts.map(
                                             (alert, index) => (
                                                 <div
@@ -840,6 +836,107 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                                 </div>
                                             ),
                                         )}
+                                    </div>
+                                ) : null}
+
+                                {canDecideIdeaGate ? (
+                                    <div className="grid gap-4 border-t pt-4 lg:grid-cols-2">
+                                        <div className="space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                            <div>
+                                                <p className="font-medium">
+                                                    Request changes
+                                                </p>
+                                                <p className="mt-1">
+                                                    Keeps the founder in Idea
+                                                    Validation and reopens the
+                                                    form for resubmission.
+                                                </p>
+                                            </div>
+                                            <label className="grid gap-1">
+                                                <span>Founder feedback</span>
+                                                <textarea
+                                                    value={changeRequestNote}
+                                                    onChange={(event) =>
+                                                        setChangeRequestNote(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    rows={4}
+                                                    className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
+                                                    placeholder="Tell the founder what to rethink, validate, or strengthen before resubmitting."
+                                                />
+                                            </label>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={
+                                                    changeRequestNote.trim()
+                                                        .length < 10
+                                                }
+                                                onClick={requestIdeaChanges}
+                                                className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                            >
+                                                <MessageSquare
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Request changes
+                                            </Button>
+                                        </div>
+
+                                        <div className="space-y-3 rounded-md border bg-muted/20 p-3 text-sm">
+                                            <div>
+                                                <p className="font-medium">
+                                                    Approve builder gate
+                                                </p>
+                                                <p className="mt-1 text-muted-foreground">
+                                                    Opens the business plan
+                                                    builder and records your
+                                                    gate note for audit.
+                                                </p>
+                                            </div>
+                                            <label className="grid gap-1">
+                                                <span>Idea gate note</span>
+                                                <textarea
+                                                    value={gateNote}
+                                                    onChange={(event) =>
+                                                        setGateNote(
+                                                            event.target.value,
+                                                        )
+                                                    }
+                                                    rows={4}
+                                                    className="rounded-md border bg-background px-3 py-2 text-sm"
+                                                    placeholder="Record why the idea is ready to enter the business plan builder."
+                                                />
+                                            </label>
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                disabled={
+                                                    gateNote.trim().length < 10
+                                                }
+                                                onClick={approveIdeaGate}
+                                            >
+                                                <CheckCircle2
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                Approve builder gate
+                                            </Button>
+                                        </div>
+                                    </div>
+                                ) : ideaGateStatus === 'changes_requested' ? (
+                                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                        Waiting for the founder to revise and
+                                        resubmit the idea validation.
+                                    </div>
+                                ) : ideaGateStatus === 'approved' ? (
+                                    <div className="rounded-md border border-emerald-200 bg-emerald-50 px-3 py-2 text-sm text-emerald-950">
+                                        Builder gate approved.{' '}
+                                        {ideaValidation.advisor_gate_note
+                                            ? `Gate note: ${ideaValidation.advisor_gate_note}`
+                                            : null}
                                     </div>
                                 ) : null}
                             </div>
@@ -902,6 +999,108 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                         )}
                     </section>
                 </div>
+
+                <section className="space-y-4 rounded-md border bg-background p-4">
+                    <div className="flex flex-wrap items-start justify-between gap-3">
+                        <div className="space-y-2">
+                            <div className="flex items-center gap-2">
+                                <Trophy className="size-4" aria-hidden="true" />
+                                <h2 className="text-sm font-medium">
+                                    Gamification
+                                </h2>
+                            </div>
+                            <Badge
+                                variant={
+                                    gamificationEnabled
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                            >
+                                {gamificationEnabled
+                                    ? 'Gamification enabled'
+                                    : 'Gamification disabled'}
+                            </Badge>
+                        </div>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant={
+                                gamificationEnabled ? 'outline' : 'default'
+                            }
+                            disabled={gamificationPending}
+                            onClick={toggleGamification}
+                        >
+                            {gamificationPending
+                                ? gamificationEnabled
+                                    ? 'Enabling'
+                                    : 'Disabling'
+                                : gamificationEnabled
+                                  ? 'Disable gamification'
+                                  : 'Enable gamification'}
+                        </Button>
+                    </div>
+
+                    {gamificationEnabled ? (
+                        <div className="grid gap-4 md:grid-cols-3">
+                            <ActionMetric
+                                label="Journey"
+                                value={gamification.current_level?.label ?? '-'}
+                                hoverTitle="Journey level"
+                                rows={[
+                                    {
+                                        label: 'Stage',
+                                        value:
+                                            gamification.current_level
+                                                ?.stage_label ?? '-',
+                                    },
+                                    {
+                                        label: 'Phase',
+                                        value:
+                                            gamification.current_level?.phase ??
+                                            '-',
+                                    },
+                                ]}
+                            />
+                            <ActionMetric
+                                label="Plan completion"
+                                value={`${gamification.plan_completion?.percent ?? 0}%`}
+                                hoverTitle="Plan completion"
+                                rows={[
+                                    {
+                                        label: 'Completed',
+                                        value: `${gamification.plan_completion?.completed ?? 0}/${gamification.plan_completion?.total ?? 0}`,
+                                    },
+                                    {
+                                        label: 'Next badge',
+                                        value:
+                                            gamification.next_milestone
+                                                ?.label ?? 'Complete',
+                                    },
+                                ]}
+                            />
+                            <ActionMetric
+                                label="Badges"
+                                value={`${gamification.badges?.length ?? 0} earned`}
+                                hoverTitle="Earned badges"
+                                rows={[
+                                    {
+                                        label: 'New',
+                                        value:
+                                            gamification.new_badge_count ?? 0,
+                                    },
+                                    {
+                                        label: 'Streak',
+                                        value: `${gamification.current_streak ?? 0} days`,
+                                    },
+                                ]}
+                            />
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">
+                            Off for this entrepreneur.
+                        </p>
+                    )}
+                </section>
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <section
@@ -1521,6 +1720,53 @@ function DocumentRow({ document }: { document: EntrepreneurDocument }) {
             </a>
         </InsightHoverCard>
     );
+}
+
+function firstSentence(value: string | null): string | null {
+    const text = value?.trim();
+
+    if (!text) {
+        return null;
+    }
+
+    const match = text.match(/^(.+?[.!?])(\s|$)/);
+
+    return match?.[1] ?? text;
+}
+
+function summaryRemainder(
+    summary: string | null | undefined,
+    first: string | null,
+): string | null {
+    const text = summary?.trim();
+
+    if (!text || !first || text === first) {
+        return null;
+    }
+
+    return text.slice(first.length).trim() || null;
+}
+
+function cohortPatternLabel(
+    pattern:
+        | {
+              source_reference?: string;
+              cohort?: number;
+              industry?: string;
+              note?: string;
+          }
+        | null
+        | undefined,
+): string | null {
+    if (!pattern) {
+        return null;
+    }
+
+    if (pattern.cohort && pattern.industry) {
+        return `${pattern.cohort} prior ${gradeLabel(pattern.industry)} patterns`;
+    }
+
+    return pattern.source_reference ?? null;
 }
 
 function formatDate(value: string | null): string {

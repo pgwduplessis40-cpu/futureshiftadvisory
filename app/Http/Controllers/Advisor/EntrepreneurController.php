@@ -491,6 +491,10 @@ final class EntrepreneurController extends Controller
             'score' => $assessment?->score,
             'outcome' => $assessment?->outcome,
             'assessed_at' => $assessment?->assessed_at?->toIso8601String(),
+            'action_label' => $assessment instanceof ReadinessAssessment
+                ? 'Review surveys'
+                : 'Send readiness questionnaire',
+            'action_url' => route('advisor.entrepreneurs.surveys', $profile, absolute: false),
         ];
     }
 
@@ -512,6 +516,7 @@ final class EntrepreneurController extends Controller
         $evaluation = $validation->ai_evaluation ?? [];
         $aiDeferred = (bool) data_get($evaluation, 'metadata.degraded', false)
             || data_get($evaluation, 'model') === 'fake-ai-client';
+        $gateStatus = $this->ideaGateStatus($validation);
         $refreshStatus = data_get($evaluation, 'metadata.refresh_status');
         $refreshRequestedAt = data_get($evaluation, 'metadata.refresh_requested_at');
         $refreshStartedAt = data_get($evaluation, 'metadata.refresh_started_at');
@@ -527,8 +532,13 @@ final class EntrepreneurController extends Controller
             'demand_signal' => $validation->demand_signal,
             'revenue_model' => $validation->revenue_model,
             'viability_alerts' => $validation->viability_alerts ?? [],
+            'uncertainty' => data_get($evaluation, 'uncertainty'),
+            'past_plan_pattern' => data_get($evaluation, 'past_plan_pattern', []),
             'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
             'ai_deferred' => $aiDeferred,
+            'advisor_gate_status' => $gateStatus,
+            'change_request_note' => data_get($evaluation, 'metadata.change_request_note'),
+            'changes_requested_at' => data_get($evaluation, 'metadata.changes_requested_at'),
             'refresh_status' => $refreshStatus,
             'refresh_stale' => $refreshStale,
             'refresh_requested_at' => $refreshRequestedAt,
@@ -539,8 +549,20 @@ final class EntrepreneurController extends Controller
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             'advisor_gate_note' => $validation->advisor_gate_note,
             'gate_url' => route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false),
+            'request_changes_url' => route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false),
             'refresh_url' => route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false),
         ];
+    }
+
+    private function ideaGateStatus(IdeaValidation $validation): string
+    {
+        if ($validation->advisor_gate_passed_at !== null) {
+            return 'approved';
+        }
+
+        $status = data_get($validation->ai_evaluation, 'metadata.advisor_gate_status');
+
+        return is_string($status) && trim($status) !== '' ? $status : 'gate_needed';
     }
 
     private function refreshStale(mixed $status, mixed $timestamp): bool

@@ -86,6 +86,8 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         score: number | null;
         outcome: string | null;
         assessed_at: string | null;
+        action_label: string;
+        action_url: string;
     };
     idea_validation: {
         id: string;
@@ -101,8 +103,22 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             severity?: string;
             type?: string;
         }[];
+        uncertainty: string | null;
+        past_plan_pattern: {
+            source_reference?: string;
+            cohort?: number;
+            industry?: string;
+            note?: string;
+        };
         evaluated_at: string | null;
         ai_deferred: boolean;
+        advisor_gate_status:
+            | 'approved'
+            | 'changes_requested'
+            | 'gate_needed'
+            | string;
+        change_request_note: string | null;
+        changes_requested_at: string | null;
         refresh_status: 'queued' | 'completed' | 'failed' | string | null;
         refresh_stale: boolean;
         refresh_requested_at: string | null;
@@ -113,6 +129,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         advisor_gate_passed_at: string | null;
         advisor_gate_note: string | null;
         gate_url: string;
+        request_changes_url: string;
         refresh_url: string;
     } | null;
     advisory_readiness: {

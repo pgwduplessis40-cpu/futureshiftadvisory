@@ -60,6 +60,13 @@ type IdeaValidationPayload = {
         severity?: string;
     }[];
     evaluated_at: string | null;
+    advisor_gate_status:
+        | 'approved'
+        | 'changes_requested'
+        | 'advisor_review'
+        | string;
+    change_request_note: string | null;
+    changes_requested_at: string | null;
     advisor_gate_passed_at: string | null;
     advisor_gate_note: string | null;
     plan_builder_unlocked: boolean;
@@ -436,8 +443,14 @@ export default function EntrepreneurPlan({
         ideaValidation?.advisor_gate_passed_at ||
         ideaValidation?.plan_builder_unlocked,
     );
+    const ideaChangesRequested =
+        ideaValidation?.advisor_gate_status === 'changes_requested';
+    const ideaUnderAdvisorReview =
+        hasIdeaValidation && !ideaValidationApproved && !ideaChangesRequested;
     const showIdeaValidationEditor =
-        !ideaValidationApproved || showValidatedIdeaForm;
+        !hasIdeaValidation ||
+        ideaChangesRequested ||
+        (ideaValidationApproved && showValidatedIdeaForm);
     const ideaValidationSummary = ideaFields.map((field) => ({
         label: field.label,
         value: ideaValidation?.[field.key as keyof IdeaValidationForm] ?? '-',
@@ -451,45 +464,52 @@ export default function EntrepreneurPlan({
                   body: 'Answer the idea validation questions first. Your advisor reviews this before the plan sections open.',
                   action: 'Start idea validation',
               }
-            : includesIdeaValidation && !planBuilderUnlocked
+            : includesIdeaValidation && ideaChangesRequested
               ? {
-                    badge: 'Step 2',
-                    title: 'Advisor review',
-                    body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
-                    action: null,
+                    badge: 'Step 1',
+                    title: 'Revise idea validation',
+                    body: 'Your advisor has requested changes. Update the idea validation and resubmit it for review.',
+                    action: 'Revise idea validation',
                 }
-              : includesPlanBudget && !hasPlan
+              : includesIdeaValidation && !planBuilderUnlocked
                 ? {
-                      badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
-                      title: 'Start the business plan',
-                      body: includesIdeaValidation
-                          ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
-                          : 'Your package opens the business plan and budget workspace directly.',
-                      action: 'Start plan',
+                      badge: 'Step 2',
+                      title: 'Advisor review',
+                      body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
+                      action: null,
                   }
-                : includesPlanBudget
+                : includesPlanBudget && !hasPlan
                   ? {
-                        badge: `${planCompletion.completed}/${planCompletion.total} sections`,
-                        title: 'Next plan section',
-                        body: selectedRequirement
-                            ? selectedRequirement.complete
-                                ? 'This section is already complete. Choose the next needed section when you are ready.'
-                                : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
-                            : 'Select one requirement and complete that section first.',
-                        action: null,
+                        badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
+                        title: 'Start the business plan',
+                        body: includesIdeaValidation
+                            ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
+                            : 'Your package opens the business plan and budget workspace directly.',
+                        action: 'Start plan',
                     }
-                  : {
-                        badge: packageAccess.package_scope_label,
-                        title: hasIdeaValidation
-                            ? 'Idea validation submitted'
-                            : 'Complete idea validation',
-                        body: hasIdeaValidation
-                            ? 'Your advisor can review the validation and provide gate feedback for this package.'
-                            : 'Answer the idea validation questions to test the concept before investing in detailed plan work.',
-                        action: hasIdeaValidation
-                            ? null
-                            : 'Start idea validation',
-                    };
+                  : includesPlanBudget
+                    ? {
+                          badge: `${planCompletion.completed}/${planCompletion.total} sections`,
+                          title: 'Next plan section',
+                          body: selectedRequirement
+                              ? selectedRequirement.complete
+                                  ? 'This section is already complete. Choose the next needed section when you are ready.'
+                                  : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
+                              : 'Select one requirement and complete that section first.',
+                          action: null,
+                      }
+                    : {
+                          badge: packageAccess.package_scope_label,
+                          title: hasIdeaValidation
+                              ? 'Idea validation submitted'
+                              : 'Complete idea validation',
+                          body: hasIdeaValidation
+                              ? 'Your advisor can review the validation and provide gate feedback for this package.'
+                              : 'Answer the idea validation questions to test the concept before investing in detailed plan work.',
+                          action: hasIdeaValidation
+                              ? null
+                              : 'Start idea validation',
+                      };
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
@@ -892,7 +912,9 @@ export default function EntrepreneurPlan({
                                             : ideaValidation
                                               ? planBuilderUnlocked
                                                   ? 'Advisor approved'
-                                                  : 'Awaiting advisor gate'
+                                                  : ideaChangesRequested
+                                                    ? 'Changes requested'
+                                                    : 'Awaiting advisor gate'
                                               : 'Not submitted'
                                     }
                                     explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
@@ -910,6 +932,10 @@ export default function EntrepreneurPlan({
                                     ) : planBuilderUnlocked ? (
                                         <Badge variant="secondary">
                                             Builder unlocked
+                                        </Badge>
+                                    ) : ideaChangesRequested ? (
+                                        <Badge variant="outline">
+                                            Changes requested
                                         </Badge>
                                     ) : (
                                         <Badge variant="outline">
@@ -1176,6 +1202,10 @@ export default function EntrepreneurPlan({
                                             <Badge variant="secondary">
                                                 Gate passed
                                             </Badge>
+                                        ) : ideaChangesRequested ? (
+                                            <Badge variant="outline">
+                                                Changes requested
+                                            </Badge>
                                         ) : ideaValidation ? (
                                             <Badge variant="outline">
                                                 Advisor review
@@ -1215,6 +1245,18 @@ export default function EntrepreneurPlan({
                                     </div>
                                 </div>
 
+                                {ideaChangesRequested &&
+                                ideaValidation?.change_request_note ? (
+                                    <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-950">
+                                        <div className="font-medium">
+                                            Advisor feedback
+                                        </div>
+                                        <p className="mt-1">
+                                            {ideaValidation.change_request_note}
+                                        </p>
+                                    </div>
+                                ) : null}
+
                                 {ideaValidationApproved &&
                                 !showIdeaValidationEditor ? (
                                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1244,7 +1286,7 @@ export default function EntrepreneurPlan({
                                             </div>
                                         ) : null}
                                     </div>
-                                ) : (
+                                ) : showIdeaValidationEditor ? (
                                     <form
                                         className="grid gap-3 lg:grid-cols-2"
                                         onSubmit={submitIdea}
@@ -1290,9 +1332,11 @@ export default function EntrepreneurPlan({
                                             >
                                                 {ideaForm.processing
                                                     ? 'Submitting...'
-                                                    : ideaValidation
-                                                      ? 'Update idea validation'
-                                                      : 'Submit idea validation'}
+                                                    : ideaChangesRequested
+                                                      ? 'Resubmit idea validation'
+                                                      : ideaValidation
+                                                        ? 'Update idea validation'
+                                                        : 'Submit idea validation'}
                                             </Button>
                                             {ideaForm.recentlySuccessful ? (
                                                 <p className="mt-2 text-xs text-muted-foreground">
@@ -1302,7 +1346,13 @@ export default function EntrepreneurPlan({
                                             ) : null}
                                         </div>
                                     </form>
-                                )}
+                                ) : ideaUnderAdvisorReview ? (
+                                    <div className="rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+                                        Your idea validation is with your
+                                        advisor. They will either approve the
+                                        builder gate or request changes.
+                                    </div>
+                                ) : null}
                             </section>
                         ) : null}
 
@@ -1613,16 +1663,20 @@ export default function EntrepreneurPlan({
                                             <h3 className="text-sm font-medium">
                                                 {planBuilderUnlocked
                                                     ? 'Plan sections are ready'
-                                                    : hasIdeaValidation
-                                                      ? 'Plan sections are waiting for advisor review'
-                                                      : 'Plan sections unlock after idea validation'}
+                                                    : ideaChangesRequested
+                                                      ? 'Plan sections are waiting for your revised idea'
+                                                      : hasIdeaValidation
+                                                        ? 'Plan sections are waiting for advisor review'
+                                                        : 'Plan sections unlock after idea validation'}
                                             </h3>
                                             <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
                                                 {planBuilderUnlocked
                                                     ? 'Start the business plan to open the section checklist and AI assist.'
-                                                    : hasIdeaValidation
-                                                      ? 'Your idea validation has been submitted. Your advisor needs to approve it before these sections open.'
-                                                      : 'Complete idea validation first so your advisor can confirm the concept before detailed plan work starts.'}
+                                                    : ideaChangesRequested
+                                                      ? 'Your advisor requested changes to the idea validation. Update and resubmit it before these sections open.'
+                                                      : hasIdeaValidation
+                                                        ? 'Your idea validation has been submitted. Your advisor needs to approve it before these sections open.'
+                                                        : 'Complete idea validation first so your advisor can confirm the concept before detailed plan work starts.'}
                                             </p>
                                         </div>
                                         {planBuilderUnlocked ? (
@@ -1633,10 +1687,13 @@ export default function EntrepreneurPlan({
                                             >
                                                 Start plan
                                             </Button>
-                                        ) : !hasIdeaValidation ? (
+                                        ) : !hasIdeaValidation ||
+                                          ideaChangesRequested ? (
                                             <Button asChild size="sm">
                                                 <a href="#idea-validation">
-                                                    Start idea validation
+                                                    {ideaChangesRequested
+                                                        ? 'Revise idea validation'
+                                                        : 'Start idea validation'}
                                                 </a>
                                             </Button>
                                         ) : null}

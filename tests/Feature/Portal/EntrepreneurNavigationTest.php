@@ -14,8 +14,10 @@ use App\Models\ServiceRatePackage;
 use App\Models\User;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Fake\FakeAiClient;
+use App\Services\Entrepreneurs\IdeaValidationService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
 final class EntrepreneurNavigationTest extends TestCase
@@ -309,6 +311,38 @@ final class EntrepreneurNavigationTest extends TestCase
                 ->where('entrepreneurReviews.items.0.type', 'idea_validation')
                 ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Queue Founder')
                 ->where('entrepreneurReviews.items.0.action_label', 'Review idea'));
+
+        Notification::fake();
+        $changeNote = 'Please interview one more owner, record the hypothesis, evidence, result, and next step, then resubmit.';
+        app(IdeaValidationService::class)->requestChanges($validation->refresh(), $advisor, $changeNote);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('ideaValidation.id', $validation->id)
+                ->where('ideaValidation.advisor_gate_status', 'changes_requested')
+                ->where('ideaValidation.change_request_note', $changeNote)
+                ->where('ideaValidation.plan_builder_unlocked', false));
+
+        $revisedPayload = array_merge($payload, [
+            'demand_signal' => 'Three SME owners completed interviews and one agreed to a paid discovery pilot.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.idea-validation.store'), $revisedPayload)
+            ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-submitted');
+
+        $latestValidation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->latest('evaluated_at')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertNotSame($validation->id, $latestValidation->id);
+        $this->assertSame('advisor_review', data_get($latestValidation->ai_evaluation, 'metadata.advisor_gate_status', 'advisor_review'));
+        $this->assertSame($revisedPayload['demand_signal'], $latestValidation->demand_signal);
     }
 
     public function test_entrepreneur_can_start_buying_business_service_from_portal(): void

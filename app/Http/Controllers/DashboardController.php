@@ -818,6 +818,8 @@ final class DashboardController extends Controller
     private function entrepreneurIdeaReviewItem(IdeaValidation $validation): array
     {
         $profile = $validation->entrepreneurProfile;
+        $gateStatus = data_get($validation->ai_evaluation, 'metadata.advisor_gate_status');
+        $changesRequested = $gateStatus === 'changes_requested';
 
         return [
             'id' => $validation->id,
@@ -826,12 +828,12 @@ final class DashboardController extends Controller
             'entrepreneur_id' => $profile?->id,
             'entrepreneur_name' => $profile?->name ?? 'Entrepreneur',
             'entrepreneur_email' => $profile?->email,
-            'status' => 'Awaiting advisor review',
+            'status' => $changesRequested ? 'Changes requested' : 'Awaiting advisor review',
             'submitted_at' => $validation->evaluated_at?->toIso8601String() ?? $validation->created_at?->toIso8601String(),
             'detail_url' => $profile instanceof EntrepreneurProfile
                 ? route('advisor.entrepreneurs.show', $profile, absolute: false)
                 : null,
-            'action_label' => 'Review idea',
+            'action_label' => $changesRequested ? 'Await resubmission' : 'Review idea',
         ];
     }
 

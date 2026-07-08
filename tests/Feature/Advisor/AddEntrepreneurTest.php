@@ -22,6 +22,7 @@ use App\Services\Security\InviteIssuer;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -411,6 +412,7 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.idea_validation.problem', 'Business Advisory')
                 ->where('entrepreneur.idea_validation.target_customer', "SME's")
                 ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
+                ->where('entrepreneur.idea_validation.request_changes_url', route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false))
                 ->where('entrepreneur.idea_validation.gate_url', route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false)));
 
         $this->actingAsMfa($advisor)
@@ -431,6 +433,62 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.idea_validation_refresh_queued',
             'subject_id' => $validation->id,
+        ]);
+    }
+
+    public function test_advisor_can_request_idea_validation_changes(): void
+    {
+        $this->seed(RoleSeeder::class);
+        Notification::fake();
+        $advisor = $this->advisor();
+        $entrepreneur = User::factory()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->id,
+            'assigned_advisor_id' => $advisor->id,
+            'name' => 'Needs Changes Founder',
+            'email' => 'needs-changes-founder@example.test',
+            'stage' => EntrepreneurStage::IDEA_VALIDATION,
+            'concept_summary' => 'Advisor-supported business validation.',
+        ]);
+        $validation = IdeaValidation::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'evaluated_by_user_id' => $entrepreneur->id,
+            'problem' => 'Business Advisory',
+            'target_customer' => "SME's",
+            'solution' => 'System that can evaluate their current state.',
+            'value_proposition' => 'It supports them in growing the business.',
+            'demand_signal' => "Struggling SME's",
+            'revenue_model' => 'Service fee for advisory support',
+            'ai_evaluation' => [
+                'summary' => 'Real problem, thin evidence.',
+                'model' => 'fake-ai-client',
+                'metadata' => [],
+            ],
+            'viability_alerts' => [],
+            'evaluated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation]), [
+                'change_request_note' => 'Please capture one more customer experiment and resubmit the idea validation.',
+            ])
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-changes-requested');
+
+        $validation->refresh();
+
+        $this->assertSame('changes_requested', data_get($validation->ai_evaluation, 'metadata.advisor_gate_status'));
+        $this->assertSame(
+            'Please capture one more customer experiment and resubmit the idea validation.',
+            data_get($validation->ai_evaluation, 'metadata.change_request_note'),
+        );
+        $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
+        $this->assertDatabaseHas('message_threads', [
+            'entrepreneur_profile_id' => $profile->id,
+            'subject' => 'Idea validation changes requested',
         ]);
     }
 
