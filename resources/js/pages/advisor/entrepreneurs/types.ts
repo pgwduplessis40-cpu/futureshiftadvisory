@@ -109,6 +109,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         refresh_started_at: string | null;
         refresh_completed_at: string | null;
         refresh_failed_at: string | null;
+        refresh_failure: string | null;
         advisor_gate_passed_at: string | null;
         advisor_gate_note: string | null;
         gate_url: string;

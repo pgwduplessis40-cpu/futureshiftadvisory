@@ -39,6 +39,7 @@ final class IntegrityEnforcedTest extends TestCase
         $this->assertSame(FakeAiClient::DEGRADED_TEXT, $response->text);
         $this->assertSame(Uncertainty::High, $response->uncertainty);
         $this->assertSame('fake-ai-client', $response->model);
+        $this->assertSame('AI provider is forced into governed degraded mode.', $response->metadata['unavailable_reason'] ?? null);
         $this->assertSame(FakeAiClient::DEGRADED_TEXT, Cache::get(AdvisorAiNotice::CACHE_KEY)['message'] ?? null);
 
         Log::shouldHaveReceived('info')

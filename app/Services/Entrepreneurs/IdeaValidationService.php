@@ -93,8 +93,21 @@ final class IdeaValidationService implements ProvidesMethodology
 
             $evaluation = $this->evaluatePayload($profile, $payload);
             $aiEvaluation = $evaluation['ai_evaluation'];
-            data_set($aiEvaluation, 'metadata.refresh_status', 'completed');
-            data_set($aiEvaluation, 'metadata.refresh_completed_at', now()->toIso8601String());
+            $degraded = (bool) data_get($aiEvaluation, 'metadata.degraded', false)
+                || data_get($aiEvaluation, 'model') === 'fake-ai-client';
+
+            if ($degraded) {
+                data_set($aiEvaluation, 'metadata.refresh_status', 'failed');
+                data_set($aiEvaluation, 'metadata.refresh_failed_at', now()->toIso8601String());
+                data_set(
+                    $aiEvaluation,
+                    'metadata.refresh_failure',
+                    data_get($aiEvaluation, 'metadata.unavailable_reason', 'AI provider returned a degraded fallback response.'),
+                );
+            } else {
+                data_set($aiEvaluation, 'metadata.refresh_status', 'completed');
+                data_set($aiEvaluation, 'metadata.refresh_completed_at', now()->toIso8601String());
+            }
 
             $validation->forceFill([
                 'ai_evaluation' => $aiEvaluation,
@@ -103,10 +116,16 @@ final class IdeaValidationService implements ProvidesMethodology
                 'evaluated_by_user_id' => $actor->getKey(),
             ])->save();
 
-            $this->audit->record('entrepreneur.idea_validation_refreshed', subject: $validation, actor: $actor, after: [
-                'entrepreneur_profile_id' => $profile->getKey(),
-                'alert_count' => count($evaluation['viability_alerts']),
-            ]);
+            $this->audit->record(
+                $degraded ? 'entrepreneur.idea_validation_refresh_failed' : 'entrepreneur.idea_validation_refreshed',
+                subject: $validation,
+                actor: $actor,
+                after: [
+                    'entrepreneur_profile_id' => $profile->getKey(),
+                    'alert_count' => count($evaluation['viability_alerts']),
+                    'reason' => $degraded ? data_get($aiEvaluation, 'metadata.refresh_failure') : null,
+                ],
+            );
 
             return $validation->refresh();
         });

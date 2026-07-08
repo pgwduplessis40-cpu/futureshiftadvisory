@@ -67,6 +67,9 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
           : ideaRefreshFailed
             ? 'Retry AI review'
             : 'Rerun AI review';
+    const ideaRefreshFailureMessage = ideaValidation?.refresh_failure
+        ? `AI review did not complete. ${ideaValidation.refresh_failure}`
+        : 'AI review did not complete. Retry the AI review or continue manual review with the submitted answers.';
     const submittedIdeaFields = ideaValidation
         ? [
               { label: 'Problem', value: ideaValidation.problem },
@@ -567,7 +570,7 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                         {ideaRefreshInFlight
                                             ? 'AI review is queued and will update this record when complete.'
                                             : ideaRefreshFailed
-                                              ? 'AI review did not complete. Retry the AI review or continue manual review with the submitted answers.'
+                                              ? ideaRefreshFailureMessage
                                               : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
                                     </p>
                                     <Button

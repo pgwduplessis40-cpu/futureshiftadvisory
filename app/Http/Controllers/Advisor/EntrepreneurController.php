@@ -484,6 +484,7 @@ final class EntrepreneurController extends Controller
             'refresh_started_at' => $refreshStartedAt,
             'refresh_completed_at' => data_get($evaluation, 'metadata.refresh_completed_at'),
             'refresh_failed_at' => data_get($evaluation, 'metadata.refresh_failed_at'),
+            'refresh_failure' => data_get($evaluation, 'metadata.refresh_failure'),
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             'advisor_gate_note' => $validation->advisor_gate_note,
             'gate_url' => route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false),

@@ -50,7 +50,7 @@ final class FallbackAiClient implements AiClient
         if ($this->forceFake || $this->live === null) {
             $this->notice->recordUnavailable($prompt, $this->unavailableReason);
 
-            return $this->fake->{$method}($prompt);
+            return $this->degradedResponse($prompt, $method, $this->unavailableReason);
         }
 
         try {
@@ -61,7 +61,29 @@ final class FallbackAiClient implements AiClient
         } catch (AiUnavailableException $e) {
             $this->notice->recordUnavailable($prompt, $e->getMessage());
 
-            return $this->fake->{$method}($prompt);
+            return $this->degradedResponse($prompt, $method, $e->getMessage());
         }
+    }
+
+    private function degradedResponse(PromptEnvelope $prompt, string $method, string $reason): AiResponse
+    {
+        $response = $this->fake->{$method}($prompt);
+
+        return new AiResponse(
+            text: $response->text,
+            attributions: $response->attributions,
+            uncertainty: $response->uncertainty,
+            biasSignals: $response->biasSignals,
+            model: $response->model,
+            promptVersion: $response->promptVersion,
+            promptHash: $response->promptHash,
+            tokensIn: $response->tokensIn,
+            tokensOut: $response->tokensOut,
+            metadata: [
+                ...$response->metadata,
+                'degraded' => true,
+                'unavailable_reason' => $reason,
+            ],
+        );
     }
 }
