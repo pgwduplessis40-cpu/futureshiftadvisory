@@ -61,7 +61,8 @@ final class AnthropicClaudeClient implements AiClient
 
         $model = (string) Config::get('services.anthropic.model', 'claude-sonnet-4-6');
         $endpoint = (string) Config::get('services.anthropic.endpoint', 'https://api.anthropic.com/v1/messages');
-        $timeoutSeconds = max(1, (int) Config::get('services.anthropic.timeout_seconds', 20));
+        $timeoutSeconds = max(1, (int) Config::get('services.anthropic.timeout_seconds', 60));
+        $retryAttempts = max(1, (int) Config::get('services.anthropic.retry_attempts', 1));
 
         $result = $this->http->post(
             service: 'anthropic',
@@ -82,6 +83,7 @@ final class AnthropicClaudeClient implements AiClient
                 'x-api-key' => $key,
             ],
             timeoutSeconds: $timeoutSeconds,
+            maxAttempts: $retryAttempts,
         );
 
         if (! $result->successful() || $result->fromFallback) {
@@ -130,6 +132,11 @@ final class AnthropicClaudeClient implements AiClient
             $message .= ': '.$reason;
         }
 
+        $requestId = data_get($result->data, 'error_payload.request_id');
+        if (is_scalar($requestId) && trim((string) $requestId) !== '') {
+            $message .= ' (request id '.trim((string) $requestId).')';
+        }
+
         return Str::limit($message, 300, '');
     }
 
@@ -147,6 +154,13 @@ final class AnthropicClaudeClient implements AiClient
     private function upstreamFailureReason(IntegrationResult $result): ?string
     {
         $body = data_get($result->data, 'error_payload.body');
+        $exceptionMessage = data_get($result->data, 'error_payload.message');
+
+        if ((! is_string($body) || trim($body) === '') && is_scalar($exceptionMessage)) {
+            $message = trim((string) $exceptionMessage);
+
+            return $message === '' ? null : Str::limit($message, 160, '');
+        }
 
         if (! is_string($body) || trim($body) === '') {
             return null;

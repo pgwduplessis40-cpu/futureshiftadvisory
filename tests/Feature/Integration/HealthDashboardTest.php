@@ -51,6 +51,7 @@ final class HealthDashboardTest extends TestCase
         $this->aiUsage('claude-sonnet-4-6', 1_000, 200, 0.006, now()->subHour());
         $this->aiUsage('claude-sonnet-4-6', 2_000, 400, 0.012, now()->subDays(2));
         $this->aiUsage('claude-sonnet-4-6', 5_000, 500, 0.0225, now()->subMonth());
+        $this->recordCall('anthropic', IntegrationCall::STATUS_FAILURE, 20_051, now()->subMinutes(4));
 
         $this->actingAsMfa($admin)
             ->get(route('admin.integration-health.index'))
@@ -78,6 +79,9 @@ final class HealthDashboardTest extends TestCase
                 ->where('aiUsage.budget.status', 'within_budget')
                 ->where('aiUsage.official.status', 'admin_api_key_missing')
                 ->where('aiUsage.official.credit_balance_supported', false)
+                ->where('aiUsage.provider_attempts.today.attempts', 1)
+                ->where('aiUsage.provider_attempts.today.failures', 1)
+                ->where('aiUsage.provider_attempts.today.latest_error', 'fixture')
                 ->where('aiUsage.breakdown.0.model', 'claude-sonnet-4-6')
                 ->where('aiUsage.breakdown.0.requests', 2));
     }

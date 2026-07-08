@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Console\Commands\AggregateIntegrationHealth;
 use App\Http\Controllers\Controller;
 use App\Models\AiUsageEvent;
+use App\Models\IntegrationCall;
 use App\Models\IntegrationHealthAlert;
 use App\Models\IntegrationHealthSample;
 use App\Services\Integration\IntegrationCredentials;
@@ -17,6 +18,7 @@ use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Str;
 use Inertia\Inertia;
 use Inertia\Response;
 use Throwable;
@@ -151,6 +153,10 @@ final class IntegrationHealthController extends Controller
                 'month_estimated_cost_nzd' => $this->toNzd($month['estimated_cost_usd']),
             ],
             'official' => $this->anthropicOfficialCostPayload($now),
+            'provider_attempts' => [
+                'today' => $this->anthropicAttemptPeriod($now->copy()->startOfDay(), $now),
+                'month' => $this->anthropicAttemptPeriod($now->copy()->startOfMonth(), $now),
+            ],
             'pricing' => [
                 'basis' => 'local_estimate_from_response_tokens',
                 'provider' => 'anthropic',
@@ -277,6 +283,88 @@ final class IntegrationHealthController extends Controller
     private function aiUsageStoreAvailable(): bool
     {
         return Schema::hasTable('ai_usage_events');
+    }
+
+    /**
+     * @return array{attempts:int,successes:int,retries:int,failures:int,latest_error:string|null,latest_at:string|null}
+     */
+    private function anthropicAttemptPeriod(CarbonInterface $start, CarbonInterface $end): array
+    {
+        if (! Schema::hasTable('integration_calls')) {
+            return [
+                'attempts' => 0,
+                'successes' => 0,
+                'retries' => 0,
+                'failures' => 0,
+                'latest_error' => null,
+                'latest_at' => null,
+            ];
+        }
+
+        $attemptStatuses = [
+            IntegrationCall::STATUS_SUCCESS,
+            IntegrationCall::STATUS_RETRY,
+            IntegrationCall::STATUS_FAILURE,
+        ];
+
+        $base = IntegrationCall::query()
+            ->where('service', 'anthropic')
+            ->whereIn('status', $attemptStatuses)
+            ->where('occurred_at', '>=', $start)
+            ->where('occurred_at', '<=', $end);
+
+        /** @var IntegrationCall|null $latestFailure */
+        $latestFailure = (clone $base)
+            ->whereIn('status', [IntegrationCall::STATUS_RETRY, IntegrationCall::STATUS_FAILURE])
+            ->latest('occurred_at')
+            ->first();
+
+        return [
+            'attempts' => (clone $base)->count(),
+            'successes' => (clone $base)->where('status', IntegrationCall::STATUS_SUCCESS)->count(),
+            'retries' => (clone $base)->where('status', IntegrationCall::STATUS_RETRY)->count(),
+            'failures' => (clone $base)->where('status', IntegrationCall::STATUS_FAILURE)->count(),
+            'latest_error' => $this->integrationFailureSummary($latestFailure),
+            'latest_at' => $latestFailure?->occurred_at?->toIso8601String(),
+        ];
+    }
+
+    private function integrationFailureSummary(?IntegrationCall $call): ?string
+    {
+        if (! $call instanceof IntegrationCall || ! is_array($call->error_payload)) {
+            return null;
+        }
+
+        $status = data_get($call->error_payload, 'http_status');
+        $reason = data_get($call->error_payload, 'reason');
+        $message = data_get($call->error_payload, 'message');
+
+        $bodyMessage = null;
+        $body = data_get($call->error_payload, 'body');
+        if (is_string($body) && trim($body) !== '') {
+            $decoded = json_decode($body, true);
+            $candidate = is_array($decoded)
+                ? data_get($decoded, 'error.message') ?? data_get($decoded, 'message')
+                : null;
+            $bodyMessage = is_scalar($candidate) ? trim((string) $candidate) : null;
+        }
+
+        $parts = [];
+        if (is_numeric($status)) {
+            $parts[] = 'HTTP '.((int) $status);
+        }
+        foreach ([$reason, $message, $bodyMessage] as $part) {
+            if (is_scalar($part) && trim((string) $part) !== '') {
+                $parts[] = trim((string) $part);
+                break;
+            }
+        }
+
+        if ($parts === []) {
+            return null;
+        }
+
+        return Str::limit(implode(': ', $parts), 160, '');
     }
 
     /**

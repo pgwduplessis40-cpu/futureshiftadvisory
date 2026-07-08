@@ -150,4 +150,21 @@ final class ResilientHttpTest extends TestCase
         $this->assertSame(401, $result->json('error_payload.http_status'));
         $this->assertStringContainsString('AADSTS7000215', (string) $result->json('error_payload.body'));
     }
+
+    public function test_request_can_cap_retry_attempts_per_call(): void
+    {
+        Http::fake(fn () => Http::response(['error' => 'temporary'], 503, ['request-id' => 'req_cap']));
+
+        $result = app(ResilientHttp::class)->post(
+            service: 'anthropic',
+            endpoint: 'https://api.example.test/messages',
+            maxAttempts: 1,
+        );
+
+        $this->assertTrue($result->fromFallback);
+        $this->assertSame('http_failure', $result->json('reason'));
+        $this->assertSame(503, $result->json('error_payload.http_status'));
+        $this->assertSame('req_cap', $result->json('error_payload.request_id'));
+        Http::assertSentCount(1);
+    }
 }

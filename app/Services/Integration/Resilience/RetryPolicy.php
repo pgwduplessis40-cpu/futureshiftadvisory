@@ -28,18 +28,18 @@ final readonly class RetryPolicy
         );
     }
 
-    public function shouldRetryStatus(int $statusCode, int $attempt): bool
+    public function shouldRetryStatus(int $statusCode, int $attempt, ?int $attemptLimit = null): bool
     {
-        if ($attempt >= $this->attempts) {
+        if ($attempt >= ($attemptLimit ?? $this->attempts)) {
             return false;
         }
 
         return in_array($statusCode, $this->retryStatuses, true) || $statusCode >= 500;
     }
 
-    public function shouldRetryException(int $attempt): bool
+    public function shouldRetryException(int $attempt, ?int $attemptLimit = null): bool
     {
-        return $attempt < $this->attempts;
+        return $attempt < ($attemptLimit ?? $this->attempts);
     }
 
     public function delayMsForAttempt(int $attempt): int

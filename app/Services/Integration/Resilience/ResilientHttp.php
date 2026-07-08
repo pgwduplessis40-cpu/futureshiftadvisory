@@ -34,6 +34,7 @@ final class ResilientHttp
         ?callable $fallback = null,
         array $headers = [],
         ?int $timeoutSeconds = null,
+        ?int $maxAttempts = null,
     ): IntegrationResult {
         $options = [];
         if ($query !== []) {
@@ -51,6 +52,7 @@ final class ResilientHttp
             options: $options,
             cacheKey: $cacheKey,
             fallback: $fallback,
+            maxAttempts: $maxAttempts,
         );
     }
 
@@ -66,6 +68,7 @@ final class ResilientHttp
         ?callable $fallback = null,
         array $headers = [],
         ?int $timeoutSeconds = null,
+        ?int $maxAttempts = null,
     ): IntegrationResult {
         $options = [];
         if ($payload !== []) {
@@ -83,6 +86,7 @@ final class ResilientHttp
             options: $options,
             cacheKey: $cacheKey,
             fallback: $fallback,
+            maxAttempts: $maxAttempts,
         );
     }
 
@@ -96,8 +100,10 @@ final class ResilientHttp
         array $options = [],
         ?string $cacheKey = null,
         ?callable $fallback = null,
+        ?int $maxAttempts = null,
     ): IntegrationResult {
         $correlationId = (string) Str::uuid();
+        $attemptLimit = max(1, $maxAttempts ?? $this->retryPolicy->attempts);
 
         if ($this->breaker->isOpen($service)) {
             return $this->cachedOrFallback(
@@ -111,7 +117,7 @@ final class ResilientHttp
             );
         }
 
-        for ($attempt = 1; $attempt <= $this->retryPolicy->attempts; $attempt++) {
+        for ($attempt = 1; $attempt <= $attemptLimit; $attempt++) {
             $started = microtime(true);
 
             try {
@@ -135,10 +141,11 @@ final class ResilientHttp
 
                 $errorPayload = [
                     'http_status' => $response->status(),
+                    'request_id' => $this->providerRequestId($response),
                     'body' => Str::limit($response->body(), 500),
                 ];
 
-                if ($this->retryPolicy->shouldRetryStatus($response->status(), $attempt)) {
+                if ($this->retryPolicy->shouldRetryStatus($response->status(), $attempt, $attemptLimit)) {
                     $this->recorder->record(
                         service: $service,
                         endpoint: $endpoint,
@@ -171,7 +178,7 @@ final class ResilientHttp
                     'message' => Str::limit($e->getMessage(), 500),
                 ];
 
-                if ($this->retryPolicy->shouldRetryException($attempt)) {
+                if ($this->retryPolicy->shouldRetryException($attempt, $attemptLimit)) {
                     $this->recorder->record(
                         service: $service,
                         endpoint: $endpoint,
@@ -207,7 +214,7 @@ final class ResilientHttp
             cacheKey: $cacheKey,
             fallback: $fallback,
             reason: 'exhausted',
-            attempt: $this->retryPolicy->attempts,
+            attempt: $attemptLimit,
         );
     }
 
@@ -307,6 +314,23 @@ final class ResilientHttp
             'body' => $response->body(),
             'cached_at' => now()->toIso8601String(),
         ], (int) Config::get('integrations.cache.ttl_seconds', 900));
+    }
+
+    private function providerRequestId(Response $response): ?string
+    {
+        $header = $response->header('request-id')
+            ?? $response->header('x-request-id')
+            ?? $response->header('x-amzn-requestid');
+
+        if (is_string($header) && trim($header) !== '') {
+            return trim($header);
+        }
+
+        $bodyRequestId = data_get($response->json() ?? [], 'request_id');
+
+        return is_scalar($bodyRequestId) && trim((string) $bodyRequestId) !== ''
+            ? trim((string) $bodyRequestId)
+            : null;
     }
 
     private function latencyMs(float $started): int

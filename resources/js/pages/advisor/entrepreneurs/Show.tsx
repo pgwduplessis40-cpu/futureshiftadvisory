@@ -67,8 +67,14 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
           : ideaRefreshFailed
             ? 'Retry AI review'
             : 'Rerun AI review';
-    const ideaRefreshFailureMessage = ideaValidation?.refresh_failure
-        ? `AI review did not complete. ${ideaValidation.refresh_failure}`
+    const ideaRefreshFailure = ideaValidation?.refresh_failure ?? '';
+    const ideaRefreshProviderTransient =
+        /status\s+(429|500|502|503|504|529)\b/i.test(ideaRefreshFailure) ||
+        /timeout|timed out|overloaded/i.test(ideaRefreshFailure);
+    const ideaRefreshFailureMessage = ideaRefreshFailure
+        ? ideaRefreshProviderTransient
+            ? `AI review reached Anthropic but did not return a usable result. ${ideaRefreshFailure}. Repeated retries may consume API credit; wait a few minutes before retrying.`
+            : `AI review did not complete. ${ideaRefreshFailure}`
         : 'AI review did not complete. Retry the AI review or continue manual review with the submitted answers.';
     const submittedIdeaFields = ideaValidation
         ? [

@@ -60,6 +60,15 @@ type AiUsageBreakdown = AiUsagePeriod & {
     model: string;
 };
 
+type AiProviderAttemptsPeriod = {
+    attempts: number;
+    successes: number;
+    retries: number;
+    failures: number;
+    latest_error: string | null;
+    latest_at: string | null;
+};
+
 type AiUsage = {
     today: AiUsagePeriod;
     month: AiUsagePeriod;
@@ -88,6 +97,10 @@ type AiUsage = {
         error: string | null;
         credit_balance_supported: boolean;
         credit_balance_usd: null;
+    };
+    provider_attempts: {
+        today: AiProviderAttemptsPeriod;
+        month: AiProviderAttemptsPeriod;
     };
     pricing: {
         basis: string;
@@ -119,6 +132,9 @@ export default function IntegrationHealthIndex({
     generatedAt,
 }: Props) {
     const [refreshing, setRefreshing] = useState(false);
+    const failedProviderAttemptsToday =
+        aiUsage.provider_attempts.today.failures +
+        aiUsage.provider_attempts.today.retries;
 
     const refreshHealth = () => {
         router.post(
@@ -242,7 +258,7 @@ export default function IntegrationHealthIndex({
                         </Badge>
                     </div>
 
-                    <div className="grid gap-3 md:grid-cols-3">
+                    <div className="grid gap-3 md:grid-cols-4">
                         <Metric
                             label="Today"
                             value={formatCurrency(
@@ -261,6 +277,13 @@ export default function IntegrationHealthIndex({
                             label="Budget"
                             value={budgetValue(aiUsage)}
                             explanation={budgetExplanation(aiUsage)}
+                        />
+                        <Metric
+                            label="Provider attempts"
+                            value={formatNumber(
+                                aiUsage.provider_attempts.today.attempts,
+                            )}
+                            explanation={`${formatNumber(failedProviderAttemptsToday)} failed or retried Anthropic attempts today. These can consume provider credit even when no token usage is returned.`}
                         />
                     </div>
 
@@ -290,7 +313,8 @@ export default function IntegrationHealthIndex({
                                                 className="px-3 py-8 text-sm text-muted-foreground"
                                                 colSpan={4}
                                             >
-                                                No AI usage recorded this month.
+                                                No completed AI responses
+                                                recorded this month.
                                             </td>
                                         </tr>
                                     ) : (
@@ -388,10 +412,39 @@ export default function IntegrationHealthIndex({
                             </div>
                             <div className="flex items-center justify-between gap-3">
                                 <span className="text-muted-foreground">
+                                    Anthropic attempts
+                                </span>
+                                <span className="font-medium">
+                                    {formatNumber(
+                                        aiUsage.provider_attempts.today
+                                            .attempts,
+                                    )}{' '}
+                                    today
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
+                                    Failed or retried
+                                </span>
+                                <span className="font-medium">
+                                    {formatNumber(failedProviderAttemptsToday)}
+                                </span>
+                            </div>
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-muted-foreground">
                                     Credit balance
                                 </span>
                                 <Badge variant="outline">Not exposed</Badge>
                             </div>
+                            {aiUsage.provider_attempts.today.latest_error && (
+                                <p className="rounded-md border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900">
+                                    Latest provider error:{' '}
+                                    {
+                                        aiUsage.provider_attempts.today
+                                            .latest_error
+                                    }
+                                </p>
+                            )}
                             {aiUsage.official.last_synced_at && (
                                 <p className="text-xs text-muted-foreground">
                                     Synced{' '}
@@ -406,9 +459,10 @@ export default function IntegrationHealthIndex({
                                 </p>
                             )}
                             <p className="text-xs text-muted-foreground">
-                                Anthropic Admin API returns usage and cost
-                                reports only; prepaid credit balance must be
-                                checked in Claude Console.
+                                Local token totals include completed responses;
+                                failed provider attempts may still appear in
+                                Claude Console. Prepaid credit balance must be
+                                checked there.
                             </p>
                         </div>
                     </div>

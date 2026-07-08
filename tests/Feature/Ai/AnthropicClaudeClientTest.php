@@ -45,7 +45,40 @@ final class AnthropicClaudeClientTest extends TestCase
         $this->expectException(AiUnavailableException::class);
         $this->expectExceptionMessage('Anthropic API request failed with status 529: Overloaded');
 
-        app(AnthropicClaudeClient::class)->analyse(new PromptEnvelope(
+        app(AnthropicClaudeClient::class)->analyse($this->prompt());
+    }
+
+    public function test_anthropic_retry_attempts_default_to_one_to_avoid_hidden_spend(): void
+    {
+        Config::set('integrations.retry.attempts', 3);
+        Config::set('services.anthropic.retry_attempts', 1);
+        app()->forgetInstance(RetryPolicy::class);
+        app()->forgetInstance(ResilientHttp::class);
+        app()->forgetInstance(AnthropicClaudeClient::class);
+
+        Http::fake(fn () => Http::response([
+            'type' => 'error',
+            'error' => [
+                'type' => 'api_error',
+                'message' => 'Transient failure',
+            ],
+            'request_id' => 'req_test_123',
+        ], 503, ['request-id' => 'req_test_123']));
+
+        try {
+            app(AnthropicClaudeClient::class)->analyse($this->prompt());
+            $this->fail('Expected Anthropic unavailable exception.');
+        } catch (AiUnavailableException $exception) {
+            $this->assertStringContainsString('Anthropic API request failed with status 503: Transient failure', $exception->getMessage());
+            $this->assertStringContainsString('request id req_test_123', $exception->getMessage());
+        }
+
+        Http::assertSentCount(1);
+    }
+
+    private function prompt(): PromptEnvelope
+    {
+        return new PromptEnvelope(
             id: 'idea_validation.test',
             version: '2026-07-08',
             task: 'Evaluate idea validation.',
@@ -56,6 +89,6 @@ final class AnthropicClaudeClientTest extends TestCase
                 'message' => 'Test input.',
             ],
             sourceReferences: ['test:idea'],
-        ));
+        );
     }
 }
