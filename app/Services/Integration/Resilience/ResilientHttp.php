@@ -33,6 +33,7 @@ final class ResilientHttp
         ?string $cacheKey = null,
         ?callable $fallback = null,
         array $headers = [],
+        ?int $timeoutSeconds = null,
     ): IntegrationResult {
         $options = [];
         if ($query !== []) {
@@ -41,6 +42,7 @@ final class ResilientHttp
         if ($headers !== []) {
             $options['headers'] = $headers;
         }
+        $this->applyTimeout($options, $timeoutSeconds);
 
         return $this->request(
             method: 'GET',
@@ -63,6 +65,7 @@ final class ResilientHttp
         ?string $cacheKey = null,
         ?callable $fallback = null,
         array $headers = [],
+        ?int $timeoutSeconds = null,
     ): IntegrationResult {
         $options = [];
         if ($payload !== []) {
@@ -71,6 +74,7 @@ final class ResilientHttp
         if ($headers !== []) {
             $options['headers'] = $headers;
         }
+        $this->applyTimeout($options, $timeoutSeconds);
 
         return $this->request(
             method: 'POST',
@@ -308,6 +312,19 @@ final class ResilientHttp
     private function latencyMs(float $started): int
     {
         return (int) max(0, round((microtime(true) - $started) * 1000));
+    }
+
+    /**
+     * @param  array<string, mixed>  $options
+     */
+    private function applyTimeout(array &$options, ?int $timeoutSeconds): void
+    {
+        if ($timeoutSeconds === null || $timeoutSeconds < 1) {
+            return;
+        }
+
+        $options['timeout'] = $timeoutSeconds;
+        $options['connect_timeout'] = min(10, $timeoutSeconds);
     }
 
     private function pauseBeforeRetry(int $attempt): void

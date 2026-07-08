@@ -14,8 +14,10 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
+use Throwable;
 
 final class IdeaValidationService implements ProvidesMethodology
 {
@@ -90,9 +92,12 @@ final class IdeaValidationService implements ProvidesMethodology
             }
 
             $evaluation = $this->evaluatePayload($profile, $payload);
+            $aiEvaluation = $evaluation['ai_evaluation'];
+            data_set($aiEvaluation, 'metadata.refresh_status', 'completed');
+            data_set($aiEvaluation, 'metadata.refresh_completed_at', now()->toIso8601String());
 
             $validation->forceFill([
-                'ai_evaluation' => $evaluation['ai_evaluation'],
+                'ai_evaluation' => $aiEvaluation,
                 'viability_alerts' => $evaluation['viability_alerts'],
                 'evaluated_at' => now(),
                 'evaluated_by_user_id' => $actor->getKey(),
@@ -105,6 +110,43 @@ final class IdeaValidationService implements ProvidesMethodology
 
             return $validation->refresh();
         });
+    }
+
+    public function markRefreshQueued(IdeaValidation $validation, User $actor): IdeaValidation
+    {
+        $evaluation = $validation->ai_evaluation ?? [];
+        data_set($evaluation, 'metadata.refresh_status', 'queued');
+        data_set($evaluation, 'metadata.refresh_requested_at', now()->toIso8601String());
+        data_set($evaluation, 'metadata.refresh_requested_by_user_id', $actor->getKey());
+
+        $validation->forceFill([
+            'ai_evaluation' => $evaluation,
+        ])->save();
+
+        $this->audit->record('entrepreneur.idea_validation_refresh_queued', subject: $validation, actor: $actor, after: [
+            'entrepreneur_profile_id' => $validation->entrepreneur_profile_id,
+        ]);
+
+        return $validation->refresh();
+    }
+
+    public function markRefreshFailed(IdeaValidation $validation, User $actor, Throwable $exception): IdeaValidation
+    {
+        $evaluation = $validation->ai_evaluation ?? [];
+        data_set($evaluation, 'metadata.refresh_status', 'failed');
+        data_set($evaluation, 'metadata.refresh_failed_at', now()->toIso8601String());
+        data_set($evaluation, 'metadata.refresh_failure', Str::limit($exception->getMessage(), 300));
+
+        $validation->forceFill([
+            'ai_evaluation' => $evaluation,
+        ])->save();
+
+        $this->audit->record('entrepreneur.idea_validation_refresh_failed', subject: $validation, actor: $actor, after: [
+            'entrepreneur_profile_id' => $validation->entrepreneur_profile_id,
+            'exception' => $exception::class,
+        ]);
+
+        return $validation->refresh();
     }
 
     /**

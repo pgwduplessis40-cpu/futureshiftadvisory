@@ -59,6 +59,7 @@ final class AnthropicClaudeClient implements AiClient
 
         $model = (string) Config::get('services.anthropic.model', 'claude-sonnet-4-6');
         $endpoint = (string) Config::get('services.anthropic.endpoint', 'https://api.anthropic.com/v1/messages');
+        $timeoutSeconds = max(1, (int) Config::get('services.anthropic.timeout_seconds', 20));
 
         $result = $this->http->post(
             service: 'anthropic',
@@ -78,6 +79,7 @@ final class AnthropicClaudeClient implements AiClient
                 'anthropic-version' => '2023-06-01',
                 'x-api-key' => $key,
             ],
+            timeoutSeconds: $timeoutSeconds,
         );
 
         if (! $result->successful() || $result->fromFallback) {

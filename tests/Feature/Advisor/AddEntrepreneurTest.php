@@ -368,6 +368,7 @@ final class AddEntrepreneurTest extends TestCase
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.idea_validation.id', $validation->id)
                 ->where('entrepreneur.idea_validation.ai_deferred', true)
+                ->where('entrepreneur.idea_validation.refresh_status', null)
                 ->where('entrepreneur.idea_validation.problem', 'Business Advisory')
                 ->where('entrepreneur.idea_validation.target_customer', "SME's")
                 ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
@@ -376,12 +377,17 @@ final class AddEntrepreneurTest extends TestCase
         $this->actingAsMfa($advisor)
             ->post(route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation]))
             ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
-            ->assertSessionHas('status', 'entrepreneur-idea-refreshed');
+            ->assertSessionHas('status', 'entrepreneur-idea-refresh-queued');
 
         $validation->refresh();
 
         $this->assertSame('fake-ai-client', data_get($validation->ai_evaluation, 'model'));
         $this->assertSame($advisor->id, $validation->evaluated_by_user_id);
+        $this->assertSame('completed', data_get($validation->ai_evaluation, 'metadata.refresh_status'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.idea_validation_refresh_queued',
+            'subject_id' => $validation->id,
+        ]);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.idea_validation_refreshed',
             'subject_id' => $validation->id,

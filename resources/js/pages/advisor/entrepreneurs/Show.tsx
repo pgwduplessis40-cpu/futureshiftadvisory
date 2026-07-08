@@ -50,6 +50,13 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
     const ideaValidation = entrepreneur.idea_validation;
+    const ideaRefreshQueued = ideaValidation?.refresh_status === 'queued';
+    const ideaRefreshBusy = ideaRefreshPending || ideaRefreshQueued;
+    const ideaRefreshButtonLabel = ideaRefreshQueued
+        ? 'AI review queued'
+        : ideaRefreshPending
+          ? 'Queueing'
+          : 'Rerun AI review';
     const submittedIdeaFields = ideaValidation
         ? [
               { label: 'Problem', value: ideaValidation.problem },
@@ -106,6 +113,20 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     useEffect(() => {
         setGamificationEnabled(gamification.enabled);
     }, [gamification.enabled]);
+
+    useEffect(() => {
+        if (!ideaRefreshQueued) {
+            return;
+        }
+
+        const interval = window.setInterval(() => {
+            router.reload({
+                only: ['entrepreneur'],
+            });
+        }, 8000);
+
+        return () => window.clearInterval(interval);
+    }, [ideaRefreshQueued]);
     /* eslint-enable react-hooks/set-state-in-effect */
 
     const toggleGamification = () => {
@@ -533,28 +554,26 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                             {ideaValidation.ai_deferred ? (
                                 <div className="flex flex-wrap items-center justify-between gap-2 md:col-span-2">
                                     <p className="text-sm text-muted-foreground">
-                                        AI review is deferred. Use the submitted
-                                        answers for manual review or rerun AI
-                                        once the provider is live.
+                                        {ideaRefreshQueued
+                                            ? 'AI review is queued and will update this record when complete.'
+                                            : 'AI review is deferred. Use the submitted answers for manual review or rerun AI once the provider is live.'}
                                     </p>
                                     <Button
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        disabled={ideaRefreshPending}
+                                        disabled={ideaRefreshBusy}
                                         onClick={refreshIdeaValidation}
                                     >
                                         <RefreshCw
                                             className={cn(
                                                 'size-4',
-                                                ideaRefreshPending &&
+                                                ideaRefreshBusy &&
                                                     'animate-spin',
                                             )}
                                             aria-hidden="true"
                                         />
-                                        {ideaRefreshPending
-                                            ? 'Rerunning'
-                                            : 'Rerun AI review'}
+                                        {ideaRefreshButtonLabel}
                                     </Button>
                                 </div>
                             ) : null}
@@ -749,20 +768,18 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                         type="button"
                                         size="sm"
                                         variant="outline"
-                                        disabled={ideaRefreshPending}
+                                        disabled={ideaRefreshBusy}
                                         onClick={refreshIdeaValidation}
                                     >
                                         <RefreshCw
                                             className={cn(
                                                 'size-4',
-                                                ideaRefreshPending &&
+                                                ideaRefreshBusy &&
                                                     'animate-spin',
                                             )}
                                             aria-hidden="true"
                                         />
-                                        {ideaRefreshPending
-                                            ? 'Rerunning'
-                                            : 'Rerun AI review'}
+                                        {ideaRefreshButtonLabel}
                                     </Button>
                                 ) : null}
                                 <Badge variant="outline">

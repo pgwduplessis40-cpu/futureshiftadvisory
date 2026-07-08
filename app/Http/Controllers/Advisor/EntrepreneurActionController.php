@@ -24,6 +24,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
+use Throwable;
 
 final class EntrepreneurActionController extends Controller
 {
@@ -55,9 +56,27 @@ final class EntrepreneurActionController extends Controller
         $this->assertIdeaBelongsToProfile($ideaValidation, $entrepreneurProfile);
         $advisor = $this->advisor($request);
 
-        $ideas->refreshEvaluation($ideaValidation, $advisor);
+        $ideas->markRefreshQueued($ideaValidation, $advisor);
+        $validationId = (string) $ideaValidation->getKey();
+        $advisorId = (int) $advisor->getKey();
 
-        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-refreshed');
+        app()->terminating(static function () use ($validationId, $advisorId): void {
+            $validation = IdeaValidation::query()->find($validationId);
+            $advisor = User::query()->find($advisorId);
+
+            if (! $validation instanceof IdeaValidation || ! $advisor instanceof User) {
+                return;
+            }
+
+            try {
+                app(IdeaValidationService::class)->refreshEvaluation($validation, $advisor);
+            } catch (Throwable $exception) {
+                app(IdeaValidationService::class)->markRefreshFailed($validation->refresh(), $advisor, $exception);
+                report($exception);
+            }
+        });
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)->with('status', 'entrepreneur-idea-refresh-queued');
     }
 
     public function assess(

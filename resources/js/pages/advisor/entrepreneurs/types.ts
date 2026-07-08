@@ -103,6 +103,10 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         }[];
         evaluated_at: string | null;
         ai_deferred: boolean;
+        refresh_status: 'queued' | 'completed' | 'failed' | string | null;
+        refresh_requested_at: string | null;
+        refresh_completed_at: string | null;
+        refresh_failed_at: string | null;
         advisor_gate_passed_at: string | null;
         advisor_gate_note: string | null;
         gate_url: string;
