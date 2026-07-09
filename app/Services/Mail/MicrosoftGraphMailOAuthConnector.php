@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Settings\ProjectSettings;
 use App\Services\Storage\KeyEnvelope;
+use App\Support\RequestContext;
 use Illuminate\Http\Client\Response;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,7 @@ final class MicrosoftGraphMailOAuthConnector
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
         private readonly ProjectSettings $settings,
+        private readonly RequestContext $context,
     ) {}
 
     /**
@@ -189,56 +191,58 @@ final class MicrosoftGraphMailOAuthConnector
 
     private function refreshAccessToken(MailOAuthConnection $connection): string
     {
-        $refreshToken = $connection->refresh_token_envelope === null
-            ? ''
-            : $this->envelope->decrypt($connection->refresh_token_envelope);
+        return $this->context->withSystemContext(function () use ($connection): string {
+            $refreshToken = $connection->refresh_token_envelope === null
+                ? ''
+                : $this->envelope->decrypt($connection->refresh_token_envelope);
 
-        if ($refreshToken === '') {
-            throw new TransportException('Microsoft Graph delegated mail refresh token is missing. Reconnect the mailbox.');
-        }
+            if ($refreshToken === '') {
+                throw new TransportException('Microsoft Graph delegated mail refresh token is missing. Reconnect the mailbox.');
+            }
 
-        $response = Http::asForm()
-            ->acceptJson()
-            ->timeout($this->timeout())
-            ->post($this->tokenUrl(), array_filter([
-                'client_id' => $this->requiredConfig('client_id'),
-                'client_secret' => $this->requiredConfig('client_secret'),
-                'grant_type' => 'refresh_token',
-                'refresh_token' => $refreshToken,
-                'scope' => implode(' ', $this->delegatedScopes()),
-            ], fn (mixed $value): bool => $value !== null && $value !== ''));
+            $response = Http::asForm()
+                ->acceptJson()
+                ->timeout($this->timeout())
+                ->post($this->tokenUrl(), array_filter([
+                    'client_id' => $this->requiredConfig('client_id'),
+                    'client_secret' => $this->requiredConfig('client_secret'),
+                    'grant_type' => 'refresh_token',
+                    'refresh_token' => $refreshToken,
+                    'scope' => implode(' ', $this->delegatedScopes()),
+                ], fn (mixed $value): bool => $value !== null && $value !== ''));
 
-        if (! $response->successful()) {
-            $connection->forceFill([
-                'status' => MailOAuthConnection::STATUS_ERROR,
-                'last_error' => $this->failureMessage($response),
-            ])->save();
+            if (! $response->successful()) {
+                $connection->forceFill([
+                    'status' => MailOAuthConnection::STATUS_ERROR,
+                    'last_error' => $this->failureMessage($response),
+                ])->save();
 
-            throw new TransportException('Microsoft Graph delegated token refresh failed: '.$this->failureMessage($response));
-        }
+                throw new TransportException('Microsoft Graph delegated token refresh failed: '.$this->failureMessage($response));
+            }
 
-        $payload = $response->json();
-        $accessToken = $this->requiredTokenValue(is_array($payload) ? $payload : [], 'access_token');
-        $newRefreshToken = (string) $response->json('refresh_token', '');
-        $accessEnvelope = $this->envelope->encrypt($accessToken);
+            $payload = $response->json();
+            $accessToken = $this->requiredTokenValue(is_array($payload) ? $payload : [], 'access_token');
+            $newRefreshToken = (string) $response->json('refresh_token', '');
+            $accessEnvelope = $this->envelope->encrypt($accessToken);
 
-        $updates = [
-            'status' => MailOAuthConnection::STATUS_CONNECTED,
-            'access_token_envelope' => $accessEnvelope,
-            'access_token_envelope_meta' => $this->envelope->inspect($accessEnvelope),
-            'token_expires_at' => now()->addSeconds(max(60, (int) $response->json('expires_in', 3600))),
-            'last_error' => null,
-        ];
+            $updates = [
+                'status' => MailOAuthConnection::STATUS_CONNECTED,
+                'access_token_envelope' => $accessEnvelope,
+                'access_token_envelope_meta' => $this->envelope->inspect($accessEnvelope),
+                'token_expires_at' => now()->addSeconds(max(60, (int) $response->json('expires_in', 3600))),
+                'last_error' => null,
+            ];
 
-        if ($newRefreshToken !== '') {
-            $refreshEnvelope = $this->envelope->encrypt($newRefreshToken);
-            $updates['refresh_token_envelope'] = $refreshEnvelope;
-            $updates['refresh_token_envelope_meta'] = $this->envelope->inspect($refreshEnvelope);
-        }
+            if ($newRefreshToken !== '') {
+                $refreshEnvelope = $this->envelope->encrypt($newRefreshToken);
+                $updates['refresh_token_envelope'] = $refreshEnvelope;
+                $updates['refresh_token_envelope_meta'] = $this->envelope->inspect($refreshEnvelope);
+            }
 
-        $connection->forceFill($updates)->save();
+            $connection->forceFill($updates)->save();
 
-        return $accessToken;
+            return $accessToken;
+        });
     }
 
     /**
@@ -349,12 +353,14 @@ final class MicrosoftGraphMailOAuthConnector
             return null;
         }
 
-        return MailOAuthConnection::query()
-            ->with('connectedBy')
-            ->where('provider', MailOAuthConnection::PROVIDER_MICROSOFT_GRAPH)
-            ->whereIn('status', [MailOAuthConnection::STATUS_CONNECTED, MailOAuthConnection::STATUS_ERROR])
-            ->latest()
-            ->first();
+        return $this->context->withSystemContext(
+            fn (): ?MailOAuthConnection => MailOAuthConnection::query()
+                ->with('connectedBy')
+                ->where('provider', MailOAuthConnection::PROVIDER_MICROSOFT_GRAPH)
+                ->whereIn('status', [MailOAuthConnection::STATUS_CONNECTED, MailOAuthConnection::STATUS_ERROR])
+                ->latest()
+                ->first()
+        );
     }
 
     private function tableAvailable(): bool

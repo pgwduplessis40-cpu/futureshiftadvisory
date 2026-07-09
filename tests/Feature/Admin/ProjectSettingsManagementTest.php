@@ -9,6 +9,7 @@ use App\Models\MailOAuthConnection;
 use App\Models\ProjectSetting;
 use App\Models\User;
 use App\Services\Calendar\CalendarConnector;
+use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Mail\MicrosoftGraphMailOAuthConnector;
 use App\Services\Settings\ProjectSettings;
 use App\Services\Storage\KeyEnvelope;
@@ -354,6 +355,13 @@ final class ProjectSettingsManagementTest extends TestCase
         $this->assertSame('delegated', config('mail.mailers.graph.auth_mode'));
         $this->assertSame('principal@futureshiftadvisory.nz', config('mail.mailers.graph.from_address'));
         $this->assertSame('principal@futureshiftadvisory.nz', config('mail.from.address'));
+
+        app(RequestContext::class)->apply(RequestContext::ROLE_GUEST, []);
+        $guestStatus = app(MicrosoftGraphMailOAuthConnector::class)->statusPayload();
+        $this->assertTrue($guestStatus['connected']);
+        $this->assertSame('pieter@futureshiftadvisory.nz', $guestStatus['mailbox_email']);
+        $this->assertSame('principal@futureshiftadvisory.nz', $guestStatus['configured_sender']);
+        $this->assertTrue(app(IntegrationActivationResolver::class)->readiness('mail_delivery'));
 
         Http::fake([
             'https://graph.microsoft.com/v1.0/users/principal%40futureshiftadvisory.nz/sendMail' => Http::response('', 202),
