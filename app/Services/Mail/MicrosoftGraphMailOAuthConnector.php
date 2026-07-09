@@ -62,14 +62,16 @@ final class MicrosoftGraphMailOAuthConnector
 
     public function authorizeUrl(User $user, ?string $callbackUrl = null): string
     {
-        $query = http_build_query([
+        $query = http_build_query(array_filter([
             'client_id' => $this->requiredConfig('client_id'),
             'redirect_uri' => $this->callbackUrl($callbackUrl),
             'response_type' => 'code',
             'response_mode' => 'query',
             'scope' => implode(' ', $this->delegatedScopes()),
+            'prompt' => 'select_account',
+            'login_hint' => $this->loginHint(),
             'state' => $this->stateFor($user),
-        ]);
+        ], fn (mixed $value): bool => $value !== null && $value !== ''));
 
         return rtrim($this->authorizeUrlBase(), '?').'?'.$query;
     }
@@ -383,6 +385,13 @@ final class MicrosoftGraphMailOAuthConnector
     private function baseUrl(): string
     {
         return rtrim($this->configString('base_url', 'https://graph.microsoft.com/v1.0'), '/');
+    }
+
+    private function loginHint(): ?string
+    {
+        $from = trim((string) Config::get('mail.mailers.graph.from_address', ''));
+
+        return filter_var($from, FILTER_VALIDATE_EMAIL) !== false ? $from : null;
     }
 
     private function timeout(): int

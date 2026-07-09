@@ -302,7 +302,7 @@ final class ProjectSettingsManagementTest extends TestCase
             'tenant' => 'fsa-test-tenant',
             'client_id' => 'graph-client-id',
             'client_secret' => 'graph-client-secret',
-            'from_address' => '',
+            'from_address' => 'principal@futureshiftadvisory.nz',
             'base_url' => 'https://graph.microsoft.com/v1.0',
             'authorize_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize',
             'token_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
@@ -318,6 +318,8 @@ final class ProjectSettingsManagementTest extends TestCase
         $this->assertSame('graph-client-id', $authorizeQuery['client_id'] ?? null);
         $this->assertSame('offline_access User.Read Mail.Send', $authorizeQuery['scope'] ?? null);
         $this->assertSame($mailCallbackUrl, $authorizeQuery['redirect_uri'] ?? null);
+        $this->assertSame('select_account', $authorizeQuery['prompt'] ?? null);
+        $this->assertSame('principal@futureshiftadvisory.nz', $authorizeQuery['login_hint'] ?? null);
 
         Http::fake([
             'https://login.microsoftonline.com/fsa-test-tenant/oauth2/v2.0/token' => Http::response([
