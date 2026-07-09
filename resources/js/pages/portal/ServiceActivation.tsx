@@ -7,6 +7,11 @@ import {
     ExternalLink,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import {
+    ExplainedMetricCard,
+    ExplainedSectionHeader,
+    type Explanation,
+} from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -129,7 +134,10 @@ export default function ServiceActivation({ activation, urls }: Props) {
                 </div>
 
                 <section className="rounded-md border bg-background p-4">
-                    <h2 className="text-sm font-medium">Request details</h2>
+                    <ExplainedSectionHeader
+                        title="Request details"
+                        explanation={activationExplanations.requestDetails}
+                    />
                     <dl className="mt-3 grid gap-3 sm:grid-cols-2">
                         {Object.entries(activation.intake).map(
                             ([key, value]) => (
@@ -147,9 +155,10 @@ export default function ServiceActivation({ activation, urls }: Props) {
                 </section>
 
                 <section className="rounded-md border bg-background p-4">
-                    <h2 className="text-sm font-medium">
-                        Package, scope, and fee
-                    </h2>
+                    <ExplainedSectionHeader
+                        title="Package, scope, and fee"
+                        explanation={activationExplanations.packageScopeFee}
+                    />
                     {selectedPackage ? (
                         <div className="mt-3 space-y-3">
                             <div>
@@ -173,6 +182,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
                             <div className="grid gap-3 sm:grid-cols-3">
                                 <Metric
                                     label="Fee ex GST"
+                                    explanation={activationExplanations.fee}
                                     value={
                                         selectedPackage.fixed_fee !== null &&
                                         selectedPackage.fixed_fee !== undefined
@@ -186,6 +196,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                 />
                                 <Metric
                                     label="Billing"
+                                    explanation={activationExplanations.billing}
                                     value={formatLabel(
                                         selectedPackage.billing_model ??
                                             'fixed_fee',
@@ -194,11 +205,15 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                 <Metric
                                     label="Source"
                                     value="Admin Service Rates"
+                                    explanation={activationExplanations.source}
                                 />
                                 {paymentSplit &&
                                 paymentSplit.card_deposit_amount !== null ? (
                                     <Metric
                                         label="Card deposit"
+                                        explanation={
+                                            activationExplanations.cardDeposit
+                                        }
                                         value={formatMoney(
                                             paymentSplit.card_deposit_amount,
                                             selectedPackage.currency ?? 'NZD',
@@ -210,6 +225,9 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                 paymentSplit.bank_transfer_amount > 0 ? (
                                     <Metric
                                         label="Bank transfer balance"
+                                        explanation={
+                                            activationExplanations.bankTransfer
+                                        }
                                         value={formatMoney(
                                             paymentSplit.bank_transfer_amount,
                                             selectedPackage.currency ?? 'NZD',
@@ -220,12 +238,16 @@ export default function ServiceActivation({ activation, urls }: Props) {
                             <div className="grid gap-3 md:grid-cols-2">
                                 <PackageList
                                     title="What you get access to"
+                                    explanation={activationExplanations.access}
                                     items={
                                         selectedPackage.included_stages ?? []
                                     }
                                 />
                                 <PackageList
                                     title="What you will produce"
+                                    explanation={
+                                        activationExplanations.outcomes
+                                    }
                                     items={
                                         selectedPackage.client_outcomes ?? []
                                     }
@@ -340,9 +362,10 @@ export default function ServiceActivation({ activation, urls }: Props) {
                         onSubmit={submit}
                         className="rounded-md border bg-background p-4"
                     >
-                        <h2 className="text-sm font-medium">
-                            Fee/scope acknowledgement
-                        </h2>
+                        <ExplainedSectionHeader
+                            title="Fee/scope acknowledgement"
+                            explanation={activationExplanations.acknowledgement}
+                        />
                         <p className="mt-2 text-sm text-muted-foreground">
                             The standard Terms and Conditions already accepted
                             for portal access continue to apply. Full payment
@@ -415,25 +438,44 @@ export default function ServiceActivation({ activation, urls }: Props) {
     );
 }
 
-function Metric({ label, value }: { label: string; value: string }) {
+function Metric({
+    label,
+    value,
+    explanation,
+}: {
+    label: string;
+    value: string;
+    explanation: Explanation;
+}) {
     return (
-        <div className="rounded-md border p-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-1 text-sm font-medium">{value}</div>
-        </div>
+        <ExplainedMetricCard
+            label={label}
+            value={value}
+            explanation={explanation}
+        />
     );
 }
 
-function PackageList({ title, items }: { title: string; items: string[] }) {
+function PackageList({
+    title,
+    items,
+    explanation,
+}: {
+    title: string;
+    items: string[];
+    explanation: Explanation;
+}) {
     if (items.length === 0) {
         return null;
     }
 
     return (
         <div className="rounded-md border p-3">
-            <h3 className="text-xs font-medium text-muted-foreground">
-                {title}
-            </h3>
+            <ExplainedSectionHeader
+                title={title}
+                titleClassName="text-xs text-muted-foreground"
+                explanation={explanation}
+            />
             <ul className="mt-2 space-y-1 text-sm">
                 {items.map((item) => (
                     <li key={item}>{item}</li>
@@ -577,3 +619,66 @@ function formatMoney(value: number, currency: string) {
         maximumFractionDigits: 2,
     }).format(value);
 }
+
+const activationExplanations = {
+    requestDetails: {
+        title: 'Request details',
+        what: 'The intake answers supplied when this service workspace was requested.',
+        action: 'Review these details before accepting the selected package. Message your advisor if the request context is wrong.',
+        why: 'The selected package and scope should match the client’s actual request before work starts.',
+    },
+    packageScopeFee: {
+        title: 'Package, scope, and fee',
+        what: 'The service package, included scope, payment split, and GST-exclusive fee selected by the advisor.',
+        action: 'Check that the scope and fee match what you expect before payment or acknowledgement.',
+        why: 'This is the client-facing record of what the workspace gives access to and what fee applies.',
+    },
+    fee: {
+        title: 'Fee ex GST',
+        what: 'The package fee before GST is added or accounted for externally.',
+        action: 'Use this amount to confirm the commercial fee before accepting the workspace scope.',
+        why: 'Showing the GST-exclusive fee keeps package pricing aligned with the admin service rate table.',
+    },
+    billing: {
+        title: 'Billing model',
+        what: 'How the package fee is charged for this workspace.',
+        action: 'Confirm whether the package is fixed-fee or proposal-priced before accepting.',
+        why: 'Billing model affects payment timing and whether the workspace opens automatically after payment.',
+    },
+    source: {
+        title: 'Fee source',
+        what: 'Where the selected package and pricing were sourced from.',
+        action: 'If this looks wrong, ask the advisor to check the active Admin Service Rates table.',
+        why: 'Using governed service rates avoids accidental one-off pricing that does not match approved packages.',
+    },
+    cardDeposit: {
+        title: 'Card deposit',
+        what: 'The portion of the package payable by card before the workspace can progress.',
+        action: 'Pay the card deposit when prompted, then arrange any remaining balance if required.',
+        why: 'The card deposit confirms commitment while preserving the payment split configured for this package.',
+    },
+    bankTransfer: {
+        title: 'Bank transfer balance',
+        what: 'The remaining amount to be paid by bank transfer after any card deposit.',
+        action: 'Complete the transfer and wait for advisor confirmation before expecting workspace access.',
+        why: 'The app only opens paid workflows when the full required balance has been received and confirmed.',
+    },
+    access: {
+        title: 'Workspace access',
+        what: 'The workflow areas unlocked when the package is accepted and any payment gate is complete.',
+        action: 'Use this list to confirm the workspace gives access to the service you requested.',
+        why: 'Access defines what the client can do in the portal once the service starts.',
+    },
+    outcomes: {
+        title: 'Client outcomes',
+        what: 'The practical deliverables or outputs expected from the selected package.',
+        action: 'Check these outcomes against what you need before accepting the fee and scope.',
+        why: 'Outcome clarity reduces disputes and keeps advisor work focused on the agreed result.',
+    },
+    acknowledgement: {
+        title: 'Fee/scope acknowledgement',
+        what: 'The final confirmation that you accept the selected package, scope, and GST-exclusive fee.',
+        action: 'Tick the checkbox only after the package, fee, and payment status are clear.',
+        why: 'The acknowledgement is the handoff from request review into an active, governed workspace.',
+    },
+} satisfies Record<string, Explanation>;

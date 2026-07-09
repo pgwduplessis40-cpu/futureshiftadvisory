@@ -1,6 +1,11 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, HeartPulse, Trash2 } from 'lucide-react';
 import type { FormEvent } from 'react';
+import {
+    ExplainedSectionHeader,
+    Explainer,
+    type Explanation,
+} from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -111,19 +116,21 @@ export default function WellbeingPulse({
                     onSubmit={submit}
                     className="space-y-6 rounded-md border bg-background p-4"
                 >
-                    <div className="space-y-2">
-                        <h2 className="text-sm font-medium">
-                            Optional monthly pulse
-                        </h2>
-                        <p className="text-sm text-muted-foreground">
-                            Share only what feels useful. Your response helps
-                            your advisor spot pressure early.
-                        </p>
-                    </div>
+                    <ExplainedSectionHeader
+                        title="Optional monthly pulse"
+                        description="Share only what feels useful. Your response helps your advisor spot pressure early."
+                        explanation={{
+                            title: 'Wellbeing pulse',
+                            what: 'This records a light monthly signal about business confidence and personal coping.',
+                            action: 'Choose the closest rating and add notes only if there is context your advisor should know.',
+                            why: 'The pulse helps the advisor identify pressure early without turning wellbeing into a formal assessment.',
+                        }}
+                    />
 
                     <ScaleField
                         label="Business confidence"
                         value={form.data.business_confidence}
+                        explanation={wellbeingExplanations.businessConfidence}
                         onChange={(value) =>
                             form.setData('business_confidence', value)
                         }
@@ -133,6 +140,7 @@ export default function WellbeingPulse({
                     <ScaleField
                         label="Personal coping"
                         value={form.data.personal_coping}
+                        explanation={wellbeingExplanations.personalCoping}
                         onChange={(value) =>
                             form.setData('personal_coping', value)
                         }
@@ -140,7 +148,12 @@ export default function WellbeingPulse({
                     <InputError message={form.errors.personal_coping} />
 
                     <div className="grid gap-2">
-                        <Label htmlFor="notes">Notes</Label>
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="notes">Notes</Label>
+                            <Explainer
+                                explanation={wellbeingExplanations.notes}
+                            />
+                        </div>
                         <textarea
                             id="notes"
                             value={form.data.notes}
@@ -187,15 +200,22 @@ export default function WellbeingPulse({
 function ScaleField({
     label,
     value,
+    explanation,
     onChange,
 }: {
     label: string;
     value: number;
+    explanation: Explanation;
     onChange: (value: number) => void;
 }) {
     return (
         <fieldset className="space-y-3">
-            <legend className="text-sm font-medium">{label}</legend>
+            <legend>
+                <span className="flex items-center gap-2 text-sm font-medium">
+                    {label}
+                    <Explainer explanation={explanation} />
+                </span>
+            </legend>
             <div className="grid grid-cols-5 gap-2">
                 {scale.map((item) => {
                     const active = value === item.value;
@@ -233,3 +253,24 @@ function formatMonth(value: string) {
         year: 'numeric',
     }).format(new Date(`${value}T00:00:00`));
 }
+
+const wellbeingExplanations = {
+    businessConfidence: {
+        title: 'Business confidence',
+        what: 'How confident you feel about the business situation this month.',
+        action: 'Select the closest rating from very low to strong.',
+        why: 'A drop in confidence can signal that your advisor should check trading pressure, decisions, or support needs.',
+    },
+    personalCoping: {
+        title: 'Personal coping',
+        what: 'How manageable the owner or founder load feels right now.',
+        action: 'Select the closest rating and add notes only if you want to give context.',
+        why: 'Advisory work is more useful when it accounts for capacity, not only financial metrics.',
+    },
+    notes: {
+        title: 'Wellbeing notes',
+        what: 'Optional context behind the two ratings.',
+        action: 'Mention pressures, blockers, or support needs that would help the advisor respond appropriately.',
+        why: 'Short context can turn a low score into a practical follow-up rather than a guess.',
+    },
+} satisfies Record<string, Explanation>;

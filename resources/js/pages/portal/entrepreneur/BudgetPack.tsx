@@ -2,6 +2,11 @@ import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft, Download, FileText, Scale } from 'lucide-react';
 import type { ReactNode } from 'react';
 import { BudgetCashChart } from '@/components/budget-cash-chart';
+import {
+    ExplainedMetricCard,
+    ExplainedSectionHeader,
+    type Explanation,
+} from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -167,21 +172,51 @@ export default function BudgetPack({ pack, urls }: Props) {
                         label="Break-even"
                         value={formatYear(summary.break_even_year)}
                         helper="Net profit before tax is zero or positive."
+                        explanation={packExplanation(
+                            pack,
+                            'break_even_year',
+                            'Break-even',
+                            'Break-even is the first forecast year where net profit before tax is zero or positive.',
+                            'Use this to judge whether the plan reaches a sustainable operating point within the forecast horizon.',
+                            'Break-even timing affects funding needs, runway, and whether the business can support advisory recommendations.',
+                        )}
                     />
                     <Metric
                         label="Profit year"
                         value={formatYear(summary.first_profitable_year)}
                         helper="Net profit after tax is positive."
+                        explanation={packExplanation(
+                            pack,
+                            'first_profitable_year',
+                            'Profit year',
+                            'Profit year is the first forecast year where net profit after tax is positive.',
+                            'Compare this with your launch plan and funding expectations.',
+                            'After-tax profit is closer to what the business keeps after estimated tax, so it is a clearer founder outcome.',
+                        )}
                     />
                     <Metric
                         label="Cash positive"
                         value={formatYear(summary.cash_flow_positive_year)}
                         helper="Cumulative cash becomes zero or positive."
+                        explanation={packExplanation(
+                            pack,
+                            'cash_flow_positive_year',
+                            'Cash positive',
+                            'Cash positive is the first year where cumulative cash becomes zero or positive.',
+                            'Use this to check when startup losses and funding movements are expected to be recovered.',
+                            'A business can show profit before it has recovered enough cash, so this protects the runway story.',
+                        )}
                     />
                     <Metric
                         label="After launch"
                         value={formatCurrency(summary.available_after_launch)}
                         helper="Funding left after one-off setup costs."
+                        explanation={{
+                            title: 'After launch',
+                            what: 'The estimated cash left after funding and opening cash are reduced by one-off launch costs.',
+                            action: 'Check whether this amount is enough to cover early trading losses and timing gaps.',
+                            why: 'A positive launch balance does not guarantee runway; it is only the starting cash position after setup costs.',
+                        }}
                     />
                 </section>
 
@@ -192,23 +227,34 @@ export default function BudgetPack({ pack, urls }: Props) {
                     runwayOpenEnded={summary.runway_open_ended}
                     title="Budget pack cash curve"
                     description="The cumulative cash line is the bank and investor view; revenue is scaled separately so the sales curve remains readable."
+                    explanation={{
+                        title: 'Budget pack cash curve',
+                        what: pack.explanations.working_capital_timing
+                            ? `${pack.explanations.working_capital_timing} The chart plots cumulative cash and revenue over the forecast months.`
+                            : 'The chart plots cumulative cash and revenue over the forecast months.',
+                        action: 'Look for the break-even and runway markers, then check whether cash stays above zero long enough for the plan to work.',
+                        why: 'Cash timing is often the constraint that stops a good idea from becoming a viable business.',
+                    }}
                 />
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h2 className="text-sm font-medium">
-                                Annual totals
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                One-page view of the full forecast. Values are
-                                GST exclusive by default.
-                            </p>
-                        </div>
-                        <Badge variant="outline">
-                            {formatLabel(pack.status ?? 'draft')}
-                        </Badge>
-                    </div>
+                    <ExplainedSectionHeader
+                        title="Annual totals"
+                        description="One-page view of the full forecast. Values are GST exclusive by default."
+                        explanation={{
+                            title: 'Annual totals',
+                            what: pack.explanations.gst_exclusive
+                                ? `${pack.explanations.gst_exclusive} This table summarizes the forecast by year.`
+                                : 'This table summarizes the forecast by year and excludes GST by default.',
+                            action: 'Use the annual view to compare revenue, margins, profit, tax, and ending cash across forecast years.',
+                            why: 'Annual totals make the full plan easier to scan before drilling into monthly cash timing.',
+                        }}
+                        actions={
+                            <Badge variant="outline">
+                                {formatLabel(pack.status ?? 'draft')}
+                            </Badge>
+                        }
+                    />
                     <div className="overflow-x-auto">
                         <table className="w-full min-w-[980px] border-collapse text-sm">
                             <thead>
@@ -269,10 +315,16 @@ export default function BudgetPack({ pack, urls }: Props) {
 
                 <div className="grid gap-4 lg:grid-cols-2">
                     <section className="space-y-3 rounded-md border bg-background p-4">
-                        <div className="flex items-center gap-2 text-sm font-medium">
-                            <Scale className="size-4" aria-hidden="true" />
-                            Assumptions
-                        </div>
+                        <ExplainedSectionHeader
+                            icon={Scale}
+                            title="Assumptions"
+                            explanation={{
+                                title: 'Assumptions',
+                                what: 'The key planning inputs used to calculate the budget pack.',
+                                action: 'Check assumptions for values that are guessed, stale, or no longer true before relying on the forecast.',
+                                why: 'The forecast is only as reliable as the assumptions behind revenue, costs, tax, and funding.',
+                            }}
+                        />
                         <div className="divide-y rounded-md border text-sm">
                             {pack.assumptions.map((row) => (
                                 <div
@@ -291,9 +343,17 @@ export default function BudgetPack({ pack, urls }: Props) {
                     </section>
 
                     <section className="space-y-3 rounded-md border bg-background p-4">
-                        <h2 className="text-sm font-medium">
-                            Scenario summary
-                        </h2>
+                        <ExplainedSectionHeader
+                            title="Scenario summary"
+                            explanation={packExplanation(
+                                pack,
+                                'automatic_scenarios',
+                                'Scenario summary',
+                                'Scenario summary compares base case and sensitivity cases such as revenue downside or cost upside.',
+                                'Use this to see whether break-even or cash-positive timing changes under less favourable assumptions.',
+                                'Sensitivity scenarios show whether the plan is robust or only works in the base case.',
+                            )}
+                        />
                         <div className="divide-y rounded-md border text-sm">
                             {pack.scenarios.map((scenario) => (
                                 <div
@@ -326,9 +386,15 @@ export default function BudgetPack({ pack, urls }: Props) {
                 </div>
 
                 <section className="space-y-4">
-                    <h2 className="text-sm font-medium">
-                        Monthly detail by year
-                    </h2>
+                    <ExplainedSectionHeader
+                        title="Monthly detail by year"
+                        explanation={{
+                            title: 'Monthly detail',
+                            what: 'The month-by-month forecast used to build the annual totals and cash curve.',
+                            action: 'Review months with negative cash flow, unusual cost spikes, or revenue ramps that look too optimistic.',
+                            why: 'Monthly timing shows the cash pressure that annual totals can hide.',
+                        }}
+                    />
                     {pack.monthly_by_year.map((year) => (
                         <MonthlyTable
                             key={year.year}
@@ -346,17 +412,20 @@ function Metric({
     label,
     value,
     helper,
+    explanation,
 }: {
     label: string;
     value: string;
     helper: string;
+    explanation: Explanation;
 }) {
     return (
-        <div className="rounded-md border bg-background p-3">
-            <div className="text-xs text-muted-foreground">{label}</div>
-            <div className="mt-1 text-sm font-medium">{value}</div>
-            <div className="mt-1 text-xs text-muted-foreground">{helper}</div>
-        </div>
+        <ExplainedMetricCard
+            label={label}
+            value={value}
+            helper={helper}
+            explanation={explanation}
+        />
     );
 }
 
@@ -431,6 +500,22 @@ function formatLabel(value: string): string {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function packExplanation(
+    pack: PackPayload,
+    key: string,
+    title: string,
+    fallbackWhat: string,
+    action: string,
+    why: string,
+): Explanation {
+    return {
+        title,
+        what: pack.explanations[key] ?? fallbackWhat,
+        action,
+        why,
+    };
 }
 
 BudgetPack.layout = {

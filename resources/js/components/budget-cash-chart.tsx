@@ -1,3 +1,5 @@
+import { Explainer, type Explanation } from '@/components/explainer';
+
 export type BudgetChartPoint = {
     month: number;
     month_in_year?: number;
@@ -12,6 +14,7 @@ type BudgetCashChartProps = {
     runwayOpenEnded?: boolean;
     title?: string;
     description?: string;
+    explanation?: Explanation;
 };
 
 export function BudgetCashChart({
@@ -21,6 +24,7 @@ export function BudgetCashChart({
     runwayOpenEnded = false,
     title = 'Revenue and cumulative cash',
     description = 'Monthly revenue uses the right axis; cumulative cash uses the left axis.',
+    explanation,
 }: BudgetCashChartProps) {
     const points = series
         .filter(
@@ -78,7 +82,12 @@ export function BudgetCashChart({
         <section className="rounded-md border bg-background p-4">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
                 <div>
-                    <h3 className="text-sm font-medium">{title}</h3>
+                    <div className="flex items-center gap-2">
+                        <h3 className="text-sm font-medium">{title}</h3>
+                        {explanation ? (
+                            <Explainer explanation={explanation} />
+                        ) : null}
+                    </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {description}
                     </p>
