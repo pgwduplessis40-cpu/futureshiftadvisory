@@ -234,8 +234,8 @@ final class TemplateLibraryTest extends TestCase
                 ->where('templates.0.category', Template::CATEGORY_PROPOSAL)
                 ->where('templates.0.usage_label', 'Proposal PDFs')
                 ->where('templates.0.uploaded_file.original_name', 'FSA_Report_Proposal_Template.docx')
-                ->where('templates.0.uploaded_file.can_preview', true)
-                ->where('templates.0.view_url', route('advisor.templates.preview', $template, absolute: false))
+                ->where('templates.0.uploaded_file.can_preview', false)
+                ->where('templates.0.view_url', null)
                 ->where('templates.0.download_url', route('advisor.templates.download', $template, absolute: false)));
 
         $this->actingAsMfa($admin)
@@ -285,7 +285,7 @@ final class TemplateLibraryTest extends TestCase
             ->assertHeader('Content-Type', 'image/png');
     }
 
-    public function test_admin_can_preview_uploaded_docx_template_file(): void
+    public function test_uploaded_docx_template_file_is_downloadable_without_inline_preview(): void
     {
         if (! class_exists(ZipArchive::class)) {
             $this->markTestSkipped('ZipArchive is required to build the uploaded template DOCX fixture.');
@@ -325,14 +325,17 @@ final class TemplateLibraryTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('templates.0.usage_label', 'Client Report PDFs')
-                ->where('templates.0.view_url', route('advisor.templates.preview', $template, absolute: false))
+                ->where('templates.0.uploaded_file.can_preview', false)
+                ->where('templates.0.view_url', null)
+                ->where('templates.0.download_url', route('advisor.templates.download', $template, absolute: false))
                 ->where('reportTemplateStatus.hasActiveReportTemplate', true));
 
         $this->actingAsMfa($admin)
             ->get(route('advisor.templates.preview', $template))
             ->assertOk()
             ->assertHeader('Content-Type', 'text/html; charset=UTF-8')
-            ->assertSee('Uploaded report preview shell', false);
+            ->assertSee('DOCX previews are downloaded, not opened inline', false)
+            ->assertSee('Download source file', false);
     }
 
     public function test_activating_report_template_archives_overlapping_active_report_templates(): void

@@ -10,7 +10,6 @@ use App\Models\Document;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
-use App\Services\Reports\UploadedReportTemplateRenderer;
 use App\Services\Storage\Exceptions\InfectedFileException;
 use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
@@ -177,7 +176,7 @@ final class TemplateController extends Controller
         ]);
     }
 
-    public function preview(Request $request, Template $template, UploadedReportTemplateRenderer $renderer): HttpResponse
+    public function preview(Request $request, Template $template): HttpResponse
     {
         Gate::authorize('view', $template);
         abort_if($template->status === Template::STATUS_DRAFT, 404);
@@ -187,13 +186,27 @@ final class TemplateController extends Controller
         abort_if(
             $uploadedFile === null
                 || ! $this->uploadedFileIsClean($uploadedFile)
-                || ! $this->canPreviewUploadedFile($uploadedFile),
+                || ! $this->previewRouteSupportsUploadedFile($uploadedFile),
             404,
         );
 
         $path = (string) ($uploadedFile['stored_path'] ?? '');
         $disk = Storage::disk('secure_local');
         abort_if($path === '' || ! $disk->exists($path), 404);
+
+        if ($this->isDocxUpload($uploadedFile)) {
+            $this->audit->record('template.previewed', subject: $template, actor: $user, after: [
+                'template_id' => $template->getKey(),
+                'filename' => $uploadedFile['original_name'] ?? null,
+                'preview_mode' => 'docx_download_notice',
+            ]);
+
+            return response($this->docxPreviewUnavailableHtml($template, $uploadedFile), 200, [
+                'Content-Type' => 'text/html; charset=UTF-8',
+                'X-Content-Type-Options' => 'nosniff',
+                'Cache-Control' => 'private, no-store, max-age=0',
+            ]);
+        }
 
         $contents = $disk->get($path);
         abort_if(! is_string($contents) || $contents === '', 404);
@@ -223,16 +236,7 @@ final class TemplateController extends Controller
             ]);
         }
 
-        $fragment = $renderer->renderStandaloneFragmentFromBytes($contents);
-        abort_if($fragment === null, 422, 'Template preview could not be generated.');
-
-        $html = $this->previewHtml($template, $fragment);
-
-        return response($html, 200, [
-            'Content-Type' => 'text/html; charset=UTF-8',
-            'X-Content-Type-Options' => 'nosniff',
-            'Cache-Control' => 'private, no-store, max-age=0',
-        ]);
+        abort(404);
     }
 
     public function update(Request $request, Template $template): RedirectResponse
@@ -301,7 +305,7 @@ final class TemplateController extends Controller
         $uploadedFileIsClean = $uploadedFile !== null && $this->uploadedFileIsClean($uploadedFile);
         $uploadedFileCanPreview = $uploadedFileIsClean
             && $uploadedFile !== null
-            && $this->canPreviewUploadedFile($uploadedFile);
+            && $this->canInlinePreviewUploadedFile($uploadedFile);
 
         return [
             'id' => $template->id,
@@ -547,11 +551,19 @@ final class TemplateController extends Controller
     /**
      * @param  array<string, mixed>  $uploadedFile
      */
-    private function canPreviewUploadedFile(array $uploadedFile): bool
+    private function canInlinePreviewUploadedFile(array $uploadedFile): bool
     {
         return $this->isPdfUpload($uploadedFile)
-            || $this->isDocxUpload($uploadedFile)
             || $this->isImageUpload($uploadedFile);
+    }
+
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function previewRouteSupportsUploadedFile(array $uploadedFile): bool
+    {
+        return $this->canInlinePreviewUploadedFile($uploadedFile)
+            || $this->isDocxUpload($uploadedFile);
     }
 
     private function downloadDisposition(Request $request, string $mime): string
@@ -605,12 +617,25 @@ final class TemplateController extends Controller
             || Str::endsWith($originalName, ['.png', '.jpg', '.jpeg']);
     }
 
-    private function previewHtml(Template $template, string $fragment): string
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function docxPreviewUnavailableHtml(Template $template, array $uploadedFile): string
     {
+        $filename = (string) ($uploadedFile['original_name'] ?? Str::slug($template->title).'.docx');
+        $downloadUrl = route('advisor.templates.download', $template, absolute: false);
+
         return '<!doctype html><html lang="en-NZ"><head><meta charset="utf-8">'
             .'<title>'.$this->escape($template->title).'</title>'
-            .'<style>body{background:#eef2f4;margin:0;padding:24px}.template-preview{background:#fff;box-shadow:0 8px 30px rgba(15,23,42,.12);margin:0 auto;max-width:850px;min-height:1100px;padding:34px}</style>'
-            .'</head><body><main class="template-preview">'.$fragment.'</main></body></html>';
+            .'<style>body{background:#eef2f4;color:#13233a;font-family:Arial,sans-serif;margin:0;padding:32px}.notice{background:#fff;border:1px solid #ded6c7;border-radius:10px;box-shadow:0 8px 30px rgba(15,23,42,.12);margin:12vh auto 0;max-width:680px;padding:28px}.eyebrow{color:#667282;font-size:12px;font-weight:700;letter-spacing:.08em;text-transform:uppercase}h1{font-size:22px;margin:8px 0 12px}p{font-size:14px;line-height:1.6;margin:0 0 16px}.filename{background:#f7f2e8;border-radius:6px;display:inline-block;font-size:13px;margin-bottom:18px;padding:6px 9px}.actions{display:flex;gap:10px;flex-wrap:wrap}.button{background:#1c2f4a;border-radius:999px;color:#fff;display:inline-block;font-size:14px;font-weight:700;padding:10px 16px;text-decoration:none}.muted{color:#667282;font-size:12px;margin-top:14px}</style>'
+            .'</head><body><main class="notice">'
+            .'<div class="eyebrow">Template source file</div>'
+            .'<h1>DOCX previews are downloaded, not opened inline</h1>'
+            .'<p>This Word template is stored and available, but it is not rendered inside the browser. Download the source file to review it in Word or your desktop document viewer.</p>'
+            .'<div class="filename">'.$this->escape($filename).'</div>'
+            .'<div class="actions"><a class="button" href="'.$this->escape($downloadUrl).'">Download source file</a></div>'
+            .'<p class="muted">PDF and image templates can still be previewed inline.</p>'
+            .'</main></body></html>';
     }
 
     private function usageLabel(Template $template): string

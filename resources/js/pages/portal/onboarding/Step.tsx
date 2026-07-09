@@ -16,8 +16,8 @@ import type { ComponentType, FormEvent, ReactNode } from 'react';
 import { toast } from 'sonner';
 import {
     ExplainedSectionHeader,
-    type Explanation,
 } from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';

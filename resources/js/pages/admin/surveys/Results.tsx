@@ -1,5 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
+import { ExplainedMetricCard } from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import { Button } from '@/components/ui/button';
 
 type ResponsePayload = {
@@ -49,14 +51,20 @@ export default function SurveyResults({
                 </div>
 
                 <div className="grid gap-3 sm:grid-cols-3">
-                    <Metric label="Responses" value={summary.responses} />
+                    <Metric
+                        label="Responses"
+                        value={summary.responses}
+                        explanation={surveyExplanations.responses}
+                    />
                     <Metric
                         label="Average score"
                         value={formatScore(summary.average_score)}
+                        explanation={surveyExplanations.averageScore}
                     />
                     <Metric
                         label="Average NPS"
                         value={formatScore(summary.average_nps)}
+                        explanation={surveyExplanations.averageNps}
                     />
                 </div>
 
@@ -113,12 +121,21 @@ export default function SurveyResults({
     );
 }
 
-function Metric({ label, value }: { label: string; value: number | string }) {
+function Metric({
+    label,
+    value,
+    explanation,
+}: {
+    label: string;
+    value: number | string;
+    explanation: Explanation;
+}) {
     return (
-        <div className="rounded-md border bg-background p-4">
-            <div className="text-sm text-muted-foreground">{label}</div>
-            <div className="mt-2 text-2xl font-semibold">{value}</div>
-        </div>
+        <ExplainedMetricCard
+            label={label}
+            value={<span className="text-2xl font-semibold">{value}</span>}
+            explanation={explanation}
+        />
     );
 }
 
@@ -134,3 +151,24 @@ function formatDate(value: string | null) {
           }).format(new Date(value))
         : 'n/a';
 }
+
+const surveyExplanations = {
+    responses: {
+        title: 'Responses',
+        what: 'The number of submitted survey responses for this survey version.',
+        action: 'Check the response count before relying on averages.',
+        why: 'Small samples can make score and NPS averages volatile.',
+    },
+    averageScore: {
+        title: 'Average score',
+        what: 'The average overall score across submitted responses.',
+        action: 'Review the response table when the average changes materially or looks inconsistent.',
+        why: 'Average score is a quality signal for whether the advisory experience is landing well.',
+    },
+    averageNps: {
+        title: 'Average NPS',
+        what: 'The average net-promoter-style score across submitted responses.',
+        action: 'Use this as a sentiment trend and pair it with comments or response detail.',
+        why: 'NPS is helpful for trend monitoring but should not be interpreted without context.',
+    },
+} satisfies Record<string, Explanation>;

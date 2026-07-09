@@ -1,4 +1,5 @@
-import { Explainer, type Explanation } from '@/components/explainer';
+import { Explainer } from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 
 export type BudgetChartPoint = {
     month: number;

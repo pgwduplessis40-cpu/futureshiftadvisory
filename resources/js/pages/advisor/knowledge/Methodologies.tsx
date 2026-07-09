@@ -8,6 +8,11 @@ import {
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
+import {
+    ExplainedSectionHeader,
+    Explainer,
+} from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -110,21 +115,16 @@ export default function Methodologies({
                     <div className="space-y-5">
                         {grouped.map((group) => (
                             <section key={group.area} className="space-y-3">
-                                <div className="flex items-center gap-2">
-                                    <BookOpen
-                                        className="size-4 text-muted-foreground"
-                                        aria-hidden="true"
-                                    />
-                                    <h2 className="text-sm font-medium">
-                                        {group.area}
-                                    </h2>
-                                </div>
+                                <ExplainedSectionHeader
+                                    icon={BookOpen}
+                                    title={group.area}
+                                    explanation={areaExplanation(group.area)}
+                                />
                                 <div className="grid gap-3">
                                     {group.entries.map((entry) => (
                                         <article
                                             key={entry.id}
                                             className="rounded-md border bg-background p-4"
-                                            title={entry.summary}
                                         >
                                             <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                                                 <div className="min-w-0">
@@ -147,15 +147,22 @@ export default function Methodologies({
                                                                 </Badge>
                                                             ))}
                                                     </div>
-                                                    <h3 className="mt-3 text-base font-semibold">
-                                                        <Link
-                                                            href={
-                                                                entry.show_url
-                                                            }
-                                                        >
-                                                            {entry.name}
-                                                        </Link>
-                                                    </h3>
+                                                    <div className="mt-3 flex items-center gap-2">
+                                                        <h3 className="text-base font-semibold">
+                                                            <Link
+                                                                href={
+                                                                    entry.show_url
+                                                                }
+                                                            >
+                                                                {entry.name}
+                                                            </Link>
+                                                        </h3>
+                                                        <Explainer
+                                                            explanation={methodologyExplanation(
+                                                                entry,
+                                                            )}
+                                                        />
+                                                    </div>
                                                     <p className="mt-2 text-sm text-muted-foreground">
                                                         {entry.summary}
                                                     </p>
@@ -184,6 +191,29 @@ export default function Methodologies({
             </div>
         </>
     );
+}
+
+function areaExplanation(area: string): Explanation {
+    return {
+        title: `${area} methodologies`,
+        what: 'A grouped set of governed methodologies used by the platform.',
+        action: 'Open a methodology when you need to see where it is used and how the calculation or assessment is meant to work.',
+        why: 'Methodology visibility helps advisors understand why the app reaches a score, recommendation, or calculation.',
+    };
+}
+
+function methodologyExplanation(entry: MethodologySummary): Explanation {
+    const usedIn = entry.where_used.map((usage) => usage.label).join(', ');
+
+    return {
+        title: entry.name,
+        what: entry.summary,
+        action: 'Open the methodology detail when you need implementation notes, formulas, or governance context.',
+        why:
+            usedIn === ''
+                ? 'A governed methodology gives advisors a consistent basis for client-facing outputs.'
+                : `This methodology supports ${usedIn}, so changes or misunderstandings can affect those surfaces.`,
+    };
 }
 
 Methodologies.layout = {

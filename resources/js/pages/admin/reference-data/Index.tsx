@@ -2,6 +2,11 @@ import { Head, useForm } from '@inertiajs/react';
 import { Clock3, DatabaseZap, Send, Upload } from 'lucide-react';
 import type { FormEvent } from 'react';
 import { useState } from 'react';
+import {
+    ExplainedSectionHeader,
+    Explainer,
+} from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -293,6 +298,12 @@ export default function ReferenceDataIndex({
                         onSubmit={submit}
                         className="grid gap-4 lg:grid-cols-5"
                     >
+                        <ExplainedSectionHeader
+                            title="Record governed value"
+                            description="Submit economic, tax, valuation, or benchmark values for governed review before they influence live calculations."
+                            explanation={referenceExplanations.recordValue}
+                            className="lg:col-span-5"
+                        />
                         {selectedPendingReview && (
                             <div className="lg:col-span-5">
                                 <Alert className="border-amber-300 bg-amber-50 text-amber-950 dark:border-amber-500/40 dark:bg-amber-500/10 dark:text-amber-100">
@@ -355,7 +366,13 @@ export default function ReferenceDataIndex({
 
                         {recordTargets.length > 0 && (
                             <div className="space-y-2">
-                                <Label>Dashboard item</Label>
+                                <LabelWithExplanation
+                                    explanation={
+                                        referenceExplanations.dashboardItem
+                                    }
+                                >
+                                    Dashboard item
+                                </LabelWithExplanation>
                                 <Select
                                     value={selectedTargetKey}
                                     onValueChange={setRecordTarget}
@@ -378,7 +395,11 @@ export default function ReferenceDataIndex({
                         )}
 
                         <div className="space-y-2">
-                            <Label>Dataset</Label>
+                            <LabelWithExplanation
+                                explanation={referenceExplanations.dataset}
+                            >
+                                Dataset
+                            </LabelWithExplanation>
                             <Select
                                 value={form.data.dataset}
                                 onValueChange={setDataset}
@@ -401,7 +422,12 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="source">Source</Label>
+                            <LabelWithExplanation
+                                htmlFor="source"
+                                explanation={referenceExplanations.source}
+                            >
+                                Source
+                            </LabelWithExplanation>
                             <Input
                                 id="source"
                                 value={form.data.source}
@@ -413,7 +439,12 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="as_at">As at</Label>
+                            <LabelWithExplanation
+                                htmlFor="as_at"
+                                explanation={referenceExplanations.asAt}
+                            >
+                                As at
+                            </LabelWithExplanation>
                             <Input
                                 id="as_at"
                                 type="date"
@@ -426,7 +457,12 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="upload">Data import</Label>
+                            <LabelWithExplanation
+                                htmlFor="upload"
+                                explanation={referenceExplanations.dataImport}
+                            >
+                                Data import
+                            </LabelWithExplanation>
                             <Input
                                 id="upload"
                                 type="file"
@@ -442,9 +478,12 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="space-y-2">
-                            <Label htmlFor="evidence_upload">
+                            <LabelWithExplanation
+                                htmlFor="evidence_upload"
+                                explanation={referenceExplanations.evidence}
+                            >
                                 Source evidence
-                            </Label>
+                            </LabelWithExplanation>
                             <Input
                                 id="evidence_upload"
                                 type="file"
@@ -460,7 +499,12 @@ export default function ReferenceDataIndex({
                         </div>
 
                         <div className="space-y-2 lg:col-span-5">
-                            <Label htmlFor="payload_json">Payload</Label>
+                            <LabelWithExplanation
+                                htmlFor="payload_json"
+                                explanation={referenceExplanations.payload}
+                            >
+                                Payload
+                            </LabelWithExplanation>
                             <textarea
                                 id="payload_json"
                                 className="min-h-56 w-full rounded-md border border-input bg-transparent px-3 py-2 font-mono text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
@@ -509,9 +553,10 @@ export default function ReferenceDataIndex({
                 </section>
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <h2 className="text-sm font-medium">
-                        Current effective values
-                    </h2>
+                    <ExplainedSectionHeader
+                        title="Current effective values"
+                        explanation={referenceExplanations.currentValues}
+                    />
                     <div className="overflow-hidden rounded-md border">
                         <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
@@ -588,7 +633,10 @@ export default function ReferenceDataIndex({
                 </section>
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <h2 className="text-sm font-medium">Recent submissions</h2>
+                    <ExplainedSectionHeader
+                        title="Recent submissions"
+                        explanation={referenceExplanations.recentSubmissions}
+                    />
                     <div className="overflow-hidden rounded-md border">
                         <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
@@ -768,6 +816,86 @@ function formatScannerStatus(status: string): string {
 function formatDate(value: string): string {
     return new Date(value).toLocaleDateString();
 }
+
+function LabelWithExplanation({
+    htmlFor,
+    explanation,
+    children,
+}: {
+    htmlFor?: string;
+    explanation: Explanation;
+    children: string;
+}) {
+    return (
+        <div className="flex items-center gap-2">
+            <Label htmlFor={htmlFor}>{children}</Label>
+            <Explainer explanation={explanation} />
+        </div>
+    );
+}
+
+const referenceExplanations = {
+    recordValue: {
+        title: 'Record governed value',
+        what: 'This form submits reference data that can feed tax, valuation, benchmark, and dashboard calculations.',
+        action: 'Select the correct dataset, enter the value payload, attach source evidence where possible, and submit for governed review.',
+        why: 'Incorrect reference data can distort downstream calculations, so each value needs source and effective-date context.',
+    },
+    dashboardItem: {
+        title: 'Dashboard item',
+        what: 'The specific missing or due dashboard value this submission will address.',
+        action: 'Choose the dashboard item you intend to update before editing the payload.',
+        why: 'Linking the value to a dashboard item reduces the risk of updating the wrong reference measure.',
+    },
+    dataset: {
+        title: 'Dataset',
+        what: 'The reference data category, such as economic indicator, tax rate, valuation multiple, or benchmark.',
+        action: 'Select the dataset that matches the payload structure.',
+        why: 'The dataset determines how the backend validates and applies the value.',
+    },
+    source: {
+        title: 'Source',
+        what: 'Where the reference value came from, such as manual admin entry, official publication, or evidence file.',
+        action: 'Use a source label that another reviewer can understand later.',
+        why: 'Source traceability is essential when calculations are challenged or refreshed.',
+    },
+    asAt: {
+        title: 'As at date',
+        what: 'The effective date for the value being submitted.',
+        action: 'Use the date the value applies from, not necessarily today’s entry date.',
+        why: 'Effective dates prevent stale or future values from being applied to the wrong calculation period.',
+    },
+    dataImport: {
+        title: 'Data import',
+        what: 'An optional CSV, text, or spreadsheet import for reference values.',
+        action: 'Use imports for structured data sets; otherwise enter the JSON payload manually.',
+        why: 'Imports can reduce typing errors when multiple values need to be recorded.',
+    },
+    evidence: {
+        title: 'Source evidence',
+        what: 'An optional document or image that supports the submitted value.',
+        action: 'Attach source evidence when the value came from a published table, official record, or advisor-reviewed source.',
+        why: 'Evidence lets reviewers confirm the value before it influences live methodology outputs.',
+    },
+    payload: {
+        title: 'Payload',
+        what: 'The structured JSON value that will be validated and submitted for governed implementation.',
+        action: 'Edit only the fields required for the selected dataset and keep units, labels, and dates consistent.',
+        why: 'The payload is what the calculation services read, so formatting mistakes can block or corrupt implementation.',
+    },
+    currentValues: {
+        title: 'Current effective values',
+        what: 'The latest implemented values currently available to the app.',
+        action: 'Check this table before submitting a replacement value.',
+        why: 'Seeing the current value helps avoid duplicate submissions and accidental regressions.',
+    },
+    recentSubmissions: {
+        title: 'Recent submissions',
+        what: 'A history of reference data entries and their review status.',
+        action: 'Use this to confirm whether a value is pending, implemented, or needs evidence follow-up.',
+        why: 'Submission history provides the audit trail for governed reference data changes.',
+    },
+} satisfies Record<string, Explanation>;
 
 ReferenceDataIndex.layout = {
     breadcrumbs: [

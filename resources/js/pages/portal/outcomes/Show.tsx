@@ -1,6 +1,11 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, CheckCircle2 } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
+import {
+    ExplainedSectionHeader,
+    Explainer,
+} from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -179,18 +184,26 @@ export default function OutcomeFollowUpShow({
                     </div>
                 </div>
 
-                <section className="rounded-md border bg-background p-4 text-sm text-muted-foreground">
-                    This follow-up helps Future Shift Advisory measure whether
-                    advice turned into commercial progress. Please be direct:
-                    the answers are attributed to your account and are used for
-                    governed learning, not automatic changes to advice or
-                    pricing.
+                <section className="rounded-md border bg-background p-4">
+                    <ExplainedSectionHeader
+                        title="Outcome follow-up"
+                        description="This follow-up helps Future Shift Advisory measure whether advice turned into commercial progress. Please be direct: the answers are attributed to your account and are used for governed learning, not automatic changes to advice or pricing."
+                        explanation={{
+                            title: 'Outcome follow-up',
+                            what: 'This captures what happened after an entrepreneur or acquisition engagement.',
+                            action: 'Complete the fields that apply and add comments where a number needs context.',
+                            why: 'Outcome feedback helps measure whether advice changed the commercial result and improves future advisory work.',
+                        }}
+                    />
                 </section>
 
                 <form onSubmit={submit} className="space-y-4">
                     <section className="rounded-md border bg-background p-4">
                         <div className="grid gap-4 md:grid-cols-2">
-                            <Field label="Current outcome">
+                            <Field
+                                label="Current outcome"
+                                explanation={outcomeExplanations.status}
+                            >
                                 <Select
                                     value={form.data.status}
                                     disabled={!followUp.is_open}
@@ -223,6 +236,7 @@ export default function OutcomeFollowUpShow({
                                         ? 'Is the business still trading?'
                                         : 'Are you still trading?'
                                 }
+                                explanation={outcomeExplanations.stillTrading}
                             >
                                 <div className="grid grid-cols-2 gap-2">
                                     <ToggleButton
@@ -249,7 +263,10 @@ export default function OutcomeFollowUpShow({
                                 />
                             </Field>
 
-                            <Field label="Revenue direction">
+                            <Field
+                                label="Revenue direction"
+                                explanation={outcomeExplanations.revenueDirection}
+                            >
                                 <Select
                                     value={form.data.revenue_direction}
                                     disabled={!followUp.is_open}
@@ -276,7 +293,10 @@ export default function OutcomeFollowUpShow({
                                 />
                             </Field>
 
-                            <Field label="Revenue growth %">
+                            <Field
+                                label="Revenue growth %"
+                                explanation={outcomeExplanations.revenueGrowth}
+                            >
                                 <Input
                                     type="number"
                                     step="0.1"
@@ -296,7 +316,12 @@ export default function OutcomeFollowUpShow({
                             </Field>
 
                             {followUp.subject_type === 'due_diligence' ? (
-                                <Field label="Actual purchase price NZD">
+                                <Field
+                                    label="Actual purchase price NZD"
+                                    explanation={
+                                        outcomeExplanations.recordedPrice
+                                    }
+                                >
                                     <Input
                                         type="number"
                                         min={0}
@@ -317,7 +342,12 @@ export default function OutcomeFollowUpShow({
                                 </Field>
                             ) : null}
 
-                            <Field label="Recommendations implemented">
+                            <Field
+                                label="Recommendations implemented"
+                                explanation={
+                                    outcomeExplanations.implementedRecommendations
+                                }
+                            >
                                 <Input
                                     type="number"
                                     min={0}
@@ -340,7 +370,12 @@ export default function OutcomeFollowUpShow({
                                 />
                             </Field>
 
-                            <Field label="Total recommendations">
+                            <Field
+                                label="Total recommendations"
+                                explanation={
+                                    outcomeExplanations.totalRecommendations
+                                }
+                            >
                                 <Input
                                     type="number"
                                     min={0}
@@ -364,6 +399,7 @@ export default function OutcomeFollowUpShow({
                             <Field
                                 label="Proposal focus areas"
                                 className="mt-4"
+                                explanation={outcomeExplanations.focusAreas}
                             >
                                 <div className="space-y-3">
                                     {form.data.focus_area_outcomes.map(
@@ -451,7 +487,11 @@ export default function OutcomeFollowUpShow({
                             </Field>
                         ) : null}
 
-                        <Field label="Comments" className="mt-4">
+                        <Field
+                            label="Comments"
+                            className="mt-4"
+                            explanation={outcomeExplanations.comments}
+                        >
                             <textarea
                                 value={form.data.comments}
                                 disabled={!followUp.is_open}
@@ -487,15 +527,20 @@ export default function OutcomeFollowUpShow({
 function Field({
     label,
     className,
+    explanation,
     children,
 }: {
     label: string;
     className?: string;
+    explanation?: Explanation;
     children: ReactNode;
 }) {
     return (
         <div className={cn('grid gap-2', className)}>
-            <Label>{label}</Label>
+            <div className="flex items-center gap-2">
+                <Label>{label}</Label>
+                {explanation ? <Explainer explanation={explanation} /> : null}
+            </div>
             {children}
         </div>
     );
@@ -611,3 +656,60 @@ function nullableTextValue(value: unknown): string | null {
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === 'object' && value !== null;
 }
+
+const outcomeExplanations = {
+    status: {
+        title: 'Current outcome',
+        what: 'The current state of the engagement result, such as completed, progressing, or not achieved yet.',
+        action: 'Choose the option that best reflects the real current outcome.',
+        why: 'Status gives the advisor a clear outcome signal without needing to infer it from comments.',
+    },
+    stillTrading: {
+        title: 'Still trading',
+        what: 'Whether the business, acquired target, or idea is still operating.',
+        action: 'Select yes or no based on the current position.',
+        why: 'Survival or continued trading is a core outcome measure for entrepreneur and acquisition support.',
+    },
+    revenueDirection: {
+        title: 'Revenue direction',
+        what: 'Whether revenue is up, flat, down, not started, or unavailable.',
+        action: 'Select the closest direction even if you do not have exact figures.',
+        why: 'Direction gives a practical signal when precise financial records are not available yet.',
+    },
+    revenueGrowth: {
+        title: 'Revenue growth',
+        what: 'The approximate percentage revenue change since the engagement or relevant baseline.',
+        action: 'Enter a percentage only if you have a reasonable basis for it.',
+        why: 'Growth percentage helps connect advice to measurable commercial movement.',
+    },
+    recordedPrice: {
+        title: 'Actual purchase price',
+        what: 'The final purchase price if a due diligence engagement led to an acquisition.',
+        action: 'Enter the purchase price when known, or leave it blank if no acquisition completed.',
+        why: 'The actual price helps compare due diligence assumptions with the final transaction outcome.',
+    },
+    implementedRecommendations: {
+        title: 'Recommendations implemented',
+        what: 'How many advice recommendations have been acted on.',
+        action: 'Enter the number implemented, or use the proposal focus-area statuses below to populate it.',
+        why: 'Implementation is the link between advice delivered and outcomes achieved.',
+    },
+    totalRecommendations: {
+        title: 'Total recommendations',
+        what: 'The total number of recommendations being tracked for this follow-up.',
+        action: 'Confirm the count so the implemented number has a fair denominator.',
+        why: 'A percentage without the total count can overstate or understate progress.',
+    },
+    focusAreas: {
+        title: 'Proposal focus areas',
+        what: 'The specific focus areas from the proposal or analysis that are being tracked.',
+        action: 'Set each focus area to implemented, partially implemented, not started, or not applicable.',
+        why: 'Focus-area tracking shows which advice translated into action and where support may still be needed.',
+    },
+    comments: {
+        title: 'Comments',
+        what: 'Optional context behind the outcome answers.',
+        action: 'Add what changed, what was implemented, and what still needs attention.',
+        why: 'Narrative context helps advisors interpret the numbers without making assumptions.',
+    },
+} satisfies Record<string, Explanation>;

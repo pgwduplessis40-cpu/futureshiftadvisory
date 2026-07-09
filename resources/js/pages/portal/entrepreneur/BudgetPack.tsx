@@ -5,8 +5,8 @@ import { BudgetCashChart } from '@/components/budget-cash-chart';
 import {
     ExplainedMetricCard,
     ExplainedSectionHeader,
-    type Explanation,
 } from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 

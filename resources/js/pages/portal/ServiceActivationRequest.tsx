@@ -10,8 +10,8 @@ import type { FormEvent } from 'react';
 import {
     ExplainedSectionHeader,
     Explainer,
-    type Explanation,
 } from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';

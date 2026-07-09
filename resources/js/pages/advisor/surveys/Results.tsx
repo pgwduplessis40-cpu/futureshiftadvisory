@@ -1,6 +1,8 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import { ArrowLeft, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { ExplainedMetricCard } from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -135,18 +137,22 @@ export default function AdvisorSurveyResults({
                     <Metric
                         label="Assignments"
                         value={results.summary.assignments}
+                        explanation={surveyExplanations.assignments}
                     />
                     <Metric
                         label="Completed"
                         value={results.summary.completed}
+                        explanation={surveyExplanations.completed}
                     />
                     <Metric
                         label="Average score"
                         value={formatScore(results.summary.average_score)}
+                        explanation={surveyExplanations.averageScore}
                     />
                     <Metric
                         label="Average NPS"
                         value={formatScore(results.summary.average_nps)}
+                        explanation={surveyExplanations.averageNps}
                     />
                 </div>
 
@@ -216,12 +222,21 @@ export default function AdvisorSurveyResults({
     );
 }
 
-function Metric({ label, value }: { label: string; value: number | string }) {
+function Metric({
+    label,
+    value,
+    explanation,
+}: {
+    label: string;
+    value: number | string;
+    explanation: Explanation;
+}) {
     return (
-        <div className="rounded-md border bg-background p-4">
-            <div className="text-sm text-muted-foreground">{label}</div>
-            <div className="mt-2 text-2xl font-semibold">{value}</div>
-        </div>
+        <ExplainedMetricCard
+            label={label}
+            value={<span className="text-2xl font-semibold">{value}</span>}
+            explanation={explanation}
+        />
     );
 }
 
@@ -236,3 +251,30 @@ function formatDate(value: string | null) {
           )
         : 'n/a';
 }
+
+const surveyExplanations = {
+    assignments: {
+        title: 'Survey assignments',
+        what: 'The number of survey requests activated for this client or subject.',
+        action: 'Use this to confirm how many survey opportunities have been sent.',
+        why: 'Assignment count gives context before interpreting completion rates or averages.',
+    },
+    completed: {
+        title: 'Completed surveys',
+        what: 'The number of activated surveys with submitted responses.',
+        action: 'Compare completed against assignments to see whether follow-up is needed.',
+        why: 'Low completion can make average scores less reliable.',
+    },
+    averageScore: {
+        title: 'Average score',
+        what: 'The average overall score from submitted survey responses.',
+        action: 'Review individual responses when the average is low or based on a small number of submissions.',
+        why: 'Average score helps identify whether advice was received as useful and accessible.',
+    },
+    averageNps: {
+        title: 'Average NPS',
+        what: 'The average net-promoter-style score from submitted responses.',
+        action: 'Use this as a directional client sentiment signal, not as a complete quality measure.',
+        why: 'NPS is useful for trend and sentiment, but it needs response-count context.',
+    },
+} satisfies Record<string, Explanation>;

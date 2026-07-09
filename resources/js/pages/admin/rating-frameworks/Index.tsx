@@ -1,6 +1,11 @@
 import { Head, router } from '@inertiajs/react';
 import { FilePenLine, Rocket, ShieldCheck } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import {
+    ExplainedSectionHeader,
+    Explainer,
+} from '@/components/explainer';
+import type { Explanation } from '@/components/explainer';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -129,20 +134,16 @@ export default function RatingFrameworksIndex({
                 />
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <div className="flex flex-wrap items-center justify-between gap-3">
-                        <div>
-                            <h2 className="text-sm font-medium">
-                                Current draft values
-                            </h2>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Published frameworks remain fixed; changes are
-                                saved as a new draft version.
-                            </p>
-                        </div>
-                        <Badge variant="outline">
-                            Base v{current?.version ?? '-'}
-                        </Badge>
-                    </div>
+                    <ExplainedSectionHeader
+                        title="Current draft values"
+                        description="Published frameworks remain fixed; changes are saved as a new draft version."
+                        explanation={frameworkExplanations.currentDraft}
+                        actions={
+                            <Badge variant="outline">
+                                Base v{current?.version ?? '-'}
+                            </Badge>
+                        }
+                    />
 
                     <div className="space-y-3">
                         {criteria.map((criterion, index) => (
@@ -151,12 +152,17 @@ export default function RatingFrameworksIndex({
                                 className="space-y-3 rounded-md border p-3"
                             >
                                 <div className="grid gap-3 md:grid-cols-[72px_minmax(0,1fr)_120px]">
-                                    <label className="grid gap-1 text-xs">
-                                        <span className="text-muted-foreground">
+                                    <div className="grid gap-1 text-xs">
+                                        <FieldLabel
+                                            explanation={
+                                                frameworkExplanations.number
+                                            }
+                                        >
                                             #
-                                        </span>
+                                        </FieldLabel>
                                         <input
                                             type="number"
+                                            aria-label="Criterion number"
                                             min={1}
                                             value={criterion.number}
                                             onChange={(event) =>
@@ -170,12 +176,17 @@ export default function RatingFrameworksIndex({
                                             }
                                             className="h-9 rounded-md border bg-background px-2 text-sm"
                                         />
-                                    </label>
-                                    <label className="grid gap-1 text-xs">
-                                        <span className="text-muted-foreground">
+                                    </div>
+                                    <div className="grid gap-1 text-xs">
+                                        <FieldLabel
+                                            explanation={
+                                                frameworkExplanations.criterion
+                                            }
+                                        >
                                             Criterion
-                                        </span>
+                                        </FieldLabel>
                                         <input
+                                            aria-label="Criterion name"
                                             value={criterion.name}
                                             onChange={(event) =>
                                                 updateCriterion(index, {
@@ -184,13 +195,18 @@ export default function RatingFrameworksIndex({
                                             }
                                             className="h-9 rounded-md border bg-background px-3 text-sm"
                                         />
-                                    </label>
-                                    <label className="grid gap-1 text-xs">
-                                        <span className="text-muted-foreground">
+                                    </div>
+                                    <div className="grid gap-1 text-xs">
+                                        <FieldLabel
+                                            explanation={
+                                                frameworkExplanations.weight
+                                            }
+                                        >
                                             Weight %
-                                        </span>
+                                        </FieldLabel>
                                         <input
                                             type="number"
+                                            aria-label="Criterion weight percentage"
                                             min={0}
                                             max={100}
                                             step="0.1"
@@ -202,18 +218,23 @@ export default function RatingFrameworksIndex({
                                             }
                                             className="h-9 rounded-md border bg-background px-3 text-sm"
                                         />
-                                    </label>
+                                    </div>
                                 </div>
                                 <div className="grid gap-2 lg:grid-cols-2">
                                     {bands.map(([band, label]) => (
-                                        <label
+                                        <div
                                             key={band}
                                             className="grid gap-1 text-xs"
                                         >
-                                            <span className="text-muted-foreground">
+                                            <FieldLabel
+                                                explanation={descriptorExplanation(
+                                                    label,
+                                                )}
+                                            >
                                                 {label}
-                                            </span>
+                                            </FieldLabel>
                                             <textarea
+                                                aria-label={`${label} descriptor`}
                                                 value={
                                                     criterion.descriptors[
                                                         band
@@ -229,7 +250,7 @@ export default function RatingFrameworksIndex({
                                                 rows={2}
                                                 className="rounded-md border bg-background px-3 py-2 text-sm"
                                             />
-                                        </label>
+                                        </div>
                                     ))}
                                 </div>
                             </article>
@@ -238,7 +259,10 @@ export default function RatingFrameworksIndex({
                 </section>
 
                 <section className="space-y-3 rounded-md border bg-background p-4">
-                    <h2 className="text-sm font-medium">Versions</h2>
+                    <ExplainedSectionHeader
+                        title="Versions"
+                        explanation={frameworkExplanations.versions}
+                    />
                     <div className="divide-y rounded-md border">
                         {frameworks.map((framework) => (
                             <div
@@ -321,3 +345,60 @@ function formatLabel(value: string): string {
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
 }
+
+function FieldLabel({
+    children,
+    explanation,
+}: {
+    children: string;
+    explanation: Explanation;
+}) {
+    return (
+        <span className="flex items-center gap-2 text-muted-foreground">
+            {children}
+            <Explainer explanation={explanation} />
+        </span>
+    );
+}
+
+function descriptorExplanation(label: string): Explanation {
+    return {
+        title: `${label} descriptor`,
+        what: `The plain-English scoring description for a ${label.toLowerCase()} rating band.`,
+        action: 'Write wording that lets advisors score consistently against observable evidence.',
+        why: 'Descriptor quality directly affects whether two advisors would reach the same rating for the same plan.',
+    };
+}
+
+const frameworkExplanations = {
+    currentDraft: {
+        title: 'Current draft values',
+        what: 'The editable criteria, weights, and descriptors for the next entrepreneur rating framework version.',
+        action: 'Keep total weight at 100% before saving the draft.',
+        why: 'This framework governs plan assessment scoring, so draft changes should be deliberate and auditable.',
+    },
+    number: {
+        title: 'Criterion number',
+        what: 'The display order for the criterion in the rating framework.',
+        action: 'Use a stable order that matches how advisors naturally review a plan.',
+        why: 'Consistent ordering makes assessments easier to compare across clients and framework versions.',
+    },
+    criterion: {
+        title: 'Criterion',
+        what: 'The assessment area being scored, such as market, model, evidence, or execution readiness.',
+        action: 'Name the criterion clearly enough that an advisor can identify the evidence needed.',
+        why: 'Ambiguous criteria create inconsistent scoring and weaker client feedback.',
+    },
+    weight: {
+        title: 'Weight',
+        what: 'The percentage influence this criterion has on the overall rating.',
+        action: 'Adjust weights carefully and keep the total at exactly 100%.',
+        why: 'Weights change the final score, so they need to reflect the relative importance of each assessment area.',
+    },
+    versions: {
+        title: 'Framework versions',
+        what: 'The draft and published versions of the rating framework.',
+        action: 'Publish only when the descriptors and weights are ready for live assessments.',
+        why: 'Versioning preserves the scoring method used for older assessments while allowing governed improvement.',
+    },
+} satisfies Record<string, Explanation>;
