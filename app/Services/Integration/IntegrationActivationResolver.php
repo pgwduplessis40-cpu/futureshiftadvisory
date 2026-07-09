@@ -7,6 +7,7 @@ namespace App\Services\Integration;
 use App\Models\IntegrationActivation;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Mail\MicrosoftGraphMailOAuthConnector;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\DB;
@@ -338,6 +339,18 @@ final class IntegrationActivationResolver
 
     private function graphReady(string $mailer): bool
     {
+        if (Str::lower((string) Config::get("mail.mailers.{$mailer}.auth_mode", 'client_credentials')) === 'delegated') {
+            try {
+                $status = app(MicrosoftGraphMailOAuthConnector::class)->statusPayload();
+
+                return ($status['available'] ?? false) === true
+                    && ($status['connected'] ?? false) === true
+                    && blank($status['last_error'] ?? null);
+            } catch (Throwable) {
+                return false;
+            }
+        }
+
         $from = Config::get("mail.mailers.{$mailer}.from_address");
 
         return filled(Config::get("mail.mailers.{$mailer}.tenant"))

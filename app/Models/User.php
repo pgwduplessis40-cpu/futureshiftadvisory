@@ -18,6 +18,7 @@ use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Str;
+use Illuminate\Validation\ValidationException;
 use Laravel\Fortify\TwoFactorAuthenticatable;
 use Spatie\Permission\Traits\HasRoles;
 use Throwable;
@@ -294,7 +295,9 @@ class User extends Authenticatable
                 'message' => mb_substr($exception->getMessage(), 0, 500),
             ]);
 
-            throw $exception;
+            throw ValidationException::withMessages([
+                'email' => 'We could not send the password reset email right now. Please contact support and we will help you regain access.',
+            ]);
         }
     }
 
