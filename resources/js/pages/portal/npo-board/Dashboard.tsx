@@ -8,7 +8,10 @@ import {
     ShieldCheck,
 } from 'lucide-react';
 import type { ComponentType, ReactNode } from 'react';
-import { StatCard } from '@/components/dashboard-primitives';
+import {
+    ExplainedMetricCard,
+    ExplainedSectionHeader,
+} from '@/components/explainer';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -118,27 +121,43 @@ export default function NpoBoardDashboard({
                 />
 
                 <section className="grid gap-3 sm:grid-cols-3">
-                    <StatCard
-                        title="Reports"
+                    <ExplainedMetricCard
+                        label="Reports"
                         value={reports.length}
-                        footnote="Board-visible reports"
-                        inverted
-                        icon={FileText}
+                        helper="Board-visible reports"
+                        className="border-[var(--fs-admiralty)] bg-[var(--fs-admiralty)] text-primary-foreground [&_button]:border-primary-foreground/25 [&_button]:bg-primary-foreground/10 [&_button]:text-primary-foreground [&_button:hover]:bg-primary-foreground/20 [&_.text-muted-foreground]:text-primary-foreground/75"
+                        explanation={{
+                            title: 'Board reports',
+                            what: 'The number of reviewed advisory reports currently visible to the NPO board portal.',
+                            action: 'Open the reports panel and review the latest board pack or advisory report before the next meeting.',
+                            why: 'These reports hold the governed advice and evidence trail the board can rely on for oversight decisions.',
+                        }}
                     />
-                    <StatCard
-                        title="Documents"
+                    <ExplainedMetricCard
+                        label="Documents"
                         value={documents.length}
-                        footnote="Clean board records"
-                        icon={FolderOpen}
+                        helper="Clean board records"
+                        explanation={{
+                            title: 'Board documents',
+                            what: 'The number of board-visible documents made available for this engagement.',
+                            action: 'Open documents when you need the underlying source records that support the advice.',
+                            why: 'Board decisions are stronger when reports and supporting evidence can be read together.',
+                        }}
                     />
-                    <StatCard
-                        title="Status"
+                    <ExplainedMetricCard
+                        label="Status"
                         value={engagement.conversion_status ?? 'Active'}
-                        footnote={
+                        helper={
                             engagement.reengagement_due_at
                                 ? `Due ${formatDate(engagement.reengagement_due_at)}`
                                 : 'Current engagement'
                         }
+                        explanation={{
+                            title: 'Engagement status',
+                            what: 'The current stage of the NPO advisory engagement and any re-engagement timing.',
+                            action: 'Use this to see whether the engagement is current or needs follow-up with the advisor.',
+                            why: 'Status helps the board understand whether advice is still live, delivered, or due for review.',
+                        }}
                     />
                 </section>
 
@@ -147,6 +166,12 @@ export default function NpoBoardDashboard({
                         icon={FileText}
                         title="Reports"
                         empty="No reviewed NPO reports are available yet."
+                        explanation={{
+                            title: 'Reports panel',
+                            what: 'Reviewed reports released for board access, including their review status and generation date.',
+                            action: 'Open the latest report to read the advice and download or share it through the browser controls if needed.',
+                            why: 'The report is the formal advisory output the board can refer to in governance discussions.',
+                        }}
                     >
                         {reports.map((report) => (
                             <ListLink
@@ -162,6 +187,12 @@ export default function NpoBoardDashboard({
                         icon={FolderOpen}
                         title="Documents"
                         empty="No board-visible documents are available yet."
+                        explanation={{
+                            title: 'Documents panel',
+                            what: 'Supporting records released to the board, grouped by filename, category, and upload date.',
+                            action: 'Open documents in a separate window when you need to inspect evidence behind a report.',
+                            why: 'Evidence access lets board members verify context without needing advisor or management explanations for every item.',
+                        }}
                     >
                         {documents.map((document) => (
                             <ListLink
@@ -183,19 +214,22 @@ function BoardPanel({
     icon: Icon,
     title,
     empty,
+    explanation,
     children,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     title: string;
     empty: string;
+    explanation: Parameters<typeof ExplainedSectionHeader>[0]['explanation'];
     children: ReactNode[];
 }) {
     return (
         <section className="space-y-3 rounded-[1.25rem] border border-border/80 bg-card p-5 shadow-card">
-            <div className="flex items-center gap-2">
-                <Icon className="size-4" aria-hidden={true} />
-                <h2 className="text-sm font-medium">{title}</h2>
-            </div>
+            <ExplainedSectionHeader
+                icon={Icon}
+                title={title}
+                explanation={explanation}
+            />
             {children.length === 0 ? (
                 <div className="rounded-md border border-dashed p-4 text-sm text-muted-foreground">
                     {empty}

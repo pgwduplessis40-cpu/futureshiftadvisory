@@ -14,6 +14,10 @@ import {
 import { useState } from 'react';
 import type { ComponentType, FormEvent, ReactNode } from 'react';
 import { toast } from 'sonner';
+import {
+    ExplainedSectionHeader,
+    type Explanation,
+} from '@/components/explainer';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { QuestionnaireRenderer } from '@/components/questionnaires/QuestionnaireRenderer';
@@ -155,17 +159,23 @@ export default function OnboardingStep({
                     className="rounded-md border bg-background p-4"
                     aria-labelledby="wizard-stepper-heading"
                 >
-                    <div className="flex items-center justify-between gap-4">
-                        <h2
-                            id="wizard-stepper-heading"
-                            className="text-sm font-medium"
-                        >
-                            Onboarding
-                        </h2>
-                        <span className="text-sm text-muted-foreground">
-                            {progress.percentage}%
-                        </span>
-                    </div>
+                    <ExplainedSectionHeader
+                        title={
+                            <span id="wizard-stepper-heading">Onboarding</span>
+                        }
+                        description="The steps collect identity, business context, goals, questionnaire answers, and evidence for advisor review."
+                        explanation={{
+                            title: 'Onboarding progress',
+                            what: 'This shows where you are in the client onboarding workflow and which steps are available.',
+                            action: 'Complete each available step, then save and continue. Locked steps open when the prior requirement is ready.',
+                            why: 'Complete onboarding gives your advisor enough verified context to start analysis without repeated follow-up.',
+                        }}
+                        actions={
+                            <span className="text-sm text-muted-foreground">
+                                {progress.percentage}%
+                            </span>
+                        }
+                    />
                     <ol className="mt-4 grid gap-2 md:grid-cols-7">
                         {steps.map((item) => (
                             <li key={item.slug}>
@@ -315,6 +325,7 @@ function StepContent({
                     icon={ClipboardList}
                     title="Welcome"
                     description="Your onboarding information is saved as you progress."
+                    explanation={stepExplanations.welcome}
                 >
                     {welcomeMessage.has_message ? (
                         <div
@@ -341,6 +352,7 @@ function StepContent({
                     icon={UserRoundCheck}
                     title="Identity verification"
                     description="MFA is complete. Confirm the account details for this client portal."
+                    explanation={stepExplanations.identity}
                 >
                     <div className="grid gap-4 md:grid-cols-2">
                         <Field label="Name" id="name" error={form.errors.name}>
@@ -379,6 +391,7 @@ function StepContent({
                     icon={Building2}
                     title="Business snapshot"
                     description="Review the registry snapshot for this engagement."
+                    explanation={stepExplanations['business-snapshot']}
                 >
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail label="Legal name" value={client.legal_name} />
@@ -411,6 +424,7 @@ function StepContent({
                     icon={Flag}
                     title="Goals"
                     description="Capture the immediate business priorities for this engagement."
+                    explanation={stepExplanations.goals}
                 >
                     <Field
                         label="Primary goal"
@@ -454,6 +468,7 @@ function StepContent({
                     icon={ClipboardList}
                     title={questionnaire.title}
                     description={questionnaire.description}
+                    explanation={stepExplanations.questionnaire}
                 >
                     <div className="flex flex-wrap gap-2">
                         <Badge
@@ -513,6 +528,7 @@ function StepContent({
                     icon={FileText}
                     title="Documents"
                     description="Upload the evidence your advisor needs before the Standard Advisory review can move into analysis."
+                    explanation={stepExplanations.documents}
                 >
                     <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
                         {uploadedDocumentCount > 0
@@ -563,6 +579,7 @@ function StepContent({
                     icon={ShieldCheck}
                     title="Review and submit"
                     description="Confirm the saved onboarding summary."
+                    explanation={stepExplanations['review-submit']}
                 >
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail
@@ -606,30 +623,72 @@ function ContentShell({
     icon: Icon,
     title,
     description,
+    explanation,
     children,
 }: {
     icon: ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
     title: string;
     description: string;
+    explanation: Explanation;
     children: ReactNode;
 }) {
     return (
         <div className="space-y-5">
-            <div className="flex items-start gap-3">
-                <div className="rounded-md bg-[var(--fs-linen)] p-2 text-[var(--fs-admiralty)]">
-                    <Icon className="size-5" aria-hidden={true} />
-                </div>
-                <div>
-                    <h2 className="text-sm font-medium">{title}</h2>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {description}
-                    </p>
-                </div>
-            </div>
+            <ExplainedSectionHeader
+                icon={Icon}
+                title={title}
+                description={description}
+                explanation={explanation}
+            />
             {children}
         </div>
     );
 }
+
+const stepExplanations: Record<string, Explanation> = {
+    welcome: {
+        title: 'Welcome step',
+        what: 'This confirms you are ready to begin the onboarding workflow.',
+        action: 'Read the advisor welcome message if one is present, then tick the acknowledgement when you are ready.',
+        why: 'This creates a clear starting point before business and evidence information is collected.',
+    },
+    identity: {
+        title: 'Identity verification',
+        what: 'This confirms the portal user details attached to the client workspace.',
+        action: 'Check the name and email are correct before continuing.',
+        why: 'Correct identity details protect the workspace and make later messages, approvals, and evidence uploads attributable.',
+    },
+    'business-snapshot': {
+        title: 'Business snapshot',
+        what: 'This shows the business registry details currently recorded for the engagement.',
+        action: 'Review the legal name, trading name, NZBN, GST, and filing details, then confirm when they look ready.',
+        why: 'Advisor analysis relies on the correct entity being matched to the correct business evidence.',
+    },
+    goals: {
+        title: 'Goals',
+        what: 'This captures what you want the advisory engagement to help achieve.',
+        action: 'Write the main goal and, where possible, how success should be measured.',
+        why: 'Clear goals let advice, reports, and follow-up outcomes connect back to what matters commercially.',
+    },
+    questionnaire: {
+        title: 'Questionnaire',
+        what: 'This captures structured business information needed for the selected advisory pathway.',
+        action: 'Answer the available questions and upload evidence where the form asks for support.',
+        why: 'Structured answers help the advisor compare the business against the right methodology instead of relying on free-text notes alone.',
+    },
+    documents: {
+        title: 'Documents',
+        what: 'This collects supporting files that help evidence the onboarding answers.',
+        action: 'Upload useful records such as financials, plans, agreements, or other advisor-requested documents.',
+        why: 'Evidence-backed onboarding reduces rework and improves the reliability of later analysis.',
+    },
+    'review-submit': {
+        title: 'Review and submit',
+        what: 'This summarizes the onboarding information saved so far.',
+        action: 'Check the summary and submit when it is ready for advisor review.',
+        why: 'Submission marks the handoff from client preparation to advisor analysis.',
+    },
+};
 
 function Field({
     label,
