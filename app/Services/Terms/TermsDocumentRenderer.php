@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Terms;
 
+use App\Models\Document;
 use App\Models\TermsVersion;
 use App\Models\User;
 use App\Services\Reports\UploadedReportTemplateRenderer;
@@ -150,6 +151,10 @@ final class TermsDocumentRenderer
             return null;
         }
 
+        if ($this->sourceFileScannerResult($sourceFile) !== Document::SCANNER_CLEAN) {
+            return null;
+        }
+
         $path = (string) ($sourceFile['stored_path'] ?? '');
         $disk = Storage::disk('secure_local');
 
@@ -174,6 +179,28 @@ final class TermsDocumentRenderer
         return $extension === 'docx'
             || str_contains($mimeType, 'wordprocessingml.document')
             || str_ends_with($originalName, '.docx');
+    }
+
+    /**
+     * @param  array<string, mixed>  $sourceFile
+     */
+    private function sourceFileScannerResult(array $sourceFile): string
+    {
+        $scannerResult = $sourceFile['scanner_result'] ?? null;
+        if (is_string($scannerResult) && $scannerResult !== '') {
+            return $scannerResult;
+        }
+
+        $documentId = $sourceFile['document_id'] ?? null;
+        if (is_string($documentId) && $documentId !== '') {
+            $document = Document::query()->find($documentId);
+
+            if ($document instanceof Document) {
+                return $document->scanner_result;
+            }
+        }
+
+        return Document::SCANNER_CLEAN;
     }
 
     private function escape(string $value): string

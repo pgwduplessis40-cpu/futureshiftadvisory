@@ -152,6 +152,55 @@ final class UploadTest extends TestCase
             ->assertForbidden();
     }
 
+    public function test_scanner_error_upload_is_quarantined_without_verification_or_download_access(): void
+    {
+        $scanner = new class implements FileScanner
+        {
+            public int $calls = 0;
+
+            public function scan(mixed $stream): ScanResult
+            {
+                $this->calls++;
+
+                return ScanResult::error('daemon offline', ['engine' => 'test-scanner']);
+            }
+        };
+        $this->app->instance(FileScanner::class, $scanner);
+
+        [$user] = $this->clientUserWithClient();
+
+        $response = $this->actingAsMfa($user)
+            ->withHeader('Accept', 'application/json')
+            ->post(route('portal.documents.store'), [
+                'file' => UploadedFile::fake()->createWithContent('cashflow.pdf', "%PDF-1.4\nProjected revenue is 120000."),
+                'category' => Document::CATEGORY_FINANCIAL_STATEMENT,
+                'claim_value' => 'Projected revenue is 120000.',
+            ]);
+
+        $response->assertCreated()
+            ->assertJsonPath('document.scanner_result', Document::SCANNER_ERROR)
+            ->assertJsonPath(
+                'document.client_explanation',
+                'This document is quarantined because the malware scanner could not complete. Your advisor has been alerted.',
+            );
+
+        $documentId = $response->json('document.id');
+
+        $this->assertSame(1, $scanner->calls);
+        $this->assertDatabaseHas('documents', [
+            'id' => $documentId,
+            'scanner_result' => Document::SCANNER_ERROR,
+        ]);
+        $this->assertDatabaseCount('document_verifications', 0);
+
+        $document = Document::query()->findOrFail($documentId);
+        $this->assertStringStartsWith('quarantine/financial_statement/', $document->stored_path);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.documents.show', $documentId))
+            ->assertNotFound();
+    }
+
     public function test_uploaded_file_persistence_remains_inside_secure_file_writer(): void
     {
         $root = base_path('app');

@@ -278,6 +278,10 @@ final class GoalTracker
             throw new InvalidArgumentException('Proof document must belong to the milestone client.');
         }
 
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            throw new InvalidArgumentException('Proof document must be clean before completing the milestone.');
+        }
+
         return DB::transaction(function () use ($milestone, $document, $claim, $actor): ProofOfCompletion {
             $claim = array_filter($claim, static fn (mixed $value): bool => $value !== null);
 

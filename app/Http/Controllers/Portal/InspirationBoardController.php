@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Portal;
 use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\BoardPost;
+use App\Models\Document;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
@@ -42,6 +43,11 @@ final class InspirationBoardController extends Controller
     public function image(Request $request, BoardPost $boardPost): SymfonyResponse
     {
         abort_unless($boardPost->isImage() && is_string($boardPost->image_path), 404);
+        $boardPost->loadMissing('imageDocument');
+        if ($boardPost->image_document_id !== null) {
+            abort_unless($boardPost->imageDocument instanceof Document, 404);
+            abort_unless($boardPost->imageDocument->scanner_result === Document::SCANNER_CLEAN, 404);
+        }
 
         $canManage = (bool) $request->user()?->can(Permission::BOARD_MANAGE->value);
         abort_unless($canManage || $boardPost->isPublished(), 404);

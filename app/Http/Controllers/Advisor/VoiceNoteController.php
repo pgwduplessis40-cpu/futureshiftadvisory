@@ -8,6 +8,8 @@ use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Document;
 use App\Models\Milestone;
+use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use App\Services\Voice\VoiceNoteProcessor;
 use Illuminate\Http\RedirectResponse;
@@ -32,12 +34,24 @@ final class VoiceNoteController extends Controller
                 ->whereKey($validated['milestone_id'])
                 ->first()
             : null;
-        $document = $files->write(
-            uploadedFile: $validated['audio'],
-            owner: $request->user(),
-            category: Document::CATEGORY_OTHER,
-            clientId: (string) $client->getKey(),
-        );
+        try {
+            $document = $files->write(
+                uploadedFile: $validated['audio'],
+                owner: $request->user(),
+                category: Document::CATEGORY_OTHER,
+                clientId: (string) $client->getKey(),
+            );
+        } catch (InfectedFileException) {
+            return back()->withErrors(['audio' => 'Upload rejected because malware was detected.']);
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+
+            return back()->withErrors(['audio' => 'Upload could not be stored securely. Please try again or contact support.']);
+        }
+
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            return back()->with('status', 'voice-note-quarantined');
+        }
 
         $processor->processDocument($client, $document, $request->user(), $milestone);
 

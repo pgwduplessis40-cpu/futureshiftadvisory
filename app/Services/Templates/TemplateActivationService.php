@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Templates;
 
 use App\Enums\ReportType;
+use App\Models\Document;
 use App\Models\Template;
 use Illuminate\Support\Str;
 
@@ -16,6 +17,10 @@ final class TemplateActivationService
             return;
         }
 
+        if (! $this->templateHasRenderableSource($template)) {
+            return;
+        }
+
         $activeReportTypes = $this->templateReportTypes($template);
 
         Template::query()
@@ -23,10 +28,11 @@ final class TemplateActivationService
             ->where('category', Template::CATEGORY_REPORT)
             ->whereKeyNot($template->getKey())
             ->get()
-            ->filter(fn (Template $candidate): bool => $this->reportTypesOverlap(
-                $activeReportTypes,
-                $this->templateReportTypes($candidate),
-            ))
+            ->filter(fn (Template $candidate): bool => $this->templateHasRenderableSource($candidate)
+                && $this->reportTypesOverlap(
+                    $activeReportTypes,
+                    $this->templateReportTypes($candidate),
+                ))
             ->each(function (Template $candidate): void {
                 $candidate->forceFill([
                     'status' => Template::STATUS_ARCHIVED,
@@ -61,6 +67,48 @@ final class TemplateActivationService
             ->all();
 
         return $matches === [] ? $this->reportTypeValues() : $matches;
+    }
+
+    private function templateHasRenderableSource(Template $template): bool
+    {
+        if (trim((string) $template->body) !== '') {
+            return true;
+        }
+
+        if (data_get($template->structure, 'source_kind') !== 'uploaded_file') {
+            return false;
+        }
+
+        if ($this->uploadedFileScannerResult($template) !== Document::SCANNER_CLEAN) {
+            return false;
+        }
+
+        $extension = Str::lower((string) data_get($template->structure, 'uploaded_file.extension'));
+        $mimeType = Str::lower((string) data_get($template->structure, 'uploaded_file.mime_type'));
+        $originalName = Str::lower((string) data_get($template->structure, 'uploaded_file.original_name'));
+
+        return $extension === 'docx'
+            || str_contains($mimeType, 'wordprocessingml.document')
+            || str_ends_with($originalName, '.docx');
+    }
+
+    private function uploadedFileScannerResult(Template $template): string
+    {
+        $scannerResult = data_get($template->structure, 'uploaded_file.scanner_result');
+        if (is_string($scannerResult) && $scannerResult !== '') {
+            return $scannerResult;
+        }
+
+        $documentId = data_get($template->structure, 'uploaded_file.document_id');
+        if (is_string($documentId) && $documentId !== '') {
+            $document = Document::query()->find($documentId);
+
+            if ($document instanceof Document) {
+                return $document->scanner_result;
+            }
+        }
+
+        return Document::SCANNER_CLEAN;
     }
 
     /**

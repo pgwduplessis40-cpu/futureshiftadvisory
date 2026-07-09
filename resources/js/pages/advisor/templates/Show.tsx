@@ -95,6 +95,9 @@ export default function TemplateShow({
                                 ? 'source file'
                                 : 'source missing'}
                         </Badge>
+                        {template.uploaded_file?.is_quarantined && (
+                            <Badge variant="secondary">Quarantined</Badge>
+                        )}
                         {template.report_type && (
                             <Badge variant="outline">
                                 {formatReportType(template.report_type)}
@@ -113,11 +116,19 @@ export default function TemplateShow({
                                 )}
                             </div>
                             {template.uploaded_file && (
-                                <div className="mt-1 text-xs text-muted-foreground">
-                                    {formatBytes(
-                                        template.uploaded_file.byte_size,
+                                <>
+                                    <div className="mt-1 text-xs text-muted-foreground">
+                                        {formatBytes(
+                                            template.uploaded_file.byte_size,
+                                        )}
+                                    </div>
+                                    {template.uploaded_file.is_quarantined && (
+                                        <div className="mt-1 text-xs text-amber-800">
+                                            Locked until malware scanning
+                                            completes.
+                                        </div>
                                     )}
-                                </div>
+                                </>
                             )}
                         </div>
                         <div className="flex flex-wrap gap-2">

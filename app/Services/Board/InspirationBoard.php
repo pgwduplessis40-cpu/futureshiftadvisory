@@ -55,7 +55,7 @@ final class InspirationBoard
     public function library(int $limit = 200): Collection
     {
         return BoardPost::query()
-            ->with('createdBy')
+            ->with('createdBy', 'imageDocument')
             ->orderByDesc('pinned')
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -76,10 +76,6 @@ final class InspirationBoard
             }
 
             $document = $this->files->write($image, $actor, Document::CATEGORY_INSPIRATION_IMAGE);
-
-            if ($document->scanner_result !== Document::SCANNER_CLEAN) {
-                throw new RuntimeException('The image could not be virus-scanned cleanly and was not stored.');
-            }
 
             $imageAttributes = [
                 'image_document_id' => $document->getKey(),
@@ -132,6 +128,10 @@ final class InspirationBoard
     {
         if ($post->isImage() && $post->image_path === null) {
             throw new RuntimeException('Image posts require a stored, scanned image before publishing.');
+        }
+
+        if ($post->isImage() && ! $this->imageDocumentIsClean($post)) {
+            throw new RuntimeException('Image posts cannot be published until malware scanning is complete.');
         }
 
         $post->forceFill([
@@ -220,5 +220,22 @@ final class InspirationBoard
         $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    private function imageDocumentIsClean(BoardPost $post): bool
+    {
+        $document = $post->relationLoaded('imageDocument')
+            ? $post->imageDocument
+            : (
+                $post->image_document_id === null
+                    ? null
+                    : Document::query()->find((string) $post->image_document_id)
+            );
+
+        if (! $document instanceof Document) {
+            return $post->image_path !== null;
+        }
+
+        return $document->scanner_result === Document::SCANNER_CLEAN;
     }
 }

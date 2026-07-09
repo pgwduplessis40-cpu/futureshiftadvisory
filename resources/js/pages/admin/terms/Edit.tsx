@@ -216,9 +216,20 @@ export default function TermsEdit({ version }: Props) {
                             )}
                         </div>
                         {version.source_file && (
-                            <div className="text-sm text-muted-foreground">
-                                {version.source_file.original_name}
+                            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
+                                <span>{version.source_file.original_name}</span>
+                                {version.source_file.is_quarantined && (
+                                    <Badge variant="secondary">
+                                        Quarantined
+                                    </Badge>
+                                )}
                             </div>
+                        )}
+                        {version.source_file?.is_quarantined && (
+                            <p className="text-xs text-amber-800">
+                                Source document is locked until malware
+                                scanning completes.
+                            </p>
                         )}
                         <div className="flex flex-wrap items-center gap-2">
                             <Input

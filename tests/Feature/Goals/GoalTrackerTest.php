@@ -19,11 +19,14 @@ use App\Models\ProofOfCompletion;
 use App\Models\User;
 use App\Models\ValuationMultiple;
 use App\Services\Goals\GoalTracker;
+use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Integration\VirusScanner\ScanResult;
 use App\Services\Pv\BusinessValuation as BusinessValuationService;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
@@ -145,6 +148,46 @@ final class GoalTrackerTest extends TestCase
                 ->component('portal/Dashboard')
                 ->where('goals.active_goals', 1)
                 ->where('goals.goals.0.milestones.0.status', 'completed'));
+    }
+
+    public function test_quarantined_milestone_proof_upload_is_saved_without_completing_milestone(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam();
+        $tracker = app(GoalTracker::class);
+        $goal = $tracker->createGoal($client, [
+            'title' => 'Quarantined proof goal',
+            'annual_benefit' => 12000,
+            'duration_years' => 2,
+        ], $advisor);
+        $milestone = $tracker->createMilestone($goal, [
+            'title' => 'Upload locked proof',
+            'annual_impact' => 6000,
+            'duration_years' => 2,
+        ], $advisor);
+
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.milestones.proof.store', $milestone), [
+                'proof' => UploadedFile::fake()->createWithContent('proof.pdf', "%PDF-1.4\nLocked proof"),
+                'claim' => 'The milestone is complete.',
+            ])
+            ->assertRedirect(route('advisor.clients.show', $client))
+            ->assertSessionHas('status', 'milestone-proof-quarantined');
+
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/other/', $document->stored_path);
+        $this->assertSame(Milestone::STATUS_PENDING, $milestone->refresh()->status);
+        $this->assertSame(0, ProofOfCompletion::query()->count());
+        $this->assertSame(0, DocumentVerification::query()->count());
     }
 
     public function test_accuracy_discrepancy_blocks_milestone_completion_and_realised_pv(): void

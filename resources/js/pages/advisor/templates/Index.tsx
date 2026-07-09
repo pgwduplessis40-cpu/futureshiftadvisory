@@ -358,6 +358,12 @@ export default function TemplateIndex({
                                                     ? 'source file'
                                                     : 'source missing'}
                                             </Badge>
+                                            {template.uploaded_file
+                                                ?.is_quarantined && (
+                                                <Badge variant="secondary">
+                                                    Quarantined
+                                                </Badge>
+                                            )}
                                         </div>
                                         <h2 className="mt-3 text-base font-semibold">
                                             <Link href={template.show_url}>
@@ -378,6 +384,10 @@ export default function TemplateIndex({
                                                         template.uploaded_file
                                                             .original_name
                                                     }
+                                                    {template.uploaded_file
+                                                        .is_quarantined
+                                                        ? ' - locked until malware scanning completes'
+                                                        : ''}
                                                 </>
                                             ) : (
                                                 <>No source file attached</>
@@ -419,7 +429,7 @@ export default function TemplateIndex({
                                                 </a>
                                             </Button>
                                         )}
-                                        {!template.download_url && (
+                                        {!template.uploaded_file && (
                                             <Button
                                                 asChild
                                                 size="sm"

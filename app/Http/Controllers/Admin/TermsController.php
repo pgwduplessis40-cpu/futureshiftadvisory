@@ -12,6 +12,7 @@ use App\Models\TermsVersion;
 use App\Services\Audit\AuditWriter;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use App\Services\Terms\TermsAcceptanceGate;
 use App\Services\Terms\TermsDocumentRenderer;
@@ -203,10 +204,10 @@ final class TermsController extends Controller
             $document = $files->write($file, $request->user(), Document::CATEGORY_TEMPLATE_FILE);
         } catch (InfectedFileException) {
             return back()->withErrors(['file' => 'Upload rejected because malware was detected.']);
-        }
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
 
-        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
-            return back()->withErrors(['file' => 'Upload could not be virus-scanned. Please try again or contact support.']);
+            return back()->withErrors(['file' => 'Upload could not be stored securely. Please try again or contact support.']);
         }
 
         $termsVersion->forceFill([
@@ -218,6 +219,7 @@ final class TermsController extends Controller
                 'extension' => strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'docx'),
                 'byte_size' => $document->byte_size,
                 'sha256' => $document->sha256,
+                'scanner_result' => $document->scanner_result,
                 'uploaded_at' => now()->toIso8601String(),
             ],
         ])->save();
@@ -237,6 +239,7 @@ final class TermsController extends Controller
 
         $sourceFile = $this->sourceFile($termsVersion);
         abort_if($sourceFile === null, 404);
+        abort_if(! $this->sourceFileIsClean($sourceFile), 404);
 
         $path = (string) ($sourceFile['stored_path'] ?? '');
         $disk = Storage::disk('secure_local');
@@ -371,7 +374,7 @@ final class TermsController extends Controller
             'published_at' => $version->published_at?->toIso8601String(),
             'published_by_user_id' => $version->published_by_user_id,
             'source_file' => $this->sourceFilePayload($version),
-            'source_download_url' => $this->sourceFile($version) === null
+            'source_download_url' => ! $this->sourceFileIsClean($this->sourceFile($version))
                 ? null
                 : route('admin.terms.source-file.download', $version, absolute: false),
             'source_preview_html' => $includeSourcePreview ? $this->documents->sourcePreviewHtml($version) : null,
@@ -448,8 +451,41 @@ final class TermsController extends Controller
             'original_name' => $sourceFile['original_name'] ?? null,
             'mime_type' => $sourceFile['mime_type'] ?? null,
             'byte_size' => $sourceFile['byte_size'] ?? null,
+            'scanner_result' => $this->sourceFileScannerResult($sourceFile),
+            'is_quarantined' => ! $this->sourceFileIsClean($sourceFile),
             'uploaded_at' => $sourceFile['uploaded_at'] ?? null,
         ];
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $sourceFile
+     */
+    private function sourceFileIsClean(?array $sourceFile): bool
+    {
+        return $sourceFile !== null
+            && $this->sourceFileScannerResult($sourceFile) === Document::SCANNER_CLEAN;
+    }
+
+    /**
+     * @param  array<string, mixed>  $sourceFile
+     */
+    private function sourceFileScannerResult(array $sourceFile): string
+    {
+        $scannerResult = $sourceFile['scanner_result'] ?? null;
+        if (is_string($scannerResult) && $scannerResult !== '') {
+            return $scannerResult;
+        }
+
+        $documentId = $sourceFile['document_id'] ?? null;
+        if (is_string($documentId) && $documentId !== '') {
+            $document = Document::query()->find($documentId);
+
+            if ($document instanceof Document) {
+                return $document->scanner_result;
+            }
+        }
+
+        return Document::SCANNER_CLEAN;
     }
 
     private function downloadFilename(string $filename): string

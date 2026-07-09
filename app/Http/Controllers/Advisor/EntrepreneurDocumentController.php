@@ -19,7 +19,7 @@ final class EntrepreneurDocumentController extends Controller
     {
         Gate::authorize('view', $entrepreneurProfile);
         abort_unless((string) $document->entrepreneur_profile_id === (string) $entrepreneurProfile->getKey(), 404);
-        abort_if($document->scanner_result === Document::SCANNER_INFECTED, 404);
+        abort_unless($document->scanner_result === Document::SCANNER_CLEAN, 404);
 
         $disk = Storage::disk('secure_local');
         abort_unless($disk->exists($document->stored_path), 404);

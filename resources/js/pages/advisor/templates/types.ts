@@ -22,6 +22,8 @@ export type TemplateSummary = {
         mime_type: string;
         extension: string;
         byte_size: number;
+        scanner_result: string;
+        is_quarantined: boolean;
         uploaded_at: string | null;
         can_preview: boolean;
     } | null;

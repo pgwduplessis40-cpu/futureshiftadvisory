@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:18
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
  * @route '/advisor/clients/{client}/voice-notes'
  */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:18
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
  * @route '/advisor/clients/{client}/voice-notes'
  */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:18
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
  * @route '/advisor/clients/{client}/voice-notes'
  */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
     /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:18
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
  * @route '/advisor/clients/{client}/voice-notes'
  */
     const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
             /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::store
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:18
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:20
  * @route '/advisor/clients/{client}/voice-notes'
  */
         storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -80,7 +80,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:47
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
  * @route '/advisor/clients/{client}/call-logs'
  */
 export const storeCallLog = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -95,7 +95,7 @@ storeCallLog.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:47
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
  * @route '/advisor/clients/{client}/call-logs'
  */
 storeCallLog.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -128,7 +128,7 @@ storeCallLog.url = (args: { client: string | { id: string } } | [client: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:47
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
  * @route '/advisor/clients/{client}/call-logs'
  */
 storeCallLog.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -138,7 +138,7 @@ storeCallLog.post = (args: { client: string | { id: string } } | [client: string
 
     /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:47
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
  * @route '/advisor/clients/{client}/call-logs'
  */
     const storeCallLogForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -148,7 +148,7 @@ storeCallLog.post = (args: { client: string | { id: string } } | [client: string
 
             /**
 * @see \App\Http\Controllers\Advisor\VoiceNoteController::storeCallLog
- * @see app/Http/Controllers/Advisor/VoiceNoteController.php:47
+ * @see app/Http/Controllers/Advisor/VoiceNoteController.php:61
  * @route '/advisor/clients/{client}/call-logs'
  */
         storeCallLogForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

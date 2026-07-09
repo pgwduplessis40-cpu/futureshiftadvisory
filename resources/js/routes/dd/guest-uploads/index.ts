@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\DdGuestUploadController::__invoke
- * @see app/Http/Controllers/DdGuestUploadController.php:20
+ * @see app/Http/Controllers/DdGuestUploadController.php:21
  * @route '/api/dd/guest-uploads/{token}'
  */
 export const store = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\DdGuestUploadController::__invoke
- * @see app/Http/Controllers/DdGuestUploadController.php:20
+ * @see app/Http/Controllers/DdGuestUploadController.php:21
  * @route '/api/dd/guest-uploads/{token}'
  */
 store.url = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -44,7 +44,7 @@ store.url = (args: { token: string | number } | [token: string | number ] | stri
 
 /**
 * @see \App\Http\Controllers\DdGuestUploadController::__invoke
- * @see app/Http/Controllers/DdGuestUploadController.php:20
+ * @see app/Http/Controllers/DdGuestUploadController.php:21
  * @route '/api/dd/guest-uploads/{token}'
  */
 store.post = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -54,7 +54,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
 
     /**
 * @see \App\Http\Controllers\DdGuestUploadController::__invoke
- * @see app/Http/Controllers/DdGuestUploadController.php:20
+ * @see app/Http/Controllers/DdGuestUploadController.php:21
  * @route '/api/dd/guest-uploads/{token}'
  */
     const storeForm = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -64,7 +64,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
 
             /**
 * @see \App\Http\Controllers\DdGuestUploadController::__invoke
- * @see app/Http/Controllers/DdGuestUploadController.php:20
+ * @see app/Http/Controllers/DdGuestUploadController.php:21
  * @route '/api/dd/guest-uploads/{token}'
  */
         storeForm.post = (args: { token: string | number } | [token: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

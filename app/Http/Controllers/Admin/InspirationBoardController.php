@@ -6,9 +6,11 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\BoardPost;
+use App\Models\Document;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -60,6 +62,10 @@ final class InspirationBoardController extends Controller
             );
         } catch (InfectedFileException) {
             return back()->withErrors(['image' => 'The image was rejected because malware was detected.']);
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+
+            return back()->withErrors(['image' => 'The image could not be stored securely. Please try again or contact support.']);
         } catch (RuntimeException $exception) {
             return back()->withErrors(['image' => $exception->getMessage()]);
         }
@@ -82,7 +88,11 @@ final class InspirationBoardController extends Controller
 
     public function publish(Request $request, BoardPost $boardPost): RedirectResponse
     {
-        $this->board->publish($boardPost, $this->actor($request));
+        try {
+            $this->board->publish($boardPost, $this->actor($request));
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['post' => $exception->getMessage()]);
+        }
 
         return back()->with('status', 'board-post-published');
     }
@@ -133,6 +143,9 @@ final class InspirationBoardController extends Controller
                 ? route('portal.inspiration-board.image', $post, absolute: false)
                 : null,
             'image_filename' => $post->image_filename,
+            'image_scanner_result' => $post->imageDocument?->scanner_result,
+            'image_is_quarantined' => $post->imageDocument instanceof Document
+                && $post->imageDocument->scanner_result !== Document::SCANNER_CLEAN,
             'published_at' => $post->published_at?->toIso8601String(),
             'created_by' => $post->createdBy?->name,
             'created_at' => $post->created_at?->toIso8601String(),

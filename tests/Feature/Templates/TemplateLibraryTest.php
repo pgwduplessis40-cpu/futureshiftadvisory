@@ -410,7 +410,7 @@ final class TemplateLibraryTest extends TestCase
         $this->assertEmpty(Storage::disk('secure_local')->allFiles());
     }
 
-    public function test_scanner_error_on_template_upload_returns_form_error_without_creating_template(): void
+    public function test_scanner_error_on_template_upload_keeps_quarantined_source_without_download_links(): void
     {
         Storage::fake('secure_local');
         $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
@@ -437,11 +437,78 @@ final class TemplateLibraryTest extends TestCase
                 'status' => Template::STATUS_ACTIVE,
                 'file' => $upload,
             ])
-            ->assertSessionHasErrors('file');
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
 
-        $this->assertSame(0, Template::query()->count());
+        $template = Template::query()->firstOrFail();
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame('uploaded_file', $template->structure['source_kind']);
+        $this->assertSame($document->id, data_get($template->structure, 'uploaded_file.document_id'));
+        $this->assertSame(Document::SCANNER_ERROR, data_get($template->structure, 'uploaded_file.scanner_result'));
         $this->assertSame(1, Document::query()->count());
-        $this->assertSame(Document::SCANNER_ERROR, Document::query()->firstOrFail()->scanner_result);
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/template_file/', $document->stored_path);
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.index', ['status' => Template::STATUS_ACTIVE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('templates.0.uploaded_file.original_name', 'FSA_Letterhead.pdf')
+                ->where('templates.0.uploaded_file.scanner_result', Document::SCANNER_ERROR)
+                ->where('templates.0.uploaded_file.is_quarantined', true)
+                ->where('templates.0.uploaded_file.can_preview', false)
+                ->where('templates.0.view_url', null)
+                ->where('templates.0.download_url', null));
+
+        $this->actingAsMfa($admin)
+            ->get(route('advisor.templates.download', $template))
+            ->assertNotFound();
+    }
+
+    public function test_quarantined_report_template_does_not_archive_existing_active_report_template(): void
+    {
+        Storage::fake('secure_local');
+        $admin = $this->userWithRole(User::TYPE_SUPER_ADMIN);
+        $existing = Template::query()->create([
+            'category' => Template::CATEGORY_REPORT,
+            'title' => 'Client Report Template',
+            'body' => '<main>{{ sections }}</main>',
+            'structure' => ['sections' => []],
+            'status' => Template::STATUS_ACTIVE,
+            'version' => 1,
+        ]);
+
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $this->actingAsMfa($admin)
+            ->post(route('advisor.templates.store'), [
+                'category' => Template::CATEGORY_REPORT,
+                'title' => 'Uploaded Client Report Template',
+                'body' => '',
+                'status' => Template::STATUS_ACTIVE,
+                'file' => UploadedFile::fake()->create(
+                    'Uploaded_Client_Report_Template.docx',
+                    24,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                ),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $uploaded = Template::query()
+            ->where('title', 'Uploaded Client Report Template')
+            ->firstOrFail();
+
+        $this->assertSame(Template::STATUS_ACTIVE, $existing->refresh()->status);
+        $this->assertSame(Template::STATUS_ACTIVE, $uploaded->status);
+        $this->assertSame(Document::SCANNER_ERROR, data_get($uploaded->structure, 'uploaded_file.scanner_result'));
     }
 
     public function test_local_scanner_error_on_template_upload_can_fail_open_when_noop_is_allowed(): void

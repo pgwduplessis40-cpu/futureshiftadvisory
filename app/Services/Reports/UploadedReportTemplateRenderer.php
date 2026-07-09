@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Reports;
 
+use App\Models\Document;
 use App\Models\Report;
 use App\Models\Template;
 use DOMDocument;
@@ -137,6 +138,10 @@ HTML,
             return false;
         }
 
+        if ($this->uploadedFileScannerResult($template) !== Document::SCANNER_CLEAN) {
+            return false;
+        }
+
         $extension = Str::lower((string) data_get($template->structure, 'uploaded_file.extension'));
         $mimeType = Str::lower((string) data_get($template->structure, 'uploaded_file.mime_type'));
         $originalName = Str::lower((string) data_get($template->structure, 'uploaded_file.original_name'));
@@ -144,6 +149,25 @@ HTML,
         return $extension === 'docx'
             || str_contains($mimeType, 'wordprocessingml.document')
             || str_ends_with($originalName, '.docx');
+    }
+
+    private function uploadedFileScannerResult(Template $template): string
+    {
+        $scannerResult = data_get($template->structure, 'uploaded_file.scanner_result');
+        if (is_string($scannerResult) && $scannerResult !== '') {
+            return $scannerResult;
+        }
+
+        $documentId = data_get($template->structure, 'uploaded_file.document_id');
+        if (is_string($documentId) && $documentId !== '') {
+            $document = Document::query()->find($documentId);
+
+            if ($document instanceof Document) {
+                return $document->scanner_result;
+            }
+        }
+
+        return Document::SCANNER_CLEAN;
     }
 
     /**

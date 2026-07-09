@@ -4,10 +4,13 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Admin;
 
+use App\Models\Document;
 use App\Models\TermsAcceptance;
 use App\Models\TermsEnforcement;
 use App\Models\TermsVersion;
 use App\Models\User;
+use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Integration\VirusScanner\ScanResult;
 use App\Services\Pdf\PdfRenderer;
 use Database\Seeders\RoleSeeder;
 use Database\Seeders\TermsVersionSeeder;
@@ -229,6 +232,53 @@ final class TermsVersioningTest extends TestCase
             ->assertOk()
             ->assertHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document')
             ->assertHeader('X-Content-Type-Options', 'nosniff');
+    }
+
+    public function test_scanner_error_on_terms_source_upload_keeps_quarantined_file_without_download_link(): void
+    {
+        Storage::fake('secure_local');
+        $this->seed(RoleSeeder::class);
+        $admin = $this->superAdmin();
+        $draft = $this->termsVersion('1');
+
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.terms.source-file.store', $draft), [
+                'file' => UploadedFile::fake()->create(
+                    'Future_Shift_Terms.docx',
+                    24,
+                    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+                ),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $draft->refresh();
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/template_file/', $document->stored_path);
+        $this->assertSame(Document::SCANNER_ERROR, data_get($draft->source_file, 'scanner_result'));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.edit', $draft))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('version.source_file.original_name', 'Future_Shift_Terms.docx')
+                ->where('version.source_file.scanner_result', Document::SCANNER_ERROR)
+                ->where('version.source_file.is_quarantined', true)
+                ->where('version.source_download_url', null));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.terms.source-file.download', $draft))
+            ->assertNotFound();
     }
 
     public function test_terms_preview_and_pdf_download_render_uploaded_docx_source(): void

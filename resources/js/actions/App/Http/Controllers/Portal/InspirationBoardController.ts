@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::index
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:28
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:29
  * @route '/portal/inspiration-board'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
 export const image = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -94,7 +94,7 @@ image.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
 image.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -127,7 +127,7 @@ image.url = (args: { boardPost: string | { id: string } } | [boardPost: string |
 
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
 image.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -136,7 +136,7 @@ image.get = (args: { boardPost: string | { id: string } } | [boardPost: string |
 })
 /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
 image.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -146,7 +146,7 @@ image.head = (args: { boardPost: string | { id: string } } | [boardPost: string 
 
     /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
     const imageForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -156,7 +156,7 @@ image.head = (args: { boardPost: string | { id: string } } | [boardPost: string 
 
             /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
         imageForm.get = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -165,7 +165,7 @@ image.head = (args: { boardPost: string | { id: string } } | [boardPost: string 
         })
             /**
 * @see \App\Http\Controllers\Portal\InspirationBoardController::image
- * @see app/Http/Controllers/Portal/InspirationBoardController.php:42
+ * @see app/Http/Controllers/Portal/InspirationBoardController.php:43
  * @route '/portal/inspiration-board/{boardPost}/image'
  */
         imageForm.head = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

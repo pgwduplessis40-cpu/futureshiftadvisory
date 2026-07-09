@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Reports\UploadedReportTemplateRenderer;
 use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use App\Services\Templates\TemplateActivationService;
 use Illuminate\Database\Eloquent\Builder;
@@ -24,7 +25,6 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
-use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -75,7 +75,8 @@ final class TemplateController extends Controller
                 'hasActiveReportTemplate' => Template::query()
                     ->usable()
                     ->where('category', Template::CATEGORY_REPORT)
-                    ->exists(),
+                    ->get()
+                    ->contains(fn (Template $template): bool => $this->templateHasRenderableReportSource($template)),
             ],
         ]);
     }
@@ -90,6 +91,10 @@ final class TemplateController extends Controller
             $uploadStructure = $this->uploadedFileStructure($request, $user);
         } catch (InfectedFileException) {
             return back()->withErrors(['file' => 'Upload rejected because malware was detected.']);
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+
+            return back()->withErrors(['file' => 'Upload could not be stored securely. Please try again or contact support.']);
         }
 
         /** @var Template $template */
@@ -145,6 +150,7 @@ final class TemplateController extends Controller
         $user = $this->viewer($request);
         $uploadedFile = $this->uploadedFile($template);
         abort_if($uploadedFile === null, 404);
+        abort_if(! $this->uploadedFileIsClean($uploadedFile), 404);
 
         $path = (string) ($uploadedFile['stored_path'] ?? '');
         $disk = Storage::disk('secure_local');
@@ -178,7 +184,12 @@ final class TemplateController extends Controller
 
         $user = $this->viewer($request);
         $uploadedFile = $this->uploadedFile($template);
-        abort_if($uploadedFile === null || ! $this->canPreviewUploadedFile($uploadedFile), 404);
+        abort_if(
+            $uploadedFile === null
+                || ! $this->uploadedFileIsClean($uploadedFile)
+                || ! $this->canPreviewUploadedFile($uploadedFile),
+            404,
+        );
 
         $path = (string) ($uploadedFile['stored_path'] ?? '');
         $disk = Storage::disk('secure_local');
@@ -238,6 +249,10 @@ final class TemplateController extends Controller
             $uploadStructure = $this->uploadedFileStructure($request, $user);
         } catch (InfectedFileException) {
             return back()->withErrors(['file' => 'Upload rejected because malware was detected.']);
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+
+            return back()->withErrors(['file' => 'Upload could not be stored securely. Please try again or contact support.']);
         }
 
         $template->forceFill([
@@ -283,6 +298,10 @@ final class TemplateController extends Controller
     private function templateSummary(Template $template): array
     {
         $uploadedFile = $this->uploadedFile($template);
+        $uploadedFileIsClean = $uploadedFile !== null && $this->uploadedFileIsClean($uploadedFile);
+        $uploadedFileCanPreview = $uploadedFileIsClean
+            && $uploadedFile !== null
+            && $this->canPreviewUploadedFile($uploadedFile);
 
         return [
             'id' => $template->id,
@@ -297,15 +316,17 @@ final class TemplateController extends Controller
                 ? null
                 : [
                     ...$uploadedFile,
-                    'can_preview' => $this->canPreviewUploadedFile($uploadedFile),
+                    'scanner_result' => $this->uploadedFileScannerResult($uploadedFile),
+                    'is_quarantined' => ! $uploadedFileIsClean,
+                    'can_preview' => $uploadedFileCanPreview,
                 ],
             'report_type' => data_get($template->structure, 'report_type'),
             'layout' => data_get($template->structure, 'layout', []),
             'usage_label' => $this->usageLabel($template),
-            'download_url' => $uploadedFile === null
+            'download_url' => ! $uploadedFileIsClean
                 ? null
                 : route('advisor.templates.download', $template, absolute: false),
-            'view_url' => $uploadedFile !== null && $this->canPreviewUploadedFile($uploadedFile)
+            'view_url' => $uploadedFileCanPreview
                 ? route('advisor.templates.preview', $template, absolute: false)
                 : null,
             'updated_at' => $template->updated_at?->toIso8601String(),
@@ -446,12 +467,6 @@ final class TemplateController extends Controller
         $extension = strtolower($file->getClientOriginalExtension() ?: $file->extension() ?: 'bin');
         $document = $this->files->write($file, $user, Document::CATEGORY_TEMPLATE_FILE);
 
-        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
-            throw ValidationException::withMessages([
-                'file' => 'Upload is quarantined because malware scanning could not complete. Future Shift Advisory has been alerted; please try again or contact support.',
-            ]);
-        }
-
         return [
             'source_kind' => 'uploaded_file',
             'uploaded_file' => [
@@ -462,6 +477,7 @@ final class TemplateController extends Controller
                 'extension' => $extension,
                 'byte_size' => $document->byte_size,
                 'sha256' => $document->sha256,
+                'scanner_result' => $document->scanner_result,
                 'uploaded_at' => now()->toIso8601String(),
             ],
         ];
@@ -475,6 +491,52 @@ final class TemplateController extends Controller
         $uploadedFile = data_get($template->structure, 'uploaded_file');
 
         return is_array($uploadedFile) ? $uploadedFile : null;
+    }
+
+    /**
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function uploadedFileIsClean(array $uploadedFile): bool
+    {
+        return $this->uploadedFileScannerResult($uploadedFile) === Document::SCANNER_CLEAN;
+    }
+
+    /**
+     * Legacy uploaded templates pre-date scanner metadata in the structure; if
+     * no linked Document can be found, keep their existing download behaviour.
+     *
+     * @param  array<string, mixed>  $uploadedFile
+     */
+    private function uploadedFileScannerResult(array $uploadedFile): string
+    {
+        $scannerResult = $uploadedFile['scanner_result'] ?? null;
+        if (is_string($scannerResult) && $scannerResult !== '') {
+            return $scannerResult;
+        }
+
+        $documentId = $uploadedFile['document_id'] ?? null;
+        if (is_string($documentId) && $documentId !== '') {
+            $document = Document::query()->find($documentId);
+
+            if ($document instanceof Document) {
+                return $document->scanner_result;
+            }
+        }
+
+        return Document::SCANNER_CLEAN;
+    }
+
+    private function templateHasRenderableReportSource(Template $template): bool
+    {
+        if (trim((string) $template->body) !== '') {
+            return true;
+        }
+
+        $uploadedFile = $this->uploadedFile($template);
+
+        return $uploadedFile !== null
+            && $this->uploadedFileIsClean($uploadedFile)
+            && $this->isDocxUpload($uploadedFile);
     }
 
     private function downloadFilename(string $filename): string

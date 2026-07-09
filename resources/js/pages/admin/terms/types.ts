@@ -19,6 +19,8 @@ export type TermsVersion = {
         original_name: string;
         mime_type: string;
         byte_size: number;
+        scanner_result: string;
+        is_quarantined: boolean;
         uploaded_at: string;
     } | null;
     source_download_url: string | null;

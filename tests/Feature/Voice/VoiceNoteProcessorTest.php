@@ -18,6 +18,8 @@ use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
+use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Integration\VirusScanner\ScanResult;
 use App\Services\Voice\VoiceNoteProcessor;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
@@ -99,6 +101,38 @@ final class VoiceNoteProcessorTest extends TestCase
         $this->assertSame(1, VoiceNote::query()->count());
         $this->assertSame(1, CallLog::query()->count());
         $this->assertSame(1, MilestoneAction::query()->count());
+    }
+
+    public function test_advisor_route_keeps_quarantined_voice_upload_without_processing_note(): void
+    {
+        Storage::fake('secure_local');
+        $this->bindSummaryAi();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $client = $this->client('Quarantined Voice Limited', $advisor);
+
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.voice-notes.store', $client), [
+                'audio' => UploadedFile::fake()->createWithContent('voice.txt', 'Route upload transcript.'),
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'voice-note-quarantined');
+
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/other/', $document->stored_path);
+        $this->assertSame(0, VoiceNote::query()->count());
+        $this->assertSame(0, CallLog::query()->count());
+        $this->assertSame(0, MilestoneAction::query()->count());
     }
 
     private function bindSummaryAi(): void

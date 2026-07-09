@@ -200,6 +200,33 @@ final class DdDataRoomTest extends TestCase
         ]);
     }
 
+    public function test_scanner_error_guest_upload_creates_quarantined_data_room_item(): void
+    {
+        $scanner = $this->bindScanner(ScanResult::error('daemon offline', ['engine' => 'dd-test-scanner']));
+        [$advisor, $engagement] = $this->ddEngagement('quarantined-dd-advisor@example.test');
+        $issued = app(DataRoom::class)->issueGuestLink($engagement, $advisor, 'operational');
+
+        $this
+            ->withHeader('Accept', 'application/json')
+            ->post($issued['upload_url'], [
+                'file' => UploadedFile::fake()->createWithContent('ops.pdf', "%PDF-1.4\nOperations fixture"),
+            ])
+            ->assertCreated()
+            ->assertJsonPath('data_room_item.document.scanner_result', Document::SCANNER_ERROR);
+
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame(1, $scanner->calls);
+        $this->assertDatabaseCount('documents', 1);
+        $this->assertDatabaseCount('dd_data_room_items', 1);
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/dd_artifact/', $document->stored_path);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'dd.guest_upload_quarantined',
+            'subject_id' => $issued['link']->id,
+        ]);
+    }
+
     /**
      * @return object{calls:int}
      */

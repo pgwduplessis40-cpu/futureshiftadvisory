@@ -8,6 +8,8 @@ use App\Models\BoardPost;
 use App\Models\Document;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
+use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Integration\VirusScanner\ScanResult;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -98,6 +100,46 @@ final class InspirationBoardManagementTest extends TestCase
             'scanner_result' => Document::SCANNER_CLEAN,
         ]);
         Storage::disk('secure_local')->assertExists($post->image_path);
+    }
+
+    public function test_scanner_error_image_post_is_saved_as_quarantined_draft_and_cannot_publish(): void
+    {
+        $this->app->bind(FileScanner::class, fn (): FileScanner => new class implements FileScanner
+        {
+            public function scan(mixed $stream): ScanResult
+            {
+                return ScanResult::error('daemon offline', ['engine' => 'fake-clamav']);
+            }
+        });
+
+        $admin = $this->superAdmin();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.inspiration-board.store'), [
+                'type' => BoardPost::TYPE_IMAGE,
+                'title' => 'Quarantined image',
+                'image' => UploadedFile::fake()->image('sunrise.jpg', 640, 480),
+            ])
+            ->assertSessionHasNoErrors()
+            ->assertRedirect();
+
+        $post = BoardPost::query()->where('type', BoardPost::TYPE_IMAGE)->firstOrFail();
+        $document = Document::query()->firstOrFail();
+
+        $this->assertSame(BoardPost::STATUS_DRAFT, $post->status);
+        $this->assertSame($document->id, $post->image_document_id);
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/inspiration_image/', $document->stored_path);
+
+        $this->actingAsMfa($admin)
+            ->get(route('portal.inspiration-board.image', $post))
+            ->assertNotFound();
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.inspiration-board.publish', $post))
+            ->assertSessionHasErrors('post');
+
+        $this->assertSame(BoardPost::STATUS_DRAFT, $post->refresh()->status);
     }
 
     public function test_image_type_requires_a_file(): void

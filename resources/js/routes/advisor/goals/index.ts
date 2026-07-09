@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import milestones from './milestones'
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::remeasure
- * @see app/Http/Controllers/Advisor/GoalController.php:66
+ * @see app/Http/Controllers/Advisor/GoalController.php:68
  * @route '/advisor/goals/{goal}/remeasure'
  */
 export const remeasure = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -17,7 +17,7 @@ remeasure.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::remeasure
- * @see app/Http/Controllers/Advisor/GoalController.php:66
+ * @see app/Http/Controllers/Advisor/GoalController.php:68
  * @route '/advisor/goals/{goal}/remeasure'
  */
 remeasure.url = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -50,7 +50,7 @@ remeasure.url = (args: { goal: string | { id: string } } | [goal: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::remeasure
- * @see app/Http/Controllers/Advisor/GoalController.php:66
+ * @see app/Http/Controllers/Advisor/GoalController.php:68
  * @route '/advisor/goals/{goal}/remeasure'
  */
 remeasure.post = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -60,7 +60,7 @@ remeasure.post = (args: { goal: string | { id: string } } | [goal: string | { id
 
     /**
 * @see \App\Http\Controllers\Advisor\GoalController::remeasure
- * @see app/Http/Controllers/Advisor/GoalController.php:66
+ * @see app/Http/Controllers/Advisor/GoalController.php:68
  * @route '/advisor/goals/{goal}/remeasure'
  */
     const remeasureForm = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -70,7 +70,7 @@ remeasure.post = (args: { goal: string | { id: string } } | [goal: string | { id
 
             /**
 * @see \App\Http\Controllers\Advisor\GoalController::remeasure
- * @see app/Http/Controllers/Advisor/GoalController.php:66
+ * @see app/Http/Controllers/Advisor/GoalController.php:68
  * @route '/advisor/goals/{goal}/remeasure'
  */
         remeasureForm.post = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -81,7 +81,7 @@ remeasure.post = (args: { goal: string | { id: string } } | [goal: string | { id
     remeasure.form = remeasureForm
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
- * @see app/Http/Controllers/Advisor/GoalController.php:90
+ * @see app/Http/Controllers/Advisor/GoalController.php:92
  * @route '/advisor/goals/{goal}/achieve'
  */
 export const achieve = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -96,7 +96,7 @@ achieve.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
- * @see app/Http/Controllers/Advisor/GoalController.php:90
+ * @see app/Http/Controllers/Advisor/GoalController.php:92
  * @route '/advisor/goals/{goal}/achieve'
  */
 achieve.url = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -129,7 +129,7 @@ achieve.url = (args: { goal: string | { id: string } } | [goal: string | { id: s
 
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
- * @see app/Http/Controllers/Advisor/GoalController.php:90
+ * @see app/Http/Controllers/Advisor/GoalController.php:92
  * @route '/advisor/goals/{goal}/achieve'
  */
 achieve.patch = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -139,7 +139,7 @@ achieve.patch = (args: { goal: string | { id: string } } | [goal: string | { id:
 
     /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
- * @see app/Http/Controllers/Advisor/GoalController.php:90
+ * @see app/Http/Controllers/Advisor/GoalController.php:92
  * @route '/advisor/goals/{goal}/achieve'
  */
     const achieveForm = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -154,7 +154,7 @@ achieve.patch = (args: { goal: string | { id: string } } | [goal: string | { id:
 
             /**
 * @see \App\Http\Controllers\Advisor\GoalController::achieve
- * @see app/Http/Controllers/Advisor/GoalController.php:90
+ * @see app/Http/Controllers/Advisor/GoalController.php:92
  * @route '/advisor/goals/{goal}/achieve'
  */
         achieveForm.patch = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

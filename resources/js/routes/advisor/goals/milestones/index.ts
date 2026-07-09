@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::store
- * @see app/Http/Controllers/Advisor/GoalController.php:44
+ * @see app/Http/Controllers/Advisor/GoalController.php:46
  * @route '/advisor/goals/{goal}/milestones'
  */
 export const store = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::store
- * @see app/Http/Controllers/Advisor/GoalController.php:44
+ * @see app/Http/Controllers/Advisor/GoalController.php:46
  * @route '/advisor/goals/{goal}/milestones'
  */
 store.url = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { goal: string | { id: string } } | [goal: string | { id: str
 
 /**
 * @see \App\Http\Controllers\Advisor\GoalController::store
- * @see app/Http/Controllers/Advisor/GoalController.php:44
+ * @see app/Http/Controllers/Advisor/GoalController.php:46
  * @route '/advisor/goals/{goal}/milestones'
  */
 store.post = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { goal: string | { id: string } } | [goal: string | { id: st
 
     /**
 * @see \App\Http\Controllers\Advisor\GoalController::store
- * @see app/Http/Controllers/Advisor/GoalController.php:44
+ * @see app/Http/Controllers/Advisor/GoalController.php:46
  * @route '/advisor/goals/{goal}/milestones'
  */
     const storeForm = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ store.post = (args: { goal: string | { id: string } } | [goal: string | { id: st
 
             /**
 * @see \App\Http\Controllers\Advisor\GoalController::store
- * @see app/Http/Controllers/Advisor/GoalController.php:44
+ * @see app/Http/Controllers/Advisor/GoalController.php:46
  * @route '/advisor/goals/{goal}/milestones'
  */
         storeForm.post = (args: { goal: string | { id: string } } | [goal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({

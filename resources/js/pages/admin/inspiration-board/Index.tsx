@@ -29,6 +29,8 @@ type BoardPost = {
     pinned: boolean;
     image_url: string | null;
     image_filename: string | null;
+    image_scanner_result: string | null;
+    image_is_quarantined: boolean;
     published_at: string | null;
     created_by: string | null;
     created_at: string | null;
@@ -275,6 +277,11 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                                 Pinned
                                             </Badge>
                                         )}
+                                        {post.image_is_quarantined && (
+                                            <Badge variant="secondary">
+                                                Quarantined image
+                                            </Badge>
+                                        )}
                                         <span className="ml-auto text-xs text-muted-foreground">
                                             {post.created_by ?? 'admin'}
                                         </span>
@@ -285,13 +292,21 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                             {post.title}
                                         </p>
                                     )}
-                                    {post.type === 'image' && post.image_url ? (
+                                    {post.type === 'image' &&
+                                    post.image_url &&
+                                    !post.image_is_quarantined ? (
                                         <img
                                             src={post.image_url}
                                             alt={post.title ?? 'Inspiration'}
                                             className="max-h-48 rounded-md object-cover"
                                         />
                                     ) : null}
+                                    {post.image_is_quarantined && (
+                                        <p className="text-xs text-amber-800">
+                                            Image is locked until malware
+                                            scanning completes.
+                                        </p>
+                                    )}
                                     {post.body && (
                                         <p className="text-sm whitespace-pre-line text-muted-foreground">
                                             {post.body}
@@ -309,6 +324,9 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                                 size="sm"
                                                 onClick={() =>
                                                     action(post.id, 'publish')
+                                                }
+                                                disabled={
+                                                    post.image_is_quarantined
                                                 }
                                             >
                                                 Publish

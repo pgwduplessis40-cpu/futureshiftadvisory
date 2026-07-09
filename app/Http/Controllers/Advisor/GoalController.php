@@ -11,6 +11,8 @@ use App\Models\Goal;
 use App\Models\Milestone;
 use App\Models\User;
 use App\Services\Goals\GoalTracker;
+use App\Services\Storage\Exceptions\InfectedFileException;
+use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -141,12 +143,25 @@ final class GoalController extends Controller
             'claim' => ['nullable', 'string', 'max:2000'],
         ]);
 
-        $document = $files->write(
-            uploadedFile: $validated['proof'],
-            owner: $user,
-            category: Document::CATEGORY_OTHER,
-            clientId: (string) $milestone->client_id,
-        );
+        try {
+            $document = $files->write(
+                uploadedFile: $validated['proof'],
+                owner: $user,
+                category: Document::CATEGORY_OTHER,
+                clientId: (string) $milestone->client_id,
+            );
+        } catch (InfectedFileException) {
+            return back()->withErrors(['proof' => 'Upload rejected because malware was detected.']);
+        } catch (SecureFileStorageException $exception) {
+            report($exception);
+
+            return back()->withErrors(['proof' => 'Upload could not be stored securely. Please try again or contact support.']);
+        }
+
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            return to_route('advisor.clients.show', $milestone->client)
+                ->with('status', 'milestone-proof-quarantined');
+        }
 
         $proof = $goals->completeWithProof($milestone, $document, [
             'claim' => $validated['claim'] ?? null,

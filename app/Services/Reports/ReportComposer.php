@@ -21,6 +21,7 @@ use App\Models\DdIntegrationPlanItem;
 use App\Models\DdRiskRegisterItem;
 use App\Models\DdValuation;
 use App\Models\DdWorkstream;
+use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\FinancialSnapshot;
 use App\Models\Goal;
@@ -1044,7 +1045,8 @@ final class ReportComposer implements ProvidesMethodology
             ->usable()
             ->where('category', Template::CATEGORY_REPORT)
             ->get()
-            ->filter(fn (Template $template): bool => $this->templateAppliesToReportType($template, $type))
+            ->filter(fn (Template $template): bool => $this->templateAppliesToReportType($template, $type)
+                && $this->templateHasRenderableSource($template))
             ->sort(fn (Template $left, Template $right): int => $this->templateSelectionRank($right, $type) <=> $this->templateSelectionRank($left, $type))
             ->first();
     }
@@ -1074,6 +1076,9 @@ final class ReportComposer implements ProvidesMethodology
                 : null,
             'uploaded_file_sha256' => is_array($uploadedFile)
                 ? ($uploadedFile['sha256'] ?? null)
+                : null,
+            'uploaded_file_scanner_result' => is_array($uploadedFile)
+                ? $this->uploadedTemplateFileScannerResult($template)
                 : null,
             'uploaded_file' => is_array($uploadedFile)
                 ? ($uploadedFile['original_name'] ?? null)
@@ -1130,10 +1135,21 @@ final class ReportComposer implements ProvidesMethodology
     {
         if (data_get($template->structure, 'source_kind') === 'uploaded_file'
             || is_array(data_get($template->structure, 'uploaded_file'))) {
-            return 2;
+            return $this->uploadedTemplates->supports($template)
+                ? 2
+                : (trim((string) $template->body) !== '' ? 1 : 0);
         }
 
         return trim((string) $template->body) !== '' ? 1 : 0;
+    }
+
+    private function templateHasRenderableSource(Template $template): bool
+    {
+        if ($this->uploadedTemplates->supports($template)) {
+            return true;
+        }
+
+        return trim((string) $template->body) !== '';
     }
 
     private function templateSpecificityRank(Template $template, ReportType $type): int
@@ -1153,6 +1169,25 @@ final class ReportComposer implements ProvidesMethodology
 
         return (! is_string($reportType) || trim($reportType) === '')
             && ! Str::contains(Str::lower($template->title), ['client', 'advisor', 'stakeholder', 'trajectory']);
+    }
+
+    private function uploadedTemplateFileScannerResult(Template $template): string
+    {
+        $scannerResult = data_get($template->structure, 'uploaded_file.scanner_result');
+        if (is_string($scannerResult) && $scannerResult !== '') {
+            return $scannerResult;
+        }
+
+        $documentId = data_get($template->structure, 'uploaded_file.document_id');
+        if (is_string($documentId) && $documentId !== '') {
+            $document = Document::query()->find($documentId);
+
+            if ($document instanceof Document) {
+                return $document->scanner_result;
+            }
+        }
+
+        return Document::SCANNER_CLEAN;
     }
 
     /**

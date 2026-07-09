@@ -39,6 +39,10 @@ final class VoiceNoteProcessor
             throw new InvalidArgumentException('Voice-note document must belong to the client.');
         }
 
+        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
+            throw new InvalidArgumentException('Voice-note document must be clean before processing.');
+        }
+
         $this->assertLiveWhisperConsent($client);
 
         return DB::transaction(function () use ($client, $document, $actor, $milestone): VoiceNote {

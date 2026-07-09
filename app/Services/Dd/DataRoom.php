@@ -150,10 +150,6 @@ final class DataRoom
                 'workstream' => $link->workstream,
                 'folder' => $link->folder,
             ]);
-
-            throw ValidationException::withMessages([
-                'file' => 'Upload is quarantined because the malware scanner could not complete. Future Shift Advisory has been alerted.',
-            ]);
         }
 
         return DB::transaction(function () use ($link, $document, $guestName, $guestEmail, $metadata): DdDataRoomItem {

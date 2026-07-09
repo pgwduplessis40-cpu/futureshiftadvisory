@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Models\DdDataRoomItem;
 use App\Models\DdEngagement;
+use App\Models\Document;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdAdviceReportGenerator;
 use App\Services\Storage\Exceptions\InfectedFileException;
@@ -55,7 +56,10 @@ final class DdGuestUploadController extends Controller
         }
 
         $item->loadMissing('engagement.client');
-        if ($item->engagement instanceof DdEngagement) {
+        if (
+            $item->engagement instanceof DdEngagement
+            && $item->document?->scanner_result === Document::SCANNER_CLEAN
+        ) {
             $reports->generateIfReady($item->engagement);
         }
 
