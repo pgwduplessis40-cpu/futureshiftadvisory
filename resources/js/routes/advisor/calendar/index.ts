@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import meetings from './meetings'
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -26,7 +26,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -35,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -45,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -55,7 +55,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -64,7 +64,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Advisor\CalendarController::index
- * @see app/Http/Controllers/Advisor/CalendarController.php:24
+ * @see app/Http/Controllers/Advisor/CalendarController.php:25
  * @route '/advisor/calendar'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -76,7 +76,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 const calendar = {
     index: Object.assign(index, index),

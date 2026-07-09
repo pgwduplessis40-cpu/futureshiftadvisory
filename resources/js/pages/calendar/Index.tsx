@@ -1,15 +1,21 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     CalendarDays,
+    CalendarOff,
     ChevronLeft,
     ChevronRight,
     Clock3,
     ExternalLink,
+    Save,
+    Trash2,
 } from 'lucide-react';
 import { useMemo, useState } from 'react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { cn } from '@/lib/utils';
 
 type ActivityEvent = {
@@ -29,6 +35,18 @@ type Props = {
     subtitle: string;
     events: ActivityEvent[];
     emptyState: string;
+    leavePeriods: LeavePeriod[];
+    leaveStoreUrl: string | null;
+    canManageLeavePeriods: boolean;
+};
+
+type LeavePeriod = {
+    id: string;
+    title: string;
+    starts_on: string;
+    ends_on: string;
+    notes: string | null;
+    destroy_url: string;
 };
 
 type ViewMode = 'agenda' | 'work_week' | 'week' | 'month';
@@ -51,6 +69,9 @@ export default function ActivityCalendarIndex({
     subtitle,
     events,
     emptyState,
+    leavePeriods,
+    leaveStoreUrl,
+    canManageLeavePeriods,
 }: Props) {
     const [view, setView] = useState<ViewMode>('agenda');
     const [referenceDate, setReferenceDate] = useState<Date>(() => new Date());
@@ -115,6 +136,13 @@ export default function ActivityCalendarIndex({
                         )}
                     </div>
                 </header>
+
+                {canManageLeavePeriods && leaveStoreUrl && (
+                    <ClientLeavePanel
+                        leavePeriods={leavePeriods}
+                        storeUrl={leaveStoreUrl}
+                    />
+                )}
 
                 <section className="space-y-4">
                     <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
@@ -258,6 +286,158 @@ function AgendaEvents({
                 </div>
             ))}
         </div>
+    );
+}
+
+function ClientLeavePanel({
+    leavePeriods,
+    storeUrl,
+}: {
+    leavePeriods: LeavePeriod[];
+    storeUrl: string;
+}) {
+    const today = localDateKey(new Date());
+    const form = useForm({
+        title: 'Leave',
+        starts_on: today,
+        ends_on: today,
+        notes: '',
+    });
+
+    const submit = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        form.post(storeUrl, {
+            preserveScroll: true,
+            onSuccess: () =>
+                form.setData({
+                    title: 'Leave',
+                    starts_on: today,
+                    ends_on: today,
+                    notes: '',
+                }),
+        });
+    };
+
+    const remove = (leave: LeavePeriod) => {
+        if (!window.confirm('Remove this leave period?')) {
+            return;
+        }
+
+        router.delete(leave.destroy_url, { preserveScroll: true });
+    };
+
+    return (
+        <section className="grid gap-4 rounded-md border bg-background p-4 xl:grid-cols-[minmax(0,1fr)_minmax(320px,420px)]">
+            <div className="space-y-3">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <div className="flex items-center gap-2">
+                        <CalendarOff className="size-4" aria-hidden="true" />
+                        <h2 className="text-sm font-medium">Leave periods</h2>
+                    </div>
+                    <Badge variant="outline">{leavePeriods.length}</Badge>
+                </div>
+
+                {leavePeriods.length === 0 ? (
+                    <div className="rounded-md border border-dashed p-3 text-sm text-muted-foreground">
+                        No leave recorded.
+                    </div>
+                ) : (
+                    <div className="grid gap-2">
+                        {leavePeriods.map((leave) => (
+                            <article
+                                key={leave.id}
+                                className="flex flex-wrap items-center justify-between gap-3 rounded-md border p-3"
+                            >
+                                <div className="min-w-0">
+                                    <div className="text-sm font-medium">
+                                        {leave.title}
+                                    </div>
+                                    <div className="text-sm text-muted-foreground">
+                                        {formatDateRange(
+                                            leave.starts_on,
+                                            leave.ends_on,
+                                        )}
+                                    </div>
+                                    {leave.notes && (
+                                        <div className="mt-1 text-xs text-muted-foreground">
+                                            {leave.notes}
+                                        </div>
+                                    )}
+                                </div>
+                                <Button
+                                    type="button"
+                                    size="icon"
+                                    variant="outline"
+                                    aria-label="Remove leave period"
+                                    onClick={() => remove(leave)}
+                                >
+                                    <Trash2
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                </Button>
+                            </article>
+                        ))}
+                    </div>
+                )}
+            </div>
+
+            <form onSubmit={submit} className="space-y-3">
+                <div className="grid gap-2">
+                    <Label htmlFor="leave_title">Title</Label>
+                    <Input
+                        id="leave_title"
+                        value={form.data.title}
+                        onChange={(event) =>
+                            form.setData('title', event.target.value)
+                        }
+                    />
+                    <InputError message={form.errors.title} />
+                </div>
+                <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="grid gap-2">
+                        <Label htmlFor="leave_starts_on">Start</Label>
+                        <Input
+                            id="leave_starts_on"
+                            type="date"
+                            value={form.data.starts_on}
+                            onChange={(event) =>
+                                form.setData('starts_on', event.target.value)
+                            }
+                        />
+                        <InputError message={form.errors.starts_on} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="leave_ends_on">End</Label>
+                        <Input
+                            id="leave_ends_on"
+                            type="date"
+                            value={form.data.ends_on}
+                            onChange={(event) =>
+                                form.setData('ends_on', event.target.value)
+                            }
+                        />
+                        <InputError message={form.errors.ends_on} />
+                    </div>
+                </div>
+                <div className="grid gap-2">
+                    <Label htmlFor="leave_notes">Notes</Label>
+                    <Input
+                        id="leave_notes"
+                        value={form.data.notes}
+                        onChange={(event) =>
+                            form.setData('notes', event.target.value)
+                        }
+                    />
+                    <InputError message={form.errors.notes} />
+                </div>
+                <Button type="submit" disabled={form.processing}>
+                    <Save className="size-4" aria-hidden="true" />
+                    Save leave
+                </Button>
+            </form>
+        </section>
     );
 }
 
@@ -550,7 +730,9 @@ function MonthCalendar({
 
 function ActivityRow({ event }: { event: ActivityEvent }) {
     return (
-        <article className="rounded-md border bg-background p-4">
+        <article
+            className={cn('rounded-md border bg-background p-4', eventClasses(event))}
+        >
             <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
                 <div className="min-w-0 space-y-2">
                     <div className="flex flex-wrap items-center gap-2">
@@ -607,7 +789,12 @@ function ActivityBlock({
     );
 
     return (
-        <article className="rounded-md border bg-background p-2 text-xs shadow-xs">
+        <article
+            className={cn(
+                'rounded-md border bg-background p-2 text-xs shadow-xs',
+                eventClasses(event),
+            )}
+        >
             {event.href ? (
                 <ActivityLink href={event.href} compact>
                     {body}
@@ -856,6 +1043,23 @@ function formatDateTime(event: ActivityEvent): string {
     }).format(date);
 }
 
+function formatDateRange(start: string, end: string): string {
+    if (start === end) {
+        return new Intl.DateTimeFormat(undefined, {
+            dateStyle: 'medium',
+        }).format(new Date(`${start}T00:00:00`));
+    }
+
+    return `${new Intl.DateTimeFormat(undefined, {
+        dateStyle: 'medium',
+    }).format(new Date(`${start}T00:00:00`))} - ${new Intl.DateTimeFormat(
+        undefined,
+        {
+            dateStyle: 'medium',
+        },
+    ).format(new Date(`${end}T00:00:00`))}`;
+}
+
 function formatTime(value: string): string {
     return new Intl.DateTimeFormat(undefined, {
         hour: 'numeric',
@@ -865,6 +1069,18 @@ function formatTime(value: string): string {
 
 function isExternalHref(href: string): boolean {
     return /^https?:\/\//i.test(href);
+}
+
+function eventClasses(event: ActivityEvent): string {
+    if (event.kind === 'leave') {
+        return 'border-sky-200 bg-sky-50/80 text-sky-950 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100';
+    }
+
+    if (event.kind === 'public_holiday') {
+        return 'border-amber-300/70 bg-amber-50/80 text-amber-950 dark:border-amber-900/60 dark:bg-amber-950/20 dark:text-amber-100';
+    }
+
+    return '';
 }
 
 ActivityCalendarIndex.layout = {

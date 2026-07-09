@@ -6,6 +6,7 @@ use App\Http\Controllers\CalendarController as ActivityCalendarController;
 use App\Http\Controllers\DocumentController;
 use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardController;
 use App\Http\Controllers\Portal\DdBusinessPlanController;
+use App\Http\Controllers\Portal\ClientLeavePeriodController;
 use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\EntrepreneurGamificationController;
@@ -44,6 +45,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('service-activations/{serviceActivation}/accept', [ServiceActivationController::class, 'accept'])->name('service-activations.accept');
         Route::get('npo-board', NpoBoardDashboardController::class)->name('npo-board.dashboard');
         Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');
+        Route::post('calendar/leave-periods', [ClientLeavePeriodController::class, 'store'])->name('calendar.leave-periods.store');
+        Route::delete('calendar/leave-periods/{leavePeriod}', [ClientLeavePeriodController::class, 'destroy'])->name('calendar.leave-periods.destroy');
         Route::get('acquisition-plan', [DdBusinessPlanController::class, 'show'])->name('dd-plan.show');
         Route::get('acquisition-plan/preview', [DdBusinessPlanController::class, 'preview'])->name('dd-plan.preview');
         Route::post('acquisition-plan', [DdBusinessPlanController::class, 'store'])->name('dd-plan.store');

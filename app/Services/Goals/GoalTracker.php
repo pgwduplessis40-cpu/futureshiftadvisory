@@ -18,6 +18,7 @@ use App\Models\ProofOfCompletion;
 use App\Models\User;
 use App\Services\Ai\Verification\DocumentVerifier;
 use App\Services\Audit\AuditWriter;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Documents\DocumentVerificationGate;
 use App\Services\Pv\BusinessValuation as BusinessValuationService;
@@ -35,6 +36,7 @@ final class GoalTracker
         private readonly DocumentVerificationGate $verificationGate,
         private readonly AuditWriter $audit,
         private readonly PublicHolidayCalendar $publicHolidays,
+        private readonly ClientAvailabilityCalendar $availability,
     ) {}
 
     /**
@@ -806,6 +808,8 @@ final class GoalTracker
                 $field => $this->publicHolidays->validationMessage($holiday, $subject),
             ]);
         }
+
+        $this->availability->assertAvailable($client, $dueDate, $subject, $field);
     }
 
     private function proofStatus(DocumentVerification $verification): string

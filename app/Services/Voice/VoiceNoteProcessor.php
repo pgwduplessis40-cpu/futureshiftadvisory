@@ -16,7 +16,7 @@ use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Audit\AuditWriter;
-use App\Services\Calendar\PublicHolidayCalendar;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Voice\Contracts\WhisperClient;
 use Illuminate\Support\Arr;
@@ -30,7 +30,7 @@ final class VoiceNoteProcessor
         private readonly AiClient $ai,
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $live,
-        private readonly PublicHolidayCalendar $publicHolidays,
+        private readonly ClientAvailabilityCalendar $availability,
     ) {}
 
     public function processDocument(Client $client, Document $document, ?User $actor = null, ?Milestone $milestone = null): VoiceNote
@@ -267,9 +267,7 @@ final class VoiceNoteProcessor
             return $dueDate;
         }
 
-        return $this->publicHolidays
-            ->nextAvailableDate($dueDate, $this->publicHolidays->regionsForClient($client))
-            ->toDateString();
+        return $this->availability->nextAvailableDate($client, $dueDate)->toDateString();
     }
 
     /**

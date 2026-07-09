@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     AlertTriangle,
     ArrowLeft,
@@ -11,30 +11,54 @@ import {
     Flame,
     Mail,
     MessageSquare,
+    Pencil,
     RefreshCw,
+    Save,
     TrendingUp,
     Trophy,
     UserRoundCheck,
     XCircle,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
+import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import { cn } from '@/lib/utils';
 import type {
     CriterionDelta,
     EntrepreneurDetail,
     EntrepreneurDocument,
+    ServiceOption,
 } from './types';
 
 type Props = {
     entrepreneur: EntrepreneurDetail;
+    serviceOptions: ServiceOption[];
 };
 
-export default function EntrepreneursShow({ entrepreneur }: Props) {
+type InviteDetailsForm = {
+    name: string;
+    email: string;
+    intended_package_scope: string;
+    concept_summary: string;
+};
+
+export default function EntrepreneursShow({
+    entrepreneur,
+    serviceOptions,
+}: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const latestAssessmentUsesCurrentRubric =
         latestAssessment?.rating_framework.is_current ?? true;
@@ -50,6 +74,14 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     const [changeRequestNote, setChangeRequestNote] = useState('');
     const [ideaRefreshPending, setIdeaRefreshPending] = useState(false);
     const [copiedInviteEmail, setCopiedInviteEmail] = useState(false);
+    const [editingInvite, setEditingInvite] = useState(false);
+    const inviteForm = useForm<InviteDetailsForm>({
+        name: entrepreneur.name,
+        email: entrepreneur.email,
+        intended_package_scope: entrepreneur.intended_package_scope,
+        concept_summary: entrepreneur.concept_summary ?? '',
+    });
+    const inviteErrors = inviteForm.errors as Record<string, string | undefined>;
     const ideaValidation = entrepreneur.idea_validation;
     const ideaRefreshInFlight =
         (ideaValidation?.refresh_status === 'queued' ||
@@ -129,6 +161,36 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
     };
     const copyInviteEmail = () =>
         copyText(entrepreneur.email, setCopiedInviteEmail);
+
+    const startInviteEdit = () => {
+        inviteForm.setData({
+            name: entrepreneur.name,
+            email: entrepreneur.email,
+            intended_package_scope: entrepreneur.intended_package_scope,
+            concept_summary: entrepreneur.concept_summary ?? '',
+        });
+        inviteForm.clearErrors();
+        setEditingInvite(true);
+    };
+
+    const cancelInviteEdit = () => {
+        inviteForm.clearErrors();
+        setEditingInvite(false);
+    };
+
+    const saveInviteDetails = (event: FormEvent<HTMLFormElement>) => {
+        event.preventDefault();
+
+        if (!entrepreneur.invite_update_url) {
+            return;
+        }
+
+        inviteForm.patch(entrepreneur.invite_update_url, {
+            preserveScroll: true,
+            onSuccess: () => setEditingInvite(false),
+        });
+    };
+
     const resendInvite = () => {
         if (!entrepreneur.invite_resend_url) {
             return;
@@ -1143,69 +1205,252 @@ export default function EntrepreneursShow({ entrepreneur }: Props) {
                                 ]}
                             />
                         </div>
-                        <dl className="grid gap-3 text-sm">
-                            <Detail label="Email" value={entrepreneur.email} />
-                            <Detail
-                                label="Accepted"
-                                value={formatDate(
-                                    entrepreneur.invite_accepted_at,
-                                )}
-                            />
-                            <Detail
-                                label="Expires"
-                                value={formatDate(
-                                    entrepreneur.invite_expires_at,
-                                )}
-                            />
-                            <Detail
-                                label="Created"
-                                value={formatDate(entrepreneur.created_at)}
-                            />
-                            <Detail
-                                label="Delivery"
-                                value={entrepreneur.invite_delivery_label}
-                            />
-                        </dl>
-                        <div className="flex flex-wrap gap-2">
-                            <Button
-                                type="button"
-                                size="sm"
-                                variant="outline"
-                                onClick={copyInviteEmail}
+                        {editingInvite ? (
+                            <form
+                                onSubmit={saveInviteDetails}
+                                className="space-y-4"
                             >
-                                <Copy className="size-4" aria-hidden="true" />
-                                {copiedInviteEmail
-                                    ? 'Copied email'
-                                    : 'Copy invite email'}
-                            </Button>
-                            {entrepreneur.invite_resend_url ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    onClick={resendInvite}
-                                >
-                                    <RefreshCw
-                                        className="size-4"
-                                        aria-hidden="true"
+                                <div className="grid gap-4 md:grid-cols-2">
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="invite-name">
+                                            Name
+                                        </Label>
+                                        <Input
+                                            id="invite-name"
+                                            value={inviteForm.data.name}
+                                            onChange={(event) =>
+                                                inviteForm.setData(
+                                                    'name',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            required
+                                        />
+                                        <InputError
+                                            message={inviteForm.errors.name}
+                                        />
+                                    </div>
+
+                                    <div className="grid gap-2">
+                                        <Label htmlFor="invite-email">
+                                            Email
+                                        </Label>
+                                        <Input
+                                            id="invite-email"
+                                            type="email"
+                                            value={inviteForm.data.email}
+                                            onChange={(event) =>
+                                                inviteForm.setData(
+                                                    'email',
+                                                    event.target.value,
+                                                )
+                                            }
+                                            required
+                                        />
+                                        <InputError
+                                            message={inviteForm.errors.email}
+                                        />
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="invite-package-scope">
+                                        Invite service
+                                    </Label>
+                                    <Select
+                                        value={
+                                            inviteForm.data
+                                                .intended_package_scope
+                                        }
+                                        onValueChange={(value) =>
+                                            inviteForm.setData(
+                                                'intended_package_scope',
+                                                value,
+                                            )
+                                        }
+                                    >
+                                        <SelectTrigger
+                                            id="invite-package-scope"
+                                            className="w-full"
+                                        >
+                                            <SelectValue placeholder="Select client access" />
+                                        </SelectTrigger>
+                                        <SelectContent>
+                                            {serviceOptions.map((option) => (
+                                                <SelectItem
+                                                    key={option.value}
+                                                    value={option.value}
+                                                >
+                                                    {option.label}
+                                                </SelectItem>
+                                            ))}
+                                        </SelectContent>
+                                    </Select>
+                                    <InputError
+                                        message={
+                                            inviteForm.errors
+                                                .intended_package_scope
+                                        }
                                     />
-                                    Resend invite
-                                </Button>
-                            ) : null}
-                            {entrepreneur.invite_cancel_url ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="destructive"
-                                    onClick={cancelInvite}
-                                >
-                                    <XCircle
-                                        className="size-4"
-                                        aria-hidden="true"
+                                </div>
+
+                                <div className="grid gap-2">
+                                    <Label htmlFor="invite-concept-summary">
+                                        Concept summary
+                                    </Label>
+                                    <textarea
+                                        id="invite-concept-summary"
+                                        value={
+                                            inviteForm.data.concept_summary
+                                        }
+                                        onChange={(event) =>
+                                            inviteForm.setData(
+                                                'concept_summary',
+                                                event.target.value,
+                                            )
+                                        }
+                                        rows={4}
+                                        className="min-h-28 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50"
                                     />
-                                    Cancel invite
-                                </Button>
-                            ) : null}
-                        </div>
+                                    <InputError
+                                        message={
+                                            inviteForm.errors.concept_summary
+                                        }
+                                    />
+                                </div>
+
+                                {entrepreneur.invite_delivery_label ===
+                                'Email sent' ? (
+                                    <p className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                                        If the email or invite service changes,
+                                        the current invite link will be stopped.
+                                        Use Resend invite after saving to send a
+                                        fresh link to the corrected address.
+                                    </p>
+                                ) : null}
+
+                                <InputError message={inviteErrors.invite} />
+
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="submit"
+                                        size="sm"
+                                        disabled={inviteForm.processing}
+                                    >
+                                        <Save
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Save details
+                                    </Button>
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={cancelInviteEdit}
+                                        disabled={inviteForm.processing}
+                                    >
+                                        Cancel edit
+                                    </Button>
+                                </div>
+                            </form>
+                        ) : (
+                            <>
+                                <dl className="grid gap-3 text-sm">
+                                    <Detail
+                                        label="Email"
+                                        value={entrepreneur.email}
+                                    />
+                                    <Detail
+                                        label="Invite service"
+                                        value={
+                                            entrepreneur.intended_package_scope_label
+                                        }
+                                    />
+                                    <Detail
+                                        label="Accepted"
+                                        value={formatDate(
+                                            entrepreneur.invite_accepted_at,
+                                        )}
+                                    />
+                                    <Detail
+                                        label="Expires"
+                                        value={formatDate(
+                                            entrepreneur.invite_expires_at,
+                                        )}
+                                    />
+                                    <Detail
+                                        label="Created"
+                                        value={formatDate(
+                                            entrepreneur.created_at,
+                                        )}
+                                    />
+                                    <Detail
+                                        label="Delivery"
+                                        value={
+                                            entrepreneur.invite_delivery_label
+                                        }
+                                    />
+                                </dl>
+                                <div className="flex flex-wrap gap-2">
+                                    {entrepreneur.invite_update_url ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="outline"
+                                            onClick={startInviteEdit}
+                                        >
+                                            <Pencil
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Edit invite
+                                        </Button>
+                                    ) : null}
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={copyInviteEmail}
+                                    >
+                                        <Copy
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        {copiedInviteEmail
+                                            ? 'Copied email'
+                                            : 'Copy invite email'}
+                                    </Button>
+                                    {entrepreneur.invite_resend_url ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            onClick={resendInvite}
+                                        >
+                                            <RefreshCw
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Resend invite
+                                        </Button>
+                                    ) : null}
+                                    {entrepreneur.invite_cancel_url ? (
+                                        <Button
+                                            type="button"
+                                            size="sm"
+                                            variant="destructive"
+                                            onClick={cancelInvite}
+                                        >
+                                            <XCircle
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                            Cancel invite
+                                        </Button>
+                                    ) : null}
+                                </div>
+                            </>
+                        )}
                     </section>
 
                     <section

@@ -1,4 +1,4 @@
-const CACHE_NAME = 'fsa-portal-shell-v2';
+const CACHE_NAME = 'fsa-portal-shell-v3';
 const SHELL_URLS = [
     '/offline.html',
     '/manifest.webmanifest',
@@ -19,15 +19,18 @@ self.addEventListener('install', (event) => {
 
 self.addEventListener('activate', (event) => {
     event.waitUntil(
-        caches
-            .keys()
-            .then((keys) =>
-                Promise.all(
-                    keys
-                        .filter((key) => key !== CACHE_NAME)
-                        .map((key) => caches.delete(key)),
+        Promise.all([
+            caches
+                .keys()
+                .then((keys) =>
+                    Promise.all(
+                        keys
+                            .filter((key) => key !== CACHE_NAME)
+                            .map((key) => caches.delete(key)),
+                    ),
                 ),
-            ),
+            self.registration.navigationPreload?.enable?.(),
+        ]),
     );
     self.clients.claim();
 });
@@ -45,7 +48,14 @@ self.addEventListener('fetch', (event) => {
         (url.pathname.startsWith('/portal') || url.pathname === '/dashboard')
     ) {
         event.respondWith(
-            fetch(request).catch(() => caches.match('/offline.html')),
+            (async () => {
+                const preloaded = await event.preloadResponse;
+
+                return (
+                    preloaded ||
+                    fetch(request).catch(() => caches.match('/offline.html'))
+                );
+            })(),
         );
 
         return;

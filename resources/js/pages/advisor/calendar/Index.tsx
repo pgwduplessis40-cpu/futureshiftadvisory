@@ -79,6 +79,22 @@ type CalendarPublicHoliday = {
     source_url: string | null;
 };
 
+type CalendarLeavePeriod = {
+    id: string;
+    title: string;
+    starts_at: string;
+    kind: 'leave';
+    kind_label: string;
+    status: 'Unavailable';
+    description: string | null;
+    all_day: true;
+    client: {
+        id: string | null;
+        name: string | null;
+        url: string | null;
+    };
+};
+
 type MeetingForm = {
     client_id: string;
     title: string;
@@ -92,6 +108,7 @@ type Props = {
     clients: ClientOption[];
     meetings: CalendarMeeting[];
     publicHolidays: CalendarPublicHoliday[];
+    clientLeavePeriods: CalendarLeavePeriod[];
     providers: CalendarProvider[];
     storeUrl: string;
 };
@@ -115,12 +132,14 @@ type CalendarGroup = {
     label: string;
     meetings: CalendarMeeting[];
     holidays: CalendarPublicHoliday[];
+    leavePeriods: CalendarLeavePeriod[];
 };
 
 export default function AdvisorCalendarIndex({
     clients,
     meetings,
     publicHolidays,
+    clientLeavePeriods,
     providers,
     storeUrl,
 }: Props) {
@@ -150,9 +169,21 @@ export default function AdvisorCalendarIndex({
             ),
         [publicHolidays, referenceDate, view],
     );
+    const visibleLeavePeriods = useMemo(
+        () =>
+            clientLeavePeriods.filter((leave) =>
+                leavePeriodInView(leave, view, referenceDate),
+            ),
+        [clientLeavePeriods, referenceDate, view],
+    );
     const groupedCalendarItems = useMemo(
-        () => groupCalendarItems(visibleMeetings, visibleHolidays),
-        [visibleHolidays, visibleMeetings],
+        () =>
+            groupCalendarItems(
+                visibleMeetings,
+                visibleHolidays,
+                visibleLeavePeriods,
+            ),
+        [visibleHolidays, visibleLeavePeriods, visibleMeetings],
     );
     const meetingsByDate = useMemo(
         () => indexMeetingsByDate(visibleMeetings),
@@ -161,6 +192,10 @@ export default function AdvisorCalendarIndex({
     const holidaysByDate = useMemo(
         () => indexHolidaysByDate(visibleHolidays),
         [visibleHolidays],
+    );
+    const leavePeriodsByDate = useMemo(
+        () => indexLeavePeriodsByDate(visibleLeavePeriods),
+        [visibleLeavePeriods],
     );
     const counts = useMemo(
         () => ({
@@ -172,11 +207,15 @@ export default function AdvisorCalendarIndex({
             ).length,
             briefs: meetings.filter((meeting) => meeting.brief !== null).length,
             holidays: publicHolidays.length,
+            leave: clientLeavePeriods.length,
         }),
-        [meetings, publicHolidays],
+        [clientLeavePeriods, meetings, publicHolidays],
     );
     const showDateNavigation = view !== 'agenda';
-    const visibleCount = visibleMeetings.length + visibleHolidays.length;
+    const visibleCount =
+        visibleMeetings.length +
+        visibleHolidays.length +
+        visibleLeavePeriods.length;
 
     const moveReferenceDate = (direction: -1 | 1) => {
         setReferenceDate((current) =>
@@ -259,6 +298,11 @@ export default function AdvisorCalendarIndex({
                         <Badge variant="outline">
                             {counts.holidays} holidays
                         </Badge>
+                        {counts.leave > 0 && (
+                            <Badge variant="outline">
+                                {counts.leave} leave days
+                            </Badge>
+                        )}
                         {counts.cancelled > 0 && (
                             <Badge variant="outline">
                                 {counts.cancelled} cancelled
@@ -369,6 +413,7 @@ export default function AdvisorCalendarIndex({
                                 referenceDate={referenceDate}
                                 meetingsByDate={meetingsByDate}
                                 holidaysByDate={holidaysByDate}
+                                leavePeriodsByDate={leavePeriodsByDate}
                                 workWeek
                                 onEdit={editMeeting}
                                 onCancel={cancelMeeting}
@@ -378,6 +423,7 @@ export default function AdvisorCalendarIndex({
                                 referenceDate={referenceDate}
                                 meetingsByDate={meetingsByDate}
                                 holidaysByDate={holidaysByDate}
+                                leavePeriodsByDate={leavePeriodsByDate}
                                 onEdit={editMeeting}
                                 onCancel={cancelMeeting}
                             />
@@ -386,6 +432,7 @@ export default function AdvisorCalendarIndex({
                                 referenceDate={referenceDate}
                                 meetingsByDate={meetingsByDate}
                                 holidaysByDate={holidaysByDate}
+                                leavePeriodsByDate={leavePeriodsByDate}
                                 onEdit={editMeeting}
                             />
                         )}
@@ -621,7 +668,7 @@ function AgendaMeetings({
     if (groupedCalendarItems.length === 0) {
         return (
             <div className="rounded-md border p-6 text-sm text-muted-foreground">
-                No meetings or public holidays in this view.
+                No meetings, leave periods, or public holidays in this view.
             </div>
         );
     }
@@ -637,6 +684,9 @@ function AgendaMeetings({
                                 key={holiday.id}
                                 holiday={holiday}
                             />
+                        ))}
+                        {group.leavePeriods.map((leave) => (
+                            <LeavePeriodRow key={leave.id} leave={leave} />
                         ))}
                         {group.meetings.map((meeting) => (
                             <MeetingRow
@@ -657,6 +707,7 @@ function WeekCalendar({
     referenceDate,
     meetingsByDate,
     holidaysByDate,
+    leavePeriodsByDate,
     workWeek = false,
     onEdit,
     onCancel,
@@ -664,6 +715,7 @@ function WeekCalendar({
     referenceDate: Date;
     meetingsByDate: Map<string, CalendarMeeting[]>;
     holidaysByDate: Map<string, CalendarPublicHoliday[]>;
+    leavePeriodsByDate: Map<string, CalendarLeavePeriod[]>;
     workWeek?: boolean;
 } & MeetingActions) {
     const days = workWeek
@@ -687,7 +739,9 @@ function WeekCalendar({
                     const key = localDateKey(day);
                     const items = meetingsByDate.get(key) ?? [];
                     const holidays = holidaysByDate.get(key) ?? [];
-                    const itemCount = items.length + holidays.length;
+                    const leavePeriods = leavePeriodsByDate.get(key) ?? [];
+                    const itemCount =
+                        items.length + holidays.length + leavePeriods.length;
 
                     return (
                         <section
@@ -720,7 +774,7 @@ function WeekCalendar({
                             <div className="mt-3 space-y-2">
                                 {itemCount === 0 ? (
                                     <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                                        No meetings or holidays
+                                        No meetings, leave, or holidays
                                     </div>
                                 ) : (
                                     <>
@@ -728,6 +782,12 @@ function WeekCalendar({
                                             <PublicHolidayBlock
                                                 key={holiday.id}
                                                 holiday={holiday}
+                                            />
+                                        ))}
+                                        {leavePeriods.map((leave) => (
+                                            <LeavePeriodBlock
+                                                key={leave.id}
+                                                leave={leave}
                                             />
                                         ))}
                                         {items.map((meeting) => (
@@ -759,7 +819,11 @@ function WeekCalendar({
                         const key = localDateKey(day);
                         const items = meetingsByDate.get(key) ?? [];
                         const holidays = holidaysByDate.get(key) ?? [];
-                        const itemCount = items.length + holidays.length;
+                        const leavePeriods = leavePeriodsByDate.get(key) ?? [];
+                        const itemCount =
+                            items.length +
+                            holidays.length +
+                            leavePeriods.length;
 
                         return (
                             <div
@@ -788,7 +852,7 @@ function WeekCalendar({
                                 <div className="mt-4 space-y-2">
                                     {itemCount === 0 ? (
                                         <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-                                            No meetings or holidays
+                                            No meetings, leave, or holidays
                                         </div>
                                     ) : (
                                         <>
@@ -796,6 +860,12 @@ function WeekCalendar({
                                                 <PublicHolidayBlock
                                                     key={holiday.id}
                                                     holiday={holiday}
+                                                />
+                                            ))}
+                                            {leavePeriods.map((leave) => (
+                                                <LeavePeriodBlock
+                                                    key={leave.id}
+                                                    leave={leave}
                                                 />
                                             ))}
                                             {items.map((meeting) => (
@@ -822,11 +892,13 @@ function MonthCalendar({
     referenceDate,
     meetingsByDate,
     holidaysByDate,
+    leavePeriodsByDate,
     onEdit,
 }: {
     referenceDate: Date;
     meetingsByDate: Map<string, CalendarMeeting[]>;
     holidaysByDate: Map<string, CalendarPublicHoliday[]>;
+    leavePeriodsByDate: Map<string, CalendarLeavePeriod[]>;
     onEdit: (meeting: CalendarMeeting) => void;
 }) {
     const days = buildMonthDays(referenceDate);
@@ -840,7 +912,8 @@ function MonthCalendar({
         return (
             sameMonth(day, referenceDate) &&
             ((meetingsByDate.get(key)?.length ?? 0) > 0 ||
-                (holidaysByDate.get(key)?.length ?? 0) > 0)
+                (holidaysByDate.get(key)?.length ?? 0) > 0 ||
+                (leavePeriodsByDate.get(key)?.length ?? 0) > 0)
         );
     });
 
@@ -863,6 +936,7 @@ function MonthCalendar({
                         const key = localDateKey(day);
                         const items = meetingsByDate.get(key) ?? [];
                         const holidays = holidaysByDate.get(key) ?? [];
+                        const leavePeriods = leavePeriodsByDate.get(key) ?? [];
 
                         return (
                             <section
@@ -883,7 +957,9 @@ function MonthCalendar({
                                         </div>
                                     </div>
                                     <Badge variant="secondary">
-                                        {items.length + holidays.length}
+                                        {items.length +
+                                            holidays.length +
+                                            leavePeriods.length}
                                     </Badge>
                                 </div>
                                 <div className="mt-3 space-y-2">
@@ -891,6 +967,12 @@ function MonthCalendar({
                                         <PublicHolidayBlock
                                             key={holiday.id}
                                             holiday={holiday}
+                                        />
+                                    ))}
+                                    {leavePeriods.map((leave) => (
+                                        <LeavePeriodBlock
+                                            key={leave.id}
+                                            leave={leave}
                                         />
                                     ))}
                                     {items.map((meeting) => (
@@ -925,16 +1007,29 @@ function MonthCalendar({
                             const key = localDateKey(day);
                             const items = meetingsByDate.get(key) ?? [];
                             const holidays = holidaysByDate.get(key) ?? [];
+                            const leavePeriods =
+                                leavePeriodsByDate.get(key) ?? [];
                             const visibleHolidays = holidays.slice(0, 3);
-                            const visibleItems = items.slice(
+                            const visibleLeavePeriods = leavePeriods.slice(
                                 0,
                                 Math.max(0, 3 - visibleHolidays.length),
                             );
+                            const visibleItems = items.slice(
+                                0,
+                                Math.max(
+                                    0,
+                                    3 -
+                                        visibleHolidays.length -
+                                        visibleLeavePeriods.length,
+                                ),
+                            );
                             const moreCount =
                                 items.length +
-                                holidays.length -
+                                holidays.length +
+                                leavePeriods.length -
                                 visibleItems.length -
-                                visibleHolidays.length;
+                                visibleHolidays.length -
+                                visibleLeavePeriods.length;
 
                             return (
                                 <div
@@ -958,9 +1053,14 @@ function MonthCalendar({
                                         >
                                             {formatDayNumber(day)}
                                         </span>
-                                        {items.length + holidays.length > 0 && (
+                                        {items.length +
+                                            holidays.length +
+                                            leavePeriods.length >
+                                            0 && (
                                             <Badge variant="secondary">
-                                                {items.length + holidays.length}
+                                                {items.length +
+                                                    holidays.length +
+                                                    leavePeriods.length}
                                             </Badge>
                                         )}
                                     </div>
@@ -970,6 +1070,13 @@ function MonthCalendar({
                                             <PublicHolidayBlock
                                                 key={holiday.id}
                                                 holiday={holiday}
+                                                dense
+                                            />
+                                        ))}
+                                        {visibleLeavePeriods.map((leave) => (
+                                            <LeavePeriodBlock
+                                                key={leave.id}
+                                                leave={leave}
                                                 dense
                                             />
                                         ))}
@@ -1116,6 +1223,68 @@ function PublicHolidayRow({ holiday }: { holiday: CalendarPublicHoliday }) {
                     </div>
                 </div>
                 <Badge variant="secondary">{holiday.kind_label}</Badge>
+            </div>
+        </article>
+    );
+}
+
+function LeavePeriodBlock({
+    leave,
+    dense = false,
+}: {
+    leave: CalendarLeavePeriod;
+    dense?: boolean;
+}) {
+    return (
+        <article
+            className={cn(
+                'rounded-md border border-sky-200 bg-sky-50/80 p-2 text-xs text-sky-950 shadow-xs dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100',
+                dense && 'py-1.5',
+            )}
+        >
+            <span className="block truncate font-medium" title={leave.title}>
+                {leave.title}
+            </span>
+            {!dense && (
+                <span className="mt-1 block truncate text-sky-900/80 dark:text-sky-100/80">
+                    {leave.client.name ?? leave.status}
+                </span>
+            )}
+        </article>
+    );
+}
+
+function LeavePeriodRow({ leave }: { leave: CalendarLeavePeriod }) {
+    return (
+        <article className="rounded-md border border-sky-200 bg-sky-50/80 p-4 text-sky-950 dark:border-sky-900/60 dark:bg-sky-950/20 dark:text-sky-100">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                        <h3 className="text-sm font-medium break-words">
+                            {leave.title}
+                        </h3>
+                        <Badge variant="outline">{leave.status}</Badge>
+                    </div>
+                    <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-sky-900/80 dark:text-sky-100/80">
+                        <span>{formatDate(leave.starts_at)}</span>
+                        {leave.client.url ? (
+                            <Link
+                                href={leave.client.url}
+                                className="inline-flex items-center gap-1 text-sky-950 underline-offset-4 hover:underline dark:text-sky-100"
+                            >
+                                {leave.client.name ?? 'Client'}
+                                <ExternalLink
+                                    className="size-3.5"
+                                    aria-hidden="true"
+                                />
+                            </Link>
+                        ) : (
+                            <span>{leave.client.name ?? 'Client'}</span>
+                        )}
+                        {leave.description && <span>{leave.description}</span>}
+                    </div>
+                </div>
+                <Badge variant="secondary">{leave.kind_label}</Badge>
             </div>
         </article>
     );
@@ -1301,18 +1470,55 @@ function holidayInView(
     );
 }
 
+function leavePeriodInView(
+    leave: CalendarLeavePeriod,
+    view: ViewMode,
+    referenceDate: Date,
+): boolean {
+    if (view === 'agenda') {
+        return true;
+    }
+
+    const date = leavePeriodDate(leave);
+
+    if (!date) {
+        return false;
+    }
+
+    if (view === 'week' || view === 'work_week') {
+        const start = startOfWeek(referenceDate);
+        const end = addDays(start, view === 'work_week' ? 5 : 7);
+
+        return date >= start && date < end;
+    }
+
+    return (
+        date.getFullYear() === referenceDate.getFullYear() &&
+        date.getMonth() === referenceDate.getMonth()
+    );
+}
+
 function groupCalendarItems(
     meetings: CalendarMeeting[],
     holidays: CalendarPublicHoliday[],
+    leavePeriods: CalendarLeavePeriod[],
 ): CalendarGroup[] {
     const groups = new Map<
         string,
-        { meetings: CalendarMeeting[]; holidays: CalendarPublicHoliday[] }
+        {
+            meetings: CalendarMeeting[];
+            holidays: CalendarPublicHoliday[];
+            leavePeriods: CalendarLeavePeriod[];
+        }
     >();
 
     const ensureGroup = (key: string) => {
         if (!groups.has(key)) {
-            groups.set(key, { meetings: [], holidays: [] });
+            groups.set(key, {
+                meetings: [],
+                holidays: [],
+                leavePeriods: [],
+            });
         }
 
         return groups.get(key)!;
@@ -1332,6 +1538,16 @@ function groupCalendarItems(
         }
 
         ensureGroup(localDateKey(date)).holidays.push(holiday);
+    });
+
+    leavePeriods.forEach((leave) => {
+        const date = leavePeriodDate(leave);
+
+        if (!date) {
+            return;
+        }
+
+        ensureGroup(localDateKey(date)).leavePeriods.push(leave);
     });
 
     return Array.from(groups.entries())
@@ -1356,6 +1572,7 @@ function groupCalendarItems(
                       }).format(new Date(`${key}T00:00:00`)),
             meetings: items.meetings,
             holidays: items.holidays,
+            leavePeriods: items.leavePeriods,
         }));
 }
 
@@ -1393,6 +1610,23 @@ function indexHolidaysByDate(holidays: CalendarPublicHoliday[]) {
     return dates;
 }
 
+function indexLeavePeriodsByDate(leavePeriods: CalendarLeavePeriod[]) {
+    const dates = new Map<string, CalendarLeavePeriod[]>();
+
+    leavePeriods.forEach((leave) => {
+        const date = leavePeriodDate(leave);
+
+        if (!date) {
+            return;
+        }
+
+        const key = localDateKey(date);
+        dates.set(key, [...(dates.get(key) ?? []), leave]);
+    });
+
+    return dates;
+}
+
 function meetingDate(meeting: CalendarMeeting): Date | null {
     if (!meeting.scheduled_at) {
         return null;
@@ -1405,6 +1639,12 @@ function meetingDate(meeting: CalendarMeeting): Date | null {
 
 function holidayDate(holiday: CalendarPublicHoliday): Date | null {
     const date = new Date(holiday.starts_at);
+
+    return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function leavePeriodDate(leave: CalendarLeavePeriod): Date | null {
+    const date = new Date(leave.starts_at);
 
     return Number.isNaN(date.getTime()) ? null : date;
 }

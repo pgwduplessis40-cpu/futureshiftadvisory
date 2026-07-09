@@ -2199,6 +2199,7 @@ function ScenarioList({ scenarios }: { scenarios: ScenarioPayload[] }) {
 function GoalProgressPanel({ goals }: { goals: GoalDashboard }) {
     return (
         <section
+            id="section-goals"
             className="space-y-4 rounded-md border bg-background p-4"
             aria-labelledby="goals-heading"
         >

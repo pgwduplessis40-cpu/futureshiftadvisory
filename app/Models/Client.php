@@ -391,6 +391,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<ClientLeavePeriod>
+     */
+    public function leavePeriods(): HasMany
+    {
+        return $this->hasMany(ClientLeavePeriod::class);
+    }
+
+    /**
      * @return HasMany<IndustryBriefing>
      */
     public function industryBriefings(): HasMany

@@ -56,6 +56,8 @@ final class AddEntrepreneurTest extends TestCase
         $this->assertSame(EntrepreneurStage::INVITED, $profile->stage);
         $this->assertSame($advisor->id, $profile->assigned_advisor_id);
         $this->assertSame($invite->id, $profile->invite_token_id);
+        $this->assertSame(ServiceActivation::SERVICE_ENTREPRENEUR, $profile->intended_service_type);
+        $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET, $profile->intended_package_scope);
         $this->assertTrue($profile->gamification_on);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_user_type);
         $this->assertSame(User::TYPE_ENTREPRENEUR, $invite->target_role);
@@ -166,6 +168,91 @@ final class AddEntrepreneurTest extends TestCase
             'action' => 'entrepreneur.invite_resent',
             'subject_id' => $profile->id,
         ]);
+        Mail::assertSent(InvitationMail::class, 1);
+    }
+
+    public function test_advisor_can_edit_pending_invite_details_before_resending(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+
+        $issued = app(InviteIssuer::class)->issue(
+            email: 'wrong-founder@example.com',
+            targetUserType: User::TYPE_ENTREPRENEUR,
+            targetRole: User::TYPE_ENTREPRENEUR,
+            intendedServiceType: ServiceActivation::SERVICE_ENTREPRENEUR,
+            intendedPackageScope: ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            issuedBy: $advisor,
+        );
+        $profile = EntrepreneurProfile::query()->create([
+            'assigned_advisor_id' => $advisor->id,
+            'invite_token_id' => $issued->invite->id,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'name' => 'Wrong Founder',
+            'email' => 'wrong-founder@example.com',
+            'stage' => EntrepreneurStage::INVITED,
+            'concept_summary' => 'Old concept summary.',
+        ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('entrepreneur.invite_update_url', route('advisor.entrepreneurs.invite.update', $profile, absolute: false))
+                ->where('entrepreneur.intended_package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
+                ->where('entrepreneur.intended_package_scope_label', 'Idea Validation')
+                ->where('serviceOptions.0.value', ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION)
+            );
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.entrepreneurs.invite.update', $profile), [
+                'name' => 'Correct Founder',
+                'email' => 'Correct.Founder@example.com',
+                'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET,
+                'concept_summary' => 'Corrected concept summary.',
+            ])
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-invite-details-updated');
+
+        $profile->refresh();
+        $issued->invite->refresh();
+
+        $this->assertSame('Correct Founder', $profile->name);
+        $this->assertSame('correct.founder@example.com', $profile->email);
+        $this->assertSame(ServiceActivation::SERVICE_ENTREPRENEUR, $profile->intended_service_type);
+        $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET, $profile->intended_package_scope);
+        $this->assertSame('Corrected concept summary.', $profile->concept_summary);
+        $this->assertTrue($issued->invite->isExpired());
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'entrepreneur.invite_details_updated',
+            'subject_id' => $profile->id,
+        ]);
+        Mail::assertNothingSent();
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where('entrepreneur.invite_delivery_label', 'No active invite')
+                ->where('entrepreneur.invite_resend_url', route('advisor.entrepreneurs.invite.resend', $profile, absolute: false))
+                ->where('entrepreneur.invite_cancel_url', null)
+                ->where('entrepreneur.intended_package_scope', ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET)
+                ->where('entrepreneur.intended_package_scope_label', 'Business Plan + Budget')
+            );
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.entrepreneurs.invite.resend', $profile))
+            ->assertRedirect(route('advisor.entrepreneurs.show', $profile, absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-invite-resent');
+
+        $freshInvite = InviteToken::query()
+            ->whereKey($profile->refresh()->invite_token_id)
+            ->firstOrFail();
+
+        $this->assertSame('correct.founder@example.com', $freshInvite->email);
+        $this->assertSame(ServiceRatePackage::SCOPE_ENTREPRENEUR_PLAN_BUDGET, $freshInvite->intended_package_scope);
         Mail::assertSent(InvitationMail::class, 1);
     }
 

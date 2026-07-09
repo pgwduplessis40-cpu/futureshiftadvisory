@@ -43,13 +43,20 @@ final class ServiceActivationManager
     /**
      * @param  array<string, mixed>  $intake
      */
-    public function request(Client $client, User $actor, string $serviceType, array $intake): ServiceActivation
+    public function request(
+        Client $client,
+        User $actor,
+        string $serviceType,
+        array $intake,
+        ?array $pricingPreview = null,
+    ): ServiceActivation
     {
         $serviceType = $this->normaliseServiceType($serviceType);
         $this->assertNoBlockingOpenActivation($client, $serviceType);
         $advisor = $this->leadAdvisor($client);
+        $pricingPreview ??= $this->pricingPreviewForRequest($serviceType, $intake);
 
-        $activation = DB::transaction(function () use ($client, $actor, $serviceType, $intake, $advisor): ServiceActivation {
+        $activation = DB::transaction(function () use ($client, $actor, $serviceType, $intake, $advisor, $pricingPreview): ServiceActivation {
             $activation = ServiceActivation::query()->create([
                 'client_id' => $client->getKey(),
                 'requested_by_user_id' => $actor->getKey(),
@@ -62,6 +69,9 @@ final class ServiceActivationManager
                     'source' => 'client_self_start',
                     'opportunity_type' => 'sales_opportunity',
                     'internal_service_type' => $serviceType,
+                    'pre_request_pricing' => $this->storedPricingPreview($pricingPreview),
+                    'pricing_acknowledged_at' => now()->toIso8601String(),
+                    'pricing_acknowledged_by_user_id' => $actor->getKey(),
                 ],
             ]);
 
@@ -74,6 +84,8 @@ final class ServiceActivationManager
                 'client_id' => $client->getKey(),
                 'service_type' => $serviceType,
                 'advisor_id' => $advisor?->getKey(),
+                'pre_request_pricing_status' => $pricingPreview['status'] ?? null,
+                'pre_request_package_id' => data_get($pricingPreview, 'package.id'),
             ]);
 
             return $activation->refresh();
@@ -368,6 +380,74 @@ final class ServiceActivationManager
             ->all();
     }
 
+    /**
+     * @param  array<string, mixed>  $intake
+     * @return array<string, mixed>
+     */
+    public function pricingPreviewForRequest(string $serviceType, array $intake = [], bool $includePackages = false): array
+    {
+        $serviceType = $this->normaliseServiceType($serviceType);
+        $packages = collect($this->activePackagesFor($serviceType));
+        $packageSnapshots = $packages
+            ->map(fn (ServiceRatePackage $package): array => $this->packageSnapshotForActivation($package))
+            ->values()
+            ->all();
+
+        if ($packages->isEmpty()) {
+            return $this->pricingPreviewPayload(
+                status: 'pricing_to_confirm',
+                message: 'Pricing will be confirmed by your advisor before any charge or workspace access.',
+                includePackages: $includePackages,
+                packages: $packageSnapshots,
+            );
+        }
+
+        if ($serviceType === ServiceActivation::SERVICE_DUE_DILIGENCE) {
+            $askingPrice = $intake['asking_price'] ?? null;
+
+            if (! is_numeric($askingPrice)) {
+                return $this->pricingPreviewPayload(
+                    status: 'needs_purchase_price',
+                    message: 'Enter the asking price to show the matching package and GST-exclusive fee before requesting access.',
+                    includePackages: $includePackages,
+                    packages: $packageSnapshots,
+                );
+            }
+
+            $matchedPackage = $packages->first(
+                fn (ServiceRatePackage $package): bool => $this->packageMatchesPurchasePrice($package, (float) $askingPrice),
+            );
+
+            if (! $matchedPackage instanceof ServiceRatePackage) {
+                return $this->pricingPreviewPayload(
+                    status: 'pricing_to_confirm',
+                    message: 'No active package exactly matches this asking price. Your advisor will confirm pricing before any charge or workspace access.',
+                    includePackages: $includePackages,
+                    packages: $packageSnapshots,
+                );
+            }
+
+            $snapshot = $this->packageSnapshotForActivation($matchedPackage);
+
+            return $this->pricingPreviewPayload(
+                status: 'matched_package',
+                message: $this->packageRequiresPayment($snapshot)
+                    ? 'This is the matched GST-exclusive package fee before you request access.'
+                    : 'No payment will be requested for this service at this time.',
+                package: $snapshot,
+                includePackages: $includePackages,
+                packages: $packageSnapshots,
+            );
+        }
+
+        return $this->pricingPreviewPayload(
+            status: 'pricing_to_confirm',
+            message: 'Your advisor will confirm the appropriate package and GST-exclusive fee before any charge or workspace access.',
+            includePackages: $includePackages,
+            packages: $packageSnapshots,
+        );
+    }
+
     private function normaliseServiceType(string $serviceType): string
     {
         $serviceType = trim($serviceType);
@@ -602,8 +682,26 @@ final class ServiceActivationManager
     {
         $lines = [
             'I would like to request a new workspace: '.$activation->clientLabel().'.',
-            'Please review the request and select the active package/scope/pricing from Admin Service Rates.',
         ];
+
+        $pricingPreview = data_get($activation->metadata, 'pre_request_pricing');
+        if (is_array($pricingPreview) && is_array($pricingPreview['package'] ?? null)) {
+            $package = $pricingPreview['package'];
+            $currency = (string) ($package['currency'] ?? 'NZD');
+            $fee = isset($package['fixed_fee'])
+                ? $this->formatMoney((float) $package['fixed_fee'], $currency)
+                : 'pricing to confirm';
+
+            $lines[] = sprintf(
+                'Before submitting, I acknowledged the visible package/fee: %s (%s ex GST).',
+                (string) ($package['client_label'] ?? $package['package_name'] ?? 'Matched package'),
+                $fee,
+            );
+        } else {
+            $lines[] = 'Before submitting, I acknowledged that pricing will be confirmed before any charge or workspace access.';
+        }
+
+        $lines[] = 'Please review the request and select the active package/scope/pricing from Admin Service Rates.';
 
         foreach ((array) ($activation->intake ?? []) as $key => $value) {
             if (is_scalar($value) && trim((string) $value) !== '') {
@@ -702,6 +800,62 @@ final class ServiceActivationManager
             && (float) ($snapshot['fixed_fee'] ?? 0) > 0;
     }
 
+    private function packageMatchesPurchasePrice(ServiceRatePackage $package, float $askingPrice): bool
+    {
+        $minimum = $package->purchase_price_min !== null ? (float) $package->purchase_price_min : null;
+        $maximum = $package->purchase_price_max !== null ? (float) $package->purchase_price_max : null;
+
+        if ($minimum !== null && $askingPrice < $minimum) {
+            return false;
+        }
+
+        if ($maximum !== null && $askingPrice > $maximum) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
+     * @param  array<int, array<string, mixed>>  $packages
+     * @param  array<string, mixed>|null  $package
+     * @return array<string, mixed>
+     */
+    private function pricingPreviewPayload(
+        string $status,
+        string $message,
+        ?array $package = null,
+        bool $includePackages = false,
+        array $packages = [],
+    ): array {
+        $payload = [
+            'status' => $status,
+            'matched' => $package !== null,
+            'message' => $message,
+            'package' => $package,
+            'payment_required' => $package !== null && $this->packageRequiresPayment($package),
+            'free_access_mode' => (bool) data_get($package, 'free_access_mode.active', false),
+            'source' => $package !== null ? 'admin_service_rate_package' : 'advisor_confirmation_required',
+        ];
+
+        if ($includePackages) {
+            $payload['packages'] = $packages;
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param  array<string, mixed>  $pricingPreview
+     * @return array<string, mixed>
+     */
+    private function storedPricingPreview(array $pricingPreview): array
+    {
+        return collect($pricingPreview)
+            ->except('packages')
+            ->all();
+    }
+
     private function activationRequiresPayment(ServiceActivation $activation): bool
     {
         $snapshot = (array) ($activation->selected_package_snapshot ?? []);
@@ -772,6 +926,11 @@ final class ServiceActivationManager
             $currency,
             number_format((float) $split['bank_transfer_amount'], 2),
         );
+    }
+
+    private function formatMoney(float $amount, string $currency): string
+    {
+        return $currency.' '.number_format($amount, 2);
     }
 
     private function testPaymentCompletionAllowed(): bool

@@ -13,6 +13,7 @@ use App\Services\ServiceActivations\ServiceActivationManager;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -57,6 +58,7 @@ final class ServiceActivationController extends Controller
 
         return Inertia::render('portal/ServiceActivationRequest', [
             'service' => $option,
+            'pricingPreview' => $this->activations->pricingPreviewForRequest($serviceType, includePackages: true),
             'requestUrl' => route('portal.service-activations.store', absolute: false),
             'dashboardUrl' => $this->dashboardUrl($request),
         ]);
@@ -79,13 +81,28 @@ final class ServiceActivationController extends Controller
             'problem' => ['nullable', 'string', 'max:1200'],
             'timing' => ['nullable', 'string', 'max:255'],
             'notes' => ['nullable', 'string', 'max:2000'],
+            'pricing_acknowledged' => ['accepted'],
+            'pricing_package_id' => ['nullable', 'string', 'max:36'],
         ]);
+
+        $pricingPreview = $this->activations->pricingPreviewForRequest(
+            (string) $validated['service_type'],
+            $validated,
+        );
+        $matchedPackageId = data_get($pricingPreview, 'package.id');
+
+        if ($matchedPackageId !== null && (string) ($validated['pricing_package_id'] ?? '') !== (string) $matchedPackageId) {
+            throw ValidationException::withMessages([
+                'pricing_acknowledged' => 'The displayed package fee has changed. Review the current package, scope, and fee before requesting access.',
+            ]);
+        }
 
         $activation = $this->activations->request(
             client: $client,
             actor: $user,
             serviceType: (string) $validated['service_type'],
             intake: $validated,
+            pricingPreview: $pricingPreview,
         );
 
         return to_route('portal.service-activations.show', $activation)
@@ -170,6 +187,9 @@ final class ServiceActivationController extends Controller
             'status_label' => str($activation->status)->replace('_', ' ')->title()->toString(),
             'intake' => $activation->intake ?? [],
             'package' => is_array($snapshot) ? $snapshot : null,
+            'request_pricing' => is_array(data_get($activation->metadata, 'pre_request_pricing'))
+                ? data_get($activation->metadata, 'pre_request_pricing')
+                : null,
             'payment_required' => $activation->paymentRequired(),
             'payment_status' => $activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED,
             'payment_status_label' => str((string) ($activation->payment_status ?? ServiceActivation::PAYMENT_NOT_REQUIRED))->replace('_', ' ')->title()->toString(),

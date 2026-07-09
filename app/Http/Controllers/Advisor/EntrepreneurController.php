@@ -135,6 +135,8 @@ final class EntrepreneurController extends Controller
             $profile = EntrepreneurProfile::query()->create([
                 'assigned_advisor_id' => $advisor->getKey(),
                 'invite_token_id' => $issued->invite->getKey(),
+                'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'intended_package_scope' => $packageScope,
                 'name' => $validated['name'],
                 'email' => $email,
                 'stage' => EntrepreneurStage::INVITED,
@@ -220,13 +222,15 @@ final class EntrepreneurController extends Controller
                 targetUserType: User::TYPE_ENTREPRENEUR,
                 targetRole: User::TYPE_ENTREPRENEUR,
                 intendedServiceType: ServiceActivation::SERVICE_ENTREPRENEUR,
-                intendedPackageScope: $previousInvite?->intended_package_scope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO,
+                intendedPackageScope: $this->intendedEntrepreneurScope($entrepreneurProfile),
                 issuedBy: $advisor,
                 deliver: true,
             );
 
             $entrepreneurProfile->forceFill([
                 'invite_token_id' => $issued->invite->getKey(),
+                'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'intended_package_scope' => $issued->invite->intended_package_scope,
                 'stage' => EntrepreneurStage::INVITED,
             ])->save();
 
@@ -240,6 +244,88 @@ final class EntrepreneurController extends Controller
 
         return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
             ->with('status', 'entrepreneur-invite-resent');
+    }
+
+    public function updateInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
+    {
+        Gate::authorize('view', $entrepreneurProfile);
+
+        $advisor = $this->actor($request);
+
+        $entrepreneurProfile->loadMissing(['inviteToken', 'user']);
+
+        if (! $this->canUpdateInviteDetails($entrepreneurProfile)) {
+            return back()->withErrors([
+                'invite' => 'Only pending entrepreneur invitations can be edited.',
+            ]);
+        }
+
+        $request->merge([
+            'email' => Str::lower(trim((string) $request->input('email'))),
+        ]);
+
+        $validated = $request->validate([
+            'name' => ['required', 'string', 'max:255'],
+            'email' => [
+                'required',
+                'email',
+                'max:255',
+                Rule::unique('entrepreneur_profiles', 'email')->ignore($entrepreneurProfile->getKey()),
+                Rule::unique('users', 'email'),
+            ],
+            'concept_summary' => ['nullable', 'string', 'max:2000'],
+            'intended_package_scope' => [
+                'required',
+                'string',
+                Rule::in(ServiceRatePackage::entrepreneurPackageScopes()),
+            ],
+        ]);
+
+        $previousEmail = Str::lower(trim((string) $entrepreneurProfile->email));
+        $previousScope = $this->intendedEntrepreneurScope($entrepreneurProfile);
+        $nextEmail = (string) $validated['email'];
+        $nextScope = ServiceRatePackage::normaliseEntrepreneurScope(
+            (string) $validated['intended_package_scope'],
+        );
+        $inviteTargetChanged = $previousEmail !== $nextEmail || $previousScope !== $nextScope;
+
+        DB::transaction(function () use (
+            $advisor,
+            $entrepreneurProfile,
+            $inviteTargetChanged,
+            $nextEmail,
+            $nextScope,
+            $previousEmail,
+            $previousScope,
+            $validated,
+        ): void {
+            $previousInvite = $entrepreneurProfile->inviteToken;
+
+            if ($inviteTargetChanged && $previousInvite instanceof InviteToken && ! $previousInvite->isAccepted()) {
+                $previousInvite->forceFill(['expires_at' => now()->subMinute()])->save();
+            }
+
+            $entrepreneurProfile->forceFill([
+                'name' => $validated['name'],
+                'email' => $nextEmail,
+                'concept_summary' => $validated['concept_summary'] ?? null,
+                'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+                'intended_package_scope' => $nextScope,
+            ])->save();
+
+            $this->auditWriter->record('entrepreneur.invite_details_updated', subject: $entrepreneurProfile, actor: $advisor, after: [
+                'entrepreneur_profile_id' => $entrepreneurProfile->getKey(),
+                'invite_token_id' => $previousInvite?->getKey(),
+                'old_email' => $previousEmail,
+                'new_email' => $nextEmail,
+                'old_intended_package_scope' => $previousScope,
+                'new_intended_package_scope' => $nextScope,
+                'previous_invite_expired' => $inviteTargetChanged,
+            ]);
+        });
+
+        return to_route('advisor.entrepreneurs.show', $entrepreneurProfile)
+            ->with('status', 'entrepreneur-invite-details-updated');
     }
 
     public function cancelInvite(Request $request, EntrepreneurProfile $entrepreneurProfile): RedirectResponse
@@ -306,12 +392,17 @@ final class EntrepreneurController extends Controller
                 'invite_delivery_label' => $entrepreneurProfile->user_id
                     ? 'Account onboarded'
                     : ($activeInvite ? 'Email sent' : 'No active invite'),
+                'invite_update_url' => $this->canUpdateInviteDetails($entrepreneurProfile)
+                    ? route('advisor.entrepreneurs.invite.update', $entrepreneurProfile, absolute: false)
+                    : null,
                 'invite_resend_url' => $this->canResendInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.resend', $entrepreneurProfile, absolute: false)
                     : null,
                 'invite_cancel_url' => $this->canCancelInvite($entrepreneurProfile)
                     ? route('advisor.entrepreneurs.invite.cancel', $entrepreneurProfile, absolute: false)
                     : null,
+                'intended_package_scope' => $this->intendedEntrepreneurScope($entrepreneurProfile),
+                'intended_package_scope_label' => ServiceRatePackage::packageScopeLabel($this->intendedEntrepreneurScope($entrepreneurProfile)),
                 'created_at' => $entrepreneurProfile->created_at?->toIso8601String(),
                 'latest_plan' => $latestPlan instanceof BusinessPlan
                     ? $this->planProgressSummary($latestPlan, $entrepreneurProfile)
@@ -329,6 +420,7 @@ final class EntrepreneurController extends Controller
                     'toggle_url' => route('advisor.entrepreneurs.gamification.update', $entrepreneurProfile, absolute: false),
                 ],
             ],
+            'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
         ]);
     }
 
@@ -354,8 +446,37 @@ final class EntrepreneurController extends Controller
             && $profile->user === null
             && $profile->currentStage() === EntrepreneurStage::INVITED
             && $profile->inviteToken instanceof InviteToken
-            && ! $profile->inviteToken->isAccepted()
+            && $profile->inviteToken->isUsable()
             && filter_var($profile->email, FILTER_VALIDATE_EMAIL) !== false;
+    }
+
+    private function canUpdateInviteDetails(EntrepreneurProfile $profile): bool
+    {
+        return $profile->user_id === null
+            && $profile->user === null
+            && $profile->inviteToken?->accepted_at === null;
+    }
+
+    private function intendedEntrepreneurScope(EntrepreneurProfile $profile): string
+    {
+        if (
+            $profile->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
+            && is_string($profile->intended_package_scope)
+            && $profile->intended_package_scope !== ''
+        ) {
+            return ServiceRatePackage::normaliseEntrepreneurScope($profile->intended_package_scope);
+        }
+
+        $invite = $profile->inviteToken;
+        if (
+            $invite instanceof InviteToken
+            && $invite->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
+            && is_string($invite->intended_package_scope)
+        ) {
+            return ServiceRatePackage::normaliseEntrepreneurScope($invite->intended_package_scope);
+        }
+
+        return ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO;
     }
 
     /**

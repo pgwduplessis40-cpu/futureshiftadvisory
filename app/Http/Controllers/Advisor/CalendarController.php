@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Meeting;
 use App\Models\PreMeetingBrief;
 use App\Models\User;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Meetings\MeetingManager;
 use Illuminate\Database\Eloquent\Builder;
@@ -21,8 +22,11 @@ use Inertia\Response;
 
 final class CalendarController extends Controller
 {
-    public function index(Request $request, PublicHolidayCalendar $publicHolidays): Response
-    {
+    public function index(
+        Request $request,
+        PublicHolidayCalendar $publicHolidays,
+        ClientAvailabilityCalendar $availability,
+    ): Response {
         Gate::authorize('viewAny', Client::class);
 
         $user = $this->advisorUser($request);
@@ -65,6 +69,22 @@ final class CalendarController extends Controller
                 ->values()
                 ->all(),
             'publicHolidays' => $publicHolidays->eventsBetween($rangeStart, $rangeEnd, $holidayRegions),
+            'clientLeavePeriods' => $clients
+                ->flatMap(function (Client $client) use ($availability, $rangeStart, $rangeEnd): array {
+                    return collect($availability->leaveEventsBetween($client, $rangeStart, $rangeEnd))
+                        ->map(fn (array $event): array => [
+                            ...$event,
+                            'title' => "{$client->legal_name}: {$event['title']}",
+                            'client' => [
+                                'id' => $client->id,
+                                'name' => $client->legal_name,
+                                'url' => route('advisor.clients.show', $client, absolute: false),
+                            ],
+                        ])
+                        ->all();
+                })
+                ->values()
+                ->all(),
             'providers' => collect(CalendarConnection::providerLabels())
                 ->map(fn (string $label, string $provider): array => [
                     'provider' => $provider,

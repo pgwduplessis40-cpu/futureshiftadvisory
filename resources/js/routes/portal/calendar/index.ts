@@ -1,7 +1,8 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../wayfinder'
+import leavePeriods from './leave-periods'
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +17,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +26,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +35,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +45,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +55,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +64,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\CalendarController::__invoke
- * @see app/Http/Controllers/CalendarController.php:45
+ * @see app/Http/Controllers/CalendarController.php:51
  * @route '/portal/calendar'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,10 +76,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 const calendar = {
     index: Object.assign(index, index),
+leavePeriods: Object.assign(leavePeriods, leavePeriods),
 }
 
 export default calendar

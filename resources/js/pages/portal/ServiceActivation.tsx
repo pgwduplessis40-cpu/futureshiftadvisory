@@ -16,6 +16,45 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
+type PaymentSplit = {
+    deposit_percent: number;
+    card_deposit_amount: number | null;
+    bank_transfer_amount: number | null;
+    requires_bank_transfer: boolean;
+};
+
+type ActivationPackage = {
+    client_label?: string;
+    package_name?: string;
+    package_scope?:
+        | 'idea_validation'
+        | 'plan_budget'
+        | 'combo'
+        | 'dd_under_300k'
+        | 'dd_1m_3m'
+        | 'dd_300k_1m'
+        | null;
+    billing_model?: string;
+    fixed_fee?: number | null;
+    deposit_percent?: number | null;
+    currency?: string;
+    scope_description?: string;
+    included_stages?: string[];
+    client_outcomes?: string[];
+    payment_split?: PaymentSplit;
+    access?: {
+        package_scope_label?: string;
+        includes_idea_validation?: boolean;
+        includes_plan_budget?: boolean;
+    };
+    free_access_mode?: {
+        active?: boolean;
+        reason?: string;
+        nominal_fixed_fee?: number | null;
+        stripe_required?: boolean;
+    };
+};
+
 type Activation = {
     id: string;
     service_type: 'due_diligence' | 'entrepreneur';
@@ -23,30 +62,15 @@ type Activation = {
     status: string;
     status_label: string;
     intake: Record<string, string | number | null>;
-    package: null | {
-        client_label?: string;
-        package_name?: string;
-        package_scope?:
-            | 'idea_validation'
-            | 'plan_budget'
-            | 'combo'
-            | 'dd_under_300k'
-            | 'dd_300k_1m'
-            | 'dd_1m_3m'
-            | null;
-        billing_model?: string;
-        fixed_fee?: number | null;
-        deposit_percent?: number | null;
-        currency?: string;
-        scope_description?: string;
-        included_stages?: string[];
-        client_outcomes?: string[];
-        payment_split?: PaymentSplit;
-        access?: {
-            package_scope_label?: string;
-            includes_idea_validation?: boolean;
-            includes_plan_budget?: boolean;
-        };
+    package: null | ActivationPackage;
+    request_pricing: null | {
+        status: string;
+        matched: boolean;
+        message: string;
+        payment_required: boolean;
+        free_access_mode: boolean;
+        source: string;
+        package: null | ActivationPackage;
     };
     payment_required: boolean;
     payment_status: string;
@@ -63,13 +87,6 @@ type Activation = {
     workspace_ready: boolean;
     workspace_url: string;
     message_thread_url: string | null;
-};
-
-type PaymentSplit = {
-    deposit_percent: number;
-    card_deposit_amount: number | null;
-    bank_transfer_amount: number | null;
-    requires_bank_transfer: boolean;
 };
 
 type Props = {
@@ -89,6 +106,7 @@ export default function ServiceActivation({ activation, urls }: Props) {
     });
     const paymentForm = useForm({});
     const selectedPackage = activation.package;
+    const requestPricing = activation.request_pricing;
     const fullPaymentReceived = activation.full_payment_received;
     const paymentSplit = selectedPackage
         ? packagePaymentSplit(selectedPackage)
@@ -254,6 +272,14 @@ export default function ServiceActivation({ activation, urls }: Props) {
                                 />
                             </div>
                         </div>
+                    ) : requestPricing?.package ? (
+                        <PreRequestPricing pricing={requestPricing} />
+                    ) : requestPricing ? (
+                        <p className="mt-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+                            {requestPricing.message} No payment will be
+                            requested and no workspace will open until the
+                            package, scope, and GST-exclusive fee are confirmed.
+                        </p>
                     ) : (
                         <p className="mt-3 text-sm text-muted-foreground">
                             Your advisor is reviewing this request and will
@@ -438,6 +464,98 @@ export default function ServiceActivation({ activation, urls }: Props) {
     );
 }
 
+function PreRequestPricing({
+    pricing,
+}: {
+    pricing: NonNullable<Activation['request_pricing']>;
+}) {
+    const servicePackage = pricing.package;
+
+    if (!servicePackage) {
+        return null;
+    }
+
+    const currency = servicePackage.currency ?? 'NZD';
+    const paymentSplit = packagePaymentSplit(servicePackage);
+
+    return (
+        <div className="mt-3 space-y-3 rounded-md border border-amber-200 bg-amber-50 p-3 text-sm text-amber-950">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                <div>
+                    <div className="font-medium">
+                        {servicePackage.client_label ??
+                            servicePackage.package_name}
+                    </div>
+                    <p className="mt-1">
+                        This package and fee were shown before the request was
+                        submitted. Your advisor is reviewing the request before
+                        payment or workspace access can proceed.
+                    </p>
+                </div>
+                <Badge variant="secondary">Quoted before request</Badge>
+            </div>
+
+            <div className="grid gap-3 sm:grid-cols-3">
+                <Metric
+                    label="Fee ex GST"
+                    explanation={activationExplanations.fee}
+                    value={
+                        servicePackage.fixed_fee !== null &&
+                        servicePackage.fixed_fee !== undefined
+                            ? formatMoney(servicePackage.fixed_fee, currency)
+                            : 'Pricing to confirm'
+                    }
+                />
+                <Metric
+                    label="Billing"
+                    explanation={activationExplanations.billing}
+                    value={formatLabel(
+                        servicePackage.billing_model ?? 'fixed_fee',
+                    )}
+                />
+                <Metric
+                    label="Source"
+                    value="Admin Service Rates"
+                    explanation={activationExplanations.source}
+                />
+                {paymentSplit?.card_deposit_amount !== null &&
+                paymentSplit?.card_deposit_amount !== undefined ? (
+                    <Metric
+                        label="Card deposit"
+                        explanation={activationExplanations.cardDeposit}
+                        value={formatMoney(
+                            paymentSplit.card_deposit_amount,
+                            currency,
+                        )}
+                    />
+                ) : null}
+                {paymentSplit?.bank_transfer_amount !== null &&
+                paymentSplit?.bank_transfer_amount !== undefined &&
+                paymentSplit.bank_transfer_amount > 0 ? (
+                    <Metric
+                        label="Bank transfer balance"
+                        explanation={activationExplanations.bankTransfer}
+                        value={formatMoney(
+                            paymentSplit.bank_transfer_amount,
+                            currency,
+                        )}
+                    />
+                ) : null}
+            </div>
+
+            {servicePackage.scope_description ? (
+                <p>{servicePackage.scope_description}</p>
+            ) : null}
+            {servicePackage.free_access_mode?.active ? (
+                <p>
+                    Fees are currently inactive for this service, so payment is
+                    not required before the workspace moves forward.
+                </p>
+            ) : null}
+        </div>
+    );
+}
+
 function Metric({
     label,
     value,
@@ -567,9 +685,7 @@ function packageScopeLabel(scope: string) {
     return 'Standard workspace';
 }
 
-function packagePaymentSplit(
-    servicePackage: NonNullable<Activation['package']>,
-) {
+function packagePaymentSplit(servicePackage: ActivationPackage) {
     if (servicePackage.payment_split) {
         return servicePackage.payment_split;
     }

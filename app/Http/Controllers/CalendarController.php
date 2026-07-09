@@ -9,11 +9,14 @@ use App\Models\AdvisoryReadinessSignal;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientFunderRecord;
+use App\Models\ClientLeavePeriod;
 use App\Models\Document;
 use App\Models\EntrepreneurProfile;
 use App\Models\IdeaValidation;
 use App\Models\Meeting;
 use App\Models\MessageThread;
+use App\Models\Milestone;
+use App\Models\MilestoneAction;
 use App\Models\PanelAgreement;
 use App\Models\PanelMember;
 use App\Models\PlanAssessment;
@@ -23,8 +26,10 @@ use App\Models\Referral;
 use App\Models\ReferralMessage;
 use App\Models\Report;
 use App\Models\ReverseReferral;
+use App\Models\StrategicPlanMilestone;
 use App\Models\User;
 use App\Models\WellbeingCheckin;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\ClientPortalResolver;
@@ -40,6 +45,7 @@ final class CalendarController extends Controller
 {
     public function __construct(
         private readonly PublicHolidayCalendar $publicHolidays,
+        private readonly ClientAvailabilityCalendar $availability,
     ) {}
 
     public function __invoke(
@@ -54,7 +60,7 @@ final class CalendarController extends Controller
             return to_route('advisor.calendar.index');
         }
 
-        [$title, $subtitle, $events] = match ($user->user_type) {
+        [$title, $subtitle, $events, $extra] = match ($user->user_type) {
             User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM, User::TYPE_NPO_BOARD_MEMBER => $this->clientCalendar($clients->resolveFor($request)),
             User::TYPE_ENTREPRENEUR => $this->entrepreneurCalendar($user, $entrepreneurInvites),
             User::TYPE_ENTREPRENEUR_MENTOR => $this->mentorCalendar($user),
@@ -68,19 +74,25 @@ final class CalendarController extends Controller
             'subtitle' => $subtitle,
             'events' => $this->sortedEvents($events),
             'emptyState' => 'No dated activity is available for this portal yet.',
+            'leavePeriods' => [],
+            'leaveStoreUrl' => null,
+            'canManageLeavePeriods' => false,
+            ...$extra,
         ]);
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
+     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>, 3: array<string, mixed>}
      */
     private function clientCalendar(Client $client): array
     {
         $events = [];
+        $rangeStart = now()->subMonths(3);
+        $rangeEnd = now()->addMonths(9);
 
         Meeting::query()
             ->where('client_id', $client->getKey())
-            ->whereBetween('scheduled_at', [now()->subMonths(3), now()->addMonths(9)])
+            ->whereBetween('scheduled_at', [$rangeStart, $rangeEnd])
             ->orderBy('scheduled_at')
             ->limit(120)
             ->get()
@@ -93,6 +105,71 @@ final class CalendarController extends Controller
                     status: $meeting->status ?? Meeting::STATUS_SCHEDULED,
                     description: $meeting->location,
                     href: $meeting->link,
+                ));
+            });
+
+        Milestone::query()
+            ->with('goal')
+            ->where('client_id', $client->getKey())
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '>=', $rangeStart->toDateString())
+            ->whereDate('due_date', '<=', $rangeEnd->toDateString())
+            ->orderBy('due_date')
+            ->limit(80)
+            ->get()
+            ->each(function (Milestone $milestone) use (&$events): void {
+                $this->addEvent($events, $this->event(
+                    id: "goal-milestone:{$milestone->id}",
+                    title: "Goal milestone: {$milestone->title}",
+                    startsAt: $milestone->due_date,
+                    kind: 'deadline',
+                    status: $this->label((string) $milestone->status),
+                    description: $milestone->goal?->title,
+                    href: route('portal.dashboard', absolute: false).'#section-goals',
+                    allDay: true,
+                ));
+            });
+
+        MilestoneAction::query()
+            ->with('milestone')
+            ->where('client_id', $client->getKey())
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '>=', $rangeStart->toDateString())
+            ->whereDate('due_date', '<=', $rangeEnd->toDateString())
+            ->orderBy('due_date')
+            ->limit(120)
+            ->get()
+            ->each(function (MilestoneAction $action) use (&$events): void {
+                $this->addEvent($events, $this->event(
+                    id: "milestone-action:{$action->id}",
+                    title: "Action: {$action->title}",
+                    startsAt: $action->due_date,
+                    kind: 'deadline',
+                    status: $this->label((string) $action->status),
+                    description: $action->milestone?->title,
+                    href: route('portal.dashboard', absolute: false).'#section-goals',
+                    allDay: true,
+                ));
+            });
+
+        StrategicPlanMilestone::query()
+            ->where('client_id', $client->getKey())
+            ->whereNotNull('due_date')
+            ->whereDate('due_date', '>=', $rangeStart->toDateString())
+            ->whereDate('due_date', '<=', $rangeEnd->toDateString())
+            ->orderBy('due_date')
+            ->limit(80)
+            ->get()
+            ->each(function (StrategicPlanMilestone $milestone) use (&$events): void {
+                $this->addEvent($events, $this->event(
+                    id: "strategic-plan-milestone:{$milestone->id}",
+                    title: "Strategic milestone: {$milestone->title}",
+                    startsAt: $milestone->due_date,
+                    kind: 'deadline',
+                    status: $this->label((string) $milestone->status),
+                    description: $milestone->description,
+                    href: route('portal.dashboard', absolute: false).'#section-strategic-plan-milestones',
+                    allDay: true,
                 ));
             });
 
@@ -253,21 +330,44 @@ final class CalendarController extends Controller
         array_push(
             $events,
             ...$this->publicHolidays->eventsBetween(
-                now()->subMonths(3),
-                now()->addMonths(9),
+                $rangeStart,
+                $rangeEnd,
                 $this->publicHolidays->regionsForClient($client),
             ),
+            ...$this->availability->leaveEventsBetween($client, $rangeStart, $rangeEnd),
         );
+
+        $leavePeriods = ClientLeavePeriod::query()
+            ->where('client_id', $client->getKey())
+            ->whereDate('ends_on', '>=', now()->subMonth()->toDateString())
+            ->orderBy('starts_on')
+            ->limit(40)
+            ->get()
+            ->map(fn (ClientLeavePeriod $leave): array => [
+                'id' => $leave->id,
+                'title' => $leave->title,
+                'starts_on' => $leave->starts_on?->toDateString(),
+                'ends_on' => $leave->ends_on?->toDateString(),
+                'notes' => $leave->notes,
+                'destroy_url' => route('portal.calendar.leave-periods.destroy', $leave, absolute: false),
+            ])
+            ->values()
+            ->all();
 
         return [
             'Client calendar',
             "Dated meetings, documents, reports, proposals, wellbeing, and deadlines for {$client->legal_name}.",
             $events,
+            [
+                'leavePeriods' => $leavePeriods,
+                'leaveStoreUrl' => route('portal.calendar.leave-periods.store', absolute: false),
+                'canManageLeavePeriods' => true,
+            ],
         ];
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
+     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>, 3: array<string, mixed>}
      */
     private function entrepreneurCalendar(User $user, EntrepreneurInviteReconciler $entrepreneurInvites): array
     {
@@ -285,11 +385,12 @@ final class CalendarController extends Controller
             'Entrepreneur calendar',
             'Business plan, assessments, readiness signals, documents, and messages for your entrepreneur workspace.',
             $this->entrepreneurEvents($profile, false),
+            [],
         ];
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
+     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>, 3: array<string, mixed>}
      */
     private function mentorCalendar(User $user): array
     {
@@ -308,11 +409,12 @@ final class CalendarController extends Controller
             'Mentor calendar',
             'Entrepreneur profile, plan, assessment, readiness, document, and message activity assigned to you.',
             $events,
+            [],
         ];
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
+     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>, 3: array<string, mixed>}
      */
     private function panelCalendar(User $user, string $panelType): array
     {
@@ -430,6 +532,7 @@ final class CalendarController extends Controller
                 ? 'Broker referrals, reverse referrals, messages, and panel agreement activity.'
                 : 'Coach referrals, referral messages, and panel agreement activity.',
             $events,
+            [],
         ];
     }
 
@@ -615,11 +718,11 @@ final class CalendarController extends Controller
     }
 
     /**
-     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>}
+     * @return array{0: string, 1: string, 2: array<int, array<string, mixed>>, 3: array<string, mixed>}
      */
     private function emptyCalendar(string $title, string $subtitle): array
     {
-        return [$title, $subtitle, []];
+        return [$title, $subtitle, [], []];
     }
 
     /**

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::store
- * @see app/Http/Controllers/AdvisorApi/WriteController.php:20
+ * @see app/Http/Controllers/AdvisorApi/WriteController.php:21
  * @route '/api/advisor/v1/clients/{client}/meeting-notes'
  */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::store
- * @see app/Http/Controllers/AdvisorApi/WriteController.php:20
+ * @see app/Http/Controllers/AdvisorApi/WriteController.php:21
  * @route '/api/advisor/v1/clients/{client}/meeting-notes'
  */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -49,7 +49,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::store
- * @see app/Http/Controllers/AdvisorApi/WriteController.php:20
+ * @see app/Http/Controllers/AdvisorApi/WriteController.php:21
  * @route '/api/advisor/v1/clients/{client}/meeting-notes'
  */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
     /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::store
- * @see app/Http/Controllers/AdvisorApi/WriteController.php:20
+ * @see app/Http/Controllers/AdvisorApi/WriteController.php:21
  * @route '/api/advisor/v1/clients/{client}/meeting-notes'
  */
     const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,14 +69,14 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
             /**
 * @see \App\Http\Controllers\AdvisorApi\WriteController::store
- * @see app/Http/Controllers/AdvisorApi/WriteController.php:20
+ * @see app/Http/Controllers/AdvisorApi/WriteController.php:21
  * @route '/api/advisor/v1/clients/{client}/meeting-notes'
  */
         storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const meetingNotes = {
     store: Object.assign(store, store),

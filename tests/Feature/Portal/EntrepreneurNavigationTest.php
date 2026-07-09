@@ -368,6 +368,7 @@ final class EntrepreneurNavigationTest extends TestCase
             'stage' => EntrepreneurStage::ONBOARDING,
             'concept_summary' => 'Founder also wants to buy a business.',
         ]);
+        $package = $this->dueDiligencePackage();
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.dashboard'))
@@ -381,6 +382,9 @@ final class EntrepreneurNavigationTest extends TestCase
             ->assertInertia(fn ($page) => $page
                 ->component('portal/ServiceActivationRequest')
                 ->where('service.service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+                ->where('pricingPreview.status', 'needs_purchase_price')
+                ->where('pricingPreview.packages.0.id', (string) $package->getKey())
+                ->where('pricingPreview.packages.0.fixed_fee', 8500)
                 ->where('dashboardUrl', route('portal.entrepreneur.dashboard', absolute: false)));
 
         $profile->refresh();
@@ -406,6 +410,8 @@ final class EntrepreneurNavigationTest extends TestCase
                 'asking_price' => 850000,
                 'timing' => 'Shortlisting now',
                 'notes' => 'I want due diligence support before submitting an offer.',
+                'pricing_acknowledged' => true,
+                'pricing_package_id' => $package->getKey(),
             ])
             ->assertRedirect();
 
@@ -417,6 +423,9 @@ final class EntrepreneurNavigationTest extends TestCase
         $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
         $this->assertSame((string) $advisor->getKey(), (string) $activation->advisor_id);
         $this->assertSame('Kauri Kitchens Group Limited', $activation->intake['target_name']);
+        $this->assertSame('matched_package', $activation->metadata['pre_request_pricing']['status']);
+        $this->assertSame(8500.0, $activation->metadata['pre_request_pricing']['package']['fixed_fee']);
+        $this->assertSame((string) $package->getKey(), (string) $activation->metadata['pre_request_pricing']['package']['id']);
     }
 
     public function test_buying_business_request_survives_notification_delivery_failure(): void
@@ -462,6 +471,7 @@ final class EntrepreneurNavigationTest extends TestCase
                 'asking_price' => 850000,
                 'timing' => 'Shortlisting now',
                 'notes' => 'I want due diligence support before submitting an offer.',
+                'pricing_acknowledged' => true,
             ])
             ->assertRedirect();
 
@@ -541,5 +551,24 @@ final class EntrepreneurNavigationTest extends TestCase
             route('portal.messages.index', absolute: false),
             route('notifications.index', absolute: false),
         ];
+    }
+
+    private function dueDiligencePackage(): ServiceRatePackage
+    {
+        return ServiceRatePackage::query()->create([
+            'service_type' => ServiceRatePackage::SERVICE_DUE_DILIGENCE,
+            'package_scope' => ServiceRatePackage::SCOPE_DD_300K_1M,
+            'package_name' => 'Purchase price between $300k and $1m',
+            'client_label' => 'Purchase price between $300k and $1m',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 8500,
+            'deposit_percent' => 50,
+            'currency' => 'NZD',
+            'purchase_price_min' => 300001,
+            'purchase_price_max' => 1000000,
+            'scope_description' => 'Business purchase price between $300k and $1m.',
+            'is_active' => true,
+            'effective_from' => now()->subMinute(),
+        ]);
     }
 }

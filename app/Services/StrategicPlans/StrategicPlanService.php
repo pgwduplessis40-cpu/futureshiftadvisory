@@ -13,6 +13,7 @@ use App\Models\StrategicPlan;
 use App\Models\StrategicPlanMilestone;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
@@ -31,6 +32,7 @@ final class StrategicPlanService
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly PublicHolidayCalendar $publicHolidays,
+        private readonly ClientAvailabilityCalendar $availability,
     ) {}
 
     public function generateForProposal(Proposal $proposal, User $actor): StrategicPlan
@@ -122,11 +124,11 @@ final class StrategicPlanService
                 'deployed_by_user_id' => $actor->getKey(),
             ])->save();
 
-            $plan->milestones()->get()->each(function (StrategicPlanMilestone $milestone) use ($deploymentDate, $regions): void {
-                $dueDate = $this->publicHolidays->nextAvailableDate(
-                    $deploymentDate->copy()->addDays((int) $milestone->due_offset_days),
-                    $regions,
-                );
+            $plan->milestones()->get()->each(function (StrategicPlanMilestone $milestone) use ($client, $deploymentDate, $regions): void {
+                $candidate = $deploymentDate->copy()->addDays((int) $milestone->due_offset_days);
+                $dueDate = $client instanceof Client
+                    ? $this->availability->nextAvailableDate($client, $candidate)
+                    : $this->publicHolidays->nextAvailableDate($candidate, $regions);
 
                 $milestone->forceFill([
                     'due_date' => $dueDate->toDateString(),

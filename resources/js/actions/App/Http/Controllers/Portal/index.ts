@@ -3,6 +3,7 @@ import StrategicBudgetController from './StrategicBudgetController'
 import StrategicPlanMilestoneController from './StrategicPlanMilestoneController'
 import ServiceActivationController from './ServiceActivationController'
 import NpoBoardDashboardController from './NpoBoardDashboardController'
+import ClientLeavePeriodController from './ClientLeavePeriodController'
 import DdBusinessPlanController from './DdBusinessPlanController'
 import EntrepreneurDashboardController from './EntrepreneurDashboardController'
 import EntrepreneurPlanController from './EntrepreneurPlanController'
@@ -24,6 +25,7 @@ StrategicBudgetController: Object.assign(StrategicBudgetController, StrategicBud
 StrategicPlanMilestoneController: Object.assign(StrategicPlanMilestoneController, StrategicPlanMilestoneController),
 ServiceActivationController: Object.assign(ServiceActivationController, ServiceActivationController),
 NpoBoardDashboardController: Object.assign(NpoBoardDashboardController, NpoBoardDashboardController),
+ClientLeavePeriodController: Object.assign(ClientLeavePeriodController, ClientLeavePeriodController),
 DdBusinessPlanController: Object.assign(DdBusinessPlanController, DdBusinessPlanController),
 EntrepreneurDashboardController: Object.assign(EntrepreneurDashboardController, EntrepreneurDashboardController),
 EntrepreneurPlanController: Object.assign(EntrepreneurPlanController, EntrepreneurPlanController),

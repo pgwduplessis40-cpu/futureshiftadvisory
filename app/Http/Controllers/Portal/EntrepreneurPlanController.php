@@ -629,9 +629,12 @@ final class EntrepreneurPlanController extends Controller
             && $invite->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
             ? $invite->intended_package_scope
             : null;
+        $profileScope = $profile->intended_service_type === ServiceActivation::SERVICE_ENTREPRENEUR
+            ? $profile->intended_package_scope
+            : null;
         $scope = $activation instanceof ServiceActivation
             ? (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO)
-            : (string) ($inviteScope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO);
+            : (string) ($profileScope ?? $inviteScope ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO);
         $access = ServiceRatePackage::accessFor(
             ServiceRatePackage::SERVICE_ENTREPRENEUR,
             $scope,

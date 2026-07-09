@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
 export const create = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ create.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
 create.url = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions) => {
@@ -24,7 +24,7 @@ create.url = (args: { serviceType: string | number } | [serviceType: string | nu
         args = { serviceType: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceType: args[0],
@@ -44,7 +44,7 @@ create.url = (args: { serviceType: string | number } | [serviceType: string | nu
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
 create.get = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ create.get = (args: { serviceType: string | number } | [serviceType: string | nu
 })
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
 create.head = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ create.head = (args: { serviceType: string | number } | [serviceType: string | n
 
     /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
     const createForm = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ create.head = (args: { serviceType: string | number } | [serviceType: string | n
 
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
         createForm.get = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ create.head = (args: { serviceType: string | number } | [serviceType: string | n
         })
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::create
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:27
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:28
  * @route '/portal/service-activations/new/{serviceType}'
  */
         createForm.head = (args: { serviceType: string | number } | [serviceType: string | number ] | string | number, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -94,11 +94,11 @@ create.head = (args: { serviceType: string | number } | [serviceType: string | n
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:65
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:67
  * @route '/portal/service-activations'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:65
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:67
  * @route '/portal/service-activations'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -122,7 +122,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:65
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:67
  * @route '/portal/service-activations'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -132,7 +132,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:65
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:67
  * @route '/portal/service-activations'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -142,18 +142,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::store
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:65
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:67
  * @route '/portal/service-activations'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
 export const show = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -168,7 +168,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
 show.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -179,7 +179,7 @@ show.url = (args: { serviceActivation: string | { id: string } } | [serviceActiv
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -201,7 +201,7 @@ show.url = (args: { serviceActivation: string | { id: string } } | [serviceActiv
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
 show.get = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -210,7 +210,7 @@ show.get = (args: { serviceActivation: string | { id: string } } | [serviceActiv
 })
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
 show.head = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -220,7 +220,7 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
 
     /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
     const showForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -230,7 +230,7 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
 
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
         showForm.get = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -239,7 +239,7 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
         })
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::show
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:95
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
  * @route '/portal/service-activations/{serviceActivation}'
  */
         showForm.head = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -251,11 +251,11 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::paymentComplete
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:129
  * @route '/portal/service-activations/{serviceActivation}/payment-complete'
  */
 export const paymentComplete = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -270,7 +270,7 @@ paymentComplete.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::paymentComplete
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:129
  * @route '/portal/service-activations/{serviceActivation}/payment-complete'
  */
 paymentComplete.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -281,7 +281,7 @@ paymentComplete.url = (args: { serviceActivation: string | { id: string } } | [s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -303,7 +303,7 @@ paymentComplete.url = (args: { serviceActivation: string | { id: string } } | [s
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::paymentComplete
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:129
  * @route '/portal/service-activations/{serviceActivation}/payment-complete'
  */
 paymentComplete.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -313,7 +313,7 @@ paymentComplete.post = (args: { serviceActivation: string | { id: string } } | [
 
     /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::paymentComplete
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:129
  * @route '/portal/service-activations/{serviceActivation}/payment-complete'
  */
     const paymentCompleteForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -323,18 +323,18 @@ paymentComplete.post = (args: { serviceActivation: string | { id: string } } | [
 
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::paymentComplete
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:112
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:129
  * @route '/portal/service-activations/{serviceActivation}/payment-complete'
  */
         paymentCompleteForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: paymentComplete.url(args, options),
             method: 'post',
         })
-    
+
     paymentComplete.form = paymentCompleteForm
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:125
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:142
  * @route '/portal/service-activations/{serviceActivation}/accept'
  */
 export const accept = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -349,7 +349,7 @@ accept.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:125
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:142
  * @route '/portal/service-activations/{serviceActivation}/accept'
  */
 accept.url = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -360,7 +360,7 @@ accept.url = (args: { serviceActivation: string | { id: string } } | [serviceAct
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -382,7 +382,7 @@ accept.url = (args: { serviceActivation: string | { id: string } } | [serviceAct
 
 /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:125
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:142
  * @route '/portal/service-activations/{serviceActivation}/accept'
  */
 accept.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -392,7 +392,7 @@ accept.post = (args: { serviceActivation: string | { id: string } } | [serviceAc
 
     /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:125
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:142
  * @route '/portal/service-activations/{serviceActivation}/accept'
  */
     const acceptForm = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -402,14 +402,14 @@ accept.post = (args: { serviceActivation: string | { id: string } } | [serviceAc
 
             /**
 * @see \App\Http\Controllers\Portal\ServiceActivationController::accept
- * @see app/Http/Controllers/Portal/ServiceActivationController.php:125
+ * @see app/Http/Controllers/Portal/ServiceActivationController.php:142
  * @route '/portal/service-activations/{serviceActivation}/accept'
  */
         acceptForm.post = (args: { serviceActivation: string | { id: string } } | [serviceActivation: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: accept.url(args, options),
             method: 'post',
         })
-    
+
     accept.form = acceptForm
 const ServiceActivationController = { create, store, show, paymentComplete, accept }
 

@@ -46,9 +46,11 @@ const KEY_STORAGE = 'fsa.portal.offline.key.v1';
 const SYNC_MESSAGE = 'PORTAL_OFFLINE_SYNC';
 const QUEUE_CHANGED_EVENT = 'portal-offline-queue-changed';
 const LEGACY_RECORD_EVENT = 'portal-offline-legacy-record';
+const STARTUP_SYNC_DELAY_MS = 2000;
 
 let registrationStarted = false;
 let flushing = false;
+let startupFlushScheduled = false;
 const legacyRecordsNotified = new Set<string>();
 
 export function registerPortalOffline(): void {
@@ -81,7 +83,7 @@ export function registerPortalOffline(): void {
     });
 
     if (navigator.onLine) {
-        void flushPortalOfflineQueue();
+        scheduleStartupFlush();
     }
 }
 
@@ -612,6 +614,35 @@ function registerBackgroundSync(
     return (registration as BackgroundSyncRegistration).sync?.register(
         'portal-offline-sync',
     );
+}
+
+function scheduleStartupFlush(): void {
+    if (startupFlushScheduled) {
+        return;
+    }
+
+    startupFlushScheduled = true;
+
+    const flush = () => {
+        void flushPortalOfflineQueue();
+    };
+
+    const idleWindow = window as Window & {
+        requestIdleCallback?: (
+            callback: () => void,
+            options?: { timeout: number },
+        ) => number;
+    };
+
+    if (typeof idleWindow.requestIdleCallback === 'function') {
+        idleWindow.requestIdleCallback(flush, {
+            timeout: STARTUP_SYNC_DELAY_MS,
+        });
+
+        return;
+    }
+
+    globalThis.setTimeout(flush, STARTUP_SYNC_DELAY_MS);
 }
 
 function isUuid(value: string): boolean {

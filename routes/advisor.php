@@ -377,6 +377,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneurs/{entrepreneurProfile}/documents/{document}', [EntrepreneurDocumentController::class, 'show'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.documents.show');
+        Route::patch('entrepreneurs/{entrepreneurProfile}/invite', [EntrepreneurController::class, 'updateInvite'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
+            ->name('entrepreneurs.invite.update');
         Route::post('entrepreneurs/{entrepreneurProfile}/invite/resend', [EntrepreneurController::class, 'resendInvite'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.invite.resend');

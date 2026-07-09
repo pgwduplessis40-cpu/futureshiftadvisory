@@ -9,6 +9,7 @@ use App\Models\Meeting;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Calendar\CalendarSync;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Validation\ValidationException;
@@ -20,6 +21,7 @@ final class MeetingManager
         private readonly AuditWriter $audit,
         private readonly CalendarSync $calendarSync,
         private readonly PublicHolidayCalendar $publicHolidays,
+        private readonly ClientAvailabilityCalendar $availability,
     ) {}
 
     /**
@@ -151,5 +153,7 @@ final class MeetingManager
                 'scheduled_at' => $this->publicHolidays->validationMessage($holiday, 'Meetings'),
             ]);
         }
+
+        $this->availability->assertAvailable($client, $scheduledAt, 'Meetings', 'scheduled_at');
     }
 }

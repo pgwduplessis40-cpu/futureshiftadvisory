@@ -22,8 +22,11 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     invite_accepted_at: string | null;
     invite_expires_at: string | null;
     invite_delivery_label: string;
+    invite_update_url: string | null;
     invite_resend_url: string | null;
     invite_cancel_url: string | null;
+    intended_package_scope: string;
+    intended_package_scope_label: string;
     created_at: string | null;
     documents: EntrepreneurDocument[];
     messages: EntrepreneurMessageSummary;
@@ -208,4 +211,10 @@ export type CriterionDelta = {
     current_score: number;
     delta: number;
     direction: string;
+};
+
+export type ServiceOption = {
+    value: string;
+    label: string;
+    description: string;
 };

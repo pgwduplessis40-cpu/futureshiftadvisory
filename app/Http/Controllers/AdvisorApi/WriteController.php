@@ -10,6 +10,7 @@ use App\Models\Client;
 use App\Models\Meeting;
 use App\Models\Milestone;
 use App\Models\MilestoneAction;
+use App\Services\Calendar\ClientAvailabilityCalendar;
 use App\Services\Calendar\PublicHolidayCalendar;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -17,8 +18,12 @@ use Illuminate\Validation\ValidationException;
 
 final class WriteController extends Controller
 {
-    public function meetingNote(Request $request, Client $client, PublicHolidayCalendar $publicHolidays): JsonResponse
-    {
+    public function meetingNote(
+        Request $request,
+        Client $client,
+        PublicHolidayCalendar $publicHolidays,
+        ClientAvailabilityCalendar $availability,
+    ): JsonResponse {
         $apiClient = $this->apiClient($request);
         $this->authorizeScope($apiClient, AdvisorApiClient::SCOPE_WRITE_MEETING_NOTES);
         $this->authorizeClient($apiClient, $client);
@@ -34,6 +39,7 @@ final class WriteController extends Controller
             'occurred_at',
             'Meetings',
             $publicHolidays,
+            $availability,
         );
 
         /** @var Meeting $meeting */
@@ -53,8 +59,12 @@ final class WriteController extends Controller
         return response()->json(['data' => ['id' => $meeting->id]], 201);
     }
 
-    public function action(Request $request, Client $client, PublicHolidayCalendar $publicHolidays): JsonResponse
-    {
+    public function action(
+        Request $request,
+        Client $client,
+        PublicHolidayCalendar $publicHolidays,
+        ClientAvailabilityCalendar $availability,
+    ): JsonResponse {
         $apiClient = $this->apiClient($request);
         $this->authorizeScope($apiClient, AdvisorApiClient::SCOPE_WRITE_ACTIONS);
         $this->authorizeClient($apiClient, $client);
@@ -75,6 +85,7 @@ final class WriteController extends Controller
             'due_date',
             'Actions',
             $publicHolidays,
+            $availability,
         );
 
         /** @var MilestoneAction $action */
@@ -116,6 +127,7 @@ final class WriteController extends Controller
         string $field,
         string $subject,
         PublicHolidayCalendar $publicHolidays,
+        ClientAvailabilityCalendar $availability,
     ): void {
         if ($date === null || trim((string) $date) === '') {
             return;
@@ -128,5 +140,7 @@ final class WriteController extends Controller
                 $field => $publicHolidays->validationMessage($holiday, $subject),
             ]);
         }
+
+        $availability->assertAvailable($client, $date, $subject, $field);
     }
 }
