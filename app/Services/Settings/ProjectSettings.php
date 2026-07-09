@@ -229,7 +229,7 @@ final class ProjectSettings
             'label' => 'Graph delegated OAuth scopes',
             'type' => self::TYPE_STRING_LIST,
             'config_path' => 'mail.mailers.graph.delegated_scopes',
-            'default' => "offline_access\nUser.Read\nMail.Send",
+            'default' => "offline_access\nUser.Read\nMail.Send\nMail.Send.Shared",
         ],
         [
             'key' => 'mail.mailers.graph.timeout',

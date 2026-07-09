@@ -68,6 +68,8 @@ type Props = {
         connected: boolean;
         status: string | null;
         mailbox_email: string | null;
+        configured_sender: string | null;
+        uses_shared_sender: boolean;
         token_expires_at: string | null;
         connected_at: string | null;
         connected_by: string | null;
@@ -526,6 +528,7 @@ function GraphMailOAuthPanel({
     const disconnect = () => {
         router.patch(disconnectUrl, {}, { preserveScroll: true });
     };
+    const sender = status.configured_sender ?? status.mailbox_email;
 
     return (
         <div className="grid gap-3 rounded-md border bg-muted/20 p-3">
@@ -547,9 +550,21 @@ function GraphMailOAuthPanel({
                     </div>
                     <p className="mt-1 text-sm text-muted-foreground">
                         {status.connected && status.mailbox_email
-                            ? `Sending as ${status.mailbox_email}.`
+                            ? `Connected mailbox: ${status.mailbox_email}.`
                             : 'Connect a Microsoft mailbox so Graph can send email with delegated OAuth.'}
                     </p>
+                    {sender ? (
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Sender mailbox: {sender}.
+                        </p>
+                    ) : null}
+                    {status.uses_shared_sender ? (
+                        <p className="mt-1 text-xs text-muted-foreground">
+                            The connected mailbox must have Microsoft Graph
+                            Mail.Send.Shared plus Microsoft 365 Send As or Send
+                            on Behalf permission for this sender.
+                        </p>
+                    ) : null}
                     {status.last_error ? (
                         <p className="mt-1 text-xs text-destructive">
                             {status.last_error}

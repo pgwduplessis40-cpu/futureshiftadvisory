@@ -22,7 +22,7 @@ final class MicrosoftGraphMailOAuthConnector
 {
     /**
      * The mail sender can reuse the same Microsoft app registration as calendar
-     * sync once the mail redirect URI and delegated Mail.Send permission are
+     * sync once the mail redirect URI and delegated Mail.Send permissions are
      * added in Azure.
      *
      * @var array<string, array<int, string>>
@@ -53,6 +53,8 @@ final class MicrosoftGraphMailOAuthConnector
             'connected' => $connection instanceof MailOAuthConnection && $connection->connected(),
             'status' => $connection?->status,
             'mailbox_email' => $connection?->mailbox_email,
+            'configured_sender' => $this->configuredSender(),
+            'uses_shared_sender' => $this->usesSharedSender($connection),
             'token_expires_at' => $connection?->token_expires_at?->toIso8601String(),
             'connected_at' => $connection?->connected_at?->toIso8601String(),
             'connected_by' => $connection?->connectedBy?->name,
@@ -312,7 +314,7 @@ final class MicrosoftGraphMailOAuthConnector
 
         if ($value === '') {
             $label = str_replace('_', ' ', $key);
-            throw new InvalidArgumentException("Microsoft Graph did not return a {$label}. Make sure offline_access and Mail.Send delegated permissions are configured.");
+            throw new InvalidArgumentException("Microsoft Graph did not return a {$label}. Make sure offline_access, Mail.Send, and Mail.Send.Shared delegated permissions are configured.");
         }
 
         return $value;
@@ -321,15 +323,17 @@ final class MicrosoftGraphMailOAuthConnector
     private function applyConnectedMailSettings(MailOAuthConnection $connection, User $user): void
     {
         $definitions = $this->settings->definitionsByKey();
+        $sender = $this->configuredSender() ?? $connection->mailbox_email;
         $updates = [
             'mail.default' => 'graph',
             'mail.mailers.graph.auth_mode' => 'delegated',
-            'mail.mailers.graph.from_address' => $connection->mailbox_email,
+            'mail.mailers.graph.from_address' => $sender,
+            'mail.mailers.graph.delegated_scopes' => implode("\n", $this->delegatedScopes()),
         ];
 
         $fromAddress = trim((string) Config::get('mail.from.address', ''));
         if ($fromAddress === '' || $fromAddress === 'hello@example.com' || filter_var($fromAddress, FILTER_VALIDATE_EMAIL) === false) {
-            $updates['mail.from.address'] = $connection->mailbox_email;
+            $updates['mail.from.address'] = $sender;
         }
 
         foreach ($updates as $key => $value) {
@@ -389,9 +393,7 @@ final class MicrosoftGraphMailOAuthConnector
 
     private function loginHint(): ?string
     {
-        $from = trim((string) Config::get('mail.mailers.graph.from_address', ''));
-
-        return filter_var($from, FILTER_VALIDATE_EMAIL) !== false ? $from : null;
+        return $this->configuredSender();
     }
 
     private function timeout(): int
@@ -448,7 +450,46 @@ final class MicrosoftGraphMailOAuthConnector
             ->values()
             ->all();
 
-        return $scopes === [] ? ['offline_access', 'User.Read', 'Mail.Send'] : $scopes;
+        $requiredScopes = ['offline_access', 'User.Read', 'Mail.Send', 'Mail.Send.Shared'];
+        foreach ($requiredScopes as $requiredScope) {
+            $alreadyPresent = collect($scopes)
+                ->contains(fn (string $scope): bool => strcasecmp($scope, $requiredScope) === 0);
+
+            if (! $alreadyPresent) {
+                $scopes[] = $requiredScope;
+            }
+        }
+
+        return $scopes;
+    }
+
+    private function configuredSender(): ?string
+    {
+        $graphFrom = trim((string) Config::get('mail.mailers.graph.from_address', ''));
+        if (filter_var($graphFrom, FILTER_VALIDATE_EMAIL) !== false) {
+            return $graphFrom;
+        }
+
+        $mailFrom = trim((string) Config::get('mail.from.address', ''));
+        if (
+            $mailFrom !== ''
+            && $mailFrom !== 'hello@example.com'
+            && filter_var($mailFrom, FILTER_VALIDATE_EMAIL) !== false
+        ) {
+            return $mailFrom;
+        }
+
+        return null;
+    }
+
+    private function usesSharedSender(?MailOAuthConnection $connection): bool
+    {
+        $sender = $this->configuredSender();
+
+        return $connection instanceof MailOAuthConnection
+            && $connection->connected()
+            && is_string($sender)
+            && strcasecmp($sender, (string) $connection->mailbox_email) !== 0;
     }
 
     private function stateFor(User $user): string

@@ -307,7 +307,7 @@ final class ProjectSettingsManagementTest extends TestCase
             'authorize_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize',
             'token_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
             'scope' => 'https://graph.microsoft.com/.default',
-            'delegated_scopes' => ['offline_access', 'User.Read', 'Mail.Send'],
+            'delegated_scopes' => ['offline_access', 'User.Read', 'Mail.Send', 'Mail.Send.Shared'],
             'timeout' => 15,
         ]);
 
@@ -316,7 +316,7 @@ final class ProjectSettingsManagementTest extends TestCase
         parse_str((string) parse_url($authorizeUrl, PHP_URL_QUERY), $authorizeQuery);
 
         $this->assertSame('graph-client-id', $authorizeQuery['client_id'] ?? null);
-        $this->assertSame('offline_access User.Read Mail.Send', $authorizeQuery['scope'] ?? null);
+        $this->assertSame('offline_access User.Read Mail.Send Mail.Send.Shared', $authorizeQuery['scope'] ?? null);
         $this->assertSame($mailCallbackUrl, $authorizeQuery['redirect_uri'] ?? null);
         $this->assertSame('select_account', $authorizeQuery['prompt'] ?? null);
         $this->assertSame('principal@futureshiftadvisory.nz', $authorizeQuery['login_hint'] ?? null);
@@ -352,11 +352,11 @@ final class ProjectSettingsManagementTest extends TestCase
         $this->assertSame('delegated-refresh-token', app(KeyEnvelope::class)->decrypt((string) $connection->refresh_token_envelope));
         $this->assertSame('graph', config('mail.default'));
         $this->assertSame('delegated', config('mail.mailers.graph.auth_mode'));
-        $this->assertSame('pieter@futureshiftadvisory.nz', config('mail.mailers.graph.from_address'));
-        $this->assertSame('pieter@futureshiftadvisory.nz', config('mail.from.address'));
+        $this->assertSame('principal@futureshiftadvisory.nz', config('mail.mailers.graph.from_address'));
+        $this->assertSame('principal@futureshiftadvisory.nz', config('mail.from.address'));
 
         Http::fake([
-            'https://graph.microsoft.com/v1.0/me/sendMail' => Http::response('', 202),
+            'https://graph.microsoft.com/v1.0/users/principal%40futureshiftadvisory.nz/sendMail' => Http::response('', 202),
         ]);
         Mail::forgetMailers();
 
@@ -371,7 +371,7 @@ final class ProjectSettingsManagementTest extends TestCase
         Http::assertSent(function ($request): bool {
             $decoded = base64_decode($request->body(), true);
 
-            return $request->url() === 'https://graph.microsoft.com/v1.0/me/sendMail'
+            return $request->url() === 'https://graph.microsoft.com/v1.0/users/principal%40futureshiftadvisory.nz/sendMail'
                 && $request->hasHeader('Authorization', 'Bearer delegated-access-token')
                 && is_string($decoded)
                 && str_contains($decoded, 'Future Shift Advisory project email settings test.')
@@ -394,7 +394,7 @@ final class ProjectSettingsManagementTest extends TestCase
             'authorize_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize',
             'token_url' => 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token',
             'scope' => 'https://graph.microsoft.com/.default',
-            'delegated_scopes' => ['offline_access', 'User.Read', 'Mail.Send'],
+            'delegated_scopes' => ['offline_access', 'User.Read', 'Mail.Send', 'Mail.Send.Shared'],
             'timeout' => 15,
         ]);
         Config::set('integrations.calendar.microsoft.tenant', 'fsa-test-tenant');
@@ -406,7 +406,7 @@ final class ProjectSettingsManagementTest extends TestCase
 
         $this->assertStringContainsString('login.microsoftonline.com/fsa-test-tenant/oauth2/v2.0/authorize', $authorizeUrl);
         $this->assertSame('existing-calendar-client-id', $authorizeQuery['client_id'] ?? null);
-        $this->assertSame('offline_access User.Read Mail.Send', $authorizeQuery['scope'] ?? null);
+        $this->assertSame('offline_access User.Read Mail.Send Mail.Send.Shared', $authorizeQuery['scope'] ?? null);
     }
 
     public function test_project_settings_feed_microsoft_graph_calendar_authorization(): void

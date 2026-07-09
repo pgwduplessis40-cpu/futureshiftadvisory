@@ -60,7 +60,7 @@ return [
             'authorize_url' => env('MICROSOFT_GRAPH_MAIL_AUTHORIZE_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/authorize'),
             'token_url' => env('MICROSOFT_GRAPH_MAIL_TOKEN_URL', 'https://login.microsoftonline.com/{tenant}/oauth2/v2.0/token'),
             'scope' => env('MICROSOFT_GRAPH_MAIL_SCOPE', 'https://graph.microsoft.com/.default'),
-            'delegated_scopes' => array_values(array_filter(preg_split('/[\s,]+/', (string) env('MICROSOFT_GRAPH_MAIL_DELEGATED_SCOPES', 'offline_access User.Read Mail.Send')) ?: [])),
+            'delegated_scopes' => array_values(array_filter(preg_split('/[\s,]+/', (string) env('MICROSOFT_GRAPH_MAIL_DELEGATED_SCOPES', 'offline_access User.Read Mail.Send Mail.Send.Shared')) ?: [])),
             'timeout' => (int) env('MICROSOFT_GRAPH_MAIL_TIMEOUT', 15),
         ],
 

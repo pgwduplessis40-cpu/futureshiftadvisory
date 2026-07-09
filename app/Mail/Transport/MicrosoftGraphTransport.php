@@ -47,9 +47,7 @@ final class MicrosoftGraphTransport extends AbstractTransport
 
     private function sendMessage(SentMessage $message, string $from, bool $refreshToken = false): Response
     {
-        $endpoint = $this->authMode() === 'delegated'
-            ? $this->baseUrl().'/me/sendMail'
-            : $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
+        $endpoint = $this->sendMailEndpoint($from);
 
         return Http::withToken($this->accessToken($refreshToken))
             ->acceptJson()
@@ -131,6 +129,11 @@ final class MicrosoftGraphTransport extends AbstractTransport
 
     private function fromAddress(): string
     {
+        $configured = trim((string) ($this->config['from_address'] ?? ''));
+        if (filter_var($configured, FILTER_VALIDATE_EMAIL) !== false) {
+            return $configured;
+        }
+
         if ($this->authMode() === 'delegated') {
             $connected = app(MicrosoftGraphMailOAuthConnector::class)->connectedMailbox();
             if (is_string($connected) && filter_var($connected, FILTER_VALIDATE_EMAIL) !== false) {
@@ -139,6 +142,20 @@ final class MicrosoftGraphTransport extends AbstractTransport
         }
 
         return $this->requiredEmail('from_address');
+    }
+
+    private function sendMailEndpoint(string $from): string
+    {
+        if ($this->authMode() !== 'delegated') {
+            return $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
+        }
+
+        $connected = app(MicrosoftGraphMailOAuthConnector::class)->connectedMailbox();
+        if (is_string($connected) && strcasecmp($from, $connected) === 0) {
+            return $this->baseUrl().'/me/sendMail';
+        }
+
+        return $this->baseUrl().'/users/'.rawurlencode($from).'/sendMail';
     }
 
     private function timeout(): int
