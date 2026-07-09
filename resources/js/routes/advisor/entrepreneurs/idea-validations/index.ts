@@ -86,6 +86,92 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
     
     gate.form = gateForm
 /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+export const requestChanges = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: requestChanges.url(args, options),
+    method: 'patch',
+})
+
+requestChanges.definition = {
+    methods: ["patch"],
+    url: '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+requestChanges.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+                    entrepreneurProfile: args[0],
+                    ideaValidation: args[1],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+                ? args.entrepreneurProfile.id
+                : args.entrepreneurProfile,
+                                ideaValidation: typeof args.ideaValidation === 'object'
+                ? args.ideaValidation.id
+                : args.ideaValidation,
+                }
+
+    return requestChanges.definition.url
+            .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
+            .replace('{ideaValidation}', parsedArgs.ideaValidation.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+requestChanges.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: requestChanges.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+    const requestChangesForm = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: requestChanges.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+        requestChangesForm.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: requestChanges.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+
+    requestChanges.form = requestChangesForm
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
  * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
@@ -163,6 +249,7 @@ refresh.post = (args: { entrepreneurProfile: string | { id: string }, ideaValida
     refresh.form = refreshForm
 const ideaValidations = {
     gate: Object.assign(gate, gate),
+requestChanges: Object.assign(requestChanges, requestChanges),
 refresh: Object.assign(refresh, refresh),
 }
 

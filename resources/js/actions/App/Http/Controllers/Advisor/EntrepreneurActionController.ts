@@ -86,6 +86,92 @@ gateIdea.patch = (args: { entrepreneurProfile: string | { id: string }, ideaVali
     
     gateIdea.form = gateIdeaForm
 /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+export const requestIdeaChanges = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: requestIdeaChanges.url(args, options),
+    method: 'patch',
+})
+
+requestIdeaChanges.definition = {
+    methods: ["patch"],
+    url: '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes',
+} satisfies RouteDefinition<["patch"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+requestIdeaChanges.url = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions) => {
+    if (Array.isArray(args)) {
+        args = {
+                    entrepreneurProfile: args[0],
+                    ideaValidation: args[1],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        entrepreneurProfile: typeof args.entrepreneurProfile === 'object'
+                ? args.entrepreneurProfile.id
+                : args.entrepreneurProfile,
+                                ideaValidation: typeof args.ideaValidation === 'object'
+                ? args.ideaValidation.id
+                : args.ideaValidation,
+                }
+
+    return requestIdeaChanges.definition.url
+            .replace('{entrepreneurProfile}', parsedArgs.entrepreneurProfile.toString())
+            .replace('{ideaValidation}', parsedArgs.ideaValidation.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+requestIdeaChanges.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
+    url: requestIdeaChanges.url(args, options),
+    method: 'patch',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+    const requestIdeaChangesForm = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: requestIdeaChanges.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'PATCH',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestIdeaChanges
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/request-changes'
+ */
+        requestIdeaChangesForm.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } } | [entrepreneurProfile: string | { id: string }, ideaValidation: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: requestIdeaChanges.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'PATCH',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+
+    requestIdeaChanges.form = requestIdeaChangesForm
+/**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refreshIdea
  * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:49
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/idea-validations/{ideaValidation}/refresh'
@@ -163,7 +249,7 @@ refreshIdea.post = (args: { entrepreneurProfile: string | { id: string }, ideaVa
     refreshIdea.form = refreshIdeaForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:83
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
  */
 export const assess = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -178,7 +264,7 @@ assess.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:83
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
  */
 assess.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -208,7 +294,7 @@ assess.url = (args: { entrepreneurProfile: string | { id: string }, businessPlan
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:83
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
  */
 assess.post = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -218,7 +304,7 @@ assess.post = (args: { entrepreneurProfile: string | { id: string }, businessPla
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:83
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
  */
     const assessForm = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -228,7 +314,7 @@ assess.post = (args: { entrepreneurProfile: string | { id: string }, businessPla
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::assess
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:65
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:83
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/plans/{businessPlan}/assessments'
  */
         assessForm.post = (args: { entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } } | [entrepreneurProfile: string | { id: string }, businessPlan: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -239,7 +325,7 @@ assess.post = (args: { entrepreneurProfile: string | { id: string }, businessPla
     assess.form = assessForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:100
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
 export const finalise = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -254,7 +340,7 @@ finalise.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:100
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
 finalise.url = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -284,7 +370,7 @@ finalise.url = (args: { entrepreneurProfile: string | { id: string }, planAssess
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:100
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
 finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -294,7 +380,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:100
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
     const finaliseForm = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -309,7 +395,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::finalise
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:82
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:100
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/assessments/{planAssessment}/finalise'
  */
         finaliseForm.patch = (args: { entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } } | [entrepreneurProfile: string | { id: string }, planAssessment: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -325,7 +411,7 @@ finalise.patch = (args: { entrepreneurProfile: string | { id: string }, planAsse
     finalise.form = finaliseForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:109
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:127
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 export const convert = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -340,7 +426,7 @@ convert.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:109
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:127
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -373,7 +459,7 @@ convert.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepr
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:109
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:127
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
 convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -383,7 +469,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:109
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:127
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
     const convertForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -393,7 +479,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::convert
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:109
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:127
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/convert'
  */
         convertForm.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -404,7 +490,7 @@ convert.post = (args: { entrepreneurProfile: string | { id: string } } | [entrep
     convert.form = convertForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
 export const setGamification = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -419,7 +505,7 @@ setGamification.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
 setGamification.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -452,7 +538,7 @@ setGamification.url = (args: { entrepreneurProfile: string | { id: string } } | 
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
 setGamification.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -462,7 +548,7 @@ setGamification.patch = (args: { entrepreneurProfile: string | { id: string } } 
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
     const setGamificationForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -477,7 +563,7 @@ setGamification.patch = (args: { entrepreneurProfile: string | { id: string } } 
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::setGamification
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
         setGamificationForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -491,6 +577,6 @@ setGamification.patch = (args: { entrepreneurProfile: string | { id: string } } 
         })
     
     setGamification.form = setGamificationForm
-const EntrepreneurActionController = { gateIdea, refreshIdea, assess, finalise, convert, setGamification }
+const EntrepreneurActionController = { gateIdea, requestIdeaChanges, refreshIdea, assess, finalise, convert, setGamification }
 
 export default EntrepreneurActionController

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
 export const update = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -16,7 +16,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
 update.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ update.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
 
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
 update.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -59,7 +59,7 @@ update.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
     /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
     const updateForm = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -74,7 +74,7 @@ update.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrep
 
             /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::update
- * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:137
+ * @see app/Http/Controllers/Advisor/EntrepreneurActionController.php:155
  * @route '/advisor/entrepreneurs/{entrepreneurProfile}/gamification'
  */
         updateForm.patch = (args: { entrepreneurProfile: string | { id: string } } | [entrepreneurProfile: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
