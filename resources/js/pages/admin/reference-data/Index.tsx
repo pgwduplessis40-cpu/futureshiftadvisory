@@ -25,7 +25,8 @@ type ReferenceDataEntry = {
     evidence: {
         id: string;
         filename: string;
-        url: string;
+        scanner_result: string;
+        url: string | null;
     } | null;
     learning_update_id: string;
     learning_update_status: string | null;
@@ -61,7 +62,8 @@ type PendingReview = {
     evidence: {
         id: string;
         filename: string;
-        url: string;
+        scanner_result: string;
+        url: string | null;
     } | null;
 };
 
@@ -323,7 +325,8 @@ export default function ReferenceDataIndex({
                                                     selectedPendingReview.status,
                                                 )}
                                             </Badge>
-                                            {selectedPendingReview.evidence && (
+                                            {selectedPendingReview.evidence
+                                                ?.url ? (
                                                 <a
                                                     className="font-medium underline-offset-4 hover:underline"
                                                     href={
@@ -335,7 +338,15 @@ export default function ReferenceDataIndex({
                                                 >
                                                     Evidence
                                                 </a>
-                                            )}
+                                            ) : selectedPendingReview.evidence ? (
+                                                <Badge variant="secondary">
+                                                    {formatScannerStatus(
+                                                        selectedPendingReview
+                                                            .evidence
+                                                            .scanner_result,
+                                                    )}
+                                                </Badge>
+                                            ) : null}
                                         </div>
                                     </AlertDescription>
                                 </Alert>
@@ -627,7 +638,7 @@ export default function ReferenceDataIndex({
                                             className="px-3 py-3"
                                             data-label="Evidence"
                                         >
-                                            {entry.evidence ? (
+                                            {entry.evidence?.url ? (
                                                 <a
                                                     className="text-sm font-medium text-primary underline-offset-4 hover:underline"
                                                     href={entry.evidence.url}
@@ -636,6 +647,13 @@ export default function ReferenceDataIndex({
                                                 >
                                                     View
                                                 </a>
+                                            ) : entry.evidence ? (
+                                                <Badge variant="secondary">
+                                                    {formatScannerStatus(
+                                                        entry.evidence
+                                                            .scanner_result,
+                                                    )}
+                                                </Badge>
                                             ) : (
                                                 <span className="text-muted-foreground">
                                                     None
@@ -737,6 +755,14 @@ function formatStatus(status: string | null): string {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function formatScannerStatus(status: string): string {
+    if (status === 'error') {
+        return 'Quarantined';
+    }
+
+    return formatStatus(status);
 }
 
 function formatDate(value: string): string {

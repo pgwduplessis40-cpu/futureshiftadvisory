@@ -211,10 +211,6 @@ final class ReferenceDataController extends Controller
             throw ValidationException::withMessages(['evidence_upload' => 'Evidence upload could not be securely stored for scanning.']);
         }
 
-        if ($document->scanner_result !== Document::SCANNER_CLEAN) {
-            throw ValidationException::withMessages(['evidence_upload' => 'Evidence upload is quarantined until malware scanning is available.']);
-        }
-
         return $document;
     }
 
@@ -454,11 +450,7 @@ final class ReferenceDataController extends Controller
                 'learning_update_id' => $entry->learning_update_id,
                 'status' => $entry->learningUpdate?->status,
                 'submitted_at' => $entry->created_at?->toIso8601String(),
-                'evidence' => $storesEvidenceDocument && $entry->evidenceDocument instanceof Document ? [
-                    'id' => $entry->evidenceDocument->id,
-                    'filename' => $entry->evidenceDocument->original_filename,
-                    'url' => route('admin.reference-data.evidence', $entry->evidenceDocument, absolute: false),
-                ] : null,
+                'evidence' => $storesEvidenceDocument ? $this->evidencePayload($entry->evidenceDocument) : null,
             ])
             ->filter(fn (array $entry): bool => $entry['target_key'] !== '')
             ->values()
@@ -487,16 +479,31 @@ final class ReferenceDataController extends Controller
                 'dataset' => $entry->dataset,
                 'as_at' => $entry->as_at?->toDateString(),
                 'source' => $entry->source,
-                'evidence' => $storesEvidenceDocument && $entry->evidenceDocument instanceof Document ? [
-                    'id' => $entry->evidenceDocument->id,
-                    'filename' => $entry->evidenceDocument->original_filename,
-                    'url' => route('admin.reference-data.evidence', $entry->evidenceDocument, absolute: false),
-                ] : null,
+                'evidence' => $storesEvidenceDocument ? $this->evidencePayload($entry->evidenceDocument) : null,
                 'learning_update_id' => $entry->learning_update_id,
                 'learning_update_status' => $entry->learningUpdate?->status,
                 'created_at' => $entry->created_at?->toIso8601String(),
             ])
             ->all();
+    }
+
+    /**
+     * @return array{id:string, filename:string, scanner_result:string, url:?string}|null
+     */
+    private function evidencePayload(?Document $document): ?array
+    {
+        if (! $document instanceof Document) {
+            return null;
+        }
+
+        $isClean = $document->scanner_result === Document::SCANNER_CLEAN;
+
+        return [
+            'id' => $document->id,
+            'filename' => $document->original_filename,
+            'scanner_result' => $document->scanner_result,
+            'url' => $isClean ? route('admin.reference-data.evidence', $document, absolute: false) : null,
+        ];
     }
 
     private function targetKey(ReferenceDataEntry $entry): string

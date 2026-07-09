@@ -18,9 +18,11 @@ use App\Models\NpoEngagement;
 use App\Models\ReferenceDataEntry;
 use App\Models\User;
 use App\Models\ValuationMultiple;
+use App\Services\Integration\VirusScanner\Contracts\FileScanner;
+use App\Services\Integration\VirusScanner\ScanResult;
 use App\Services\Learning\ApprovalFlow;
-use App\Services\Payments\GstCalculator;
 use App\Services\Npo\NpoValueCalculator;
+use App\Services\Payments\GstCalculator;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Database\QueryException;
@@ -272,6 +274,58 @@ final class ReferenceDataManagementTest extends TestCase
             ->get(route('admin.reference-data.evidence', $document))
             ->assertOk()
             ->assertHeader('Content-Type', 'image/png');
+    }
+
+    public function test_reference_data_submission_keeps_quarantined_evidence_when_scanner_is_unavailable(): void
+    {
+        Carbon::setTestNow('2026-06-01 10:00:00');
+        $this->bindScanner(ScanResult::error('ClamAV daemon unavailable.', ['engine' => 'fake-clamav']));
+        $admin = $this->superAdmin();
+        $screenshot = UploadedFile::fake()->create('rbnz-ocr-screenshot.png', 8, 'image/png');
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.reference-data.store'), [
+                'dataset' => ReferenceDataEntry::DATASET_ECONOMIC_INDICATOR,
+                'source' => 'rbnz-screenshot',
+                'as_at' => '2026-05-29',
+                'payload_json' => json_encode([
+                    'indicator' => EconomicIndicator::OCR,
+                    'label' => 'OCR reference rate',
+                    'value' => 2.25,
+                    'unit' => 'percent',
+                    'period_date' => '2026-05-27',
+                ], JSON_THROW_ON_ERROR),
+                'evidence_upload' => $screenshot,
+            ])
+            ->assertRedirect(route('admin.reference-data.index', ['target' => 'economic_indicator:ocr'], absolute: false))
+            ->assertSessionHas('status', 'reference-data-submitted');
+
+        $entry = ReferenceDataEntry::query()->firstOrFail();
+        $document = Document::query()->firstOrFail();
+        $update = $entry->learningUpdate()->firstOrFail();
+
+        $this->assertSame($document->id, $entry->evidence_document_id);
+        $this->assertSame(Document::SCANNER_ERROR, $document->scanner_result);
+        $this->assertStringStartsWith('quarantine/reference_data_evidence/', $document->stored_path);
+        $this->assertSame(Document::SCANNER_ERROR, data_get($update->evidence, 'evidence_document.scanner_result'));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'document.upload_quarantined',
+            'subject_id' => $document->id,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('admin/reference-data/Index')
+                ->where('entries.0.evidence.id', $document->id)
+                ->where('entries.0.evidence.filename', 'rbnz-ocr-screenshot.png')
+                ->where('entries.0.evidence.scanner_result', Document::SCANNER_ERROR)
+                ->where('entries.0.evidence.url', null));
+
+        $this->actingAsMfa($admin)
+            ->get(route('admin.reference-data.evidence', $document))
+            ->assertNotFound();
     }
 
     public function test_rejected_reference_data_never_projects(): void
@@ -530,5 +584,18 @@ final class ReferenceDataManagementTest extends TestCase
             'sub_type' => NpoEngagementSubType::StandardNpo,
             'legal_structure' => NpoLegalStructure::RegisteredCharity,
         ]);
+    }
+
+    private function bindScanner(ScanResult $result): void
+    {
+        $this->app->instance(FileScanner::class, new class($result) implements FileScanner
+        {
+            public function __construct(private readonly ScanResult $result) {}
+
+            public function scan(mixed $stream): ScanResult
+            {
+                return $this->result;
+            }
+        });
     }
 }

@@ -301,6 +301,7 @@ final class ReferenceDataSubmission
                     'id' => $evidenceDocument->getKey(),
                     'filename' => $evidenceDocument->original_filename,
                     'mime_type' => $evidenceDocument->mime_type,
+                    'scanner_result' => $evidenceDocument->scanner_result,
                     'sha256' => $evidenceDocument->sha256,
                 ] : null,
             ],

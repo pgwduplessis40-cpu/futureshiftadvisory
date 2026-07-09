@@ -18,6 +18,7 @@ use App\Services\Entrepreneurs\IdeaValidationService;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Notification;
+use RuntimeException;
 use Tests\TestCase;
 
 final class EntrepreneurNavigationTest extends TestCase
@@ -416,6 +417,63 @@ final class EntrepreneurNavigationTest extends TestCase
         $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
         $this->assertSame((string) $advisor->getKey(), (string) $activation->advisor_id);
         $this->assertSame('Kauri Kitchens Group Limited', $activation->intake['target_name']);
+    }
+
+    public function test_buying_business_request_survives_notification_delivery_failure(): void
+    {
+        $this->seed(RoleSeeder::class);
+
+        $advisor = User::factory()->create([
+            'user_type' => User::TYPE_ADVISOR,
+            'primary_role' => User::TYPE_ADVISOR,
+        ]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'email' => 'buyer-notification-failure@example.test',
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $advisor->getKey(),
+            'name' => 'Buyer Notification Failure',
+            'email' => $entrepreneur->email,
+            'stage' => EntrepreneurStage::ONBOARDING,
+            'concept_summary' => 'Founder wants due diligence support.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.service-activations.create', ['serviceType' => ServiceActivation::SERVICE_DUE_DILIGENCE]))
+            ->assertOk();
+
+        $profile->refresh();
+
+        Notification::shouldReceive('send')
+            ->atLeast()
+            ->once()
+            ->andThrow(new RuntimeException('Notification transport unavailable.'));
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.service-activations.store'), [
+                'service_type' => ServiceActivation::SERVICE_DUE_DILIGENCE,
+                'target_name' => 'Kauri Kitchens Group Limited',
+                'vendor_name' => 'Kauri Vendors',
+                'industry' => 'Food service',
+                'asking_price' => 850000,
+                'timing' => 'Shortlisting now',
+                'notes' => 'I want due diligence support before submitting an offer.',
+            ])
+            ->assertRedirect();
+
+        $activation = ServiceActivation::query()
+            ->where('client_id', $profile->client_id)
+            ->where('service_type', ServiceActivation::SERVICE_DUE_DILIGENCE)
+            ->firstOrFail();
+
+        $this->assertSame(ServiceActivation::STATUS_REQUESTED, $activation->status);
+        $this->assertSame((string) $advisor->getKey(), (string) $activation->advisor_id);
+        $this->assertSame('Kauri Kitchens Group Limited', $activation->intake['target_name']);
+        $this->assertNotNull($activation->client_message_thread_id);
     }
 
     public function test_entrepreneur_navigation_reclaims_same_email_profile_from_stale_user(): void

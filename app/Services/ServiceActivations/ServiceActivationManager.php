@@ -28,6 +28,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Str;
 use Illuminate\Validation\ValidationException;
+use Throwable;
 
 final class ServiceActivationManager
 {
@@ -78,11 +79,9 @@ final class ServiceActivationManager
             return $activation->refresh();
         });
 
-        if ($advisor instanceof User) {
-            Notification::send($advisor, new ServiceActivationRequestedNotification($activation));
-        }
+        $this->notifyAdvisorOfRequest($activation, $advisor);
 
-        $this->queueLearning($activation, 'requested', [
+        $this->queueLearningSafely($activation, 'requested', [
             'status' => $activation->status,
             'advisor_assigned' => $advisor instanceof User,
         ]);
@@ -137,7 +136,7 @@ final class ServiceActivationManager
             'billing_model' => $package->billing_model,
         ]);
 
-        $this->queueLearning($activation->refresh(), 'package_selected', [
+        $this->queueLearningSafely($activation->refresh(), 'package_selected', [
             'package_id' => $package->getKey(),
             'billing_model' => $package->billing_model,
         ]);
@@ -226,7 +225,7 @@ final class ServiceActivationManager
             'payment_split' => $split,
         ]);
 
-        $this->queueLearning($activation->refresh(), 'payment_completed', [
+        $this->queueLearningSafely($activation->refresh(), 'payment_completed', [
             'package_snapshot' => $activation->selected_package_snapshot,
             'payment_reference' => $reference,
         ]);
@@ -283,7 +282,7 @@ final class ServiceActivationManager
             'payment_split' => $split,
         ]);
 
-        $this->queueLearning($activation->refresh(), 'balance_received', [
+        $this->queueLearningSafely($activation->refresh(), 'balance_received', [
             'package_snapshot' => $activation->selected_package_snapshot,
             'balance_reference' => $reference,
         ]);
@@ -342,7 +341,7 @@ final class ServiceActivationManager
             return $activation->refresh();
         });
 
-        $this->queueLearning($activation, 'accepted', [
+        $this->queueLearningSafely($activation, 'accepted', [
             'package_snapshot' => $activation->selected_package_snapshot,
             'workspace_created' => true,
         ]);
@@ -459,6 +458,19 @@ final class ServiceActivationManager
             subject: 'Service workspace request: '.$activation->clientLabel(),
             body: $this->requestThreadBody($activation),
         );
+    }
+
+    private function notifyAdvisorOfRequest(ServiceActivation $activation, ?User $advisor): void
+    {
+        if (! $advisor instanceof User) {
+            return;
+        }
+
+        try {
+            Notification::send($advisor, new ServiceActivationRequestedNotification($activation));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     private function ensureWorkspace(ServiceActivation $activation, User $actor): void
@@ -785,6 +797,18 @@ final class ServiceActivationManager
             ServiceRatePackage::SERVICE_ENTREPRENEUR,
             (string) ($snapshot['package_scope'] ?? ServiceRatePackage::SCOPE_ENTREPRENEUR_COMBO),
         );
+    }
+
+    /**
+     * @param  array<string, mixed>  $evidence
+     */
+    private function queueLearningSafely(ServiceActivation $activation, string $event, array $evidence): void
+    {
+        try {
+            $this->context->withSystemContext(fn () => $this->queueLearning($activation, $event, $evidence));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 
     /**

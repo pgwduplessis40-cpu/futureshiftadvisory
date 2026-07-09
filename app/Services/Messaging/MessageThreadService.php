@@ -24,6 +24,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
 use LogicException;
+use Throwable;
 
 final class MessageThreadService
 {
@@ -430,6 +431,10 @@ final class MessageThreadService
             return;
         }
 
-        Notification::send($recipients, new NewMessageNotification($message));
+        try {
+            Notification::send($recipients, new NewMessageNotification($message));
+        } catch (Throwable $exception) {
+            report($exception);
+        }
     }
 }
