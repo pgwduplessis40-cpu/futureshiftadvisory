@@ -41,7 +41,7 @@ final class InspirationRotationSchedule extends Model
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(BoardPost::class, 'inspiration_rotation_schedule_posts')
-            ->withPivot(['position', 'scheduled_at'])
+            ->withPivot(['position', 'scheduled_at', 'featured_at'])
             ->orderBy('inspiration_rotation_schedule_posts.position');
     }
 

@@ -67,7 +67,7 @@ final class BoardPost extends Model
     public function rotationSchedules(): BelongsToMany
     {
         return $this->belongsToMany(InspirationRotationSchedule::class, 'inspiration_rotation_schedule_posts')
-            ->withPivot(['position', 'scheduled_at']);
+            ->withPivot(['position', 'scheduled_at', 'featured_at']);
     }
 
     public function isImage(): bool

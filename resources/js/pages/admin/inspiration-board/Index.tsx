@@ -177,8 +177,12 @@ export default function InspirationBoardIndex({
     storeUrl,
 }: Props) {
     const [selectedQuoteIds, setSelectedQuoteIds] = useState<string[]>([]);
-    const draftQuoteCount = posts.filter(
-        (post) => post.status === 'draft' && post.type === 'quote',
+    const publishedQuoteCount = posts.filter(
+        (post) =>
+            post.status === 'published' &&
+            post.type === 'quote' &&
+            !post.pinned &&
+            !isFutureScheduled(post),
     ).length;
     const form = useForm<{
         type: PostType;
@@ -373,9 +377,8 @@ export default function InspirationBoardIndex({
                             </div>
 
                             <p className="text-xs text-muted-foreground">
-                                Saved to the library as a draft. Publish it, or
-                                use rotation scheduling to release drafts one by
-                                one.
+                                Saved to the library as a draft. Publish it to
+                                make it available for a rotation.
                             </p>
                             <div className="flex justify-end">
                                 <Button
@@ -394,7 +397,7 @@ export default function InspirationBoardIndex({
 
                     <section className="space-y-3 lg:col-span-2">
                         <RotationScheduler
-                            draftQuoteCount={draftQuoteCount}
+                            publishedQuoteCount={publishedQuoteCount}
                             selectedQuoteIds={selectedQuoteIds}
                             onScheduled={() => setSelectedQuoteIds([])}
                         />
@@ -416,8 +419,10 @@ export default function InspirationBoardIndex({
                                         key={post.id}
                                         post={post}
                                         rotationEligible={
-                                            post.status === 'draft' &&
-                                            post.type === 'quote'
+                                            post.status === 'published' &&
+                                            post.type === 'quote' &&
+                                            !post.pinned &&
+                                            !isFutureScheduled(post)
                                         }
                                         selectedRotationPosition={
                                             selectedPosition > 0
@@ -439,11 +444,11 @@ export default function InspirationBoardIndex({
 }
 
 function RotationScheduler({
-    draftQuoteCount,
+    publishedQuoteCount,
     selectedQuoteIds,
     onScheduled,
 }: {
-    draftQuoteCount: number;
+    publishedQuoteCount: number;
     selectedQuoteIds: string[];
     onScheduled: () => void;
 }) {
@@ -488,7 +493,8 @@ function RotationScheduler({
                         </h2>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        Selected draft quotes are released in selection order.
+                        Selected published quotes are featured in selection
+                        order.
                     </p>
                 </div>
                 <Badge variant="outline">
@@ -545,7 +551,7 @@ function RotationScheduler({
                         type="submit"
                         disabled={
                             form.processing ||
-                            draftQuoteCount === 0 ||
+                            publishedQuoteCount === 0 ||
                             selectedQuoteIds.length === 0
                         }
                         className="w-full md:w-auto"
@@ -696,28 +702,30 @@ function PostCard({
                         {formatDateTime(post.scheduled_at)}
                     </Badge>
                 )}
-                {rotationEligible && (
-                    <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs font-medium">
-                        <Checkbox
-                            checked={selectedRotationPosition !== null}
-                            onCheckedChange={(checked) =>
-                                onRotationSelectionChange(
-                                    post.id,
-                                    checked === true,
-                                )
-                            }
-                            aria-label={`Include ${post.title ?? 'quote'} in rotation`}
-                        />
-                        <span>
-                            {selectedRotationPosition === null
-                                ? 'Include in rotation'
-                                : `Rotation ${selectedRotationPosition}`}
-                        </span>
-                    </label>
-                )}
-                <span className="ml-auto text-xs text-muted-foreground">
-                    {post.created_by ?? 'admin'}
-                </span>
+                <div className="ml-auto flex items-center gap-3">
+                    {rotationEligible && (
+                        <label className="flex cursor-pointer items-center gap-2 text-xs font-medium">
+                            <Checkbox
+                                checked={selectedRotationPosition !== null}
+                                onCheckedChange={(checked) =>
+                                    onRotationSelectionChange(
+                                        post.id,
+                                        checked === true,
+                                    )
+                                }
+                                aria-label={`Include ${post.title ?? 'quote'} in rotation`}
+                            />
+                            <span>
+                                {selectedRotationPosition === null
+                                    ? 'Select'
+                                    : `Selected ${selectedRotationPosition}`}
+                            </span>
+                        </label>
+                    )}
+                    <span className="text-xs text-muted-foreground">
+                        {post.created_by ?? 'admin'}
+                    </span>
+                </div>
             </div>
 
             {editing ? (

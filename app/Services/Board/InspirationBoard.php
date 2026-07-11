@@ -35,6 +35,11 @@ final class InspirationBoard
     {
         return BoardPost::query()
             ->released()
+            ->where(function ($query): void {
+                $query
+                    ->whereNull('featured_at')
+                    ->orWhere('featured_at', '<=', now());
+            })
             ->orderByDesc('pinned')
             ->orderByDesc('featured_at')
             ->orderByDesc('published_at')
@@ -136,6 +141,9 @@ final class InspirationBoard
      */
     public function update(BoardPost $post, array $data, User $actor): BoardPost
     {
+        $controlledByRotation = $post->rotationSchedules()
+            ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
+            ->exists();
         $this->ensureScheduledDateIsEditable($post, $data);
 
         $before = [
@@ -152,7 +160,7 @@ final class InspirationBoard
             'scheduled_at' => array_key_exists('scheduled_at', $data) ? $data['scheduled_at'] : $post->scheduled_at,
         ];
 
-        if ($post->isPublished()) {
+        if ($post->isPublished() && ! $controlledByRotation) {
             $attributes['featured_at'] = $attributes['scheduled_at'] ?? now();
             $attributes['featured_source'] = BoardPost::FEATURE_SOURCE_MANUAL;
         }
@@ -208,7 +216,7 @@ final class InspirationBoard
     ): InspirationRotationSchedule {
         $postIds = array_values(array_unique(array_filter($postIds, 'is_string')));
         if ($postIds === []) {
-            throw new RuntimeException('Select at least one draft quote for the rotation.');
+            throw new RuntimeException('Select at least one published quote for the rotation.');
         }
 
         if ($startAt->lt(now())) {
@@ -232,9 +240,10 @@ final class InspirationBoard
                 }
 
                 $availablePosts = BoardPost::query()
+                    ->released()
                     ->whereIn('id', $postIds)
                     ->where('type', BoardPost::TYPE_QUOTE)
-                    ->where('status', BoardPost::STATUS_DRAFT)
+                    ->where('pinned', false)
                     ->lockForUpdate()
                     ->get()
                     ->keyBy(fn (BoardPost $post): string => (string) $post->getKey());
@@ -260,16 +269,8 @@ final class InspirationBoard
                     $schedule->posts()->attach($post->getKey(), [
                         'position' => $index + 1,
                         'scheduled_at' => $scheduledAt,
+                        'featured_at' => null,
                     ]);
-
-                    $post->forceFill([
-                        'status' => BoardPost::STATUS_PUBLISHED,
-                        'published_at' => now(),
-                        'scheduled_at' => $scheduledAt,
-                        'featured_at' => $scheduledAt,
-                        'featured_source' => BoardPost::FEATURE_SOURCE_ROTATION,
-                        'pinned' => false,
-                    ])->save();
                 }
 
                 $this->audit->record('inspiration_rotation.created', subject: $schedule, actor: $actor, after: [
@@ -300,25 +301,9 @@ final class InspirationBoard
         return DB::transaction(function () use ($actor, $schedule): int {
             $schedule->load('posts');
             $now = now();
-            $releasedCount = 0;
-
-            foreach ($schedule->posts as $post) {
-                $scheduledAt = CarbonImmutable::parse((string) $post->pivot->scheduled_at);
-                if ($scheduledAt->gt($now)) {
-                    $post->forceFill([
-                        'status' => BoardPost::STATUS_DRAFT,
-                        'published_at' => null,
-                        'scheduled_at' => null,
-                        'featured_at' => null,
-                        'featured_source' => null,
-                        'pinned' => false,
-                    ])->save();
-
-                    continue;
-                }
-
-                $releasedCount++;
-            }
+            $featuredCount = $schedule->posts
+                ->filter(fn (BoardPost $post): bool => $post->pivot->featured_at !== null)
+                ->count();
 
             $schedule->forceFill([
                 'status' => InspirationRotationSchedule::STATUS_CANCELLED,
@@ -326,12 +311,54 @@ final class InspirationBoard
             ])->save();
 
             $this->audit->record('inspiration_rotation.cancelled', subject: $schedule, actor: $actor, after: [
-                'released_count' => $releasedCount,
-                'returned_to_draft_count' => $schedule->posts->count() - $releasedCount,
+                'featured_count' => $featuredCount,
+                'unfeatured_count' => $schedule->posts->count() - $featuredCount,
             ]);
 
-            return $releasedCount;
+            return $featuredCount;
         });
+    }
+
+    public function releaseDueRotations(?CarbonInterface $at = null): int
+    {
+        $at ??= now();
+
+        return DB::transaction(function () use ($at): int {
+            $schedules = InspirationRotationSchedule::query()
+                ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
+                ->where('starts_at', '<=', $at)
+                ->with(['posts' => function ($query) use ($at): void {
+                    $query
+                        ->where('board_posts.status', BoardPost::STATUS_PUBLISHED)
+                        ->where('inspiration_rotation_schedule_posts.scheduled_at', '<=', $at)
+                        ->whereNull('inspiration_rotation_schedule_posts.featured_at');
+                }])
+                ->lockForUpdate()
+                ->get();
+
+            $featured = 0;
+            foreach ($schedules as $schedule) {
+                foreach ($schedule->posts as $post) {
+                    $scheduledAt = CarbonImmutable::parse((string) $post->pivot->scheduled_at);
+
+                    $schedule->posts()->updateExistingPivot($post->getKey(), [
+                        'featured_at' => $at,
+                    ]);
+                    $post->forceFill([
+                        'featured_at' => $scheduledAt,
+                        'featured_source' => BoardPost::FEATURE_SOURCE_ROTATION,
+                    ])->save();
+
+                    $this->audit->record('board_post.rotation_featured', subject: $post, after: [
+                        'rotation_schedule_id' => $schedule->getKey(),
+                        'scheduled_at' => $scheduledAt->toIso8601String(),
+                    ]);
+                    $featured++;
+                }
+            }
+
+            return $featured;
+        }, attempts: 3);
     }
 
     public function selectWeeklyFallbackQuote(?CarbonInterface $at = null): ?BoardPost
@@ -371,6 +398,11 @@ final class InspirationBoard
             $post = BoardPost::query()
                 ->released()
                 ->where('type', BoardPost::TYPE_QUOTE)
+                ->whereDoesntHave('rotationSchedules', function ($query) use ($at): void {
+                    $query
+                        ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
+                        ->where('ends_at', '>=', $at);
+                })
                 ->inRandomOrder()
                 ->lockForUpdate()
                 ->first();
