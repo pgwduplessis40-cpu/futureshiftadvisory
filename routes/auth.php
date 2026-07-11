@@ -214,6 +214,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
                 ->name('inspiration-board.store');
             Route::post('inspiration-board/schedule-rotation', [InspirationBoardController::class, 'scheduleRotation'])
                 ->name('inspiration-board.schedule-rotation');
+            Route::delete('inspiration-board/schedule-rotation/{rotationSchedule}', [InspirationBoardController::class, 'cancelRotation'])
+                ->name('inspiration-board.schedule-rotation.cancel');
             Route::patch('inspiration-board/{boardPost}', [InspirationBoardController::class, 'update'])
                 ->name('inspiration-board.update');
             Route::post('inspiration-board/{boardPost}/publish', [InspirationBoardController::class, 'publish'])

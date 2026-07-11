@@ -6,6 +6,7 @@ namespace Tests\Feature\Admin;
 
 use App\Models\BoardPost;
 use App\Models\Document;
+use App\Models\InspirationRotationSchedule;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
@@ -80,7 +81,7 @@ final class InspirationBoardManagementTest extends TestCase
     public function test_super_admin_can_edit_quote_details_and_schedule(): void
     {
         $admin = $this->superAdmin();
-        $scheduledAt = now()->addDays(5)->setSecond(0);
+        $scheduledAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDays(5)->setSecond(0);
 
         $post = BoardPost::query()->create([
             'type' => BoardPost::TYPE_QUOTE,
@@ -114,7 +115,7 @@ final class InspirationBoardManagementTest extends TestCase
     public function test_super_admin_can_schedule_draft_rotation_with_custom_day_cadence(): void
     {
         $admin = $this->superAdmin();
-        $startAt = now()->addDay()->setSecond(0);
+        $startAt = now(InspirationBoard::ROTATION_TIMEZONE)->addDay()->setSecond(0);
 
         $first = BoardPost::query()->create([
             'type' => BoardPost::TYPE_QUOTE,
@@ -125,31 +126,92 @@ final class InspirationBoardManagementTest extends TestCase
             'updated_at' => now()->subMinutes(2),
         ]);
         $second = BoardPost::query()->create([
-            'type' => BoardPost::TYPE_MESSAGE,
+            'type' => BoardPost::TYPE_QUOTE,
             'body' => 'Second draft',
             'status' => BoardPost::STATUS_DRAFT,
             'pinned' => false,
             'created_at' => now()->subMinute(),
             'updated_at' => now()->subMinute(),
         ]);
+        $notSelected = BoardPost::query()->create([
+            'type' => BoardPost::TYPE_QUOTE,
+            'body' => 'Not selected',
+            'status' => BoardPost::STATUS_DRAFT,
+            'pinned' => false,
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.inspiration-board.schedule-rotation'), [
+                'name' => 'Founder series',
+                'start_at' => $startAt->toDateTimeString(),
+                'cadence_days' => 10,
+                'post_ids' => [$second->id, $first->id],
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'board-rotation-scheduled');
+
+        $first->refresh();
+        $second->refresh();
+        $notSelected->refresh();
+
+        $this->assertSame(BoardPost::STATUS_PUBLISHED, $first->status);
+        $this->assertSame(BoardPost::STATUS_PUBLISHED, $second->status);
+        $this->assertTrue($second->scheduled_at?->equalTo($startAt));
+        $this->assertTrue($first->scheduled_at?->equalTo($startAt->copy()->addDays(10)));
+        $this->assertSame(BoardPost::STATUS_DRAFT, $notSelected->status);
+
+        $schedule = InspirationRotationSchedule::query()->firstOrFail();
+        $this->assertSame('Founder series', $schedule->name);
+        $this->assertSame(2, $schedule->posts()->count());
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'inspiration_rotation.created',
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.inspiration-board.schedule-rotation'), [
+                'name' => 'Overlapping series',
+                'start_at' => $startAt->copy()->addDays(5)->toDateTimeString(),
+                'cadence_days' => 7,
+                'post_ids' => [$notSelected->id],
+            ])
+            ->assertSessionHasErrors('post_ids');
+
+        $this->assertSame(1, InspirationRotationSchedule::query()->count());
+        $this->assertSame(BoardPost::STATUS_DRAFT, $notSelected->refresh()->status);
+    }
+
+    public function test_super_admin_can_cancel_a_rotation_and_return_future_quotes_to_drafts(): void
+    {
+        $admin = $this->superAdmin();
+        $startAt = now(InspirationBoard::ROTATION_TIMEZONE)->addWeek()->setSecond(0);
+        $post = BoardPost::query()->create([
+            'type' => BoardPost::TYPE_QUOTE,
+            'body' => 'Future draft',
+            'status' => BoardPost::STATUS_DRAFT,
+            'pinned' => false,
+        ]);
 
         $this->actingAsMfa($admin)
             ->post(route('admin.inspiration-board.schedule-rotation'), [
                 'start_at' => $startAt->toDateTimeString(),
-                'cadence_days' => 10,
+                'cadence_days' => 7,
+                'post_ids' => [$post->id],
             ])
+            ->assertRedirect();
+
+        $schedule = InspirationRotationSchedule::query()->firstOrFail();
+
+        $this->actingAsMfa($admin)
+            ->delete(route('admin.inspiration-board.schedule-rotation.cancel', $schedule))
             ->assertRedirect()
-            ->assertSessionHas('status', 'board-posts-scheduled');
+            ->assertSessionHas('status', 'board-rotation-cancelled');
 
-        $first->refresh();
-        $second->refresh();
-
-        $this->assertSame(BoardPost::STATUS_PUBLISHED, $first->status);
-        $this->assertSame(BoardPost::STATUS_PUBLISHED, $second->status);
-        $this->assertTrue($first->scheduled_at?->equalTo($startAt));
-        $this->assertTrue($second->scheduled_at?->equalTo($startAt->copy()->addDays(10)));
+        $this->assertSame(InspirationRotationSchedule::STATUS_CANCELLED, $schedule->refresh()->status);
+        $this->assertSame(BoardPost::STATUS_DRAFT, $post->refresh()->status);
+        $this->assertNull($post->scheduled_at);
         $this->assertDatabaseHas('audit_events', [
-            'action' => 'board_post.rotation_scheduled',
+            'action' => 'inspiration_rotation.cancelled',
+            'subject_id' => $schedule->id,
         ]);
     }
 

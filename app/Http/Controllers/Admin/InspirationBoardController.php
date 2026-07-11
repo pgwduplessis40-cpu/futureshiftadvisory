@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Admin;
 use App\Http\Controllers\Controller;
 use App\Models\BoardPost;
 use App\Models\Document;
+use App\Models\InspirationRotationSchedule;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Storage\Exceptions\InfectedFileException;
@@ -29,6 +30,9 @@ final class InspirationBoardController extends Controller
         return Inertia::render('admin/inspiration-board/Index', [
             'posts' => $this->board->library()
                 ->map(fn (BoardPost $post): array => $this->adminPayload($post))
+                ->all(),
+            'rotationSchedules' => $this->board->rotationSchedules()
+                ->map(fn (InspirationRotationSchedule $schedule): array => $this->rotationSchedulePayload($schedule))
                 ->all(),
             'storeUrl' => route('admin.inspiration-board.store', absolute: false),
         ]);
@@ -53,6 +57,10 @@ final class InspirationBoardController extends Controller
 
         $user = $request->user();
         abort_unless($user instanceof User, 403);
+
+        if (array_key_exists('scheduled_at', $validated)) {
+            $validated['scheduled_at'] = $this->parseScheduledAt($validated['scheduled_at']);
+        }
 
         $image = $request->file('image');
 
@@ -84,7 +92,15 @@ final class InspirationBoardController extends Controller
             'scheduled_at' => ['nullable', 'date'],
         ]);
 
-        $this->board->update($boardPost, $validated, $this->actor($request));
+        if (array_key_exists('scheduled_at', $validated)) {
+            $validated['scheduled_at'] = $this->parseScheduledAt($validated['scheduled_at']);
+        }
+
+        try {
+            $this->board->update($boardPost, $validated, $this->actor($request));
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['scheduled_at' => $exception->getMessage()]);
+        }
 
         return back()->with('status', 'board-post-updated');
     }
@@ -92,17 +108,33 @@ final class InspirationBoardController extends Controller
     public function scheduleRotation(Request $request): RedirectResponse
     {
         $validated = $request->validate([
+            'name' => ['nullable', 'string', 'max:120'],
             'start_at' => ['required', 'date'],
             'cadence_days' => ['required', 'integer', 'min:1', 'max:365'],
+            'post_ids' => ['required', 'array', 'min:1', 'max:100'],
+            'post_ids.*' => ['required', 'uuid', 'distinct'],
         ]);
 
-        $scheduled = $this->board->scheduleDraftRotation(
-            CarbonImmutable::parse((string) $validated['start_at']),
-            (int) $validated['cadence_days'],
-            $this->actor($request),
-        );
+        try {
+            $this->board->createRotation(
+                (string) ($validated['name'] ?? ''),
+                CarbonImmutable::parse((string) $validated['start_at'], InspirationBoard::ROTATION_TIMEZONE),
+                (int) $validated['cadence_days'],
+                $validated['post_ids'],
+                $this->actor($request),
+            );
+        } catch (RuntimeException $exception) {
+            return back()->withErrors(['post_ids' => $exception->getMessage()]);
+        }
 
-        return back()->with('status', $scheduled > 0 ? 'board-posts-scheduled' : 'board-posts-schedule-empty');
+        return back()->with('status', 'board-rotation-scheduled');
+    }
+
+    public function cancelRotation(Request $request, InspirationRotationSchedule $rotationSchedule): RedirectResponse
+    {
+        $this->board->cancelRotation($rotationSchedule, $this->actor($request));
+
+        return back()->with('status', 'board-rotation-cancelled');
     }
 
     public function publish(Request $request, BoardPost $boardPost): RedirectResponse
@@ -167,8 +199,51 @@ final class InspirationBoardController extends Controller
                 && $post->imageDocument->scanner_result !== Document::SCANNER_CLEAN,
             'published_at' => $post->published_at?->toIso8601String(),
             'scheduled_at' => $post->scheduled_at?->toIso8601String(),
+            'featured_at' => $post->featured_at?->toIso8601String(),
             'created_by' => $post->createdBy?->name,
             'created_at' => $post->created_at?->toIso8601String(),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function rotationSchedulePayload(InspirationRotationSchedule $schedule): array
+    {
+        $now = now();
+        $phase = $schedule->status === InspirationRotationSchedule::STATUS_CANCELLED
+            ? 'cancelled'
+            : ($schedule->ends_at?->lt($now)
+                ? 'completed'
+                : ($schedule->starts_at?->gt($now) ? 'upcoming' : 'active'));
+
+        return [
+            'id' => $schedule->id,
+            'name' => $schedule->name,
+            'status' => $schedule->status,
+            'phase' => $phase,
+            'starts_at' => $schedule->starts_at?->toIso8601String(),
+            'ends_at' => $schedule->ends_at?->toIso8601String(),
+            'cadence_days' => $schedule->cadence_days,
+            'post_count' => $schedule->posts_count,
+            'posts' => $schedule->posts
+                ->map(fn (BoardPost $post): array => [
+                    'id' => $post->id,
+                    'title' => $post->title,
+                    'body' => $post->body,
+                    'position' => (int) $post->pivot->position,
+                    'scheduled_at' => CarbonImmutable::parse((string) $post->pivot->scheduled_at)->toIso8601String(),
+                ])
+                ->all(),
+        ];
+    }
+
+    private function parseScheduledAt(mixed $value): ?CarbonImmutable
+    {
+        if (! is_string($value) || trim($value) === '') {
+            return null;
+        }
+
+        return CarbonImmutable::parse($value, InspirationBoard::ROTATION_TIMEZONE);
     }
 }

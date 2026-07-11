@@ -6,10 +6,13 @@ namespace App\Services\Board;
 
 use App\Models\BoardPost;
 use App\Models\Document;
+use App\Models\InspirationRotationSchedule;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Storage\SecureFileWriter;
+use Carbon\CarbonImmutable;
 use Carbon\CarbonInterface;
+use Illuminate\Database\QueryException;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -17,6 +20,8 @@ use RuntimeException;
 
 final class InspirationBoard
 {
+    public const ROTATION_TIMEZONE = 'Pacific/Auckland';
+
     public function __construct(
         private readonly SecureFileWriter $files,
         private readonly AuditWriter $audit,
@@ -31,8 +36,7 @@ final class InspirationBoard
         return BoardPost::query()
             ->released()
             ->orderByDesc('pinned')
-            ->orderByRaw('scheduled_at is null')
-            ->orderByDesc('scheduled_at')
+            ->orderByDesc('featured_at')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->first();
@@ -48,6 +52,7 @@ final class InspirationBoard
             ->orderByDesc('pinned')
             ->orderByRaw('scheduled_at is null')
             ->orderByDesc('scheduled_at')
+            ->orderByDesc('featured_at')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -63,6 +68,19 @@ final class InspirationBoard
             ->with('createdBy', 'imageDocument')
             ->orderByDesc('pinned')
             ->orderByDesc('created_at')
+            ->limit($limit)
+            ->get();
+    }
+
+    /**
+     * @return Collection<int, InspirationRotationSchedule>
+     */
+    public function rotationSchedules(int $limit = 50): Collection
+    {
+        return InspirationRotationSchedule::query()
+            ->with(['posts' => fn ($query) => $query->select(['board_posts.id', 'board_posts.title', 'board_posts.body'])])
+            ->withCount('posts')
+            ->orderByDesc('starts_at')
             ->limit($limit)
             ->get();
     }
@@ -118,6 +136,8 @@ final class InspirationBoard
      */
     public function update(BoardPost $post, array $data, User $actor): BoardPost
     {
+        $this->ensureScheduledDateIsEditable($post, $data);
+
         $before = [
             'title' => $post->title,
             'body' => $post->body,
@@ -125,12 +145,19 @@ final class InspirationBoard
             'scheduled_at' => $post->scheduled_at?->toIso8601String(),
         ];
 
-        $post->forceFill([
+        $attributes = [
             'title' => $this->trimToNull($data['title'] ?? $post->title),
             'body' => $this->trimToNull($data['body'] ?? $post->body),
             'attribution' => $this->trimToNull($data['attribution'] ?? $post->attribution),
             'scheduled_at' => array_key_exists('scheduled_at', $data) ? $data['scheduled_at'] : $post->scheduled_at,
-        ])->save();
+        ];
+
+        if ($post->isPublished()) {
+            $attributes['featured_at'] = $attributes['scheduled_at'] ?? now();
+            $attributes['featured_source'] = BoardPost::FEATURE_SOURCE_MANUAL;
+        }
+
+        $post->forceFill($attributes)->save();
 
         $this->audit->record('board_post.updated', subject: $post, actor: $actor, before: $before, after: [
             'type' => $post->type,
@@ -156,6 +183,8 @@ final class InspirationBoard
         $post->forceFill([
             'status' => BoardPost::STATUS_PUBLISHED,
             'published_at' => $post->published_at ?? now(),
+            'featured_at' => $post->scheduled_at ?? now(),
+            'featured_source' => BoardPost::FEATURE_SOURCE_MANUAL,
         ])->save();
 
         $this->audit->record('board_post.published', subject: $post, actor: $actor, after: [
@@ -167,43 +196,200 @@ final class InspirationBoard
         return $post;
     }
 
-    public function scheduleDraftRotation(CarbonInterface $startAt, int $cadenceDays, User $actor): int
-    {
-        return DB::transaction(function () use ($startAt, $cadenceDays, $actor): int {
-            $drafts = BoardPost::query()
-                ->with('imageDocument')
-                ->where('status', BoardPost::STATUS_DRAFT)
-                ->orderBy('created_at')
-                ->orderBy('id')
-                ->lockForUpdate()
-                ->get();
+    /**
+     * @param  list<string>  $postIds
+     */
+    public function createRotation(
+        string $name,
+        CarbonInterface $startAt,
+        int $cadenceDays,
+        array $postIds,
+        User $actor,
+    ): InspirationRotationSchedule {
+        $postIds = array_values(array_unique(array_filter($postIds, 'is_string')));
+        if ($postIds === []) {
+            throw new RuntimeException('Select at least one draft quote for the rotation.');
+        }
 
-            $scheduled = 0;
-            foreach ($drafts as $post) {
-                if ($post->isImage() && ($post->image_path === null || ! $this->imageDocumentIsClean($post))) {
+        if ($startAt->lt(now())) {
+            throw new RuntimeException('A rotation schedule must start now or in the future.');
+        }
+
+        $endsAt = $startAt->copy()->addDays($cadenceDays * (count($postIds) - 1));
+        $name = $this->trimToNull($name) ?? 'Rotation starting '.$startAt->format('j M Y');
+
+        try {
+            return DB::transaction(function () use ($cadenceDays, $actor, $endsAt, $name, $postIds, $startAt): InspirationRotationSchedule {
+                $overlapExists = InspirationRotationSchedule::query()
+                    ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
+                    ->where('starts_at', '<=', $endsAt)
+                    ->where('ends_at', '>=', $startAt)
+                    ->lockForUpdate()
+                    ->exists();
+
+                if ($overlapExists) {
+                    throw new RuntimeException('This rotation overlaps an existing schedule. Choose a start date after the current schedule ends.');
+                }
+
+                $availablePosts = BoardPost::query()
+                    ->whereIn('id', $postIds)
+                    ->where('type', BoardPost::TYPE_QUOTE)
+                    ->where('status', BoardPost::STATUS_DRAFT)
+                    ->lockForUpdate()
+                    ->get()
+                    ->keyBy(fn (BoardPost $post): string => (string) $post->getKey());
+
+                if ($availablePosts->count() !== count($postIds)) {
+                    throw new RuntimeException('One or more selected quotes are no longer available for rotation. Refresh the page and try again.');
+                }
+
+                $schedule = InspirationRotationSchedule::query()->create([
+                    'name' => $name,
+                    'status' => InspirationRotationSchedule::STATUS_SCHEDULED,
+                    'starts_at' => $startAt,
+                    'ends_at' => $endsAt,
+                    'cadence_days' => $cadenceDays,
+                    'created_by_user_id' => $actor->getAuthIdentifier(),
+                ]);
+
+                foreach ($postIds as $index => $postId) {
+                    /** @var BoardPost $post */
+                    $post = $availablePosts->get($postId);
+                    $scheduledAt = $startAt->copy()->addDays($cadenceDays * $index);
+
+                    $schedule->posts()->attach($post->getKey(), [
+                        'position' => $index + 1,
+                        'scheduled_at' => $scheduledAt,
+                    ]);
+
+                    $post->forceFill([
+                        'status' => BoardPost::STATUS_PUBLISHED,
+                        'published_at' => now(),
+                        'scheduled_at' => $scheduledAt,
+                        'featured_at' => $scheduledAt,
+                        'featured_source' => BoardPost::FEATURE_SOURCE_ROTATION,
+                        'pinned' => false,
+                    ])->save();
+                }
+
+                $this->audit->record('inspiration_rotation.created', subject: $schedule, actor: $actor, after: [
+                    'name' => $schedule->name,
+                    'starts_at' => $schedule->starts_at?->toIso8601String(),
+                    'ends_at' => $schedule->ends_at?->toIso8601String(),
+                    'cadence_days' => $schedule->cadence_days,
+                    'post_count' => count($postIds),
+                ]);
+
+                return $schedule;
+            }, attempts: 3);
+        } catch (QueryException $exception) {
+            if (str_contains($exception->getMessage(), 'inspiration_rotation_schedule_windows_no_overlap')) {
+                throw new RuntimeException('This rotation overlaps an existing schedule. Choose a start date after the current schedule ends.', previous: $exception);
+            }
+
+            throw $exception;
+        }
+    }
+
+    public function cancelRotation(InspirationRotationSchedule $schedule, User $actor): int
+    {
+        if ($schedule->status === InspirationRotationSchedule::STATUS_CANCELLED) {
+            return 0;
+        }
+
+        return DB::transaction(function () use ($actor, $schedule): int {
+            $schedule->load('posts');
+            $now = now();
+            $releasedCount = 0;
+
+            foreach ($schedule->posts as $post) {
+                $scheduledAt = CarbonImmutable::parse((string) $post->pivot->scheduled_at);
+                if ($scheduledAt->gt($now)) {
+                    $post->forceFill([
+                        'status' => BoardPost::STATUS_DRAFT,
+                        'published_at' => null,
+                        'scheduled_at' => null,
+                        'featured_at' => null,
+                        'featured_source' => null,
+                        'pinned' => false,
+                    ])->save();
+
                     continue;
                 }
 
-                $scheduledAt = $startAt->copy()->addDays($cadenceDays * $scheduled);
-
-                $post->forceFill([
-                    'status' => BoardPost::STATUS_PUBLISHED,
-                    'published_at' => $post->published_at ?? now(),
-                    'scheduled_at' => $scheduledAt,
-                    'pinned' => false,
-                ])->save();
-
-                $scheduled++;
+                $releasedCount++;
             }
 
-            $this->audit->record('board_post.rotation_scheduled', actor: $actor, after: [
-                'scheduled_count' => $scheduled,
-                'start_at' => $startAt->toIso8601String(),
-                'cadence_days' => $cadenceDays,
+            $schedule->forceFill([
+                'status' => InspirationRotationSchedule::STATUS_CANCELLED,
+                'cancelled_at' => $now,
+            ])->save();
+
+            $this->audit->record('inspiration_rotation.cancelled', subject: $schedule, actor: $actor, after: [
+                'released_count' => $releasedCount,
+                'returned_to_draft_count' => $schedule->posts->count() - $releasedCount,
             ]);
 
-            return $scheduled;
+            return $releasedCount;
         });
+    }
+
+    public function selectWeeklyFallbackQuote(?CarbonInterface $at = null): ?BoardPost
+    {
+        $at ??= now();
+        $weekStart = $this->weeklyFallbackWindowStart($at);
+
+        return DB::transaction(function () use ($at, $weekStart): ?BoardPost {
+            $rotationActive = InspirationRotationSchedule::query()
+                ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
+                ->where('starts_at', '<=', $at)
+                ->where('ends_at', '>=', $at)
+                ->exists();
+
+            if ($rotationActive) {
+                return null;
+            }
+
+            $manualPostPinned = BoardPost::query()
+                ->released()
+                ->where('pinned', true)
+                ->exists();
+
+            if ($manualPostPinned) {
+                return null;
+            }
+
+            $alreadySelected = BoardPost::query()
+                ->where('featured_source', BoardPost::FEATURE_SOURCE_FALLBACK)
+                ->where('featured_at', '>=', $weekStart)
+                ->exists();
+
+            if ($alreadySelected) {
+                return null;
+            }
+
+            $post = BoardPost::query()
+                ->released()
+                ->where('type', BoardPost::TYPE_QUOTE)
+                ->inRandomOrder()
+                ->lockForUpdate()
+                ->first();
+
+            if (! $post instanceof BoardPost) {
+                return null;
+            }
+
+            $post->forceFill([
+                'featured_at' => $at,
+                'featured_source' => BoardPost::FEATURE_SOURCE_FALLBACK,
+            ])->save();
+
+            $this->audit->record('board_post.weekly_fallback_featured', subject: $post, after: [
+                'featured_at' => $post->featured_at?->toIso8601String(),
+            ]);
+
+            return $post;
+        }, attempts: 3);
     }
 
     public function archive(BoardPost $post, User $actor): BoardPost
@@ -222,8 +408,8 @@ final class InspirationBoard
 
     public function pin(BoardPost $post, User $actor): BoardPost
     {
-        if (! $post->isPublished()) {
-            throw new RuntimeException('Only published posts can be pinned.');
+        if (! $post->isReleased()) {
+            throw new RuntimeException('Only released posts can be pinned.');
         }
 
         return DB::transaction(function () use ($post, $actor): BoardPost {
@@ -279,6 +465,50 @@ final class InspirationBoard
         $trimmed = trim($value);
 
         return $trimmed === '' ? null : $trimmed;
+    }
+
+    /**
+     * @param  array{scheduled_at?:mixed}  $data
+     */
+    private function ensureScheduledDateIsEditable(BoardPost $post, array $data): void
+    {
+        if (! array_key_exists('scheduled_at', $data)) {
+            return;
+        }
+
+        $hasScheduledRotation = $post->rotationSchedules()
+            ->where('status', InspirationRotationSchedule::STATUS_SCHEDULED)
+            ->exists();
+
+        if (! $hasScheduledRotation) {
+            return;
+        }
+
+        $incomingValue = $data['scheduled_at'];
+        $incoming = $incomingValue === null || $incomingValue === ''
+            ? null
+            : ($incomingValue instanceof CarbonInterface
+                ? $incomingValue
+                : CarbonImmutable::parse((string) $incomingValue, self::ROTATION_TIMEZONE));
+
+        if (($post->scheduled_at === null && $incoming === null)
+            || ($post->scheduled_at !== null && $incoming !== null && $post->scheduled_at->equalTo($incoming))) {
+            return;
+        }
+
+        throw new RuntimeException('This quote is controlled by an active rotation. Cancel the rotation before changing its release date.');
+    }
+
+    private function weeklyFallbackWindowStart(CarbonInterface $at): CarbonImmutable
+    {
+        $local = CarbonImmutable::instance($at)->setTimezone(self::ROTATION_TIMEZONE);
+        $windowStart = $local->startOfWeek(CarbonInterface::MONDAY)->setTime(6, 0);
+
+        if ($local->lt($windowStart)) {
+            $windowStart = $windowStart->subWeek();
+        }
+
+        return $windowStart->utc();
     }
 
     private function imageDocumentIsClean(BoardPost $post): bool

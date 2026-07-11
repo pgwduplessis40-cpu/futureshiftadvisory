@@ -8,6 +8,7 @@ use App\Enums\EngagementType;
 use App\Models\BoardPost;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
+use App\Models\InspirationRotationSchedule;
 use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Support\RequestContext;
@@ -111,6 +112,45 @@ final class InspirationBoardDisplayTest extends TestCase
                 ->component('portal/Dashboard')
                 ->where('inspirationBoard.body', 'Visible now.')
             );
+    }
+
+    public function test_weekly_fallback_features_one_random_released_quote_without_an_active_rotation(): void
+    {
+        $first = $this->publishedQuote('First fallback quote.', null);
+        $second = $this->publishedQuote('Second fallback quote.', null);
+        $mondayMorning = now()->startOfWeek()->setTime(6, 0);
+        if ($mondayMorning->lt(now())) {
+            $mondayMorning = $mondayMorning->addWeek();
+        }
+
+        $board = app(InspirationBoard::class);
+        $featured = $board->selectWeeklyFallbackQuote($mondayMorning);
+
+        $this->assertInstanceOf(BoardPost::class, $featured);
+        $this->assertContains($featured?->id, [$first->id, $second->id]);
+        $this->assertSame(BoardPost::FEATURE_SOURCE_FALLBACK, $featured?->featured_source);
+        $this->assertNull($board->selectWeeklyFallbackQuote($mondayMorning->addMinute()));
+        $this->assertSame($featured?->id, $board->featured()?->id);
+    }
+
+    public function test_weekly_fallback_does_not_override_an_active_rotation(): void
+    {
+        $quote = $this->publishedQuote('Rotation protects this week.', null);
+        $mondayMorning = now()->startOfWeek()->setTime(6, 0);
+        if ($mondayMorning->lt(now())) {
+            $mondayMorning = $mondayMorning->addWeek();
+        }
+
+        InspirationRotationSchedule::query()->create([
+            'name' => 'Active schedule',
+            'status' => InspirationRotationSchedule::STATUS_SCHEDULED,
+            'starts_at' => $mondayMorning->subHour(),
+            'ends_at' => $mondayMorning->addHour(),
+            'cadence_days' => 7,
+        ]);
+
+        $this->assertNull(app(InspirationBoard::class)->selectWeeklyFallbackQuote($mondayMorning));
+        $this->assertNull($quote->refresh()->featured_at);
     }
 
     public function test_image_route_serves_published_image_but_404s_a_draft_for_clients(): void

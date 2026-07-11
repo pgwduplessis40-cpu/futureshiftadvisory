@@ -2,6 +2,7 @@ import { Head, router, useForm } from '@inertiajs/react';
 import {
     CalendarClock,
     HeartHandshake,
+    ListChecks,
     Pencil,
     Pin,
     PinOff,
@@ -16,6 +17,7 @@ import { PageHeader } from '@/components/page-header';
 import { SectionCard } from '@/components/section-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -42,12 +44,32 @@ type BoardPost = {
     image_is_quarantined: boolean;
     published_at: string | null;
     scheduled_at: string | null;
+    featured_at: string | null;
     created_by: string | null;
     created_at: string | null;
 };
 
+type RotationSchedule = {
+    id: string;
+    name: string;
+    status: 'scheduled' | 'cancelled';
+    phase: 'upcoming' | 'active' | 'completed' | 'cancelled';
+    starts_at: string | null;
+    ends_at: string | null;
+    cadence_days: number;
+    post_count: number;
+    posts: Array<{
+        id: string;
+        title: string | null;
+        body: string | null;
+        position: number;
+        scheduled_at: string | null;
+    }>;
+};
+
 type Props = {
     posts: BoardPost[];
+    rotationSchedules: RotationSchedule[];
     storeUrl: string;
 };
 
@@ -94,8 +116,14 @@ function dateTimeLocalValue(value: string | null): string {
 
 function defaultRotationStart(): string {
     const date = new Date();
-    date.setDate(date.getDate() + 1);
-    date.setHours(8, 0, 0, 0);
+    const daysUntilMonday = (8 - date.getDay()) % 7;
+
+    date.setDate(date.getDate() + daysUntilMonday);
+    date.setHours(6, 0, 0, 0);
+
+    if (date.getTime() <= Date.now()) {
+        date.setDate(date.getDate() + 7);
+    }
 
     return dateTimeLocalValue(date.toISOString());
 }
@@ -125,8 +153,33 @@ function isFutureScheduled(post: BoardPost): boolean {
     );
 }
 
-export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
-    const draftCount = posts.filter((post) => post.status === 'draft').length;
+function schedulePostSummary(schedule: RotationSchedule): string {
+    const visiblePosts = schedule.posts.slice(0, 3).map((post) => {
+        const label = post.title ?? post.body ?? 'Untitled quote';
+        const compactLabel =
+            label.length > 72 ? `${label.slice(0, 69)}...` : label;
+
+        return `${post.position}. ${compactLabel}`;
+    });
+
+    if (schedule.posts.length > visiblePosts.length) {
+        visiblePosts.push(
+            `+ ${schedule.posts.length - visiblePosts.length} more`,
+        );
+    }
+
+    return visiblePosts.join(' · ');
+}
+
+export default function InspirationBoardIndex({
+    posts,
+    rotationSchedules,
+    storeUrl,
+}: Props) {
+    const [selectedQuoteIds, setSelectedQuoteIds] = useState<string[]>([]);
+    const draftQuoteCount = posts.filter(
+        (post) => post.status === 'draft' && post.type === 'quote',
+    ).length;
     const form = useForm<{
         type: PostType;
         title: string;
@@ -149,6 +202,18 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
             forceFormData: true,
             preserveScroll: true,
             onSuccess: () => form.reset(),
+        });
+    }
+
+    function toggleRotationQuote(postId: string, checked: boolean): void {
+        setSelectedQuoteIds((current) => {
+            if (checked) {
+                return current.includes(postId)
+                    ? current
+                    : [...current, postId];
+            }
+
+            return current.filter((id) => id !== postId);
         });
     }
 
@@ -328,7 +393,12 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                     </section>
 
                     <section className="space-y-3 lg:col-span-2">
-                        <RotationScheduler draftCount={draftCount} />
+                        <RotationScheduler
+                            draftQuoteCount={draftQuoteCount}
+                            selectedQuoteIds={selectedQuoteIds}
+                            onScheduled={() => setSelectedQuoteIds([])}
+                        />
+                        <RotationScheduleList schedules={rotationSchedules} />
 
                         {posts.length === 0 ? (
                             <EmptyState
@@ -337,9 +407,29 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                 description="Add your first message, quote, or image. It stays in the library to reuse later."
                             />
                         ) : (
-                            posts.map((post) => (
-                                <PostCard key={post.id} post={post} />
-                            ))
+                            posts.map((post) => {
+                                const selectedPosition =
+                                    selectedQuoteIds.indexOf(post.id) + 1;
+
+                                return (
+                                    <PostCard
+                                        key={post.id}
+                                        post={post}
+                                        rotationEligible={
+                                            post.status === 'draft' &&
+                                            post.type === 'quote'
+                                        }
+                                        selectedRotationPosition={
+                                            selectedPosition > 0
+                                                ? selectedPosition
+                                                : null
+                                        }
+                                        onRotationSelectionChange={
+                                            toggleRotationQuote
+                                        }
+                                    />
+                                );
+                            })
                         )}
                     </section>
                 </div>
@@ -348,16 +438,39 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
     );
 }
 
-function RotationScheduler({ draftCount }: { draftCount: number }) {
-    const form = useForm({
+function RotationScheduler({
+    draftQuoteCount,
+    selectedQuoteIds,
+    onScheduled,
+}: {
+    draftQuoteCount: number;
+    selectedQuoteIds: string[];
+    onScheduled: () => void;
+}) {
+    const form = useForm<{
+        name: string;
+        start_at: string;
+        cadence_days: string;
+        post_ids: string[];
+    }>({
+        name: '',
         start_at: defaultRotationStart(),
         cadence_days: '7',
+        post_ids: [],
     });
 
     function submit(event: FormEvent) {
         event.preventDefault();
+        form.transform((data) => ({
+            ...data,
+            post_ids: selectedQuoteIds,
+        }));
         form.post('/admin/inspiration-board/schedule-rotation', {
             preserveScroll: true,
+            onSuccess: () => {
+                form.reset('name');
+                onScheduled();
+            },
         });
     }
 
@@ -375,18 +488,30 @@ function RotationScheduler({ draftCount }: { draftCount: number }) {
                         </h2>
                     </div>
                     <p className="mt-1 text-xs text-muted-foreground">
-                        Schedule every current draft in order. The first draft
-                        uses the start date, and each next draft is released
-                        after the day interval below.
+                        Selected draft quotes are released in selection order.
                     </p>
                 </div>
-                <Badge variant="outline">{draftCount} drafts</Badge>
+                <Badge variant="outline">
+                    {selectedQuoteIds.length} selected
+                </Badge>
             </div>
 
             <form
                 onSubmit={submit}
-                className="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem_auto]"
+                className="grid gap-3 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_10rem_auto]"
             >
+                <div className="space-y-2">
+                    <Label htmlFor="rotation_name">Schedule name</Label>
+                    <Input
+                        id="rotation_name"
+                        placeholder="e.g. Q3 founder series"
+                        value={form.data.name}
+                        onChange={(event) =>
+                            form.setData('name', event.target.value)
+                        }
+                    />
+                    <InputError message={form.errors.name} />
+                </div>
                 <div className="space-y-2">
                     <Label htmlFor="rotation_start_at">Start date</Label>
                     <Input
@@ -418,7 +543,11 @@ function RotationScheduler({ draftCount }: { draftCount: number }) {
                 <div className="flex items-end">
                     <Button
                         type="submit"
-                        disabled={form.processing || draftCount === 0}
+                        disabled={
+                            form.processing ||
+                            draftQuoteCount === 0 ||
+                            selectedQuoteIds.length === 0
+                        }
                         className="w-full md:w-auto"
                     >
                         <CalendarClock className="size-4" aria-hidden="true" />
@@ -426,11 +555,100 @@ function RotationScheduler({ draftCount }: { draftCount: number }) {
                     </Button>
                 </div>
             </form>
+            <InputError message={form.errors.post_ids} />
         </SectionCard>
     );
 }
 
-function PostCard({ post }: { post: BoardPost }) {
+function RotationScheduleList({
+    schedules,
+}: {
+    schedules: RotationSchedule[];
+}) {
+    if (schedules.length === 0) {
+        return null;
+    }
+
+    return (
+        <SectionCard className="space-y-3">
+            <div className="flex items-center gap-2">
+                <ListChecks
+                    className="size-4 text-muted-foreground"
+                    aria-hidden="true"
+                />
+                <h2 className="text-sm font-semibold">Rotation schedules</h2>
+            </div>
+
+            <div className="divide-y rounded-md border">
+                {schedules.map((schedule) => (
+                    <div
+                        key={schedule.id}
+                        className="flex flex-wrap items-start gap-3 p-3"
+                    >
+                        <div className="min-w-0 flex-1 space-y-1">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <p className="text-sm font-semibold">
+                                    {schedule.name}
+                                </p>
+                                <Badge
+                                    variant={
+                                        schedule.phase === 'active'
+                                            ? 'default'
+                                            : 'outline'
+                                    }
+                                >
+                                    {schedule.phase}
+                                </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                                {formatDateTime(schedule.starts_at)} to{' '}
+                                {formatDateTime(schedule.ends_at)} ·{' '}
+                                {schedule.cadence_days} days between ·{' '}
+                                {schedule.post_count} quotes
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                                {schedulePostSummary(schedule)}
+                            </p>
+                        </div>
+                        {schedule.status === 'scheduled' && (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => {
+                                    if (
+                                        window.confirm(
+                                            'Cancel this rotation? Future quotes will return to drafts.',
+                                        )
+                                    ) {
+                                        router.delete(
+                                            `/admin/inspiration-board/schedule-rotation/${schedule.id}`,
+                                            { preserveScroll: true },
+                                        );
+                                    }
+                                }}
+                            >
+                                <X className="size-4" aria-hidden="true" />
+                                Cancel schedule
+                            </Button>
+                        )}
+                    </div>
+                ))}
+            </div>
+        </SectionCard>
+    );
+}
+
+function PostCard({
+    post,
+    rotationEligible,
+    selectedRotationPosition,
+    onRotationSelectionChange,
+}: {
+    post: BoardPost;
+    rotationEligible: boolean;
+    selectedRotationPosition: number | null;
+    onRotationSelectionChange: (postId: string, checked: boolean) => void;
+}) {
     const [editing, setEditing] = useState(false);
     const editForm = useForm({
         title: post.title ?? '',
@@ -477,6 +695,25 @@ function PostCard({ post }: { post: BoardPost }) {
                     <Badge variant="outline">
                         {formatDateTime(post.scheduled_at)}
                     </Badge>
+                )}
+                {rotationEligible && (
+                    <label className="ml-auto flex cursor-pointer items-center gap-2 text-xs font-medium">
+                        <Checkbox
+                            checked={selectedRotationPosition !== null}
+                            onCheckedChange={(checked) =>
+                                onRotationSelectionChange(
+                                    post.id,
+                                    checked === true,
+                                )
+                            }
+                            aria-label={`Include ${post.title ?? 'quote'} in rotation`}
+                        />
+                        <span>
+                            {selectedRotationPosition === null
+                                ? 'Include in rotation'
+                                : `Rotation ${selectedRotationPosition}`}
+                        </span>
+                    </label>
                 )}
                 <span className="ml-auto text-xs text-muted-foreground">
                     {post.created_by ?? 'admin'}
@@ -628,6 +865,7 @@ function PostCard({ post }: { post: BoardPost }) {
                         </Button>
                     )}
                     {post.status === 'published' &&
+                        !isFutureScheduled(post) &&
                         (post.pinned ? (
                             <Button
                                 size="sm"

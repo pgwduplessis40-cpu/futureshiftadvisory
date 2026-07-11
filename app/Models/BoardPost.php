@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 final class BoardPost extends Model
 {
@@ -25,6 +26,12 @@ final class BoardPost extends Model
 
     public const STATUS_ARCHIVED = 'archived';
 
+    public const FEATURE_SOURCE_MANUAL = 'manual';
+
+    public const FEATURE_SOURCE_ROTATION = 'rotation';
+
+    public const FEATURE_SOURCE_FALLBACK = 'fallback';
+
     public const TYPES = [self::TYPE_MESSAGE, self::TYPE_QUOTE, self::TYPE_IMAGE];
 
     public const STATUSES = [self::STATUS_DRAFT, self::STATUS_PUBLISHED, self::STATUS_ARCHIVED];
@@ -35,6 +42,7 @@ final class BoardPost extends Model
         'pinned' => 'boolean',
         'published_at' => 'datetime',
         'scheduled_at' => 'datetime',
+        'featured_at' => 'datetime',
     ];
 
     /**
@@ -51,6 +59,15 @@ final class BoardPost extends Model
     public function imageDocument(): BelongsTo
     {
         return $this->belongsTo(Document::class, 'image_document_id');
+    }
+
+    /**
+     * @return BelongsToMany<InspirationRotationSchedule, BoardPost>
+     */
+    public function rotationSchedules(): BelongsToMany
+    {
+        return $this->belongsToMany(InspirationRotationSchedule::class, 'inspiration_rotation_schedule_posts')
+            ->withPivot(['position', 'scheduled_at']);
     }
 
     public function isImage(): bool
