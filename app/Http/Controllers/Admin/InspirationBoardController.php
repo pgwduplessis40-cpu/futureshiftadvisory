@@ -11,6 +11,7 @@ use App\Models\User;
 use App\Services\Board\InspirationBoard;
 use App\Services\Storage\Exceptions\InfectedFileException;
 use App\Services\Storage\Exceptions\SecureFileStorageException;
+use Carbon\CarbonImmutable;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\UploadedFile;
@@ -40,6 +41,7 @@ final class InspirationBoardController extends Controller
             'title' => ['nullable', 'string', 'max:200'],
             'body' => ['nullable', 'string', 'max:2000', Rule::requiredIf(fn (): bool => $request->input('type') !== BoardPost::TYPE_IMAGE)],
             'attribution' => ['nullable', 'string', 'max:200'],
+            'scheduled_at' => ['nullable', 'date'],
             'image' => [
                 Rule::requiredIf(fn (): bool => $request->input('type') === BoardPost::TYPE_IMAGE),
                 'nullable',
@@ -79,11 +81,28 @@ final class InspirationBoardController extends Controller
             'title' => ['nullable', 'string', 'max:200'],
             'body' => ['nullable', 'string', 'max:2000'],
             'attribution' => ['nullable', 'string', 'max:200'],
+            'scheduled_at' => ['nullable', 'date'],
         ]);
 
         $this->board->update($boardPost, $validated, $this->actor($request));
 
         return back()->with('status', 'board-post-updated');
+    }
+
+    public function scheduleRotation(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'start_at' => ['required', 'date'],
+            'cadence_days' => ['required', 'integer', 'min:1', 'max:365'],
+        ]);
+
+        $scheduled = $this->board->scheduleDraftRotation(
+            CarbonImmutable::parse((string) $validated['start_at']),
+            (int) $validated['cadence_days'],
+            $this->actor($request),
+        );
+
+        return back()->with('status', $scheduled > 0 ? 'board-posts-scheduled' : 'board-posts-schedule-empty');
     }
 
     public function publish(Request $request, BoardPost $boardPost): RedirectResponse
@@ -147,6 +166,7 @@ final class InspirationBoardController extends Controller
             'image_is_quarantined' => $post->imageDocument instanceof Document
                 && $post->imageDocument->scanner_result !== Document::SCANNER_CLEAN,
             'published_at' => $post->published_at?->toIso8601String(),
+            'scheduled_at' => $post->scheduled_at?->toIso8601String(),
             'created_by' => $post->createdBy?->name,
             'created_at' => $post->created_at?->toIso8601String(),
         ];

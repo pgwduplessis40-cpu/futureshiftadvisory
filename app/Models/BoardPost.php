@@ -34,6 +34,7 @@ final class BoardPost extends Model
     protected $casts = [
         'pinned' => 'boolean',
         'published_at' => 'datetime',
+        'scheduled_at' => 'datetime',
     ];
 
     /**
@@ -62,6 +63,12 @@ final class BoardPost extends Model
         return $this->status === self::STATUS_PUBLISHED;
     }
 
+    public function isReleased(): bool
+    {
+        return $this->isPublished()
+            && ($this->scheduled_at === null || $this->scheduled_at->lte(now()));
+    }
+
     /**
      * @param  Builder<BoardPost>  $query
      * @return Builder<BoardPost>
@@ -69,5 +76,20 @@ final class BoardPost extends Model
     public function scopePublished(Builder $query): Builder
     {
         return $query->where('status', self::STATUS_PUBLISHED);
+    }
+
+    /**
+     * @param  Builder<BoardPost>  $query
+     * @return Builder<BoardPost>
+     */
+    public function scopeReleased(Builder $query): Builder
+    {
+        return $query
+            ->published()
+            ->where(function (Builder $query): void {
+                $query
+                    ->whereNull('scheduled_at')
+                    ->orWhere('scheduled_at', '<=', now());
+            });
     }
 }

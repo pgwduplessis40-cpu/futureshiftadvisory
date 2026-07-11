@@ -1,5 +1,14 @@
 import { Head, router, useForm } from '@inertiajs/react';
-import { HeartHandshake, Pin, PinOff, Send } from 'lucide-react';
+import {
+    CalendarClock,
+    HeartHandshake,
+    Pencil,
+    Pin,
+    PinOff,
+    Send,
+    X,
+} from 'lucide-react';
+import { useState } from 'react';
 import type { FormEvent } from 'react';
 import { EmptyState } from '@/components/empty-state';
 import InputError from '@/components/input-error';
@@ -32,6 +41,7 @@ type BoardPost = {
     image_scanner_result: string | null;
     image_is_quarantined: boolean;
     published_at: string | null;
+    scheduled_at: string | null;
     created_by: string | null;
     created_at: string | null;
 };
@@ -66,18 +76,70 @@ function action(id: string, verb: string): void {
     );
 }
 
+function dateTimeLocalValue(value: string | null): string {
+    if (!value) {
+        return '';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return '';
+    }
+
+    const local = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+
+    return local.toISOString().slice(0, 16);
+}
+
+function defaultRotationStart(): string {
+    const date = new Date();
+    date.setDate(date.getDate() + 1);
+    date.setHours(8, 0, 0, 0);
+
+    return dateTimeLocalValue(date.toISOString());
+}
+
+function formatDateTime(value: string | null): string {
+    if (!value) {
+        return 'Not scheduled';
+    }
+
+    const date = new Date(value);
+
+    if (Number.isNaN(date.getTime())) {
+        return value;
+    }
+
+    return new Intl.DateTimeFormat('en-NZ', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(date);
+}
+
+function isFutureScheduled(post: BoardPost): boolean {
+    return Boolean(
+        post.status === 'published' &&
+        post.scheduled_at &&
+        new Date(post.scheduled_at).getTime() > Date.now(),
+    );
+}
+
 export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
+    const draftCount = posts.filter((post) => post.status === 'draft').length;
     const form = useForm<{
         type: PostType;
         title: string;
         body: string;
         attribution: string;
+        scheduled_at: string;
         image: File | null;
     }>({
         type: 'quote',
         title: '',
         body: '',
         attribution: '',
+        scheduled_at: '',
         image: null,
     });
 
@@ -225,9 +287,30 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                                 <InputError message={form.errors.attribution} />
                             </div>
 
+                            <div className="space-y-2">
+                                <Label htmlFor="scheduled_at">
+                                    Release date (optional)
+                                </Label>
+                                <Input
+                                    id="scheduled_at"
+                                    type="datetime-local"
+                                    value={form.data.scheduled_at}
+                                    onChange={(event) =>
+                                        form.setData(
+                                            'scheduled_at',
+                                            event.target.value,
+                                        )
+                                    }
+                                />
+                                <InputError
+                                    message={form.errors.scheduled_at}
+                                />
+                            </div>
+
                             <p className="text-xs text-muted-foreground">
-                                Saved to the library as a draft. Publish it to
-                                show it on portals.
+                                Saved to the library as a draft. Publish it, or
+                                use rotation scheduling to release drafts one by
+                                one.
                             </p>
                             <div className="flex justify-end">
                                 <Button
@@ -245,141 +328,336 @@ export default function InspirationBoardIndex({ posts, storeUrl }: Props) {
                     </section>
 
                     <section className="space-y-3 lg:col-span-2">
+                        <RotationScheduler draftCount={draftCount} />
+
                         {posts.length === 0 ? (
                             <EmptyState
                                 icon={HeartHandshake}
                                 title="No posts yet"
-                                description="Add your first message, quote, or image — it stays in the library to reuse later."
+                                description="Add your first message, quote, or image. It stays in the library to reuse later."
                             />
                         ) : (
                             posts.map((post) => (
-                                <SectionCard
-                                    key={post.id}
-                                    className="space-y-3"
-                                >
-                                    <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline">
-                                            {typeLabels[post.type]}
-                                        </Badge>
-                                        <Badge
-                                            variant={
-                                                statusVariants[post.status]
-                                            }
-                                        >
-                                            {post.status}
-                                        </Badge>
-                                        {post.pinned && (
-                                            <Badge variant="secondary">
-                                                <Pin
-                                                    className="mr-1 size-3"
-                                                    aria-hidden="true"
-                                                />
-                                                Pinned
-                                            </Badge>
-                                        )}
-                                        {post.image_is_quarantined && (
-                                            <Badge variant="secondary">
-                                                Quarantined image
-                                            </Badge>
-                                        )}
-                                        <span className="ml-auto text-xs text-muted-foreground">
-                                            {post.created_by ?? 'admin'}
-                                        </span>
-                                    </div>
-
-                                    {post.title && (
-                                        <p className="text-sm font-semibold">
-                                            {post.title}
-                                        </p>
-                                    )}
-                                    {post.type === 'image' &&
-                                    post.image_url &&
-                                    !post.image_is_quarantined ? (
-                                        <img
-                                            src={post.image_url}
-                                            alt={post.title ?? 'Inspiration'}
-                                            className="max-h-48 rounded-md object-cover"
-                                        />
-                                    ) : null}
-                                    {post.image_is_quarantined && (
-                                        <p className="text-xs text-amber-800">
-                                            Image is locked until malware
-                                            scanning completes.
-                                        </p>
-                                    )}
-                                    {post.body && (
-                                        <p className="text-sm whitespace-pre-line text-muted-foreground">
-                                            {post.body}
-                                        </p>
-                                    )}
-                                    {post.attribution && (
-                                        <p className="text-xs text-muted-foreground">
-                                            — {post.attribution}
-                                        </p>
-                                    )}
-
-                                    <div className="flex flex-wrap gap-2 pt-1">
-                                        {post.status !== 'published' && (
-                                            <Button
-                                                size="sm"
-                                                onClick={() =>
-                                                    action(post.id, 'publish')
-                                                }
-                                                disabled={
-                                                    post.image_is_quarantined
-                                                }
-                                            >
-                                                Publish
-                                            </Button>
-                                        )}
-                                        {post.status === 'published' &&
-                                            (post.pinned ? (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        action(post.id, 'unpin')
-                                                    }
-                                                >
-                                                    <PinOff
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                    Unpin
-                                                </Button>
-                                            ) : (
-                                                <Button
-                                                    size="sm"
-                                                    variant="outline"
-                                                    onClick={() =>
-                                                        action(post.id, 'pin')
-                                                    }
-                                                >
-                                                    <Pin
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                    Pin
-                                                </Button>
-                                            ))}
-                                        {post.status !== 'archived' && (
-                                            <Button
-                                                size="sm"
-                                                variant="ghost"
-                                                onClick={() =>
-                                                    action(post.id, 'archive')
-                                                }
-                                            >
-                                                Archive
-                                            </Button>
-                                        )}
-                                    </div>
-                                </SectionCard>
+                                <PostCard key={post.id} post={post} />
                             ))
                         )}
                     </section>
                 </div>
             </div>
         </>
+    );
+}
+
+function RotationScheduler({ draftCount }: { draftCount: number }) {
+    const form = useForm({
+        start_at: defaultRotationStart(),
+        cadence_days: '7',
+    });
+
+    function submit(event: FormEvent) {
+        event.preventDefault();
+        form.post('/admin/inspiration-board/schedule-rotation', {
+            preserveScroll: true,
+        });
+    }
+
+    return (
+        <SectionCard className="space-y-4">
+            <div className="flex flex-wrap items-start gap-3">
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-2">
+                        <CalendarClock
+                            className="size-4 text-muted-foreground"
+                            aria-hidden="true"
+                        />
+                        <h2 className="text-sm font-semibold">
+                            Rotation schedule
+                        </h2>
+                    </div>
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        Schedule every current draft in order. The first draft
+                        uses the start date, and each next draft is released
+                        after the day interval below.
+                    </p>
+                </div>
+                <Badge variant="outline">{draftCount} drafts</Badge>
+            </div>
+
+            <form
+                onSubmit={submit}
+                className="grid gap-3 md:grid-cols-[minmax(0,1fr)_10rem_auto]"
+            >
+                <div className="space-y-2">
+                    <Label htmlFor="rotation_start_at">Start date</Label>
+                    <Input
+                        id="rotation_start_at"
+                        type="datetime-local"
+                        value={form.data.start_at}
+                        onChange={(event) =>
+                            form.setData('start_at', event.target.value)
+                        }
+                        required
+                    />
+                    <InputError message={form.errors.start_at} />
+                </div>
+                <div className="space-y-2">
+                    <Label htmlFor="rotation_cadence_days">Days between</Label>
+                    <Input
+                        id="rotation_cadence_days"
+                        type="number"
+                        min="1"
+                        max="365"
+                        value={form.data.cadence_days}
+                        onChange={(event) =>
+                            form.setData('cadence_days', event.target.value)
+                        }
+                        required
+                    />
+                    <InputError message={form.errors.cadence_days} />
+                </div>
+                <div className="flex items-end">
+                    <Button
+                        type="submit"
+                        disabled={form.processing || draftCount === 0}
+                        className="w-full md:w-auto"
+                    >
+                        <CalendarClock className="size-4" aria-hidden="true" />
+                        Schedule rotation
+                    </Button>
+                </div>
+            </form>
+        </SectionCard>
+    );
+}
+
+function PostCard({ post }: { post: BoardPost }) {
+    const [editing, setEditing] = useState(false);
+    const editForm = useForm({
+        title: post.title ?? '',
+        body: post.body ?? '',
+        attribution: post.attribution ?? '',
+        scheduled_at: dateTimeLocalValue(post.scheduled_at),
+    });
+
+    function beginEdit() {
+        editForm.setData({
+            title: post.title ?? '',
+            body: post.body ?? '',
+            attribution: post.attribution ?? '',
+            scheduled_at: dateTimeLocalValue(post.scheduled_at),
+        });
+        setEditing(true);
+    }
+
+    function submitEdit(event: FormEvent) {
+        event.preventDefault();
+        editForm.patch(`/admin/inspiration-board/${post.id}`, {
+            preserveScroll: true,
+            onSuccess: () => setEditing(false),
+        });
+    }
+
+    return (
+        <SectionCard className="space-y-3">
+            <div className="flex flex-wrap items-center gap-2">
+                <Badge variant="outline">{typeLabels[post.type]}</Badge>
+                <Badge variant={statusVariants[post.status]}>
+                    {isFutureScheduled(post) ? 'scheduled' : post.status}
+                </Badge>
+                {post.pinned && (
+                    <Badge variant="secondary">
+                        <Pin className="mr-1 size-3" aria-hidden="true" />
+                        Pinned
+                    </Badge>
+                )}
+                {post.image_is_quarantined && (
+                    <Badge variant="secondary">Quarantined image</Badge>
+                )}
+                {post.scheduled_at && (
+                    <Badge variant="outline">
+                        {formatDateTime(post.scheduled_at)}
+                    </Badge>
+                )}
+                <span className="ml-auto text-xs text-muted-foreground">
+                    {post.created_by ?? 'admin'}
+                </span>
+            </div>
+
+            {editing ? (
+                <form
+                    onSubmit={submitEdit}
+                    className="space-y-3 rounded-md border bg-muted/20 p-3"
+                >
+                    <div className="grid gap-3 md:grid-cols-2">
+                        <div className="space-y-2">
+                            <Label htmlFor={`title-${post.id}`}>
+                                Title (optional)
+                            </Label>
+                            <Input
+                                id={`title-${post.id}`}
+                                value={editForm.data.title}
+                                onChange={(event) =>
+                                    editForm.setData(
+                                        'title',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <InputError message={editForm.errors.title} />
+                        </div>
+                        <div className="space-y-2">
+                            <Label htmlFor={`scheduled-${post.id}`}>
+                                Release date (optional)
+                            </Label>
+                            <Input
+                                id={`scheduled-${post.id}`}
+                                type="datetime-local"
+                                value={editForm.data.scheduled_at}
+                                onChange={(event) =>
+                                    editForm.setData(
+                                        'scheduled_at',
+                                        event.target.value,
+                                    )
+                                }
+                            />
+                            <InputError
+                                message={editForm.errors.scheduled_at}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor={`body-${post.id}`}>
+                            {post.type === 'quote' ? 'Quote' : 'Message'}
+                        </Label>
+                        <textarea
+                            id={`body-${post.id}`}
+                            value={editForm.data.body}
+                            rows={post.type === 'image' ? 2 : 4}
+                            onChange={(event) =>
+                                editForm.setData('body', event.target.value)
+                            }
+                            className="min-h-24 w-full rounded-md border border-input bg-background px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                            required={post.type !== 'image'}
+                        />
+                        <InputError message={editForm.errors.body} />
+                    </div>
+
+                    <div className="space-y-2">
+                        <Label htmlFor={`attribution-${post.id}`}>
+                            Attribution (optional)
+                        </Label>
+                        <Input
+                            id={`attribution-${post.id}`}
+                            value={editForm.data.attribution}
+                            onChange={(event) =>
+                                editForm.setData(
+                                    'attribution',
+                                    event.target.value,
+                                )
+                            }
+                        />
+                        <InputError message={editForm.errors.attribution} />
+                    </div>
+
+                    <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                            type="button"
+                            variant="outline"
+                            onClick={() => setEditing(false)}
+                        >
+                            <X className="size-4" aria-hidden="true" />
+                            Cancel
+                        </Button>
+                        <Button type="submit" disabled={editForm.processing}>
+                            <Pencil className="size-4" aria-hidden="true" />
+                            Save changes
+                        </Button>
+                    </div>
+                </form>
+            ) : (
+                <>
+                    {post.title && (
+                        <p className="text-sm font-semibold">{post.title}</p>
+                    )}
+                    {post.type === 'image' &&
+                    post.image_url &&
+                    !post.image_is_quarantined ? (
+                        <img
+                            src={post.image_url}
+                            alt={post.title ?? 'Inspiration'}
+                            className="max-h-48 rounded-md object-cover"
+                        />
+                    ) : null}
+                    {post.image_is_quarantined && (
+                        <p className="text-xs text-amber-800">
+                            Image is locked until malware scanning completes.
+                        </p>
+                    )}
+                    {post.body && (
+                        <p className="text-sm whitespace-pre-line text-muted-foreground">
+                            {post.body}
+                        </p>
+                    )}
+                    {post.attribution && (
+                        <p className="text-xs text-muted-foreground">
+                            - {post.attribution}
+                        </p>
+                    )}
+                    {post.scheduled_at && (
+                        <p className="text-xs text-muted-foreground">
+                            Release: {formatDateTime(post.scheduled_at)}
+                        </p>
+                    )}
+                </>
+            )}
+
+            {!editing && (
+                <div className="flex flex-wrap gap-2 pt-1">
+                    <Button size="sm" variant="outline" onClick={beginEdit}>
+                        <Pencil className="size-4" aria-hidden="true" />
+                        Edit
+                    </Button>
+                    {post.status !== 'published' && (
+                        <Button
+                            size="sm"
+                            onClick={() => action(post.id, 'publish')}
+                            disabled={post.image_is_quarantined}
+                        >
+                            Publish
+                        </Button>
+                    )}
+                    {post.status === 'published' &&
+                        (post.pinned ? (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => action(post.id, 'unpin')}
+                            >
+                                <PinOff className="size-4" aria-hidden="true" />
+                                Unpin
+                            </Button>
+                        ) : (
+                            <Button
+                                size="sm"
+                                variant="outline"
+                                onClick={() => action(post.id, 'pin')}
+                            >
+                                <Pin className="size-4" aria-hidden="true" />
+                                Pin
+                            </Button>
+                        ))}
+                    {post.status !== 'archived' && (
+                        <Button
+                            size="sm"
+                            variant="ghost"
+                            onClick={() => action(post.id, 'archive')}
+                        >
+                            Archive
+                        </Button>
+                    )}
+                </div>
+            )}
+        </SectionCard>
     );
 }

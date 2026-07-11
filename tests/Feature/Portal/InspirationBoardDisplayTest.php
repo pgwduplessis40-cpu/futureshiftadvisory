@@ -82,6 +82,37 @@ final class InspirationBoardDisplayTest extends TestCase
             );
     }
 
+    public function test_future_scheduled_posts_are_hidden_until_due(): void
+    {
+        [$user] = $this->clientUserWithClient();
+        $this->publishedQuote('Visible now.', null);
+        BoardPost::query()->create([
+            'type' => BoardPost::TYPE_QUOTE,
+            'body' => 'Visible later.',
+            'status' => BoardPost::STATUS_PUBLISHED,
+            'pinned' => false,
+            'published_at' => now(),
+            'scheduled_at' => now()->addWeek(),
+        ]);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.inspiration-board.index'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/inspiration-board/Index')
+                ->has('posts', 1)
+                ->where('posts.0.body', 'Visible now.')
+            );
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('portal/Dashboard')
+                ->where('inspirationBoard.body', 'Visible now.')
+            );
+    }
+
     public function test_image_route_serves_published_image_but_404s_a_draft_for_clients(): void
     {
         $admin = $this->superAdmin();
@@ -108,6 +139,31 @@ final class InspirationBoardDisplayTest extends TestCase
         $this->actingAsMfa($user)
             ->get(route('portal.inspiration-board.image', $draft))
             ->assertNotFound();
+    }
+
+    public function test_image_route_404s_future_scheduled_image_for_clients(): void
+    {
+        $admin = $this->superAdmin();
+        [$user] = $this->clientUserWithClient();
+
+        $post = app(InspirationBoard::class)->create(
+            ['type' => BoardPost::TYPE_IMAGE, 'title' => 'Scheduled image'],
+            UploadedFile::fake()->image('scheduled.jpg', 320, 240),
+            $admin,
+        );
+        $post->forceFill([
+            'status' => BoardPost::STATUS_PUBLISHED,
+            'published_at' => now(),
+            'scheduled_at' => now()->addWeek(),
+        ])->save();
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.inspiration-board.image', $post))
+            ->assertNotFound();
+
+        $this->actingAsMfa($admin)
+            ->get(route('portal.inspiration-board.image', $post))
+            ->assertOk();
     }
 
     private function publishedQuote(string $body, ?string $attribution): BoardPost

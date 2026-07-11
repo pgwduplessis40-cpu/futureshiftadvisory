@@ -77,6 +77,82 @@ final class InspirationBoardManagementTest extends TestCase
         $this->assertSame(1, BoardPost::query()->where('pinned', true)->count());
     }
 
+    public function test_super_admin_can_edit_quote_details_and_schedule(): void
+    {
+        $admin = $this->superAdmin();
+        $scheduledAt = now()->addDays(5)->setSecond(0);
+
+        $post = BoardPost::query()->create([
+            'type' => BoardPost::TYPE_QUOTE,
+            'body' => 'Old quote',
+            'status' => BoardPost::STATUS_DRAFT,
+            'pinned' => false,
+            'created_by_user_id' => $admin->getKey(),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->patch(route('admin.inspiration-board.update', $post), [
+                'title' => 'Updated title',
+                'body' => 'Updated quote',
+                'attribution' => 'Future Shift',
+                'scheduled_at' => $scheduledAt->toDateTimeString(),
+            ])
+            ->assertRedirect();
+
+        $post->refresh();
+
+        $this->assertSame('Updated title', $post->title);
+        $this->assertSame('Updated quote', $post->body);
+        $this->assertSame('Future Shift', $post->attribution);
+        $this->assertTrue($post->scheduled_at?->equalTo($scheduledAt));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'board_post.updated',
+            'subject_id' => $post->id,
+        ]);
+    }
+
+    public function test_super_admin_can_schedule_draft_rotation_with_custom_day_cadence(): void
+    {
+        $admin = $this->superAdmin();
+        $startAt = now()->addDay()->setSecond(0);
+
+        $first = BoardPost::query()->create([
+            'type' => BoardPost::TYPE_QUOTE,
+            'body' => 'First draft',
+            'status' => BoardPost::STATUS_DRAFT,
+            'pinned' => false,
+            'created_at' => now()->subMinutes(2),
+            'updated_at' => now()->subMinutes(2),
+        ]);
+        $second = BoardPost::query()->create([
+            'type' => BoardPost::TYPE_MESSAGE,
+            'body' => 'Second draft',
+            'status' => BoardPost::STATUS_DRAFT,
+            'pinned' => false,
+            'created_at' => now()->subMinute(),
+            'updated_at' => now()->subMinute(),
+        ]);
+
+        $this->actingAsMfa($admin)
+            ->post(route('admin.inspiration-board.schedule-rotation'), [
+                'start_at' => $startAt->toDateTimeString(),
+                'cadence_days' => 10,
+            ])
+            ->assertRedirect()
+            ->assertSessionHas('status', 'board-posts-scheduled');
+
+        $first->refresh();
+        $second->refresh();
+
+        $this->assertSame(BoardPost::STATUS_PUBLISHED, $first->status);
+        $this->assertSame(BoardPost::STATUS_PUBLISHED, $second->status);
+        $this->assertTrue($first->scheduled_at?->equalTo($startAt));
+        $this->assertTrue($second->scheduled_at?->equalTo($startAt->copy()->addDays(10)));
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'board_post.rotation_scheduled',
+        ]);
+    }
+
     public function test_image_post_is_scanned_stored_and_referenced(): void
     {
         $admin = $this->superAdmin();

@@ -50,7 +50,7 @@ final class InspirationBoardController extends Controller
         }
 
         $canManage = (bool) $request->user()?->can(Permission::BOARD_MANAGE->value);
-        abort_unless($canManage || $boardPost->isPublished(), 404);
+        abort_unless($canManage || $boardPost->isReleased(), 404);
 
         $disk = Storage::disk('secure_local');
         abort_unless($disk->exists($boardPost->image_path), 404);

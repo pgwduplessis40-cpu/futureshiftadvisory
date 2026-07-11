@@ -9,6 +9,7 @@ use App\Models\Document;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Storage\SecureFileWriter;
+use Carbon\CarbonInterface;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -28,8 +29,10 @@ final class InspirationBoard
     public function featured(): ?BoardPost
     {
         return BoardPost::query()
-            ->published()
+            ->released()
             ->orderByDesc('pinned')
+            ->orderByRaw('scheduled_at is null')
+            ->orderByDesc('scheduled_at')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->first();
@@ -41,8 +44,10 @@ final class InspirationBoard
     public function feed(int $limit = 30): Collection
     {
         return BoardPost::query()
-            ->published()
+            ->released()
             ->orderByDesc('pinned')
+            ->orderByRaw('scheduled_at is null')
+            ->orderByDesc('scheduled_at')
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->limit($limit)
@@ -63,7 +68,7 @@ final class InspirationBoard
     }
 
     /**
-     * @param  array{type:string, title?:?string, body?:?string, attribution?:?string}  $data
+     * @param  array{type:string, title?:?string, body?:?string, attribution?:?string, scheduled_at?:mixed}  $data
      */
     public function create(array $data, ?UploadedFile $image, User $actor): BoardPost
     {
@@ -93,6 +98,7 @@ final class InspirationBoard
                 'attribution' => $this->trimToNull($data['attribution'] ?? null),
                 'status' => BoardPost::STATUS_DRAFT,
                 'pinned' => false,
+                'scheduled_at' => $data['scheduled_at'] ?? null,
                 'created_by_user_id' => $actor->getAuthIdentifier(),
                 ...$imageAttributes,
             ]);
@@ -100,6 +106,7 @@ final class InspirationBoard
             $this->audit->record('board_post.created', subject: $post, actor: $actor, after: [
                 'type' => $post->type,
                 'status' => $post->status,
+                'scheduled_at' => $post->scheduled_at?->toIso8601String(),
             ]);
 
             return $post;
@@ -107,18 +114,30 @@ final class InspirationBoard
     }
 
     /**
-     * @param  array{title?:?string, body?:?string, attribution?:?string}  $data
+     * @param  array{title?:?string, body?:?string, attribution?:?string, scheduled_at?:mixed}  $data
      */
     public function update(BoardPost $post, array $data, User $actor): BoardPost
     {
+        $before = [
+            'title' => $post->title,
+            'body' => $post->body,
+            'attribution' => $post->attribution,
+            'scheduled_at' => $post->scheduled_at?->toIso8601String(),
+        ];
+
         $post->forceFill([
             'title' => $this->trimToNull($data['title'] ?? $post->title),
             'body' => $this->trimToNull($data['body'] ?? $post->body),
             'attribution' => $this->trimToNull($data['attribution'] ?? $post->attribution),
+            'scheduled_at' => array_key_exists('scheduled_at', $data) ? $data['scheduled_at'] : $post->scheduled_at,
         ])->save();
 
-        $this->audit->record('board_post.updated', subject: $post, actor: $actor, after: [
+        $this->audit->record('board_post.updated', subject: $post, actor: $actor, before: $before, after: [
             'type' => $post->type,
+            'title' => $post->title,
+            'body' => $post->body,
+            'attribution' => $post->attribution,
+            'scheduled_at' => $post->scheduled_at?->toIso8601String(),
         ]);
 
         return $post;
@@ -142,9 +161,49 @@ final class InspirationBoard
         $this->audit->record('board_post.published', subject: $post, actor: $actor, after: [
             'type' => $post->type,
             'published_at' => $post->published_at?->toIso8601String(),
+            'scheduled_at' => $post->scheduled_at?->toIso8601String(),
         ]);
 
         return $post;
+    }
+
+    public function scheduleDraftRotation(CarbonInterface $startAt, int $cadenceDays, User $actor): int
+    {
+        return DB::transaction(function () use ($startAt, $cadenceDays, $actor): int {
+            $drafts = BoardPost::query()
+                ->with('imageDocument')
+                ->where('status', BoardPost::STATUS_DRAFT)
+                ->orderBy('created_at')
+                ->orderBy('id')
+                ->lockForUpdate()
+                ->get();
+
+            $scheduled = 0;
+            foreach ($drafts as $post) {
+                if ($post->isImage() && ($post->image_path === null || ! $this->imageDocumentIsClean($post))) {
+                    continue;
+                }
+
+                $scheduledAt = $startAt->copy()->addDays($cadenceDays * $scheduled);
+
+                $post->forceFill([
+                    'status' => BoardPost::STATUS_PUBLISHED,
+                    'published_at' => $post->published_at ?? now(),
+                    'scheduled_at' => $scheduledAt,
+                    'pinned' => false,
+                ])->save();
+
+                $scheduled++;
+            }
+
+            $this->audit->record('board_post.rotation_scheduled', actor: $actor, after: [
+                'scheduled_count' => $scheduled,
+                'start_at' => $startAt->toIso8601String(),
+                'cadence_days' => $cadenceDays,
+            ]);
+
+            return $scheduled;
+        });
     }
 
     public function archive(BoardPost $post, User $actor): BoardPost
