@@ -94,6 +94,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
     };
     idea_validation: {
         id: string;
+        revision_number: number;
         summary: string;
         problem: string;
         target_customer: string;
@@ -124,6 +125,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         change_request_note: string | null;
         changes_requested_at: string | null;
         recalled_at: string | null;
+        restored_from_revision_number: number | null;
         refresh_status: 'queued' | 'completed' | 'failed' | string | null;
         refresh_stale: boolean;
         refresh_requested_at: string | null;

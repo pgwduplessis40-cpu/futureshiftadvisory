@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, usePage } from '@inertiajs/react';
 import {
     CheckCircle2,
     Download,
@@ -24,6 +24,7 @@ type InstallFeedback =
 
 export default function InstallAppSettings() {
     const installState = usePwaInstall();
+    const { releaseVersion } = usePage<{ releaseVersion: string }>().props;
     const [feedback, setFeedback] = useState<InstallFeedback>(null);
 
     const install = async () => {
@@ -76,6 +77,11 @@ export default function InstallAppSettings() {
                     title="Install app"
                     description="Add Future Shift Advisory to this device"
                 />
+
+                <section className="flex flex-wrap items-center justify-between gap-3 border-b pb-4">
+                    <h2 className="text-sm font-medium">Application version</h2>
+                    <Badge variant="outline">{releaseVersion}</Badge>
+                </section>
 
                 <section className="rounded-md border bg-card p-4 shadow-sm">
                     <div className="flex items-start gap-4">

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 use App\Http\Controllers\CalendarController as ActivityCalendarController;
 use App\Http\Controllers\DocumentController;
+use App\Http\Controllers\Portal\ClientLeavePeriodController;
 use App\Http\Controllers\Portal\DashboardController as ClientPortalDashboardController;
 use App\Http\Controllers\Portal\DdBusinessPlanController;
-use App\Http\Controllers\Portal\ClientLeavePeriodController;
 use App\Http\Controllers\Portal\EntrepreneurAssessmentController;
 use App\Http\Controllers\Portal\EntrepreneurDashboardController;
 use App\Http\Controllers\Portal\EntrepreneurGamificationController;
@@ -60,6 +60,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneur/readiness', [EntrepreneurPlanController::class, 'readiness'])->name('entrepreneur.readiness.store');
         Route::post('entrepreneur/idea-validation', [EntrepreneurPlanController::class, 'ideaValidation'])->name('entrepreneur.idea-validation.store');
         Route::post('entrepreneur/idea-validation/recall', [EntrepreneurPlanController::class, 'recallIdeaValidation'])->name('entrepreneur.idea-validation.recall');
+        Route::post('entrepreneur/idea-validation/{ideaValidation}/restore', [EntrepreneurPlanController::class, 'restoreIdeaValidation'])->name('entrepreneur.idea-validation.restore');
         Route::post('entrepreneur/plan/start', [EntrepreneurPlanController::class, 'start'])->name('entrepreneur.plan.start');
         Route::post('entrepreneur/plan/requirements/assist', [EntrepreneurPlanController::class, 'assistRequirement'])->name('entrepreneur.plan.requirements.assist');
         Route::post('entrepreneur/plan/sections', [EntrepreneurPlanController::class, 'section'])->name('entrepreneur.plan.sections.store');

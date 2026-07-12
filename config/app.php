@@ -17,6 +17,19 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Release Version
+    |--------------------------------------------------------------------------
+    |
+    | Set this to the immutable release tag deployed to an environment, for
+    | example "v1.8.0". It is shared with the application and combined with
+    | Inertia's asset version so clients refresh onto the matching release.
+    |
+    */
+
+    'release_version' => env('APP_VERSION', 'development'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Public canonical URL
     |--------------------------------------------------------------------------
     |

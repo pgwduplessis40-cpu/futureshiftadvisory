@@ -17,6 +17,7 @@ final class IdeaValidation extends Model
     protected $casts = [
         'ai_evaluation' => 'array',
         'viability_alerts' => 'array',
+        'revision_number' => 'integer',
         'evaluated_at' => 'datetime',
         'advisor_gate_passed_at' => 'datetime',
         'recalled_at' => 'datetime',
@@ -28,6 +29,14 @@ final class IdeaValidation extends Model
     public function entrepreneurProfile(): BelongsTo
     {
         return $this->belongsTo(EntrepreneurProfile::class);
+    }
+
+    /**
+     * @return BelongsTo<IdeaValidation, IdeaValidation>
+     */
+    public function previousValidation(): BelongsTo
+    {
+        return $this->belongsTo(self::class, 'previous_validation_id');
     }
 
     /**

@@ -626,8 +626,8 @@ final class EntrepreneurController extends Controller
     {
         $validation = IdeaValidation::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
-            ->latest('evaluated_at')
-            ->latest()
+            ->orderByDesc('revision_number')
+            ->orderByDesc('evaluated_at')
             ->first();
 
         if (! $validation instanceof IdeaValidation) {
@@ -645,6 +645,7 @@ final class EntrepreneurController extends Controller
 
         return [
             'id' => $validation->id,
+            'revision_number' => $validation->revision_number,
             'summary' => (string) data_get($validation->ai_evaluation, 'summary', ''),
             'problem' => $validation->problem,
             'target_customer' => $validation->target_customer,
@@ -661,6 +662,7 @@ final class EntrepreneurController extends Controller
             'change_request_note' => data_get($evaluation, 'metadata.change_request_note'),
             'changes_requested_at' => data_get($evaluation, 'metadata.changes_requested_at'),
             'recalled_at' => $validation->recalled_at?->toIso8601String(),
+            'restored_from_revision_number' => data_get($evaluation, 'metadata.restored_from_revision_number'),
             'refresh_status' => $refreshStatus,
             'refresh_stale' => $refreshStale,
             'refresh_requested_at' => $refreshRequestedAt,

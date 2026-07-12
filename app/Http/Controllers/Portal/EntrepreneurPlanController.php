@@ -103,6 +103,7 @@ final class EntrepreneurPlanController extends Controller
                 ->values()
                 ->all(),
             'ideaValidation' => $this->ideaValidationPayload($profile),
+            'ideaValidationVersions' => $this->ideaValidationVersionsPayload($profile),
             'plan' => $plan instanceof BusinessPlan ? $this->planPayload($plan) : null,
             'planTemplate' => $this->planTemplatePayload(),
             'reports' => $this->reportPayloads($profile),
@@ -245,6 +246,26 @@ final class EntrepreneurPlanController extends Controller
         $this->ideas->recallForRevision($validation, $user);
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-idea-recalled');
+    }
+
+    public function restoreIdeaValidation(
+        Request $request,
+        IdeaValidation $ideaValidation,
+    ): RedirectResponse {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        if (! $this->packageIncludesIdeaValidation($profile)) {
+            return $this->packageLockedResponse('Idea validation is not included in your selected package.');
+        }
+
+        abort_unless(
+            (string) $ideaValidation->entrepreneur_profile_id === (string) $profile->getKey(),
+            404,
+        );
+
+        $this->ideas->restoreRevision($profile, $ideaValidation, $user);
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-idea-restored');
     }
 
     public function start(Request $request): RedirectResponse
@@ -767,6 +788,7 @@ final class EntrepreneurPlanController extends Controller
 
         return [
             'id' => $validation->id,
+            'revision_number' => $validation->revision_number,
             'problem' => $validation->problem,
             'target_customer' => $validation->target_customer,
             'solution' => $validation->solution,
@@ -780,10 +802,44 @@ final class EntrepreneurPlanController extends Controller
             'change_request_note' => data_get($validation->ai_evaluation, 'metadata.change_request_note'),
             'changes_requested_at' => data_get($validation->ai_evaluation, 'metadata.changes_requested_at'),
             'recalled_at' => $validation->recalled_at?->toIso8601String(),
+            'restored_from_revision_number' => data_get($validation->ai_evaluation, 'metadata.restored_from_revision_number'),
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             'advisor_gate_note' => $validation->advisor_gate_note,
             'plan_builder_unlocked' => $validation->advisor_gate_passed_at !== null,
         ];
+    }
+
+    /**
+     * @return array<int, array<string, mixed>>
+     */
+    private function ideaValidationVersionsPayload(EntrepreneurProfile $profile): array
+    {
+        $latestId = $this->latestIdeaValidation($profile)?->getKey();
+
+        return IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->orderByDesc('revision_number')
+            ->orderByDesc('evaluated_at')
+            ->get()
+            ->map(function (IdeaValidation $validation) use ($latestId): array {
+                return [
+                    'id' => $validation->id,
+                    'revision_number' => $validation->revision_number,
+                    'problem' => $validation->problem,
+                    'target_customer' => $validation->target_customer,
+                    'solution' => $validation->solution,
+                    'value_proposition' => $validation->value_proposition,
+                    'demand_signal' => $validation->demand_signal,
+                    'revenue_model' => $validation->revenue_model,
+                    'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
+                    'advisor_gate_status' => $this->ideaGateStatus($validation),
+                    'recalled_at' => $validation->recalled_at?->toIso8601String(),
+                    'is_current' => (string) $validation->getKey() === (string) $latestId,
+                    'restore_url' => route('portal.entrepreneur.idea-validation.restore', $validation, absolute: false),
+                ];
+            })
+            ->values()
+            ->all();
     }
 
     private function ideaGateStatus(IdeaValidation $validation): string
@@ -805,8 +861,8 @@ final class EntrepreneurPlanController extends Controller
     {
         return IdeaValidation::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
-            ->latest('evaluated_at')
-            ->latest()
+            ->orderByDesc('revision_number')
+            ->orderByDesc('evaluated_at')
             ->first();
     }
 

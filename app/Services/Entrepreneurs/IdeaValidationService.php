@@ -37,13 +37,55 @@ final class IdeaValidationService implements ProvidesMethodology
     /**
      * @param  array<string, mixed>  $payload
      */
-    public function evaluate(EntrepreneurProfile $profile, array $payload, User $actor): IdeaValidation
-    {
-        return DB::transaction(function () use ($profile, $payload, $actor): IdeaValidation {
-            $evaluation = $this->evaluatePayload($profile, $payload);
+    public function evaluate(
+        EntrepreneurProfile $profile,
+        array $payload,
+        User $actor,
+        ?IdeaValidation $restoredFrom = null,
+    ): IdeaValidation {
+        $evaluation = $this->evaluatePayload($profile, $payload);
+        if ($restoredFrom instanceof IdeaValidation) {
+            data_set($evaluation, 'ai_evaluation.metadata.restored_from_validation_id', $restoredFrom->getKey());
+            data_set($evaluation, 'ai_evaluation.metadata.restored_from_revision_number', $restoredFrom->revision_number);
+        }
+
+        return DB::transaction(function () use ($profile, $payload, $actor, $evaluation, $restoredFrom): IdeaValidation {
+            $lockedProfile = EntrepreneurProfile::query()
+                ->whereKey($profile->getKey())
+                ->lockForUpdate()
+                ->first();
+
+            if (! $lockedProfile instanceof EntrepreneurProfile) {
+                throw new InvalidArgumentException('Idea validation must belong to an entrepreneur profile before it can be submitted.');
+            }
+
+            $previousValidation = IdeaValidation::query()
+                ->where('entrepreneur_profile_id', $lockedProfile->getKey())
+                ->orderByDesc('revision_number')
+                ->orderByDesc('evaluated_at')
+                ->lockForUpdate()
+                ->first();
+
+            if (
+                $previousValidation instanceof IdeaValidation
+                && $previousValidation->advisor_gate_passed_at === null
+                && $previousValidation->recalled_at === null
+            ) {
+                $previousValidation->forceFill([
+                    'recalled_at' => now(),
+                    'recalled_by_user_id' => $actor->getKey(),
+                ])->save();
+
+                $this->audit->record('entrepreneur.idea_validation_superseded', subject: $previousValidation, actor: $actor, after: [
+                    'entrepreneur_profile_id' => $lockedProfile->getKey(),
+                    'revision_number' => $previousValidation->revision_number,
+                ]);
+            }
 
             $validation = IdeaValidation::query()->create([
-                'entrepreneur_profile_id' => $profile->getKey(),
+                'entrepreneur_profile_id' => $lockedProfile->getKey(),
+                'revision_number' => ($previousValidation?->revision_number ?? 0) + 1,
+                'previous_validation_id' => $previousValidation?->getKey(),
                 'problem' => (string) $payload['problem'],
                 'target_customer' => (string) $payload['target_customer'],
                 'solution' => (string) $payload['solution'],
@@ -56,18 +98,40 @@ final class IdeaValidationService implements ProvidesMethodology
                 'evaluated_by_user_id' => $actor->getKey(),
             ]);
 
-            $profile->forceFill([
+            $lockedProfile->forceFill([
                 'stage' => EntrepreneurStage::IDEA_VALIDATION,
             ])->save();
 
-            $this->audit->record('entrepreneur.idea_validated', subject: $validation, actor: $actor, after: [
-                'entrepreneur_profile_id' => $profile->getKey(),
+            $this->audit->record($restoredFrom instanceof IdeaValidation ? 'entrepreneur.idea_validation_restored' : 'entrepreneur.idea_validated', subject: $validation, actor: $actor, after: [
+                'entrepreneur_profile_id' => $lockedProfile->getKey(),
                 'alert_count' => count($evaluation['viability_alerts']),
                 'plan_builder_unlocked' => false,
+                'revision_number' => $validation->revision_number,
+                'previous_validation_id' => $previousValidation?->getKey(),
+                'restored_from_validation_id' => $restoredFrom?->getKey(),
             ]);
 
             return $validation->refresh();
         });
+    }
+
+    public function restoreRevision(
+        EntrepreneurProfile $profile,
+        IdeaValidation $source,
+        User $actor,
+    ): IdeaValidation {
+        if ((string) $source->entrepreneur_profile_id !== (string) $profile->getKey()) {
+            throw new InvalidArgumentException('The selected idea validation does not belong to this entrepreneur profile.');
+        }
+
+        return $this->evaluate($profile, [
+            'problem' => $source->problem,
+            'target_customer' => $source->target_customer,
+            'solution' => $source->solution,
+            'value_proposition' => $source->value_proposition,
+            'demand_signal' => $source->demand_signal,
+            'revenue_model' => $source->revenue_model,
+        ], $actor, $source);
     }
 
     public function refreshEvaluation(IdeaValidation $validation, User $actor): IdeaValidation

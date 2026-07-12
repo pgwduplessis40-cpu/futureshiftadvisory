@@ -772,8 +772,8 @@ final class DashboardController extends Controller
             );
 
         $ideaItems = (clone $ideaQuery)
-            ->latest('evaluated_at')
-            ->latest()
+            ->orderByDesc('revision_number')
+            ->orderByDesc('evaluated_at')
             ->limit(5)
             ->get()
             ->map(fn (IdeaValidation $validation): array => $this->entrepreneurIdeaReviewItem($validation))

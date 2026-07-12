@@ -35,7 +35,16 @@ class HandleInertiaRequests extends Middleware
      */
     public function version(Request $request): ?string
     {
-        return parent::version($request);
+        $assetVersion = parent::version($request);
+        $releaseVersion = trim((string) config('app.release_version'));
+
+        if ($releaseVersion === '') {
+            return $assetVersion;
+        }
+
+        return $assetVersion !== null
+            ? $releaseVersion.'-'.$assetVersion
+            : $releaseVersion;
     }
 
     /**
@@ -51,6 +60,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'publicUrl' => config('app.public_url'),
+            'releaseVersion' => config('app.release_version'),
             'auth' => [
                 'user' => $request->user(),
             ],

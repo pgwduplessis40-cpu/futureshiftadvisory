@@ -767,6 +767,11 @@ export default function EntrepreneursShow({
                                 </h2>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
+                                {ideaValidation ? (
+                                    <Badge variant="outline">
+                                        Version {ideaValidation.revision_number}
+                                    </Badge>
+                                ) : null}
                                 {ideaValidation?.ai_deferred &&
                                 !ideaRecalled ? (
                                     <Button
@@ -894,6 +899,14 @@ export default function EntrepreneursShow({
                                             cohortPatternLabel(
                                                 ideaValidation.past_plan_pattern,
                                             )
+                                        }
+                                    />
+                                    <Detail
+                                        label="Restored from"
+                                        value={
+                                            ideaValidation.restored_from_revision_number
+                                                ? `Version ${ideaValidation.restored_from_revision_number}`
+                                                : null
                                         }
                                     />
                                 </div>

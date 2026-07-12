@@ -291,6 +291,8 @@ final class EntrepreneurNavigationTest extends TestCase
             ->firstOrFail();
 
         $this->assertNull($validation->advisor_gate_passed_at);
+        $this->assertSame(1, $validation->revision_number);
+        $this->assertNull($validation->previous_validation_id);
         $this->assertSame($payload['problem'], $validation->problem);
         $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
 
@@ -299,6 +301,7 @@ final class EntrepreneurNavigationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('ideaValidation.id', $validation->id)
+                ->where('ideaValidation.revision_number', 1)
                 ->where('ideaValidation.plan_builder_unlocked', false)
                 ->where('ideaValidation.problem', $payload['problem']));
 
@@ -353,6 +356,8 @@ final class EntrepreneurNavigationTest extends TestCase
             ->firstOrFail();
 
         $this->assertNotSame($validation->id, $resubmittedValidation->id);
+        $this->assertSame(2, $resubmittedValidation->revision_number);
+        $this->assertSame($validation->id, $resubmittedValidation->previous_validation_id);
         $this->assertSame('advisor_review', data_get($resubmittedValidation->ai_evaluation, 'metadata.advisor_gate_status', 'advisor_review'));
         $this->assertSame($recalledPayload['demand_signal'], $resubmittedValidation->demand_signal);
 
@@ -393,8 +398,37 @@ final class EntrepreneurNavigationTest extends TestCase
             ->firstOrFail();
 
         $this->assertNotSame($resubmittedValidation->id, $latestValidation->id);
+        $this->assertSame(3, $latestValidation->revision_number);
+        $this->assertSame($resubmittedValidation->id, $latestValidation->previous_validation_id);
         $this->assertSame('advisor_review', data_get($latestValidation->ai_evaluation, 'metadata.advisor_gate_status', 'advisor_review'));
         $this->assertSame($revisedPayload['demand_signal'], $latestValidation->demand_signal);
+        $this->assertNotNull($resubmittedValidation->refresh()->recalled_at);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.idea-validation.restore', $validation))
+            ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-restored');
+
+        $restoredValidation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->orderByDesc('revision_number')
+            ->firstOrFail();
+
+        $this->assertSame(4, $restoredValidation->revision_number);
+        $this->assertSame($latestValidation->id, $restoredValidation->previous_validation_id);
+        $this->assertSame($payload['problem'], $restoredValidation->problem);
+        $this->assertSame($payload['demand_signal'], $restoredValidation->demand_signal);
+        $this->assertSame($validation->id, data_get($restoredValidation->ai_evaluation, 'metadata.restored_from_validation_id'));
+        $this->assertSame(1, data_get($restoredValidation->ai_evaluation, 'metadata.restored_from_revision_number'));
+        $this->assertNotNull($latestValidation->refresh()->recalled_at);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('entrepreneurReviews.summary.idea_validations', 1)
+                ->where('entrepreneurReviews.items.0.id', $restoredValidation->id)
+                ->where('entrepreneurReviews.items.0.action_label', 'Review idea'));
     }
 
     public function test_entrepreneur_can_start_buying_business_service_from_portal(): void

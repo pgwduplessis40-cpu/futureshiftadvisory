@@ -12,6 +12,7 @@ import {
     MessageSquare,
     Pencil,
     RefreshCw,
+    RotateCcw,
     Send,
     Trash2,
     Trophy,
@@ -49,6 +50,7 @@ type ProfilePayload = {
 
 type IdeaValidationPayload = {
     id: string;
+    revision_number: number;
     problem: string;
     target_customer: string;
     solution: string;
@@ -70,10 +72,24 @@ type IdeaValidationPayload = {
     change_request_note: string | null;
     changes_requested_at: string | null;
     recalled_at: string | null;
+    restored_from_revision_number: number | null;
     advisor_gate_passed_at: string | null;
     advisor_gate_note: string | null;
     plan_builder_unlocked: boolean;
 } | null;
+
+type IdeaValidationVersion = {
+    id: string;
+    revision_number: number;
+    problem: string;
+    target_customer: string;
+    demand_signal: string;
+    evaluated_at: string | null;
+    advisor_gate_status: string;
+    recalled_at: string | null;
+    is_current: boolean;
+    restore_url: string;
+};
 
 type IdeaValidationForm = {
     problem: string;
@@ -345,6 +361,7 @@ type Props = {
     profile: ProfilePayload;
     packageAccess: PackageAccessPayload;
     ideaValidation: IdeaValidationPayload;
+    ideaValidationVersions: IdeaValidationVersion[];
     plan: BusinessPlanPayload;
     planTemplate: PlanTemplatePhasePayload[];
     reports: ReportPayload[];
@@ -376,6 +393,7 @@ export default function EntrepreneurPlan({
     profile,
     packageAccess,
     ideaValidation,
+    ideaValidationVersions,
     plan,
     planTemplate,
     reports,
@@ -394,6 +412,9 @@ export default function EntrepreneurPlan({
     });
     const [showValidatedIdeaForm, setShowValidatedIdeaForm] = useState(false);
     const [recallingIdea, setRecallingIdea] = useState(false);
+    const [restoringIdeaVersionId, setRestoringIdeaVersionId] = useState<
+        string | null
+    >(null);
     const phases = plan?.phases ?? planTemplate;
     const requirements = useMemo(
         () => phases.flatMap((phase) => phase.requirements),
@@ -626,6 +647,26 @@ export default function EntrepreneurPlan({
             {
                 preserveScroll: true,
                 onFinish: () => setRecallingIdea(false),
+            },
+        );
+    };
+
+    const restoreIdeaVersion = (version: IdeaValidationVersion) => {
+        if (
+            !window.confirm(
+                `Restore version ${version.revision_number} as a new idea validation revision? Your advisor will review the new revision.`,
+            )
+        ) {
+            return;
+        }
+
+        setRestoringIdeaVersionId(version.id);
+        router.post(
+            version.restore_url,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setRestoringIdeaVersionId(null),
             },
         );
     };
@@ -1247,6 +1288,14 @@ export default function EntrepreneurPlan({
                                             <Badge variant="outline">
                                                 Step 1
                                             </Badge>
+                                            {ideaValidation ? (
+                                                <Badge variant="outline">
+                                                    Version{' '}
+                                                    {
+                                                        ideaValidation.revision_number
+                                                    }
+                                                </Badge>
+                                            ) : null}
                                             <h2 className="text-sm font-medium">
                                                 Idea validation
                                             </h2>
@@ -1329,6 +1378,15 @@ export default function EntrepreneurPlan({
                                     </div>
                                 ) : null}
 
+                                {ideaValidation?.restored_from_revision_number ? (
+                                    <div className="text-xs text-muted-foreground">
+                                        Restored from version{' '}
+                                        {
+                                            ideaValidation.restored_from_revision_number
+                                        }
+                                    </div>
+                                ) : null}
+
                                 {ideaValidationApproved &&
                                 !showIdeaValidationEditor ? (
                                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1369,6 +1427,10 @@ export default function EntrepreneurPlan({
                                                 <IdeaValidationSnapshot
                                                     fields={
                                                         ideaValidationSummary
+                                                    }
+                                                    revisionNumber={
+                                                        ideaValidation?.revision_number ??
+                                                        null
                                                     }
                                                     submittedAt={
                                                         ideaValidation?.evaluated_at ??
@@ -1442,6 +1504,10 @@ export default function EntrepreneurPlan({
                                         </div>
                                         <IdeaValidationSnapshot
                                             fields={ideaValidationSummary}
+                                            revisionNumber={
+                                                ideaValidation?.revision_number ??
+                                                null
+                                            }
                                             submittedAt={
                                                 ideaValidation?.evaluated_at ??
                                                 null
@@ -1470,6 +1536,16 @@ export default function EntrepreneurPlan({
                                             </p>
                                         </div>
                                     </div>
+                                ) : null}
+
+                                {ideaValidationVersions.length > 1 ? (
+                                    <IdeaValidationHistory
+                                        versions={ideaValidationVersions}
+                                        restoringVersionId={
+                                            restoringIdeaVersionId
+                                        }
+                                        onRestore={restoreIdeaVersion}
+                                    />
                                 ) : null}
                             </section>
                         ) : null}
@@ -4530,9 +4606,11 @@ function ideaValidationToForm(
 
 function IdeaValidationSnapshot({
     fields,
+    revisionNumber,
     submittedAt,
 }: {
     fields: { label: string; value: string }[];
+    revisionNumber: number | null;
     submittedAt: string | null;
 }) {
     return (
@@ -4541,11 +4619,18 @@ function IdeaValidationSnapshot({
                 <div className="text-xs font-medium text-muted-foreground">
                     Submitted idea validation
                 </div>
-                {submittedAt ? (
-                    <Badge variant="outline">
-                        Submitted {formatDate(submittedAt)}
-                    </Badge>
-                ) : null}
+                <div className="flex flex-wrap items-center gap-2">
+                    {revisionNumber ? (
+                        <Badge variant="outline">
+                            Version {revisionNumber}
+                        </Badge>
+                    ) : null}
+                    {submittedAt ? (
+                        <Badge variant="outline">
+                            Submitted {formatDate(submittedAt)}
+                        </Badge>
+                    ) : null}
+                </div>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {fields.map((field) => (
@@ -4564,6 +4649,108 @@ function IdeaValidationSnapshot({
             </div>
         </div>
     );
+}
+
+function IdeaValidationHistory({
+    versions,
+    restoringVersionId,
+    onRestore,
+}: {
+    versions: IdeaValidationVersion[];
+    restoringVersionId: string | null;
+    onRestore: (version: IdeaValidationVersion) => void;
+}) {
+    return (
+        <div className="space-y-3 border-t pt-4">
+            <h3 className="text-sm font-medium">Revision history</h3>
+            <div className="grid gap-3 lg:grid-cols-2">
+                {versions.map((version) => (
+                    <div
+                        key={version.id}
+                        className="space-y-3 rounded-md border bg-muted/20 p-3"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-2">
+                            <div className="flex flex-wrap items-center gap-2">
+                                <span className="text-sm font-medium">
+                                    Version {version.revision_number}
+                                </span>
+                                {version.is_current ? (
+                                    <Badge variant="secondary">Current</Badge>
+                                ) : (
+                                    <Badge variant="outline">
+                                        {ideaVersionStatusLabel(version)}
+                                    </Badge>
+                                )}
+                            </div>
+                            {version.evaluated_at ? (
+                                <span className="text-xs text-muted-foreground">
+                                    {formatDate(version.evaluated_at)}
+                                </span>
+                            ) : null}
+                        </div>
+                        <dl className="grid gap-2 text-sm">
+                            <VersionDetail
+                                label="Problem"
+                                value={version.problem}
+                            />
+                            <VersionDetail
+                                label="Target customer"
+                                value={version.target_customer}
+                            />
+                            <VersionDetail
+                                label="Demand signal"
+                                value={version.demand_signal}
+                            />
+                        </dl>
+                        {!version.is_current ? (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="outline"
+                                disabled={restoringVersionId !== null}
+                                onClick={() => onRestore(version)}
+                            >
+                                <RotateCcw
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                {restoringVersionId === version.id
+                                    ? 'Restoring...'
+                                    : 'Restore as new revision'}
+                            </Button>
+                        ) : null}
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+function VersionDetail({ label, value }: { label: string; value: string }) {
+    return (
+        <div>
+            <dt className="text-xs font-medium text-muted-foreground">
+                {label}
+            </dt>
+            <dd className="mt-1 whitespace-pre-line">{value || '-'}</dd>
+        </div>
+    );
+}
+
+function ideaVersionStatusLabel(version: IdeaValidationVersion): string {
+    if (version.recalled_at) {
+        return 'Recalled';
+    }
+
+    if (version.advisor_gate_status === 'approved') {
+        return 'Approved';
+    }
+
+    if (version.advisor_gate_status === 'changes_requested') {
+        return 'Changes requested';
+    }
+
+    return 'Advisor review';
 }
 
 const ideaFields = [
