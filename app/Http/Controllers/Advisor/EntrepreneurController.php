@@ -660,6 +660,7 @@ final class EntrepreneurController extends Controller
             'advisor_gate_status' => $gateStatus,
             'change_request_note' => data_get($evaluation, 'metadata.change_request_note'),
             'changes_requested_at' => data_get($evaluation, 'metadata.changes_requested_at'),
+            'recalled_at' => $validation->recalled_at?->toIso8601String(),
             'refresh_status' => $refreshStatus,
             'refresh_stale' => $refreshStale,
             'refresh_requested_at' => $refreshRequestedAt,
@@ -677,6 +678,10 @@ final class EntrepreneurController extends Controller
 
     private function ideaGateStatus(IdeaValidation $validation): string
     {
+        if ($validation->recalled_at !== null) {
+            return 'recalled';
+        }
+
         if ($validation->advisor_gate_passed_at !== null) {
             return 'approved';
         }

@@ -130,6 +130,11 @@ export default function InstallAppSettings() {
                                     mode={installState.instructionMode}
                                 />
                             ) : null}
+
+                            {!installState.canPrompt &&
+                            !installState.isLikelyMobile ? (
+                                <DesktopShortcutRecovery />
+                            ) : null}
                         </div>
                     </div>
                 </section>
@@ -257,6 +262,28 @@ function InstallInstructions({ mode }: { mode: 'browser' | 'ios' }) {
                 </p>
             </div>
         </div>
+    );
+}
+
+function DesktopShortcutRecovery() {
+    return (
+        <Alert>
+            <MonitorSmartphone className="size-4" aria-hidden="true" />
+            <AlertTitle>Missing desktop shortcut?</AlertTitle>
+            <AlertDescription className="space-y-3">
+                <p>
+                    If Chrome does not offer Install app, Future Shift Advisory
+                    may already be installed and only its desktop shortcut was
+                    removed.
+                </p>
+                <ol className="space-y-2">
+                    <li>1. Open a new Chrome tab and enter chrome://apps.</li>
+                    <li>2. Right-click Future Shift Advisory.</li>
+                    <li>3. Choose Create shortcut.</li>
+                    <li>4. Select Desktop, then choose Create.</li>
+                </ol>
+            </AlertDescription>
+        </Alert>
     );
 }
 

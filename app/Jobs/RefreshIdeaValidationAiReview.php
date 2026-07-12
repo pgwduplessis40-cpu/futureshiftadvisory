@@ -43,6 +43,10 @@ final class RefreshIdeaValidationAiReview implements ShouldQueue
             return;
         }
 
+        if ($validation->recalled_at !== null) {
+            return;
+        }
+
         $ideas->markRefreshRunning($validation, $advisor);
 
         try {

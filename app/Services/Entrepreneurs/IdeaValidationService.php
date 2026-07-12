@@ -73,6 +73,11 @@ final class IdeaValidationService implements ProvidesMethodology
     public function refreshEvaluation(IdeaValidation $validation, User $actor): IdeaValidation
     {
         return DB::transaction(function () use ($validation, $actor): IdeaValidation {
+            $validation->refresh();
+            if ($validation->recalled_at !== null) {
+                return $validation;
+            }
+
             $validation->loadMissing('entrepreneurProfile');
             $profile = $validation->entrepreneurProfile;
 
@@ -135,6 +140,8 @@ final class IdeaValidationService implements ProvidesMethodology
 
     public function markRefreshQueued(IdeaValidation $validation, User $actor): IdeaValidation
     {
+        $this->assertNotRecalled($validation, 'refresh');
+
         $evaluation = $validation->ai_evaluation ?? [];
         $this->clearRefreshOutcome($evaluation);
         data_set($evaluation, 'metadata.refresh_status', 'queued');
@@ -269,6 +276,8 @@ final class IdeaValidationService implements ProvidesMethodology
 
     public function passAdvisorGate(IdeaValidation $validation, User $advisor, string $note): IdeaValidation
     {
+        $this->assertNotRecalled($validation, 'advisor_gate_note');
+
         $note = trim($note);
 
         if ($note === '') {
@@ -306,6 +315,8 @@ final class IdeaValidationService implements ProvidesMethodology
 
     public function requestChanges(IdeaValidation $validation, User $advisor, string $feedback): IdeaValidation
     {
+        $this->assertNotRecalled($validation, 'change_request_note');
+
         $feedback = trim($feedback);
 
         if ($feedback === '') {
@@ -361,6 +372,53 @@ final class IdeaValidationService implements ProvidesMethodology
         }
 
         return $updated->refresh();
+    }
+
+    public function recallForRevision(IdeaValidation $validation, User $actor): IdeaValidation
+    {
+        if ($validation->advisor_gate_passed_at !== null) {
+            throw ValidationException::withMessages([
+                'idea_validation' => 'An approved idea validation cannot be recalled for revision.',
+            ]);
+        }
+
+        if ($validation->recalled_at !== null) {
+            return $validation->refresh();
+        }
+
+        return DB::transaction(function () use ($validation, $actor): IdeaValidation {
+            $validation->loadMissing('entrepreneurProfile');
+            $profile = $validation->entrepreneurProfile;
+
+            if (! $profile instanceof EntrepreneurProfile) {
+                throw new InvalidArgumentException('Idea validation must belong to an entrepreneur profile before it can be recalled.');
+            }
+
+            $validation->forceFill([
+                'recalled_at' => now(),
+                'recalled_by_user_id' => $actor->getKey(),
+            ])->save();
+
+            $profile->forceFill([
+                'stage' => EntrepreneurStage::IDEA_VALIDATION,
+            ])->save();
+
+            $this->audit->record('entrepreneur.idea_recalled_for_revision', subject: $validation, actor: $actor, after: [
+                'entrepreneur_profile_id' => $profile->getKey(),
+                'recalled_at' => $validation->recalled_at?->toIso8601String(),
+            ]);
+
+            return $validation->refresh();
+        });
+    }
+
+    private function assertNotRecalled(IdeaValidation $validation, string $field): void
+    {
+        if ($validation->recalled_at !== null) {
+            throw ValidationException::withMessages([
+                $field => 'This idea validation was recalled by the founder and is no longer available for advisor action.',
+            ]);
+        }
     }
 
     private function changeRequestMessage(string $feedback): string

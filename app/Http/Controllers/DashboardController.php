@@ -754,6 +754,7 @@ final class DashboardController extends Controller
         $ideaQuery = IdeaValidation::query()
             ->with('entrepreneurProfile')
             ->whereNull('advisor_gate_passed_at')
+            ->whereNull('recalled_at')
             ->whereHas(
                 'entrepreneurProfile',
                 fn (Builder $query): Builder => $this->visibleEntrepreneurQuery($query, $user),

@@ -59,6 +59,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('entrepreneur/plan/preview', [EntrepreneurPlanController::class, 'preview'])->name('entrepreneur.plan.preview');
         Route::post('entrepreneur/readiness', [EntrepreneurPlanController::class, 'readiness'])->name('entrepreneur.readiness.store');
         Route::post('entrepreneur/idea-validation', [EntrepreneurPlanController::class, 'ideaValidation'])->name('entrepreneur.idea-validation.store');
+        Route::post('entrepreneur/idea-validation/recall', [EntrepreneurPlanController::class, 'recallIdeaValidation'])->name('entrepreneur.idea-validation.recall');
         Route::post('entrepreneur/plan/start', [EntrepreneurPlanController::class, 'start'])->name('entrepreneur.plan.start');
         Route::post('entrepreneur/plan/requirements/assist', [EntrepreneurPlanController::class, 'assistRequirement'])->name('entrepreneur.plan.requirements.assist');
         Route::post('entrepreneur/plan/sections', [EntrepreneurPlanController::class, 'section'])->name('entrepreneur.plan.sections.store');

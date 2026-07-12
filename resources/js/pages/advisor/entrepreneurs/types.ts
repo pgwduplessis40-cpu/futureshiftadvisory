@@ -118,10 +118,12 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         advisor_gate_status:
             | 'approved'
             | 'changes_requested'
+            | 'recalled'
             | 'gate_needed'
             | string;
         change_request_note: string | null;
         changes_requested_at: string | null;
+        recalled_at: string | null;
         refresh_status: 'queued' | 'completed' | 'failed' | string | null;
         refresh_stale: boolean;
         refresh_requested_at: string | null;

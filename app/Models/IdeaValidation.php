@@ -19,6 +19,7 @@ final class IdeaValidation extends Model
         'viability_alerts' => 'array',
         'evaluated_at' => 'datetime',
         'advisor_gate_passed_at' => 'datetime',
+        'recalled_at' => 'datetime',
     ];
 
     /**

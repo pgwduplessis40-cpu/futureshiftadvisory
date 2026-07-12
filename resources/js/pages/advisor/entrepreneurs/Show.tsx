@@ -21,9 +21,9 @@ import {
 } from 'lucide-react';
 import type { FormEvent, ReactNode } from 'react';
 import { useEffect, useState } from 'react';
+import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
-import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -81,7 +81,10 @@ export default function EntrepreneursShow({
         intended_package_scope: entrepreneur.intended_package_scope,
         concept_summary: entrepreneur.concept_summary ?? '',
     });
-    const inviteErrors = inviteForm.errors as Record<string, string | undefined>;
+    const inviteErrors = inviteForm.errors as Record<
+        string,
+        string | undefined
+    >;
     const ideaValidation = entrepreneur.idea_validation;
     const ideaRefreshInFlight =
         (ideaValidation?.refresh_status === 'queued' ||
@@ -101,6 +104,7 @@ export default function EntrepreneursShow({
             ? 'Retry AI review'
             : 'Rerun AI review';
     const ideaRefreshFailure = ideaValidation?.refresh_failure ?? '';
+    const ideaRecalled = Boolean(ideaValidation?.recalled_at);
     const ideaRefreshProviderTransient =
         /status\s+(429|500|502|503|504|529)\b/i.test(ideaRefreshFailure) ||
         /timeout|timed out|overloaded/i.test(ideaRefreshFailure);
@@ -135,7 +139,9 @@ export default function EntrepreneursShow({
             ? 'Gate passed'
             : ideaGateStatus === 'changes_requested'
               ? 'Changes requested'
-              : 'Gate needed'
+              : ideaGateStatus === 'recalled'
+                ? 'Recalled for revision'
+                : 'Gate needed'
         : 'Needed';
     const ideaGateBadgeVariant: 'secondary' | 'destructive' | 'outline' =
         ideaGateStatus === 'approved'
@@ -151,6 +157,7 @@ export default function EntrepreneursShow({
     const canDecideIdeaGate =
         !!ideaValidation &&
         !ideaValidation.advisor_gate_passed_at &&
+        !ideaRecalled &&
         ideaGateStatus !== 'changes_requested';
 
     const copyText = (text: string, onCopied: (value: boolean) => void) => {
@@ -760,7 +767,8 @@ export default function EntrepreneursShow({
                                 </h2>
                             </div>
                             <div className="flex flex-wrap items-center gap-2">
-                                {ideaValidation?.ai_deferred ? (
+                                {ideaValidation?.ai_deferred &&
+                                !ideaRecalled ? (
                                     <Button
                                         type="button"
                                         size="sm"
@@ -786,7 +794,7 @@ export default function EntrepreneursShow({
                         </div>
                         {ideaValidation ? (
                             <div className="space-y-5">
-                                {ideaValidation.ai_deferred ? (
+                                {ideaValidation.ai_deferred && !ideaRecalled ? (
                                     <div className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-950">
                                         <p>
                                             {ideaRefreshInFlight
@@ -813,6 +821,14 @@ export default function EntrepreneursShow({
                                             />
                                             {ideaRefreshButtonLabel}
                                         </Button>
+                                    </div>
+                                ) : null}
+
+                                {ideaRecalled ? (
+                                    <div className="rounded-md border bg-muted/30 px-3 py-2 text-sm text-muted-foreground">
+                                        The founder recalled this validation for
+                                        revision. It is no longer in the advisor
+                                        review queue.
                                     </div>
                                 ) : null}
 
@@ -1300,9 +1316,7 @@ export default function EntrepreneursShow({
                                     </Label>
                                     <textarea
                                         id="invite-concept-summary"
-                                        value={
-                                            inviteForm.data.concept_summary
-                                        }
+                                        value={inviteForm.data.concept_summary}
                                         onChange={(event) =>
                                             inviteForm.setData(
                                                 'concept_summary',

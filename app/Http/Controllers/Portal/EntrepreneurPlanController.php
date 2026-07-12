@@ -112,6 +112,7 @@ final class EntrepreneurPlanController extends Controller
                 'dashboard' => route('portal.entrepreneur.dashboard', absolute: false),
                 'readiness' => route('portal.entrepreneur.readiness.store', absolute: false),
                 'ideaValidation' => route('portal.entrepreneur.idea-validation.store', absolute: false),
+                'recallIdeaValidation' => route('portal.entrepreneur.idea-validation.recall', absolute: false),
                 'startPlan' => route('portal.entrepreneur.plan.start', absolute: false),
                 'sectionStore' => route('portal.entrepreneur.plan.sections.store', absolute: false),
                 'budgetUpdate' => route('portal.entrepreneur.plan.budget.update', absolute: false),
@@ -228,6 +229,22 @@ final class EntrepreneurPlanController extends Controller
         $this->ideas->evaluate($profile, $validated, $user);
 
         return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-idea-submitted');
+    }
+
+    public function recallIdeaValidation(Request $request): RedirectResponse
+    {
+        $user = $this->entrepreneurUser($request);
+        $profile = $this->profileFor($user);
+        if (! $this->packageIncludesIdeaValidation($profile)) {
+            return $this->packageLockedResponse('Idea validation is not included in your selected package.');
+        }
+
+        $validation = $this->latestIdeaValidation($profile);
+        abort_unless($validation instanceof IdeaValidation, 404);
+
+        $this->ideas->recallForRevision($validation, $user);
+
+        return to_route('portal.entrepreneur.plan.show')->with('status', 'entrepreneur-idea-recalled');
     }
 
     public function start(Request $request): RedirectResponse
@@ -762,6 +779,7 @@ final class EntrepreneurPlanController extends Controller
             'advisor_gate_status' => $this->ideaGateStatus($validation),
             'change_request_note' => data_get($validation->ai_evaluation, 'metadata.change_request_note'),
             'changes_requested_at' => data_get($validation->ai_evaluation, 'metadata.changes_requested_at'),
+            'recalled_at' => $validation->recalled_at?->toIso8601String(),
             'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
             'advisor_gate_note' => $validation->advisor_gate_note,
             'plan_builder_unlocked' => $validation->advisor_gate_passed_at !== null,
@@ -770,6 +788,10 @@ final class EntrepreneurPlanController extends Controller
 
     private function ideaGateStatus(IdeaValidation $validation): string
     {
+        if ($validation->recalled_at !== null) {
+            return 'recalled';
+        }
+
         if ($validation->advisor_gate_passed_at !== null) {
             return 'approved';
         }

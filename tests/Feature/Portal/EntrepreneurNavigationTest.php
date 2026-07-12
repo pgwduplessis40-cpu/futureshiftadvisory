@@ -313,21 +313,72 @@ final class EntrepreneurNavigationTest extends TestCase
                 ->where('entrepreneurReviews.items.0.entrepreneur_name', 'Queue Founder')
                 ->where('entrepreneurReviews.items.0.action_label', 'Review idea'));
 
-        Notification::fake();
-        $changeNote = 'Please interview one more owner, record the hypothesis, evidence, result, and next step, then resubmit.';
-        app(IdeaValidationService::class)->requestChanges($validation->refresh(), $advisor, $changeNote);
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.idea-validation.recall'))
+            ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-recalled');
+
+        $validation->refresh();
+        $this->assertNotNull($validation->recalled_at);
+        $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
 
         $this->actingAsMfa($entrepreneur)
             ->get(route('portal.entrepreneur.plan.show'))
             ->assertOk()
             ->assertInertia(fn ($page) => $page
                 ->where('ideaValidation.id', $validation->id)
+                ->where('ideaValidation.advisor_gate_status', 'recalled')
+                ->where('ideaValidation.recalled_at', $validation->recalled_at?->toIso8601String())
+                ->where('ideaValidation.problem', $payload['problem']));
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('entrepreneurReviews.summary.idea_validations', 0));
+
+        $recalledPayload = array_merge($payload, [
+            'demand_signal' => 'Three SME owners completed interviews and one agreed to a paid discovery pilot.',
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.idea-validation.store'), $recalledPayload)
+            ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))
+            ->assertSessionHas('status', 'entrepreneur-idea-submitted');
+
+        $resubmittedValidation = IdeaValidation::query()
+            ->where('entrepreneur_profile_id', $profile->getKey())
+            ->latest('evaluated_at')
+            ->latest()
+            ->firstOrFail();
+
+        $this->assertNotSame($validation->id, $resubmittedValidation->id);
+        $this->assertSame('advisor_review', data_get($resubmittedValidation->ai_evaluation, 'metadata.advisor_gate_status', 'advisor_review'));
+        $this->assertSame($recalledPayload['demand_signal'], $resubmittedValidation->demand_signal);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('dashboard'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('entrepreneurReviews.summary.idea_validations', 1)
+                ->where('entrepreneurReviews.items.0.id', $resubmittedValidation->id)
+                ->where('entrepreneurReviews.items.0.action_label', 'Review idea'));
+
+        Notification::fake();
+        $changeNote = 'Please interview one more owner, record the hypothesis, evidence, result, and next step, then resubmit.';
+        app(IdeaValidationService::class)->requestChanges($resubmittedValidation->refresh(), $advisor, $changeNote);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.plan.show'))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('ideaValidation.id', $resubmittedValidation->id)
                 ->where('ideaValidation.advisor_gate_status', 'changes_requested')
                 ->where('ideaValidation.change_request_note', $changeNote)
                 ->where('ideaValidation.plan_builder_unlocked', false));
 
-        $revisedPayload = array_merge($payload, [
-            'demand_signal' => 'Three SME owners completed interviews and one agreed to a paid discovery pilot.',
+        $revisedPayload = array_merge($recalledPayload, [
+            'demand_signal' => 'Five SME owners completed interviews and two agreed to a paid discovery pilot.',
         ]);
 
         $this->actingAsMfa($entrepreneur)
@@ -341,7 +392,7 @@ final class EntrepreneurNavigationTest extends TestCase
             ->latest()
             ->firstOrFail();
 
-        $this->assertNotSame($validation->id, $latestValidation->id);
+        $this->assertNotSame($resubmittedValidation->id, $latestValidation->id);
         $this->assertSame('advisor_review', data_get($latestValidation->ai_evaluation, 'metadata.advisor_gate_status', 'advisor_review'));
         $this->assertSame($revisedPayload['demand_signal'], $latestValidation->demand_signal);
     }

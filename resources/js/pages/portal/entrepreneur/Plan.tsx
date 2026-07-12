@@ -10,6 +10,7 @@ import {
     FileText,
     Plus,
     MessageSquare,
+    Pencil,
     RefreshCw,
     Send,
     Trash2,
@@ -63,10 +64,12 @@ type IdeaValidationPayload = {
     advisor_gate_status:
         | 'approved'
         | 'changes_requested'
+        | 'recalled'
         | 'advisor_review'
         | string;
     change_request_note: string | null;
     changes_requested_at: string | null;
+    recalled_at: string | null;
     advisor_gate_passed_at: string | null;
     advisor_gate_note: string | null;
     plan_builder_unlocked: boolean;
@@ -350,6 +353,7 @@ type Props = {
     urls: {
         dashboard: string;
         ideaValidation: string;
+        recallIdeaValidation: string;
         startPlan: string;
         sectionStore: string;
         budgetUpdate: string;
@@ -389,6 +393,7 @@ export default function EntrepreneurPlan({
         revenue_model: ideaValidation?.revenue_model ?? '',
     });
     const [showValidatedIdeaForm, setShowValidatedIdeaForm] = useState(false);
+    const [recallingIdea, setRecallingIdea] = useState(false);
     const phases = plan?.phases ?? planTemplate;
     const requirements = useMemo(
         () => phases.flatMap((phase) => phase.requirements),
@@ -445,11 +450,16 @@ export default function EntrepreneurPlan({
     );
     const ideaChangesRequested =
         ideaValidation?.advisor_gate_status === 'changes_requested';
+    const ideaValidationRecalled = Boolean(ideaValidation?.recalled_at);
     const ideaUnderAdvisorReview =
-        hasIdeaValidation && !ideaValidationApproved && !ideaChangesRequested;
+        hasIdeaValidation &&
+        !ideaValidationApproved &&
+        !ideaChangesRequested &&
+        !ideaValidationRecalled;
     const showIdeaValidationEditor =
         !hasIdeaValidation ||
         ideaChangesRequested ||
+        ideaValidationRecalled ||
         (ideaValidationApproved && showValidatedIdeaForm);
     const ideaValidationSummary = ideaFields.map((field) => ({
         label: field.label,
@@ -471,45 +481,52 @@ export default function EntrepreneurPlan({
                     body: 'Your advisor has requested changes. Update the idea validation and resubmit it for review.',
                     action: 'Revise idea validation',
                 }
-              : includesIdeaValidation && !planBuilderUnlocked
+              : includesIdeaValidation && ideaValidationRecalled
                 ? {
-                      badge: 'Step 2',
-                      title: 'Advisor review',
-                      body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
-                      action: null,
+                      badge: 'Step 1',
+                      title: 'Revise idea validation',
+                      body: 'Your validation has been recalled from advisor review. Update it, then resubmit it for review.',
+                      action: 'Revise idea validation',
                   }
-                : includesPlanBudget && !hasPlan
+                : includesIdeaValidation && !planBuilderUnlocked
                   ? {
-                        badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
-                        title: 'Start the business plan',
-                        body: includesIdeaValidation
-                            ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
-                            : 'Your package opens the business plan and budget workspace directly.',
-                        action: 'Start plan',
+                        badge: 'Step 2',
+                        title: 'Advisor review',
+                        body: 'Idea validation is submitted. Your advisor needs to approve it before the plan sections open.',
+                        action: null,
                     }
-                  : includesPlanBudget
+                  : includesPlanBudget && !hasPlan
                     ? {
-                          badge: `${planCompletion.completed}/${planCompletion.total} sections`,
-                          title: 'Next plan section',
-                          body: selectedRequirement
-                              ? selectedRequirement.complete
-                                  ? 'This section is already complete. Choose the next needed section when you are ready.'
-                                  : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
-                              : 'Select one requirement and complete that section first.',
-                          action: null,
+                          badge: includesIdeaValidation ? 'Step 3' : 'Step 1',
+                          title: 'Start the business plan',
+                          body: includesIdeaValidation
+                              ? 'Idea validation is approved. Start the plan to unlock section-by-section guidance and AI assist.'
+                              : 'Your package opens the business plan and budget workspace directly.',
+                          action: 'Start plan',
                       }
-                    : {
-                          badge: packageAccess.package_scope_label,
-                          title: hasIdeaValidation
-                              ? 'Idea validation submitted'
-                              : 'Complete idea validation',
-                          body: hasIdeaValidation
-                              ? 'Your advisor can review the validation and provide gate feedback for this package.'
-                              : 'Answer the idea validation questions to test the concept before investing in detailed plan work.',
-                          action: hasIdeaValidation
-                              ? null
-                              : 'Start idea validation',
-                      };
+                    : includesPlanBudget
+                      ? {
+                            badge: `${planCompletion.completed}/${planCompletion.total} sections`,
+                            title: 'Next plan section',
+                            body: selectedRequirement
+                                ? selectedRequirement.complete
+                                    ? 'This section is already complete. Choose the next needed section when you are ready.'
+                                    : `Focus on "${selectedRequirement.title}" first, then save it to move the plan to ${selectedCompletionPercent}%.`
+                                : 'Select one requirement and complete that section first.',
+                            action: null,
+                        }
+                      : {
+                            badge: packageAccess.package_scope_label,
+                            title: hasIdeaValidation
+                                ? 'Idea validation submitted'
+                                : 'Complete idea validation',
+                            body: hasIdeaValidation
+                                ? 'Your advisor can review the validation and provide gate feedback for this package.'
+                                : 'Answer the idea validation questions to test the concept before investing in detailed plan work.',
+                            action: hasIdeaValidation
+                                ? null
+                                : 'Start idea validation',
+                        };
     const [sectionTitle, setSectionTitle] = useState('');
     const [sectionBody, setSectionBody] = useState('');
     const [supportingFile, setSupportingFile] = useState<File | null>(null);
@@ -546,6 +563,21 @@ export default function EntrepreneurPlan({
         /* eslint-disable-next-line react-hooks/set-state-in-effect */
         setBudgetForm(budgetToForm(plan?.budget));
     }, [plan?.budget]);
+
+    useEffect(() => {
+        // Keep the idea form aligned with the latest submitted validation.
+        ideaForm.setData(ideaValidationToForm(ideaValidation));
+        ideaForm.clearErrors();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [
+        ideaValidation?.id,
+        ideaValidation?.problem,
+        ideaValidation?.target_customer,
+        ideaValidation?.solution,
+        ideaValidation?.value_proposition,
+        ideaValidation?.demand_signal,
+        ideaValidation?.revenue_model,
+    ]);
 
     const validateIdeaForm = () => {
         let valid = true;
@@ -584,6 +616,18 @@ export default function EntrepreneurPlan({
                 }
             },
         });
+    };
+
+    const recallIdeaForRevision = () => {
+        setRecallingIdea(true);
+        router.post(
+            urls.recallIdeaValidation,
+            {},
+            {
+                preserveScroll: true,
+                onFinish: () => setRecallingIdea(false),
+            },
+        );
     };
 
     const startPlan = () => {
@@ -914,7 +958,9 @@ export default function EntrepreneurPlan({
                                                   ? 'Advisor approved'
                                                   : ideaChangesRequested
                                                     ? 'Changes requested'
-                                                    : 'Awaiting advisor gate'
+                                                    : ideaValidationRecalled
+                                                      ? 'Ready to revise'
+                                                      : 'Awaiting advisor gate'
                                               : 'Not submitted'
                                     }
                                     explanation="Idea validation captures the customer problem, solution, demand, and revenue logic before the plan builder opens."
@@ -936,6 +982,10 @@ export default function EntrepreneurPlan({
                                     ) : ideaChangesRequested ? (
                                         <Badge variant="outline">
                                             Changes requested
+                                        </Badge>
+                                    ) : ideaValidationRecalled ? (
+                                        <Badge variant="outline">
+                                            Ready to revise
                                         </Badge>
                                     ) : (
                                         <Badge variant="outline">
@@ -1115,6 +1165,16 @@ export default function EntrepreneurPlan({
                                             </Button>
                                         </div>
                                     ) : null}
+                                    {nextSmallWin.action ===
+                                    'Revise idea validation' ? (
+                                        <div className="mt-3">
+                                            <Button asChild size="sm">
+                                                <a href="#idea-validation">
+                                                    Revise idea validation
+                                                </a>
+                                            </Button>
+                                        </div>
+                                    ) : null}
                                     {nextSmallWin.action === 'Start plan' ? (
                                         <div className="mt-3">
                                             <Button
@@ -1206,6 +1266,10 @@ export default function EntrepreneurPlan({
                                             <Badge variant="outline">
                                                 Changes requested
                                             </Badge>
+                                        ) : ideaValidationRecalled ? (
+                                            <Badge variant="outline">
+                                                Ready to revise
+                                            </Badge>
                                         ) : ideaValidation ? (
                                             <Badge variant="outline">
                                                 Advisor review
@@ -1257,6 +1321,14 @@ export default function EntrepreneurPlan({
                                     </div>
                                 ) : null}
 
+                                {ideaValidationRecalled ? (
+                                    <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
+                                        This validation has been removed from
+                                        advisor review. Update the answers
+                                        below, then resubmit it when ready.
+                                    </div>
+                                ) : null}
+
                                 {ideaValidationApproved &&
                                 !showIdeaValidationEditor ? (
                                     <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
@@ -1291,6 +1363,20 @@ export default function EntrepreneurPlan({
                                         className="grid gap-3 lg:grid-cols-2"
                                         onSubmit={submitIdea}
                                     >
+                                        {ideaChangesRequested ||
+                                        ideaValidationRecalled ? (
+                                            <div className="lg:col-span-2">
+                                                <IdeaValidationSnapshot
+                                                    fields={
+                                                        ideaValidationSummary
+                                                    }
+                                                    submittedAt={
+                                                        ideaValidation?.evaluated_at ??
+                                                        null
+                                                    }
+                                                />
+                                            </div>
+                                        ) : null}
                                         {ideaFields.map((field) => (
                                             <label
                                                 key={field.key}
@@ -1332,7 +1418,8 @@ export default function EntrepreneurPlan({
                                             >
                                                 {ideaForm.processing
                                                     ? 'Submitting...'
-                                                    : ideaChangesRequested
+                                                    : ideaChangesRequested ||
+                                                        ideaValidationRecalled
                                                       ? 'Resubmit idea validation'
                                                       : ideaValidation
                                                         ? 'Update idea validation'
@@ -1347,10 +1434,41 @@ export default function EntrepreneurPlan({
                                         </div>
                                     </form>
                                 ) : ideaUnderAdvisorReview ? (
-                                    <div className="rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
-                                        Your idea validation is with your
-                                        advisor. They will either approve the
-                                        builder gate or request changes.
+                                    <div className="space-y-3">
+                                        <div className="rounded-md border border-dashed bg-muted/20 p-4 text-sm text-muted-foreground">
+                                            Your idea validation is with your
+                                            advisor. They will either approve
+                                            the builder gate or request changes.
+                                        </div>
+                                        <IdeaValidationSnapshot
+                                            fields={ideaValidationSummary}
+                                            submittedAt={
+                                                ideaValidation?.evaluated_at ??
+                                                null
+                                            }
+                                        />
+                                        <div className="flex flex-wrap items-center gap-3">
+                                            <Button
+                                                type="button"
+                                                size="sm"
+                                                variant="outline"
+                                                disabled={recallingIdea}
+                                                onClick={recallIdeaForRevision}
+                                            >
+                                                <Pencil
+                                                    className="size-4"
+                                                    aria-hidden="true"
+                                                />
+                                                {recallingIdea
+                                                    ? 'Recalling...'
+                                                    : 'Recall for revision'}
+                                            </Button>
+                                            <p className="text-xs text-muted-foreground">
+                                                Removes this submission from
+                                                advisor review while you update
+                                                it.
+                                            </p>
+                                        </div>
                                     </div>
                                 ) : null}
                             </section>
@@ -1688,10 +1806,12 @@ export default function EntrepreneurPlan({
                                                 Start plan
                                             </Button>
                                         ) : !hasIdeaValidation ||
-                                          ideaChangesRequested ? (
+                                          ideaChangesRequested ||
+                                          ideaValidationRecalled ? (
                                             <Button asChild size="sm">
                                                 <a href="#idea-validation">
-                                                    {ideaChangesRequested
+                                                    {ideaChangesRequested ||
+                                                    ideaValidationRecalled
                                                         ? 'Revise idea validation'
                                                         : 'Start idea validation'}
                                                 </a>
@@ -4392,6 +4512,57 @@ function csrfToken(): string {
         document
             .querySelector<HTMLMetaElement>('meta[name="csrf-token"]')
             ?.getAttribute('content') ?? ''
+    );
+}
+
+function ideaValidationToForm(
+    ideaValidation: IdeaValidationPayload,
+): IdeaValidationForm {
+    return {
+        problem: ideaValidation?.problem ?? '',
+        target_customer: ideaValidation?.target_customer ?? '',
+        solution: ideaValidation?.solution ?? '',
+        value_proposition: ideaValidation?.value_proposition ?? '',
+        demand_signal: ideaValidation?.demand_signal ?? '',
+        revenue_model: ideaValidation?.revenue_model ?? '',
+    };
+}
+
+function IdeaValidationSnapshot({
+    fields,
+    submittedAt,
+}: {
+    fields: { label: string; value: string }[];
+    submittedAt: string | null;
+}) {
+    return (
+        <div className="rounded-md border bg-muted/20 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+                <div className="text-xs font-medium text-muted-foreground">
+                    Submitted idea validation
+                </div>
+                {submittedAt ? (
+                    <Badge variant="outline">
+                        Submitted {formatDate(submittedAt)}
+                    </Badge>
+                ) : null}
+            </div>
+            <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                {fields.map((field) => (
+                    <div
+                        key={field.label}
+                        className="rounded-md border bg-card p-3"
+                    >
+                        <div className="text-xs font-medium text-muted-foreground">
+                            {field.label}
+                        </div>
+                        <p className="mt-1 text-sm whitespace-pre-line">
+                            {field.value || '-'}
+                        </p>
+                    </div>
+                ))}
+            </div>
+        </div>
     );
 }
 
