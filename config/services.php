@@ -39,6 +39,7 @@ return [
         'key' => env('ANTHROPIC_API_KEY'),
         'admin_key' => env('ANTHROPIC_ADMIN_API_KEY'),
         'model' => env('ANTHROPIC_MODEL', 'claude-sonnet-4-6'),
+        'max_output_tokens' => (int) env('ANTHROPIC_MAX_OUTPUT_TOKENS', 4096),
         'endpoint' => env('ANTHROPIC_ENDPOINT', 'https://api.anthropic.com/v1/messages'),
         'timeout_seconds' => (int) env('ANTHROPIC_TIMEOUT_SECONDS', 60),
         'retry_attempts' => (int) env('ANTHROPIC_RETRY_ATTEMPTS', 1),

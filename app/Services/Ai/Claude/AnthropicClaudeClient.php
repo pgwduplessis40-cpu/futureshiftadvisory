@@ -23,6 +23,12 @@ final class AnthropicClaudeClient implements AiClient
 
     private const MIN_TIMEOUT_SECONDS = 60;
 
+    private const DEFAULT_MAX_OUTPUT_TOKENS = 4096;
+
+    private const MIN_MAX_OUTPUT_TOKENS = 1024;
+
+    private const MAX_MAX_OUTPUT_TOKENS = 8192;
+
     public function __construct(
         private readonly IntegrationCredentials $credentials,
         private readonly AiUsageRecorder $usage,
@@ -71,9 +77,9 @@ final class AnthropicClaudeClient implements AiClient
             endpoint: $endpoint,
             payload: [
                 'model' => $model,
-                'max_tokens' => 2048,
+                'max_tokens' => $this->maxOutputTokens(),
                 'temperature' => 0,
-                'system' => 'Return the requested assessment as structured JSON only. Do not include prose outside the JSON object.',
+                'system' => 'Return the requested assessment as structured JSON only. Do not include prose outside the JSON object. Keep the assessment concise and return no more than five findings.',
                 'messages' => [
                     [
                         'role' => 'user',
@@ -117,6 +123,13 @@ final class AnthropicClaudeClient implements AiClient
     private function timeoutSeconds(): int
     {
         return max(self::MIN_TIMEOUT_SECONDS, (int) Config::get('services.anthropic.timeout_seconds', self::MIN_TIMEOUT_SECONDS));
+    }
+
+    private function maxOutputTokens(): int
+    {
+        $configured = (int) Config::get('services.anthropic.max_output_tokens', self::DEFAULT_MAX_OUTPUT_TOKENS);
+
+        return min(self::MAX_MAX_OUTPUT_TOKENS, max(self::MIN_MAX_OUTPUT_TOKENS, $configured));
     }
 
     /**

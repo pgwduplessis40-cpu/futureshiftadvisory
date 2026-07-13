@@ -6,6 +6,7 @@ namespace Tests\Unit\Claude;
 
 use App\Services\Ai\Claude\AnthropicClaudeClient;
 use App\Services\Ai\Exceptions\AiIntegrityViolation;
+use Illuminate\Support\Facades\Config;
 use ReflectionMethod;
 use Tests\TestCase;
 
@@ -45,6 +46,18 @@ final class AnthropicClaudeClientTest extends TestCase
         ]);
     }
 
+    public function test_output_token_budget_is_configurable_and_bounded(): void
+    {
+        Config::set('services.anthropic.max_output_tokens', 4096);
+        $this->assertSame(4096, $this->maxOutputTokens());
+
+        Config::set('services.anthropic.max_output_tokens', 100);
+        $this->assertSame(1024, $this->maxOutputTokens());
+
+        Config::set('services.anthropic.max_output_tokens', 10_000);
+        $this->assertSame(8192, $this->maxOutputTokens());
+    }
+
     /**
      * @param  array<string, mixed>  $payload
      * @return array<string, mixed>
@@ -57,5 +70,12 @@ final class AnthropicClaudeClientTest extends TestCase
         $result = $method->invoke(app(AnthropicClaudeClient::class), $payload);
 
         return $result;
+    }
+
+    private function maxOutputTokens(): int
+    {
+        $method = new ReflectionMethod(AnthropicClaudeClient::class, 'maxOutputTokens');
+
+        return $method->invoke(app(AnthropicClaudeClient::class));
     }
 }
