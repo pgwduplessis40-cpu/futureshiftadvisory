@@ -7,6 +7,7 @@ namespace App\Services\Ai;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Exceptions\AiIntegrityViolation;
 use App\Services\Ai\Exceptions\AiUnavailableException;
 use App\Services\Ai\Fake\FakeAiClient;
 
@@ -58,7 +59,7 @@ final class FallbackAiClient implements AiClient
             $this->notice->clear();
 
             return $response;
-        } catch (AiUnavailableException $e) {
+        } catch (AiUnavailableException|AiIntegrityViolation $e) {
             $this->notice->recordUnavailable($prompt, $e->getMessage());
 
             return $this->degradedResponse($prompt, $method, $e->getMessage());
