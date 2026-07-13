@@ -285,6 +285,10 @@ final class AnthropicClaudeClient implements AiClient
                                 ],
                                 'title' => ['type' => 'string'],
                                 'body' => ['type' => 'string'],
+                                'recommended_action' => [
+                                    'type' => 'string',
+                                    'description' => 'A concise, client-facing action the founder can take before resubmitting.',
+                                ],
                                 'attributions' => [
                                     'type' => 'array',
                                     'items' => $this->attributionSchema(),
@@ -294,7 +298,7 @@ final class AnthropicClaudeClient implements AiClient
                                     'enum' => ['high', 'medium', 'low', 'none'],
                                 ],
                             ],
-                            'required' => ['lens', 'severity', 'title', 'body', 'attributions', 'uncertainty'],
+                            'required' => ['lens', 'severity', 'title', 'body', 'recommended_action', 'attributions', 'uncertainty'],
                             'additionalProperties' => false,
                         ],
                     ],
@@ -454,6 +458,7 @@ final class AnthropicClaudeClient implements AiClient
                         'severity' => 'info|low|medium|high|critical',
                         'title' => 'string',
                         'body' => 'string',
+                        'recommended_action' => 'string, concise and client-facing',
                         'attributions' => [
                             ['claim' => 'string', 'source_reference' => 'string'],
                         ],

@@ -684,14 +684,8 @@ final class EntrepreneurController extends Controller
         $evaluation = $validation->ai_evaluation ?? [];
         $findings = collect((array) data_get($evaluation, 'metadata.findings', []))
             ->filter(fn (mixed $finding): bool => is_array($finding))
-            ->map(function (array $finding): string {
-                $title = trim((string) ($finding['title'] ?? ''));
-                $body = trim((string) ($finding['body'] ?? ''));
-
-                return trim(implode(': ', array_filter([$title, $body])));
-            })
+            ->map(fn (array $finding): string => $this->founderActionForFinding($finding))
             ->filter()
-            ->map(fn (string $finding): string => Str::limit($finding, 360, ''))
             ->take(3)
             ->values();
 
@@ -707,7 +701,7 @@ final class EntrepreneurController extends Controller
             ->filter(fn (mixed $alert): bool => is_array($alert))
             ->map(fn (array $alert): string => trim((string) ($alert['message'] ?? '')))
             ->filter()
-            ->map(fn (string $alert): string => Str::limit($alert, 360, ''));
+            ->map(fn (string $alert): string => $this->completeFeedbackPoint($alert));
 
         $actions = $findings
             ->merge($alerts)
@@ -723,6 +717,67 @@ final class EntrepreneurController extends Controller
             "Before resubmitting, please:\n{$actions}",
             'Please update the idea validation with this information and resubmit it for review.',
         ]);
+    }
+
+    /**
+     * @param  array<string, mixed>  $finding
+     */
+    private function founderActionForFinding(array $finding): string
+    {
+        $recommendedAction = trim((string) ($finding['recommended_action'] ?? ''));
+        if ($recommendedAction !== '') {
+            return $this->completeFeedbackPoint($recommendedAction);
+        }
+
+        $title = trim((string) ($finding['title'] ?? ''));
+        $body = trim((string) ($finding['body'] ?? ''));
+        $context = Str::lower($title.' '.$body);
+
+        if (Str::contains($context, ['revenue', 'pricing', 'price', 'time-constrained', 'capacity'])) {
+            return 'Build a sustainable revenue model: show how the offer can create income beyond your own billable days, including package pricing, delivery costs, monthly capacity, and recurring follow-on support.';
+        }
+
+        if (Str::contains($context, ['demand', 'market', 'customer evidence', 'willingness to pay'])) {
+            return 'Collect and document stronger demand evidence: choose a primary customer segment, test a paid offer, and record the hypothesis, evidence, result, and next step.';
+        }
+
+        if (Str::contains($context, ['value proposition', 'differentiat', 'positioning', 'communicat'])) {
+            return 'State one clear value proposition: name the customer, their pressing problem, the outcome they receive, and why this offer is more valuable than the alternatives.';
+        }
+
+        if (Str::contains($context, ['target customer', 'customer segment', 'customer'])) {
+            return 'Narrow the starting customer segment and explain the specific paid problem this offer will solve for them.';
+        }
+
+        if (Str::contains($context, ['solution', 'delivery', 'offer'])) {
+            return 'Describe a repeatable offer with clear outcomes, delivery steps, and what can be standardised as demand grows.';
+        }
+
+        return $this->completeFeedbackPoint(trim(implode(': ', array_filter([$title, $body]))));
+    }
+
+    private function completeFeedbackPoint(string $point): string
+    {
+        $point = trim($point);
+        if (Str::length($point) <= 600) {
+            return $point;
+        }
+
+        $sentences = preg_split('/(?<=[.!?])\s+/', $point) ?: [];
+        $limited = '';
+
+        foreach ($sentences as $sentence) {
+            $candidate = trim($limited.' '.trim($sentence));
+            if (Str::length($candidate) > 600) {
+                break;
+            }
+
+            $limited = $candidate;
+        }
+
+        return $limited !== ''
+            ? $limited
+            : Str::limit($point, 600, '...');
     }
 
     private function ideaGateStatus(IdeaValidation $validation): string
