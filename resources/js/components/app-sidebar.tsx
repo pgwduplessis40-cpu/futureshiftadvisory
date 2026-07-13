@@ -86,6 +86,12 @@ const npoNavItem: NavItem = {
     icon: HeartHandshake,
 };
 
+const integrationScopesNavItem: NavItem = {
+    title: 'Integration scopes',
+    href: '/advisor/integration-scopes',
+    icon: PlugZap,
+};
+
 const entrepreneursNavItem: NavItem = {
     title: 'Entrepreneurs',
     href: '/advisor/entrepreneurs',
@@ -310,6 +316,7 @@ const defaultNavItems: NavItem[] = [
 
 const advisorClientNavItems: NavItem[] = [
     advisoryClientsNavItem,
+    integrationScopesNavItem,
     dueDiligenceNavItem,
     npoNavItem,
     entrepreneursNavItem,

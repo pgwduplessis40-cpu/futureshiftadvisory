@@ -54,6 +54,14 @@ final class Payment extends Model
     }
 
     /**
+     * @return BelongsTo<PaymentInstallment, Payment>
+     */
+    public function paymentInstallment(): BelongsTo
+    {
+        return $this->belongsTo(PaymentInstallment::class);
+    }
+
+    /**
      * @return HasOne<Receipt>
      */
     public function receipt(): HasOne

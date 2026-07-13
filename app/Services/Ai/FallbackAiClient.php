@@ -7,11 +7,12 @@ namespace App\Services\Ai;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\QuoteSourceExtractionClient;
 use App\Services\Ai\Exceptions\AiIntegrityViolation;
 use App\Services\Ai\Exceptions\AiUnavailableException;
 use App\Services\Ai\Fake\FakeAiClient;
 
-final class FallbackAiClient implements AiClient
+final class FallbackAiClient implements AiClient, QuoteSourceExtractionClient
 {
     public function __construct(
         private readonly ?AiClient $live,
@@ -46,12 +47,23 @@ final class FallbackAiClient implements AiClient
         return $this->call($prompt, 'redFlag');
     }
 
+    public function extractQuoteSource(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->call($prompt, 'extractQuoteSource');
+    }
+
     private function call(PromptEnvelope $prompt, string $method): AiResponse
     {
         if ($this->forceFake || $this->live === null) {
             $this->notice->recordUnavailable($prompt, $this->unavailableReason);
 
             return $this->degradedResponse($prompt, $method, $this->unavailableReason);
+        }
+
+        if ($method === 'extractQuoteSource' && ! $this->live instanceof QuoteSourceExtractionClient) {
+            $this->notice->recordUnavailable($prompt, 'Configured AI provider does not support implementation-plan extraction.');
+
+            return $this->degradedResponse($prompt, $method, 'Configured AI provider does not support implementation-plan extraction.');
         }
 
         try {

@@ -85,4 +85,10 @@ final class Goal extends Model
     {
         return $this->hasMany(Milestone::class);
     }
+
+    /** @return HasMany<GoalMeasurement> */
+    public function measurements(): HasMany
+    {
+        return $this->hasMany(GoalMeasurement::class);
+    }
 }

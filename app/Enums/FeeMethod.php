@@ -12,6 +12,8 @@ enum FeeMethod: string
     case GovernanceReview = 'governance_review';
     case NpoRetainer = 'npo_retainer';
 
+    case Integration = 'integration';
+
     /**
      * @return array<int, string>
      */

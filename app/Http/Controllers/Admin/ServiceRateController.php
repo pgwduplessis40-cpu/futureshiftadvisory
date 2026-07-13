@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
+use App\Models\IntegrationFeeBand;
 use App\Models\ServiceRatePackage;
 use App\Models\ServiceRateSetting;
 use App\Models\User;
@@ -12,6 +13,8 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Fees\ServiceRateManager;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -54,6 +57,15 @@ final class ServiceRateController extends Controller
             'dueDiligencePackageScopes' => ServiceRatePackage::dueDiligencePackageScopeOptions(),
             'entrepreneurPackageScopes' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
             'packageStoreUrl' => route('admin.service-rates.packages.store', absolute: false),
+            'integrationFeeBands' => IntegrationFeeBand::query()
+                ->with('updatedBy')
+                ->orderBy('delivery_mode')
+                ->orderByRaw("CASE complexity_band WHEN 'S' THEN 1 WHEN 'M' THEN 2 WHEN 'L' THEN 3 ELSE 4 END")
+                ->get()
+                ->map(fn (IntegrationFeeBand $band): array => $this->integrationFeeBandPayload($band))
+                ->values(),
+            'integrationFeeBandStoreUrl' => route('admin.service-rates.integration-fee-bands.store', absolute: false),
+            'integrationFeeBandImportUrl' => route('admin.service-rates.integration-fee-bands.import', absolute: false),
         ]);
     }
 
@@ -188,6 +200,38 @@ final class ServiceRateController extends Controller
         return to_route('admin.service-rates.index')->with('status', 'service-rate-package-updated');
     }
 
+    public function storeIntegrationFeeBand(Request $request): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $band = $this->saveIntegrationFeeBand($this->validatedIntegrationFeeBand($request->all()), $user);
+        $this->audit->record('integration_fee_band.saved', subject: $band, actor: $user, after: $this->integrationFeeBandPayload($band));
+
+        return to_route('admin.service-rates.index')->with('status', 'integration-fee-band-saved');
+    }
+
+    public function importIntegrationFeeBands(Request $request): RedirectResponse
+    {
+        $validated = $request->validate([
+            'pricing_file' => ['required', 'file', 'mimes:csv,txt', 'max:1024'],
+        ]);
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+        $rows = $this->parseIntegrationFeeBandCsv((string) $validated['pricing_file']->getRealPath());
+
+        $count = DB::transaction(function () use ($rows, $user): int {
+            foreach ($rows as $row) {
+                $this->saveIntegrationFeeBand($row, $user);
+            }
+
+            return count($rows);
+        });
+        $this->audit->record('integration_fee_band.imported', actor: $user, after: ['count' => $count]);
+
+        return to_route('admin.service-rates.index')->with('status', 'integration-fee-bands-imported');
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -226,6 +270,23 @@ final class ServiceRateController extends Controller
         ];
     }
 
+    /** @return array<string, mixed> */
+    private function integrationFeeBandPayload(IntegrationFeeBand $band): array
+    {
+        return [
+            'id' => $band->getKey(),
+            'complexity_band' => $band->complexity_band,
+            'delivery_mode' => $band->delivery_mode,
+            'fee_low' => $band->fee_low,
+            'fee_mid' => $band->fee_mid,
+            'fee_high' => $band->fee_high,
+            'currency' => $band->currency,
+            'is_active' => $band->is_active,
+            'updated_by_name' => $band->updatedBy?->name,
+            'updated_at' => $band->updated_at?->toIso8601String(),
+        ];
+    }
+
     /**
      * @return array<string, mixed>
      */
@@ -235,6 +296,7 @@ final class ServiceRateController extends Controller
             'service_type' => ['required', Rule::in([
                 ServiceRatePackage::SERVICE_DUE_DILIGENCE,
                 ServiceRatePackage::SERVICE_ENTREPRENEUR,
+                ServiceRatePackage::SERVICE_INTEGRATION_SCOPING,
             ])],
             'package_scope' => ['nullable', 'string', Rule::in(ServiceRatePackage::packageScopes())],
             'package_name' => ['required', 'string', 'max:160'],
@@ -289,6 +351,102 @@ final class ServiceRateController extends Controller
             'scope_description' => trim((string) $validated['scope_description']),
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ];
+    }
+
+    /** @param array<string, mixed> $input @return array<string, mixed> */
+    private function validatedIntegrationFeeBand(array $input): array
+    {
+        if (is_string($input['is_active'] ?? null)) {
+            $normalised = strtolower(trim($input['is_active']));
+            if (in_array($normalised, ['true', 'yes', '1'], true)) {
+                $input['is_active'] = true;
+            } elseif (in_array($normalised, ['false', 'no', '0'], true)) {
+                $input['is_active'] = false;
+            }
+        }
+
+        $validated = Validator::make($input, [
+            'complexity_band' => ['required', Rule::in([
+                IntegrationFeeBand::BAND_S,
+                IntegrationFeeBand::BAND_M,
+                IntegrationFeeBand::BAND_L,
+                IntegrationFeeBand::BAND_XL,
+            ])],
+            'delivery_mode' => ['required', Rule::in(['inhouse', 'lowcode', 'partner', 'mixed'])],
+            'fee_low' => ['required', 'numeric', 'min:0', 'max:999999999.99'],
+            'fee_mid' => ['required', 'numeric', 'min:0', 'max:999999999.99', 'gte:fee_low'],
+            'fee_high' => ['required', 'numeric', 'min:0', 'max:999999999.99', 'gte:fee_mid'],
+            'currency' => ['nullable', 'string', 'size:3'],
+            'is_active' => ['nullable', 'boolean'],
+        ])->validate();
+
+        return [
+            ...$validated,
+            'currency' => strtoupper((string) ($validated['currency'] ?? 'NZD')),
+            'is_active' => (bool) ($validated['is_active'] ?? true),
+        ];
+    }
+
+    /** @param array<string, mixed> $attributes */
+    private function saveIntegrationFeeBand(array $attributes, User $user): IntegrationFeeBand
+    {
+        return IntegrationFeeBand::query()->updateOrCreate([
+            'complexity_band' => $attributes['complexity_band'],
+            'delivery_mode' => $attributes['delivery_mode'],
+        ], [
+            'fee_low' => $attributes['fee_low'],
+            'fee_mid' => $attributes['fee_mid'],
+            'fee_high' => $attributes['fee_high'],
+            'currency' => $attributes['currency'],
+            'is_active' => $attributes['is_active'],
+            'updated_by_user_id' => $user->getKey(),
+        ])->refresh();
+    }
+
+    /** @return array<int, array<string, mixed>> */
+    private function parseIntegrationFeeBandCsv(string $path): array
+    {
+        $handle = fopen($path, 'rb');
+        if ($handle === false) {
+            throw ValidationException::withMessages(['pricing_file' => 'The pricing file could not be opened.']);
+        }
+
+        try {
+            $header = fgetcsv($handle);
+            $header = is_array($header)
+                ? array_map(static fn (mixed $value): string => strtolower(trim(ltrim((string) $value, "\xEF\xBB\xBF"))), $header)
+                : [];
+            $required = ['complexity_band', 'delivery_mode', 'fee_low', 'fee_mid', 'fee_high'];
+            if (array_diff($required, $header) !== []) {
+                throw ValidationException::withMessages(['pricing_file' => 'Use CSV columns: complexity_band, delivery_mode, fee_low, fee_mid, fee_high, currency, is_active.']);
+            }
+
+            $rows = [];
+            $line = 1;
+            while (($row = fgetcsv($handle)) !== false) {
+                $line++;
+                if ($row === [null] || $row === []) {
+                    continue;
+                }
+                $mapped = [];
+                foreach ($header as $index => $column) {
+                    $mapped[$column] = $row[$index] ?? null;
+                }
+                try {
+                    $rows[] = $this->validatedIntegrationFeeBand($mapped);
+                } catch (ValidationException $exception) {
+                    throw ValidationException::withMessages(['pricing_file' => "Pricing CSV row {$line} is invalid: ".collect($exception->errors())->flatten()->first()]);
+                }
+            }
+
+            if ($rows === []) {
+                throw ValidationException::withMessages(['pricing_file' => 'The pricing CSV did not contain any fee bands.']);
+            }
+
+            return $rows;
+        } finally {
+            fclose($handle);
+        }
     }
 
     private function deactivationLeavesNoCurrentRate(ServiceRateSetting $setting, bool $nextActive): bool

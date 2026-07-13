@@ -34,6 +34,8 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
         Route::redirect('strategic-plan-budget', 'business-plan-budget');
         Route::get('business-plan-budget', [StrategicBudgetController::class, 'show'])->name('business-plan-budget.show');
+        Route::get('business-plan-budget/document', [StrategicBudgetController::class, 'document'])->name('business-plan-budget.document');
+        Route::get('business-plan-budget/pdf', [StrategicBudgetController::class, 'pdf'])->name('business-plan-budget.pdf');
         Route::post('business-plan-budget', [StrategicBudgetController::class, 'update'])->name('business-plan-budget.update');
         Route::post('business-plan-budget/submit', [StrategicBudgetController::class, 'submit'])->name('business-plan-budget.submit');
         Route::get('business-plan-budget/export', [StrategicBudgetController::class, 'export'])->name('business-plan-budget.export');

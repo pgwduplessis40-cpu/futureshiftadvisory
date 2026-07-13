@@ -13,6 +13,9 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentChargeLookup;
+use App\Services\Payments\AmbiguousPaymentOutcome;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Facades\Config;
@@ -161,13 +164,13 @@ final class LiveStripeClient implements StripeClient
         );
 
         if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
-            throw new PaymentGatewayException('Stripe charge failed.');
+            throw new AmbiguousPaymentOutcome('Stripe charge could not be confirmed.');
         }
 
         $status = (string) data_get($result->data, 'status', 'succeeded');
 
         if (! in_array($status, ['succeeded', 'processing'], true)) {
-            throw new PaymentGatewayException('Stripe charge did not succeed.');
+            throw new DefinitivePaymentDecline('Stripe charge was declined.');
         }
 
         return new PaymentChargeResult(
@@ -181,6 +184,38 @@ final class LiveStripeClient implements StripeClient
                 'correlation_id' => $result->correlationId,
             ],
         );
+    }
+
+    public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup
+    {
+        if ($gatewayRef === null || $gatewayRef === '') {
+            return PaymentChargeLookup::unknown();
+        }
+
+        $result = $this->http->request(
+            method: 'GET',
+            service: 'stripe',
+            endpoint: $this->endpoint('/v1/payment_intents/'.rawurlencode($gatewayRef)),
+            options: ['headers' => $this->headers($this->secret())],
+        );
+        if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
+            return PaymentChargeLookup::unknown();
+        }
+
+        $status = (string) data_get($result->data, 'status', '');
+        if ($status === 'succeeded') {
+            return PaymentChargeLookup::succeeded(new PaymentChargeResult(
+                gateway: 'stripe',
+                gatewayRef: (string) data_get($result->data, 'id', $gatewayRef),
+                status: $status,
+                amount: number_format(((float) data_get($result->data, 'amount_received', data_get($result->data, 'amount', 0))) / 100, 2, '.', ''),
+                currency: strtoupper((string) data_get($result->data, 'currency', 'NZD')),
+            ));
+        }
+
+        return in_array($status, ['canceled', 'requires_payment_method'], true)
+            ? PaymentChargeLookup::notCharged()
+            : PaymentChargeLookup::unknown();
     }
 
     private function captureConfirmedSetupIntent(

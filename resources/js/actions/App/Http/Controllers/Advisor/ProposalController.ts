@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:30
+ * @see app/Http/Controllers/Advisor/ProposalController.php:31
  * @route '/advisor/clients/{client}/proposals'
  */
 export const store = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:30
+ * @see app/Http/Controllers/Advisor/ProposalController.php:31
  * @route '/advisor/clients/{client}/proposals'
  */
 store.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -49,7 +49,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:30
+ * @see app/Http/Controllers/Advisor/ProposalController.php:31
  * @route '/advisor/clients/{client}/proposals'
  */
 store.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
     /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:30
+ * @see app/Http/Controllers/Advisor/ProposalController.php:31
  * @route '/advisor/clients/{client}/proposals'
  */
     const storeForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,7 +69,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
 
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::store
- * @see app/Http/Controllers/Advisor/ProposalController.php:30
+ * @see app/Http/Controllers/Advisor/ProposalController.php:31
  * @route '/advisor/clients/{client}/proposals'
  */
         storeForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -80,7 +80,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::release
- * @see app/Http/Controllers/Advisor/ProposalController.php:117
+ * @see app/Http/Controllers/Advisor/ProposalController.php:124
  * @route '/advisor/proposals/{proposal}/release'
  */
 export const release = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -95,7 +95,7 @@ release.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::release
- * @see app/Http/Controllers/Advisor/ProposalController.php:117
+ * @see app/Http/Controllers/Advisor/ProposalController.php:124
  * @route '/advisor/proposals/{proposal}/release'
  */
 release.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -128,7 +128,7 @@ release.url = (args: { proposal: string | { id: string } } | [proposal: string |
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::release
- * @see app/Http/Controllers/Advisor/ProposalController.php:117
+ * @see app/Http/Controllers/Advisor/ProposalController.php:124
  * @route '/advisor/proposals/{proposal}/release'
  */
 release.patch = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -138,7 +138,7 @@ release.patch = (args: { proposal: string | { id: string } } | [proposal: string
 
     /**
 * @see \App\Http\Controllers\Advisor\ProposalController::release
- * @see app/Http/Controllers/Advisor/ProposalController.php:117
+ * @see app/Http/Controllers/Advisor/ProposalController.php:124
  * @route '/advisor/proposals/{proposal}/release'
  */
     const releaseForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -153,7 +153,7 @@ release.patch = (args: { proposal: string | { id: string } } | [proposal: string
 
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::release
- * @see app/Http/Controllers/Advisor/ProposalController.php:117
+ * @see app/Http/Controllers/Advisor/ProposalController.php:124
  * @route '/advisor/proposals/{proposal}/release'
  */
         releaseForm.patch = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -169,7 +169,7 @@ release.patch = (args: { proposal: string | { id: string } } | [proposal: string
     release.form = releaseForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
- * @see app/Http/Controllers/Advisor/ProposalController.php:144
+ * @see app/Http/Controllers/Advisor/ProposalController.php:151
  * @route '/advisor/proposals/{proposal}/recall'
  */
 export const recall = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -184,7 +184,7 @@ recall.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
- * @see app/Http/Controllers/Advisor/ProposalController.php:144
+ * @see app/Http/Controllers/Advisor/ProposalController.php:151
  * @route '/advisor/proposals/{proposal}/recall'
  */
 recall.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -217,7 +217,7 @@ recall.url = (args: { proposal: string | { id: string } } | [proposal: string | 
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
- * @see app/Http/Controllers/Advisor/ProposalController.php:144
+ * @see app/Http/Controllers/Advisor/ProposalController.php:151
  * @route '/advisor/proposals/{proposal}/recall'
  */
 recall.patch = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -227,7 +227,7 @@ recall.patch = (args: { proposal: string | { id: string } } | [proposal: string 
 
     /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
- * @see app/Http/Controllers/Advisor/ProposalController.php:144
+ * @see app/Http/Controllers/Advisor/ProposalController.php:151
  * @route '/advisor/proposals/{proposal}/recall'
  */
     const recallForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -242,7 +242,7 @@ recall.patch = (args: { proposal: string | { id: string } } | [proposal: string 
 
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
- * @see app/Http/Controllers/Advisor/ProposalController.php:144
+ * @see app/Http/Controllers/Advisor/ProposalController.php:151
  * @route '/advisor/proposals/{proposal}/recall'
  */
         recallForm.patch = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -258,7 +258,7 @@ recall.patch = (args: { proposal: string | { id: string } } | [proposal: string 
     recall.form = recallForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
- * @see app/Http/Controllers/Advisor/ProposalController.php:157
+ * @see app/Http/Controllers/Advisor/ProposalController.php:164
  * @route '/advisor/proposals/{proposal}/renew'
  */
 export const renew = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -273,7 +273,7 @@ renew.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
- * @see app/Http/Controllers/Advisor/ProposalController.php:157
+ * @see app/Http/Controllers/Advisor/ProposalController.php:164
  * @route '/advisor/proposals/{proposal}/renew'
  */
 renew.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -306,7 +306,7 @@ renew.url = (args: { proposal: string | { id: string } } | [proposal: string | {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
- * @see app/Http/Controllers/Advisor/ProposalController.php:157
+ * @see app/Http/Controllers/Advisor/ProposalController.php:164
  * @route '/advisor/proposals/{proposal}/renew'
  */
 renew.patch = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -316,7 +316,7 @@ renew.patch = (args: { proposal: string | { id: string } } | [proposal: string |
 
     /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
- * @see app/Http/Controllers/Advisor/ProposalController.php:157
+ * @see app/Http/Controllers/Advisor/ProposalController.php:164
  * @route '/advisor/proposals/{proposal}/renew'
  */
     const renewForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -331,7 +331,7 @@ renew.patch = (args: { proposal: string | { id: string } } | [proposal: string |
 
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
- * @see app/Http/Controllers/Advisor/ProposalController.php:157
+ * @see app/Http/Controllers/Advisor/ProposalController.php:164
  * @route '/advisor/proposals/{proposal}/renew'
  */
         renewForm.patch = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -347,7 +347,7 @@ renew.patch = (args: { proposal: string | { id: string } } | [proposal: string |
     renew.form = renewForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
 export const show = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -362,7 +362,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
 show.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -395,7 +395,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
 show.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -404,7 +404,7 @@ show.get = (args: { proposal: string | { id: string } } | [proposal: string | { 
 })
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
 show.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -414,7 +414,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
 
     /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
     const showForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -424,7 +424,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
 
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
         showForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -433,7 +433,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
         })
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
- * @see app/Http/Controllers/Advisor/ProposalController.php:170
+ * @see app/Http/Controllers/Advisor/ProposalController.php:177
  * @route '/advisor/proposals/{proposal}'
  */
         showForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -449,7 +449,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
 export const download = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -464,7 +464,7 @@ download.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
 download.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -497,7 +497,7 @@ download.url = (args: { proposal: string | { id: string } } | [proposal: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
 download.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -506,7 +506,7 @@ download.get = (args: { proposal: string | { id: string } } | [proposal: string 
 })
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
 download.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -516,7 +516,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
 
     /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
     const downloadForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -526,7 +526,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
 
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
         downloadForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -535,7 +535,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
         })
             /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
- * @see app/Http/Controllers/Advisor/ProposalController.php:193
+ * @see app/Http/Controllers/Advisor/ProposalController.php:200
  * @route '/advisor/proposals/{proposal}/download'
  */
         downloadForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

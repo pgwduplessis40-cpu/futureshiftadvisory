@@ -44,6 +44,7 @@ use App\Services\Npo\NpoImpactMetricRecorder;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
+use App\Services\Proposals\ProposalBrief;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Services\StrategicPlans\StrategicPlanService;
@@ -72,6 +73,7 @@ final class DashboardController extends Controller
         private readonly ServiceActivationNavigation $serviceActivationNavigation,
         private readonly StrategicBudgetService $strategicBudgets,
         private readonly StrategicPlanService $strategicPlans,
+        private readonly ProposalBrief $proposalBriefs,
     ) {}
 
     public function __invoke(Request $request): Response|RedirectResponse
@@ -289,6 +291,7 @@ final class DashboardController extends Controller
                 'status' => $proposal->status->value,
                 'status_label' => str($proposal->status->value)->replace('_', ' ')->title()->toString(),
                 'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                'brief' => $this->proposalBriefs->for($proposal),
                 'signed_at' => $proposal->signed_at?->toIso8601String(),
                 'signoff_url' => route('portal.proposals.signoff.show', $proposal, absolute: false),
             ])

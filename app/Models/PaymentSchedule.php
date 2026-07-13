@@ -81,4 +81,12 @@ final class PaymentSchedule extends Model
     {
         return $this->hasMany(Payment::class);
     }
+
+    /**
+     * @return HasMany<PaymentInstallment>
+     */
+    public function installments(): HasMany
+    {
+        return $this->hasMany(PaymentInstallment::class);
+    }
 }

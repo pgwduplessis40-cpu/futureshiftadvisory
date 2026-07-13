@@ -22,6 +22,7 @@ use App\Http\Controllers\Advisor\EntrepreneurController;
 use App\Http\Controllers\Advisor\EntrepreneurDocumentController;
 use App\Http\Controllers\Advisor\EntrepreneurMessageController;
 use App\Http\Controllers\Advisor\GoalController;
+use App\Http\Controllers\Advisor\IntegrationScopeController;
 use App\Http\Controllers\Advisor\KnowledgeAssessmentController;
 use App\Http\Controllers\Advisor\KnowledgeController;
 use App\Http\Controllers\Advisor\MeetingController;
@@ -75,6 +76,39 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('service-activations', [ServiceActivationController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('service-activations.index');
+        Route::get('integration-scopes', [IntegrationScopeController::class, 'index'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('integration-scopes.index');
+        Route::get('integration-scopes/{integrationScope}', [IntegrationScopeController::class, 'show'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('integration-scopes.show');
+        Route::post('clients/{client}/integration-scopes', [IntegrationScopeController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.integration-scopes.store');
+        Route::patch('integration-scopes/{integrationScope}', [IntegrationScopeController::class, 'update'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('integration-scopes.update');
+        Route::post('integration-scopes/{integrationScope}/recalculate', [IntegrationScopeController::class, 'recalculate'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('integration-scopes.recalculate');
+        Route::post('integration-scopes/{integrationScope}/fee-calculations', [IntegrationScopeController::class, 'createFeeCalculation'])
+            ->middleware('permission:'.Permission::PROPOSALS_RELEASE->value)
+            ->name('integration-scopes.fee-calculations.store');
+        Route::post('integration-scopes/{integrationScope}/quote-source-extractions', [IntegrationScopeController::class, 'extractQuoteSources'])
+            ->middleware('permission:'.Permission::DOCUMENTS_UPLOAD->value)
+            ->name('integration-scopes.quote-source-extractions.store');
+        Route::post('integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/retry', [IntegrationScopeController::class, 'retryQuoteSourceExtraction'])
+            ->middleware('permission:'.Permission::DOCUMENTS_UPLOAD->value)
+            ->name('integration-scopes.quote-source-extractions.retry');
+        Route::post('integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/confirm', [IntegrationScopeController::class, 'confirmQuoteSourceRows'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('integration-scopes.quote-source-extractions.confirm');
+        Route::post('integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/reject', [IntegrationScopeController::class, 'rejectQuoteSourceRows'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('integration-scopes.quote-source-extractions.reject');
+        Route::get('integration-scopes/{integrationScope}/quote-source-documents/{document}', [IntegrationScopeController::class, 'showQuoteSourceDocument'])
+            ->middleware('permission:'.Permission::DOCUMENTS_VIEW->value)
+            ->name('integration-scopes.quote-source-documents.show');
         Route::get('service-activations/{serviceActivation}', [ServiceActivationController::class, 'show'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('service-activations.show');
@@ -84,6 +118,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('service-activations/{serviceActivation}/balance-received', [ServiceActivationController::class, 'balanceReceived'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('service-activations.balance-received');
+        Route::post('clients/{client}/integration-scoping-offer', [ServiceActivationController::class, 'offerIntegrationScoping'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.integration-scoping.offer');
         Route::get('clients/create', [ClientController::class, 'create'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.create');

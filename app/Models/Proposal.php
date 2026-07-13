@@ -167,6 +167,14 @@ final class Proposal extends Model
     }
 
     /**
+     * @return HasOne<IntegrationScope>
+     */
+    public function integrationScope(): HasOne
+    {
+        return $this->hasOne(IntegrationScope::class);
+    }
+
+    /**
      * @return BelongsTo<User, Proposal>
      */
     public function createdBy(): BelongsTo

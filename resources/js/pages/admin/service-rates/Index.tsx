@@ -6,6 +6,8 @@ import {
     Pencil,
     Power,
     Save,
+    Table2,
+    Upload,
     X,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
@@ -47,7 +49,7 @@ type PackageScopeOption = {
 
 type ServiceRatePackage = {
     id: string;
-    service_type: 'due_diligence' | 'entrepreneur';
+    service_type: 'due_diligence' | 'entrepreneur' | 'integration_scoping';
     package_scope: PackageScope | null;
     package_name: string;
     client_label: string;
@@ -77,6 +79,19 @@ type PaymentSplit = {
     requires_bank_transfer: boolean;
 };
 
+type IntegrationFeeBand = {
+    id: string;
+    complexity_band: 'S' | 'M' | 'L' | 'XL';
+    delivery_mode: 'inhouse' | 'lowcode' | 'partner' | 'mixed';
+    fee_low: number;
+    fee_mid: number;
+    fee_high: number;
+    currency: string;
+    is_active: boolean;
+    updated_by_name: string | null;
+    updated_at: string | null;
+};
+
 type Props = {
     current: ServiceRate | null;
     fallback: {
@@ -91,6 +106,9 @@ type Props = {
     dueDiligencePackageScopes: PackageScopeOption[];
     entrepreneurPackageScopes: PackageScopeOption[];
     packageStoreUrl: string;
+    integrationFeeBands: IntegrationFeeBand[];
+    integrationFeeBandStoreUrl: string;
+    integrationFeeBandImportUrl: string;
 };
 
 const defaultPackageFormData = {
@@ -118,6 +136,9 @@ export default function ServiceRatesIndex({
     dueDiligencePackageScopes,
     entrepreneurPackageScopes,
     packageStoreUrl,
+    integrationFeeBands,
+    integrationFeeBandStoreUrl,
+    integrationFeeBandImportUrl,
 }: Props) {
     const effectiveRate = current?.hourly_rate ?? fallback.hourly_rate;
     const effectiveCurrency = current?.currency ?? fallback.currency;
@@ -136,6 +157,18 @@ export default function ServiceRatesIndex({
         notes: '',
     });
     const packageForm = useForm(defaultPackageFormData);
+    const feeBandForm = useForm({
+        complexity_band: 'M',
+        delivery_mode: 'inhouse',
+        fee_low: '',
+        fee_mid: '',
+        fee_high: '',
+        currency: effectiveCurrency,
+        is_active: true,
+    });
+    const importForm = useForm<{ pricing_file: File | null }>({
+        pricing_file: null,
+    });
     const [editingPackageId, setEditingPackageId] = useState<string | null>(
         null,
     );
@@ -232,6 +265,38 @@ export default function ServiceRatesIndex({
             { is_active: !ratePackage.is_active },
             { preserveScroll: true },
         );
+    }
+
+    function submitIntegrationFeeBand(event: FormEvent) {
+        event.preventDefault();
+        feeBandForm.post(integrationFeeBandStoreUrl, {
+            preserveScroll: true,
+            onSuccess: () =>
+                feeBandForm.reset('fee_low', 'fee_mid', 'fee_high'),
+        });
+    }
+
+    function importIntegrationFeeBands(event: FormEvent) {
+        event.preventDefault();
+        importForm.post(integrationFeeBandImportUrl, {
+            preserveScroll: true,
+            forceFormData: true,
+            onSuccess: () => importForm.setData('pricing_file', null),
+        });
+    }
+
+    function downloadIntegrationFeeBandTemplate() {
+        const csv = [
+            'complexity_band,delivery_mode,fee_low,fee_mid,fee_high,currency,is_active',
+            'S,inhouse,3500,4500,5500,NZD,true',
+            'M,inhouse,6500,8000,9500,NZD,true',
+        ].join('\n');
+        const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+        const anchor = document.createElement('a');
+        anchor.href = url;
+        anchor.download = 'integration-fee-bands.csv';
+        anchor.click();
+        URL.revokeObjectURL(url);
     }
 
     return (
@@ -469,6 +534,9 @@ export default function ServiceRatesIndex({
                                     </option>
                                     <option value="entrepreneur">
                                         Test new Business Idea
+                                    </option>
+                                    <option value="integration_scoping">
+                                        Systems integration scoping
                                     </option>
                                 </select>
                                 <InputError
@@ -741,55 +809,63 @@ export default function ServiceRatesIndex({
                             </div>
                         ) : null}
 
-                        <div className="grid gap-4 sm:grid-cols-2">
-                            <div className="grid gap-2">
-                                <Label htmlFor="purchase_price_min">
-                                    Purchase price min
-                                </Label>
-                                <Input
-                                    id="purchase_price_min"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={packageForm.data.purchase_price_min}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'purchase_price_min',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={
-                                        packageForm.errors.purchase_price_min
-                                    }
-                                />
-                            </div>
+                        {packageForm.data.service_type === 'due_diligence' ? (
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="purchase_price_min">
+                                        Purchase price min
+                                    </Label>
+                                    <Input
+                                        id="purchase_price_min"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={
+                                            packageForm.data.purchase_price_min
+                                        }
+                                        onChange={(event) =>
+                                            packageForm.setData(
+                                                'purchase_price_min',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={
+                                            packageForm.errors
+                                                .purchase_price_min
+                                        }
+                                    />
+                                </div>
 
-                            <div className="grid gap-2">
-                                <Label htmlFor="purchase_price_max">
-                                    Purchase price max
-                                </Label>
-                                <Input
-                                    id="purchase_price_max"
-                                    type="number"
-                                    min="0"
-                                    step="0.01"
-                                    value={packageForm.data.purchase_price_max}
-                                    onChange={(event) =>
-                                        packageForm.setData(
-                                            'purchase_price_max',
-                                            event.target.value,
-                                        )
-                                    }
-                                />
-                                <InputError
-                                    message={
-                                        packageForm.errors.purchase_price_max
-                                    }
-                                />
+                                <div className="grid gap-2">
+                                    <Label htmlFor="purchase_price_max">
+                                        Purchase price max
+                                    </Label>
+                                    <Input
+                                        id="purchase_price_max"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                        value={
+                                            packageForm.data.purchase_price_max
+                                        }
+                                        onChange={(event) =>
+                                            packageForm.setData(
+                                                'purchase_price_max',
+                                                event.target.value,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={
+                                            packageForm.errors
+                                                .purchase_price_max
+                                        }
+                                    />
+                                </div>
                             </div>
-                        </div>
+                        ) : null}
 
                         <div className="grid gap-2">
                             <Label htmlFor="scope_description">
@@ -1017,6 +1093,299 @@ export default function ServiceRatesIndex({
                     </section>
                 </section>
 
+                <section className="grid gap-4 lg:grid-cols-[minmax(360px,0.7fr)_minmax(0,1fr)]">
+                    <div className="space-y-4 rounded-md border bg-background p-4">
+                        <div className="flex items-center gap-2">
+                            <Table2 className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">
+                                Integration pricing
+                            </h2>
+                        </div>
+                        <form
+                            onSubmit={submitIntegrationFeeBand}
+                            className="grid gap-4"
+                        >
+                            <div className="grid gap-4 sm:grid-cols-2">
+                                <div className="grid gap-2">
+                                    <Label htmlFor="integration_complexity_band">
+                                        Complexity band
+                                    </Label>
+                                    <select
+                                        id="integration_complexity_band"
+                                        value={feeBandForm.data.complexity_band}
+                                        onChange={(event) =>
+                                            feeBandForm.setData(
+                                                'complexity_band',
+                                                event.target
+                                                    .value as IntegrationFeeBand['complexity_band'],
+                                            )
+                                        }
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    >
+                                        <option value="S">S</option>
+                                        <option value="M">M</option>
+                                        <option value="L">L</option>
+                                        <option value="XL">XL</option>
+                                    </select>
+                                    <InputError
+                                        message={
+                                            feeBandForm.errors.complexity_band
+                                        }
+                                    />
+                                </div>
+                                <div className="grid gap-2">
+                                    <Label htmlFor="integration_delivery_mode">
+                                        Delivery mode
+                                    </Label>
+                                    <select
+                                        id="integration_delivery_mode"
+                                        value={feeBandForm.data.delivery_mode}
+                                        onChange={(event) =>
+                                            feeBandForm.setData(
+                                                'delivery_mode',
+                                                event.target
+                                                    .value as IntegrationFeeBand['delivery_mode'],
+                                            )
+                                        }
+                                        className="h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                    >
+                                        <option value="inhouse">
+                                            In-house
+                                        </option>
+                                        <option value="lowcode">
+                                            Low-code
+                                        </option>
+                                        <option value="partner">
+                                            Delivery partner
+                                        </option>
+                                        <option value="mixed">Mixed</option>
+                                    </select>
+                                    <InputError
+                                        message={
+                                            feeBandForm.errors.delivery_mode
+                                        }
+                                    />
+                                </div>
+                            </div>
+                            <div className="grid gap-4 sm:grid-cols-3">
+                                <BandInput
+                                    id="integration_fee_low"
+                                    label="Low ex GST"
+                                    value={feeBandForm.data.fee_low}
+                                    onChange={(value) =>
+                                        feeBandForm.setData('fee_low', value)
+                                    }
+                                    error={feeBandForm.errors.fee_low}
+                                />
+                                <BandInput
+                                    id="integration_fee_mid"
+                                    label="Mid ex GST"
+                                    value={feeBandForm.data.fee_mid}
+                                    onChange={(value) =>
+                                        feeBandForm.setData('fee_mid', value)
+                                    }
+                                    error={feeBandForm.errors.fee_mid}
+                                />
+                                <BandInput
+                                    id="integration_fee_high"
+                                    label="High ex GST"
+                                    value={feeBandForm.data.fee_high}
+                                    onChange={(value) =>
+                                        feeBandForm.setData('fee_high', value)
+                                    }
+                                    error={feeBandForm.errors.fee_high}
+                                />
+                            </div>
+                            <label className="flex items-center gap-2 text-sm">
+                                <input
+                                    type="checkbox"
+                                    checked={feeBandForm.data.is_active}
+                                    onChange={(event) =>
+                                        feeBandForm.setData(
+                                            'is_active',
+                                            event.target.checked,
+                                        )
+                                    }
+                                />
+                                Active for quoting
+                            </label>
+                            <div className="flex justify-end">
+                                <Button
+                                    type="submit"
+                                    disabled={feeBandForm.processing}
+                                >
+                                    <Save
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Save band
+                                </Button>
+                            </div>
+                        </form>
+                        <form
+                            onSubmit={importIntegrationFeeBands}
+                            className="border-t pt-4"
+                        >
+                            <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
+                                <div className="grid flex-1 gap-2">
+                                    <Label htmlFor="integration_pricing_file">
+                                        Pricing CSV
+                                    </Label>
+                                    <Input
+                                        id="integration_pricing_file"
+                                        type="file"
+                                        accept=".csv,text/csv"
+                                        onChange={(event) =>
+                                            importForm.setData(
+                                                'pricing_file',
+                                                event.target.files?.[0] ?? null,
+                                            )
+                                        }
+                                    />
+                                    <InputError
+                                        message={importForm.errors.pricing_file}
+                                    />
+                                </div>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    onClick={downloadIntegrationFeeBandTemplate}
+                                >
+                                    Template
+                                </Button>
+                                <Button
+                                    type="submit"
+                                    disabled={
+                                        !importForm.data.pricing_file ||
+                                        importForm.processing
+                                    }
+                                >
+                                    <Upload
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Import
+                                </Button>
+                            </div>
+                        </form>
+                    </div>
+                    <section className="space-y-3 rounded-md border bg-background p-4">
+                        <div className="flex items-center gap-2">
+                            <Table2 className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">
+                                Current integration fee bands
+                            </h2>
+                        </div>
+                        <div className="overflow-hidden rounded-md border">
+                            <table className="fsa-responsive-table table-fixed md:table-fixed">
+                                <thead className="bg-muted/60 text-left">
+                                    <tr>
+                                        <th className="w-[12%] px-3 py-2 font-medium">
+                                            Band
+                                        </th>
+                                        <th className="w-[24%] px-3 py-2 font-medium">
+                                            Delivery
+                                        </th>
+                                        <th className="w-[16%] px-3 py-2 font-medium">
+                                            Low
+                                        </th>
+                                        <th className="w-[16%] px-3 py-2 font-medium">
+                                            Mid
+                                        </th>
+                                        <th className="w-[16%] px-3 py-2 font-medium">
+                                            High
+                                        </th>
+                                        <th className="w-[16%] px-3 py-2 font-medium">
+                                            Status
+                                        </th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {integrationFeeBands.length === 0 ? (
+                                        <tr>
+                                            <td
+                                                colSpan={6}
+                                                className="px-3 py-3 text-muted-foreground"
+                                            >
+                                                No integration fee bands
+                                                configured.
+                                            </td>
+                                        </tr>
+                                    ) : (
+                                        integrationFeeBands.map((band) => (
+                                            <tr
+                                                key={band.id}
+                                                className="border-t"
+                                            >
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Band"
+                                                >
+                                                    <Badge variant="secondary">
+                                                        {band.complexity_band}
+                                                    </Badge>
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Delivery"
+                                                >
+                                                    {band.delivery_mode.replaceAll(
+                                                        '_',
+                                                        ' ',
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Low"
+                                                >
+                                                    {formatMoney(
+                                                        band.fee_low,
+                                                        band.currency,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Mid"
+                                                >
+                                                    {formatMoney(
+                                                        band.fee_mid,
+                                                        band.currency,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="High"
+                                                >
+                                                    {formatMoney(
+                                                        band.fee_high,
+                                                        band.currency,
+                                                    )}
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Status"
+                                                >
+                                                    <Badge
+                                                        variant={
+                                                            band.is_active
+                                                                ? 'secondary'
+                                                                : 'outline'
+                                                        }
+                                                    >
+                                                        {band.is_active
+                                                            ? 'Active'
+                                                            : 'Inactive'}
+                                                    </Badge>
+                                                </td>
+                                            </tr>
+                                        ))
+                                    )}
+                                </tbody>
+                            </table>
+                        </div>
+                    </section>
+                </section>
+
                 <section className="space-y-3 rounded-md border bg-background p-4">
                     <div className="flex items-center gap-2">
                         <History className="size-4" aria-hidden="true" />
@@ -1170,6 +1539,35 @@ function formatMoney(value: number, currency: string) {
     }).format(value);
 }
 
+function BandInput({
+    id,
+    label,
+    value,
+    onChange,
+    error,
+}: {
+    id: string;
+    label: string;
+    value: string;
+    onChange: (value: string) => void;
+    error?: string;
+}) {
+    return (
+        <div className="grid gap-2">
+            <Label htmlFor={id}>{label}</Label>
+            <Input
+                id={id}
+                type="number"
+                min="0"
+                step="0.01"
+                value={value}
+                onChange={(event) => onChange(event.target.value)}
+            />
+            <InputError message={error} />
+        </div>
+    );
+}
+
 function formatDate(value: string | null) {
     if (!value) {
         return '';
@@ -1200,13 +1598,19 @@ function rateToggleActionLabel(rate: ServiceRate) {
 }
 
 function defaultScope(serviceType: ServiceRatePackage['service_type']) {
-    return serviceType === 'due_diligence' ? 'dd_300k_1m' : 'combo';
+    if (serviceType === 'due_diligence') {
+        return 'dd_300k_1m';
+    }
+
+    return serviceType === 'entrepreneur' ? 'combo' : '';
 }
 
 function serviceLabel(serviceType: ServiceRatePackage['service_type']) {
     return serviceType === 'due_diligence'
         ? 'Explore buying a business'
-        : 'Test new Business Idea';
+        : serviceType === 'entrepreneur'
+          ? 'Test new Business Idea'
+          : 'Systems integration scoping';
 }
 
 function packageScopeLabel(scope: PackageScope | null) {

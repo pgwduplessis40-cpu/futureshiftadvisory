@@ -167,6 +167,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<IntegrationScope>
+     */
+    public function integrationScopes(): HasMany
+    {
+        return $this->hasMany(IntegrationScope::class);
+    }
+
+    /**
      * @return HasMany<Proposal>
      */
     public function proposals(): HasMany

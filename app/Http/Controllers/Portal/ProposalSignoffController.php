@@ -18,6 +18,7 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Portal\ClientPortalResolver;
 use App\Services\Proposals\ProposalBuilder;
+use App\Services\Proposals\ProposalBrief;
 use App\Services\Proposals\SignoffFlow;
 use App\Services\Security\MfaChallenger;
 use Illuminate\Http\JsonResponse;
@@ -35,6 +36,8 @@ use LogicException;
 
 final class ProposalSignoffController extends Controller
 {
+    public function __construct(private readonly ProposalBrief $proposalBriefs) {}
+
     public function show(
         Request $request,
         Proposal $proposal,
@@ -256,6 +259,7 @@ final class ProposalSignoffController extends Controller
             'status_label' => str($proposal->status->value)->replace('_', ' ')->title()->toString(),
             'client_name' => $proposal->client?->legal_name,
             'scope_summary' => (string) data_get($proposal->scope, 'summary', ''),
+            'brief' => $this->proposalBriefs->for($proposal),
             'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
             'payment_terms' => $this->paymentTermsPayload($proposal),
             'roi_ratio' => $proposal->roi_ratio,

@@ -2,6 +2,7 @@ import CalendarController from './CalendarController'
 import MessageInboxController from './MessageInboxController'
 import ClientController from './ClientController'
 import ServiceActivationController from './ServiceActivationController'
+import IntegrationScopeController from './IntegrationScopeController'
 import OffboardingController from './OffboardingController'
 import ClientLifecycleController from './ClientLifecycleController'
 import KnowledgeAssessmentController from './KnowledgeAssessmentController'
@@ -43,6 +44,7 @@ const Advisor = {
 MessageInboxController: Object.assign(MessageInboxController, MessageInboxController),
 ClientController: Object.assign(ClientController, ClientController),
 ServiceActivationController: Object.assign(ServiceActivationController, ServiceActivationController),
+IntegrationScopeController: Object.assign(IntegrationScopeController, IntegrationScopeController),
 OffboardingController: Object.assign(OffboardingController, OffboardingController),
 ClientLifecycleController: Object.assign(ClientLifecycleController, ClientLifecycleController),
 KnowledgeAssessmentController: Object.assign(KnowledgeAssessmentController, KnowledgeAssessmentController),

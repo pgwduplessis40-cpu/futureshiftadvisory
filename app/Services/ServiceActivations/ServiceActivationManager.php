@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Services\ServiceActivations;
 
 use App\Enums\EntrepreneurStage;
+use App\Enums\FeeMethod;
+use App\Models\BillingAdjustment;
 use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
@@ -20,6 +22,7 @@ use App\Notifications\ServiceActivationRequestedNotification;
 use App\Services\Audit\AuditWriter;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Fees\ServiceRateManager;
+use App\Services\Goals\GoalTracker;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Messaging\MessageThreadService;
 use App\Services\Plans\PlanBuilder as SharedPlanBuilder;
@@ -38,7 +41,47 @@ final class ServiceActivationManager
         private readonly SharedPlanBuilder $plans,
         private readonly RequestContext $context,
         private readonly ServiceRateManager $serviceRates,
+        private readonly GoalTracker $goals,
     ) {}
+
+    public function offerIntegrationScoping(Client $client, User $advisor, ServiceRatePackage $package): ServiceActivation
+    {
+        if (! in_array($advisor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR, User::TYPE_SUPER_ADMIN], true)) {
+            throw ValidationException::withMessages(['advisor' => 'Only an advisor can offer integration scoping.']);
+        }
+        if ($package->service_type !== ServiceActivation::SERVICE_INTEGRATION_SCOPING || ! $package->is_active) {
+            throw ValidationException::withMessages(['service_rate_package_id' => 'Choose an active integration-scoping package.']);
+        }
+
+        return DB::transaction(function () use ($client, $advisor, $package): ServiceActivation {
+            $this->assertNoBlockingOpenActivation($client, ServiceActivation::SERVICE_INTEGRATION_SCOPING);
+            $snapshot = $this->packageSnapshotForActivation($package);
+            $activation = ServiceActivation::query()->create([
+                'client_id' => $client->getKey(),
+                'requested_by_user_id' => $advisor->getKey(),
+                'advisor_id' => $advisor->getKey(),
+                'approved_by_user_id' => $advisor->getKey(),
+                'service_type' => ServiceActivation::SERVICE_INTEGRATION_SCOPING,
+                'client_label' => 'Systems integration scoping',
+                'service_rate_package_id' => $package->getKey(),
+                'selected_package_snapshot' => $snapshot,
+                'payment_status' => $this->packagePaymentStatus($snapshot),
+                'status' => ServiceActivation::STATUS_PACKAGE_SELECTED,
+                'metadata' => [
+                    'source' => 'advisor_offer',
+                    'package_selected_at' => now()->toIso8601String(),
+                    'payment_required_before_scope_starts' => true,
+                ],
+            ]);
+            $this->audit->record('integration.scoping_offered', subject: $activation, actor: $advisor, after: [
+                'client_id' => $client->getKey(),
+                'service_rate_package_id' => $package->getKey(),
+                'fixed_fee' => $snapshot['fixed_fee'] ?? null,
+            ]);
+
+            return $activation->refresh();
+        });
+    }
 
     /**
      * @param  array<string, mixed>  $intake
@@ -242,6 +285,10 @@ final class ServiceActivationManager
             'payment_reference' => $reference,
         ]);
 
+        if ($activation->service_type === ServiceActivation::SERVICE_INTEGRATION_SCOPING && ! $requiresBankTransfer) {
+            return $this->activateScopingFromPackagePayment($activation->refresh(), $actor);
+        }
+
         return $activation->refresh();
     }
 
@@ -299,7 +346,117 @@ final class ServiceActivationManager
             'balance_reference' => $reference,
         ]);
 
+        if ($activation->service_type === ServiceActivation::SERVICE_INTEGRATION_SCOPING) {
+            return $this->activateScopingFromPackagePayment($activation->refresh(), $actor);
+        }
+
         return $activation->refresh();
+    }
+
+    public function activateIntegrationFromProposalPayment(\App\Models\Proposal $proposal, ?\App\Models\Payment $payment = null): ServiceActivation
+    {
+        $proposal->loadMissing(['client', 'feeCalculation.integrationScope']);
+        $scope = $proposal->feeCalculation?->integrationScope;
+        if ($proposal->feeCalculation?->method !== FeeMethod::Integration || ! $scope instanceof \App\Models\IntegrationScope) {
+            throw new \InvalidArgumentException('Only an integration proposal can activate the integration delivery service.');
+        }
+        if ((string) $scope->client_id !== (string) $proposal->client_id) {
+            throw new \InvalidArgumentException('The integration scope must belong to the proposal client.');
+        }
+
+        return DB::transaction(function () use ($proposal, $scope, $payment): ServiceActivation {
+            $existing = ServiceActivation::query()->where('proposal_id', $proposal->getKey())->lockForUpdate()->first();
+            if ($existing instanceof ServiceActivation) {
+                return $existing;
+            }
+
+            $activation = ServiceActivation::query()->create([
+                'client_id' => $proposal->client_id,
+                'advisor_id' => $proposal->created_by_user_id,
+                'service_type' => ServiceActivation::SERVICE_INTEGRATION,
+                'client_label' => 'Systems integration delivery',
+                'proposal_id' => $proposal->getKey(),
+                'status' => ServiceActivation::STATUS_ACTIVE,
+                'payment_status' => ServiceActivation::PAYMENT_PAID,
+                'payment_completed_at' => now(),
+                'payment_reference' => $payment?->gateway_ref ?? ('proposal-payment-'.$proposal->getKey()),
+                'accepted_at' => now(),
+                'acceptance_text' => 'Signed proposal and settled installment consent evidence.',
+                'terms_reference' => [
+                    'source' => 'signed_proposal_payment',
+                    'proposal_id' => $proposal->getKey(),
+                    'payment_id' => $payment?->getKey(),
+                ],
+                'metadata' => ['workspace_type' => 'integration_delivery'],
+            ]);
+
+            if ($scope->goal_id === null) {
+                $goal = $this->goals->createGoal($proposal->client, [
+                    'title' => 'Reduce manual integration work',
+                    'description' => 'Realise the verified savings captured in the approved systems-integration scope.',
+                    'pv_target_calculation_id' => $scope->pv_calculation_id,
+                    'target_date' => now()->addDays(90)->toDateString(),
+                ]);
+                $scope->forceFill(['goal_id' => $goal->getKey()])->save();
+                foreach (['Confirm integration design', 'Build and test the approved connections', 'Measure post-launch time savings'] as $index => $title) {
+                    $this->goals->createMilestone($goal, [
+                        'title' => $title,
+                        'recommendation_ref' => 'integration_scope:'.$scope->getKey(),
+                        'pv_of_impact' => $index === 2 ? (float) data_get($scope->computed, 'pv_savings', 0) : 0,
+                        'due_date' => now()->addDays(($index + 1) * 30)->toDateString(),
+                    ]);
+                }
+            }
+
+            $this->audit->record('integration.delivery_activated', subject: $activation, after: [
+                'proposal_id' => $proposal->getKey(),
+                'payment_id' => $payment?->getKey(),
+                'integration_scope_id' => $scope->getKey(),
+                'goal_id' => $scope->goal_id,
+            ]);
+
+            return $activation->refresh();
+        });
+    }
+
+    private function activateScopingFromPackagePayment(ServiceActivation $activation, User $actor): ServiceActivation
+    {
+        return DB::transaction(function () use ($activation, $actor): ServiceActivation {
+            $activation = ServiceActivation::query()->lockForUpdate()->findOrFail($activation->getKey());
+            if ($activation->status === ServiceActivation::STATUS_ACTIVE) {
+                return $activation;
+            }
+            if ($activation->service_type !== ServiceActivation::SERVICE_INTEGRATION_SCOPING || ! $activation->paymentComplete()) {
+                throw ValidationException::withMessages(['activation' => 'Integration scoping must have a settled package payment.']);
+            }
+
+            $activation->forceFill([
+                'status' => ServiceActivation::STATUS_ACTIVE,
+                'accepted_by_user_id' => $actor->getKey(),
+                'accepted_at' => now(),
+                'acceptance_text' => 'Advisor-offered integration scoping package, with package payment completed.',
+                'terms_reference' => ['source' => 'advisor_offer_package_payment', 'payment_reference' => $activation->payment_reference],
+            ])->save();
+
+            $credit = BillingAdjustment::query()->firstOrCreate(
+                ['source_service_activation_id' => $activation->getKey()],
+                [
+                    'client_id' => $activation->client_id,
+                    'type' => BillingAdjustment::TYPE_SCOPING_FEE_CREDIT,
+                    'source_payment_reference' => $activation->payment_reference,
+                    'amount' => (float) data_get($activation->selected_package_snapshot, 'fixed_fee', 0),
+                    'currency' => (string) data_get($activation->selected_package_snapshot, 'currency', 'NZD'),
+                    'status' => BillingAdjustment::STATUS_AVAILABLE,
+                    'created_by_user_id' => $actor->getKey(),
+                ],
+            );
+            $this->audit->record('integration.scoping_activated', subject: $activation, actor: $actor, after: [
+                'billing_adjustment_id' => $credit->getKey(),
+                'credit_amount' => $credit->amount,
+            ]);
+
+            return $activation->refresh();
+        });
     }
 
     public function accept(ServiceActivation $activation, User $actor): ServiceActivation
@@ -452,7 +609,7 @@ final class ServiceActivationManager
     {
         $serviceType = trim($serviceType);
 
-        if (! in_array($serviceType, [ServiceActivation::SERVICE_DUE_DILIGENCE, ServiceActivation::SERVICE_ENTREPRENEUR], true)) {
+        if (! in_array($serviceType, [ServiceActivation::SERVICE_DUE_DILIGENCE, ServiceActivation::SERVICE_ENTREPRENEUR, ServiceActivation::SERVICE_INTEGRATION_SCOPING, ServiceActivation::SERVICE_INTEGRATION], true)) {
             throw ValidationException::withMessages(['service_type' => 'Choose a supported workspace.']);
         }
 
@@ -472,9 +629,11 @@ final class ServiceActivationManager
             ->exists();
 
         if ($exists) {
-            $message = $serviceType === ServiceActivation::SERVICE_DUE_DILIGENCE
-                ? 'You already have an open buying-a-business workspace. Close or cancel it before starting another DD request.'
-                : 'You already have an open idea-testing workspace. Close or cancel it before starting another one.';
+            $message = match ($serviceType) {
+                ServiceActivation::SERVICE_DUE_DILIGENCE => 'You already have an open buying-a-business workspace. Close or cancel it before starting another DD request.',
+                ServiceActivation::SERVICE_ENTREPRENEUR => 'You already have an open idea-testing workspace. Close or cancel it before starting another one.',
+                default => 'You already have an open integration service for this stage. Close or cancel it before starting another one.',
+            };
 
             throw ValidationException::withMessages(['service_type' => $message]);
         }
@@ -674,6 +833,8 @@ final class ServiceActivationManager
         return match ($serviceType) {
             ServiceActivation::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
             ServiceActivation::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
+            ServiceActivation::SERVICE_INTEGRATION_SCOPING => 'Systems integration scoping',
+            ServiceActivation::SERVICE_INTEGRATION => 'Systems integration delivery',
             default => 'Service workspace',
         };
     }

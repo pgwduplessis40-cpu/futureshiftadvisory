@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\Document;
 use App\Models\DocumentVerification;
 use App\Models\Goal;
+use App\Models\GoalMeasurement;
 use App\Models\Milestone;
 use App\Models\MilestoneAction;
 use App\Models\NpoEngagement;
@@ -49,7 +50,18 @@ final class GoalTracker
             $baselineValuation = $this->latestBusinessValuation($client);
             $pvTarget = (float) ($input['pv_target'] ?? 0);
 
-            if ($this->hasCashFlows($input)) {
+            $existingCalculationId = $input['pv_target_calculation_id'] ?? null;
+            if (is_string($existingCalculationId) && $existingCalculationId !== '') {
+                $pvCalculation = \App\Models\PvCalculation::query()
+                    ->where('client_id', $client->getKey())
+                    ->find($existingCalculationId);
+
+                if (! $pvCalculation instanceof \App\Models\PvCalculation) {
+                    throw ValidationException::withMessages(['pv_target_calculation_id' => 'The PV calculation must belong to this client.']);
+                }
+
+                $pvTarget = (float) data_get($pvCalculation->result, 'present_value', 0);
+            } elseif ($this->hasCashFlows($input)) {
                 $pvCalculation = $this->pv->calculate(
                     client: $client,
                     type: PvType::GoalTarget,
@@ -87,6 +99,43 @@ final class GoalTracker
 
             return $goal->refresh();
         });
+    }
+
+    /**
+     * @param  array<string, mixed>  $input
+     */
+    public function recordMeasurement(Goal $goal, array $input, ?User $actor = null): GoalMeasurement
+    {
+        $goal->loadMissing('client');
+        $client = $goal->client;
+        if (! $client instanceof Client) {
+            throw new InvalidArgumentException('Goal must belong to a client.');
+        }
+
+        $calculationId = $input['pv_calculation_id'] ?? null;
+        $calculation = is_string($calculationId) && $calculationId !== ''
+            ? \App\Models\PvCalculation::query()->where('client_id', $client->getKey())->find($calculationId)
+            : null;
+        if (is_string($calculationId) && $calculationId !== '' && ! $calculation instanceof \App\Models\PvCalculation) {
+            throw ValidationException::withMessages(['pv_calculation_id' => 'The PV calculation must belong to this client.']);
+        }
+
+        $measurement = GoalMeasurement::query()->create([
+            'goal_id' => $goal->getKey(),
+            'client_id' => $client->getKey(),
+            'pv_calculation_id' => $calculation?->getKey(),
+            'pv_realised' => round((float) ($input['pv_realised'] ?? data_get($calculation?->result, 'present_value', 0)), 2),
+            'observed_at' => $input['observed_at'] ?? now(),
+            'notes' => $this->nullableString($input['notes'] ?? null),
+            'recorded_by_user_id' => $actor?->getKey(),
+        ]);
+        $this->audit->record('goal.measurement_recorded', subject: $measurement, actor: $actor, after: [
+            'goal_id' => $goal->getKey(),
+            'pv_realised' => $measurement->pv_realised,
+            'pv_calculation_id' => $measurement->pv_calculation_id,
+        ]);
+
+        return $measurement->refresh();
     }
 
     /**

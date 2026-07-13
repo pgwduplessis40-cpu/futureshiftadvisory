@@ -8,10 +8,13 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentChargeLookup;
 
 interface WindcaveClient
 {
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken;
 
     public function charge(PaymentChargeRequest $request): PaymentChargeResult;
+
+    public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup;
 }

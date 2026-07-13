@@ -9,11 +9,15 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentChargeLookup;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentGatewayException;
 use Illuminate\Support\Arr;
 
 final class FakeWindcaveClient implements WindcaveClient
 {
+    /** @var array<string, PaymentChargeResult> */
+    private array $charges = [];
     public function captureAuthority(PaymentAuthorityRequest $request): PaymentAuthorityToken
     {
         if ($this->shouldFail($request)) {
@@ -36,7 +40,7 @@ final class FakeWindcaveClient implements WindcaveClient
     public function charge(PaymentChargeRequest $request): PaymentChargeResult
     {
         if ((bool) Arr::get($request->metadata, 'fixture_fail', false) || (bool) Arr::get($request->metadata, 'fixture_fail_windcave', false)) {
-            throw new PaymentGatewayException('Windcave fixture charge failed.');
+            throw new DefinitivePaymentDecline('Windcave fixture charge failed.');
         }
 
         $hash = substr(hash('sha256', implode('|', [
@@ -46,7 +50,7 @@ final class FakeWindcaveClient implements WindcaveClient
             $request->idempotencyKey,
         ])), 0, 16);
 
-        return new PaymentChargeResult(
+        $result = new PaymentChargeResult(
             gateway: 'windcave',
             gatewayRef: 'txn_windcave_'.$hash,
             status: 'succeeded',
@@ -57,6 +61,18 @@ final class FakeWindcaveClient implements WindcaveClient
                 'customer_ref' => $request->customerRef,
             ],
         );
+        $this->charges[$request->idempotencyKey] = $result;
+
+        return $result;
+    }
+
+    public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup
+    {
+        $charge = $this->charges[$idempotencyKey] ?? null;
+
+        return $charge instanceof PaymentChargeResult
+            ? PaymentChargeLookup::succeeded($charge)
+            : PaymentChargeLookup::unknown();
     }
 
     private function shouldFail(PaymentAuthorityRequest $request): bool

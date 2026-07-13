@@ -8,10 +8,11 @@ use App\Models\DocumentVerification;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\QuoteSourceExtractionClient;
 use App\Services\Ai\Contracts\Uncertainty;
 use Illuminate\Support\Arr;
 
-final class FakeAiClient implements AiClient
+final class FakeAiClient implements AiClient, QuoteSourceExtractionClient
 {
     public const DEGRADED_TEXT = 'AI unavailable — analysis deferred';
 
@@ -73,6 +74,31 @@ final class FakeAiClient implements AiClient
     public function redFlag(PromptEnvelope $prompt): AiResponse
     {
         return $this->degraded($prompt, 'red_flag');
+    }
+
+    public function extractQuoteSource(PromptEnvelope $prompt): AiResponse
+    {
+        $hash = $prompt->hash();
+
+        return new AiResponse(
+            text: 'Draft scope rows prepared from the supplied implementation-plan evidence.',
+            attributions: [[
+                'claim' => 'Draft scope rows prepared from the supplied implementation-plan evidence.',
+                'source_reference' => 'quote-source:'.$hash,
+            ]],
+            uncertainty: Uncertainty::Medium,
+            biasSignals: [],
+            model: 'fake-ai-client',
+            promptVersion: $prompt->version,
+            promptHash: $hash,
+            tokensIn: str_word_count(json_encode($prompt->toArray(), JSON_THROW_ON_ERROR)),
+            tokensOut: 10,
+            metadata: [
+                'task' => 'quote_source_extract',
+                'extracted_rows' => [],
+                'response_id' => substr($hash, 0, 16),
+            ],
+        );
     }
 
     private function degraded(PromptEnvelope $prompt, string $task): AiResponse

@@ -17,6 +17,8 @@ final class ServiceRatePackage extends Model
 
     public const SERVICE_ENTREPRENEUR = 'entrepreneur';
 
+    public const SERVICE_INTEGRATION_SCOPING = 'integration_scoping';
+
     public const BILLING_FIXED_FEE = 'fixed_fee';
 
     public const BILLING_HOURLY_RETAINER = 'hourly_retainer';

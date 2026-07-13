@@ -46,6 +46,7 @@ use App\Services\Fees\ServiceRateManager;
 use App\Services\Npo\GovernanceReviewConversion;
 use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Panels\Coach\SignalDetector;
+use App\Services\Proposals\ProposalBrief;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Questionnaires\QuestionnaireOptimisationLayer;
 use App\Services\ReferenceData\ReferenceDataFreshness;
@@ -64,6 +65,8 @@ use Inertia\Response;
 
 final class DashboardController extends Controller
 {
+    public function __construct(private readonly ProposalBrief $proposalBriefs) {}
+
     public function __invoke(
         Request $request,
         TermsAcceptanceGate $termsGate,
@@ -883,12 +886,12 @@ final class DashboardController extends Controller
         }
 
         $deploymentQuery = StrategicPlan::query()
-            ->with(['client', 'proposal'])
+            ->with(['client', 'proposal.feeCalculation'])
             ->withCount('milestones')
             ->where('status', StrategicPlan::STATUS_DRAFT);
 
         $generationQuery = Proposal::query()
-            ->with('client')
+            ->with(['client', 'feeCalculation'])
             ->where('status', ProposalStatus::Signed->value)
             ->whereNotExists(function ($query): void {
                 $query->selectRaw('1')
@@ -925,6 +928,7 @@ final class DashboardController extends Controller
                     'client_id' => $proposal->client_id,
                     'client_name' => $proposal->client?->legal_name ?? 'Client',
                     'proposal_version' => $proposal->version,
+                    'proposal_brief' => $this->proposalBriefs->for($proposal),
                     'generated_at' => null,
                     'accepted_at' => $proposal->signed_at?->toIso8601String(),
                     'milestones_count' => 0,
@@ -950,6 +954,9 @@ final class DashboardController extends Controller
                 'client_id' => $plan->client_id,
                 'client_name' => $plan->client?->legal_name ?? 'Client',
                 'proposal_version' => $plan->proposal?->version,
+                'proposal_brief' => $plan->proposal instanceof Proposal
+                    ? $this->proposalBriefs->for($plan->proposal)
+                    : null,
                 'generated_at' => $plan->generated_at?->toIso8601String(),
                 'accepted_at' => $plan->proposal?->signed_at?->toIso8601String(),
                 'milestones_count' => (int) ($plan->milestones_count ?? 0),
@@ -1316,7 +1323,7 @@ final class DashboardController extends Controller
             ->whereBetween('expires_at', [now(), now()->addDays(14)]);
         $expiringSoon = (clone $expiryBase)->count();
         $expiryAlerts = $expiryBase
-            ->with('client')
+            ->with(['client', 'feeCalculation'])
             ->orderBy('expires_at')
             ->limit(8)
             ->get()
@@ -1326,6 +1333,7 @@ final class DashboardController extends Controller
                 'client_name' => $proposal->client?->legal_name,
                 'version' => $proposal->version,
                 'status' => $proposal->status->value,
+                'brief' => $this->proposalBriefs->for($proposal),
                 'expires_at' => $proposal->expires_at?->toIso8601String(),
                 'client_url' => route('advisor.clients.show', $proposal->client_id, absolute: false),
             ])

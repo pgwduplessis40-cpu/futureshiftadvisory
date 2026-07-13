@@ -2,7 +2,7 @@ import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFo
 import signoff from './signoff'
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
 export const show = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -17,7 +17,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
 show.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -50,7 +50,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
 show.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -59,7 +59,7 @@ show.get = (args: { proposal: string | { id: string } } | [proposal: string | { 
 })
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
 show.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -69,7 +69,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
 
     /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
     const showForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
 
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
         showForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -88,7 +88,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
         })
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::show
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:144
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:147
  * @route '/portal/proposals/{proposal}'
  */
         showForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -104,7 +104,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
 export const download = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -119,7 +119,7 @@ download.definition = {
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
 download.url = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -152,7 +152,7 @@ download.url = (args: { proposal: string | { id: string } } | [proposal: string 
 
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
 download.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -161,7 +161,7 @@ download.get = (args: { proposal: string | { id: string } } | [proposal: string 
 })
 /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
 download.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -171,7 +171,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
 
     /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
     const downloadForm = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -181,7 +181,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
 
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
         downloadForm.get = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -190,7 +190,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
         })
             /**
 * @see \App\Http\Controllers\Portal\ProposalSignoffController::download
- * @see app/Http/Controllers/Portal/ProposalSignoffController.php:175
+ * @see app/Http/Controllers/Portal/ProposalSignoffController.php:178
  * @route '/portal/proposals/{proposal}/download'
  */
         downloadForm.head = (args: { proposal: string | { id: string } } | [proposal: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({

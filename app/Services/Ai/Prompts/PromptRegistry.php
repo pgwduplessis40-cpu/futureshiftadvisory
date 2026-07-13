@@ -31,6 +31,13 @@ final class PromptRegistry
         );
 
         $this->register(
+            id: 'quote_source.integration_extract',
+            version: '2026-07-integration-quote-source-v1',
+            body: 'Extract only explicit integration-scoping facts from the verified implementation-plan evidence and advisor description. Return draft systems, duplicate-entry tasks, and requested connections. Every draft row must name its document locator or description source and quote the supporting claim. Do not invent API capability, volume, timing, staffing, or costs; omit facts that cannot be evidenced.',
+            task: 'quote_source_extract',
+        );
+
+        $this->register(
             id: 'analysis.financial',
             version: '2026-05-wo44',
             body: 'Analyse the client financial snapshot or questionnaire fallback across profitability, cash flow, drivers, ratios, root cause, and NZ economic overlay. Return evidence-based findings only and cite every factual claim.',

@@ -11,13 +11,17 @@ use App\Models\Client;
 use App\Models\DdEngagement;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetExcelExporter;
+use App\Services\Budgets\StrategicBudgetPdfDocument;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Pdf\PdfRenderer;
 use App\Services\Portal\ClientPortalResolver;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Validation\Rule;
 use Inertia\Inertia;
 use Inertia\Response;
+use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 
 final class StrategicBudgetController extends Controller
 {
@@ -25,6 +29,8 @@ final class StrategicBudgetController extends Controller
         private readonly ClientPortalResolver $clients,
         private readonly StrategicBudgetService $budgets,
         private readonly StrategicBudgetExcelExporter $exporter,
+        private readonly StrategicBudgetPdfDocument $pdfDocument,
+        private readonly PdfRenderer $pdf,
     ) {}
 
     public function show(Request $request): Response
@@ -33,21 +39,42 @@ final class StrategicBudgetController extends Controller
         $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client));
 
         return Inertia::render('portal/StrategicPlanBudget', [
-            'client' => [
-                'id' => $client->id,
-                'legal_name' => $client->legal_name,
-                'trading_name' => $client->trading_name,
-                'engagement_type' => $client->engagement_type instanceof EngagementType
-                    ? $client->engagement_type->value
-                    : (string) $client->engagement_type,
-                'engagement_type_label' => $client->engagement_type instanceof EngagementType
-                    ? $client->engagement_type->label()
-                    : str((string) $client->engagement_type)->replace('_', ' ')->title()->toString(),
-            ],
+            'client' => $this->clientPayload($client),
             'budget' => $this->budgets->portalPayload($budget),
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'onboardingUrl' => route('portal.onboarding.step', ['step' => 'documents'], absolute: false),
             'dashboardUrl' => route('portal.dashboard', absolute: false),
+            'pdfUrl' => route('portal.business-plan-budget.pdf', absolute: false),
+        ]);
+    }
+
+    public function document(Request $request): Response
+    {
+        $client = $this->clients->resolveFor($request);
+        $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client));
+
+        return Inertia::render('portal/StrategicPlanBudgetDocument', [
+            'client' => $this->clientPayload($client),
+            'budget' => $this->budgets->portalPayload($budget),
+            'workspaceUrl' => route('portal.business-plan-budget.show', absolute: false),
+            'pdfUrl' => route('portal.business-plan-budget.pdf', absolute: false),
+            'preparedAt' => now()->toIso8601String(),
+        ]);
+    }
+
+    public function pdf(Request $request): SymfonyResponse
+    {
+        $client = $this->clients->resolveFor($request);
+        $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client));
+        $payload = $this->budgets->portalPayload($budget);
+        $contents = $this->pdf->render($this->pdfDocument->html($client, $payload));
+        $filename = Str::slug($client->trading_name ?: $client->legal_name).'-'.Str::slug((string) ($payload['label'] ?? 'plan-budget')).'.pdf';
+
+        return response($contents, 200, [
+            'Content-Type' => 'application/pdf',
+            'Content-Disposition' => 'inline; filename="'.$filename.'"',
+            'Cache-Control' => 'private, no-store, max-age=0',
+            'X-Content-Type-Options' => 'nosniff',
         ]);
     }
 
@@ -87,7 +114,7 @@ final class StrategicBudgetController extends Controller
         return to_route('portal.business-plan-budget.show')->with('status', 'business-plan-budget-submitted');
     }
 
-    public function export(Request $request): \Symfony\Component\HttpFoundation\Response
+    public function export(Request $request): SymfonyResponse
     {
         $client = $this->clients->resolveFor($request);
         $budget = $this->budgets->ensureForClient($client, $this->latestDueDiligencePlan($client))->load('client');
@@ -180,5 +207,23 @@ final class StrategicBudgetController extends Controller
             ->where('source_type', BusinessPlan::SOURCE_DUE_DILIGENCE)
             ->latest()
             ->first();
+    }
+
+    /**
+     * @return array<string, string|null>
+     */
+    private function clientPayload(Client $client): array
+    {
+        return [
+            'id' => $client->id,
+            'legal_name' => $client->legal_name,
+            'trading_name' => $client->trading_name,
+            'engagement_type' => $client->engagement_type instanceof EngagementType
+                ? $client->engagement_type->value
+                : (string) $client->engagement_type,
+            'engagement_type_label' => $client->engagement_type instanceof EngagementType
+                ? $client->engagement_type->label()
+                : str((string) $client->engagement_type)->replace('_', ' ')->title()->toString(),
+        ];
     }
 }

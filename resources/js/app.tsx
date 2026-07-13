@@ -5,6 +5,7 @@ import { initializeTheme } from '@/hooks/use-appearance';
 import AdvisorLayout from '@/layouts/AdvisorLayout';
 import AppLayout from '@/layouts/app-layout';
 import AuthLayout from '@/layouts/auth-layout';
+import DocumentLayout from '@/layouts/document-layout';
 import NotificationsLayout from '@/layouts/notifications-layout';
 import PublicLayout from '@/layouts/public-layout';
 import SettingsLayout from '@/layouts/settings/layout';
@@ -22,6 +23,8 @@ createInertiaApp({
                 return PublicLayout;
             case name.startsWith('auth/'):
                 return AuthLayout;
+            case name === 'portal/StrategicPlanBudgetDocument':
+                return DocumentLayout;
             case name === 'portal/entrepreneur/Dashboard':
                 return AppLayout;
             case name.startsWith('portal/messages/'):

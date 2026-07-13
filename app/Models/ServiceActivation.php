@@ -16,6 +16,10 @@ final class ServiceActivation extends Model
 
     public const SERVICE_ENTREPRENEUR = 'entrepreneur';
 
+    public const SERVICE_INTEGRATION_SCOPING = 'integration_scoping';
+
+    public const SERVICE_INTEGRATION = 'integration';
+
     public const STATUS_REQUESTED = 'requested';
 
     public const STATUS_PACKAGE_SELECTED = 'package_selected';
@@ -125,11 +129,21 @@ final class ServiceActivation extends Model
         return $this->belongsTo(MessageThread::class, 'client_message_thread_id');
     }
 
+    /**
+     * @return BelongsTo<Proposal, ServiceActivation>
+     */
+    public function proposal(): BelongsTo
+    {
+        return $this->belongsTo(Proposal::class);
+    }
+
     public function clientLabel(): string
     {
         return match ($this->service_type) {
             self::SERVICE_DUE_DILIGENCE => 'Explore buying a business',
             self::SERVICE_ENTREPRENEUR => 'Test new Business Idea',
+            self::SERVICE_INTEGRATION_SCOPING => 'Systems integration scoping',
+            self::SERVICE_INTEGRATION => 'Systems integration delivery',
             default => $this->client_label,
         };
     }

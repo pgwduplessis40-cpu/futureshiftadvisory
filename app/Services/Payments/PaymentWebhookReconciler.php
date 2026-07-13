@@ -19,6 +19,7 @@ final class PaymentWebhookReconciler
         private readonly ReceiptGenerator $receipts,
         private readonly AuditWriter $audit,
         private readonly RequestContext $context,
+        private readonly InstallmentPaymentProcessor $installments,
     ) {}
 
     /**
@@ -126,6 +127,23 @@ final class PaymentWebhookReconciler
         }
 
         $processedAt = $this->eventTimestamp($payload);
+        $installmentOutcome = $this->installments->settleFromWebhook(
+            $payment,
+            'stripe',
+            $this->scalarString($intent['id'] ?? null) ?? (string) $payment->gateway_ref,
+            $processedAt,
+        );
+        if ($installmentOutcome !== null) {
+            $this->audit->record('payment.webhook_reconciled', subject: $payment, after: [
+                'gateway' => 'stripe',
+                'event_id' => $event->event_id,
+                'event_type' => $event->event_type,
+                'status' => Payment::STATUS_SUCCEEDED,
+                'installment_payment' => true,
+            ]);
+
+            return $this->finish($event, PaymentWebhookEvent::STATUS_PROCESSED, $payment->refresh());
+        }
         $wasSucceeded = $payment->status === Payment::STATUS_SUCCEEDED;
 
         $payment->forceFill([
@@ -170,6 +188,24 @@ final class PaymentWebhookReconciler
         }
 
         $processedAt = $this->eventTimestamp($payload);
+        $installmentOutcome = $this->installments->declineFromWebhook(
+            $payment,
+            'stripe',
+            $this->scalarString($intent['id'] ?? null) ?? (string) $payment->gateway_ref,
+            $this->failureReason($intent),
+            $processedAt,
+        );
+        if ($installmentOutcome !== null) {
+            $this->audit->record('payment.webhook_reconciled', subject: $payment, after: [
+                'gateway' => 'stripe',
+                'event_id' => $event->event_id,
+                'event_type' => $event->event_type,
+                'status' => $installmentOutcome['status'],
+                'installment_payment' => true,
+            ]);
+
+            return $this->finish($event, PaymentWebhookEvent::STATUS_PROCESSED, $payment->refresh());
+        }
         $status = $payment->attempt < $this->maxAttempts()
             ? Payment::STATUS_RETRYING
             : Payment::STATUS_FAILED;
@@ -215,7 +251,7 @@ final class PaymentWebhookReconciler
 
         if ($gatewayRef !== null) {
             $payment = Payment::query()
-                ->with('paymentSchedule')
+                ->with(['paymentSchedule', 'paymentInstallment'])
                 ->where('gateway', 'stripe')
                 ->where('gateway_ref', $gatewayRef)
                 ->first();
@@ -234,7 +270,7 @@ final class PaymentWebhookReconciler
 
         for ($attempt = 1; $attempt <= $attempts; $attempt++) {
             $payment = Payment::query()
-                ->with('paymentSchedule')
+                ->with(['paymentSchedule', 'paymentInstallment'])
                 ->whereKey($paymentId)
                 ->first();
 

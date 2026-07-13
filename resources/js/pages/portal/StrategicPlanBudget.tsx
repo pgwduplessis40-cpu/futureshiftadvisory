@@ -5,6 +5,7 @@ import {
     BookOpen,
     CheckCircle2,
     Download,
+    Eye,
     ExternalLink,
     FileSpreadsheet,
     FileText,
@@ -261,6 +262,7 @@ type Props = {
     documentUploadUrl: string;
     onboardingUrl: string;
     dashboardUrl: string;
+    pdfUrl: string;
 };
 
 type BudgetForm = {
@@ -297,6 +299,7 @@ export default function StrategicPlanBudget({
     documentUploadUrl,
     onboardingUrl,
     dashboardUrl,
+    pdfUrl,
 }: Props) {
     const [file, setFile] = useState<File | null>(null);
     const [uploadKey, setUploadKey] = useState(0);
@@ -409,6 +412,24 @@ export default function StrategicPlanBudget({
         router.post(budget.submit_url, {}, { preserveScroll: true });
     };
 
+    const viewPdf = () => {
+        const previewWindow = window.open('about:blank', '_blank');
+
+        form.post(budget.update_url, {
+            preserveScroll: true,
+            onSuccess: () => {
+                if (previewWindow) {
+                    previewWindow.location.replace(pdfUrl);
+
+                    return;
+                }
+
+                window.location.assign(pdfUrl);
+            },
+            onError: () => previewWindow?.close(),
+        });
+    };
+
     const focusBudgetSection = (
         sectionId: string,
         tab: WorkspaceTab = 'budget',
@@ -479,6 +500,15 @@ export default function StrategicPlanBudget({
                                 />
                                 Dashboard
                             </Link>
+                        </Button>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={form.processing}
+                            onClick={viewPdf}
+                        >
+                            <Eye className="size-4" aria-hidden="true" />
+                            View PDF
                         </Button>
                         <Button
                             type="button"

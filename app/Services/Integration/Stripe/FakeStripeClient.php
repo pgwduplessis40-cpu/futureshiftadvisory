@@ -9,12 +9,16 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentChargeLookup;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Payments\PaymentSetupIntent;
 use Illuminate\Support\Arr;
 
 final class FakeStripeClient implements StripeClient
 {
+    /** @var array<string, PaymentChargeResult> */
+    private array $charges = [];
     public function createSetupIntent(PaymentAuthorityRequest $request): PaymentSetupIntent
     {
         if ($this->shouldFail($request)) {
@@ -62,7 +66,7 @@ final class FakeStripeClient implements StripeClient
     public function charge(PaymentChargeRequest $request): PaymentChargeResult
     {
         if ((bool) Arr::get($request->metadata, 'fixture_fail', false) || (bool) Arr::get($request->metadata, 'fixture_fail_stripe', false)) {
-            throw new PaymentGatewayException('Stripe fixture charge failed.');
+            throw new DefinitivePaymentDecline('Stripe fixture charge failed.');
         }
 
         $hash = substr(hash('sha256', implode('|', [
@@ -72,7 +76,7 @@ final class FakeStripeClient implements StripeClient
             $request->idempotencyKey,
         ])), 0, 16);
 
-        return new PaymentChargeResult(
+        $result = new PaymentChargeResult(
             gateway: 'stripe',
             gatewayRef: 'ch_stripe_'.$hash,
             status: 'succeeded',
@@ -83,6 +87,18 @@ final class FakeStripeClient implements StripeClient
                 'customer_ref' => $request->customerRef,
             ],
         );
+        $this->charges[$request->idempotencyKey] = $result;
+
+        return $result;
+    }
+
+    public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup
+    {
+        $charge = $this->charges[$idempotencyKey] ?? null;
+
+        return $charge instanceof PaymentChargeResult
+            ? PaymentChargeLookup::succeeded($charge)
+            : PaymentChargeLookup::unknown();
     }
 
     private function shouldFail(PaymentAuthorityRequest $request): bool

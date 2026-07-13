@@ -11,6 +11,7 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
+use App\Models\IntegrationScope;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
 use App\Models\Proposal;
@@ -183,6 +184,60 @@ final class ProposalSignoffFlowTest extends TestCase
             'captured_by_user_id' => $clientUser->getKey(),
         ]);
         $this->assertSame(2, $proposal->signoffSteps()->count());
+    }
+
+    public function test_integration_proposals_skip_referral_consent_steps(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-integration-advisor@example.test');
+        $proposal = $this->releasedIntegrationProposal($client, $advisor);
+        $flow = app(SignoffFlow::class);
+
+        $payload = $flow->payload($proposal);
+
+        $this->assertSame([
+            ProposalSignoffStep::STEP_REVIEW,
+            ProposalSignoffStep::STEP_PAYMENT_METHOD,
+            ProposalSignoffStep::STEP_AUTHORITY,
+            ProposalSignoffStep::STEP_SIGNATURE,
+            ProposalSignoffStep::STEP_CONFIRMATION,
+        ], collect($payload['steps'])->pluck('step')->all());
+        $this->assertSame(ProposalSignoffStep::STEP_REVIEW, $payload['next_step']);
+
+        $flow->complete($proposal, ProposalSignoffStep::STEP_REVIEW, [], $clientUser);
+        $this->assertSame(ProposalSignoffStep::STEP_PAYMENT_METHOD, $flow->payload($proposal->refresh())['next_step']);
+
+        $flow->complete($proposal, ProposalSignoffStep::STEP_PAYMENT_METHOD, [
+            'type' => PaymentAuthority::TYPE_CARD,
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'collection_day' => 1,
+        ], $clientUser);
+
+        $this->assertFalse($flow->payload($proposal->refresh())['authority_requires_token']);
+
+        $flow->complete($proposal, ProposalSignoffStep::STEP_AUTHORITY, [], $clientUser);
+        $this->assertSame(ProposalSignoffStep::STEP_SIGNATURE, $flow->payload($proposal->refresh())['next_step']);
+        $this->assertDatabaseHas('payment_authorities', [
+            'proposal_id' => $proposal->id,
+            'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            'status' => PaymentAuthority::STATUS_ACTIVE,
+        ]);
+
+        try {
+            $flow->complete($proposal, ProposalSignoffStep::STEP_INSURANCE_CONSENT, [
+                'election' => Consent::ELECTION_OPT_IN,
+            ], $clientUser);
+            $this->fail('Integration proposals must not accept referral consent steps.');
+        } catch (InvalidArgumentException $exception) {
+            $this->assertSame('Step [insurance_consent] is not required for this proposal.', $exception->getMessage());
+        }
+
+        $this->actingAsMfa($clientUser)
+            ->get(route('portal.proposals.signoff.show', $proposal))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->component('portal/ProposalSignoff')
+                ->has('signoff.steps', 5)
+                ->where('signoff.steps.1.step', ProposalSignoffStep::STEP_PAYMENT_METHOD));
     }
 
     public function test_completed_payment_method_can_be_reopened_before_authority_capture(): void
@@ -369,7 +424,8 @@ final class ProposalSignoffFlowTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/Dashboard')
                 ->where('proposals.0.id', $proposal->id)
-                ->where('proposals.0.status', ProposalStatus::Released->value));
+                ->where('proposals.0.status', ProposalStatus::Released->value)
+                ->where('proposals.0.brief', (string) $proposal->scope['summary']));
 
         $this->actingAsMfa($clientUser)
             ->get(route('portal.proposals.signoff.show', $proposal))
@@ -377,6 +433,7 @@ final class ProposalSignoffFlowTest extends TestCase
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('portal/ProposalSignoff')
                 ->where('proposal.id', $proposal->id)
+                ->where('proposal.brief', (string) $proposal->scope['summary'])
                 ->where('proposal.view_url', route('portal.proposals.show', $proposal, absolute: false))
                 ->where('proposal.download_url', route('portal.proposals.download', $proposal, absolute: false))
                 ->where('proposal.payment_terms.currency', 'NZD')
@@ -636,6 +693,51 @@ final class ProposalSignoffFlowTest extends TestCase
         ]);
 
         return $builder->release($proposal, $advisor);
+    }
+
+    private function releasedIntegrationProposal(Client $client, User $advisor): Proposal
+    {
+        $scope = IntegrationScope::query()->create([
+            'client_id' => $client->getKey(),
+            'status' => IntegrationScope::STATUS_COMPLETE,
+            'delivery_mode' => IntegrationScope::DELIVERY_INHOUSE,
+            'computed' => [
+                'complexity_band' => 'L',
+                'quoted_fee' => 45_000,
+                'quote_range' => ['low' => 40_000, 'mid' => 45_000, 'high' => 50_000],
+            ],
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $calculation = FeeCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'integration_scope_id' => $scope->getKey(),
+            'method' => FeeMethod::Integration,
+            'inputs' => ['integration_scope_id' => $scope->getKey()],
+            'suggested_low' => 40_000,
+            'suggested_mid' => 45_000,
+            'suggested_high' => 50_000,
+            'improvement_pv_total' => 100_000,
+            'risk_cost_pv_total' => 0,
+            'roi_ratio' => 2.22,
+            'justification' => ['method' => FeeMethod::Integration->value],
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        return Proposal::query()->create([
+            'client_id' => $client->getKey(),
+            'fee_calculation_id' => $calculation->getKey(),
+            'status' => ProposalStatus::Released,
+            'version' => 1,
+            'scope' => ['proposal_variant' => FeeMethod::Integration->value],
+            'services' => [],
+            'pv_summary' => ['fee_suggested_mid' => 45_000],
+            'roi_ratio' => 2.22,
+            'acceptance_terms' => ['referral_consents_required' => false],
+            'released_at' => now(),
+            'released_by_user_id' => $advisor->getKey(),
+            'expires_at' => now()->addDays(30),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
     }
 
     private function feeCalculation(Client $client, float $suggestedMid = 10000): FeeCalculation

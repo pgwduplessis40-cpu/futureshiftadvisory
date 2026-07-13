@@ -96,6 +96,7 @@ final class PvEngine implements ProvidesMethodology
     /**
      * @param  array<int|string, int|float>  $cashFlows
      * @param  array<string, mixed>  $discountOptions
+     * @param  array<int, array<string, mixed>>  $sourceAttributions
      */
     public function calculate(
         Client $client,
@@ -104,6 +105,7 @@ final class PvEngine implements ProvidesMethodology
         array $cashFlows,
         array $discountOptions = [],
         ?CarbonInterface $asAt = null,
+        array $sourceAttributions = [],
     ): PvCalculation {
         $asAt ??= now();
         $rate = $this->discountRates->resolve($client, $discountMethod, $discountOptions);
@@ -126,7 +128,7 @@ final class PvEngine implements ProvidesMethodology
             ],
             'as_at' => $asAt,
             'created_by_user_id' => Auth::id(),
-            'source_attributions' => $rate->sourceAttributions,
+            'source_attributions' => $sourceAttributions !== [] ? $sourceAttributions : $rate->sourceAttributions,
         ]);
 
         $this->audit->record(

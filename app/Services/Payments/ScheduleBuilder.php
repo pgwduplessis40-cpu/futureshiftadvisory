@@ -17,7 +17,10 @@ use InvalidArgumentException;
 
 final class ScheduleBuilder
 {
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly InstallmentScheduleBuilder $installments,
+    ) {}
 
     /**
      * @param  array{cadence?: string, amount?: int|float|string|null, currency?: string|null, collection_day?: int|string|null, next_run_at?: CarbonInterface|string|null}  $input
@@ -78,6 +81,8 @@ final class ScheduleBuilder
                 'collection_day' => $collectionDay,
                 'next_run_at' => $nextRunAt->toIso8601String(),
             ]);
+
+            $this->installments->ensureFirstForIntegrationProposal($schedule, $proposal, $actor);
 
             return $schedule->refresh();
         });

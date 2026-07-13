@@ -6,6 +6,7 @@ namespace Database\Seeders;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\FeeMethod;
 use App\Enums\EntrepreneurStage;
 use App\Enums\NpoConversionStatus;
 use App\Enums\NpoEngagementSubType;
@@ -15,12 +16,16 @@ use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
 use App\Enums\ReportType;
 use App\Models\BusinessPlan;
+use App\Models\BillingAdjustment;
 use App\Models\Client;
 use App\Models\ClientFunderAlert;
 use App\Models\Consent;
 use App\Models\Document;
 use App\Models\EconomicIndicator;
 use App\Models\Funder;
+use App\Models\FeeCalculation;
+use App\Models\IntegrationFeeBand;
+use App\Models\IntegrationScope;
 use App\Models\LearningUpdate;
 use App\Models\NpoComplianceAlert;
 use App\Models\NpoDimensionScore;
@@ -31,6 +36,8 @@ use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
+use App\Models\QuoteSourceExtraction;
+use App\Models\QuoteSourceExtractionDocument;
 use App\Models\Questionnaire;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
@@ -40,6 +47,8 @@ use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Fees\FeeCalculator;
+use App\Services\Integrations\IntegrationScopeService;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Proposals\SignedProposalEvidenceRenderer;
 use App\Services\Storage\KeyEnvelope;
@@ -104,6 +113,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedServicePackagesAndActivationFlow();
             $this->seedClientDocumentsAndQuestionnaires();
             $this->seedFinancialsAndAnalysis();
+            $this->seedIntegrationEfficiencyService();
             $this->seedEntrepreneurJourney();
             $this->seedGoalsProposalsAndPayments();
             $this->seedNpoModuleData();
@@ -1651,6 +1661,367 @@ XML);
                 $this->linkFindingToPvItem($findingId, $riskId);
             }
         }
+    }
+
+    private function seedIntegrationEfficiencyService(): void
+    {
+        $advisor = $this->users['advisor'];
+        $client = $this->clients['advisory'];
+        $bands = [
+            ['S', 'inhouse', 3500, 4500, 5500],
+            ['M', 'inhouse', 6500, 8000, 9500],
+            ['L', 'inhouse', 12000, 15000, 18000],
+            ['XL', 'inhouse', 45000, 45000, 45000],
+            ['S', 'lowcode', 3000, 4000, 5000],
+            ['M', 'lowcode', 5500, 7000, 8500],
+            ['L', 'lowcode', 9500, 12000, 15000],
+            ['XL', 'lowcode', 35000, 35000, 35000],
+            ['S', 'partner', 4500, 5500, 6500],
+            ['M', 'partner', 7500, 9000, 11000],
+            ['L', 'partner', 14000, 17000, 21000],
+            ['XL', 'partner', 50000, 50000, 50000],
+            ['S', 'mixed', 4000, 5000, 6000],
+            ['M', 'mixed', 7000, 8500, 10000],
+            ['L', 'mixed', 13000, 16000, 19000],
+            ['XL', 'mixed', 47000, 47000, 47000],
+        ];
+
+        foreach ($bands as [$band, $deliveryMode, $low, $mid, $high]) {
+            IntegrationFeeBand::query()->updateOrCreate([
+                'complexity_band' => $band,
+                'delivery_mode' => $deliveryMode,
+            ], [
+                'fee_low' => $low,
+                'fee_mid' => $mid,
+                'fee_high' => $high,
+                'currency' => 'NZD',
+                'is_active' => true,
+                'updated_by_user_id' => $advisor->getKey(),
+            ]);
+        }
+
+        $scope = IntegrationScope::query()
+            ->where('client_id', $client->getKey())
+            ->first();
+
+        if (! $scope instanceof IntegrationScope) {
+            $scope = app(IntegrationScopeService::class)->create($client, [
+                'systems' => [
+                    [
+                        'id' => 'xero',
+                        'name' => 'Xero',
+                        'vendor' => 'Xero',
+                        'role' => 'Accounting and invoice ledger',
+                        'api_quality' => 'rest_public',
+                        'auth' => 'oauth',
+                        'monthly_records' => 2800,
+                        'confidence' => 'known',
+                        'source' => 'manual',
+                    ],
+                    [
+                        'id' => 'field-service',
+                        'name' => 'Field Service Board',
+                        'vendor' => 'Legacy vendor',
+                        'role' => 'Job completion and time capture',
+                        'api_quality' => 'none',
+                        'auth' => 'none',
+                        'monthly_records' => 12500,
+                        'confidence' => 'estimate',
+                        'source' => 'manual',
+                    ],
+                    [
+                        'id' => 'crm',
+                        'name' => 'Client CRM',
+                        'vendor' => 'HubSpot',
+                        'role' => 'Customer and sales record',
+                        'api_quality' => 'rest_partner',
+                        'auth' => 'oauth',
+                        'monthly_records' => 8400,
+                        'confidence' => 'estimate',
+                        'source' => 'manual',
+                    ],
+                ],
+                'tasks' => [
+                    [
+                        'id' => 'invoice-rekeying',
+                        'description' => 'Re-key completed field jobs into Xero invoices',
+                        'system_ids' => ['field-service', 'xero'],
+                        'minutes_per_occurrence' => 14,
+                        'occurrences_per' => 'day',
+                        'people_count' => 2,
+                        'hourly_cost' => 52,
+                        'confidence' => 'known',
+                        'source' => 'manual',
+                    ],
+                    [
+                        'id' => 'crm-status',
+                        'description' => 'Re-key job progress into the client CRM',
+                        'system_ids' => ['field-service', 'crm'],
+                        'minutes_per_occurrence' => 9,
+                        'occurrences_per' => 'day',
+                        'people_count' => 2,
+                        'hourly_cost' => 48,
+                        'confidence' => 'estimate',
+                        'source' => 'manual',
+                    ],
+                ],
+                'connections' => [
+                    [
+                        'id' => 'field-to-xero',
+                        'from_system' => 'field-service',
+                        'to_system' => 'xero',
+                        'direction' => 'one_way',
+                        'transform_complexity' => 'med',
+                        'task_ids' => ['invoice-rekeying'],
+                        'confidence' => 'estimate',
+                        'source' => 'manual',
+                    ],
+                    [
+                        'id' => 'crm-to-field',
+                        'from_system' => 'crm',
+                        'to_system' => 'field-service',
+                        'direction' => 'two_way',
+                        'transform_complexity' => 'high',
+                        'task_ids' => ['crm-status'],
+                        'confidence' => 'estimate',
+                        'source' => 'manual',
+                    ],
+                ],
+                'delivery_mode' => IntegrationScope::DELIVERY_INHOUSE,
+                'capture_percent' => 80,
+                'savings_horizon_years' => 3,
+                'discount_rate_percent' => 12,
+                'source_document_ids' => [],
+            ], $advisor);
+        }
+
+        $scope = $this->seedIntegrationQuoteSourcePlan($scope, $client, $advisor);
+
+        $calculation = FeeCalculation::query()
+            ->where('client_id', $client->getKey())
+            ->where('integration_scope_id', $scope->getKey())
+            ->where('method', FeeMethod::Integration)
+            ->first();
+
+        if (! $calculation instanceof FeeCalculation) {
+            $calculation = app(FeeCalculator::class)->calculate($client, FeeMethod::Integration, [
+                'integration_scope_id' => $scope->getKey(),
+            ], [
+                'created_by_user_id' => $advisor->getKey(),
+            ]);
+        }
+
+        $package = ServiceRatePackage::query()->updateOrCreate([
+            'service_type' => ServiceActivation::SERVICE_INTEGRATION_SCOPING,
+            'package_name' => 'Integration Scoping Workshop',
+        ], [
+            'client_label' => 'Systems & Integration Efficiency Scoping',
+            'billing_model' => ServiceRatePackage::BILLING_FIXED_FEE,
+            'fixed_fee' => 1200,
+            'hourly_rate' => null,
+            'retainer_amount' => null,
+            'purchase_price_min' => null,
+            'purchase_price_max' => null,
+            'currency' => 'NZD',
+            'scope_description' => 'Advisor-led systems inventory, duplicate-entry analysis, integration complexity assessment, and Quote Pack.',
+            'is_active' => true,
+            'effective_from' => $this->now,
+            'effective_to' => null,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $activationId = $this->upsert('service_activations', [
+            'client_id' => $client->getKey(),
+            'service_type' => ServiceActivation::SERVICE_INTEGRATION_SCOPING,
+        ], [
+            'requested_by_user_id' => $advisor->getKey(),
+            'advisor_id' => $advisor->getKey(),
+            'approved_by_user_id' => $advisor->getKey(),
+            'service_rate_package_id' => $package->getKey(),
+            'client_label' => 'Systems integration scoping',
+            'status' => ServiceActivation::STATUS_ACTIVE,
+            'intake' => $this->json([]),
+            'selected_package_snapshot' => $this->json($package->snapshot()),
+            'payment_status' => ServiceActivation::PAYMENT_PAID,
+            'payment_completed_at' => $this->now->copy()->subDays(10),
+            'payment_completed_by_user_id' => $this->users['primary']->getKey(),
+            'payment_reference' => 'seed-integration-scoping-paid',
+            'deposit_paid_at' => $this->now->copy()->subDays(10),
+            'deposit_paid_by_user_id' => $this->users['primary']->getKey(),
+            'deposit_reference' => 'seed-integration-scoping-paid',
+            'balance_received_at' => null,
+            'balance_received_by_user_id' => null,
+            'balance_reference' => null,
+            'accepted_by_user_id' => $this->users['primary']->getKey(),
+            'accepted_at' => $this->now->copy()->subDays(10),
+            'acceptance_text' => 'Seeded advisor offer and paid scoping package consent.',
+            'terms_reference' => $this->json(['source' => 'testing_seed_data']),
+            'related_dd_engagement_id' => null,
+            'related_entrepreneur_profile_id' => null,
+            'client_message_thread_id' => null,
+            'closed_at' => null,
+            'cancelled_at' => null,
+            'metadata' => $this->json(['fixture' => true, 'source' => 'advisor_offer']),
+        ]);
+        $creditId = $this->upsert('billing_adjustments', [
+            'source_service_activation_id' => $activationId,
+        ], [
+            'client_id' => $client->getKey(),
+            'type' => BillingAdjustment::TYPE_SCOPING_FEE_CREDIT,
+            'source_payment_reference' => 'seed-integration-scoping-paid',
+            'amount' => 1200,
+            'currency' => 'NZD',
+            'status' => BillingAdjustment::STATUS_AVAILABLE,
+            'applied_to_proposal_id' => null,
+            'applied_at' => null,
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $scope->forceFill(['scoping_credit_adjustment_id' => $creditId])->save();
+
+        $this->ids['integration_scope'] = $scope->getKey();
+        $this->ids['integration_fee_calculation'] = $calculation->getKey();
+        $this->ids['integration_scoping_activation'] = $activationId;
+        $this->ids['integration_scoping_credit'] = $creditId;
+    }
+
+    private function seedIntegrationQuoteSourcePlan(IntegrationScope $scope, Client $client, User $advisor): IntegrationScope
+    {
+        $storedPath = 'seed/documents/integration-external-implementation-plan.txt';
+        $planText = implode("\n", [
+            'System: Xero; API: rest_public; auth: oauth; monthly records: 2800',
+            'System: Field Service Board; API: none; auth: none; monthly records: 12500',
+            'System: Client CRM; API: rest_partner; auth: oauth; monthly records: 8400',
+            'Task: Re-key completed field jobs into Xero invoices; 14 minutes; 2 people; day; $52/hour',
+            'Connection: Field Service Board -> Xero; one way; med',
+            'Connection: Client CRM -> Field Service Board; two way; high',
+        ]);
+        $documentId = $this->document(
+            key: 'integration-external-implementation-plan.txt',
+            client: $client,
+            category: Document::CATEGORY_PLAN_ATTACHMENT,
+            filename: 'Harbour Hive external implementation plan.txt',
+            uploader: $advisor,
+            scannerResult: Document::SCANNER_CLEAN,
+            expiresAt: null,
+            size: strlen($planText),
+            mimeType: 'text/plain',
+        );
+        if (! is_string($documentId)) {
+            return $scope;
+        }
+
+        Storage::disk('secure_local')->put($storedPath, $planText);
+        DB::table('documents')->where('id', $documentId)->update([
+            'byte_size' => strlen($planText),
+            'sha256' => hash('sha256', $planText),
+            'updated_at' => $this->now,
+        ]);
+
+        $verificationId = $this->verification(
+            documentId: $documentId,
+            context: 'integration-quote-source-plan',
+            client: $client,
+            claim: 'Implementation plan describing the client systems, manual processes, and requested connections, used to scope an integration quote.',
+            outcome: 'verified',
+            confidence: 0.95,
+            explanation: 'The verified seed plan supports the systems, duplicate-entry tasks, and connections in the integration quote.',
+        );
+        if (! is_string($verificationId)) {
+            return $scope;
+        }
+
+        $rows = [
+            [
+                'id' => '019f5a00-0001-7000-8000-000000000001',
+                'type' => 'system',
+                'name' => 'Field Service Board',
+                'vendor' => 'Legacy vendor',
+                'role' => 'Job completion and time capture',
+                'api_quality' => 'none',
+                'auth' => 'none',
+                'monthly_records' => 12500,
+                'confidence' => 'estimate',
+                'source' => 'document',
+                'source_reference' => "document:{$documentId}:line:2",
+                'claim' => 'System: Field Service Board; API: none; auth: none; monthly records: 12500',
+                'review_status' => 'confirmed',
+            ],
+            [
+                'id' => '019f5a00-0002-7000-8000-000000000002',
+                'type' => 'task',
+                'description' => 'Re-key completed field jobs into Xero invoices',
+                'minutes_per_occurrence' => 14,
+                'occurrences_per' => 'day',
+                'people_count' => 2,
+                'hourly_cost' => 52,
+                'confidence' => 'known',
+                'source' => 'document',
+                'source_reference' => "document:{$documentId}:line:4",
+                'claim' => 'Task: Re-key completed field jobs into Xero invoices; 14 minutes; 2 people; day; $52/hour',
+                'review_status' => 'confirmed',
+            ],
+            [
+                'id' => '019f5a00-0003-7000-8000-000000000003',
+                'type' => 'connection',
+                'from_system' => 'field-service',
+                'to_system' => 'xero',
+                'direction' => 'one_way',
+                'transform_complexity' => 'med',
+                'confidence' => 'estimate',
+                'source' => 'document',
+                'source_reference' => "document:{$documentId}:line:5",
+                'claim' => 'Connection: Field Service Board -> Xero; one way; med',
+                'review_status' => 'confirmed',
+            ],
+            [
+                'id' => '019f5a00-0004-7000-8000-000000000004',
+                'type' => 'connection',
+                'from_system' => 'crm',
+                'to_system' => 'field-service',
+                'direction' => 'two_way',
+                'transform_complexity' => 'high',
+                'confidence' => 'estimate',
+                'source' => 'document',
+                'source_reference' => "document:{$documentId}:line:6",
+                'claim' => 'Connection: Client CRM -> Field Service Board; two way; high',
+                'review_status' => 'confirmed',
+            ],
+        ];
+        $extraction = QuoteSourceExtraction::query()->firstOrCreate([
+            'client_id' => $client->getKey(),
+            'scopeable_type' => IntegrationScope::class,
+            'scopeable_id' => $scope->getKey(),
+            'description_text' => 'Verified external implementation plan supplied before integration quote preparation.',
+        ], [
+            'description_captured_at' => $this->now->copy()->subDays(4),
+            'status' => QuoteSourceExtraction::STATUS_EXTRACTED,
+            'extracted_rows' => $rows,
+            'confirmed_row_ids' => array_column($rows, 'id'),
+            'extracted_at' => $this->now->copy()->subDays(4),
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $extraction->forceFill([
+            'status' => QuoteSourceExtraction::STATUS_EXTRACTED,
+            'blocked_reason' => null,
+            'extracted_rows' => $rows,
+            'confirmed_row_ids' => array_column($rows, 'id'),
+            'extracted_at' => $this->now->copy()->subDays(4),
+        ])->save();
+
+        QuoteSourceExtractionDocument::query()->updateOrCreate([
+            'quote_source_extraction_id' => $extraction->getKey(),
+            'document_id' => $documentId,
+        ], [
+            'document_verification_id' => $verificationId,
+            'verification_outcome_at_use' => 'verified',
+        ]);
+
+        return app(IntegrationScopeService::class)->update($scope, [
+            'source_document_ids' => array_values(array_unique([
+                ...((array) $scope->source_document_ids),
+                $documentId,
+            ])),
+        ], $advisor);
     }
 
     private function seedEntrepreneurJourney(): void
@@ -4787,24 +5158,32 @@ XML);
         $budget = $budgetService->update($budget, $this->strategicBudgetPayload($scenario), $clientActor);
         $budget = $budgetService->updateAdvisorGoals($budget, $this->advisorGoalsForBudgetScenario($scenario), $advisor);
 
-        if (in_array($state, [
+        $canSubmit = $budget->isUnlocked()
+            && collect((array) ($budget->business_plan_sections ?? []))
+                ->filter(fn (mixed $section): bool => is_array($section) && trim((string) ($section['answer'] ?? '')) !== '')
+                ->count() === 8;
+        $submitted = false;
+        if ($canSubmit && in_array($state, [
             StrategicBudget::STATUS_SUBMITTED_FOR_REVIEW,
             StrategicBudget::STATUS_ADVISOR_APPROVED,
             StrategicBudget::STATUS_USED_IN_PROPOSAL,
             StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
         ], true)) {
             $budget = $budgetService->submit($budget, $clientActor);
+            $submitted = true;
         }
 
-        if (in_array($state, [
+        $approved = false;
+        if ($submitted && in_array($state, [
             StrategicBudget::STATUS_ADVISOR_APPROVED,
             StrategicBudget::STATUS_USED_IN_PROPOSAL,
             StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
         ], true)) {
             $budget = $budgetService->approve($budget, $advisor);
+            $approved = true;
         }
 
-        if (in_array($state, [
+        if ($approved && in_array($state, [
             StrategicBudget::STATUS_USED_IN_PROPOSAL,
             StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
         ], true) && $proposalId !== null) {
@@ -4815,7 +5194,7 @@ XML);
             }
         }
 
-        if ($state === StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT) {
+        if ($approved && $state === StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT) {
             $budget->forceFill([
                 'status' => StrategicBudget::STATUS_ACCEPTED_PROPOSAL_SNAPSHOT,
                 'proposal_id' => $proposalId,

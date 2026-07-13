@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Advisor;
 
 use App\Enums\ProposalStatus;
+use App\Enums\FeeMethod;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\Consent;
@@ -47,8 +48,6 @@ final class ProposalController extends Controller
                 Rule::exists('fee_calculations', 'id')->where('client_id', $client->getKey()),
             ],
             'scope_summary' => ['nullable', 'string', 'max:2000'],
-            'insurance_consent' => ['required', Rule::in(Consent::elections())],
-            'coach_consent' => ['required', Rule::in(Consent::elections())],
             'budget_override_category' => ['nullable', 'string', Rule::in([
                 'client_urgency',
                 'limited_financials',
@@ -62,6 +61,17 @@ final class ProposalController extends Controller
         $feeCalculation = FeeCalculation::query()
             ->where('client_id', $client->getKey())
             ->findOrFail($validated['fee_calculation_id']);
+        $consents = [];
+        if ($feeCalculation->method !== FeeMethod::Integration) {
+            $consentInput = $request->validate([
+                'insurance_consent' => ['required', Rule::in(Consent::elections())],
+                'coach_consent' => ['required', Rule::in(Consent::elections())],
+            ]);
+            $consents = [
+                Consent::TYPE_INSURANCE_REFERRAL => $consentInput['insurance_consent'],
+                Consent::TYPE_COACH_REFERRAL => $consentInput['coach_consent'],
+            ];
+        }
         $budget = $strategicBudgets->ensureForClient($client);
 
         if (! $budget->isApprovedForProposal()) {
@@ -92,10 +102,7 @@ final class ProposalController extends Controller
         $funnels->enter(FunnelEvent::FLOW_PROPOSAL, 'generate', $client, $user);
         $proposal = $proposals->generate($client, $feeCalculation, [
             'scope' => $scope,
-            'consents' => [
-                Consent::TYPE_INSURANCE_REFERRAL => $validated['insurance_consent'],
-                Consent::TYPE_COACH_REFERRAL => $validated['coach_consent'],
-            ],
+            'consents' => $consents,
         ], [
             'created_by_user_id' => $user->getKey(),
         ]);

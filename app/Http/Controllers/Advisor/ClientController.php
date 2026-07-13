@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Advisor;
 use App\Actions\Clients\PopulateFromNzbn;
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
+use App\Enums\FeeMethod;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
 use App\Enums\ProposalStatus;
@@ -50,6 +51,7 @@ use App\Services\Npo\NpoFunderMonitor;
 use App\Services\Npo\NpoHealthScorer;
 use App\Services\Npo\NpoValueCalculator;
 use App\Services\Npo\SocialEnterpriseAssessment;
+use App\Services\Proposals\ProposalBrief;
 use App\Services\Security\InviteIssuer;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Services\StrategicPlans\StrategicPlanService;
@@ -74,6 +76,7 @@ final class ClientController extends Controller
         private readonly DataRoom $dataRoom,
         private readonly NpoEngagementSetup $npoEngagements,
         private readonly IntegrationActivationResolver $integrations,
+        private readonly ProposalBrief $proposalBriefs,
     ) {}
 
     public function index(Request $request, EconomicExposureMapper $economicExposure): Response
@@ -513,7 +516,9 @@ final class ClientController extends Controller
     private function feeCalculationSummaries(Client $client): array
     {
         return FeeCalculation::query()
+            ->with('integrationScope')
             ->where('client_id', $client->getKey())
+            ->whereDoesntHave('proposals')
             ->latest()
             ->limit(5)
             ->get()
@@ -523,9 +528,71 @@ final class ClientController extends Controller
                 'suggested_mid' => $calculation->suggested_mid,
                 'roi_ratio' => $calculation->roi_ratio,
                 'created_at' => $calculation->created_at?->toIso8601String(),
+                'proposal_scope_summary' => $this->proposalScopeSummary($calculation),
             ])
             ->values()
             ->all();
+    }
+
+    private function proposalScopeSummary(FeeCalculation $calculation): ?string
+    {
+        if ($calculation->method !== FeeMethod::Integration || $calculation->integrationScope === null) {
+            return null;
+        }
+
+        $scope = $calculation->integrationScope;
+        $systems = collect($scope->systems ?? [])
+            ->filter(static fn (mixed $system): bool => is_array($system));
+        $systemNames = $systems
+            ->mapWithKeys(fn (array $system): array => [
+                (string) ($system['id'] ?? '') => (string) ($system['name'] ?? $system['vendor'] ?? 'System'),
+            ]);
+        $listedSystems = $systems
+            ->map(fn (array $system): string => (string) ($system['name'] ?? $system['vendor'] ?? 'System'))
+            ->filter()
+            ->unique()
+            ->take(8)
+            ->implode(', ');
+        $listedConnections = collect($scope->connections ?? [])
+            ->filter(static fn (mixed $connection): bool => is_array($connection))
+            ->map(function (array $connection) use ($systemNames): string {
+                $from = $systemNames->get((string) ($connection['from_system'] ?? ''))
+                    ?? str((string) ($connection['from_system'] ?? 'Source system'))->replace('_', ' ')->title()->toString();
+                $to = $systemNames->get((string) ($connection['to_system'] ?? ''))
+                    ?? str((string) ($connection['to_system'] ?? 'Target system'))->replace('_', ' ')->title()->toString();
+                $direction = str((string) ($connection['direction'] ?? 'one_way'))->replace('_', ' ')->lower()->toString();
+
+                return $from.' to '.$to.' ('.$direction.')';
+            })
+            ->take(8)
+            ->implode('; ');
+        $annualHours = (float) data_get($scope->computed, 'annual_hours_wasted', 0);
+        $annualSavings = (float) data_get($scope->computed, 'annual_savings', 0);
+        $delivery = match ($scope->delivery_mode) {
+            'inhouse' => 'In-house',
+            'lowcode' => 'Low-code',
+            'partner' => 'Delivery partner',
+            'mixed' => 'Mixed delivery',
+            default => 'To be confirmed',
+        };
+
+        $parts = ['Design, build, test, and commission the agreed systems integrations.'];
+        if ($listedSystems !== '') {
+            $parts[] = 'Systems in scope: '.$listedSystems.'.';
+        }
+        if ($listedConnections !== '') {
+            $parts[] = 'Connections in scope: '.$listedConnections.'.';
+        }
+        if ($annualHours > 0 || $annualSavings > 0) {
+            $parts[] = sprintf(
+                'The scoped outcome targets %s annual hours returned to the team and NZD %s in annual savings.',
+                number_format($annualHours, 0),
+                number_format($annualSavings, 0),
+            );
+        }
+        $parts[] = 'Delivery model: '.$delivery.'.';
+
+        return implode(' ', $parts);
     }
 
     /**
@@ -541,12 +608,15 @@ final class ClientController extends Controller
             ->get()
             ->map(function (Proposal $proposal): array {
                 $status = $proposal->status;
+                $method = $proposal->feeCalculation?->method?->value ?? 'advisory';
 
                 return [
                     'id' => $proposal->id,
                     'status' => $status->value,
                     'status_label' => str($status->value)->replace('_', ' ')->title()->toString(),
                     'version' => $proposal->version,
+                    'fee_method_label' => str($method)->replace('_', ' ')->title()->toString(),
+                    'brief' => $this->proposalBriefs->for($proposal),
                     'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
                     'roi_ratio' => $proposal->roi_ratio,
                     'released_at' => $proposal->released_at?->toIso8601String(),

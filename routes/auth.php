@@ -108,6 +108,8 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::post('service-rates/packages', [ServiceRateController::class, 'storePackage'])->name('service-rates.packages.store');
             Route::patch('service-rates/packages/{serviceRatePackage}', [ServiceRateController::class, 'updatePackage'])->name('service-rates.packages.update');
             Route::patch('service-rates/packages/{serviceRatePackage}/status', [ServiceRateController::class, 'togglePackage'])->name('service-rates.packages.toggle');
+            Route::post('service-rates/integration-fee-bands', [ServiceRateController::class, 'storeIntegrationFeeBand'])->name('service-rates.integration-fee-bands.store');
+            Route::post('service-rates/integration-fee-bands/import', [ServiceRateController::class, 'importIntegrationFeeBands'])->name('service-rates.integration-fee-bands.import');
 
             Route::get('rating-frameworks', [RatingFrameworkController::class, 'index'])->name('rating-frameworks.index');
             Route::post('rating-frameworks/drafts', [RatingFrameworkController::class, 'storeDraft'])->name('rating-frameworks.drafts.store');

@@ -6,6 +6,7 @@ namespace App\Services\Payments;
 
 use App\Models\ClientTeamMember;
 use App\Models\PaymentAuthority;
+use App\Models\Payment;
 use App\Models\User;
 use App\Notifications\PaymentGatewayFailureNotification;
 use App\Services\Audit\AuditWriter;
@@ -50,7 +51,7 @@ final class Gateway
         }
 
         $tokenPayload = $this->tokenPayload($authority);
-        $primary = $this->primaryGateway();
+        $primary = $this->preferredGateway();
         $secondary = $this->secondaryGateway($primary);
         $idempotencyKey = (string) ($options['idempotency_key'] ?? 'charge-'.$authority->getKey().'-'.Str::uuid());
 
@@ -59,7 +60,7 @@ final class Gateway
             $this->auditSuccess($authority, $result, $actor);
 
             return $result;
-        } catch (PaymentGatewayException $primaryFailure) {
+        } catch (DefinitivePaymentDecline $primaryFailure) {
             $this->audit->record('payment_gateway.primary_failed', subject: $authority, actor: $actor, after: [
                 'gateway' => $primary,
                 'reason' => $primaryFailure->getMessage(),
@@ -89,7 +90,27 @@ final class Gateway
 
                 throw new PaymentGatewayException('Both payment gateways failed for the charge attempt.', previous: $secondaryFailure);
             }
+        } catch (PaymentGatewayException $ambiguousFailure) {
+            $this->audit->record('payment_gateway.awaiting_confirmation', subject: $authority, actor: $actor, after: [
+                'gateway' => $primary,
+                'reason' => $ambiguousFailure->getMessage(),
+            ]);
+
+            throw $ambiguousFailure;
         }
+    }
+
+    public function findCharge(Payment $payment): PaymentChargeLookup
+    {
+        $payment->loadMissing('paymentInstallment');
+        $gateway = $payment->gateway ?? $payment->paymentInstallment?->attempted_gateway;
+        if (! in_array($gateway, PaymentAuthority::gateways(), true)) {
+            return PaymentChargeLookup::unknown();
+        }
+
+        return $gateway === PaymentAuthority::GATEWAY_STRIPE
+            ? $this->stripe->findCharge($payment->gateway_ref, (string) $payment->idempotency_key, (string) $payment->getKey())
+            : $this->windcave->findCharge($payment->gateway_ref, (string) $payment->idempotency_key, (string) $payment->getKey());
     }
 
     /**
@@ -181,7 +202,7 @@ final class Gateway
         return $decoded;
     }
 
-    private function primaryGateway(): string
+    public function preferredGateway(): string
     {
         $configured = (string) Config::get('integrations.payments.primary_gateway', PaymentAuthority::GATEWAY_STRIPE);
 

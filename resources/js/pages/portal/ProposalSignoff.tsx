@@ -35,6 +35,7 @@ type ProposalPayload = {
     status_label: string;
     client_name: string | null;
     scope_summary: string;
+    brief: string;
     suggested_mid: number | null;
     payment_terms: PaymentTermsPayload;
     roi_ratio: number;
@@ -140,6 +141,14 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
         ) ??
         signoff.steps.find((step) => step.step === defaultStepName) ??
         signoff.steps.at(-1);
+    const hasReferralConsents = signoff.steps.some(
+        (step) =>
+            step.step === 'insurance_consent' || step.step === 'coach_consent',
+    );
+    const signoffGridClass =
+        signoff.steps.length <= 5
+            ? 'grid gap-3 md:grid-cols-5'
+            : 'grid gap-3 md:grid-cols-7';
 
     return (
         <>
@@ -206,7 +215,7 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                                 {proposal.status_label}
                             </Badge>
                             <p className="max-w-3xl text-sm text-muted-foreground">
-                                {proposal.scope_summary}
+                                {proposal.brief || proposal.scope_summary}
                             </p>
                         </div>
                         <div className="text-sm font-medium">
@@ -220,7 +229,7 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                         <CheckCircle2 className="size-4" aria-hidden="true" />
                         <h2 className="text-sm font-medium">Sign-off</h2>
                     </div>
-                    <div className="grid gap-3 md:grid-cols-7">
+                    <div className={signoffGridClass}>
                         {signoff.steps.map((step) => {
                             const selectable = canSelectStep(step);
                             const selected = currentStep?.step === step.step;
@@ -283,22 +292,26 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                     </div>
                 </section>
 
-                <ConsentUpdate
-                    steps={signoff.steps}
-                    proposal={proposal}
-                    type="insurance_referral"
-                    step="insurance_consent"
-                    label="Insurance"
-                    locked={signoff.next_step === null}
-                />
-                <ConsentUpdate
-                    steps={signoff.steps}
-                    proposal={proposal}
-                    type="coach_referral"
-                    step="coach_consent"
-                    label="Coach"
-                    locked={signoff.next_step === null}
-                />
+                {hasReferralConsents ? (
+                    <>
+                        <ConsentUpdate
+                            steps={signoff.steps}
+                            proposal={proposal}
+                            type="insurance_referral"
+                            step="insurance_consent"
+                            label="Insurance"
+                            locked={signoff.next_step === null}
+                        />
+                        <ConsentUpdate
+                            steps={signoff.steps}
+                            proposal={proposal}
+                            type="coach_referral"
+                            step="coach_consent"
+                            label="Coach"
+                            locked={signoff.next_step === null}
+                        />
+                    </>
+                ) : null}
 
                 {currentStep && (
                     <CurrentStepPanel
@@ -931,8 +944,8 @@ function AuthorityFields({
     if (!requiresToken) {
         return (
             <div className="rounded-md border bg-muted/30 p-4 text-sm text-muted-foreground">
-                Payment authority will be generated for this test flow when you
-                continue.
+                A test payment authority will be created when you continue. No
+                live card or bank details are used in this environment.
             </div>
         );
     }

@@ -169,7 +169,7 @@ requestChanges.patch = (args: { entrepreneurProfile: string | { id: string }, id
                     }),
             method: 'post',
         })
-
+    
     requestChanges.form = requestChangesForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh

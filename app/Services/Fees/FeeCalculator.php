@@ -11,9 +11,11 @@ use App\Models\Client;
 use App\Models\FeeCalculation;
 use App\Models\FinancialSnapshot;
 use App\Models\ImprovementOpportunity;
+use App\Models\IntegrationScope;
 use App\Models\NpoEngagement;
 use App\Models\RiskCost;
 use App\Services\Audit\AuditWriter;
+use App\Services\QuoteSources\IntegrationScopeQuoteSourceGate;
 use App\Support\Methodology\ProvidesMethodology;
 use Illuminate\Support\Facades\Auth;
 use InvalidArgumentException;
@@ -22,12 +24,13 @@ final class FeeCalculator implements ProvidesMethodology
 {
     public static function methodologyIds(): array
     {
-        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur', 'fees.governance_review', 'fees.npo_retainer'];
+        return ['fees.hours_based', 'fees.outcome_based', 'fees.entrepreneur', 'fees.governance_review', 'fees.npo_retainer', 'fees.integration'];
     }
 
     public function __construct(
         private readonly AuditWriter $audit,
         private readonly ServiceRateManager $serviceRates,
+        private readonly IntegrationScopeQuoteSourceGate $quoteSources,
     ) {}
 
     /**
@@ -37,7 +40,18 @@ final class FeeCalculator implements ProvidesMethodology
     public function calculate(Client $client, FeeMethod $method, array $inputs = [], array $options = []): FeeCalculation
     {
         $inputs = $this->normaliseInputs($method, $inputs);
-        $pv = $this->pvTotals($client);
+        $integrationScope = $method === FeeMethod::Integration
+            ? $this->integrationScope($client, $inputs['integration_scope_id'] ?? null)
+            : null;
+        if ($integrationScope instanceof IntegrationScope) {
+            $this->quoteSources->assertReady($integrationScope);
+            $inputs['quote_source_document_ids'] = is_array($integrationScope->source_document_ids)
+                ? array_values($integrationScope->source_document_ids)
+                : [];
+        }
+        $pv = $integrationScope instanceof IntegrationScope
+            ? ['improvement' => (float) data_get($integrationScope->computed, 'pv_savings', 0), 'risk' => 0.0]
+            : $this->pvTotals($client);
         $npoEngagement = $this->npoEngagement(
             $client,
             $inputs['npo_engagement_id'] ?? $options['npo_engagement_id'] ?? null,
@@ -49,6 +63,7 @@ final class FeeCalculator implements ProvidesMethodology
             FeeMethod::Entrepreneur => $this->entrepreneur($inputs),
             FeeMethod::GovernanceReview => $this->governanceReview($inputs),
             FeeMethod::NpoRetainer => $this->npoRetainer($inputs, $npoEngagement),
+            FeeMethod::Integration => $this->integration($integrationScope),
         };
 
         if ($this->serviceRates->freeAccessModeActive()) {
@@ -58,6 +73,7 @@ final class FeeCalculator implements ProvidesMethodology
         $calculation = FeeCalculation::query()->create([
             'client_id' => $client->getKey(),
             'npo_engagement_id' => $npoEngagement?->getKey(),
+            'integration_scope_id' => $integrationScope?->getKey(),
             'method' => $method,
             'inputs' => $inputs,
             'suggested_low' => $result['low'],
@@ -73,6 +89,7 @@ final class FeeCalculator implements ProvidesMethodology
         $this->audit->record('fee_calculation.created', subject: $calculation, after: [
             'method' => $method->value,
             'npo_engagement_id' => $npoEngagement?->getKey(),
+            'integration_scope_id' => $integrationScope?->getKey(),
             'suggested_mid' => $calculation->suggested_mid,
             'improvement_pv_total' => $calculation->improvement_pv_total,
             'risk_cost_pv_total' => $calculation->risk_cost_pv_total,
@@ -99,6 +116,60 @@ final class FeeCalculator implements ProvidesMethodology
                 ->active()
                 ->sum('pv_of_cost'), 2),
         ];
+    }
+
+    /**
+     * @return array{low:float,mid:float,high:float,justification:array<string,mixed>}
+     */
+    private function integration(?IntegrationScope $scope): array
+    {
+        if (! $scope instanceof IntegrationScope || ! $scope->isComplete()) {
+            throw new InvalidArgumentException('An integration fee calculation requires a complete integration scope.');
+        }
+
+        $blocking = collect($scope->flags ?? [])->contains(static fn (mixed $flag): bool => is_array($flag) && (bool) ($flag['blocking'] ?? false));
+        if ($blocking) {
+            throw new InvalidArgumentException('Resolve blocking integration scope flags before generating a fee calculation.');
+        }
+
+        $range = (array) data_get($scope->computed, 'quote_range', []);
+        if (! isset($range['low'], $range['mid'], $range['high'])) {
+            throw new InvalidArgumentException('The integration scope needs a calculated quote range.');
+        }
+
+        return [
+            'low' => (float) $range['low'],
+            'mid' => (float) data_get($scope->computed, 'quoted_fee', $range['mid']),
+            'high' => (float) $range['high'],
+            'justification' => [
+                'method' => FeeMethod::Integration->value,
+                'basis' => 'Fixed integration fee from the approved complexity band and delivery mode.',
+                'integration_scope_id' => $scope->getKey(),
+                'complexity_band' => data_get($scope->computed, 'complexity_band'),
+                'delivery_mode' => $scope->delivery_mode,
+                'annual_savings' => data_get($scope->computed, 'annual_savings'),
+                'payback_months' => data_get($scope->computed, 'payback_months'),
+                'source_document_ids' => is_array($scope->source_document_ids) ? array_values($scope->source_document_ids) : [],
+                'services' => [[
+                    'name' => 'Systems & Integration Efficiency build',
+                    'fee_method' => FeeMethod::Integration->value,
+                    'complexity_band' => data_get($scope->computed, 'complexity_band'),
+                    'delivery_mode' => $scope->delivery_mode,
+                    'line_total' => (float) data_get($scope->computed, 'quoted_fee', $range['mid']),
+                ]],
+            ],
+        ];
+    }
+
+    private function integrationScope(Client $client, mixed $scopeId): IntegrationScope
+    {
+        if (! is_string($scopeId) || $scopeId === '') {
+            throw new InvalidArgumentException('An integration fee calculation requires integration_scope_id.');
+        }
+
+        return IntegrationScope::query()
+            ->where('client_id', $client->getKey())
+            ->findOrFail($scopeId);
     }
 
     /**

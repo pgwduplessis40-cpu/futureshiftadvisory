@@ -13,6 +13,9 @@ use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentAuthorityToken;
 use App\Services\Payments\PaymentChargeRequest;
 use App\Services\Payments\PaymentChargeResult;
+use App\Services\Payments\PaymentChargeLookup;
+use App\Services\Payments\AmbiguousPaymentOutcome;
+use App\Services\Payments\DefinitivePaymentDecline;
 use App\Services\Payments\PaymentGatewayException;
 use Illuminate\Support\Facades\Config;
 
@@ -89,13 +92,13 @@ final class LiveWindcaveClient implements WindcaveClient
         );
 
         if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
-            throw new PaymentGatewayException('Windcave charge failed.');
+            throw new AmbiguousPaymentOutcome('Windcave charge could not be confirmed.');
         }
 
         $status = (string) data_get($result->data, 'status', data_get($result->data, 'authorized', false) ? 'succeeded' : 'failed');
 
         if (! in_array($status, ['succeeded', 'approved', 'authorized'], true)) {
-            throw new PaymentGatewayException('Windcave charge did not succeed.');
+            throw new DefinitivePaymentDecline('Windcave charge was declined.');
         }
 
         return new PaymentChargeResult(
@@ -109,6 +112,38 @@ final class LiveWindcaveClient implements WindcaveClient
                 'correlation_id' => $result->correlationId,
             ],
         );
+    }
+
+    public function findCharge(?string $gatewayRef, string $idempotencyKey, string $paymentId): PaymentChargeLookup
+    {
+        if ($gatewayRef === null || $gatewayRef === '') {
+            return PaymentChargeLookup::unknown();
+        }
+
+        $result = $this->http->request(
+            method: 'GET',
+            service: 'windcave',
+            endpoint: $this->endpoint('/v1/transactions/'.rawurlencode($gatewayRef)),
+            options: ['headers' => $this->headers('lookup-'.$idempotencyKey)],
+        );
+        if (! $result->successful() || $result->fromFallback || ! is_array($result->data)) {
+            return PaymentChargeLookup::unknown();
+        }
+
+        $status = strtolower((string) data_get($result->data, 'status', ''));
+        if (in_array($status, ['succeeded', 'approved', 'authorized'], true)) {
+            return PaymentChargeLookup::succeeded(new PaymentChargeResult(
+                gateway: 'windcave',
+                gatewayRef: (string) data_get($result->data, 'transactionId', data_get($result->data, 'id', $gatewayRef)),
+                status: $status,
+                amount: number_format((float) data_get($result->data, 'amount', 0), 2, '.', ''),
+                currency: strtoupper((string) data_get($result->data, 'currency', 'NZD')),
+            ));
+        }
+
+        return in_array($status, ['failed', 'declined', 'voided'], true)
+            ? PaymentChargeLookup::notCharged()
+            : PaymentChargeLookup::unknown();
     }
 
     /**

@@ -8,6 +8,7 @@ use App\Enums\Permission;
 use App\Http\Controllers\Controller;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
+use App\Models\Client;
 use App\Models\User;
 use App\Services\ServiceActivations\ServiceActivationManager;
 use Illuminate\Http\RedirectResponse;
@@ -94,6 +95,22 @@ final class ServiceActivationController extends Controller
 
         return to_route('advisor.service-activations.show', $serviceActivation)
             ->with('status', 'service-activation-balance-received');
+    }
+
+    public function offerIntegrationScoping(Request $request, Client $client): RedirectResponse
+    {
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+        abort_unless($user->user_type === User::TYPE_SUPER_ADMIN || in_array((string) $client->getKey(), $user->accessibleClientIds(), true), 404);
+
+        $validated = $request->validate([
+            'service_rate_package_id' => ['required', 'uuid'],
+        ]);
+        $package = ServiceRatePackage::query()->findOrFail($validated['service_rate_package_id']);
+        $activation = $this->activations->offerIntegrationScoping($client, $user, $package);
+
+        return to_route('advisor.service-activations.show', $activation)
+            ->with('status', 'integration-scoping-offered');
     }
 
     private function assertAdvisorCanView(ServiceActivation $activation, User $user): void

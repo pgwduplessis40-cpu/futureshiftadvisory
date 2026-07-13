@@ -62,6 +62,7 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 ->where('proposalStatus.statuses.released', 1)
                 ->where('proposalStatus.expiry_alerts.0.id', $proposal->id)
                 ->where('proposalStatus.expiry_alerts.0.client_id', $client->id)
+                ->where('proposalStatus.expiry_alerts.0.brief', 'Dashboard proposal fixture.')
                 ->where('questionnaireOptimisation.summary.detected_candidates', 1)
                 ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory')
                 ->where('panelOperations.broker.summary.total', 1)

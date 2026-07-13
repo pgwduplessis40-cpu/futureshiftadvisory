@@ -8,6 +8,7 @@ use App\Services\Ai\AiUsageRecorder;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\QuoteSourceExtractionClient;
 use App\Services\Ai\Exceptions\AiIntegrityViolation;
 use App\Services\Ai\Exceptions\AiUnavailableException;
 use App\Services\Integration\IntegrationCredentials;
@@ -17,7 +18,7 @@ use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Str;
 use JsonException;
 
-final class AnthropicClaudeClient implements AiClient
+final class AnthropicClaudeClient implements AiClient, QuoteSourceExtractionClient
 {
     private const PROVIDER = 'anthropic';
 
@@ -58,6 +59,11 @@ final class AnthropicClaudeClient implements AiClient
     public function redFlag(PromptEnvelope $prompt): AiResponse
     {
         return $this->send($prompt, 'red_flag');
+    }
+
+    public function extractQuoteSource(PromptEnvelope $prompt): AiResponse
+    {
+        return $this->send($prompt, 'quote_source_extract');
     }
 
     private function send(PromptEnvelope $prompt, string $task): AiResponse
@@ -266,6 +272,46 @@ final class AnthropicClaudeClient implements AiClient
      */
     private function metadataSchema(string $task): array
     {
+        if ($task === 'quote_source_extract') {
+            return [
+                'type' => 'object',
+                'properties' => [
+                    'extracted_rows' => [
+                        'type' => 'array',
+                        'items' => [
+                            'type' => 'object',
+                            'properties' => [
+                                'id' => ['type' => 'string'],
+                                'type' => ['type' => 'string', 'enum' => ['system', 'task', 'connection']],
+                                'name' => ['type' => 'string'],
+                                'vendor' => ['type' => 'string'],
+                                'role' => ['type' => 'string'],
+                                'api_quality' => ['type' => 'string', 'enum' => ['rest_public', 'rest_partner', 'webhook', 'csv_export', 'none']],
+                                'auth' => ['type' => 'string', 'enum' => ['api_key', 'oauth', 'none']],
+                                'monthly_records' => ['type' => 'number'],
+                                'description' => ['type' => 'string'],
+                                'minutes_per_occurrence' => ['type' => 'number'],
+                                'occurrences_per' => ['type' => 'string', 'enum' => ['day', 'week', 'month']],
+                                'people_count' => ['type' => 'number'],
+                                'hourly_cost' => ['type' => 'number'],
+                                'from_system' => ['type' => 'string'],
+                                'to_system' => ['type' => 'string'],
+                                'direction' => ['type' => 'string', 'enum' => ['one_way', 'two_way']],
+                                'transform_complexity' => ['type' => 'string', 'enum' => ['low', 'med', 'high']],
+                                'source' => ['type' => 'string', 'enum' => ['document', 'description']],
+                                'source_reference' => ['type' => 'string'],
+                                'claim' => ['type' => 'string'],
+                            ],
+                            'required' => ['id', 'type', 'source', 'source_reference', 'claim'],
+                            'additionalProperties' => false,
+                        ],
+                    ],
+                ],
+                'required' => ['extracted_rows'],
+                'additionalProperties' => false,
+            ];
+        }
+
         if ($task === 'analyse') {
             return [
                 'type' => 'object',

@@ -37,6 +37,14 @@ final class FeeCalculation extends Model
     }
 
     /**
+     * @return BelongsTo<IntegrationScope, FeeCalculation>
+     */
+    public function integrationScope(): BelongsTo
+    {
+        return $this->belongsTo(IntegrationScope::class);
+    }
+
+    /**
      * @return BelongsTo<NpoEngagement, FeeCalculation>
      */
     public function npoEngagement(): BelongsTo

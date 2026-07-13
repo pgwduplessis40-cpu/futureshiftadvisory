@@ -7,10 +7,11 @@ namespace App\Services\Ai;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\AiResponse;
 use App\Services\Ai\Contracts\PromptEnvelope;
+use App\Services\Ai\Contracts\QuoteSourceExtractionClient;
 use App\Services\Ai\Integrity\BiasDetector;
 use App\Services\Ai\Integrity\SourceAttribution;
 
-final class IntegrityCheckedAiClient implements AiClient
+final class IntegrityCheckedAiClient implements AiClient, QuoteSourceExtractionClient
 {
     public function __construct(
         private readonly AiClient $delegate,
@@ -41,6 +42,15 @@ final class IntegrityCheckedAiClient implements AiClient
     public function redFlag(PromptEnvelope $prompt): AiResponse
     {
         return $this->checked($prompt, $this->delegate->redFlag($prompt));
+    }
+
+    public function extractQuoteSource(PromptEnvelope $prompt): AiResponse
+    {
+        if (! $this->delegate instanceof QuoteSourceExtractionClient) {
+            return $this->checked($prompt, $this->delegate->analyse($prompt));
+        }
+
+        return $this->checked($prompt, $this->delegate->extractQuoteSource($prompt));
     }
 
     private function checked(PromptEnvelope $prompt, AiResponse $response): AiResponse

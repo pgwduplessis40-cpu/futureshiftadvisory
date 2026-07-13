@@ -145,7 +145,7 @@ final class ProposalBuilderTest extends TestCase
                 ->where('client.proposals.0.can_release', true)
                 ->where('client.proposals.0.view_url', route('advisor.proposals.show', $proposal, absolute: false))
                 ->where('client.proposals.0.download_url', route('advisor.proposals.download', $proposal, absolute: false))
-                ->has('client.fee_calculations', 1)
+                ->has('client.fee_calculations', 0)
                 ->has('client.proposals', 1));
 
         $this->actingAsMfa($advisor)
@@ -648,6 +648,7 @@ final class ProposalBuilderTest extends TestCase
 
         $this->assertSame(ProposalStatus::Signed, $signed->refresh()->status);
         $this->assertSame(ProposalStatus::Draft, $newProposal->refresh()->status);
+        $this->assertSame(2, $newProposal->version);
         $this->assertDatabaseCount('proposals', 6);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'proposal.auto_recalled',
@@ -739,7 +740,7 @@ final class ProposalBuilderTest extends TestCase
         $renewed = $builder->renew($expired, $advisor);
 
         $this->assertSame(ProposalStatus::Renewed, $renewed->status);
-        $this->assertSame(2, $renewed->version);
+        $this->assertSame(3, $renewed->version);
         $this->assertSame($expired->id, $renewed->renewed_from_proposal_id);
         $this->assertNull($renewed->pdf_path);
         $this->assertDatabaseHas('audit_events', [

@@ -11,6 +11,7 @@ use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
+use App\Models\IntegrationScope;
 use App\Models\NpoEngagement;
 use App\Models\Proposal;
 use App\Models\ServiceActivation;
@@ -18,6 +19,7 @@ use App\Models\StrategicPlan;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Integrations\IntegrationScopeProposalGuard;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pv\PvWaterfallBuilder;
 use App\Services\Reports\UploadedReportTemplateRenderer;
@@ -38,6 +40,7 @@ final class ProposalBuilder
         private readonly PvWaterfallBuilder $waterfalls,
         private readonly AuditWriter $audit,
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
+        private readonly IntegrationScopeProposalGuard $integrationScopeGuard,
     ) {}
 
     /**
@@ -50,22 +53,29 @@ final class ProposalBuilder
             throw new InvalidArgumentException('Fee calculation must belong to the proposal client.');
         }
 
+        $integrationScope = $this->integrationScopeGuard->assertFeeCalculationReady($feeCalculation);
+
         $npoEngagementId = $this->npoEngagementIdForProposal(
             $client,
             $feeCalculation,
             $input['npo_engagement_id'] ?? $options['npo_engagement_id'] ?? null,
         );
 
-        return DB::transaction(function () use ($client, $feeCalculation, $input, $options, $npoEngagementId): Proposal {
+        return DB::transaction(function () use ($client, $feeCalculation, $input, $options, $npoEngagementId, $integrationScope): Proposal {
+            // Serialize proposal generation per client before assigning the next visible version.
+            Client::query()->whereKey($client->getKey())->lockForUpdate()->firstOrFail();
             $createdByUserId = $this->normaliseUserId($options['created_by_user_id'] ?? null);
             $recalledProposalIds = $this->recallCurrentProposalsForClient($client, $createdByUserId);
+            $nextVersion = ((int) Proposal::query()
+                ->where('client_id', $client->getKey())
+                ->max('version')) + 1;
 
             $proposal = Proposal::query()->create([
                 'client_id' => $client->getKey(),
                 'npo_engagement_id' => $npoEngagementId,
                 'fee_calculation_id' => $feeCalculation->getKey(),
                 'status' => ProposalStatus::Draft,
-                'version' => 1,
+                'version' => $nextVersion,
                 'scope' => $this->scope($client, $feeCalculation, $input),
                 'services' => $this->services($feeCalculation, $input),
                 'pv_summary' => $this->pvSummary($client, $feeCalculation, $npoEngagementId),
@@ -74,7 +84,13 @@ final class ProposalBuilder
                 'created_by_user_id' => $createdByUserId,
             ]);
 
-            $this->writeConsents($proposal, $input['consents'] ?? []);
+            if ($feeCalculation->method !== FeeMethod::Integration) {
+                $this->writeConsents($proposal, $input['consents'] ?? []);
+            }
+
+            if ($integrationScope !== null) {
+                $integrationScope->forceFill(['proposal_id' => $proposal->getKey()])->save();
+            }
 
             $this->audit->record('proposal.generated', subject: $proposal, after: [
                 'client_id' => $client->getKey(),
@@ -90,7 +106,8 @@ final class ProposalBuilder
 
     public function release(Proposal $proposal, User $actor, ?int $expiryDays = null): Proposal
     {
-        $proposal = $proposal->refresh();
+        $proposal = $proposal->refresh()->load('feeCalculation.integrationScope');
+        $this->integrationScopeGuard->assertProposalReady($proposal);
         $expiryDays ??= $this->defaultExpiryDays();
 
         if (! in_array($proposal->status, [ProposalStatus::Draft, ProposalStatus::Renewed], true)) {
@@ -139,6 +156,8 @@ final class ProposalBuilder
     public function renew(Proposal $proposal, User $actor): Proposal
     {
         $proposal = $proposal->refresh()->load(['client', 'feeCalculation', 'consents']);
+        $proposal->loadMissing('feeCalculation.integrationScope');
+        $this->integrationScopeGuard->assertProposalReady($proposal);
 
         if ($proposal->status !== ProposalStatus::Expired) {
             throw new InvalidArgumentException('Only expired proposals can be renewed.');
@@ -295,12 +314,18 @@ final class ProposalBuilder
         $scope = is_array($input['scope'] ?? null) ? $input['scope'] : [];
         $isGovernanceReview = $feeCalculation->method === FeeMethod::GovernanceReview;
         $isNpoRetainer = $feeCalculation->method === FeeMethod::NpoRetainer;
+        $integrationScope = $feeCalculation->method === FeeMethod::Integration
+            ? $feeCalculation->integrationScope
+            : null;
+        $isIntegration = $integrationScope instanceof IntegrationScope;
         $includedDefault = match (true) {
+            $isIntegration => ['Integration design and delivery plan', 'Build and test the agreed system connections', 'Post-launch savings measurement'],
             $isGovernanceReview => ['Governance evidence review', 'Board-ready Governance Review Report discussion', '12-month governance action plan'],
             $isNpoRetainer => ['NPO advisory retainer', 'Funding and accountability rhythm', 'Impact measurement check-ins'],
             default => ['Advisor review', 'Implementation roadmap', 'Progress check-in'],
         };
         $excludedDefault = match (true) {
+            $isIntegration => ['Third-party software subscriptions, vendor fees, and out-of-scope integrations require written approval.'],
             $isGovernanceReview => ['Ongoing retainer advisory work is not included in the fixed-fee Governance Review.'],
             $isNpoRetainer => ['Legal, audit, and trustee services are not included unless separately agreed.'],
             default => ['Digital signature and payment collection are Phase 3.'],
@@ -311,6 +336,7 @@ final class ProposalBuilder
 
         if (! is_string($summary) || $summary === '') {
             $summary = match (true) {
+                $isIntegration => 'Systems Integration Efficiency delivery proposal for '.$client->legal_name.'.',
                 $isGovernanceReview => 'Fixed-fee Governance Review proposal for '.$client->legal_name.'.',
                 $isNpoRetainer => 'NPO retainer proposal for '.$client->legal_name.'.',
                 default => 'Advisory engagement proposal for '.$client->legal_name.'.',
@@ -333,7 +359,7 @@ final class ProposalBuilder
 
         $focusAreas = is_array($scope['focus_areas'] ?? null)
             ? array_values(array_filter($scope['focus_areas'], 'is_array'))
-            : $this->proposalFocusAreas($client);
+            : ($isIntegration ? [] : $this->proposalFocusAreas($client));
 
         if ($focusAreas !== []) {
             $payload['focus_areas'] = $focusAreas;
@@ -354,6 +380,25 @@ final class ProposalBuilder
             $payload['social_enterprise_rate_rule'] = data_get($feeCalculation->justification, 'social_enterprise_rate_rule');
         }
 
+        if ($isIntegration) {
+            $computed = $integrationScope->computed ?? [];
+            $payload['proposal_variant'] = FeeMethod::Integration->value;
+            $payload['integration_quote_pack'] = [
+                'integration_scope_id' => $integrationScope->getKey(),
+                'delivery_mode' => $integrationScope->delivery_mode,
+                'systems' => $integrationScope->systems ?? [],
+                'tasks' => $computed['task_rows'] ?? $integrationScope->tasks ?? [],
+                'connections' => $computed['connection_rows'] ?? $integrationScope->connections ?? [],
+                'complexity_band' => $computed['complexity_band'] ?? null,
+                'annual_hours_wasted' => $computed['annual_hours_wasted'] ?? null,
+                'annual_savings' => $computed['annual_savings'] ?? null,
+                'pv_savings' => $computed['pv_savings'] ?? null,
+                'quoted_fee' => $computed['quoted_fee'] ?? $feeCalculation->suggested_mid,
+                'payback_months' => $computed['payback_months'] ?? null,
+                'flags' => $integrationScope->flags ?? [],
+            ];
+        }
+
         return $payload;
     }
 
@@ -371,6 +416,18 @@ final class ProposalBuilder
 
         if (is_array($services) && $services !== []) {
             return array_values($services);
+        }
+
+        if ($feeCalculation->method === FeeMethod::Integration && $feeCalculation->integrationScope instanceof IntegrationScope) {
+            $scope = $feeCalculation->integrationScope;
+
+            return [[
+                'name' => 'Systems Integration Efficiency delivery',
+                'fee_method' => FeeMethod::Integration->value,
+                'delivery_mode' => $scope->delivery_mode,
+                'complexity_band' => data_get($scope->computed, 'complexity_band'),
+                'line_total' => $feeCalculation->suggested_mid,
+            ]];
         }
 
         return [[
@@ -510,6 +567,25 @@ final class ProposalBuilder
      */
     private function pvSummary(Client $client, FeeCalculation $feeCalculation, ?string $npoEngagementId): array
     {
+        if ($feeCalculation->method === FeeMethod::Integration && $feeCalculation->integrationScope instanceof IntegrationScope) {
+            $scope = $feeCalculation->integrationScope;
+            $pv = (float) data_get($scope->computed, 'pv_savings', $feeCalculation->improvement_pv_total);
+
+            return [
+                'proposal_variant' => FeeMethod::Integration->value,
+                'current_pv' => 0.0,
+                'improvement_pv_total' => $pv,
+                'risk_cost_pv_total' => 0.0,
+                'target_pv' => $pv,
+                'target_pv_label' => 'Scoped integration savings PV',
+                'target_pv_range' => null,
+                'target_pv_assumptions' => 'Only the saved integration-scope savings assumptions are included.',
+                'roi_ratio' => $feeCalculation->roi_ratio,
+                'fee_suggested_mid' => $feeCalculation->suggested_mid,
+                'integration_scope_id' => $scope->getKey(),
+            ];
+        }
+
         $waterfall = $this->waterfalls->forClient($client);
 
         $summary = [
@@ -572,6 +648,11 @@ final class ProposalBuilder
             $terms['npo_discount_applied'] = data_get($feeCalculation->justification, 'npo_discount_applied');
             $terms['pro_bono'] = data_get($feeCalculation->justification, 'pro_bono');
             $terms['bespoke_accountability_report_addon'] = data_get($feeCalculation->justification, 'bespoke_accountability_report_addon');
+        }
+
+        if ($feeCalculation->method === FeeMethod::Integration) {
+            $terms['proposal_variant'] = FeeMethod::Integration->value;
+            $terms['referral_consents_required'] = false;
         }
 
         return $terms;
@@ -661,6 +742,7 @@ final class ProposalBuilder
             ->implode('');
         $conversionCredit = $this->conversionCreditHtml($proposal);
         $budgetReadiness = $this->budgetReadinessHtml($proposal);
+        $integrationQuotePack = $this->integrationQuotePackHtml($proposal);
         $focusAreas = $this->proposalFocusAreasHtml($proposal);
         $roiLine = $this->proposalHasPositiveFee($proposal)
             ? sprintf(
@@ -675,6 +757,7 @@ final class ProposalBuilder
 <h2>Scope</h2>
 <p>%s</p>
 </section>
+%s
 %s
 <section class="proposal-panel">
 <h2>Fee</h2>
@@ -703,6 +786,7 @@ final class ProposalBuilder
 </section>
 HTML,
             $this->escape((string) data_get($proposal->scope, 'summary')),
+            $integrationQuotePack,
             $focusAreas,
             $this->escape(Str::headline($proposal->feeCalculation?->method?->value ?? '')),
             number_format($proposal->feeCalculation?->suggested_low ?? 0, 0),
@@ -717,6 +801,52 @@ HTML,
             number_format((float) data_get($proposal->pv_summary, 'target_pv_range.low', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             number_format((float) data_get($proposal->pv_summary, 'target_pv_range.high', data_get($proposal->pv_summary, 'target_pv', 0)), 0),
             $consents,
+        );
+    }
+
+    private function integrationQuotePackHtml(Proposal $proposal): string
+    {
+        $pack = data_get($proposal->scope, 'integration_quote_pack');
+        if (! is_array($pack)) {
+            return '';
+        }
+
+        $systems = collect((array) ($pack['systems'] ?? []))
+            ->filter(static fn (mixed $system): bool => is_array($system))
+            ->map(fn (array $system): string => $this->escape((string) ($system['name'] ?? $system['vendor'] ?? 'System')))
+            ->unique()
+            ->take(12)
+            ->map(fn (string $name): string => '<li>'.$name.'</li>')
+            ->implode('');
+        $connections = collect((array) ($pack['connections'] ?? []))
+            ->filter(static fn (mixed $connection): bool => is_array($connection))
+            ->take(12)
+            ->map(function (array $connection): string {
+                $from = (string) ($connection['from_system'] ?? 'Source system');
+                $to = (string) ($connection['to_system'] ?? 'Target system');
+                $direction = (string) ($connection['direction'] ?? data_get($connection, 'drivers.direction', 'one_way'));
+
+                return '<li>'.$this->escape($from.' to '.$to.' ('.str_replace('_', ' ', $direction).')').'</li>';
+            })
+            ->implode('');
+
+        return sprintf(
+            <<<'HTML'
+<section class="proposal-panel">
+<h2>Integration Quote Pack</h2>
+<p>Delivery model: %s. Complexity band: %s.</p>
+<p>Manual work identified: %s hours each year. Modelled annual savings: NZD %s. Investment payback: %s months.</p>
+<h3>Systems in scope</h3><ul>%s</ul>
+<h3>Connections in scope</h3><ul>%s</ul>
+</section>
+HTML,
+            $this->escape((string) ($pack['delivery_mode'] ?? 'To be confirmed')),
+            $this->escape((string) ($pack['complexity_band'] ?? 'To be confirmed')),
+            number_format((float) ($pack['annual_hours_wasted'] ?? 0), 0),
+            number_format((float) ($pack['annual_savings'] ?? 0), 0),
+            number_format((float) ($pack['payback_months'] ?? 0), 1),
+            $systems !== '' ? $systems : '<li>Systems to be confirmed</li>',
+            $connections !== '' ? $connections : '<li>Connections to be confirmed</li>',
         );
     }
 

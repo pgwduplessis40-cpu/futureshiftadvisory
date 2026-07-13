@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::index
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:26
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:28
  * @route '/admin/inspiration-board'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -79,7 +79,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:36
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:41
  * @route '/admin/inspiration-board'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -94,7 +94,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:36
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:41
  * @route '/admin/inspiration-board'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -103,7 +103,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:36
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:41
  * @route '/admin/inspiration-board'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -113,7 +113,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:36
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:41
  * @route '/admin/inspiration-board'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -123,7 +123,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::store
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:36
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:41
  * @route '/admin/inspiration-board'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -133,8 +133,152 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
     
     store.form = storeForm
 /**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::scheduleRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:108
+ * @route '/admin/inspiration-board/schedule-rotation'
+ */
+export const scheduleRotation = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: scheduleRotation.url(options),
+    method: 'post',
+})
+
+scheduleRotation.definition = {
+    methods: ["post"],
+    url: '/admin/inspiration-board/schedule-rotation',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::scheduleRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:108
+ * @route '/admin/inspiration-board/schedule-rotation'
+ */
+scheduleRotation.url = (options?: RouteQueryOptions) => {
+    return scheduleRotation.definition.url + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::scheduleRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:108
+ * @route '/admin/inspiration-board/schedule-rotation'
+ */
+scheduleRotation.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: scheduleRotation.url(options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::scheduleRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:108
+ * @route '/admin/inspiration-board/schedule-rotation'
+ */
+    const scheduleRotationForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: scheduleRotation.url(options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::scheduleRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:108
+ * @route '/admin/inspiration-board/schedule-rotation'
+ */
+        scheduleRotationForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: scheduleRotation.url(options),
+            method: 'post',
+        })
+    
+    scheduleRotation.form = scheduleRotationForm
+/**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::cancelRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:133
+ * @route '/admin/inspiration-board/schedule-rotation/{rotationSchedule}'
+ */
+export const cancelRotation = (args: { rotationSchedule: string | { id: string } } | [rotationSchedule: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+    url: cancelRotation.url(args, options),
+    method: 'delete',
+})
+
+cancelRotation.definition = {
+    methods: ["delete"],
+    url: '/admin/inspiration-board/schedule-rotation/{rotationSchedule}',
+} satisfies RouteDefinition<["delete"]>
+
+/**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::cancelRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:133
+ * @route '/admin/inspiration-board/schedule-rotation/{rotationSchedule}'
+ */
+cancelRotation.url = (args: { rotationSchedule: string | { id: string } } | [rotationSchedule: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { rotationSchedule: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { rotationSchedule: args.id }
+        }
+    
+    if (Array.isArray(args)) {
+        args = {
+                    rotationSchedule: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        rotationSchedule: typeof args.rotationSchedule === 'object'
+                ? args.rotationSchedule.id
+                : args.rotationSchedule,
+                }
+
+    return cancelRotation.definition.url
+            .replace('{rotationSchedule}', parsedArgs.rotationSchedule.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::cancelRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:133
+ * @route '/admin/inspiration-board/schedule-rotation/{rotationSchedule}'
+ */
+cancelRotation.delete = (args: { rotationSchedule: string | { id: string } } | [rotationSchedule: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'delete'> => ({
+    url: cancelRotation.url(args, options),
+    method: 'delete',
+})
+
+    /**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::cancelRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:133
+ * @route '/admin/inspiration-board/schedule-rotation/{rotationSchedule}'
+ */
+    const cancelRotationForm = (args: { rotationSchedule: string | { id: string } } | [rotationSchedule: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: cancelRotation.url(args, {
+                    [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                        _method: 'DELETE',
+                        ...(options?.query ?? options?.mergeQuery ?? {}),
+                    }
+                }),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Admin\InspirationBoardController::cancelRotation
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:133
+ * @route '/admin/inspiration-board/schedule-rotation/{rotationSchedule}'
+ */
+        cancelRotationForm.delete = (args: { rotationSchedule: string | { id: string } } | [rotationSchedule: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: cancelRotation.url(args, {
+                        [options?.mergeQuery ? 'mergeQuery' : 'query']: {
+                            _method: 'DELETE',
+                            ...(options?.query ?? options?.mergeQuery ?? {}),
+                        }
+                    }),
+            method: 'post',
+        })
+    
+    cancelRotation.form = cancelRotationForm
+/**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:76
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:86
  * @route '/admin/inspiration-board/{boardPost}'
  */
 export const update = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -149,7 +293,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:76
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:86
  * @route '/admin/inspiration-board/{boardPost}'
  */
 update.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -182,7 +326,7 @@ update.url = (args: { boardPost: string | { id: string } } | [boardPost: string 
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:76
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:86
  * @route '/admin/inspiration-board/{boardPost}'
  */
 update.patch = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -192,7 +336,7 @@ update.patch = (args: { boardPost: string | { id: string } } | [boardPost: strin
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:76
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:86
  * @route '/admin/inspiration-board/{boardPost}'
  */
     const updateForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -207,7 +351,7 @@ update.patch = (args: { boardPost: string | { id: string } } | [boardPost: strin
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::update
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:76
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:86
  * @route '/admin/inspiration-board/{boardPost}'
  */
         updateForm.patch = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -223,7 +367,7 @@ update.patch = (args: { boardPost: string | { id: string } } | [boardPost: strin
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:89
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:140
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
 export const publish = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -238,7 +382,7 @@ publish.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:89
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:140
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
 publish.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -271,7 +415,7 @@ publish.url = (args: { boardPost: string | { id: string } } | [boardPost: string
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:89
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:140
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
 publish.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -281,7 +425,7 @@ publish.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:89
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:140
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
     const publishForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -291,7 +435,7 @@ publish.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::publish
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:89
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:140
  * @route '/admin/inspiration-board/{boardPost}/publish'
  */
         publishForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -302,7 +446,7 @@ publish.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
     publish.form = publishForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:100
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:151
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
 export const archive = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -317,7 +461,7 @@ archive.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:100
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:151
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
 archive.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -350,7 +494,7 @@ archive.url = (args: { boardPost: string | { id: string } } | [boardPost: string
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:100
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:151
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
 archive.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -360,7 +504,7 @@ archive.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:100
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:151
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
     const archiveForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -370,7 +514,7 @@ archive.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::archive
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:100
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:151
  * @route '/admin/inspiration-board/{boardPost}/archive'
  */
         archiveForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -381,7 +525,7 @@ archive.post = (args: { boardPost: string | { id: string } } | [boardPost: strin
     archive.form = archiveForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:107
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:158
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
 export const pin = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -396,7 +540,7 @@ pin.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:107
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:158
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
 pin.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -429,7 +573,7 @@ pin.url = (args: { boardPost: string | { id: string } } | [boardPost: string | {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:107
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:158
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
 pin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -439,7 +583,7 @@ pin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | 
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:107
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:158
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
     const pinForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -449,7 +593,7 @@ pin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | 
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::pin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:107
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:158
  * @route '/admin/inspiration-board/{boardPost}/pin'
  */
         pinForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -460,7 +604,7 @@ pin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | 
     pin.form = pinForm
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:114
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:165
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
 export const unpin = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -475,7 +619,7 @@ unpin.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:114
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:165
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
 unpin.url = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -508,7 +652,7 @@ unpin.url = (args: { boardPost: string | { id: string } } | [boardPost: string |
 
 /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:114
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:165
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
 unpin.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -518,7 +662,7 @@ unpin.post = (args: { boardPost: string | { id: string } } | [boardPost: string 
 
     /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:114
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:165
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
     const unpinForm = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -528,7 +672,7 @@ unpin.post = (args: { boardPost: string | { id: string } } | [boardPost: string 
 
             /**
 * @see \App\Http\Controllers\Admin\InspirationBoardController::unpin
- * @see app/Http/Controllers/Admin/InspirationBoardController.php:114
+ * @see app/Http/Controllers/Admin/InspirationBoardController.php:165
  * @route '/admin/inspiration-board/{boardPost}/unpin'
  */
         unpinForm.post = (args: { boardPost: string | { id: string } } | [boardPost: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -537,6 +681,6 @@ unpin.post = (args: { boardPost: string | { id: string } } | [boardPost: string 
         })
     
     unpin.form = unpinForm
-const InspirationBoardController = { index, store, update, publish, archive, pin, unpin }
+const InspirationBoardController = { index, store, scheduleRotation, cancelRotation, update, publish, archive, pin, unpin }
 
 export default InspirationBoardController

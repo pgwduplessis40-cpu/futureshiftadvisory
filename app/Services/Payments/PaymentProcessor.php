@@ -30,6 +30,7 @@ final class PaymentProcessor implements ProvidesMethodology
         private readonly ReceiptGenerator $receipts,
         private readonly AuditWriter $audit,
         private readonly GstCalculator $gst,
+        private readonly InstallmentPaymentProcessor $installments,
     ) {}
 
     /**
@@ -39,16 +40,11 @@ final class PaymentProcessor implements ProvidesMethodology
     public function processDue(?CarbonInterface $now = null, int $limit = 50, array $chargeMetadata = []): array
     {
         $now ??= now();
-        $result = [
-            'scanned' => 0,
-            'succeeded' => 0,
-            'retrying' => 0,
-            'failed' => 0,
-            'receipts' => 0,
-        ];
+        $result = $this->installments->processDue($now, $limit, $chargeMetadata);
 
         PaymentSchedule::query()
             ->with(['paymentAuthority', 'proposal', 'client'])
+            ->whereDoesntHave('installments')
             ->where('status', PaymentSchedule::STATUS_ACTIVE)
             ->where('next_run_at', '<=', $now)
             ->orderBy('next_run_at')

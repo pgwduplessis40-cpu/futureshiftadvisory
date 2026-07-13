@@ -184,6 +184,7 @@ type StrategicPlanDeploymentsPayload = {
         client_id: string;
         client_name: string;
         proposal_version: number | null;
+        proposal_brief: string | null;
         generated_at: string | null;
         accepted_at: string | null;
         milestones_count: number;
@@ -406,6 +407,7 @@ type ProposalStatusPayload = {
         client_name: string | null;
         version: number;
         status: string;
+        brief: string;
         expires_at: string | null;
         client_url: string;
     }>;
@@ -1771,6 +1773,9 @@ function ProposalStatusPanel({ payload }: { payload: ProposalStatusPayload }) {
                                     v{proposal.version} -{' '}
                                     {formatDate(proposal.expires_at)}
                                 </div>
+                                <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">
+                                    {proposal.brief}
+                                </p>
                             </div>
                             <Button asChild size="sm" variant="outline">
                                 <Link href={proposal.client_url}>Open</Link>
@@ -3346,6 +3351,11 @@ function StrategicPlanDeploymentPanel({
                                         ? `Accepted ${formatDate(item.accepted_at)}`
                                         : `Generated ${formatDate(item.generated_at)}`}
                                 </div>
+                                {item.proposal_brief ? (
+                                    <p className="mt-1 max-w-2xl text-sm leading-5 text-muted-foreground">
+                                        {item.proposal_brief}
+                                    </p>
+                                ) : null}
                             </div>
                             {item.type === 'generate' && item.action_url ? (
                                 <Button

@@ -516,6 +516,7 @@ type FeeCalculationSummary = {
     suggested_mid: number;
     roi_ratio: number;
     created_at: string | null;
+    proposal_scope_summary: string | null;
 };
 
 type ProposalSummary = {
@@ -523,6 +524,8 @@ type ProposalSummary = {
     status: string;
     status_label: string;
     version: number;
+    fee_method_label: string;
+    brief: string;
     suggested_mid: number | null;
     roi_ratio: number;
     released_at: string | null;
@@ -4626,7 +4629,7 @@ function GoalReadOnlyPanel({
 function ProposalsPanel({ client }: { client: ClientDetail }) {
     const form = useForm<ProposalForm>({
         fee_calculation_id: client.fee_calculations[0]?.id ?? '',
-        scope_summary: '',
+        scope_summary: client.fee_calculations[0]?.proposal_scope_summary ?? '',
         insurance_consent: 'undecided',
         coach_consent: 'undecided',
         budget_override_category: '',
@@ -4637,13 +4640,21 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
         form.post(client.proposal_store_url, {
             preserveScroll: true,
             onSuccess: () =>
-                form.reset(
-                    'scope_summary',
-                    'budget_override_category',
-                    'budget_override_notes',
-                ),
+                form.setData({
+                    fee_calculation_id: '',
+                    scope_summary: '',
+                    insurance_consent: 'undecided',
+                    coach_consent: 'undecided',
+                    budget_override_category: '',
+                    budget_override_notes: '',
+                }),
         });
     };
+    const selectedCalculation = client.fee_calculations.find(
+        (calculation) => calculation.id === form.data.fee_calculation_id,
+    );
+    const requiresReferralConsents =
+        selectedCalculation?.method !== 'integration';
 
     const release = (proposal: ProposalSummary) => {
         router.patch(
@@ -4686,7 +4697,7 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                 <Badge variant="outline">{client.proposals.length}</Badge>
             </div>
 
-            {client.fee_calculations.length > 0 && (
+            {client.fee_calculations.length > 0 ? (
                 <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(220px,0.45fr)]">
                     <div className="grid gap-2">
                         <Label htmlFor="proposal_scope">Scope</Label>
@@ -4711,12 +4722,22 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                             <select
                                 id="proposal_fee"
                                 value={form.data.fee_calculation_id}
-                                onChange={(event) =>
-                                    form.setData(
-                                        'fee_calculation_id',
-                                        event.target.value,
-                                    )
-                                }
+                                onChange={(event) => {
+                                    const feeCalculationId = event.target.value;
+                                    const calculation =
+                                        client.fee_calculations.find(
+                                            (item) =>
+                                                item.id === feeCalculationId,
+                                        );
+
+                                    form.setData((data) => ({
+                                        ...data,
+                                        fee_calculation_id: feeCalculationId,
+                                        scope_summary:
+                                            calculation?.proposal_scope_summary ??
+                                            '',
+                                    }));
+                                }}
                                 className="h-10 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
                             >
                                 {client.fee_calculations.map((calculation) => (
@@ -4737,26 +4758,28 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                             />
                         </div>
 
-                        <div className="grid grid-cols-2 gap-3">
-                            <ConsentSelect
-                                id="insurance_consent"
-                                label="Insurance"
-                                value={form.data.insurance_consent}
-                                error={form.errors.insurance_consent}
-                                onChange={(value) =>
-                                    form.setData('insurance_consent', value)
-                                }
-                            />
-                            <ConsentSelect
-                                id="coach_consent"
-                                label="Coach"
-                                value={form.data.coach_consent}
-                                error={form.errors.coach_consent}
-                                onChange={(value) =>
-                                    form.setData('coach_consent', value)
-                                }
-                            />
-                        </div>
+                        {requiresReferralConsents ? (
+                            <div className="grid grid-cols-2 gap-3">
+                                <ConsentSelect
+                                    id="insurance_consent"
+                                    label="Insurance"
+                                    value={form.data.insurance_consent}
+                                    error={form.errors.insurance_consent}
+                                    onChange={(value) =>
+                                        form.setData('insurance_consent', value)
+                                    }
+                                />
+                                <ConsentSelect
+                                    id="coach_consent"
+                                    label="Coach"
+                                    value={form.data.coach_consent}
+                                    error={form.errors.coach_consent}
+                                    onChange={(value) =>
+                                        form.setData('coach_consent', value)
+                                    }
+                                />
+                            </div>
+                        ) : null}
 
                         <Button
                             type="button"
@@ -4853,6 +4876,10 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                         </div>
                     )}
                 </div>
+            ) : (
+                <p className="text-sm text-muted-foreground">
+                    No fee calculations are awaiting a proposal.
+                </p>
             )}
 
             {client.proposals.length === 0 ? (
@@ -4879,6 +4906,9 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         >
                                             {proposal.status_label}
                                         </Badge>
+                                        <Badge variant="outline">
+                                            {proposal.fee_method_label}
+                                        </Badge>
                                         {proposal.days_to_expiry !== null && (
                                             <Badge variant="outline">
                                                 {proposal.days_to_expiry}d
@@ -4891,6 +4921,9 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                         )}{' '}
                                         mid fee ex GST
                                     </div>
+                                    <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
+                                        {proposal.brief}
+                                    </p>
                                 </div>
 
                                 <div className="flex flex-wrap gap-2">
@@ -4924,7 +4957,7 @@ function ProposalsPanel({ client }: { client: ClientDetail }) {
                                             className="size-4"
                                             aria-hidden="true"
                                         />
-                                        Release
+                                        Release to client
                                     </Button>
                                     <Button
                                         type="button"

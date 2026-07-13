@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Proposals;
 
 use App\Enums\ProposalStatus;
+use App\Enums\FeeMethod;
 use App\Models\Consent;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
@@ -44,7 +45,7 @@ final class SignoffFlow
     public function complete(Proposal $proposal, string $step, array $payload, User $actor): Proposal
     {
         $step = $this->normaliseStep($step);
-        $proposal = $proposal->refresh()->load(['client', 'consents', 'paymentAuthorities', 'signoffSteps']);
+        $proposal = $proposal->refresh()->load(['client', 'consents', 'feeCalculation', 'paymentAuthorities', 'signoffSteps']);
         $alreadyCompleted = $this->completedSteps($proposal)->contains($step);
 
         $this->assertClientOwnsProposal($proposal);
@@ -95,7 +96,7 @@ final class SignoffFlow
      */
     public function payload(Proposal $proposal): array
     {
-        $proposal->loadMissing(['signoffSteps', 'paymentAuthorities']);
+        $proposal->loadMissing(['feeCalculation', 'signoffSteps', 'paymentAuthorities']);
         $completed = $this->completedSteps($proposal);
         $steps = collect($this->orderedSteps($proposal))
             ->map(function (string $step) use ($proposal, $completed): array {
@@ -215,7 +216,10 @@ final class SignoffFlow
         $collectionDay = $this->validCollectionDay($payload['collection_day'] ?? Arr::get($method, 'collection_day'));
         $payload['collection_day'] = $collectionDay;
 
-        if ($this->integrations->isLive($gateway) && $this->paymentMethodReference($payload) === null) {
+        if ($this->usesFixturePaymentAuthorities()) {
+            $payload['fixture_token'] = $this->paymentMethodReference($payload)
+                ?? 'test-authority-'.$proposal->getKey();
+        } elseif ($this->integrations->isLive($gateway) && $this->paymentMethodReference($payload) === null) {
             throw new InvalidArgumentException('A payment method reference is required before creating a live payment authority.');
         }
 
@@ -462,7 +466,7 @@ final class SignoffFlow
 
     private function authorityRequiresToken(Proposal $proposal): bool
     {
-        if (! $this->proposalRequiresPayment($proposal)) {
+        if (! $this->proposalRequiresPayment($proposal) || $this->usesFixturePaymentAuthorities()) {
             return false;
         }
 
@@ -470,6 +474,11 @@ final class SignoffFlow
         $gateway = $this->validPaymentGateway($method['gateway'] ?? null);
 
         return $this->integrations->isLive($gateway);
+    }
+
+    private function usesFixturePaymentAuthorities(): bool
+    {
+        return app()->environment(['local', 'testing']);
     }
 
     /**
@@ -597,17 +606,30 @@ final class SignoffFlow
      */
     private function orderedSteps(Proposal $proposal): array
     {
-        if ($this->proposalRequiresPayment($proposal)) {
-            return ProposalSignoffStep::orderedSteps();
+        $excluded = [];
+        if (! $this->referralConsentsRequired($proposal)) {
+            $excluded = [
+                ProposalSignoffStep::STEP_INSURANCE_CONSENT,
+                ProposalSignoffStep::STEP_COACH_CONSENT,
+            ];
+        }
+        if (! $this->proposalRequiresPayment($proposal)) {
+            $excluded = [
+                ...$excluded,
+                ProposalSignoffStep::STEP_PAYMENT_METHOD,
+                ProposalSignoffStep::STEP_AUTHORITY,
+            ];
         }
 
         return array_values(array_filter(
             ProposalSignoffStep::orderedSteps(),
-            fn (string $step): bool => ! in_array($step, [
-                ProposalSignoffStep::STEP_PAYMENT_METHOD,
-                ProposalSignoffStep::STEP_AUTHORITY,
-            ], true),
+            fn (string $step): bool => ! in_array($step, $excluded, true),
         ));
+    }
+
+    private function referralConsentsRequired(Proposal $proposal): bool
+    {
+        return $proposal->feeCalculation?->method !== FeeMethod::Integration;
     }
 
     private function proposalRequiresPayment(Proposal $proposal): bool

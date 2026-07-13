@@ -430,6 +430,7 @@ type ProposalPayload = {
     status: string;
     status_label: string;
     suggested_mid: number | null;
+    brief: string;
     signed_at: string | null;
     signoff_url: string;
 };
@@ -2743,6 +2744,9 @@ function ProposalSignoffPanel({ proposals }: { proposals: ProposalPayload[] }) {
                                         proposal.suggested_mid ?? 0,
                                     )}
                                 </div>
+                                <p className="max-w-3xl text-sm leading-5 text-muted-foreground">
+                                    {proposal.brief}
+                                </p>
                             </div>
                             <Button asChild variant="outline" size="sm">
                                 <Link href={proposal.signoff_url}>
