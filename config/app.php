@@ -20,13 +20,19 @@ return [
     | Release Version
     |--------------------------------------------------------------------------
     |
-    | Set this to the immutable release tag deployed to an environment, for
-    | example "v1.8.0". It is shared with the application and combined with
-    | Inertia's asset version so clients refresh onto the matching release.
+    | The version is read at runtime from the repository VERSION file. This
+    | allows every release commit to be visible immediately, even where Laravel
+    | configuration has been cached. APP_VERSION_OVERRIDE is reserved for an
+    | intentional environment-specific override.
     |
     */
 
-    'release_version' => env('APP_VERSION', '1.0.0'),
+    'release_version_file' => base_path('VERSION'),
+
+    'release_version_override' => env('APP_VERSION_OVERRIDE'),
+
+    // Retains a sensible version for legacy deployments until VERSION exists.
+    'legacy_release_version' => env('APP_VERSION', '1.0.0'),
 
     /*
     |--------------------------------------------------------------------------

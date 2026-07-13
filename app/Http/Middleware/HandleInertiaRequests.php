@@ -11,6 +11,7 @@ use App\Services\Ai\AiProviderManager;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Portal\OnboardingWizard;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
+use App\Support\ReleaseVersion;
 use Carbon\CarbonImmutable;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Schema;
@@ -28,6 +29,10 @@ class HandleInertiaRequests extends Middleware
      */
     protected $rootView = 'app';
 
+    public function __construct(
+        private readonly ReleaseVersion $releaseVersion,
+    ) {}
+
     /**
      * Determines the current asset version.
      *
@@ -36,7 +41,7 @@ class HandleInertiaRequests extends Middleware
     public function version(Request $request): ?string
     {
         $assetVersion = parent::version($request);
-        $releaseVersion = trim((string) config('app.release_version'));
+        $releaseVersion = $this->releaseVersion->current();
 
         if ($releaseVersion === '') {
             return $assetVersion;
@@ -60,7 +65,7 @@ class HandleInertiaRequests extends Middleware
             ...parent::share($request),
             'name' => config('app.name'),
             'publicUrl' => config('app.public_url'),
-            'releaseVersion' => config('app.release_version'),
+            'releaseVersion' => $this->releaseVersion->current(),
             'auth' => [
                 'user' => $request->user(),
             ],

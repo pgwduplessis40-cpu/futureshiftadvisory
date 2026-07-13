@@ -1,0 +1,49 @@
+name: release version
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+concurrency:
+  group: release-version-main
+  cancel-in-progress: false
+
+jobs:
+  bump-patch-version:
+    if: ${{ !contains(github.event.head_commit.message, '[skip release]') }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Increment patch version
+        id: version
+        shell: bash
+        run: |
+          current_version="$(tr -d '\r\n' < VERSION)"
+
+          if [[ ! "$current_version" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "VERSION must use major.minor.patch format; found '$current_version'." >&2
+            exit 1
+          fi
+
+          IFS='.' read -r major minor patch <<< "$current_version"
+          next_version="$major.$minor.$((patch + 1))"
+          printf '%s\n' "$next_version" > VERSION
+          echo "version=$next_version" >> "$GITHUB_OUTPUT"
+
+      - name: Commit release version
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add VERSION
+          git commit -m "chore(release): v${VERSION} [skip release]"
+          git push origin HEAD:main
