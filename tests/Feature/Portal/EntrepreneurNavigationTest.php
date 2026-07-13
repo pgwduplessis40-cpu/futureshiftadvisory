@@ -281,6 +281,21 @@ final class EntrepreneurNavigationTest extends TestCase
             'revenue_model' => 'Service fee for advisory support',
         ];
 
+        $atLimitPayload = array_map(
+            static fn (string $value): string => str_pad($value, 5000, 'x'),
+            $payload,
+        );
+        $tooLongPayload = array_map(
+            static fn (string $value): string => str_pad($value, 5001, 'x'),
+            $payload,
+        );
+
+        $this->actingAsMfa($entrepreneur)
+            ->post(route('portal.entrepreneur.idea-validation.store'), $tooLongPayload)
+            ->assertSessionHasErrors(array_keys($tooLongPayload));
+
+        $payload = $atLimitPayload;
+
         $this->actingAsMfa($entrepreneur)
             ->post(route('portal.entrepreneur.idea-validation.store'), $payload)
             ->assertRedirect(route('portal.entrepreneur.plan.show', absolute: false))

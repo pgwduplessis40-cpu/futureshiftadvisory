@@ -219,12 +219,12 @@ final class EntrepreneurPlanController extends Controller
         }
 
         $validated = $request->validate([
-            'problem' => ['required', 'string', 'min:5', 'max:1200'],
-            'target_customer' => ['required', 'string', 'min:3', 'max:1200'],
-            'solution' => ['required', 'string', 'min:10', 'max:1200'],
-            'value_proposition' => ['required', 'string', 'min:10', 'max:1200'],
-            'demand_signal' => ['required', 'string', 'min:5', 'max:1200'],
-            'revenue_model' => ['required', 'string', 'min:5', 'max:1200'],
+            'problem' => ['required', 'string', 'min:5', 'max:5000'],
+            'target_customer' => ['required', 'string', 'min:3', 'max:5000'],
+            'solution' => ['required', 'string', 'min:10', 'max:5000'],
+            'value_proposition' => ['required', 'string', 'min:10', 'max:5000'],
+            'demand_signal' => ['required', 'string', 'min:5', 'max:5000'],
+            'revenue_model' => ['required', 'string', 'min:5', 'max:5000'],
         ]);
 
         $this->ideas->evaluate($profile, $validated, $user);

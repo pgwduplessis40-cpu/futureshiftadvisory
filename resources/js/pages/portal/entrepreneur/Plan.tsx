@@ -100,6 +100,8 @@ type IdeaValidationForm = {
     revenue_model: string;
 };
 
+const IDEA_VALIDATION_FIELD_MAX_LENGTH = 5000;
+
 type BusinessPlanPayload = {
     id: string;
     title: string;
@@ -1444,7 +1446,20 @@ export default function EntrepreneurPlan({
                                                 key={field.key}
                                                 className="grid gap-1 text-sm"
                                             >
-                                                <span>{field.label}</span>
+                                                <span className="flex items-center justify-between gap-3">
+                                                    <span>{field.label}</span>
+                                                    <span className="shrink-0 text-xs font-normal text-muted-foreground tabular-nums">
+                                                        {
+                                                            ideaForm.data[
+                                                                field.key as keyof IdeaValidationForm
+                                                            ].length
+                                                        }
+                                                        {' / '}
+                                                        {
+                                                            IDEA_VALIDATION_FIELD_MAX_LENGTH
+                                                        }
+                                                    </span>
+                                                </span>
                                                 <textarea
                                                     value={
                                                         ideaForm.data[
@@ -1456,6 +1471,9 @@ export default function EntrepreneurPlan({
                                                             field.key as keyof IdeaValidationForm,
                                                             event.target.value,
                                                         )
+                                                    }
+                                                    maxLength={
+                                                        IDEA_VALIDATION_FIELD_MAX_LENGTH
                                                     }
                                                     rows={4}
                                                     className="rounded-md border bg-background px-3 py-2 text-sm"
