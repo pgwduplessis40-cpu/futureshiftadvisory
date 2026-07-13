@@ -498,6 +498,10 @@ final class AddEntrepreneurTest extends TestCase
                 ->where('entrepreneur.idea_validation.refresh_stale', false)
                 ->where('entrepreneur.idea_validation.problem', 'Business Advisory')
                 ->where('entrepreneur.idea_validation.target_customer', "SME's")
+                ->where(
+                    'entrepreneur.idea_validation.proposed_change_request',
+                    "Thank you for the work you have put into this idea validation.\n\nYour idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.\n\nBefore resubmitting, please:\n1. Define the primary customer segment, the paid problem it faces, and why this offer is a better choice than the alternatives.\n2. Record at least one customer experiment with a clear hypothesis, evidence, result, and next step.\n3. Describe a repeatable offer, pricing, delivery capacity, and revenue model that is not dependent only on your personal time.\n\nPlease update the idea validation with this information and resubmit it for review.",
+                )
                 ->where('entrepreneur.idea_validation.refresh_url', route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false))
                 ->where('entrepreneur.idea_validation.request_changes_url', route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false))
                 ->where('entrepreneur.idea_validation.gate_url', route('advisor.entrepreneurs.idea-validations.gate', [$profile, $validation], absolute: false)));

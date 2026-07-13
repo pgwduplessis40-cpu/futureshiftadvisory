@@ -102,6 +102,7 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
         value_proposition: string;
         demand_signal: string;
         revenue_model: string;
+        proposed_change_request: string;
         viability_alerts: {
             message?: string;
             severity?: string;

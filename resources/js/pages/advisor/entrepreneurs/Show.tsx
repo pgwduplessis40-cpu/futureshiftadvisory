@@ -104,6 +104,7 @@ export default function EntrepreneursShow({
             ? 'Retry AI review'
             : 'Rerun AI review';
     const ideaRefreshFailure = ideaValidation?.refresh_failure ?? '';
+    const proposedChangeRequest = ideaValidation?.proposed_change_request ?? '';
     const ideaRecalled = Boolean(ideaValidation?.recalled_at);
     const ideaRefreshProviderTransient =
         /status\s+(429|500|502|503|504|529)\b/i.test(ideaRefreshFailure) ||
@@ -943,6 +944,36 @@ export default function EntrepreneursShow({
                                                     form for resubmission.
                                                 </p>
                                             </div>
+                                            {proposedChangeRequest ? (
+                                                <div className="border-y border-amber-200 py-3">
+                                                    <div className="flex flex-wrap items-center justify-between gap-2">
+                                                        <p className="font-medium">
+                                                            Proposed response
+                                                        </p>
+                                                        <Button
+                                                            type="button"
+                                                            size="sm"
+                                                            variant="outline"
+                                                            onClick={() =>
+                                                                setChangeRequestNote(
+                                                                    proposedChangeRequest,
+                                                                )
+                                                            }
+                                                            className="border-amber-300 bg-white text-amber-950 hover:bg-amber-100"
+                                                        >
+                                                            <Pencil
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Use suggested
+                                                            response
+                                                        </Button>
+                                                    </div>
+                                                    <p className="mt-2 text-sm leading-6 whitespace-pre-line">
+                                                        {proposedChangeRequest}
+                                                    </p>
+                                                </div>
+                                            ) : null}
                                             <label className="grid gap-1">
                                                 <span>Founder feedback</span>
                                                 <textarea
@@ -952,7 +983,7 @@ export default function EntrepreneursShow({
                                                             event.target.value,
                                                         )
                                                     }
-                                                    rows={4}
+                                                    rows={7}
                                                     className="rounded-md border bg-background px-3 py-2 text-sm text-foreground"
                                                     placeholder="Tell the founder what to rethink, validate, or strengthen before resubmitting."
                                                 />

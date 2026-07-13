@@ -654,6 +654,7 @@ final class EntrepreneurController extends Controller
             'demand_signal' => $validation->demand_signal,
             'revenue_model' => $validation->revenue_model,
             'viability_alerts' => $validation->viability_alerts ?? [],
+            'proposed_change_request' => $this->proposedChangeRequest($validation),
             'uncertainty' => data_get($evaluation, 'uncertainty'),
             'past_plan_pattern' => data_get($evaluation, 'past_plan_pattern', []),
             'evaluated_at' => $validation->evaluated_at?->toIso8601String(),
@@ -676,6 +677,52 @@ final class EntrepreneurController extends Controller
             'request_changes_url' => route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false),
             'refresh_url' => route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false),
         ];
+    }
+
+    private function proposedChangeRequest(IdeaValidation $validation): string
+    {
+        $evaluation = $validation->ai_evaluation ?? [];
+        $findings = collect((array) data_get($evaluation, 'metadata.findings', []))
+            ->filter(fn (mixed $finding): bool => is_array($finding))
+            ->map(function (array $finding): string {
+                $title = trim((string) ($finding['title'] ?? ''));
+                $body = trim((string) ($finding['body'] ?? ''));
+
+                return trim(implode(': ', array_filter([$title, $body])));
+            })
+            ->filter()
+            ->map(fn (string $finding): string => Str::limit($finding, 360, ''))
+            ->take(3)
+            ->values();
+
+        if ($findings->isEmpty()) {
+            $findings = collect([
+                'Define the primary customer segment, the paid problem it faces, and why this offer is a better choice than the alternatives.',
+                'Record at least one customer experiment with a clear hypothesis, evidence, result, and next step.',
+                'Describe a repeatable offer, pricing, delivery capacity, and revenue model that is not dependent only on your personal time.',
+            ]);
+        }
+
+        $alerts = collect((array) $validation->viability_alerts)
+            ->filter(fn (mixed $alert): bool => is_array($alert))
+            ->map(fn (array $alert): string => trim((string) ($alert['message'] ?? '')))
+            ->filter()
+            ->map(fn (string $alert): string => Str::limit($alert, 360, ''));
+
+        $actions = $findings
+            ->merge($alerts)
+            ->unique(fn (string $action): string => Str::lower($action))
+            ->take(4)
+            ->values()
+            ->map(fn (string $action, int $index): string => ($index + 1).'. '.$action)
+            ->implode("\n");
+
+        return implode("\n\n", [
+            'Thank you for the work you have put into this idea validation.',
+            'Your idea shows promise, but more evidence and a more repeatable commercial model are needed before it can move into business-plan development.',
+            "Before resubmitting, please:\n{$actions}",
+            'Please update the idea validation with this information and resubmit it for review.',
+        ]);
     }
 
     private function ideaGateStatus(IdeaValidation $validation): string
