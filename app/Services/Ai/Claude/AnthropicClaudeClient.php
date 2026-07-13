@@ -125,6 +125,15 @@ final class AnthropicClaudeClient implements AiClient
      */
     private function structuredPayload(?array $payload): array
     {
+        $stopReason = $this->stopReason($payload);
+        if ($stopReason === 'refusal') {
+            throw new AiIntegrityViolation('Anthropic declined the requested assessment.');
+        }
+
+        if ($stopReason === 'max_tokens') {
+            throw new AiIntegrityViolation('Anthropic reached the output token limit before it could return the required JSON.');
+        }
+
         $content = $payload['content'] ?? null;
         if (! is_array($content)) {
             throw new AiIntegrityViolation('Anthropic response did not contain structured text content.');
@@ -137,7 +146,7 @@ final class AnthropicClaudeClient implements AiClient
 
             $text = $block['text'] ?? null;
             if (($block['type'] ?? null) === 'text' && is_string($text) && trim($text) !== '') {
-                return $this->decodeStructuredText($text);
+                return $this->decodeStructuredText($text, $stopReason);
             }
         }
 
@@ -147,7 +156,7 @@ final class AnthropicClaudeClient implements AiClient
     /**
      * @return array<string, mixed>
      */
-    private function decodeStructuredText(string $text): array
+    private function decodeStructuredText(string $text, ?string $stopReason): array
     {
         try {
             $decoded = json_decode($text, true, flags: JSON_THROW_ON_ERROR);
@@ -168,7 +177,24 @@ final class AnthropicClaudeClient implements AiClient
             }
         }
 
-        throw new AiIntegrityViolation('Anthropic response was freeform prose instead of the required JSON schema.');
+        $suffix = $stopReason === null ? '' : " (stop reason: {$stopReason})";
+
+        throw new AiIntegrityViolation('Anthropic returned non-JSON content despite the structured-output request.'.$suffix);
+    }
+
+    /**
+     * @param  array<string, mixed>|null  $payload
+     */
+    private function stopReason(?array $payload): ?string
+    {
+        $value = $payload['stop_reason'] ?? null;
+        if (! is_string($value)) {
+            return null;
+        }
+
+        $reason = trim($value);
+
+        return $reason === '' ? null : Str::limit($reason, 40, '');
     }
 
     private function extractJsonObject(string $text): ?string
