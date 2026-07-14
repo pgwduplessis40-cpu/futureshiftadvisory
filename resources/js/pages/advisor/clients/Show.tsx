@@ -902,6 +902,23 @@ type StandardAdvisorySummary = {
         label: string;
         description: string;
     };
+    momentum: {
+        completed: number;
+        total: number;
+        percent: number;
+        next_action: string;
+        items: Array<{
+            key: string;
+            label: string;
+            description: string;
+            status:
+                | 'complete'
+                | 'in_progress'
+                | 'waiting_advisor'
+                | 'not_required';
+            owner: 'client' | 'advisor';
+        }>;
+    };
     pack_waivers: StandardAdvisoryPackWaiverSummary[];
     waivable_modules: string[];
     website_audit: {
@@ -5316,6 +5333,55 @@ function StandardAdvisoryPanel({
             <p className="text-sm text-muted-foreground">
                 {summary.next_action}
             </p>
+
+            <RollupPanel
+                title="Client momentum"
+                description={summary.momentum.next_action}
+                meta={
+                    <Badge variant="outline">
+                        {summary.momentum.completed}/{summary.momentum.total}{' '}
+                        complete
+                    </Badge>
+                }
+                className="bg-muted/20"
+            >
+                <div className="h-2 overflow-hidden rounded-full bg-muted">
+                    <div
+                        className="h-full rounded-full bg-emerald-500"
+                        style={{ width: `${summary.momentum.percent}%` }}
+                    />
+                </div>
+                <div className="grid gap-2 md:grid-cols-2">
+                    {summary.momentum.items.map((item) => (
+                        <div
+                            key={item.key}
+                            className="flex items-start justify-between gap-3 rounded-md border bg-background p-3"
+                        >
+                            <div className="min-w-0">
+                                <div className="text-sm font-medium">
+                                    {item.label}
+                                </div>
+                                <div className="mt-1 text-xs text-muted-foreground">
+                                    {item.description}
+                                </div>
+                            </div>
+                            <Badge
+                                variant={
+                                    item.status === 'complete'
+                                        ? 'secondary'
+                                        : 'outline'
+                                }
+                            >
+                                {item.status === 'waiting_advisor'
+                                    ? 'Advisor'
+                                    : item.status === 'not_required'
+                                      ? 'Not required'
+                                      : formatLabel(item.status)}
+                            </Badge>
+                        </div>
+                    ))}
+                </div>
+            </RollupPanel>
 
             <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
                 <Metric

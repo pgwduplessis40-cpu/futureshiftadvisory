@@ -241,6 +241,23 @@ type StandardAdvisoryPortalPayload = {
     missing: string[];
     questionnaire_submitted: boolean;
     document_count: number;
+    momentum: {
+        completed: number;
+        total: number;
+        percent: number;
+        next_action: string;
+        items: Array<{
+            key: string;
+            label: string;
+            description: string;
+            status:
+                | 'complete'
+                | 'in_progress'
+                | 'waiting_advisor'
+                | 'not_required';
+            owner: 'client' | 'advisor';
+        }>;
+    };
     client_report: {
         id: string;
         title: string;
@@ -862,9 +879,9 @@ export default function PortalDashboard({
                                 {standardAdvisory && (
                                     <StatusPanel
                                         icon={FileText}
-                                        label="Advisory report"
-                                        value={standardAdvisory.status_label}
-                                        explanation={`Standard Advisory status: ${standardAdvisory.next_action}`}
+                                        label="Advisory journey"
+                                        value={`${standardAdvisory.momentum.percent}% complete`}
+                                        explanation={standardAdvisory.momentum.next_action}
                                         href={standardAdvisoryActionUrl}
                                         actionLabel={
                                             standardAdvisoryActionLabel

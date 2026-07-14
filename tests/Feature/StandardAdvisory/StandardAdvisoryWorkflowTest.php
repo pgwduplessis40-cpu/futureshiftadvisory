@@ -202,6 +202,26 @@ final class StandardAdvisoryWorkflowTest extends TestCase
         $this->assertSame('green', $readiness['analysis_readiness']['level']);
     }
 
+    public function test_momentum_uses_client_and_advisor_milestones_without_scoring(): void
+    {
+        $client = $this->clientReadyForAnalysis();
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'completed_steps' => ['welcome', 'goals', 'website', 'questionnaire', 'documents', 'review'],
+                'submitted_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $momentum = app(StandardAdvisoryWorkflow::class)->readiness($client)['momentum'];
+
+        $this->assertSame(5, $momentum['completed']);
+        $this->assertSame(7, $momentum['total']);
+        $this->assertSame('Website review', $momentum['items'][5]['label']);
+        $this->assertSame('advisor', $momentum['items'][5]['owner']);
+        $this->assertSame('in_progress', $momentum['items'][5]['status']);
+        $this->assertArrayNotHasKey('points', $momentum);
+    }
+
     private function clientReadyForAnalysis(): Client
     {
         $user = User::factory()->create();

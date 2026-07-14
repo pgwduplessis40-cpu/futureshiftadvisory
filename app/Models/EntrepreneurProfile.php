@@ -124,6 +124,14 @@ final class EntrepreneurProfile extends Model
     }
 
     /**
+     * @return HasMany<EntrepreneurPointEvent>
+     */
+    public function pointEvents(): HasMany
+    {
+        return $this->hasMany(EntrepreneurPointEvent::class);
+    }
+
+    /**
      * @return HasMany<EntrepreneurStreakEvent>
      */
     public function streakEvents(): HasMany

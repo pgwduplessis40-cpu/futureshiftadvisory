@@ -143,6 +143,10 @@ type GamificationPayload = {
         completed: number;
         percent: number;
     };
+    points?: {
+        total: number;
+        milestone_count: number;
+    };
     current_streak?: number;
     last_active_at?: string | null;
     new_badge_count?: number;
@@ -158,6 +162,12 @@ type GamificationPayload = {
         key: string;
         label: string;
         progress_percent: number;
+    } | null;
+    next_quest?: {
+        key: string;
+        label: string;
+        points: number;
+        description: string;
     } | null;
 };
 
@@ -1140,7 +1150,7 @@ function GamificationPanel({
                 ) : null}
             </div>
 
-            <div className="grid gap-4 md:grid-cols-3">
+            <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 <div className="rounded-md border bg-background p-4">
                     <div className="text-xs text-muted-foreground">Level</div>
                     <div className="mt-2 text-sm font-medium">
@@ -1164,6 +1174,22 @@ function GamificationPanel({
                     </div>
                 </div>
                 <div className="rounded-md border bg-background p-4">
+                    <div className="text-xs text-muted-foreground">
+                        Journey points
+                    </div>
+                    <div className="mt-2 text-sm font-medium">
+                        {gamification.points?.total ?? 0} points
+                    </div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                        {gamification.points?.milestone_count ?? 0} verified
+                        {' '}
+                        milestone
+                        {(gamification.points?.milestone_count ?? 0) === 1
+                            ? ''
+                            : 's'}
+                    </div>
+                </div>
+                <div className="rounded-md border bg-background p-4">
                     <div className="flex items-center gap-2 text-xs text-muted-foreground">
                         <Flame className="size-3.5" aria-hidden="true" />
                         Streak
@@ -1177,6 +1203,22 @@ function GamificationPanel({
                     </div>
                 </div>
             </div>
+
+            {gamification.next_quest ? (
+                <div className="flex flex-wrap items-center justify-between gap-3 rounded-md border bg-muted/30 p-3">
+                    <div>
+                        <div className="text-sm font-medium">
+                            Next quest: {gamification.next_quest.label}
+                        </div>
+                        <div className="mt-1 text-sm text-muted-foreground">
+                            {gamification.next_quest.description}
+                        </div>
+                    </div>
+                    <Badge variant="outline">
+                        {gamification.next_quest.points} points
+                    </Badge>
+                </div>
+            ) : null}
 
             {badges.length > 0 ? (
                 <div className="flex flex-wrap gap-2">

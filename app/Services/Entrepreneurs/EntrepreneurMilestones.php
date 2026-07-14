@@ -44,7 +44,10 @@ final class EntrepreneurMilestones
         'exceptional' => 4,
     ];
 
-    public function __construct(private readonly RequestContext $context) {}
+    public function __construct(
+        private readonly RequestContext $context,
+        private readonly EntrepreneurPoints $points,
+    ) {}
 
     public static function labels(): array
     {
@@ -296,11 +299,13 @@ final class EntrepreneurMilestones
 
             $existing = $query->first();
             if ($existing instanceof EntrepreneurMilestoneAward) {
+                $this->points->record($existing);
+
                 return $existing;
             }
 
             try {
-                return EntrepreneurMilestoneAward::query()->create([
+                $award = EntrepreneurMilestoneAward::query()->create([
                     'entrepreneur_profile_id' => $profile->getKey(),
                     'milestone_key' => $key,
                     'evidence_source_type' => $evidenceType,
@@ -308,12 +313,20 @@ final class EntrepreneurMilestones
                     'evidence_snapshot' => $snapshot,
                     'earned_at' => $earnedAt,
                 ]);
+
+                $this->points->record($award);
+
+                return $award;
             } catch (QueryException) {
-                return EntrepreneurMilestoneAward::query()
+                $award = EntrepreneurMilestoneAward::query()
                     ->where('entrepreneur_profile_id', $profile->getKey())
                     ->where('milestone_key', $key)
                     ->when($repeatable, fn ($query) => $query->where('evidence_source_id', $evidenceId))
-                    ->first();
+                    ->firstOrFail();
+
+                $this->points->record($award);
+
+                return $award;
             }
         });
     }

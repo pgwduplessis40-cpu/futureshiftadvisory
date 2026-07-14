@@ -14,6 +14,8 @@ use Illuminate\Support\Collection;
 
 final class EntrepreneurGamification
 {
+    public function __construct(private readonly EntrepreneurPoints $points) {}
+
     /**
      * @return array<string, mixed>
      */
@@ -37,14 +39,18 @@ final class EntrepreneurGamification
             ->where('entrepreneur_profile_id', $profile->getKey())
             ->orderBy('earned_at')
             ->get();
+        $this->points->reconcile($awards);
         $completion = $plan instanceof BusinessPlan
             ? PlanRequirements::completion($plan)
             : ['total' => 0, 'completed' => 0, 'percent' => 0];
+
+        $nextMilestone = $this->nextMilestone($awards, $completion);
 
         return [
             'enabled' => true,
             'current_level' => $this->currentLevel($profile, $plan),
             'plan_completion' => $completion,
+            'points' => $this->points->summary($profile),
             'current_streak' => $profile->current_streak,
             'last_active_at' => $profile->last_active_at?->toIso8601String(),
             'badges' => $awards
@@ -52,7 +58,8 @@ final class EntrepreneurGamification
                 ->values()
                 ->all(),
             'new_badge_count' => $awards->whereNull('seen_at')->count(),
-            'next_milestone' => $this->nextMilestone($awards, $completion),
+            'next_milestone' => $nextMilestone,
+            'next_quest' => $this->points->nextQuest($nextMilestone),
             'grade_trajectory' => $plan instanceof BusinessPlan ? $this->gradeTrajectory($plan) : [],
         ];
     }

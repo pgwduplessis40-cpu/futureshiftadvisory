@@ -7,6 +7,7 @@ namespace Tests\Feature\Entrepreneurs;
 use App\Enums\EntrepreneurStage;
 use App\Models\BusinessPlan;
 use App\Models\EntrepreneurMilestoneAward;
+use App\Models\EntrepreneurPointEvent;
 use App\Models\EntrepreneurProfile;
 use App\Models\EntrepreneurStreakEvent;
 use App\Models\MessageThread;
@@ -62,6 +63,11 @@ final class GamificationTest extends TestCase
             'milestone_key' => EntrepreneurMilestones::PLAN_SUBMITTED,
             'evidence_source_id' => $plan->id,
         ]);
+        $this->assertDatabaseHas('entrepreneur_point_events', [
+            'entrepreneur_profile_id' => $profile->id,
+            'milestone_key' => EntrepreneurMilestones::PLAN_SUBMITTED,
+            'points' => 150,
+        ]);
 
         $this->actingAsMfa($entrepreneur)
             ->post(route('portal.entrepreneur.plan.submit'))
@@ -69,6 +75,10 @@ final class GamificationTest extends TestCase
 
         $this->assertTrue($firstSubmittedAt?->equalTo($plan->refresh()->submitted_at));
         $this->assertSame(1, EntrepreneurMilestoneAward::query()
+            ->where('entrepreneur_profile_id', $profile->id)
+            ->where('milestone_key', EntrepreneurMilestones::PLAN_SUBMITTED)
+            ->count());
+        $this->assertSame(1, EntrepreneurPointEvent::query()
             ->where('entrepreneur_profile_id', $profile->id)
             ->where('milestone_key', EntrepreneurMilestones::PLAN_SUBMITTED)
             ->count());
@@ -318,11 +328,44 @@ final class GamificationTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->where('gamification.enabled', true)
+                ->where('gamification.points.total', 0)
                 ->where('gamification.disable_request_requested', false)
                 ->where('gamification.disable_request_url', route('portal.entrepreneur.gamification.disable-request', absolute: false))
             );
 
         $this->assertTrue($profile->refresh()->gamification_on);
+    }
+
+    public function test_existing_milestone_awards_receive_points_once_when_the_journey_is_opened(): void
+    {
+        [, $entrepreneur, $profile] = $this->profile('historical-points@example.test', gamificationOn: true);
+
+        EntrepreneurMilestoneAward::query()->create([
+            'entrepreneur_profile_id' => $profile->id,
+            'milestone_key' => EntrepreneurMilestones::IDEA_VALIDATED,
+            'evidence_source_type' => 'idea_validation',
+            'evidence_source_id' => 'historic-idea-validation',
+            'evidence_snapshot' => ['earned_at_estimated' => true],
+            'earned_at' => now()->subDay(),
+        ]);
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page): Assert => $page
+                ->where('gamification.points.total', 100)
+                ->where('gamification.points.milestone_count', 1)
+                ->where('gamification.next_quest.key', 'phase_1')
+            );
+
+        $this->actingAsMfa($entrepreneur)
+            ->get(route('portal.entrepreneur.dashboard'))
+            ->assertOk();
+
+        $this->assertSame(1, EntrepreneurPointEvent::query()
+            ->where('entrepreneur_profile_id', $profile->id)
+            ->where('milestone_key', EntrepreneurMilestones::IDEA_VALIDATED)
+            ->count());
     }
 
     public function test_entrepreneur_can_request_gamification_disablement_without_switching_it_off(): void

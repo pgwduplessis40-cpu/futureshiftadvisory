@@ -340,11 +340,20 @@ type GamificationPayload = {
         completed: number;
         percent: number;
     };
+    points?: {
+        total: number;
+        milestone_count: number;
+    };
     current_streak?: number;
     new_badge_count?: number;
     next_milestone?: {
         label: string;
         progress_percent: number;
+    } | null;
+    next_quest?: {
+        label: string;
+        points: number;
+        description: string;
     } | null;
 };
 
@@ -933,6 +942,10 @@ export default function EntrepreneurPlan({
                                         %
                                     </span>
                                     <span>
+                                        Journey points{' '}
+                                        {gamification.points?.total ?? 0}
+                                    </span>
+                                    <span>
                                         Streak{' '}
                                         {gamification.current_streak ?? 0} days
                                     </span>
@@ -1230,12 +1243,12 @@ export default function EntrepreneurPlan({
                                         </div>
                                     ) : null}
                                     {gamification.enabled &&
-                                    gamification.next_milestone ? (
+                                    gamification.next_quest ? (
                                         <p className="mt-1 text-xs text-muted-foreground">
-                                            Next badge:{' '}
-                                            {nextMilestoneLabel(
-                                                gamification.next_milestone,
-                                            )}
+                                            Next quest:{' '}
+                                            {gamification.next_quest.label} for{' '}
+                                            {gamification.next_quest.points}{' '}
+                                            points.
                                         </p>
                                     ) : null}
                                 </div>
@@ -4573,14 +4586,6 @@ function journeyLevelLabel(
     }
 
     return level.label;
-}
-
-function nextMilestoneLabel(
-    milestone: NonNullable<GamificationPayload['next_milestone']>,
-): string {
-    return milestone.label === 'Idea validated'
-        ? 'Idea validation'
-        : milestone.label;
 }
 
 function formatLabel(value: string): string {

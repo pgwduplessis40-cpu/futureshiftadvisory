@@ -115,6 +115,7 @@ final class StandardAdvisoryWorkflow
             'missing' => $readiness['missing'],
             'questionnaire_submitted' => $readiness['questionnaire_submitted'],
             'document_count' => $readiness['document_count'],
+            'momentum' => $readiness['momentum'],
             'client_report' => $this->portalClientReport($readiness['reports']['client']),
             'latest_report_generated_at' => $readiness['latest_report_generated_at'],
         ];
@@ -158,6 +159,13 @@ final class StandardAdvisoryWorkflow
         $analysisReadiness = $this->analysisReadiness(
             canRunAnalysis: $canRunAnalysis,
             onboardingSubmitted: $onboardingSubmitted,
+        );
+        $momentum = $this->momentum(
+            onboardingState: $onboardingState,
+            response: $response,
+            documents: $documents,
+            websiteAudit: $websiteAudit,
+            clientReport: $reports['client'],
         );
 
         $missing = [];
@@ -226,6 +234,7 @@ final class StandardAdvisoryWorkflow
             'missing' => $missing,
             'warnings' => $warnings,
             'analysis_readiness' => $analysisReadiness,
+            'momentum' => $momentum,
             'can_run_analysis' => $canRunAnalysis,
             'can_generate_pack' => $response instanceof QuestionnaireResponse
                 && $documents->isNotEmpty()
@@ -400,6 +409,130 @@ final class StandardAdvisoryWorkflow
             'level' => 'green',
             'label' => 'Complete client pack',
             'description' => 'The client has submitted all onboarding inputs and supporting evidence.',
+        ];
+    }
+
+    /**
+     * @param  array<string, mixed>  $onboardingState
+     * @param  Collection<int, Document>  $documents
+     * @param  array<string, mixed>  $websiteAudit
+     * @param  array<string, mixed>|null  $clientReport
+     * @return array{completed:int,total:int,percent:int,next_action:string,items:array<int,array{key:string,label:string,description:string,status:'complete'|'in_progress'|'waiting_advisor'|'not_required',owner:'client'|'advisor'}>}
+     */
+    private function momentum(
+        array $onboardingState,
+        ?QuestionnaireResponse $response,
+        Collection $documents,
+        array $websiteAudit,
+        ?array $clientReport,
+    ): array {
+        $completedSteps = is_array($onboardingState['completed_steps'] ?? null)
+            ? $onboardingState['completed_steps']
+            : [];
+        $onboardingSubmitted = is_string($onboardingState['submitted_at'] ?? null)
+            && trim((string) $onboardingState['submitted_at']) !== '';
+        $websiteStatus = (string) ($websiteAudit['status'] ?? 'waiting_questionnaire');
+        $websiteComplete = in_array($websiteStatus, [
+            WebsiteAuditSnapshot::STATUS_OK,
+            WebsiteAuditSnapshot::STATUS_PARTIAL,
+            WebsiteAuditSnapshot::STATUS_SKIPPED_NO_URL,
+        ], true);
+        $websiteNeedsAdvisor = $websiteStatus === 'awaiting_confirmation';
+        $reportReleased = in_array((string) ($clientReport['review_status'] ?? ''), ['reviewed', 'not_required'], true);
+
+        $items = [
+            $this->momentumItem(
+                key: 'goals',
+                label: 'Set your goals',
+                description: 'Share what a successful advisory engagement looks like for your business.',
+                complete: in_array('goals', $completedSteps, true),
+                owner: 'client',
+            ),
+            $this->momentumItem(
+                key: 'website',
+                label: 'Record your website details',
+                description: 'Provide a public website address or record that your business does not have one.',
+                complete: in_array('website', $completedSteps, true),
+                owner: 'client',
+            ),
+            $this->momentumItem(
+                key: 'questionnaire',
+                label: 'Complete the questionnaire',
+                description: 'Give your advisor the business context needed for a useful review.',
+                complete: $response instanceof QuestionnaireResponse,
+                owner: 'client',
+            ),
+            $this->momentumItem(
+                key: 'evidence',
+                label: 'Share supporting evidence',
+                description: 'Upload the documents your advisor needs to assess the business.',
+                complete: $documents->isNotEmpty(),
+                owner: 'client',
+            ),
+            $this->momentumItem(
+                key: 'onboarding',
+                label: 'Submit onboarding',
+                description: 'Confirm your details are ready for the advisory work to begin.',
+                complete: $onboardingSubmitted,
+                owner: 'client',
+            ),
+            [
+                'key' => 'website_review',
+                'label' => 'Website review',
+                'description' => $websiteComplete
+                    ? 'Your website review is recorded in the advisory evidence.'
+                    : ($websiteNeedsAdvisor
+                        ? 'Your advisor will confirm the nominated website before review.'
+                        : 'Your advisor will complete or record the website review with analysis.'),
+                'status' => $websiteComplete
+                    ? ($websiteStatus === WebsiteAuditSnapshot::STATUS_SKIPPED_NO_URL ? 'not_required' : 'complete')
+                    : ($websiteNeedsAdvisor ? 'waiting_advisor' : 'in_progress'),
+                'owner' => 'advisor',
+            ],
+            $this->momentumItem(
+                key: 'client_report',
+                label: 'Review your advisory report',
+                description: $reportReleased
+                    ? 'Your advisory report is available to review with your advisor.'
+                    : 'Your advisor will prepare and release your report after the review.',
+                complete: $reportReleased,
+                owner: 'advisor',
+            ),
+        ];
+
+        $completed = collect($items)
+            ->whereIn('status', ['complete', 'not_required'])
+            ->count();
+        $next = collect($items)
+            ->first(fn (array $item): bool => $item['status'] !== 'complete' && $item['status'] !== 'not_required');
+
+        return [
+            'completed' => $completed,
+            'total' => count($items),
+            'percent' => (int) round(($completed / count($items)) * 100),
+            'next_action' => is_array($next)
+                ? $next['description']
+                : 'Your advisory journey is complete. Keep working with your advisor on the agreed priorities.',
+            'items' => $items,
+        ];
+    }
+
+    /**
+     * @return array{key:string,label:string,description:string,status:'complete'|'in_progress',owner:'client'|'advisor'}
+     */
+    private function momentumItem(
+        string $key,
+        string $label,
+        string $description,
+        bool $complete,
+        string $owner,
+    ): array {
+        return [
+            'key' => $key,
+            'label' => $label,
+            'description' => $description,
+            'status' => $complete ? 'complete' : 'in_progress',
+            'owner' => $owner,
         ];
     }
 

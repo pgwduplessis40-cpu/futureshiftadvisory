@@ -7,22 +7,20 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\HasOne;
 
-final class EntrepreneurMilestoneAward extends Model
+final class EntrepreneurPointEvent extends Model
 {
     use HasUuids;
 
     protected $guarded = [];
 
     protected $casts = [
-        'evidence_snapshot' => 'array',
+        'points' => 'integer',
         'earned_at' => 'datetime',
-        'seen_at' => 'datetime',
     ];
 
     /**
-     * @return BelongsTo<EntrepreneurProfile, EntrepreneurMilestoneAward>
+     * @return BelongsTo<EntrepreneurProfile, EntrepreneurPointEvent>
      */
     public function entrepreneurProfile(): BelongsTo
     {
@@ -30,10 +28,10 @@ final class EntrepreneurMilestoneAward extends Model
     }
 
     /**
-     * @return HasOne<EntrepreneurPointEvent>
+     * @return BelongsTo<EntrepreneurMilestoneAward, EntrepreneurPointEvent>
      */
-    public function pointEvent(): HasOne
+    public function milestoneAward(): BelongsTo
     {
-        return $this->hasOne(EntrepreneurPointEvent::class);
+        return $this->belongsTo(EntrepreneurMilestoneAward::class);
     }
 }
