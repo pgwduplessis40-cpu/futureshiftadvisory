@@ -1,22 +1,19 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import {
     ArrowLeft,
     ArrowRight,
-    Building2,
     Check,
     ClipboardList,
     FileText,
     Flag,
+    Globe2,
     ShieldCheck,
     Upload,
-    UserRoundCheck,
 } from 'lucide-react';
-import { useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { ComponentType, FormEvent, ReactNode } from 'react';
 import { toast } from 'sonner';
-import {
-    ExplainedSectionHeader,
-} from '@/components/explainer';
+import { ExplainedSectionHeader } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
@@ -52,29 +49,38 @@ type Props = {
     stepData: Record<string, unknown>;
     progress: Progress;
     questionnaire: Questionnaire;
+    website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
     submitUrl: string;
+    questionnaireDraftUrl: string;
     dashboardUrl: string;
-    authUser: {
-        name: string;
-        email: string;
-    };
+};
+
+type WebsiteSubmission = {
+    url: string | null;
+    status: 'advisor_confirmed' | 'awaiting_advisor_confirmation' | 'not_listed';
 };
 
 type OnboardingForm = {
     acknowledged: boolean;
-    name: string;
-    email: string;
-    snapshot_confirmed: boolean;
     primary_goal: string;
     success_measure: string;
+    website_url: string;
+    website_skipped: boolean;
     questionnaire_set_acknowledged: boolean;
     phase_three_acknowledged: boolean;
     answers: QuestionnaireAnswers;
     documents_acknowledged: boolean;
     review_confirmed: boolean;
 };
+
+type QuestionnaireDraftStatus =
+    | 'idle'
+    | 'saving'
+    | 'saved'
+    | 'offline'
+    | 'error';
 
 export default function OnboardingStep({
     client,
@@ -85,19 +91,19 @@ export default function OnboardingStep({
     stepData,
     progress,
     questionnaire,
+    website,
     documentUploadUrl,
     documentCount,
     submitUrl,
+    questionnaireDraftUrl,
     dashboardUrl,
-    authUser,
 }: Props) {
     const form = useForm<OnboardingForm>({
         acknowledged: booleanValue(stepData.acknowledged),
-        name: stringValue(stepData.name, authUser.name),
-        email: stringValue(stepData.email, authUser.email),
-        snapshot_confirmed: booleanValue(stepData.snapshot_confirmed),
         primary_goal: stringValue(stepData.primary_goal),
         success_measure: stringValue(stepData.success_measure),
+        website_url: stringValue(stepData.website_url, website.url ?? ''),
+        website_skipped: booleanValue(stepData.website_skipped),
         questionnaire_set_acknowledged: booleanValue(
             stepData.questionnaire_set_acknowledged,
         ),
@@ -109,6 +115,76 @@ export default function OnboardingStep({
         review_confirmed: booleanValue(stepData.review_confirmed),
     });
     const errors = form.errors as Record<string, string | undefined>;
+    const [questionnaireDraftStatus, setQuestionnaireDraftStatus] =
+        useState<QuestionnaireDraftStatus>(
+            questionnaire.draft_saved_at ? 'saved' : 'idle',
+        );
+    const savedQuestionnaireAnswers = useRef(
+        JSON.stringify(questionnaire.answers ?? {}),
+    );
+    const saveQuestionnaireDraft = useCallback(
+        async (answers: QuestionnaireAnswers): Promise<boolean> => {
+            if (!questionnaireDraftUrl || !navigator.onLine) {
+                setQuestionnaireDraftStatus('offline');
+
+                return false;
+            }
+
+            setQuestionnaireDraftStatus('saving');
+
+            try {
+                const response = await fetch(questionnaireDraftUrl, {
+                    method: 'POST',
+                    headers: {
+                        Accept: 'application/json',
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': csrfToken(),
+                    },
+                    body: JSON.stringify({ answers }),
+                });
+
+                if (!response.ok) {
+                    throw new Error('Draft save failed.');
+                }
+
+                savedQuestionnaireAnswers.current = JSON.stringify(answers);
+                setQuestionnaireDraftStatus('saved');
+
+                return true;
+            } catch {
+                setQuestionnaireDraftStatus('error');
+
+                return false;
+            }
+        },
+        [questionnaireDraftUrl],
+    );
+    const questionnaireAnswerSignature = JSON.stringify(form.data.answers);
+
+    useEffect(() => {
+        if (
+            step.slug !== 'questionnaire' ||
+            !questionnaire.available ||
+            !questionnaire.schema ||
+            questionnaireAnswerSignature === savedQuestionnaireAnswers.current
+        ) {
+            return;
+        }
+
+        const timer = window.setTimeout(() => {
+            void saveQuestionnaireDraft(form.data.answers);
+        }, 800);
+
+        return () => window.clearTimeout(timer);
+    }, [
+        form.data.answers,
+        questionnaire.available,
+        questionnaire.schema,
+        questionnaireAnswerSignature,
+        saveQuestionnaireDraft,
+        step.slug,
+    ]);
+
     const submit = (event: FormEvent<HTMLFormElement>) => {
         event.preventDefault();
 
@@ -127,6 +203,19 @@ export default function OnboardingStep({
         form.post(submitUrl, {
             preserveScroll: true,
         });
+    };
+    const saveDraftAndExit = async () => {
+        if (step.slug === 'questionnaire') {
+            const saved = await saveQuestionnaireDraft(form.data.answers);
+
+            if (!saved) {
+                toast.error('Your draft could not be saved.');
+
+                return;
+            }
+        }
+
+        router.visit(dashboardUrl);
     };
 
     return (
@@ -163,7 +252,7 @@ export default function OnboardingStep({
                         title={
                             <span id="wizard-stepper-heading">Onboarding</span>
                         }
-                        description="The steps collect identity, business context, goals, questionnaire answers, and evidence for advisor review."
+                        description="The steps collect your goals, website, questionnaire answers, and evidence for advisor review."
                         explanation={{
                             title: 'Onboarding progress',
                             what: 'This shows where you are in the client onboarding workflow and which steps are available.',
@@ -176,7 +265,7 @@ export default function OnboardingStep({
                             </span>
                         }
                     />
-                    <ol className="mt-4 grid gap-2 md:grid-cols-7">
+                    <ol className="mt-4 grid gap-2 md:grid-cols-6">
                         {steps.map((item) => (
                             <li key={item.slug}>
                                 {item.locked ? (
@@ -221,15 +310,26 @@ export default function OnboardingStep({
                             form={form}
                             errors={errors}
                             questionnaire={questionnaire}
+                            website={website}
                             documentUploadUrl={documentUploadUrl}
                             documentCount={documentCount}
-                            authUser={authUser}
+                            questionnaireDraftStatus={questionnaireDraftStatus}
+                            onSaveQuestionnaireDraft={() =>
+                                void saveQuestionnaireDraft(form.data.answers)
+                            }
                         />
                     </section>
 
                     <div className="flex flex-col-reverse gap-3 sm:flex-row sm:justify-between">
-                        <Button asChild variant="outline">
-                            <Link href={dashboardUrl}>Save for later</Link>
+                        <Button
+                            type="button"
+                            variant="outline"
+                            disabled={questionnaireDraftStatus === 'saving'}
+                            onClick={() => void saveDraftAndExit()}
+                        >
+                            {step.slug === 'questionnaire'
+                                ? 'Save draft and exit'
+                                : 'Back to dashboard'}
                         </Button>
                         <Button type="submit" disabled={form.processing}>
                             {step.slug === 'review-submit'
@@ -252,9 +352,11 @@ function StepContent({
     form,
     errors,
     questionnaire,
+    website,
     documentUploadUrl,
     documentCount,
-    authUser,
+    questionnaireDraftStatus,
+    onSaveQuestionnaireDraft,
 }: {
     client: ClientPayload;
     step: WizardStep;
@@ -263,9 +365,11 @@ function StepContent({
     form: ReturnType<typeof useForm<OnboardingForm>>;
     errors: Record<string, string | undefined>;
     questionnaire: Questionnaire;
+    website: WebsiteSubmission;
     documentUploadUrl: string;
     documentCount: number;
-    authUser: { name: string; email: string };
+    questionnaireDraftStatus: QuestionnaireDraftStatus;
+    onSaveQuestionnaireDraft: () => void;
 }) {
     const [documentFile, setDocumentFile] = useState<File | null>(null);
     const [uploadedDocumentCount, setUploadedDocumentCount] =
@@ -346,78 +450,6 @@ function StepContent({
                     />
                 </ContentShell>
             );
-        case 'identity':
-            return (
-                <ContentShell
-                    icon={UserRoundCheck}
-                    title="Identity verification"
-                    description="MFA is complete. Confirm the account details for this client portal."
-                    explanation={stepExplanations.identity}
-                >
-                    <div className="grid gap-4 md:grid-cols-2">
-                        <Field label="Name" id="name" error={form.errors.name}>
-                            <Input
-                                id="name"
-                                value={form.data.name}
-                                placeholder={authUser.name}
-                                onChange={(event) =>
-                                    form.setData('name', event.target.value)
-                                }
-                                required
-                            />
-                        </Field>
-                        <Field
-                            label="Email"
-                            id="email"
-                            error={form.errors.email}
-                        >
-                            <Input
-                                id="email"
-                                type="email"
-                                value={form.data.email}
-                                placeholder={authUser.email}
-                                onChange={(event) =>
-                                    form.setData('email', event.target.value)
-                                }
-                                required
-                            />
-                        </Field>
-                    </div>
-                </ContentShell>
-            );
-        case 'business-snapshot':
-            return (
-                <ContentShell
-                    icon={Building2}
-                    title="Business snapshot"
-                    description="Review the registry snapshot for this engagement."
-                    explanation={stepExplanations['business-snapshot']}
-                >
-                    <dl className="grid gap-3 text-sm md:grid-cols-2">
-                        <Detail label="Legal name" value={client.legal_name} />
-                        <Detail
-                            label="Trading name"
-                            value={client.trading_name}
-                        />
-                        <Detail label="NZBN" value={client.nzbn} />
-                        <Detail label="Entity" value={client.entity_type} />
-                        <Detail
-                            label="GST"
-                            value={client.gst_registration_status}
-                        />
-                        <Detail label="Filing" value={client.filing_status} />
-                    </dl>
-                    <CheckboxField
-                        id="snapshot_confirmed"
-                        label="The business snapshot is ready for onboarding."
-                        checked={form.data.snapshot_confirmed}
-                        onCheckedChange={(checked) =>
-                            form.setData('snapshot_confirmed', checked)
-                        }
-                        error={form.errors.snapshot_confirmed}
-                    />
-                </ContentShell>
-            );
         case 'goals':
             return (
                 <ContentShell
@@ -462,6 +494,52 @@ function StepContent({
                     </Field>
                 </ContentShell>
             );
+        case 'website':
+            return (
+                <ContentShell
+                    icon={Globe2}
+                    title="Your website"
+                    description="Share the public website your customers use."
+                    explanation={stepExplanations.website}
+                >
+                    <Field
+                        label="Website address"
+                        id="website_url"
+                        error={form.errors.website_url}
+                    >
+                        <Input
+                            id="website_url"
+                            type="url"
+                            value={form.data.website_url}
+                            onChange={(event) =>
+                                form.setData('website_url', event.target.value)
+                            }
+                            maxLength={2048}
+                            placeholder="https://example.co.nz"
+                        />
+                    </Field>
+                    {website.status === 'awaiting_advisor_confirmation' ? (
+                        <p className="text-sm text-muted-foreground">
+                            Your advisor will confirm this address before it is
+                            used for the website review.
+                        </p>
+                    ) : website.status === 'advisor_confirmed' ? (
+                        <p className="text-sm text-muted-foreground">
+                            Your advisor has confirmed this address for the
+                            website review.
+                        </p>
+                    ) : null}
+                    <CheckboxField
+                        id="website_skipped"
+                        label="This business does not have a public website."
+                        checked={form.data.website_skipped}
+                        onCheckedChange={(checked) =>
+                            form.setData('website_skipped', checked)
+                        }
+                        error={form.errors.website_skipped}
+                    />
+                </ContentShell>
+            );
         case 'questionnaire':
             return (
                 <ContentShell
@@ -481,6 +559,24 @@ function StepContent({
                             {questionnaire.set}
                         </Badge>
                         <Badge variant="outline">{questionnaire.phase}</Badge>
+                        <Badge
+                            variant={
+                                questionnaireDraftStatus === 'error'
+                                    ? 'destructive'
+                                    : 'outline'
+                            }
+                        >
+                            {questionnaireDraftLabel(questionnaireDraftStatus)}
+                        </Badge>
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={questionnaireDraftStatus === 'saving'}
+                            onClick={onSaveQuestionnaireDraft}
+                        >
+                            Save draft
+                        </Button>
                     </div>
                     {questionnaire.available && questionnaire.schema ? (
                         <QuestionnaireRenderer
@@ -489,6 +585,8 @@ function StepContent({
                             errors={errors}
                             uploadUrl={documentUploadUrl}
                             clientId={client.id}
+                            collapsibleSections
+                            showProgress
                             onChange={(answers) =>
                                 form.setData('answers', answers)
                             }
@@ -583,8 +681,14 @@ function StepContent({
                 >
                     <dl className="grid gap-3 text-sm md:grid-cols-2">
                         <Detail
-                            label="Identity"
-                            value={summaryValue(state, 'identity', 'name')}
+                            label="Website"
+                            value={
+                                summaryValue(
+                                    state,
+                                    'website',
+                                    'website_url',
+                                ) ?? 'No public website listed'
+                            }
                         />
                         <Detail
                             label="Primary goal"
@@ -599,8 +703,8 @@ function StepContent({
                             )}
                         />
                         <Detail
-                            label="Data quality"
-                            value={client.data_quality}
+                            label="Documents"
+                            value="Supporting documents uploaded for advisor review"
                         />
                     </dl>
                     <CheckboxField
@@ -652,23 +756,17 @@ const stepExplanations: Record<string, Explanation> = {
         action: 'Read the advisor welcome message if one is present, then tick the acknowledgement when you are ready.',
         why: 'This creates a clear starting point before business and evidence information is collected.',
     },
-    identity: {
-        title: 'Identity verification',
-        what: 'This confirms the portal user details attached to the client workspace.',
-        action: 'Check the name and email are correct before continuing.',
-        why: 'Correct identity details protect the workspace and make later messages, approvals, and evidence uploads attributable.',
-    },
-    'business-snapshot': {
-        title: 'Business snapshot',
-        what: 'This shows the business registry details currently recorded for the engagement.',
-        action: 'Review the legal name, trading name, NZBN, GST, and filing details, then confirm when they look ready.',
-        why: 'Advisor analysis relies on the correct entity being matched to the correct business evidence.',
-    },
     goals: {
         title: 'Goals',
         what: 'This captures what you want the advisory engagement to help achieve.',
         action: 'Write the main goal and, where possible, how success should be measured.',
         why: 'Clear goals let advice, reports, and follow-up outcomes connect back to what matters commercially.',
+    },
+    website: {
+        title: 'Website',
+        what: 'This records the public website your customers use to find and assess the business.',
+        action: 'Enter the website address, or confirm that the business does not have a public website.',
+        why: 'A confirmed website gives the advisor a reliable source for the website review and any related recommendations.',
     },
     questionnaire: {
         title: 'Questionnaire',
@@ -770,6 +868,16 @@ function StepIcon({ step }: { step: WizardStep }) {
 
 function booleanValue(value: unknown): boolean {
     return value === true;
+}
+
+function questionnaireDraftLabel(status: QuestionnaireDraftStatus): string {
+    return {
+        idle: 'Draft ready',
+        saving: 'Saving draft',
+        saved: 'Draft saved',
+        offline: 'Offline changes',
+        error: 'Draft needs saving',
+    }[status];
 }
 
 function stringValue(value: unknown, fallback = ''): string {

@@ -27,7 +27,7 @@ create.url = (args: { termsVersion: string | { id: string } } | [termsVersion: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -99,5 +99,5 @@ create.head = (args: { termsVersion: string | { id: string } } | [termsVersion: 
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm

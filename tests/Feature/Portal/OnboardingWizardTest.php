@@ -10,11 +10,15 @@ use App\Models\ClientTeamMember;
 use App\Models\ConflictDeclaration;
 use App\Models\DdEngagement;
 use App\Models\Document;
+use App\Models\Questionnaire;
 use App\Models\User;
+use App\Models\WebsiteUrlConfirmation;
 use App\Services\Portal\OnboardingWizard;
+use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Support\RequestContext;
 use Database\Seeders\PostAcquisitionGapQuestionnaireSeeder;
 use Database\Seeders\RoleSeeder;
+use Database\Seeders\StandardAdvisoryQuestionnaireSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
@@ -65,22 +69,8 @@ final class OnboardingWizardTest extends TestCase
                 'acknowledged' => true,
             ])
             ->assertRedirect(route('portal.onboarding.step', [
-                'step' => OnboardingWizard::STEP_IDENTITY,
+                'step' => OnboardingWizard::STEP_GOALS,
             ], absolute: false));
-
-        $this->actingAsMfa($user)
-            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_IDENTITY]), [
-                'name' => 'Client Owner',
-                'email' => 'client.owner@example.com',
-            ])
-            ->assertRedirect(route('portal.onboarding.step', [
-                'step' => OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
-            ], absolute: false));
-
-        $this->actingAsMfa($user)
-            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_BUSINESS_SNAPSHOT]), [
-                'snapshot_confirmed' => true,
-            ]);
 
         $this->actingAsMfa($user)
             ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_GOALS]), [
@@ -88,12 +78,20 @@ final class OnboardingWizardTest extends TestCase
                 'success_measure' => 'Weekly reporting pack is trusted by the leadership team.',
             ])
             ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_WEBSITE,
+            ], absolute: false));
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WEBSITE]), [
+                'website_skipped' => true,
+            ])
+            ->assertRedirect(route('portal.onboarding.step', [
                 'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
             ], absolute: false));
 
         $state = $client->refresh()->onboarding_wizard_state;
 
-        $this->assertSame(5, $state['current_step']);
+        $this->assertSame(4, $state['current_step']);
         $this->assertContains(OnboardingWizard::STEP_GOALS, $state['completed_steps']);
         $this->assertSame(
             'Improve cash visibility before growth funding.',
@@ -107,7 +105,7 @@ final class OnboardingWizardTest extends TestCase
                 ->component('portal/onboarding/Step')
                 ->where('step.slug', OnboardingWizard::STEP_GOALS)
                 ->where('stepData.primary_goal', 'Improve cash visibility before growth funding.')
-                ->where('progress.completed', 4)
+                ->where('progress.completed', 3)
             );
     }
 
@@ -126,6 +124,138 @@ final class OnboardingWizardTest extends TestCase
                 ->where('questionnaire.set', 'standard_advisory')
                 ->where('questionnaire.available', true)
                 ->where('questionnaire.phase', 'Phase 1')
+            );
+    }
+
+    public function test_client_website_submission_is_visible_to_the_advisor_for_confirmation(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WELCOME]), [
+                'acknowledged' => true,
+            ]);
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_GOALS]), [
+                'primary_goal' => 'Improve cash visibility before growth funding.',
+            ]);
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WEBSITE]), [
+                'website_url' => 'example.com',
+            ])
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_QUESTIONNAIRE,
+            ], absolute: false));
+
+        $this->assertDatabaseHas('website_url_confirmations', [
+            'client_id' => $client->getKey(),
+            'root_url' => 'https://example.com/',
+            'status' => WebsiteUrlConfirmation::STATUS_PENDING_ADVISOR_REVIEW,
+        ]);
+
+        $summary = app(StandardAdvisoryWorkflow::class)->clientSummary($client->refresh());
+
+        $this->assertSame('awaiting_confirmation', data_get($summary, 'website_audit.status'));
+        $this->assertSame('https://example.com/', data_get($summary, 'website_audit.candidates.0.url'));
+        $this->assertSame('client', data_get($summary, 'website_audit.candidates.0.source'));
+    }
+
+    public function test_legacy_onboarding_state_skips_retired_internal_steps(): void
+    {
+        $this->seed(RoleSeeder::class);
+        [$user, $client] = $this->clientUserWithClient();
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'current_step' => 2,
+                'completed_steps' => [
+                    OnboardingWizard::STEP_WELCOME,
+                    OnboardingWizard::STEP_IDENTITY,
+                ],
+            ],
+        ])->save();
+
+        $wizard = app(OnboardingWizard::class);
+        $state = $wizard->state($client);
+
+        $this->assertSame(2, $state['current_step']);
+        $this->assertSame([OnboardingWizard::STEP_WELCOME], $state['completed_steps']);
+        $this->assertSame(OnboardingWizard::STEP_GOALS, $wizard->currentStepSlug($client));
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_IDENTITY]))
+            ->assertRedirect(route('portal.onboarding.step', [
+                'step' => OnboardingWizard::STEP_GOALS,
+            ], absolute: false));
+    }
+
+    public function test_every_client_engagement_uses_only_client_facing_onboarding_steps(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $wizard = app(OnboardingWizard::class);
+        $expectedSteps = [
+            OnboardingWizard::STEP_WELCOME,
+            OnboardingWizard::STEP_GOALS,
+            OnboardingWizard::STEP_WEBSITE,
+            OnboardingWizard::STEP_QUESTIONNAIRE,
+            OnboardingWizard::STEP_DOCUMENTS,
+            OnboardingWizard::STEP_REVIEW,
+        ];
+
+        foreach (EngagementType::cases() as $engagementType) {
+            [, $client] = $this->clientUserWithClient($engagementType);
+            $steps = array_column($wizard->navigation($client), 'slug');
+
+            $this->assertSame($expectedSteps, $steps);
+            $this->assertNotContains(OnboardingWizard::STEP_IDENTITY, $steps);
+            $this->assertNotContains(
+                OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
+                $steps,
+            );
+        }
+    }
+
+    public function test_questionnaire_draft_persists_without_completing_the_onboarding_step(): void
+    {
+        $this->seed(RoleSeeder::class);
+        $this->seed(StandardAdvisoryQuestionnaireSeeder::class);
+        [$user, $client] = $this->clientUserWithClient(EngagementType::STANDARD_ADVISORY);
+        $this->advanceToQuestionnaire($user);
+
+        $questionnaire = Questionnaire::query()
+            ->forSet('standard_advisory')
+            ->published()
+            ->firstOrFail();
+        $questionId = (string) $questionnaire->sections()
+            ->firstOrFail()
+            ->questions()
+            ->firstOrFail()
+            ->getKey();
+
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.questionnaire.draft'), [
+                'answers' => [
+                    $questionId => [
+                        'value' => 'A partially completed questionnaire answer.',
+                        'attached_document_ids' => [],
+                    ],
+                ],
+            ])
+            ->assertOk()
+            ->assertJsonStructure(['saved_at']);
+
+        $state = $client->refresh()->onboarding_wizard_state;
+        $this->assertSame(
+            'A partially completed questionnaire answer.',
+            data_get($state, "drafts.questionnaire.payload.answers.{$questionId}.value"),
+        );
+        $this->assertNotContains(OnboardingWizard::STEP_QUESTIONNAIRE, $state['completed_steps']);
+
+        $this->actingAsMfa($user)
+            ->get(route('portal.onboarding.step', ['step' => OnboardingWizard::STEP_QUESTIONNAIRE]))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->where("questionnaire.answers.{$questionId}.value", 'A partially completed questionnaire answer.')
+                ->has('questionnaire.draft_saved_at')
             );
     }
 
@@ -220,7 +350,7 @@ final class OnboardingWizardTest extends TestCase
 
         $state = $client->refresh()->onboarding_wizard_state;
 
-        $this->assertCount(7, $state['completed_steps']);
+        $this->assertCount(6, $state['completed_steps']);
         $this->assertNotNull($state['submitted_at']);
         $this->assertDatabaseHas('audit_events', [
             'action' => 'portal.onboarding_step_saved',
@@ -236,7 +366,7 @@ final class OnboardingWizardTest extends TestCase
     ): array {
         $user = User::factory()->withTwoFactor()->create([
             'name' => 'Client Owner',
-            'email' => 'client.owner@example.com',
+            'email' => "client.owner+{$engagementType->value}@example.com",
             'user_type' => User::TYPE_CLIENT_PRIMARY,
             'primary_role' => User::TYPE_CLIENT_PRIMARY,
         ]);
@@ -273,18 +403,13 @@ final class OnboardingWizardTest extends TestCase
                 'acknowledged' => true,
             ]);
         $this->actingAsMfa($user)
-            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_IDENTITY]), [
-                'name' => 'Client Owner',
-                'email' => 'client.owner@example.com',
-            ]);
-        $this->actingAsMfa($user)
-            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_BUSINESS_SNAPSHOT]), [
-                'snapshot_confirmed' => true,
-            ]);
-        $this->actingAsMfa($user)
             ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_GOALS]), [
                 'primary_goal' => 'Improve cash visibility before growth funding.',
                 'success_measure' => 'Trusted weekly reporting pack.',
+            ]);
+        $this->actingAsMfa($user)
+            ->post(route('portal.onboarding.store', ['step' => OnboardingWizard::STEP_WEBSITE]), [
+                'website_skipped' => true,
             ]);
     }
 

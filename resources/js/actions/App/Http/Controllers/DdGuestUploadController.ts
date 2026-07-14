@@ -24,7 +24,7 @@ DdGuestUploadController.url = (args: { token: string | number } | [token: string
         args = { token: args }
     }
 
-    
+
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -71,6 +71,6 @@ DdGuestUploadController.post = (args: { token: string | number } | [token: strin
             action: DdGuestUploadController.url(args, options),
             method: 'post',
         })
-    
+
     DdGuestUploadController.form = DdGuestUploadControllerForm
 export default DdGuestUploadController

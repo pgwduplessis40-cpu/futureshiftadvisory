@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::analysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:20
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:21
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
 export const analysis = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ analysis.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::analysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:20
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:21
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
 analysis.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ analysis.url = (args: { client: string | { id: string } } | [client: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -49,7 +49,7 @@ analysis.url = (args: { client: string | { id: string } } | [client: string | { 
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::analysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:20
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:21
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
 analysis.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ analysis.post = (args: { client: string | { id: string } } | [client: string | {
 
     /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::analysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:20
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:21
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
     const analysisForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,18 +69,97 @@ analysis.post = (args: { client: string | { id: string } } | [client: string | {
 
             /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::analysis
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:20
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:21
  * @route '/advisor/clients/{client}/standard-advisory/analysis'
  */
         analysisForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: analysis.url(args, options),
             method: 'post',
         })
-    
+
     analysis.form = analysisForm
 /**
+* @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
+ * @route '/advisor/clients/{client}/standard-advisory/website-url'
+ */
+export const websiteUrl = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: websiteUrl.url(args, options),
+    method: 'post',
+})
+
+websiteUrl.definition = {
+    methods: ["post"],
+    url: '/advisor/clients/{client}/standard-advisory/website-url',
+} satisfies RouteDefinition<["post"]>
+
+/**
+* @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
+ * @route '/advisor/clients/{client}/standard-advisory/website-url'
+ */
+websiteUrl.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
+    if (typeof args === 'string' || typeof args === 'number') {
+        args = { client: args }
+    }
+
+            if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
+            args = { client: args.id }
+        }
+
+    if (Array.isArray(args)) {
+        args = {
+                    client: args[0],
+                }
+    }
+
+    args = applyUrlDefaults(args)
+
+    const parsedArgs = {
+                        client: typeof args.client === 'object'
+                ? args.client.id
+                : args.client,
+                }
+
+    return websiteUrl.definition.url
+            .replace('{client}', parsedArgs.client.toString())
+            .replace(/\/+$/, '') + queryParams(options)
+}
+
+/**
+* @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
+ * @route '/advisor/clients/{client}/standard-advisory/website-url'
+ */
+websiteUrl.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
+    url: websiteUrl.url(args, options),
+    method: 'post',
+})
+
+    /**
+* @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
+ * @route '/advisor/clients/{client}/standard-advisory/website-url'
+ */
+    const websiteUrlForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+        action: websiteUrl.url(args, options),
+        method: 'post',
+    })
+
+            /**
+* @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:76
+ * @route '/advisor/clients/{client}/standard-advisory/website-url'
+ */
+        websiteUrlForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
+            action: websiteUrl.url(args, options),
+            method: 'post',
+        })
+
+    websiteUrl.form = websiteUrlForm
+/**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:32
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
 export const pack = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -95,7 +174,7 @@ pack.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:32
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
 pack.url = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -106,7 +185,7 @@ pack.url = (args: { client: string | { id: string } } | [client: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -128,7 +207,7 @@ pack.url = (args: { client: string | { id: string } } | [client: string | { id: 
 
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:32
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
 pack.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -138,7 +217,7 @@ pack.post = (args: { client: string | { id: string } } | [client: string | { id:
 
     /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:32
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
     const packForm = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -148,17 +227,18 @@ pack.post = (args: { client: string | { id: string } } | [client: string | { id:
 
             /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
- * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:32
+ * @see app/Http/Controllers/Advisor/StandardAdvisoryController.php:33
  * @route '/advisor/clients/{client}/standard-advisory/pack'
  */
         packForm.post = (args: { client: string | { id: string } } | [client: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: pack.url(args, options),
             method: 'post',
         })
-    
+
     pack.form = packForm
 const standardAdvisory = {
     analysis: Object.assign(analysis, analysis),
+websiteUrl: Object.assign(websiteUrl, websiteUrl),
 pack: Object.assign(pack, pack),
 }
 

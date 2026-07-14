@@ -6,8 +6,8 @@ namespace Database\Seeders;
 
 use App\Enums\ClientStatus;
 use App\Enums\EngagementType;
-use App\Enums\FeeMethod;
 use App\Enums\EntrepreneurStage;
+use App\Enums\FeeMethod;
 use App\Enums\NpoConversionStatus;
 use App\Enums\NpoEngagementSubType;
 use App\Enums\NpoLegalStructure;
@@ -15,15 +15,15 @@ use App\Enums\NpoSocialEnterpriseType;
 use App\Enums\NpoTiritiMode;
 use App\Enums\QuestionnaireSet;
 use App\Enums\ReportType;
-use App\Models\BusinessPlan;
 use App\Models\BillingAdjustment;
+use App\Models\BusinessPlan;
 use App\Models\Client;
 use App\Models\ClientFunderAlert;
 use App\Models\Consent;
 use App\Models\Document;
 use App\Models\EconomicIndicator;
-use App\Models\Funder;
 use App\Models\FeeCalculation;
+use App\Models\Funder;
 use App\Models\IntegrationFeeBand;
 use App\Models\IntegrationScope;
 use App\Models\LearningUpdate;
@@ -36,9 +36,9 @@ use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
+use App\Models\Questionnaire;
 use App\Models\QuoteSourceExtraction;
 use App\Models\QuoteSourceExtractionDocument;
-use App\Models\Questionnaire;
 use App\Models\ServiceActivation;
 use App\Models\ServiceRatePackage;
 use App\Models\StrategicBudget;
@@ -682,6 +682,41 @@ XML);
             ],
         );
 
+        $this->clients['websiteAudit'] = Client::query()->updateOrCreate(
+            ['nzbn' => '9429000000133'],
+            [
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'status' => ClientStatus::ACTIVE->value,
+                'legal_name' => 'Website Review Demo Limited',
+                'trading_name' => 'Website Review Demo',
+                'entity_type' => 'NZ Limited Company',
+                'address' => [
+                    'line1' => '31 Victoria Street',
+                    'city' => 'Wellington',
+                    'region' => 'Wellington',
+                    'country' => 'NZ',
+                ],
+                'gst_registered' => true,
+                'directors' => [
+                    ['name' => 'Seed Client Principal', 'role' => 'Managing Director'],
+                ],
+                'filing_status' => 'up_to_date',
+                'data_quality' => Client::DATA_QUALITY_HIGH,
+                'registry_sources' => [
+                    'nzbn' => 'seeded',
+                    'website_audit_fixture' => true,
+                ],
+                'created_by_user_id' => $this->users['advisor']->getKey(),
+                'primary_contact_user_id' => $this->users['primary']->getKey(),
+                'engagement_type_locked_at' => $this->now->copy()->subDays(5),
+                'onboarding_wizard_state' => [
+                    'completed_steps' => ['profile', 'team', 'documents', 'questionnaire'],
+                    'current_step' => 'advisor_review',
+                    'fixture' => 'website_audit_confirmation',
+                ],
+            ],
+        );
+
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
@@ -727,6 +762,8 @@ XML);
             ['advisory', 'junior', 'advisor', ['dashboard', 'documents', 'questionnaire']],
             ['advisory', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'payments']],
             ['advisory', 'team', 'finance_contact', ['documents', 'payments', 'reports']],
+            ['websiteAudit', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'questionnaire', 'reports']],
+            ['websiteAudit', 'primary', 'primary_contact', ['portal', 'documents', 'questionnaire', 'reports']],
             ['dd', 'advisor', 'lead_advisor', ['dashboard', 'documents', 'dd', 'reports']],
             ['dd', 'junior', 'advisor', ['documents', 'dd']],
             ['dd', 'buyer', 'primary_contact', ['portal', 'documents', 'dd']],
@@ -1017,6 +1054,16 @@ XML);
             expiresAt: $this->now->copy()->addDays(29),
             size: 420_000,
         );
+        $this->ids['doc_website_audit_financials'] = $this->document(
+            key: 'website-audit-financial-statements',
+            client: $this->clients['websiteAudit'],
+            category: 'financial_statement',
+            filename: 'website-review-demo-financial-statements.pdf',
+            uploader: $this->users['primary'],
+            scannerResult: 'clean',
+            expiresAt: $this->now->copy()->addDays(60),
+            size: 280_000,
+        );
         $this->ids['doc_contract'] = $this->document(
             key: 'advisory-key-supplier-contract',
             client: $this->clients['advisory'],
@@ -1077,6 +1124,17 @@ XML);
             attachedDocumentId: (string) $this->ids['doc_financials'],
         );
         $this->ids['advisory_response'] = $standard['response_id'];
+
+        $websiteAudit = $this->seedQuestionnaireResponse(
+            client: $this->clients['websiteAudit'],
+            set: QuestionnaireSet::STANDARD_ADVISORY,
+            submittedBy: $this->users['primary'],
+            attachedDocumentId: (string) $this->ids['doc_website_audit_financials'],
+            answerOverrides: [
+                'Describe the business in plain English.' => 'Website Review Demo Limited provides practical business advisory services. Its current website is https://example.com.',
+            ],
+        );
+        $this->ids['website_audit_response'] = $websiteAudit['response_id'];
 
         $gap = $this->seedQuestionnaireResponse(
             client: $this->clients['postAcquisition'],
@@ -5704,6 +5762,7 @@ XML);
     }
 
     /**
+     * @param  array<string, mixed>  $answerOverrides
      * @return array{response_id:string|int|null,file_answer_id:?string,file_question_id:?string,file_question_prompt:?string}
      */
     private function seedQuestionnaireResponse(
@@ -5712,6 +5771,7 @@ XML);
         User $submittedBy,
         string $attachedDocumentId,
         ?string $npoEngagementId = null,
+        array $answerOverrides = [],
     ): array {
         $questionnaire = Questionnaire::query()
             ->forSet($set)
@@ -5743,7 +5803,7 @@ XML);
             foreach ($section->questions as $question) {
                 $type = is_string($question->type) ? $question->type : $question->type->value;
                 $attachedDocumentIds = [];
-                $value = match ($type) {
+                $value = $answerOverrides[$question->prompt] ?? match ($type) {
                     'text' => 'Seeded response for '.$section->title,
                     'long-text' => 'Seeded long-form response with enough detail for analysis, reports, and document verification tests.',
                     'number' => 14,

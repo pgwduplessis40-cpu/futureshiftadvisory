@@ -1,4 +1,4 @@
-import { Upload, X } from 'lucide-react';
+import { ChevronDown, CircleCheck, Upload, X } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import FileDropzone from '@/components/file-dropzone';
@@ -6,10 +6,16 @@ import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { queueDocumentUpload } from '@/lib/portal-offline';
 import { evaluateVisibleQuestionIds } from '@/lib/questionnaires/conditional-logic';
+import { cn } from '@/lib/utils';
 import type {
     QuestionnaireAnswer,
     QuestionnaireAnswers,
@@ -25,6 +31,8 @@ type Props = {
     readOnly?: boolean;
     uploadUrl?: string;
     clientId?: string;
+    collapsibleSections?: boolean;
+    showProgress?: boolean;
 };
 
 type UploadedDocument = {
@@ -40,11 +48,69 @@ export function QuestionnaireRenderer({
     readOnly = false,
     uploadUrl,
     clientId,
+    collapsibleSections = false,
+    showProgress = false,
 }: Props) {
     const [uploadedDocuments, setUploadedDocuments] = useState<
         Record<string, UploadedDocument>
     >({});
     const visibleQuestionIds = evaluateVisibleQuestionIds(schema, answers);
+    const sections = schema.sections
+        .map((section) => {
+            const questions = section.questions.filter((question) =>
+                visibleQuestionIds.has(question.id),
+            );
+            const requiredQuestions = questions.filter(
+                (question) => question.required,
+            );
+            const answeredCount = questions.filter((question) =>
+                hasAnswer(question, answers[question.id] ?? emptyAnswer()),
+            ).length;
+            const requiredAnsweredCount = requiredQuestions.filter((question) =>
+                hasAnswer(question, answers[question.id] ?? emptyAnswer()),
+            ).length;
+
+            return {
+                ...section,
+                questions,
+                answeredCount,
+                requiredCount: requiredQuestions.length,
+                requiredAnsweredCount,
+                ready:
+                    requiredQuestions.length > 0
+                        ? requiredAnsweredCount === requiredQuestions.length
+                        : answeredCount === questions.length,
+            };
+        })
+        .filter((section) => section.questions.length > 0);
+    const requiredCount = sections.reduce(
+        (total, section) => total + section.requiredCount,
+        0,
+    );
+    const requiredAnsweredCount = sections.reduce(
+        (total, section) => total + section.requiredAnsweredCount,
+        0,
+    );
+    const questionCount = sections.reduce(
+        (total, section) => total + section.questions.length,
+        0,
+    );
+    const answeredCount = sections.reduce(
+        (total, section) => total + section.answeredCount,
+        0,
+    );
+    const progressTotal = requiredCount || questionCount;
+    const progressCompleted = requiredCount
+        ? requiredAnsweredCount
+        : answeredCount;
+    const progressPercentage = progressTotal
+        ? Math.round((progressCompleted / progressTotal) * 100)
+        : 0;
+    const nextSection = sections.find((section) => !section.ready);
+    const [openSectionId, setOpenSectionId] = useState<string | null>(null);
+    const defaultOpenSectionId = nextSection?.id ?? sections[0]?.id ?? null;
+    const activeSectionId =
+        openSectionId === null ? defaultOpenSectionId : openSectionId;
 
     const updateAnswer = (
         questionId: string,
@@ -65,23 +131,55 @@ export function QuestionnaireRenderer({
     };
 
     return (
-        <div className="space-y-6">
-            {schema.sections.map((section) => {
-                const questions = section.questions.filter((question) =>
-                    visibleQuestionIds.has(question.id),
-                );
-
-                if (questions.length === 0) {
-                    return null;
-                }
-
-                return (
-                    <section
-                        key={section.id}
-                        className="space-y-4 border-t pt-5 first:border-t-0 first:pt-0"
-                        aria-labelledby={`section-${section.id}`}
+        <div className="space-y-4">
+            {showProgress && progressTotal > 0 && (
+                <section
+                    className="border-b pb-4"
+                    aria-label="Questionnaire completion"
+                >
+                    <div className="flex flex-wrap items-center justify-between gap-2 text-sm">
+                        <span className="font-medium">Your progress</span>
+                        <span className="text-muted-foreground">
+                            {progressCompleted} of {progressTotal}{' '}
+                            {requiredCount ? 'required answers' : 'answers'}
+                        </span>
+                    </div>
+                    <div
+                        className="mt-2 h-2 overflow-hidden rounded-full bg-muted"
+                        role="progressbar"
+                        aria-valuemin={0}
+                        aria-valuemax={progressTotal}
+                        aria-valuenow={progressCompleted}
+                        aria-label="Questionnaire completion"
                     >
-                        <div>
+                        <div
+                            className="h-full rounded-full bg-emerald-600 transition-[width]"
+                            style={{ width: `${progressPercentage}%` }}
+                        />
+                    </div>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        {nextSection
+                            ? `Next focus: ${nextSection.title}.`
+                            : 'Every required answer is ready for review.'}
+                    </p>
+                </section>
+            )}
+
+            {sections.map((section) => {
+                const expanded =
+                    !collapsibleSections || activeSectionId === section.id;
+                const header = (
+                    <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                        <CircleCheck
+                            className={cn(
+                                'mt-0.5 size-5 shrink-0',
+                                section.ready
+                                    ? 'text-emerald-600'
+                                    : 'text-muted-foreground',
+                            )}
+                            aria-hidden="true"
+                        />
+                        <div className="min-w-0 flex-1">
                             <h3
                                 id={`section-${section.id}`}
                                 className="text-base font-medium"
@@ -94,40 +192,84 @@ export function QuestionnaireRenderer({
                                 </p>
                             )}
                         </div>
+                        <span className="shrink-0 text-sm text-muted-foreground">
+                            {section.requiredCount
+                                ? `${section.requiredAnsweredCount}/${section.requiredCount} required`
+                                : `${section.answeredCount}/${section.questions.length} answered`}
+                        </span>
+                    </div>
+                );
+                const fields = (
+                    <div className="space-y-4 pb-4">
+                        {section.questions.map((question) => (
+                            <QuestionField
+                                key={question.id}
+                                question={question}
+                                answer={answers[question.id] ?? emptyAnswer()}
+                                error={
+                                    errors[`answers.${question.id}.value`] ??
+                                    errors[
+                                        `answers.${question.id}.attached_document_ids`
+                                    ]
+                                }
+                                readOnly={readOnly}
+                                uploadUrl={uploadUrl}
+                                clientId={clientId}
+                                uploadedDocuments={uploadedDocuments}
+                                onDocumentUploaded={(document) =>
+                                    setUploadedDocuments((current) => ({
+                                        ...current,
+                                        [document.id]: document,
+                                    }))
+                                }
+                                onChange={(answer) =>
+                                    updateAnswer(question.id, answer)
+                                }
+                            />
+                        ))}
+                    </div>
+                );
 
-                        <div className="space-y-4">
-                            {questions.map((question) => (
-                                <QuestionField
-                                    key={question.id}
-                                    question={question}
-                                    answer={
-                                        answers[question.id] ?? emptyAnswer()
-                                    }
-                                    error={
-                                        errors[
-                                            `answers.${question.id}.value`
-                                        ] ??
-                                        errors[
-                                            `answers.${question.id}.attached_document_ids`
-                                        ]
-                                    }
-                                    readOnly={readOnly}
-                                    uploadUrl={uploadUrl}
-                                    clientId={clientId}
-                                    uploadedDocuments={uploadedDocuments}
-                                    onDocumentUploaded={(document) =>
-                                        setUploadedDocuments((current) => ({
-                                            ...current,
-                                            [document.id]: document,
-                                        }))
-                                    }
-                                    onChange={(answer) =>
-                                        updateAnswer(question.id, answer)
-                                    }
+                if (!collapsibleSections) {
+                    return (
+                        <section
+                            key={section.id}
+                            className="space-y-4 border-t pt-5 first:border-t-0 first:pt-0"
+                            aria-labelledby={`section-${section.id}`}
+                        >
+                            {header}
+                            {fields}
+                        </section>
+                    );
+                }
+
+                return (
+                    <Collapsible
+                        key={section.id}
+                        open={expanded}
+                        onOpenChange={(open) =>
+                            setOpenSectionId(open ? section.id : '')
+                        }
+                        className="border-b last:border-b-0"
+                    >
+                        <CollapsibleTrigger asChild>
+                            <button
+                                type="button"
+                                className="flex w-full items-start gap-3 py-4 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                aria-labelledby={`section-${section.id}`}
+                            >
+                                {header}
+                                <ChevronDown
+                                    className={cn(
+                                        'mt-1 size-4 shrink-0 text-muted-foreground transition-transform',
+                                        expanded && 'rotate-180',
+                                    )}
+                                    aria-hidden="true"
                                 />
-                            ))}
-                        </div>
-                    </section>
+                            </button>
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>{fields}</CollapsibleContent>
+                    </Collapsible>
                 );
             })}
         </div>
@@ -175,15 +317,17 @@ function QuestionField({
                 )}
             </div>
 
-            <QuestionControl
-                id={fieldId}
-                question={question}
-                answer={answer}
-                readOnly={readOnly}
-                onChange={onChange}
-            />
+            {!(question.type === 'file-attach' && uploadUrl && !readOnly) && (
+                <QuestionControl
+                    id={fieldId}
+                    question={question}
+                    answer={answer}
+                    readOnly={readOnly}
+                    onChange={onChange}
+                />
+            )}
 
-            {uploadUrl && !readOnly && (
+            {uploadUrl && !readOnly && question.type === 'file-attach' && (
                 <DocumentAttachmentControl
                     question={question}
                     answer={answer}
@@ -545,6 +689,21 @@ function emptyAnswer(): QuestionnaireAnswer {
         value: null,
         attached_document_ids: [],
     };
+}
+
+function hasAnswer(
+    question: QuestionnaireQuestion,
+    answer: QuestionnaireAnswer,
+): boolean {
+    if (question.type === 'file-attach') {
+        return answer.attached_document_ids.length > 0;
+    }
+
+    if (Array.isArray(answer.value)) {
+        return answer.value.length > 0;
+    }
+
+    return answer.value !== null && String(answer.value).trim() !== '';
 }
 
 function stringValue(value: unknown): string {

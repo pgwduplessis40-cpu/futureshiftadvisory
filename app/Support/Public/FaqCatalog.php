@@ -91,6 +91,11 @@ final class FaqCatalog
             ],
             [
                 'group' => 'Working together',
+                'question' => 'Can you build tools or software for us?',
+                'answer' => 'Sometimes, yes - when it genuinely helps. While we are working with you, if we spot a job a custom tool could do faster or more reliably than doing it by hand, we will flag it, show you whether it pays off, and quote to build it if it does. That goes for bigger needs as well - if what your business really needs is a more substantial system, we can scope, quote, and build that too, in stages you can see working. Either way it is a benefit of working with us rather than a separate service - and we will tell you honestly when an off-the-shelf option would serve you better.',
+            ],
+            [
+                'group' => 'Working together',
                 'question' => 'What if I am not sure which service fits?',
                 'answer' => 'Start with a discovery call. We will listen to what is going on, suggest the right fit, and tell you honestly if someone else would serve you better.',
             ],

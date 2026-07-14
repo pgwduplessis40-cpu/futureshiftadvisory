@@ -5,6 +5,7 @@ import {
     Brain,
     CalendarClock,
     CheckCircle2,
+    ChevronDown,
     CreditCard,
     Download,
     FileSpreadsheet,
@@ -44,6 +45,11 @@ import type { NpoHealthPayload } from '@/components/npo/NpoHealthPanel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -122,6 +128,8 @@ type Props = {
 };
 
 type ClientDetailTab = 'actions' | 'information';
+
+type AnalysisFindingFilter = 'needs_review' | 'all' | 'reviewed';
 
 const clientSectionTabs: Record<string, ClientDetailTab> = {
     'section-analysis': 'actions',
@@ -889,6 +897,11 @@ type StandardAdvisorySummary = {
     analysis_dropped_findings: number;
     analysis_total: number;
     analysis_ready_for_pack: boolean;
+    analysis_readiness: {
+        level: 'red' | 'amber' | 'green';
+        label: string;
+        description: string;
+    };
     pack_waivers: StandardAdvisoryPackWaiverSummary[];
     waivable_modules: string[];
     website_audit: {
@@ -899,6 +912,14 @@ type StandardAdvisorySummary = {
         has_website_page_evidence: boolean;
         has_product_service_evidence: boolean;
         has_seo_evidence: boolean;
+        confirmed_url: string | null;
+        fetch_status: string | null;
+        confirm_url: string;
+        candidates: Array<{
+            url: string;
+            answer_id: string | null;
+            source: 'client' | 'questionnaire';
+        }>;
     };
     health_recomputed_at: string | null;
     valuation_ready: boolean;
@@ -928,6 +949,8 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
         initialClientDetailTab(),
     );
     const [generatingPack, setGeneratingPack] = useState(false);
+    const [analysisFindingFilter, setAnalysisFindingFilter] =
+        useState<AnalysisFindingFilter>('needs_review');
 
     const lifecycleForm = useForm<LifecycleForm>({
         status: client.status,
@@ -1031,6 +1054,18 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
     const paymentExceptionCount = client.payments.filter((payment) =>
         ['failed', 'retrying'].includes(payment.status),
     ).length;
+    const analysisFindingsNeedingReview = client.analysis_findings.filter(
+        (finding) => finding.feedback_count === 0,
+    );
+    const reviewedAnalysisFindings = client.analysis_findings.filter(
+        (finding) => finding.feedback_count > 0,
+    );
+    const visibleAnalysisFindings =
+        analysisFindingFilter === 'needs_review'
+            ? analysisFindingsNeedingReview
+            : analysisFindingFilter === 'reviewed'
+              ? reviewedAnalysisFindings
+              : client.analysis_findings;
     const draftProposalCount = client.proposals.filter((proposal) =>
         ['draft', 'generated'].includes(proposal.status),
     ).length;
@@ -1151,6 +1186,7 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                         <ClientDetailSection
                             title="Priority actions"
                             description="Start with communication, lifecycle, client work, and commercial actions."
+                            collapsible
                         >
                             <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-5">
                                 <ActionTile
@@ -1509,9 +1545,61 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                         </h2>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <Badge variant="outline">
-                                            {client.analysis_findings.length}
-                                        </Badge>
+                                        <div
+                                            className="inline-flex rounded-md border bg-muted/30 p-1"
+                                            role="tablist"
+                                            aria-label="Filter analysis findings"
+                                        >
+                                            <AnalysisFindingFilterButton
+                                                active={
+                                                    analysisFindingFilter ===
+                                                    'needs_review'
+                                                }
+                                                count={
+                                                    analysisFindingsNeedingReview.length
+                                                }
+                                                onClick={() =>
+                                                    setAnalysisFindingFilter(
+                                                        'needs_review',
+                                                    )
+                                                }
+                                            >
+                                                Needs review
+                                            </AnalysisFindingFilterButton>
+                                            <AnalysisFindingFilterButton
+                                                active={
+                                                    analysisFindingFilter ===
+                                                    'all'
+                                                }
+                                                count={
+                                                    client.analysis_findings
+                                                        .length
+                                                }
+                                                onClick={() =>
+                                                    setAnalysisFindingFilter(
+                                                        'all',
+                                                    )
+                                                }
+                                            >
+                                                All
+                                            </AnalysisFindingFilterButton>
+                                            <AnalysisFindingFilterButton
+                                                active={
+                                                    analysisFindingFilter ===
+                                                    'reviewed'
+                                                }
+                                                count={
+                                                    reviewedAnalysisFindings.length
+                                                }
+                                                onClick={() =>
+                                                    setAnalysisFindingFilter(
+                                                        'reviewed',
+                                                    )
+                                                }
+                                            >
+                                                Reviewed
+                                            </AnalysisFindingFilterButton>
+                                        </div>
                                         <Button
                                             type="button"
                                             size="sm"
@@ -1531,9 +1619,13 @@ export default function ClientsShow({ client, conflictDeclaration }: Props) {
                                     <p className="text-sm text-muted-foreground">
                                         No analysis findings yet.
                                     </p>
+                                ) : visibleAnalysisFindings.length === 0 ? (
+                                    <p className="text-sm text-muted-foreground">
+                                        No findings in this view.
+                                    </p>
                                 ) : (
-                                    <div className="space-y-4">
-                                        {client.analysis_findings.map(
+                                    <div className="grid gap-2 xl:grid-cols-2">
+                                        {visibleAnalysisFindings.map(
                                             (finding) => (
                                                 <FindingFeedbackCard
                                                     key={finding.id}
@@ -5037,7 +5129,15 @@ function StandardAdvisoryPanel({
     generatingPack: boolean;
 }) {
     const [waiverReason, setWaiverReason] = useState('');
+    const [websiteUrl, setWebsiteUrl] = useState(
+        summary.website_audit.confirmed_url ??
+            summary.website_audit.candidates[0]?.url ??
+            '',
+    );
     const clientReport = summary.reports.client;
+    const pendingWebsiteCandidate = summary.website_audit.candidates.find(
+        (candidate) => candidate.source === 'client',
+    );
     const waivableModules = summary.analysis_modules.filter(
         (module) => module.waivable,
     );
@@ -5068,6 +5168,35 @@ function StandardAdvisoryPanel({
             waiver_modules: waivableModules.map((module) => module.module),
         });
     };
+    const confirmWebsiteUrl = () => {
+        const url = websiteUrl.trim();
+
+        if (url === '') {
+            toast.error('Enter the website URL before confirming it.');
+
+            return;
+        }
+
+        router.post(
+            summary.website_audit.confirm_url,
+            {
+                url,
+                source_answer_ids: summary.website_audit.candidates
+                    .filter((candidate) => candidate.url === url)
+                    .map((candidate) => candidate.answer_id)
+                    .filter(
+                        (answerId): answerId is string => answerId !== null,
+                    ),
+            },
+            {
+                preserveScroll: true,
+                onError: (errors) =>
+                    toast.error(
+                        errors.url ?? 'The website URL could not be confirmed.',
+                    ),
+            },
+        );
+    };
 
     return (
         <section
@@ -5087,6 +5216,9 @@ function StandardAdvisoryPanel({
                     </Badge>
                 </div>
                 <div className="flex flex-wrap gap-2">
+                    <AnalysisReadinessIndicator
+                        readiness={summary.analysis_readiness}
+                    />
                     <Tooltip>
                         <TooltipTrigger asChild>
                             <span>
@@ -5094,6 +5226,9 @@ function StandardAdvisoryPanel({
                                     type="button"
                                     size="sm"
                                     variant="outline"
+                                    className={analysisRunButtonClass(
+                                        summary.analysis_readiness.level,
+                                    )}
                                     disabled={!summary.can_run_analysis}
                                     onClick={onRunAnalysis}
                                 >
@@ -5106,8 +5241,9 @@ function StandardAdvisoryPanel({
                             </span>
                         </TooltipTrigger>
                         <TooltipContent side="bottom" className="max-w-xs">
-                            Runs the Standard Advisory analysis modules and
-                            refreshes the business health radar.
+                            Runs every Standard Advisory analysis module,
+                            including the website review, then refreshes the
+                            business health radar.
                         </TooltipContent>
                     </Tooltip>
                     <Tooltip>
@@ -5212,11 +5348,13 @@ function StandardAdvisoryPanel({
                 />
             </div>
 
-            <div className="rounded-md border bg-muted/20 p-3">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                    <div className="text-sm font-medium">
-                        Website audit readiness
-                    </div>
+            <RollupPanel
+                title="Website audit readiness"
+                description={summary.website_audit.next_action}
+                defaultOpen={['missing_url', 'awaiting_confirmation'].includes(
+                    summary.website_audit.status,
+                )}
+                meta={
                     <Badge
                         variant={
                             summary.website_audit.status === 'ready'
@@ -5226,11 +5364,18 @@ function StandardAdvisoryPanel({
                     >
                         {summary.website_audit.status_label}
                     </Badge>
-                </div>
-                <p className="mt-2 text-sm text-muted-foreground">
-                    {summary.website_audit.next_action}
-                </p>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
+                }
+                className="bg-muted/20"
+            >
+                {pendingWebsiteCandidate ? (
+                    <p className="text-sm text-muted-foreground">
+                        Client-submitted URL awaiting confirmation:{' '}
+                        <span className="font-medium text-foreground">
+                            {pendingWebsiteCandidate.url}
+                        </span>
+                    </p>
+                ) : null}
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
                     <WebsiteAuditSignal
                         label="URL"
                         complete={summary.website_audit.has_url}
@@ -5252,17 +5397,53 @@ function StandardAdvisoryPanel({
                         complete={summary.website_audit.has_seo_evidence}
                     />
                 </div>
-            </div>
+                <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_auto]">
+                    <div className="grid gap-1.5">
+                        <Label htmlFor="website_audit_confirmed_url">
+                            Public website URL
+                        </Label>
+                        <Input
+                            id="website_audit_confirmed_url"
+                            type="url"
+                            value={websiteUrl}
+                            onChange={(event) =>
+                                setWebsiteUrl(event.target.value)
+                            }
+                            maxLength={2048}
+                            placeholder="https://example.co.nz"
+                        />
+                    </div>
+                    <div className="flex items-end">
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="outline"
+                            disabled={websiteUrl.trim() === ''}
+                            onClick={confirmWebsiteUrl}
+                        >
+                            <CheckCircle2
+                                className="size-4"
+                                aria-hidden="true"
+                            />
+                            Confirm URL
+                        </Button>
+                    </div>
+                </div>
+            </RollupPanel>
 
             {summary.missing.length > 0 ? (
-                <div className="rounded-md border bg-muted/30 p-3">
-                    <div className="text-sm font-medium">Readiness gaps</div>
+                <RollupPanel
+                    title="Readiness gaps"
+                    description={`${summary.missing.length} item${summary.missing.length === 1 ? '' : 's'} need attention.`}
+                    defaultOpen={!summary.can_run_analysis}
+                    className="bg-muted/30"
+                >
                     <ul className="mt-2 list-disc space-y-1 pl-5 text-sm text-muted-foreground">
                         {summary.missing.map((item) => (
                             <li key={item}>{item}</li>
                         ))}
                     </ul>
-                </div>
+                </RollupPanel>
             ) : (
                 <div className="rounded-md border bg-muted/30 p-3 text-sm text-muted-foreground">
                     Standard Advisory workflow is ready for the client
@@ -5340,11 +5521,12 @@ function StandardAdvisoryPanel({
             )}
 
             {summary.pack_waivers.length > 0 && (
-                <div className="rounded-md border bg-muted/20 p-3">
-                    <div className="text-sm font-medium">
-                        Recorded pack waivers
-                    </div>
-                    <div className="mt-2 grid gap-2">
+                <RollupPanel
+                    title="Recorded pack waivers"
+                    description={`${summary.pack_waivers.length} recorded waiver${summary.pack_waivers.length === 1 ? '' : 's'}.`}
+                    className="bg-muted/20"
+                >
+                    <div className="grid gap-2">
                         {summary.pack_waivers.map((waiver) => (
                             <div
                                 key={waiver.id}
@@ -5368,87 +5550,94 @@ function StandardAdvisoryPanel({
                             </div>
                         ))}
                     </div>
-                </div>
+                </RollupPanel>
             )}
 
-            <div className="grid gap-4 lg:grid-cols-2">
-                <div className="rounded-md border p-3">
-                    <div className="text-sm font-medium">Analysis modules</div>
-                    <div className="mt-3 grid gap-2">
-                        {summary.analysis_modules.map((module) => (
-                            <div
-                                key={module.module}
-                                className="flex items-center justify-between gap-3 text-sm"
-                            >
-                                <span>{module.label}</span>
-                                <Badge
-                                    variant={
-                                        module.ready_for_pack
-                                            ? 'secondary'
-                                            : 'outline'
-                                    }
-                                >
-                                    {module.waived
-                                        ? 'Waived'
-                                        : module.completed
-                                          ? 'Completed'
-                                          : formatLabel(module.status)}
-                                </Badge>
-                            </div>
-                        ))}
-                    </div>
-                </div>
-                <div className="rounded-md border p-3">
-                    <div className="text-sm font-medium">Report pack</div>
-                    <div className="mt-3 grid gap-2">
-                        {Object.entries(summary.reports).map(
-                            ([key, report]) => (
+            <RollupPanel
+                title="Workflow details"
+                description="Analysis module and report pack status."
+            >
+                <div className="grid gap-4 lg:grid-cols-2">
+                    <div>
+                        <div className="text-sm font-medium">
+                            Analysis modules
+                        </div>
+                        <div className="mt-3 grid gap-2">
+                            {summary.analysis_modules.map((module) => (
                                 <div
-                                    key={key}
+                                    key={module.module}
                                     className="flex items-center justify-between gap-3 text-sm"
                                 >
-                                    <span>{formatLabel(key)}</span>
-                                    <div className="flex items-center gap-2">
-                                        <Badge variant="outline">
-                                            {report
-                                                ? formatLabel(
-                                                      report.review_status,
-                                                  )
-                                                : 'Not generated'}
-                                        </Badge>
-                                        {(report?.view_url ??
-                                            report?.download_url) && (
-                                            <Button
-                                                asChild
-                                                size="sm"
-                                                variant="ghost"
-                                                className="h-7 px-2"
-                                            >
-                                                <a
-                                                    href={
-                                                        report.view_url ??
-                                                        report.download_url ??
-                                                        ''
-                                                    }
-                                                    target="_blank"
-                                                    rel="noopener noreferrer"
-                                                    aria-label={`View ${formatLabel(key)} report PDF`}
-                                                >
-                                                    <FileText
-                                                        className="size-4"
-                                                        aria-hidden="true"
-                                                    />
-                                                    View
-                                                </a>
-                                            </Button>
-                                        )}
-                                    </div>
+                                    <span>{module.label}</span>
+                                    <Badge
+                                        variant={
+                                            module.ready_for_pack
+                                                ? 'secondary'
+                                                : 'outline'
+                                        }
+                                    >
+                                        {module.waived
+                                            ? 'Waived'
+                                            : module.completed
+                                              ? 'Completed'
+                                              : formatLabel(module.status)}
+                                    </Badge>
                                 </div>
-                            ),
-                        )}
+                            ))}
+                        </div>
+                    </div>
+                    <div>
+                        <div className="text-sm font-medium">Report pack</div>
+                        <div className="mt-3 grid gap-2">
+                            {Object.entries(summary.reports).map(
+                                ([key, report]) => (
+                                    <div
+                                        key={key}
+                                        className="flex items-center justify-between gap-3 text-sm"
+                                    >
+                                        <span>{formatLabel(key)}</span>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline">
+                                                {report
+                                                    ? formatLabel(
+                                                          report.review_status,
+                                                      )
+                                                    : 'Not generated'}
+                                            </Badge>
+                                            {(report?.view_url ??
+                                                report?.download_url) && (
+                                                <Button
+                                                    asChild
+                                                    size="sm"
+                                                    variant="ghost"
+                                                    className="h-7 px-2"
+                                                >
+                                                    <a
+                                                        href={
+                                                            report.view_url ??
+                                                            report.download_url ??
+                                                            ''
+                                                        }
+                                                        target="_blank"
+                                                        rel="noopener noreferrer"
+                                                        aria-label={`View ${formatLabel(key)} report PDF`}
+                                                    >
+                                                        <FileText
+                                                            className="size-4"
+                                                            aria-hidden="true"
+                                                        />
+                                                        View
+                                                    </a>
+                                                </Button>
+                                            )}
+                                        </div>
+                                    </div>
+                                ),
+                            )}
+                        </div>
                     </div>
                 </div>
-            </div>
+            </RollupPanel>
         </section>
     );
 }
@@ -6156,220 +6345,358 @@ function FindingFeedbackCard({
     };
 
     return (
-        <article id={finding.id} className="space-y-4 rounded-md border p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-                <div className="space-y-2">
-                    <div className="flex flex-wrap gap-2">
-                        <Badge variant="secondary">
-                            {formatLabel(finding.module ?? 'analysis')}
-                        </Badge>
-                        <Badge variant="outline">
-                            {formatLabel(finding.lens)}
-                        </Badge>
-                        <Badge variant={severityVariant(finding.severity)}>
-                            {formatLabel(finding.severity)}
-                        </Badge>
-                    </div>
-                    <h3 className="text-sm font-medium">{finding.title}</h3>
-                </div>
-                <div className="text-xs text-muted-foreground">
-                    {formatDate(finding.created_at)}
-                </div>
-            </div>
+        <article
+            id={finding.id}
+            className="rounded-md border bg-background px-3 py-2"
+        >
+            <Collapsible>
+                <CollapsibleTrigger asChild>
+                    <button
+                        type="button"
+                        className="group grid w-full gap-2 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 md:grid-cols-[minmax(0,1fr)_auto] md:items-center"
+                    >
+                        <span className="min-w-0">
+                            <span className="flex flex-wrap items-center gap-2">
+                                <Badge variant="secondary">
+                                    {formatLabel(finding.module ?? 'analysis')}
+                                </Badge>
+                                <Badge variant="outline">
+                                    {formatLabel(finding.lens)}
+                                </Badge>
+                                <Badge
+                                    variant={severityVariant(finding.severity)}
+                                >
+                                    {formatLabel(finding.severity)}
+                                </Badge>
+                                {finding.feedback_count > 0 && (
+                                    <Badge variant="outline">Reviewed</Badge>
+                                )}
+                            </span>
+                            <span className="mt-1 block text-sm font-medium">
+                                {finding.title}
+                            </span>
+                        </span>
+                        <span className="flex items-center justify-between gap-2 text-xs text-muted-foreground md:justify-end">
+                            <span>{formatDate(finding.created_at)}</span>
+                            <ChevronDown
+                                className="size-4 transition-transform group-data-[state=open]:rotate-180"
+                                aria-hidden="true"
+                            />
+                        </span>
+                    </button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="pt-4">
+                    <div className="space-y-4 border-t pt-4">
+                        <p className="text-sm leading-6 text-muted-foreground">
+                            {finding.body}
+                        </p>
 
-            <p className="text-sm leading-6 text-muted-foreground">
-                {finding.body}
-            </p>
-
-            <div className="flex flex-wrap gap-2">
-                <Badge variant="outline">
-                    {formatLabel(finding.document_support)}
-                </Badge>
-                {finding.uncertainty && (
-                    <Badge variant="outline">
-                        {formatLabel(finding.uncertainty)} uncertainty
-                    </Badge>
-                )}
-                {finding.attributions.slice(0, 3).map((attribution, index) => (
-                    <Badge key={index} variant="outline">
-                        {attribution.source_reference ?? 'source'}
-                    </Badge>
-                ))}
-            </div>
-
-            {finding.data_quality_disclaimer && (
-                <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-                    {finding.data_quality_disclaimer}
-                </p>
-            )}
-
-            {finding.latest_feedback.length > 0 && (
-                <div className="space-y-2 text-xs text-muted-foreground">
-                    {finding.latest_feedback.map((feedback) => (
-                        <div
-                            key={feedback.id}
-                            className="flex flex-wrap items-center gap-2"
-                        >
+                        <div className="flex flex-wrap gap-2">
                             <Badge variant="outline">
-                                {formatLabel(feedback.decision)}
+                                {formatLabel(finding.document_support)}
                             </Badge>
-                            {feedback.rating && (
-                                <span>{feedback.rating}/5</span>
+                            {finding.uncertainty && (
+                                <Badge variant="outline">
+                                    {formatLabel(finding.uncertainty)}{' '}
+                                    uncertainty
+                                </Badge>
                             )}
-                            {feedback.has_correction && <span>corrected</span>}
-                            {feedback.note && <span>{feedback.note}</span>}
-                            <span>{feedback.advisor_name ?? 'Advisor'}</span>
+                            {finding.attributions
+                                .slice(0, 3)
+                                .map((attribution, index) => (
+                                    <Badge key={index} variant="outline">
+                                        {attribution.source_reference ??
+                                            'source'}
+                                    </Badge>
+                                ))}
                         </div>
-                    ))}
-                </div>
-            )}
 
-            <div className="grid gap-4 lg:grid-cols-2">
-                <div className="space-y-3">
-                    <div className="flex flex-wrap gap-2">
-                        <Button
-                            type="button"
-                            size="sm"
-                            disabled={feedbackForm.processing}
-                            onClick={() =>
-                                submitFeedback({
-                                    decision: 'confirm',
-                                    rating: null,
-                                    corrected_body: null,
-                                    note: null,
-                                })
-                            }
-                        >
-                            <CheckCircle2
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            Confirm
-                        </Button>
-                        {[1, 2, 3, 4, 5].map((rating) => (
-                            <Button
-                                key={rating}
-                                type="button"
-                                size="icon"
-                                variant={
-                                    feedbackForm.data.rating === rating
-                                        ? 'secondary'
-                                        : 'outline'
-                                }
-                                disabled={feedbackForm.processing}
-                                onClick={() =>
-                                    submitFeedback({
-                                        decision: 'rate',
-                                        rating,
-                                        corrected_body: null,
-                                        note: null,
-                                    })
-                                }
-                                aria-label={`Rate ${rating}`}
-                            >
-                                <Star className="size-4" aria-hidden="true" />
-                            </Button>
-                        ))}
-                    </div>
-                    <InputError message={feedbackForm.errors.rating} />
-                </div>
+                        {finding.data_quality_disclaimer && (
+                            <p className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
+                                {finding.data_quality_disclaimer}
+                            </p>
+                        )}
 
-                <div className="grid gap-3">
-                    <Label htmlFor={`correction_${finding.id}`}>
-                        Correction
-                    </Label>
-                    <textarea
-                        id={`correction_${finding.id}`}
-                        value={feedbackForm.data.corrected_body ?? ''}
-                        onChange={(event) =>
-                            feedbackForm.setData(
-                                'corrected_body',
-                                event.target.value,
-                            )
-                        }
-                        rows={3}
-                        className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    />
-                    <div className="flex justify-end">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={feedbackForm.processing}
-                            onClick={() =>
-                                submitFeedback({
-                                    decision: 'correct',
-                                    rating: null,
-                                    corrected_body:
-                                        feedbackForm.data.corrected_body,
-                                    note: null,
-                                })
-                            }
-                        >
-                            <PencilLine className="size-4" aria-hidden="true" />
-                            Save correction
-                        </Button>
-                    </div>
-                    <InputError message={feedbackForm.errors.corrected_body} />
-                </div>
+                        {finding.latest_feedback.length > 0 && (
+                            <div className="space-y-2 text-xs text-muted-foreground">
+                                {finding.latest_feedback.map((feedback) => (
+                                    <div
+                                        key={feedback.id}
+                                        className="flex flex-wrap items-center gap-2"
+                                    >
+                                        <Badge variant="outline">
+                                            {formatLabel(feedback.decision)}
+                                        </Badge>
+                                        {feedback.rating && (
+                                            <span>{feedback.rating}/5</span>
+                                        )}
+                                        {feedback.has_correction && (
+                                            <span>corrected</span>
+                                        )}
+                                        {feedback.note && (
+                                            <span>{feedback.note}</span>
+                                        )}
+                                        <span>
+                                            {feedback.advisor_name ?? 'Advisor'}
+                                        </span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
 
-                <div className="grid gap-3 lg:col-span-2">
-                    <Label htmlFor={`context_${finding.id}`}>Context</Label>
-                    <textarea
-                        id={`context_${finding.id}`}
-                        value={feedbackForm.data.note ?? ''}
-                        onChange={(event) =>
-                            feedbackForm.setData('note', event.target.value)
-                        }
-                        rows={2}
-                        className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
-                    />
-                    <div className="flex justify-end">
-                        <Button
-                            type="button"
-                            size="sm"
-                            variant="outline"
-                            disabled={feedbackForm.processing}
-                            onClick={() =>
-                                submitFeedback({
-                                    decision: 'add_context',
-                                    rating: null,
-                                    corrected_body: null,
-                                    note: feedbackForm.data.note,
-                                })
-                            }
-                        >
-                            <MessageSquare
-                                className="size-4"
-                                aria-hidden="true"
-                            />
-                            Add context
-                        </Button>
+                        <div className="grid gap-4 lg:grid-cols-2">
+                            <div className="space-y-3">
+                                <div className="flex flex-wrap gap-2">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        disabled={feedbackForm.processing}
+                                        onClick={() =>
+                                            submitFeedback({
+                                                decision: 'confirm',
+                                                rating: null,
+                                                corrected_body: null,
+                                                note: null,
+                                            })
+                                        }
+                                    >
+                                        <CheckCircle2
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Confirm
+                                    </Button>
+                                    {[1, 2, 3, 4, 5].map((rating) => (
+                                        <Button
+                                            key={rating}
+                                            type="button"
+                                            size="icon"
+                                            variant={
+                                                feedbackForm.data.rating ===
+                                                rating
+                                                    ? 'secondary'
+                                                    : 'outline'
+                                            }
+                                            disabled={feedbackForm.processing}
+                                            onClick={() =>
+                                                submitFeedback({
+                                                    decision: 'rate',
+                                                    rating,
+                                                    corrected_body: null,
+                                                    note: null,
+                                                })
+                                            }
+                                            aria-label={`Rate ${rating}`}
+                                        >
+                                            <Star
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        </Button>
+                                    ))}
+                                </div>
+                                <InputError
+                                    message={feedbackForm.errors.rating}
+                                />
+                            </div>
+
+                            <div className="grid gap-3">
+                                <Label htmlFor={`correction_${finding.id}`}>
+                                    Correction
+                                </Label>
+                                <textarea
+                                    id={`correction_${finding.id}`}
+                                    value={
+                                        feedbackForm.data.corrected_body ?? ''
+                                    }
+                                    onChange={(event) =>
+                                        feedbackForm.setData(
+                                            'corrected_body',
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={3}
+                                    className="min-h-24 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                />
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={feedbackForm.processing}
+                                        onClick={() =>
+                                            submitFeedback({
+                                                decision: 'correct',
+                                                rating: null,
+                                                corrected_body:
+                                                    feedbackForm.data
+                                                        .corrected_body,
+                                                note: null,
+                                            })
+                                        }
+                                    >
+                                        <PencilLine
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Save correction
+                                    </Button>
+                                </div>
+                                <InputError
+                                    message={feedbackForm.errors.corrected_body}
+                                />
+                            </div>
+
+                            <div className="grid gap-3 lg:col-span-2">
+                                <Label htmlFor={`context_${finding.id}`}>
+                                    Context
+                                </Label>
+                                <textarea
+                                    id={`context_${finding.id}`}
+                                    value={feedbackForm.data.note ?? ''}
+                                    onChange={(event) =>
+                                        feedbackForm.setData(
+                                            'note',
+                                            event.target.value,
+                                        )
+                                    }
+                                    rows={2}
+                                    className="min-h-20 w-full rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs transition-[color,box-shadow] outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                />
+                                <div className="flex justify-end">
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={feedbackForm.processing}
+                                        onClick={() =>
+                                            submitFeedback({
+                                                decision: 'add_context',
+                                                rating: null,
+                                                corrected_body: null,
+                                                note: feedbackForm.data.note,
+                                            })
+                                        }
+                                    >
+                                        <MessageSquare
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                        Add context
+                                    </Button>
+                                </div>
+                                <InputError
+                                    message={feedbackForm.errors.note}
+                                />
+                            </div>
+                        </div>
                     </div>
-                    <InputError message={feedbackForm.errors.note} />
-                </div>
-            </div>
+                </CollapsibleContent>
+            </Collapsible>
         </article>
+    );
+}
+
+function RollupPanel({
+    title,
+    description,
+    meta,
+    defaultOpen = false,
+    className,
+    children,
+}: {
+    title: string;
+    description?: string;
+    meta?: ReactNode;
+    defaultOpen?: boolean;
+    className?: string;
+    children: ReactNode;
+}) {
+    return (
+        <Collapsible
+            defaultOpen={defaultOpen}
+            className={cn('rounded-md border p-3', className)}
+        >
+            <CollapsibleTrigger asChild>
+                <button
+                    type="button"
+                    className="group flex w-full items-start justify-between gap-3 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                >
+                    <span className="min-w-0">
+                        <span className="block text-sm font-medium">
+                            {title}
+                        </span>
+                        {description ? (
+                            <span className="mt-1 block text-sm text-muted-foreground">
+                                {description}
+                            </span>
+                        ) : null}
+                    </span>
+                    <span className="flex shrink-0 items-center gap-2">
+                        {meta}
+                        <ChevronDown
+                            className="size-4 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                            aria-hidden="true"
+                        />
+                    </span>
+                </button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="pt-3">
+                <div className="space-y-3">{children}</div>
+            </CollapsibleContent>
+        </Collapsible>
     );
 }
 
 function ClientDetailSection({
     title,
     description,
+    collapsible = false,
+    defaultOpen = false,
     children,
 }: {
     title: string;
     description: string;
+    collapsible?: boolean;
+    defaultOpen?: boolean;
     children: ReactNode;
 }) {
+    const heading = (
+        <>
+            <h2 className="text-base font-semibold">{title}</h2>
+            <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
+                {description}
+            </p>
+        </>
+    );
+
+    if (collapsible) {
+        return (
+            <section>
+                <Collapsible defaultOpen={defaultOpen}>
+                    <CollapsibleTrigger asChild>
+                        <button
+                            type="button"
+                            className="group flex w-full items-start justify-between gap-3 rounded-sm text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                        >
+                            <span className="min-w-0">{heading}</span>
+                            <ChevronDown
+                                className="mt-1 size-5 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180"
+                                aria-hidden="true"
+                            />
+                        </button>
+                    </CollapsibleTrigger>
+                    <CollapsibleContent className="pt-3">
+                        <div className="space-y-4">{children}</div>
+                    </CollapsibleContent>
+                </Collapsible>
+            </section>
+        );
+    }
+
     return (
         <section className="space-y-3">
-            <div>
-                <h2 className="text-base font-semibold">{title}</h2>
-                <p className="mt-1 max-w-3xl text-sm text-muted-foreground">
-                    {description}
-                </p>
-            </div>
+            <div>{heading}</div>
             <div className="space-y-4">{children}</div>
         </section>
     );
@@ -6425,6 +6752,36 @@ function ClientDetailTabButton({
             onClick={onClick}
         >
             {children}
+        </button>
+    );
+}
+
+function AnalysisFindingFilterButton({
+    active,
+    count,
+    onClick,
+    children,
+}: {
+    active: boolean;
+    count: number;
+    onClick: () => void;
+    children: ReactNode;
+}) {
+    return (
+        <button
+            type="button"
+            role="tab"
+            aria-selected={active}
+            className={cn(
+                'inline-flex h-7 items-center gap-1.5 rounded-sm px-2 text-xs font-medium text-muted-foreground transition-colors hover:text-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none',
+                active && 'bg-background text-foreground shadow-xs',
+            )}
+            onClick={onClick}
+        >
+            <span>{children}</span>
+            <span className="grid size-4 place-items-center rounded-full bg-muted text-[10px] tabular-nums">
+                {count}
+            </span>
         </button>
     );
 }
@@ -6631,6 +6988,67 @@ function WebsiteAuditSignal({
             </span>
         </div>
     );
+}
+
+function AnalysisReadinessIndicator({
+    readiness,
+}: {
+    readiness: StandardAdvisorySummary['analysis_readiness'];
+}) {
+    return (
+        <Tooltip>
+            <TooltipTrigger asChild>
+                <span
+                    className="inline-flex h-8 items-center gap-2 rounded-md border px-2 text-sm"
+                    aria-label={`Analysis readiness: ${readiness.label}`}
+                >
+                    <span
+                        className="grid gap-0.5 rounded-full bg-muted p-1"
+                        aria-hidden="true"
+                    >
+                        <span
+                            className={cn(
+                                'size-2 rounded-full bg-red-500',
+                                readiness.level === 'red'
+                                    ? 'opacity-100 ring-2 ring-red-300'
+                                    : 'opacity-25',
+                            )}
+                        />
+                        <span
+                            className={cn(
+                                'size-2 rounded-full bg-amber-400',
+                                readiness.level === 'amber'
+                                    ? 'opacity-100 ring-2 ring-amber-200'
+                                    : 'opacity-25',
+                            )}
+                        />
+                        <span
+                            className={cn(
+                                'size-2 rounded-full bg-emerald-500',
+                                readiness.level === 'green'
+                                    ? 'opacity-100 ring-2 ring-emerald-200'
+                                    : 'opacity-25',
+                            )}
+                        />
+                    </span>
+                    <span className="hidden lg:inline">{readiness.label}</span>
+                </span>
+            </TooltipTrigger>
+            <TooltipContent side="bottom" className="max-w-xs">
+                {readiness.description}
+            </TooltipContent>
+        </Tooltip>
+    );
+}
+
+function analysisRunButtonClass(
+    level: StandardAdvisorySummary['analysis_readiness']['level'],
+): string {
+    return {
+        red: 'border-red-700 bg-red-600 text-white hover:bg-red-700 disabled:border-red-700 disabled:bg-red-600 disabled:text-white disabled:opacity-70',
+        amber: 'border-amber-600 bg-amber-500 text-white hover:bg-amber-600 disabled:border-amber-600 disabled:bg-amber-500 disabled:text-white disabled:opacity-70',
+        green: 'border-emerald-700 bg-emerald-600 text-white hover:bg-emerald-700 disabled:border-emerald-700 disabled:bg-emerald-600 disabled:text-white disabled:opacity-70',
+    }[level];
 }
 
 function standardAdvisoryStatusVariant(

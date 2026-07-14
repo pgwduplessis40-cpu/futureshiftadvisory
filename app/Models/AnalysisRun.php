@@ -78,4 +78,12 @@ final class AnalysisRun extends Model
     {
         return $this->hasMany(SuccessionPlan::class);
     }
+
+    /**
+     * @return HasMany<WebsiteAuditSnapshot>
+     */
+    public function websiteAuditSnapshots(): HasMany
+    {
+        return $this->hasMany(WebsiteAuditSnapshot::class);
+    }
 }

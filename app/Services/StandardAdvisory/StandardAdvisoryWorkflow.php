@@ -20,6 +20,7 @@ use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\StandardAdvisoryPackWaiver;
 use App\Models\User;
+use App\Models\WebsiteAuditSnapshot;
 use App\Services\Analysis\AnalysisRunner;
 use App\Services\Analysis\Contracts\AnalysisModule as AnalysisModuleContract;
 use App\Services\Analysis\Modules\CompetitorAnalysis;
@@ -31,6 +32,9 @@ use App\Services\Analysis\Modules\OperationalAnalysis;
 use App\Services\Analysis\Modules\StrategicMatrices;
 use App\Services\Analysis\Modules\SystemsReview;
 use App\Services\Analysis\Modules\WebsiteAudit;
+use App\Services\Analysis\WebsiteAuditRunner;
+use App\Services\Analysis\WebsiteAuditSnapshotStore;
+use App\Services\Analysis\WebsiteUrlConfirmationService;
 use App\Services\Audit\AuditWriter;
 use App\Services\Dashboards\BusinessHealthSnapshotWriter;
 use App\Services\DataQuality\DataQualityScorer;
@@ -57,10 +61,13 @@ final class StandardAdvisoryWorkflow
 
     public function __construct(
         private readonly AnalysisRunner $analysis,
+        private readonly WebsiteAuditRunner $websiteAudit,
         private readonly AuditWriter $audit,
         private readonly BusinessHealthSnapshotWriter $health,
         private readonly DataQualityScorer $dataQuality,
         private readonly ReportComposer $reports,
+        private readonly WebsiteUrlConfirmationService $websiteUrls,
+        private readonly WebsiteAuditSnapshotStore $websiteSnapshots,
     ) {}
 
     /**
@@ -81,6 +88,7 @@ final class StandardAdvisoryWorkflow
         }
 
         $readiness = $this->readiness($client);
+        $readiness['website_audit']['confirm_url'] = route('advisor.clients.standard-advisory.website-url', $client, absolute: false);
 
         return [
             ...$readiness,
@@ -128,6 +136,7 @@ final class StandardAdvisoryWorkflow
         $analysisWaived = collect($analysisModules)->where('waived', true)->count();
         $analysisDroppedFindings = (int) collect($analysisModules)->sum('dropped_findings.missing_attribution');
         $analysisReadyForPack = collect($analysisModules)->every(fn (array $module): bool => (bool) ($module['ready_for_pack'] ?? false));
+        $verifiedDocumentCount = $this->verifiedDocumentCount($documents);
         $canRecordPackWaiver = $response instanceof QuestionnaireResponse
             && $documents->isNotEmpty()
             && $blockingVerifications->isEmpty()
@@ -137,6 +146,19 @@ final class StandardAdvisoryWorkflow
         $reports = $this->reportSummaries($client);
         $dataQuality = $this->dataQuality->score($client);
         $latestValuation = $this->latestValuation($client);
+        $websiteAudit = $this->websiteAuditReadiness($client);
+        $websiteConfirmationRequired = $websiteAudit['status'] === 'awaiting_confirmation';
+        $canRunAnalysis = $response instanceof QuestionnaireResponse
+            && $documents->isNotEmpty()
+            && $blockingVerifications->isEmpty()
+            && ! $websiteConfirmationRequired;
+        $onboardingState = is_array($client->onboarding_wizard_state) ? $client->onboarding_wizard_state : [];
+        $onboardingSubmitted = is_string($onboardingState['submitted_at'] ?? null)
+            && trim((string) $onboardingState['submitted_at']) !== '';
+        $analysisReadiness = $this->analysisReadiness(
+            canRunAnalysis: $canRunAnalysis,
+            onboardingSubmitted: $onboardingSubmitted,
+        );
 
         $missing = [];
         $warnings = [];
@@ -148,6 +170,9 @@ final class StandardAdvisoryWorkflow
         }
         if ($blockingVerifications->isNotEmpty()) {
             $missing[] = 'Resolve document verification flags before relying on analysis.';
+        }
+        if ($websiteConfirmationRequired) {
+            $missing[] = 'Confirm the client website URL before running the website review.';
         }
         if ($analysisCompleted === 0 && $analysisWaived === 0) {
             $missing[] = 'Run Standard Advisory analysis.';
@@ -175,7 +200,7 @@ final class StandardAdvisoryWorkflow
                 ? $questionnaire->sections->flatMap(fn ($section) => $section->questions)->count()
                 : 0,
             'document_count' => $documents->count(),
-            'verified_document_count' => $this->verifiedDocumentCount($documents),
+            'verified_document_count' => $verifiedDocumentCount,
             'blocking_verification_count' => $blockingVerifications->count(),
             'data_quality' => [
                 'level' => $dataQuality->level,
@@ -190,7 +215,7 @@ final class StandardAdvisoryWorkflow
             'analysis_ready_for_pack' => $analysisReadyForPack,
             'pack_waivers' => $waivers->map(fn (StandardAdvisoryPackWaiver $waiver): array => $this->waiverPayload($waiver))->values()->all(),
             'waivable_modules' => $this->waivableModuleValues($analysisModules),
-            'website_audit' => $this->websiteAuditReadiness($client),
+            'website_audit' => $websiteAudit,
             'health_recomputed_at' => $healthBatch instanceof Collection
                 ? $healthBatch->first()?->captured_at?->toIso8601String()
                 : null,
@@ -200,9 +225,8 @@ final class StandardAdvisoryWorkflow
             'latest_report_generated_at' => $this->latestReportGeneratedAt($reports),
             'missing' => $missing,
             'warnings' => $warnings,
-            'can_run_analysis' => $response instanceof QuestionnaireResponse
-                && $documents->isNotEmpty()
-                && $blockingVerifications->isEmpty(),
+            'analysis_readiness' => $analysisReadiness,
+            'can_run_analysis' => $canRunAnalysis,
             'can_generate_pack' => $response instanceof QuestionnaireResponse
                 && $documents->isNotEmpty()
                 && $analysisReadyForPack
@@ -224,15 +248,14 @@ final class StandardAdvisoryWorkflow
 
         $runs = [];
 
-        foreach (self::ANALYSIS_MODULES as $moduleClass) {
-            $runs[] = $this->analysis->run(
-                $client,
-                app($moduleClass),
-                [
-                    'actor' => $actor,
-                    'created_by_user_id' => $actor->getKey(),
-                ],
-            );
+        foreach (self::ANALYSIS_MODULES as $module => $moduleClass) {
+            $options = [
+                'actor' => $actor,
+                'created_by_user_id' => $actor->getKey(),
+            ];
+            $runs[] = $module === AnalysisModule::WebsiteAudit->value
+                ? $this->websiteAudit->run($client, $options)
+                : $this->analysis->run($client, app($moduleClass), $options);
         }
 
         $snapshots = $this->health->recompute($client);
@@ -352,6 +375,34 @@ final class StandardAdvisoryWorkflow
         ]);
     }
 
+    /**
+     * @return array{level:'red'|'amber'|'green', label:string, description:string}
+     */
+    private function analysisReadiness(bool $canRunAnalysis, bool $onboardingSubmitted): array
+    {
+        if (! $canRunAnalysis) {
+            return [
+                'level' => 'red',
+                'label' => 'Required client inputs incomplete',
+                'description' => 'Analysis is blocked until the questionnaire, supporting documents, and any nominated website confirmation are ready.',
+            ];
+        }
+
+        if (! $onboardingSubmitted) {
+            return [
+                'level' => 'amber',
+                'label' => 'Minimum client inputs ready',
+                'description' => 'Analysis can run now. Complete client onboarding for a full client pack.',
+            ];
+        }
+
+        return [
+            'level' => 'green',
+            'label' => 'Complete client pack',
+            'description' => 'The client has submitted all onboarding inputs and supporting evidence.',
+        ];
+    }
+
     private function assertPackReady(Client $client): void
     {
         $readiness = $this->readiness($client);
@@ -408,8 +459,20 @@ final class StandardAdvisoryWorkflow
     private function websiteAuditReadiness(Client $client): array
     {
         $responses = $this->latestStandardQuestionnaireResponses($client);
+        $candidates = $this->websiteUrls->candidates($client);
+        $confirmation = $this->websiteUrls->latestConfirmed($client);
 
         if ($responses->isEmpty()) {
+            if ($confirmation === null && $candidates !== []) {
+                return $this->websiteAuditReadinessPayload(
+                    status: 'awaiting_confirmation',
+                    label: 'Advisor confirmation needed',
+                    nextAction: 'The client submitted a website URL. Confirm it now; the website review will run with analysis after the questionnaire and supporting evidence are complete.',
+                    hasUrl: true,
+                    candidates: $candidates,
+                );
+            }
+
             return $this->websiteAuditReadinessPayload(
                 status: 'waiting_questionnaire',
                 label: 'Waiting for questionnaire',
@@ -418,70 +481,73 @@ final class StandardAdvisoryWorkflow
         }
 
         $answers = $responses->flatMap(fn (QuestionnaireResponse $response): Collection => $response->answers);
-        $websiteAnswers = $answers->filter(fn (QuestionnaireAnswer $answer): bool => $this->isWebsiteAuditAnswer($answer));
         $productServiceAnswers = $answers->filter(fn (QuestionnaireAnswer $answer): bool => $this->isProductServiceAnswer($answer));
-        $websiteValueText = $websiteAnswers
-            ->map(fn (QuestionnaireAnswer $answer): string => $this->answerValueText($answer))
-            ->implode(' ');
-
-        $hasUrl = $this->hasWebsiteUrl($websiteValueText);
-        $hasWebsitePageEvidence = $this->hasWebsitePageEvidence($websiteValueText);
         $hasProductServiceEvidence = $productServiceAnswers->contains(
             fn (QuestionnaireAnswer $answer): bool => trim($this->answerValueText($answer)) !== '',
         );
-        $hasSeoEvidence = $this->hasSeoEvidence($websiteValueText);
+        $snapshot = $confirmation === null ? $this->websiteSnapshots->latestForClient($client) : $this->websiteSnapshots->latestForConfirmation($confirmation);
+        $hasUrl = $candidates !== [] || $confirmation !== null;
+        $hasWebsitePageEvidence = is_array($snapshot?->pages) && $snapshot->pages !== [];
+        $hasSeoEvidence = is_numeric(data_get($snapshot?->scores, 'findability'));
 
-        if (! $hasUrl) {
+        if ($confirmation === null && $candidates === []) {
             return $this->websiteAuditReadinessPayload(
                 status: 'missing_url',
                 label: 'Website URL missing',
-                nextAction: 'Capture the homepage URL and the main product or service page URLs before treating the website audit as complete.',
+                nextAction: 'Capture a public website URL. The review will be skipped and noted in reports until one is listed and advisor-confirmed.',
                 hasProductServiceEvidence: $hasProductServiceEvidence,
-                hasSeoEvidence: $hasSeoEvidence,
+                candidates: [],
             );
         }
 
-        if (! $hasWebsitePageEvidence) {
+        if ($confirmation === null) {
             return $this->websiteAuditReadinessPayload(
-                status: 'missing_page_evidence',
-                label: 'Page evidence missing',
-                nextAction: 'Add website page copy, page notes, screenshots, or adviser observations so product/service claims can be compared against the website.',
+                status: 'awaiting_confirmation',
+                label: 'Advisor confirmation needed',
+                nextAction: 'Confirm the nominated URL before the audit can fetch or assess the site.',
                 hasUrl: true,
                 hasProductServiceEvidence: $hasProductServiceEvidence,
-                hasSeoEvidence: $hasSeoEvidence,
+                candidates: $candidates,
             );
         }
 
-        if (! $hasProductServiceEvidence) {
+        if (! $snapshot instanceof WebsiteAuditSnapshot) {
             return $this->websiteAuditReadinessPayload(
-                status: 'missing_product_service_evidence',
-                label: 'Offer evidence missing',
-                nextAction: 'Add what the client actually sells so the website can be checked against the product or service offer.',
+                status: 'ready_to_fetch',
+                label: 'Ready to fetch',
+                nextAction: 'Run Standard Advisory analysis to fetch and evaluate the confirmed website.',
                 hasUrl: true,
-                hasWebsitePageEvidence: true,
-                hasSeoEvidence: $hasSeoEvidence,
+                hasProductServiceEvidence: $hasProductServiceEvidence,
+                confirmedUrl: $confirmation->root_url,
+                candidates: $candidates,
             );
         }
 
-        if (! $hasSeoEvidence) {
+        if ($snapshot->fetch_status === WebsiteAuditSnapshot::STATUS_SKIPPED_NO_URL) {
             return $this->websiteAuditReadinessPayload(
-                status: 'missing_seo_evidence',
-                label: 'SEO evidence missing',
-                nextAction: 'Add SEO, metadata, schema, headings, FAQ, local-search, or AI-search observations to support the website alignment audit.',
+                status: 'awaiting_confirmation',
+                label: 'Advisor confirmation needed',
+                nextAction: 'Confirm the nominated URL and run analysis. No website evaluation has been performed.',
                 hasUrl: true,
-                hasWebsitePageEvidence: true,
-                hasProductServiceEvidence: true,
+                hasProductServiceEvidence: $hasProductServiceEvidence,
+                confirmedUrl: $confirmation->root_url,
+                candidates: $candidates,
             );
         }
 
         return $this->websiteAuditReadinessPayload(
-            status: 'ready',
-            label: 'Ready for review',
-            nextAction: 'Website URL, page evidence, product/service evidence, and SEO alignment evidence are available for the audit.',
+            status: $snapshot->fetch_status,
+            label: str($snapshot->fetch_status)->replace('_', ' ')->title()->toString(),
+            nextAction: $snapshot->fetch_status === WebsiteAuditSnapshot::STATUS_OK
+                ? 'Verified website evidence is available. Re-run after material website changes.'
+                : 'The latest website review was incomplete. Review the report note and re-run when the site is available.',
             hasUrl: true,
-            hasWebsitePageEvidence: true,
-            hasProductServiceEvidence: true,
-            hasSeoEvidence: true,
+            hasWebsitePageEvidence: $hasWebsitePageEvidence,
+            hasProductServiceEvidence: $hasProductServiceEvidence,
+            hasSeoEvidence: $hasSeoEvidence,
+            confirmedUrl: $confirmation->root_url,
+            candidates: $candidates,
+            fetchStatus: $snapshot->fetch_status,
         );
     }
 
@@ -496,6 +562,9 @@ final class StandardAdvisoryWorkflow
         bool $hasWebsitePageEvidence = false,
         bool $hasProductServiceEvidence = false,
         bool $hasSeoEvidence = false,
+        ?string $confirmedUrl = null,
+        array $candidates = [],
+        ?string $fetchStatus = null,
     ): array {
         return [
             'status' => $status,
@@ -505,6 +574,9 @@ final class StandardAdvisoryWorkflow
             'has_website_page_evidence' => $hasWebsitePageEvidence,
             'has_product_service_evidence' => $hasProductServiceEvidence,
             'has_seo_evidence' => $hasSeoEvidence,
+            'confirmed_url' => $confirmedUrl,
+            'candidates' => $candidates,
+            'fetch_status' => $fetchStatus,
         ];
     }
 

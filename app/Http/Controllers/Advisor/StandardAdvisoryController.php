@@ -7,6 +7,7 @@ namespace App\Http\Controllers\Advisor;
 use App\Http\Controllers\Controller;
 use App\Models\Client;
 use App\Models\User;
+use App\Services\Analysis\WebsiteUrlConfirmationService;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -70,5 +71,35 @@ final class StandardAdvisoryController extends Controller
                 'type' => 'success',
                 'message' => 'Advisory pack generated.',
             ]);
+    }
+
+    public function confirmWebsiteUrl(Request $request, Client $client, WebsiteUrlConfirmationService $confirmations): RedirectResponse
+    {
+        Gate::authorize('view', $client);
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        $validated = $request->validate([
+            'url' => ['required', 'string', 'max:2048'],
+            'source_answer_ids' => ['nullable', 'array'],
+            'source_answer_ids.*' => ['string', 'max:64'],
+        ]);
+
+        try {
+            $confirmations->confirm(
+                client: $client,
+                url: (string) $validated['url'],
+                actor: $user,
+                sourceAnswerIds: (array) ($validated['source_answer_ids'] ?? []),
+            );
+        } catch (\InvalidArgumentException $exception) {
+            return to_route('advisor.clients.show', $client)
+                ->withErrors(['url' => $exception->getMessage()])
+                ->withInput();
+        }
+
+        return to_route('advisor.clients.show', $client)
+            ->with('status', 'website-url-confirmed');
     }
 }

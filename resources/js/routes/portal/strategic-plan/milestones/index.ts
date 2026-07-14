@@ -27,7 +27,7 @@ update.url = (args: { milestone: string | { id: string } } | [milestone: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { milestone: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     milestone: args[0],
@@ -86,7 +86,7 @@ update.patch = (args: { milestone: string | { id: string } } | [milestone: strin
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const milestones = {
     update: Object.assign(update, update),

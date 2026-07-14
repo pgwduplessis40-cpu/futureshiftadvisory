@@ -52,7 +52,7 @@ disableRequest.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => 
             action: disableRequest.url(options),
             method: 'post',
         })
-    
+
     disableRequest.form = disableRequestForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurGamificationController::seen
@@ -107,7 +107,7 @@ seen.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: seen.url(options),
             method: 'post',
         })
-    
+
     seen.form = seenForm
 const gamification = {
     disableRequest: Object.assign(disableRequest, disableRequest),

@@ -31,6 +31,7 @@ use App\Models\ReportSection;
 use App\Models\SuccessionPlan;
 use App\Models\Template;
 use App\Models\User;
+use App\Models\WebsiteAuditSnapshot;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pptx\Contracts\PptxGenerator;
@@ -188,6 +189,32 @@ final class ReportComposerTest extends TestCase
         $this->assertStringContainsString('Website product/service mismatch', $this->renderer->html);
         $this->assertStringContainsString('Systems automation gap', $this->renderer->html);
         $this->assertFalse($report->sections->contains('key', 'implementation_plan'));
+    }
+
+    public function test_client_report_states_when_the_website_review_was_skipped_for_no_url(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('report-website-skip@example.test');
+        $this->businessValuation($client, 520000);
+        WebsiteAuditSnapshot::query()->create([
+            'client_id' => $client->getKey(),
+            'fetch_status' => WebsiteAuditSnapshot::STATUS_SKIPPED_NO_URL,
+            'skip_reason' => WebsiteAuditSnapshot::SKIP_NO_WEBSITE_URL_LISTED,
+            'pages' => [],
+            'ai_evidence' => [],
+            'technical' => ['measured' => false],
+            'performance' => ['measured' => false],
+            'nz_compliance' => ['measured' => false],
+            'scores' => ['overall' => null],
+            'source_attributions' => [],
+        ]);
+
+        $report = app(ReportComposer::class)->compose($client, ReportType::Client, $advisor);
+        $websiteReview = $report->sections->firstWhere('key', 'website_review');
+
+        $this->assertNotNull($websiteReview);
+        $this->assertSame('Website review', $websiteReview->title);
+        $this->assertSame('Website review not performed - no website URL listed/confirmed.', $websiteReview->body);
+        $this->assertStringContainsString('Website review not performed', $this->renderer->html);
     }
 
     public function test_valuation_report_triangulates_methods_and_requires_review(): void

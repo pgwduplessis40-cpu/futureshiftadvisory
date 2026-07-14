@@ -91,6 +91,39 @@ final class ResilientHttp
     }
 
     /**
+     * Fetch an endpoint where an HTTP response itself is the observation.
+     *
+     * A website's 301, 404, or 410 is useful audit evidence, not an outage.
+     *
+     * @param  array<int, int>  $acceptableStatusCodes
+     * @param  array<string, string>  $headers
+     * @param  array<string, mixed>  $options
+     */
+    public function probe(
+        string $service,
+        string $endpoint,
+        array $acceptableStatusCodes,
+        array $headers = [],
+        ?int $timeoutSeconds = null,
+        ?int $maxAttempts = 1,
+        array $options = [],
+    ): IntegrationResult {
+        if ($headers !== []) {
+            $options['headers'] = [...(array) ($options['headers'] ?? []), ...$headers];
+        }
+        $this->applyTimeout($options, $timeoutSeconds);
+
+        return $this->request(
+            method: 'GET',
+            service: $service,
+            endpoint: $endpoint,
+            options: $options,
+            maxAttempts: $maxAttempts,
+            acceptableStatusCodes: $acceptableStatusCodes,
+        );
+    }
+
+    /**
      * @param  array<string, mixed>  $options
      */
     public function request(
@@ -101,6 +134,7 @@ final class ResilientHttp
         ?string $cacheKey = null,
         ?callable $fallback = null,
         ?int $maxAttempts = null,
+        array $acceptableStatusCodes = [],
     ): IntegrationResult {
         $correlationId = (string) Str::uuid();
         $attemptLimit = max(1, $maxAttempts ?? $this->retryPolicy->attempts);
@@ -124,7 +158,7 @@ final class ResilientHttp
                 $response = Http::send(strtoupper($method), $endpoint, $options);
                 $latencyMs = $this->latencyMs($started);
 
-                if ($response->successful()) {
+                if ($response->successful() || in_array($response->status(), $acceptableStatusCodes, true)) {
                     $this->recorder->record(
                         service: $service,
                         endpoint: $endpoint,

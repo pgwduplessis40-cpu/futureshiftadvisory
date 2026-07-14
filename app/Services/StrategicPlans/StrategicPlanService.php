@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\StrategicPlans;
 
+use App\Enums\AnalysisLens;
+use App\Enums\AnalysisModule;
 use App\Enums\EngagementType;
 use App\Enums\ProposalStatus;
+use App\Models\AnalysisFinding;
 use App\Models\Client;
 use App\Models\Proposal;
 use App\Models\StrategicBudget;
@@ -320,6 +323,7 @@ final class StrategicPlanService
             ->filter(fn (mixed $section): bool => is_array($section))
             ->mapWithKeys(fn (array $section): array => [(string) ($section['key'] ?? '') => (string) ($section['answer'] ?? '')]);
         $proposalPriorities = $this->proposalFocusAreaText($proposal);
+        $websitePriorities = $this->websiteAuditPriorities($client);
         $goals = collect((array) ($budget?->client_goals ?? []))
             ->merge((array) ($budget?->advisor_goals ?? []))
             ->map(fn (array $goal): string => trim((string) ($goal['title'] ?? '').' '.(string) ($goal['measure'] ?? '')))
@@ -339,6 +343,7 @@ final class StrategicPlanService
                 'body' => $this->actionPrioritiesBody(
                     (string) ($planSections->get('action_priorities') ?: ''),
                     $proposalPriorities,
+                    $websitePriorities,
                 ),
             ],
             [
@@ -504,10 +509,11 @@ final class StrategicPlanService
         ];
     }
 
-    private function actionPrioritiesBody(string $budgetPriorities, string $proposalPriorities): string
+    private function actionPrioritiesBody(string $budgetPriorities, string $proposalPriorities, string $websitePriorities = ''): string
     {
         $parts = array_values(array_filter([
             trim($proposalPriorities),
+            trim($websitePriorities),
             trim($budgetPriorities),
         ]));
 
@@ -516,6 +522,25 @@ final class StrategicPlanService
         }
 
         return implode("\n\n", $parts);
+    }
+
+    private function websiteAuditPriorities(Client $client): string
+    {
+        $findings = AnalysisFinding::query()
+            ->where('client_id', $client->getKey())
+            ->where('lens', AnalysisLens::Prescriptive->value)
+            ->whereHas('run', fn ($query) => $query->where('module', AnalysisModule::WebsiteAudit->value))
+            ->latest()
+            ->limit(3)
+            ->get();
+
+        if ($findings->isEmpty()) {
+            return '';
+        }
+
+        return "Verified website priorities:\n".$findings
+            ->map(fn (AnalysisFinding $finding): string => '- '.$finding->title.': '.$finding->body)
+            ->implode("\n");
     }
 
     /**

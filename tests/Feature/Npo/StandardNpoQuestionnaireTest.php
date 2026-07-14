@@ -243,12 +243,12 @@ final class StandardNpoQuestionnaireTest extends TestCase
             'data_quality' => Client::DATA_QUALITY_INSUFFICIENT,
             'primary_contact_user_id' => $user->getKey(),
             'onboarding_wizard_state' => [
-                'current_step' => 5,
+                'journey_version' => 2,
+                'current_step' => 4,
                 'completed_steps' => [
                     OnboardingWizard::STEP_WELCOME,
-                    OnboardingWizard::STEP_IDENTITY,
-                    OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
                     OnboardingWizard::STEP_GOALS,
+                    OnboardingWizard::STEP_WEBSITE,
                 ],
                 'steps' => [],
             ],

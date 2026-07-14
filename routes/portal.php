@@ -104,6 +104,7 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('surveys/{surveyAssignment}', [SurveyController::class, 'show'])->name('surveys.show');
         Route::post('surveys/{surveyAssignment}', [SurveyController::class, 'submit'])->name('surveys.submit');
         Route::get('onboarding', [OnboardingController::class, 'redirect'])->name('onboarding.index');
+        Route::post('onboarding/questionnaire/draft', [OnboardingController::class, 'saveQuestionnaireDraft'])->name('onboarding.questionnaire.draft');
         Route::get('onboarding/{step}', [OnboardingController::class, 'show'])->name('onboarding.step');
         Route::post('onboarding/{step}', [OnboardingController::class, 'store'])->name('onboarding.store');
     });

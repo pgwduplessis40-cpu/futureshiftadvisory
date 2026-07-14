@@ -292,12 +292,12 @@ final class OfflineSyncHardeningTest extends TestCase
     private function questionnaireStepState(): array
     {
         return [
-            'current_step' => 5,
+            'journey_version' => 2,
+            'current_step' => 4,
             'completed_steps' => [
                 OnboardingWizard::STEP_WELCOME,
-                OnboardingWizard::STEP_IDENTITY,
-                OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
                 OnboardingWizard::STEP_GOALS,
+                OnboardingWizard::STEP_WEBSITE,
             ],
             'steps' => [],
         ];

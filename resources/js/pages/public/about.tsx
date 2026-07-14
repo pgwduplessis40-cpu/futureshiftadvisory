@@ -135,7 +135,10 @@ export default function About() {
                             structure behind it, where every finding is backed
                             by evidence, and where you hear what the numbers
                             actually say rather than what is easiest to tell
-                            you.
+                            you. We are as comfortable with the technology
+                            behind a business as we are with its numbers - and
+                            when a small tool will fix a stubborn process, we
+                            can build it.
                         </p>
 
                         <p className="mt-4 text-base leading-relaxed text-[var(--fs-graphite)]">

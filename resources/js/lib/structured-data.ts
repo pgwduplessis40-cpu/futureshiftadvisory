@@ -39,6 +39,8 @@ export function organizationLd(base: string): Json {
             'Startup and entrepreneur advisory',
             'Not-for-profit and social enterprise advisory',
             'Governance review',
+            'Business process automation',
+            'Custom business tools',
         ],
         sameAs: [LINKEDIN_URL],
     };

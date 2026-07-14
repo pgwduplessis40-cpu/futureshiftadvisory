@@ -16,6 +16,7 @@ use App\Models\Questionnaire;
 use App\Models\QuestionnaireQuestion;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
+use App\Services\Analysis\WebsiteUrlConfirmationService;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Support\RequestContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -161,6 +162,44 @@ final class StandardAdvisoryWorkflowTest extends TestCase
             '2 analysis finding(s) were dropped because source attribution was incomplete.',
             $readiness['warnings'],
         );
+    }
+
+    public function test_pending_client_website_url_blocks_analysis_until_an_advisor_confirms_it(): void
+    {
+        $client = $this->clientReadyForAnalysis();
+        $actor = User::query()->findOrFail($client->primary_contact_user_id);
+        $confirmations = app(WebsiteUrlConfirmationService::class);
+
+        $confirmations->submitForAdvisorReview($client, 'https://8.8.8.8/', $actor);
+
+        $blocked = app(StandardAdvisoryWorkflow::class)->readiness($client);
+
+        $this->assertFalse($blocked['can_run_analysis']);
+        $this->assertSame('red', $blocked['analysis_readiness']['level']);
+        $this->assertStringContainsString('Confirm the client website URL', implode(' ', $blocked['missing']));
+
+        $confirmations->confirm($client, 'https://8.8.8.8/', $actor);
+
+        $ready = app(StandardAdvisoryWorkflow::class)->readiness($client);
+
+        $this->assertTrue($ready['can_run_analysis']);
+        $this->assertSame('amber', $ready['analysis_readiness']['level']);
+    }
+
+    public function test_submitted_client_onboarding_is_green_for_analysis(): void
+    {
+        $client = $this->clientReadyForAnalysis();
+        $client->forceFill([
+            'onboarding_wizard_state' => [
+                'journey_version' => 2,
+                'submitted_at' => now()->toIso8601String(),
+            ],
+        ])->save();
+
+        $readiness = app(StandardAdvisoryWorkflow::class)->readiness($client);
+
+        $this->assertTrue($readiness['can_run_analysis']);
+        $this->assertSame('green', $readiness['analysis_readiness']['level']);
     }
 
     private function clientReadyForAnalysis(): Client

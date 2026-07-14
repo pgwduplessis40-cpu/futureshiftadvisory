@@ -12,6 +12,7 @@ use App\Notifications\Channels\FsaDatabaseChannel;
 use App\Observers\ClientLifecycleObserver;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\Resilience\RetryPolicy;
+use App\Services\Analysis\WebsiteAuditSnapshotContext;
 use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
@@ -59,6 +60,7 @@ class AppServiceProvider extends ServiceProvider
     public function register(): void
     {
         $this->app->singleton(RetryPolicy::class, fn (): RetryPolicy => RetryPolicy::fromConfig());
+        $this->app->scoped(WebsiteAuditSnapshotContext::class);
         $this->app->singleton(FileScanner::class, function (): FileScanner {
             if ((bool) config('virus-scanner.live', false)) {
                 return $this->app->make(ClamAvScanner::class);

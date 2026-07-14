@@ -75,6 +75,6 @@ SitemapController.head = (options?: RouteQueryOptions): RouteDefinition<'head'> 
                     }),
             method: 'get',
         })
-    
+
     SitemapController.form = SitemapControllerForm
 export default SitemapController

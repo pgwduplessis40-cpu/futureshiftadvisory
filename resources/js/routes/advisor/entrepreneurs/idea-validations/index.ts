@@ -83,7 +83,7 @@ gate.patch = (args: { entrepreneurProfile: string | { id: string }, ideaValidati
                     }),
             method: 'post',
         })
-    
+
     gate.form = gateForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::requestChanges
@@ -169,7 +169,7 @@ requestChanges.patch = (args: { entrepreneurProfile: string | { id: string }, id
                     }),
             method: 'post',
         })
-    
+
     requestChanges.form = requestChangesForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurActionController::refresh
@@ -245,7 +245,7 @@ refresh.post = (args: { entrepreneurProfile: string | { id: string }, ideaValida
             action: refresh.url(args, options),
             method: 'post',
         })
-    
+
     refresh.form = refreshForm
 const ideaValidations = {
     gate: Object.assign(gate, gate),

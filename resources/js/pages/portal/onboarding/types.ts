@@ -9,12 +9,6 @@ export type ClientPayload = {
     trading_name: string | null;
     engagement_type: string;
     engagement_type_label: string;
-    data_quality: string;
-    nzbn: string | null;
-    entity_type: string | null;
-    gst_registered: boolean;
-    gst_registration_status: string;
-    filing_status: string | null;
 };
 
 export type WizardStep = {
@@ -50,4 +44,5 @@ export type Questionnaire = {
     description: string;
     schema: QuestionnaireSchema | null;
     answers: QuestionnaireAnswers;
+    draft_saved_at?: string | null;
 };

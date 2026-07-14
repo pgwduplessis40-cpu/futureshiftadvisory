@@ -351,6 +351,22 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<WebsiteUrlConfirmation>
+     */
+    public function websiteUrlConfirmations(): HasMany
+    {
+        return $this->hasMany(WebsiteUrlConfirmation::class);
+    }
+
+    /**
+     * @return HasMany<WebsiteAuditSnapshot>
+     */
+    public function websiteAuditSnapshots(): HasMany
+    {
+        return $this->hasMany(WebsiteAuditSnapshot::class);
+    }
+
+    /**
      * @return HasMany<Testimonial>
      */
     public function testimonials(): HasMany

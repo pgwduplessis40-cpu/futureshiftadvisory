@@ -46,6 +46,7 @@ use App\Models\RiskCost;
 use App\Models\SuccessionPlan;
 use App\Models\Template;
 use App\Models\User;
+use App\Models\WebsiteAuditSnapshot;
 use App\Services\Ai\Contracts\AiClient;
 use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Analysis\HolidaysActLiabilityCalculator;
@@ -1219,6 +1220,11 @@ final class ReportComposer implements ProvidesMethodology
             $this->valuationSection($client, $waterfall, $valuation),
         ];
 
+        $websiteReview = $this->websiteReviewSection($client);
+        if ($websiteReview !== null) {
+            $sections[] = $websiteReview;
+        }
+
         $whatIsWrong = $this->whatIsWrongSection($client, $visibleFindings);
         if ($whatIsWrong !== null) {
             $sections[] = $whatIsWrong;
@@ -1248,6 +1254,11 @@ final class ReportComposer implements ProvidesMethodology
             $this->valuationSection($client, $waterfall, $valuation),
             $this->waterfallSection($client, $waterfall),
         ];
+
+        $websiteReview = $this->websiteReviewSection($client);
+        if ($websiteReview !== null) {
+            $sections[] = $websiteReview;
+        }
 
         $findings->each(function (AnalysisFinding $finding) use (&$sections): void {
             $sections[] = $this->findingSection($finding);
@@ -1303,6 +1314,54 @@ final class ReportComposer implements ProvidesMethodology
             $this->goalOutcomeSection($client),
             $this->trajectoryNarrativeSection($client, $snapshots, $valuations, $findings),
         ];
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function websiteReviewSection(Client $client): ?array
+    {
+        $snapshot = WebsiteAuditSnapshot::query()
+            ->where('client_id', $client->getKey())
+            ->latest('fetched_at')
+            ->latest()
+            ->first();
+
+        if (! $snapshot instanceof WebsiteAuditSnapshot) {
+            return null;
+        }
+
+        $body = match ($snapshot->fetch_status) {
+            WebsiteAuditSnapshot::STATUS_SKIPPED_NO_URL => 'Website review not performed - no website URL listed/confirmed.',
+            WebsiteAuditSnapshot::STATUS_BLOCKED => 'Website review not performed - the nominated website blocked the audit through robots.txt.',
+            WebsiteAuditSnapshot::STATUS_UNREACHABLE => 'Website review not performed - the nominated website could not be reached.',
+            default => sprintf(
+                'Verified website review completed for %s at %s. Health score: findability %s/100, credibility %s/100, conversion %s/100, technical %s/100, overall %s/100. PageSpeed measurement: %s.',
+                $snapshot->root_url,
+                $snapshot->fetched_at?->toIso8601String() ?? 'not recorded',
+                data_get($snapshot->scores, 'findability', 'not measured'),
+                data_get($snapshot->scores, 'credibility', 'not measured'),
+                data_get($snapshot->scores, 'conversion', 'not measured'),
+                data_get($snapshot->scores, 'technical', 'not measured'),
+                data_get($snapshot->scores, 'overall', 'not measured'),
+                data_get($snapshot->performance, 'measured', false) ? 'available' : 'not measured',
+            ),
+        };
+
+        return $this->generatedSection(
+            key: 'website_review',
+            title: 'Website review',
+            body: $body,
+            sourceReference: 'website_audit_snapshot:'.$snapshot->getKey(),
+            dataQualityNote: $snapshot->fetch_status === WebsiteAuditSnapshot::STATUS_PARTIAL
+                ? 'Data quality note: website review was partial; findings are limited to fetched evidence.'
+                : null,
+            metadata: [
+                'website_audit_snapshot_id' => $snapshot->getKey(),
+                'fetch_status' => $snapshot->fetch_status,
+                'scores' => $snapshot->scores,
+            ],
+        );
     }
 
     /**

@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
@@ -107,7 +107,7 @@ importMethod.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: importMethod.url(options),
             method: 'post',
         })
-    
+
     importMethod.form = importMethodForm
 const integrationFeeBands = {
     store: Object.assign(store, store),

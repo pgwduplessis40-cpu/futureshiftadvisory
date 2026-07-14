@@ -17,6 +17,7 @@ use App\Models\PostAcquisitionMigration;
 use App\Models\Questionnaire;
 use App\Models\QuestionnaireResponse;
 use App\Models\User;
+use App\Services\Analysis\WebsiteUrlConfirmationService;
 use App\Services\Analytics\FunnelTracker;
 use App\Services\Audit\AuditWriter;
 use App\Services\Npo\NpoQuestionnaireScoring;
@@ -31,6 +32,7 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
 use Inertia\Response;
 
@@ -47,6 +49,7 @@ final class OnboardingController extends Controller
         private readonly PortalOfflineSync $offlineSync,
         private readonly ReportComposer $reports,
         private readonly WelcomeMessageRenderer $welcomeMessage,
+        private readonly WebsiteUrlConfirmationService $websiteUrls,
     ) {}
 
     public function redirect(Request $request): RedirectResponse
@@ -61,6 +64,13 @@ final class OnboardingController extends Controller
     public function show(Request $request, string $step): Response|RedirectResponse
     {
         $client = $this->clients->resolveFor($request);
+
+        if ($this->isRetiredStep($step)) {
+            return to_route('portal.onboarding.step', [
+                'step' => $this->wizard->currentStepSlug($client),
+            ]);
+        }
+
         $stepMeta = $this->wizard->step($step);
 
         if (! $this->wizard->canAccess($client, $step)) {
@@ -93,6 +103,55 @@ final class OnboardingController extends Controller
         $client = $this->clients->resolveFor($request);
 
         return $this->storeForClient($request, $step, $client, false);
+    }
+
+    public function saveQuestionnaireDraft(Request $request): JsonResponse
+    {
+        $client = $this->clients->resolveFor($request);
+        abort_unless($this->wizard->canAccess($client, OnboardingWizard::STEP_QUESTIONNAIRE), 409);
+
+        $meta = $this->wizard->questionnaire($client);
+        $questionnaire = $this->activeQuestionnaire($client);
+        abort_unless($meta['available'] === true && $questionnaire instanceof Questionnaire, 404);
+
+        $validated = $request->validate([
+            'answers' => ['present', 'array'],
+            'answers.*' => ['array'],
+        ]);
+        $questions = $this->visibleQuestionnaireForClient($client, $questionnaire)
+            ->sections
+            ->flatMap(fn ($section) => $section->questions)
+            ->keyBy(fn ($question) => (string) $question->getKey());
+        $answers = [];
+
+        foreach ($validated['answers'] as $questionId => $answer) {
+            if (! is_string($questionId) || ! $questions->has($questionId) || ! is_array($answer)) {
+                continue;
+            }
+
+            $documentIds = is_array($answer['attached_document_ids'] ?? null)
+                ? array_values(array_filter(array_map(
+                    static fn (mixed $documentId): string => trim((string) $documentId),
+                    $answer['attached_document_ids'],
+                )))
+                : [];
+            $answers[$questionId] = [
+                'value' => $answer['value'] ?? null,
+                'attached_document_ids' => $documentIds,
+            ];
+        }
+
+        $state = $this->wizard->saveDraft($client, OnboardingWizard::STEP_QUESTIONNAIRE, [
+            'answers' => $answers,
+        ]);
+        $user = $request->user();
+        $this->auditWriter->record('portal.onboarding_questionnaire_draft_saved', subject: $client, actor: $user instanceof User ? $user : null, after: [
+            'answers_recorded' => count($answers),
+        ]);
+
+        return response()->json([
+            'saved_at' => Arr::get($state, 'drafts.'.OnboardingWizard::STEP_QUESTIONNAIRE.'.saved_at'),
+        ]);
     }
 
     private function storeForClient(Request $request, string $step, Client $client, bool $sync): RedirectResponse|JsonResponse
@@ -167,14 +226,6 @@ final class OnboardingController extends Controller
                 'trading_name' => $client->trading_name,
                 'engagement_type' => $engagementType->value,
                 'engagement_type_label' => $engagementType->label(),
-                'data_quality' => $client->data_quality,
-                'nzbn' => $client->nzbn,
-                'entity_type' => $client->entity_type,
-                'gst_registered' => $client->gst_registered,
-                'gst_registration_status' => ($client->registry_sources['ird'] ?? null) === 'client_supplied_not_ird_verified'
-                    ? 'Client supplied - not verified with IRD'
-                    : ($client->gst_registered ? 'registered' : 'not registered'),
-                'filing_status' => $client->filing_status,
             ],
             'step' => $step,
             'steps' => $this->wizard->navigation($client),
@@ -186,17 +237,15 @@ final class OnboardingController extends Controller
             'stepData' => Arr::get($state, "steps.{$step['slug']}", []),
             'progress' => $this->wizard->progress($client),
             'questionnaire' => $this->questionnaireFor($client),
+            'website' => $this->websiteFor($client),
             'documentUploadUrl' => route('portal.documents.store'),
             'documentCount' => Document::query()
                 ->visibleToClients()
                 ->where('client_id', $client->getKey())
                 ->count(),
             'submitUrl' => route('portal.onboarding.store', ['step' => $step['slug']]),
+            'questionnaireDraftUrl' => route('portal.onboarding.questionnaire.draft'),
             'dashboardUrl' => route('portal.dashboard'),
-            'authUser' => [
-                'name' => (string) $request->user()?->name,
-                'email' => (string) $request->user()?->email,
-            ],
         ];
     }
 
@@ -209,17 +258,11 @@ final class OnboardingController extends Controller
             OnboardingWizard::STEP_WELCOME => $request->validate([
                 'acknowledged' => ['accepted'],
             ]),
-            OnboardingWizard::STEP_IDENTITY => $request->validate([
-                'name' => ['required', 'string', 'max:255'],
-                'email' => ['required', 'email', 'max:255'],
-            ]),
-            OnboardingWizard::STEP_BUSINESS_SNAPSHOT => $request->validate([
-                'snapshot_confirmed' => ['accepted'],
-            ]),
             OnboardingWizard::STEP_GOALS => $request->validate([
                 'primary_goal' => ['required', 'string', 'max:1000'],
                 'success_measure' => ['nullable', 'string', 'max:1000'],
             ]),
+            OnboardingWizard::STEP_WEBSITE => $this->validateWebsite($request, $client),
             OnboardingWizard::STEP_QUESTIONNAIRE => $this->validateQuestionnaire($request, $client),
             OnboardingWizard::STEP_DOCUMENTS => $this->validateDocuments($request, $client),
             OnboardingWizard::STEP_REVIEW => $request->validate([
@@ -227,6 +270,50 @@ final class OnboardingController extends Controller
             ]),
             default => abort(404),
         };
+    }
+
+    /**
+     * @return array{website_url:?string, website_skipped:bool, website_status:string, website_url_confirmation_id?:string}
+     */
+    private function validateWebsite(Request $request, Client $client): array
+    {
+        $validated = $request->validate([
+            'website_url' => ['nullable', 'string', 'max:2048'],
+            'website_skipped' => ['nullable', 'boolean'],
+        ]);
+        $url = trim((string) ($validated['website_url'] ?? ''));
+
+        if ($url === '') {
+            if (($validated['website_skipped'] ?? false) !== true) {
+                throw ValidationException::withMessages([
+                    'website_url' => 'Enter a public website URL, or confirm that the business does not have one.',
+                ]);
+            }
+
+            return [
+                'website_url' => null,
+                'website_skipped' => true,
+                'website_status' => 'not_listed',
+            ];
+        }
+
+        $user = $request->user();
+        abort_unless($user instanceof User, 403);
+
+        try {
+            $submission = $this->websiteUrls->submitForAdvisorReview($client, $url, $user);
+        } catch (\InvalidArgumentException $exception) {
+            throw ValidationException::withMessages([
+                'website_url' => $exception->getMessage(),
+            ]);
+        }
+
+        return [
+            'website_url' => $submission->root_url,
+            'website_skipped' => false,
+            'website_status' => 'awaiting_advisor_confirmation',
+            'website_url_confirmation_id' => (string) $submission->getKey(),
+        ];
     }
 
     /**
@@ -314,6 +401,7 @@ final class OnboardingController extends Controller
                 ...$meta,
                 'schema' => null,
                 'answers' => [],
+                'draft_saved_at' => null,
             ];
         }
 
@@ -325,12 +413,42 @@ final class OnboardingController extends Controller
             ->where('questionnaire_id', $active->getKey())
             ->with('answers')
             ->first();
+        $draft = Arr::get(
+            $this->wizard->state($client),
+            'drafts.'.OnboardingWizard::STEP_QUESTIONNAIRE,
+            [],
+        );
+        $draftAnswers = is_array(Arr::get($draft, 'payload.answers'))
+            ? Arr::get($draft, 'payload.answers')
+            : [];
 
         return [
             ...$meta,
             'npo_engagement_id' => $responseOptions['npo_engagement_id'] ?? null,
             'schema' => $this->questionnairePayload->schema($this->visibleQuestionnaireForClient($client, $active)),
-            'answers' => $this->questionnairePayload->answers($response),
+            'answers' => array_replace($draftAnswers, $this->questionnairePayload->answers($response)),
+            'draft_saved_at' => is_string(Arr::get($draft, 'saved_at')) ? Arr::get($draft, 'saved_at') : null,
+        ];
+    }
+
+    /**
+     * @return array{url:?string, status:'advisor_confirmed'|'awaiting_advisor_confirmation'|'not_listed'}
+     */
+    private function websiteFor(Client $client): array
+    {
+        $confirmed = $this->websiteUrls->latestConfirmed($client);
+        if ($confirmed !== null) {
+            return [
+                'url' => $confirmed->root_url,
+                'status' => 'advisor_confirmed',
+            ];
+        }
+
+        $submission = $this->websiteUrls->latestPendingAdvisorReview($client);
+
+        return [
+            'url' => $submission?->root_url,
+            'status' => $submission === null ? 'not_listed' : 'awaiting_advisor_confirmation',
         ];
     }
 
@@ -348,6 +466,14 @@ final class OnboardingController extends Controller
             ->orderByDesc('published_at')
             ->orderByDesc('created_at')
             ->first();
+    }
+
+    private function isRetiredStep(string $step): bool
+    {
+        return in_array($step, [
+            OnboardingWizard::STEP_IDENTITY,
+            OnboardingWizard::STEP_BUSINESS_SNAPSHOT,
+        ], true);
     }
 
     /**

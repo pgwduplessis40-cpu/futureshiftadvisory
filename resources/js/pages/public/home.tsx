@@ -200,6 +200,11 @@ export default function Home({
                         </div>
                     ))}
                 </div>
+
+                <p className="font-accent mt-14 text-center text-lg text-[var(--fs-cognac)] italic">
+                    Practical, not just theoretical - where it helps, we can
+                    even build the small tools that make the change stick.
+                </p>
             </Section>
 
             {/* ── CLOSING CTA ─────────────────────────────────── */}

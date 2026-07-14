@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::create
@@ -153,7 +153,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::createManual
@@ -231,7 +231,7 @@ createManual.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     createManual.form = createManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::store
@@ -286,7 +286,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::storeManual
@@ -341,7 +341,7 @@ storeManual.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: storeManual.url(options),
             method: 'post',
         })
-    
+
     storeManual.form = storeManualForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::updateInvite
@@ -371,7 +371,7 @@ updateInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [en
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -430,7 +430,7 @@ updateInvite.patch = (args: { entrepreneurProfile: string | { id: string } } | [
                     }),
             method: 'post',
         })
-    
+
     updateInvite.form = updateInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::resendInvite
@@ -460,7 +460,7 @@ resendInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [en
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -509,7 +509,7 @@ resendInvite.post = (args: { entrepreneurProfile: string | { id: string } } | [e
             action: resendInvite.url(args, options),
             method: 'post',
         })
-    
+
     resendInvite.form = resendInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::cancelInvite
@@ -539,7 +539,7 @@ cancelInvite.url = (args: { entrepreneurProfile: string | { id: string } } | [en
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -598,7 +598,7 @@ cancelInvite.delete = (args: { entrepreneurProfile: string | { id: string } } | 
                     }),
             method: 'post',
         })
-    
+
     cancelInvite.form = cancelInviteForm
 /**
 * @see \App\Http\Controllers\Advisor\EntrepreneurController::show
@@ -628,7 +628,7 @@ show.url = (args: { entrepreneurProfile: string | { id: string } } | [entreprene
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -700,7 +700,7 @@ show.head = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 const EntrepreneurController = { index, create, createManual, store, storeManual, updateInvite, resendInvite, cancelInvite, show }
 

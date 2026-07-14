@@ -16,6 +16,8 @@ final readonly class IntegrationResult
         public string $correlationId,
         public bool $fromCache = false,
         public bool $fromFallback = false,
+        /** @var array<string, array<int, string>> */
+        public array $headers = [],
     ) {}
 
     public static function fromResponse(Response $response, string $correlationId): self
@@ -28,6 +30,7 @@ final readonly class IntegrationResult
             data: $json ?? $response->body(),
             body: $response->body(),
             correlationId: $correlationId,
+            headers: $response->headers(),
         );
     }
 

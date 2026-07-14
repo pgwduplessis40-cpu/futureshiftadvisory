@@ -126,3 +126,12 @@ The NPO module is an additive engagement lane. Do not weaken existing SME, DD, e
 - Funder contacts get report-scoped access only to reviewed Funder Accountability reports. They never get broad client scope.
 - Incorporated Societies Act 2022 re-registration alerts are critical gates until acknowledged or resolved.
 - NPO reports are Governance Review, NPO Health, NPO Advisor, Funder Accountability, Impact Summary, and Social Enterprise Dual Impact. Board members may see only explicitly allowed board-facing report types.
+
+## Website Audit Rules
+
+- Run website analysis through `WebsiteAuditRunner`, never directly through `WebsiteAudit` or raw HTTP.
+- Fetch only an advisor-confirmed `WebsiteUrlConfirmation`; questionnaire URLs are candidates, not fetch authority.
+- Use `ResilientHttp::probe()` and a host-scoped `website_audit:{host}` service key. Redirects and expected 404/410 responses are audit observations, not outages.
+- Respect robots.txt, cap pages and bytes, reject private/loopback/link-local hosts and unsafe redirects, and preserve the exact AI excerpts plus hashes in `website_audit_snapshots`.
+- With no listed or confirmed URL, skip fetch, probes, PSI, and AI. Record `skipped_no_url`, show the explicit report note, and do not create website remediation in the strategic plan.
+- Only verified website findings may flow into reports, proposals, and strategic plans. PSI failures remain `not measured`; never fabricate a performance score.

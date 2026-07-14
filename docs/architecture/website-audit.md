@@ -1,54 +1,38 @@
 # Website Audit Module
 
-WO-45 adds the Phase 2 website audit adapter on the shared analysis spine.
+The website audit evaluates the actual, advisor-confirmed client website. `WebsiteAuditRunner` owns the website-specific lifecycle around the shared analysis spine:
 
-## Module Shape
+1. Advisor confirms the root URL in `website_url_confirmations`.
+2. `WebsiteFetcher` resolves only public hosts, respects robots.txt, applies page and byte caps, and uses `ResilientHttp::probe()` with a host-scoped breaker key.
+3. Deterministic parsing records page metadata, headings, schema, calls to action, contact/form signals, image-alt coverage, redirects, status codes, and capped text excerpts.
+4. Technical, NZ trust-presence, health-score, and optional PageSpeed evidence are stored in a timestamped `website_audit_snapshots` row.
+5. The shared `AnalysisRunner` supplies only the recorded excerpts and deterministic signals to the examiner AI, then persists cited findings.
 
-`WebsiteAudit` implements `AnalysisModule` with prompt id
-`analysis.website_audit`. The shared `AnalysisRunner` still owns data-quality,
-document-verification, prompt, AI, attribution, bias, red-flag, and audit rules.
+## URL And Fetch Guardrails
 
-The module emits all four lenses:
-
-- Descriptive: whether website audit evidence and a nominated URL/domain exist.
-- Diagnostic: product/service content accuracy, SEO, GEO (generative-engine
-  optimisation), AEO (answer-engine optimisation), AIO (AI-overview / AI-search
-  optimisation), structured-data extractability, UX, calls to action, mobile
-  usability, and NZ-local search gaps.
-- Predictive: risk to future NZ search, answer-engine, generative-engine, and
-  AI-search visibility for the products/services the client actually sells.
-- Prescriptive: a practical action plan for accurate product/service pages,
-  structured data, answer blocks, mobile, NZ-local search, and enquiry CTAs.
+- Questionnaire URLs are only candidates. No fetch happens until an advisor creates an active confirmation.
+- With no listed URL or no confirmation, the runner records `skipped_no_url`, bypasses fetch/probes/PageSpeed/AI, and creates no website remediation finding.
+- URLs must be public `http` or `https` addresses on ports 80/443. Loopback, private, link-local, reserved, local, internal, and unsafe redirect targets are rejected.
+- Redirects, 404s, 410s, and robots responses are measured page states. They are not integration failures and do not open a global breaker.
+- PageSpeed requires `PAGESPEED_INSIGHTS_API_KEY`. When absent or unavailable, the snapshot says `measured: false`; no performance value is invented.
 
 ## Evidence And Citations
 
-WO-45 does not crawl websites or run live search-ranking checks. It uses
-advisor/client-supplied website and product/service evidence from questionnaire
-answers, then checks whether the supplied website content appears aligned to what
-the client says it sells and whether the content is likely to be machine-readable
-for search, answer, and AI surfaces. It cites each answer as:
+Every fetched page stores a `website:{url} as at {timestamp}` source reference. The snapshot preserves page-level hashes, byte counts, excerpts, and truncation flags for the text supplied to the examiner. Client questionnaire answers may provide stated-offer context, but they do not stand in for website evidence.
 
-- `questionnaire_answer:{id}`
+The module emits all four lenses when readable pages are available:
 
-If no website-specific answer exists, the module falls back to the client profile
-as the audit subject, but data-quality/document gates still decide whether the run
-can proceed.
+- Descriptive: pages and health dimensions captured.
+- Diagnostic: measured findability, technical, trust, and conversion gaps.
+- Predictive: examiner assessment of discoverability and offer alignment.
+- Prescriptive: verified improvement priorities.
 
-## Gate Behaviour
-
-Website audit runs through the same document-verification gate as every Phase 2
-analysis. Outstanding `advisory_flag` or `accuracy_discrepancy` rows block the
-run before AI is called or findings are persisted.
+Document verification and data-quality gates remain owned by `AnalysisRunner`. If a confirmed site is unreachable or blocked, the audit produces an honest empty state rather than an AI-generated inference.
 
 ## Downstream Flow
 
-Diagnostic website-audit findings render into the client report's "What is
-wrong" section. Prescriptive website-audit findings can flow into proposal focus
-areas, render under "What needs to be fixed", and carry into signed-proposal
-strategic plan priorities and milestones.
+Verified website findings appear in the client and advisor reports, proposal focus areas, and strategic-plan action priorities. A skipped, blocked, or unreachable audit instead appears as a clear report note. Strategic plans do not create website remediation solely because a URL was absent.
 
 ## Boundaries
 
-WO-45 does not implement continuous website monitoring, live SEO crawling, live
-GEO/AEO/AIO testing, or cross-client industry alerts. Those remain future work.
-WO-45 adds no schema.
+The module is advisor-triggered, not continuous monitoring. It does not claim live search rankings, legal compliance, or a complete NZBN NAP comparison when those signals are unavailable. The NZ trust sweep records presence signals only and requires advisor or legal review where needed.

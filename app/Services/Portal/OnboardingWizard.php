@@ -15,13 +15,19 @@ use Illuminate\Support\Carbon;
 
 final class OnboardingWizard
 {
+    private const JOURNEY_VERSION = 2;
+
     public const STEP_WELCOME = 'welcome';
 
+    /** @deprecated Identity verification is handled by account security controls. */
     public const STEP_IDENTITY = 'identity';
 
+    /** @deprecated Registry data is maintained in the advisor workspace. */
     public const STEP_BUSINESS_SNAPSHOT = 'business-snapshot';
 
     public const STEP_GOALS = 'goals';
+
+    public const STEP_WEBSITE = 'website';
 
     public const STEP_QUESTIONNAIRE = 'questionnaire';
 
@@ -36,12 +42,11 @@ final class OnboardingWizard
     {
         return [
             ['number' => 1, 'slug' => self::STEP_WELCOME, 'title' => 'Welcome', 'description' => 'Confirm the onboarding path.'],
-            ['number' => 2, 'slug' => self::STEP_IDENTITY, 'title' => 'Identity verification', 'description' => 'Confirm your account details.'],
-            ['number' => 3, 'slug' => self::STEP_BUSINESS_SNAPSHOT, 'title' => 'Business snapshot', 'description' => 'Review registry details.'],
-            ['number' => 4, 'slug' => self::STEP_GOALS, 'title' => 'Goals', 'description' => 'Capture immediate priorities.'],
-            ['number' => 5, 'slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Match the engagement questionnaire.'],
-            ['number' => 6, 'slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Prepare supporting files.'],
-            ['number' => 7, 'slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the onboarding summary.'],
+            ['number' => 2, 'slug' => self::STEP_GOALS, 'title' => 'Goals', 'description' => 'Capture immediate priorities.'],
+            ['number' => 3, 'slug' => self::STEP_WEBSITE, 'title' => 'Website', 'description' => 'Share your public website.'],
+            ['number' => 4, 'slug' => self::STEP_QUESTIONNAIRE, 'title' => 'Questionnaire', 'description' => 'Match the engagement questionnaire.'],
+            ['number' => 5, 'slug' => self::STEP_DOCUMENTS, 'title' => 'Documents', 'description' => 'Prepare supporting files.'],
+            ['number' => 6, 'slug' => self::STEP_REVIEW, 'title' => 'Review and submit', 'description' => 'Confirm the onboarding summary.'],
         ];
     }
 
@@ -65,7 +70,10 @@ final class OnboardingWizard
             ? $client->onboarding_wizard_state
             : [];
 
-        $currentStep = (int) ($state['current_step'] ?? 1);
+        $journeyVersion = (int) ($state['journey_version'] ?? 1);
+        $currentStep = $journeyVersion < self::JOURNEY_VERSION
+            ? $this->currentStepForLegacyJourney($state)
+            : (int) ($state['current_step'] ?? 1);
         $currentStep = max(1, min($this->totalSteps(), $currentStep));
 
         $completedSteps = array_values(array_filter(
@@ -74,9 +82,11 @@ final class OnboardingWizard
         ));
 
         return [
+            'journey_version' => self::JOURNEY_VERSION,
             'current_step' => $currentStep,
             'completed_steps' => array_values(array_unique($completedSteps)),
             'steps' => is_array($state['steps'] ?? null) ? $state['steps'] : [],
+            'drafts' => is_array($state['drafts'] ?? null) ? $state['drafts'] : [],
             'submitted_at' => $state['submitted_at'] ?? null,
             'updated_at' => $state['updated_at'] ?? null,
         ];
@@ -90,11 +100,14 @@ final class OnboardingWizard
         $step = $this->step($slug);
         $state = $this->state($client);
         $completed = array_values(array_unique([...$state['completed_steps'], $slug]));
-        $nextStep = (int) $step['number'] >= $this->totalSteps()
-            ? $this->totalSteps()
-            : max((int) $state['current_step'], (int) $step['number'] + 1);
+        $nextStep = max(
+            (int) $state['current_step'],
+            $this->nextIncompleteStepNumber($completed, (int) $step['number'] + 1),
+        );
 
         $state['steps'][$slug] = $payload;
+        unset($state['drafts'][$slug]);
+        $state['journey_version'] = self::JOURNEY_VERSION;
         $state['completed_steps'] = $completed;
         $state['current_step'] = $nextStep;
         $state['updated_at'] = ($now ?? now())->toIso8601String();
@@ -102,6 +115,31 @@ final class OnboardingWizard
         if ($slug === self::STEP_REVIEW) {
             $state['submitted_at'] = ($now ?? now())->toIso8601String();
         }
+
+        $client->forceFill([
+            'onboarding_wizard_state' => $state,
+        ])->save();
+
+        return $state;
+    }
+
+    /**
+     * Save an incomplete step without making it available to the next onboarding stage.
+     *
+     * @return array<string, mixed>
+     */
+    public function saveDraft(Client $client, string $slug, array $payload, ?Carbon $now = null): array
+    {
+        $this->step($slug);
+
+        $state = $this->state($client);
+        $savedAt = ($now ?? now())->toIso8601String();
+        $state['drafts'][$slug] = [
+            'payload' => $payload,
+            'saved_at' => $savedAt,
+        ];
+        $state['journey_version'] = self::JOURNEY_VERSION;
+        $state['updated_at'] = $savedAt;
 
         $client->forceFill([
             'onboarding_wizard_state' => $state,
@@ -212,6 +250,34 @@ final class OnboardingWizard
     private function hasStep(string $slug): bool
     {
         return collect($this->steps())->contains(fn (array $step): bool => $step['slug'] === $slug);
+    }
+
+    /**
+     * Existing clients are redirected around the retired internal-only steps.
+     *
+     * @param  array<string, mixed>  $state
+     */
+    private function currentStepForLegacyJourney(array $state): int
+    {
+        $currentStep = (int) ($state['current_step'] ?? 1);
+
+        return match (true) {
+            $currentStep <= 1 => 1,
+            $currentStep <= 4 => 2,
+            default => 3,
+        };
+    }
+
+    /**
+     * @param  array<int, string>  $completedSteps
+     */
+    private function nextIncompleteStepNumber(array $completedSteps, int $startingAt): int
+    {
+        $next = collect($this->steps())
+            ->first(fn (array $candidate): bool => (int) $candidate['number'] >= $startingAt
+                && ! in_array($candidate['slug'], $completedSteps, true));
+
+        return is_array($next) ? (int) $next['number'] : $this->totalSteps();
     }
 
     /**

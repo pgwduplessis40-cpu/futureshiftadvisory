@@ -46,8 +46,8 @@ final class PromptRegistry
 
         $this->register(
             id: 'analysis.website_audit',
-            version: '2026-06-website-discoverability',
-            body: 'Audit the client website evidence against what the client says it sells. Assess product/service content accuracy, SEO, GEO generative-engine extractability, AEO answer readiness, AIO AI-overview readiness, structured data, UX, calls to action, mobile performance, and New Zealand search visibility. Return evidence-based findings only and cite every factual claim.',
+            version: '2026-07-verified-website-audit',
+            body: 'Examine only the supplied fetched-page excerpts and deterministic website signals against the client stated offer. Assess product/service clarity, value proposition, trust signals, SEO/GEO/AEO/AIO extractability, and conversion. Do not claim a page contains anything absent from the supplied excerpts. Distinguish measured facts from your examiner assessment. Return evidence-based findings only and cite every factual claim to supplied website or questionnaire references.',
             task: 'analyse',
         );
 

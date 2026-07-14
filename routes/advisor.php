@@ -187,6 +187,9 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('clients/{client}/standard-advisory/analysis', [StandardAdvisoryController::class, 'runAnalysis'])
             ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
             ->name('clients.standard-advisory.analysis');
+        Route::post('clients/{client}/standard-advisory/website-url', [StandardAdvisoryController::class, 'confirmWebsiteUrl'])
+            ->middleware('permission:'.Permission::CLIENTS_MANAGE->value)
+            ->name('clients.standard-advisory.website-url');
         Route::post('clients/{client}/standard-advisory/pack', [StandardAdvisoryController::class, 'generatePack'])
             ->middleware('permission:'.Permission::REPORTS_PUBLISH->value)
             ->name('clients.standard-advisory.pack');

@@ -186,6 +186,31 @@ export default function Services({
                 </div>
             </Section>
 
+            {/* ── BEYOND THE ADVICE ───────────────────────────── */}
+            <div className="bg-[var(--fs-linen)] py-16">
+                <Section>
+                    <SectionEyebrow>Beyond the advice</SectionEyebrow>
+                    <h2 className="font-display mt-3 text-2xl text-[var(--fs-admiralty)] sm:text-3xl">
+                        Sometimes the fix is a tool.
+                    </h2>
+                    <p className="mt-5 max-w-3xl text-base leading-relaxed text-[var(--fs-graphite)]">
+                        Every so often, while we are inside your business, we
+                        spot a job that a small piece of software could do
+                        better than a spreadsheet or a manual routine - an
+                        approval that keeps stalling, a report that eats half a
+                        day, the same data typed into two systems. When that
+                        happens we will say so, show you the numbers, and - if
+                        it genuinely pays off - quote and build a custom tool to
+                        take the work off your plate. And if what you need
+                        turns out to be bigger than a small tool, the approach
+                        does not change - we scope it carefully, quote it
+                        honestly, and build it in stages you can see working.
+                        It is not a separate pitch; it is part of helping your
+                        business run better.
+                    </p>
+                </Section>
+            </div>
+
             <div
                 data-surface="dark"
                 className="bg-[var(--fs-admiralty)] py-16 text-[var(--fs-parchment)]"
