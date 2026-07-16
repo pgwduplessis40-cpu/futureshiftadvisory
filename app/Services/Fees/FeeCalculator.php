@@ -149,6 +149,7 @@ final class FeeCalculator implements ProvidesMethodology
                 'delivery_mode' => $scope->delivery_mode,
                 'annual_savings' => data_get($scope->computed, 'annual_savings'),
                 'payback_months' => data_get($scope->computed, 'payback_months'),
+                'hosting' => $this->clientFacingHosting(data_get($scope->computed, 'hosting')),
                 'source_document_ids' => is_array($scope->source_document_ids) ? array_values($scope->source_document_ids) : [],
                 'services' => [[
                     'name' => 'Systems & Integration Efficiency build',
@@ -170,6 +171,21 @@ final class FeeCalculator implements ProvidesMethodology
         return IntegrationScope::query()
             ->where('client_id', $client->getKey())
             ->findOrFail($scopeId);
+    }
+
+    /** @return array{enabled:bool,monthly_fee:float,annual_fee:float,currency:string} */
+    private function clientFacingHosting(mixed $hosting): array
+    {
+        if (! is_array($hosting)) {
+            return [];
+        }
+
+        return [
+            'enabled' => (bool) ($hosting['enabled'] ?? false),
+            'monthly_fee' => (float) ($hosting['monthly_fee'] ?? 0),
+            'annual_fee' => (float) ($hosting['annual_fee'] ?? 0),
+            'currency' => (string) ($hosting['currency'] ?? 'NZD'),
+        ];
     }
 
     /**

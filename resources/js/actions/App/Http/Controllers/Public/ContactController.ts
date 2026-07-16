@@ -75,7 +75,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Public\ContactController::store
@@ -130,7 +130,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Public\ContactController::thanks
@@ -208,7 +208,7 @@ thanks.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     thanks.form = thanksForm
 const ContactController = { create, store, thanks }
 

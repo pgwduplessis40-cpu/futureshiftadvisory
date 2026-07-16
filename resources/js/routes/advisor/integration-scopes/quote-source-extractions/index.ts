@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:162
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:164
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions'
  */
 export const store = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:162
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:164
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions'
  */
 store.url = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ store.url = (args: { integrationScope: string | { id: string } } | [integrationS
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -49,7 +49,7 @@ store.url = (args: { integrationScope: string | { id: string } } | [integrationS
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:162
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:164
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions'
  */
 store.post = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { integrationScope: string | { id: string } } | [integration
 
     /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:162
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:164
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions'
  */
     const storeForm = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,18 +69,18 @@ store.post = (args: { integrationScope: string | { id: string } } | [integration
 
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:162
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:164
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions'
  */
         storeForm.post = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:204
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:206
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/retry'
  */
 export const retry = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -95,7 +95,7 @@ retry.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:204
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:206
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/retry'
  */
 retry.url = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -125,7 +125,7 @@ retry.url = (args: { integrationScope: string | { id: string }, quoteSourceExtra
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:204
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:206
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/retry'
  */
 retry.post = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -135,7 +135,7 @@ retry.post = (args: { integrationScope: string | { id: string }, quoteSourceExtr
 
     /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:204
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:206
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/retry'
  */
     const retryForm = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -145,18 +145,18 @@ retry.post = (args: { integrationScope: string | { id: string }, quoteSourceExtr
 
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:204
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:206
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/retry'
  */
         retryForm.post = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: retry.url(args, options),
             method: 'post',
         })
-
+    
     retry.form = retryForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:223
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:225
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/confirm'
  */
 export const confirm = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -171,7 +171,7 @@ confirm.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:223
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:225
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/confirm'
  */
 confirm.url = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -201,7 +201,7 @@ confirm.url = (args: { integrationScope: string | { id: string }, quoteSourceExt
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:223
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:225
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/confirm'
  */
 confirm.post = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -211,7 +211,7 @@ confirm.post = (args: { integrationScope: string | { id: string }, quoteSourceEx
 
     /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:223
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:225
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/confirm'
  */
     const confirmForm = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -221,18 +221,18 @@ confirm.post = (args: { integrationScope: string | { id: string }, quoteSourceEx
 
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:223
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:225
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/confirm'
  */
         confirmForm.post = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: confirm.url(args, options),
             method: 'post',
         })
-
+    
     confirm.form = confirmForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:243
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:245
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/reject'
  */
 export const reject = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -247,7 +247,7 @@ reject.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:243
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:245
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/reject'
  */
 reject.url = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions) => {
@@ -277,7 +277,7 @@ reject.url = (args: { integrationScope: string | { id: string }, quoteSourceExtr
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:243
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:245
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/reject'
  */
 reject.post = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -287,7 +287,7 @@ reject.post = (args: { integrationScope: string | { id: string }, quoteSourceExt
 
     /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:243
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:245
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/reject'
  */
     const rejectForm = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -297,14 +297,14 @@ reject.post = (args: { integrationScope: string | { id: string }, quoteSourceExt
 
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:243
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:245
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-extractions/{quoteSourceExtraction}/reject'
  */
         rejectForm.post = (args: { integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } } | [integrationScope: string | { id: string }, quoteSourceExtraction: string | { id: string } ], options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: reject.url(args, options),
             method: 'post',
         })
-
+    
     reject.form = rejectForm
 const quoteSourceExtractions = {
     store: Object.assign(store, store),

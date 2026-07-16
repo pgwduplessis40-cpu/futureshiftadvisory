@@ -94,7 +94,7 @@ connect.head = (args: { client: string | { id: string }, provider: string | numb
                     }),
             method: 'get',
         })
-
+    
     connect.form = connectForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
@@ -191,7 +191,7 @@ callback.head = (args: { client: string | { id: string }, provider: string | num
                     }),
             method: 'get',
         })
-
+    
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::pull
@@ -267,7 +267,7 @@ pull.post = (args: { client: string | { id: string }, accountingConnection: stri
             action: pull.url(args, options),
             method: 'post',
         })
-
+    
     pull.form = pullForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::revoke
@@ -353,7 +353,7 @@ revoke.patch = (args: { client: string | { id: string }, accountingConnection: s
                     }),
             method: 'post',
         })
-
+    
     revoke.form = revokeForm
 const accounting = {
     connect: Object.assign(connect, connect),

@@ -75,7 +75,7 @@ edit.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 const security = {
     edit: Object.assign(edit, edit),

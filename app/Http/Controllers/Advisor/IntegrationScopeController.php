@@ -21,6 +21,7 @@ use App\Services\Storage\Exceptions\SecureFileStorageException;
 use App\Services\Storage\SecureFileWriter;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Inertia;
@@ -95,6 +96,7 @@ final class IntegrationScopeController extends Controller
             'scope' => $this->payload($integrationScope),
             'urls' => [
                 'index' => route('advisor.integration-scopes.index', absolute: false),
+                'update' => route('advisor.integration-scopes.update', $integrationScope, absolute: false),
                 'recalculate' => route('advisor.integration-scopes.recalculate', $integrationScope, absolute: false),
                 'feeCalculation' => route('advisor.integration-scopes.fee-calculations.store', $integrationScope, absolute: false),
                 'quoteSourceExtraction' => route('advisor.integration-scopes.quote-source-extractions.store', $integrationScope, absolute: false),
@@ -305,6 +307,7 @@ final class IntegrationScopeController extends Controller
             'savings_horizon_years' => ['nullable', 'integer', 'min:1', 'max:5'],
             'discount_rate_percent' => ['nullable', 'numeric', 'min:0.01', 'max:99.99'],
             'quoted_fee' => ['nullable', 'numeric', 'min:0'],
+            'fsa_hosting_enabled' => ['nullable', 'boolean'],
             'fee_override_reason' => ['nullable', 'string', 'max:1200'],
             'source_document_ids' => ['sometimes', 'array'],
             'extracted_rows' => ['sometimes', 'array'],
@@ -332,22 +335,34 @@ final class IntegrationScopeController extends Controller
             'capture_percent' => 80,
             'savings_horizon_years' => 3,
             'discount_rate_percent' => 12,
+            'fsa_hosting_enabled' => false,
         ];
     }
 
     /** @return array<string, mixed> */
     private function payload(IntegrationScope $scope): array
     {
+        $computed = $scope->computed ?? [];
+        if (is_array($computed['hosting'] ?? null)) {
+            $computed['hosting'] = Arr::only($computed['hosting'], [
+                'enabled',
+                'monthly_fee',
+                'annual_fee',
+                'currency',
+            ]);
+        }
+
         return [
             'id' => $scope->getKey(),
             'client_id' => $scope->client_id,
             'client_name' => $scope->client?->legal_name,
             'status' => $scope->status,
             'delivery_mode' => $scope->delivery_mode,
+            'fsa_hosting_enabled' => $scope->fsa_hosting_enabled,
             'systems' => $scope->systems ?? [],
             'tasks' => $scope->tasks ?? [],
             'connections' => $scope->connections ?? [],
-            'computed' => $scope->computed ?? [],
+            'computed' => $computed,
             'flags' => $scope->flags ?? [],
             'pv_calculation_id' => $scope->pv_calculation_id,
             'fee_calculations' => $scope->feeCalculations

@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace Database\Seeders;
 
+use App\Models\Client;
 use App\Models\IntegrationFeeBand;
 use App\Models\IntegrationScope;
 use App\Models\ServiceRatePackage;
 use App\Models\User;
-use App\Models\Client;
 use App\Services\Integrations\IntegrationScopeService;
 use Illuminate\Database\Seeder;
 
@@ -26,6 +26,7 @@ final class IntegrationEfficiencyDemoSeeder extends Seeder
             ['S', 'partner', 4500, 5500, 6500], ['M', 'partner', 7500, 9000, 11000], ['L', 'partner', 14000, 17000, 21000], ['XL', 'partner', 50000, 50000, 50000],
             ['S', 'mixed', 4000, 5000, 6000], ['M', 'mixed', 7000, 8500, 10000], ['L', 'mixed', 13000, 16000, 19000], ['XL', 'mixed', 47000, 47000, 47000],
         ];
+        $hostingPricing = IntegrationFeeBand::defaultHostingPricing();
 
         foreach ($bands as [$band, $deliveryMode, $low, $mid, $high]) {
             IntegrationFeeBand::query()->updateOrCreate([
@@ -36,6 +37,9 @@ final class IntegrationEfficiencyDemoSeeder extends Seeder
                 'fee_mid' => $mid,
                 'fee_high' => $high,
                 'currency' => 'NZD',
+                'scope_description' => IntegrationFeeBand::defaultScopeDescriptionFor($band),
+                'hosting_monthly_cost' => $hostingPricing['monthly_cost'],
+                'hosting_markup_percent' => $hostingPricing['markup_percent'],
                 'is_active' => true,
                 'updated_by_user_id' => $actor?->getKey(),
             ]);

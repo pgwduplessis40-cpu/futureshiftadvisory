@@ -390,6 +390,8 @@ final class ProposalBuilder
                 'tasks' => $computed['task_rows'] ?? $integrationScope->tasks ?? [],
                 'connections' => $computed['connection_rows'] ?? $integrationScope->connections ?? [],
                 'complexity_band' => $computed['complexity_band'] ?? null,
+                'scope_description' => data_get($computed, 'quote_range.scope_description'),
+                'hosting' => $this->clientFacingHosting($computed['hosting'] ?? null),
                 'annual_hours_wasted' => $computed['annual_hours_wasted'] ?? null,
                 'annual_savings' => $computed['annual_savings'] ?? null,
                 'pv_savings' => $computed['pv_savings'] ?? null,
@@ -400,6 +402,21 @@ final class ProposalBuilder
         }
 
         return $payload;
+    }
+
+    /** @return array{enabled:bool,monthly_fee:float,annual_fee:float,currency:string} */
+    private function clientFacingHosting(mixed $hosting): array
+    {
+        if (! is_array($hosting)) {
+            return [];
+        }
+
+        return [
+            'enabled' => (bool) ($hosting['enabled'] ?? false),
+            'monthly_fee' => (float) ($hosting['monthly_fee'] ?? 0),
+            'annual_fee' => (float) ($hosting['annual_fee'] ?? 0),
+            'currency' => (string) ($hosting['currency'] ?? 'NZD'),
+        ];
     }
 
     /**
@@ -829,12 +846,18 @@ HTML,
                 return '<li>'.$this->escape($from.' to '.$to.' ('.str_replace('_', ' ', $direction).')').'</li>';
             })
             ->implode('');
+        $hosting = (array) ($pack['hosting'] ?? []);
+        $hostingHtml = (bool) ($hosting['enabled'] ?? false) && (float) ($hosting['monthly_fee'] ?? 0) > 0
+            ? '<h3>FSA-hosted application</h3><p>FSA will host and operate the application for NZD '.number_format((float) $hosting['monthly_fee'], 2).' per month ex GST.</p>'
+            : '';
 
         return sprintf(
             <<<'HTML'
 <section class="proposal-panel">
 <h2>Integration Quote Pack</h2>
 <p>Delivery model: %s. Complexity band: %s.</p>
+%s
+%s
 <p>Manual work identified: %s hours each year. Modelled annual savings: NZD %s. Investment payback: %s months.</p>
 <h3>Systems in scope</h3><ul>%s</ul>
 <h3>Connections in scope</h3><ul>%s</ul>
@@ -842,6 +865,10 @@ HTML,
 HTML,
             $this->escape((string) ($pack['delivery_mode'] ?? 'To be confirmed')),
             $this->escape((string) ($pack['complexity_band'] ?? 'To be confirmed')),
+            filled($pack['scope_description'] ?? null)
+                ? '<h3>Scope</h3><p>'.$this->escape((string) $pack['scope_description']).'</p>'
+                : '',
+            $hostingHtml,
             number_format((float) ($pack['annual_hours_wasted'] ?? 0), 0),
             number_format((float) ($pack['annual_savings'] ?? 0), 0),
             number_format((float) ($pack['payback_months'] ?? 0), 1),

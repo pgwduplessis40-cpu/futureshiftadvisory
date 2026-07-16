@@ -113,6 +113,7 @@ final class IntegrationScopeCalculator
         $annualSavings = round($annualCost * ($capturePercent / 100), 2);
         $band = $this->complexityBand($complexityScore);
         $range = $this->feeRange($feeBands, $band, (string) $scope->delivery_mode, $scope);
+        $hosting = $this->hosting($range, $scope);
         $quotedFee = $scope->quoted_fee !== null ? round((float) $scope->quoted_fee, 2) : $range['mid'];
         $paybackMonths = $annualSavings > 0 ? round($quotedFee / ($annualSavings / 12), 2) : null;
         $guessRatio = $confidenceCount > 0 ? round($guessCount / $confidenceCount, 4) : 0.0;
@@ -147,6 +148,7 @@ final class IntegrationScopeCalculator
             'complexity_score' => $complexityScore,
             'complexity_band' => $band,
             'quote_range' => $range,
+            'hosting' => $hosting,
             'quoted_fee' => $quotedFee,
             'payback_months' => $paybackMonths,
             'roi_ratio' => $quotedFee > 0 ? round(($annualSavings * max(1, (int) $scope->savings_horizon_years)) / $quotedFee, 4) : null,
@@ -203,7 +205,7 @@ final class IntegrationScopeCalculator
         return (string) ($from['auth'] ?? '') === 'oauth' || (string) ($to['auth'] ?? '') === 'oauth';
     }
 
-    /** @param array<int, IntegrationFeeBand> $feeBands @return array{low:float,mid:float,high:float,currency:string} */
+    /** @param array<int, IntegrationFeeBand> $feeBands @return array{low:float,mid:float,high:float,currency:string,scope_description:string,hosting_monthly_cost:float,hosting_markup_percent:float} */
     private function feeRange(array $feeBands, string $band, string $deliveryMode, IntegrationScope $scope): array
     {
         $match = collect($feeBands)->first(fn (IntegrationFeeBand $feeBand): bool => $feeBand->complexity_band === $band
@@ -226,7 +228,37 @@ final class IntegrationScopeCalculator
             $high = max($high, $partnerFee);
         }
 
-        return ['low' => $low, 'mid' => $mid, 'high' => $high, 'currency' => $match->currency];
+        $defaultHosting = IntegrationFeeBand::defaultHostingPricing();
+
+        return [
+            'low' => $low,
+            'mid' => $mid,
+            'high' => $high,
+            'currency' => $match->currency,
+            'scope_description' => (string) ($match->scope_description ?: IntegrationFeeBand::defaultScopeDescriptionFor($band)),
+            'hosting_monthly_cost' => (float) ($match->hosting_monthly_cost ?? $defaultHosting['monthly_cost']),
+            'hosting_markup_percent' => (float) ($match->hosting_markup_percent ?? $defaultHosting['markup_percent']),
+        ];
+    }
+
+    /** @param array{currency:string,hosting_monthly_cost:float,hosting_markup_percent:float} $range @return array{enabled:bool,monthly_cost:float,markup_percent:float,monthly_fee:float,annual_fee:float,currency:string} */
+    private function hosting(array $range, IntegrationScope $scope): array
+    {
+        $enabled = (bool) $scope->fsa_hosting_enabled;
+        $monthlyCost = round(max(0.0, (float) $range['hosting_monthly_cost']), 2);
+        $markupPercent = round(max(0.0, (float) $range['hosting_markup_percent']), 2);
+        $monthlyFee = $enabled
+            ? round($monthlyCost * (1 + ($markupPercent / 100)), 2)
+            : 0.0;
+
+        return [
+            'enabled' => $enabled,
+            'monthly_cost' => $monthlyCost,
+            'markup_percent' => $markupPercent,
+            'monthly_fee' => $monthlyFee,
+            'annual_fee' => round($monthlyFee * 12, 2),
+            'currency' => $range['currency'],
+        ];
     }
 
     private function complexityBand(int $score): string

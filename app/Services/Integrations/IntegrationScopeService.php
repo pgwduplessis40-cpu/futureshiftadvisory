@@ -41,6 +41,7 @@ final class IntegrationScopeService
                 'savings_horizon_years' => $attributes['savings_horizon_years'] ?? 3,
                 'discount_rate_percent' => $attributes['discount_rate_percent'] ?? 12,
                 'quoted_fee' => $attributes['quoted_fee'] ?? null,
+                'fsa_hosting_enabled' => $attributes['fsa_hosting_enabled'] ?? false,
                 'fee_override_reason' => $attributes['fee_override_reason'] ?? null,
                 'source_document_ids' => $this->rows($attributes['source_document_ids'] ?? []),
                 'extracted_rows' => $this->rows($attributes['extracted_rows'] ?? []),
@@ -64,7 +65,7 @@ final class IntegrationScopeService
                     $changes[$field] = $this->rows($attributes[$field]);
                 }
             }
-            foreach (['delivery_mode', 'partner_cost_estimate', 'partner_margin_percent', 'capture_percent', 'savings_horizon_years', 'discount_rate_percent', 'quoted_fee', 'fee_override_reason'] as $field) {
+            foreach (['delivery_mode', 'partner_cost_estimate', 'partner_margin_percent', 'capture_percent', 'savings_horizon_years', 'discount_rate_percent', 'quoted_fee', 'fsa_hosting_enabled', 'fee_override_reason'] as $field) {
                 if (array_key_exists($field, $attributes)) {
                     $changes[$field] = $attributes[$field];
                 }

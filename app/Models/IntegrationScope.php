@@ -42,6 +42,7 @@ final class IntegrationScope extends Model
         'source_document_ids' => 'array',
         'extracted_rows' => 'array',
         'quoted_fee' => 'float',
+        'fsa_hosting_enabled' => 'boolean',
         'flags' => 'array',
     ];
 

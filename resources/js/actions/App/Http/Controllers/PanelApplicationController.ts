@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\PanelApplicationController::update
@@ -117,7 +117,7 @@ update.patch = (options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 const PanelApplicationController = { store, update }
 

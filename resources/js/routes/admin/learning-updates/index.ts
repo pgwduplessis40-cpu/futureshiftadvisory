@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rerun
@@ -130,7 +130,7 @@ rerun.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: rerun.url(options),
             method: 'post',
         })
-
+    
     rerun.form = rerunForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
@@ -160,7 +160,7 @@ decide.url = (args: { learningUpdate: string | { id: string } } | [learningUpdat
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { learningUpdate: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     learningUpdate: args[0],
@@ -219,7 +219,7 @@ decide.patch = (args: { learningUpdate: string | { id: string } } | [learningUpd
                     }),
             method: 'post',
         })
-
+    
     decide.form = decideForm
 const learningUpdates = {
     index: Object.assign(index, index),

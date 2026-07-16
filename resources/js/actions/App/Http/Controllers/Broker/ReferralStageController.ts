@@ -27,7 +27,7 @@ ReferralStageController.url = (args: { referral: string | { id: string } } | [re
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { referral: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     referral: args[0],
@@ -86,6 +86,6 @@ ReferralStageController.patch = (args: { referral: string | { id: string } } | [
                     }),
             method: 'post',
         })
-
+    
     ReferralStageController.form = ReferralStageControllerForm
 export default ReferralStageController

@@ -77,11 +77,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:72
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:84
  * @route '/admin/service-rates'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -96,7 +96,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:72
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:84
  * @route '/admin/service-rates'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -105,7 +105,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:72
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:84
  * @route '/admin/service-rates'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -115,7 +115,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:72
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:84
  * @route '/admin/service-rates'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -125,18 +125,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:72
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:84
  * @route '/admin/service-rates'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:95
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:107
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
 export const toggle = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -151,7 +151,7 @@ toggle.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:95
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:107
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
 toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -162,7 +162,7 @@ toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRa
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRateSetting: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceRateSetting: args[0],
@@ -184,7 +184,7 @@ toggle.url = (args: { serviceRateSetting: string | { id: string } } | [serviceRa
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:95
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:107
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
 toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -194,7 +194,7 @@ toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [service
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:95
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:107
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
     const toggleForm = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -209,7 +209,7 @@ toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [service
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
- * @see app/Http/Controllers/Admin/ServiceRateController.php:95
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:107
  * @route '/admin/service-rates/{serviceRateSetting}/status'
  */
         toggleForm.patch = (args: { serviceRateSetting: string | { id: string } } | [serviceRateSetting: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -221,7 +221,7 @@ toggle.patch = (args: { serviceRateSetting: string | { id: string } } | [service
                     }),
             method: 'post',
         })
-
+    
     toggle.form = toggleForm
 const serviceRates = {
     index: Object.assign(index, index),

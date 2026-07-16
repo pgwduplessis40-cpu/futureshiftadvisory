@@ -75,7 +75,7 @@ Controllerabfba46d2c51e09ac277d954fd911264.head = (options?: RouteQueryOptions):
                     }),
             method: 'get',
         })
-
+    
     Controllerabfba46d2c51e09ac277d954fd911264.form = Controllerabfba46d2c51e09ac277d954fd911264Form
     /**
 * @see \Inertia\Controller::__invoke
@@ -153,7 +153,7 @@ Controllere19ee86e9cf603ce1a59a1ec5d21dec5.head = (options?: RouteQueryOptions):
                     }),
             method: 'get',
         })
-
+    
     Controllere19ee86e9cf603ce1a59a1ec5d21dec5.form = Controllere19ee86e9cf603ce1a59a1ec5d21dec5Form
 
 /**

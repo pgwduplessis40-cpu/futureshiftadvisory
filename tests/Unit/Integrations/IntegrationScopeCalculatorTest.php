@@ -35,6 +35,7 @@ final class IntegrationScopeCalculatorTest extends TestCase
                 'transform_complexity' => 'high',
             ]],
             'delivery_mode' => IntegrationScope::DELIVERY_INHOUSE,
+            'fsa_hosting_enabled' => true,
             'capture_percent' => 80,
             'savings_horizon_years' => 3,
         ]);
@@ -46,6 +47,9 @@ final class IntegrationScopeCalculatorTest extends TestCase
                 'fee_mid' => 15_000,
                 'fee_high' => 18_000,
                 'currency' => 'NZD',
+                'scope_description' => 'Three-system workflow delivery with testing and go-live support.',
+                'hosting_monthly_cost' => 20.66,
+                'hosting_markup_percent' => 100,
                 'is_active' => true,
             ]),
         ];
@@ -56,6 +60,10 @@ final class IntegrationScopeCalculatorTest extends TestCase
         $this->assertSame(6500.0, $computed['annual_cost_wasted']);
         $this->assertSame(5200.0, $computed['annual_savings']);
         $this->assertSame(IntegrationFeeBand::BAND_L, $computed['complexity_band']);
+        $this->assertSame('Three-system workflow delivery with testing and go-live support.', $computed['quote_range']['scope_description']);
+        $this->assertTrue($computed['hosting']['enabled']);
+        $this->assertSame(41.32, $computed['hosting']['monthly_fee']);
+        $this->assertSame(495.84, $computed['hosting']['annual_fee']);
         $this->assertSame(15_000.0, $computed['quoted_fee']);
         $this->assertSame(34.62, $computed['payback_months']);
         $this->assertTrue(collect($computed['flags'])->contains('code', 'no_api_on_key_system'));

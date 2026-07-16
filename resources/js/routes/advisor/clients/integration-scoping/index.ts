@@ -27,7 +27,7 @@ offer.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ offer.post = (args: { client: string | { id: string } } | [client: string | { id
             action: offer.url(args, options),
             method: 'post',
         })
-
+    
     offer.form = offerForm
 const integrationScoping = {
     offer: Object.assign(offer, offer),

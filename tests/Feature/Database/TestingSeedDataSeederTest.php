@@ -160,6 +160,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertSeededServiceActivationPricingFlow();
         $this->assertSeededProposalTemplate();
         $this->assertSeededProposalSignoffFlow();
+        $this->assertWebsiteAuditDemoFixture();
 
         $this->assertDatabaseHas('entrepreneur_profiles', [
             'email' => 'seed.entrepreneur@futureshiftadvisory.test',
@@ -480,5 +481,37 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertNotNull($schedule);
         $this->assertSame(PaymentSchedule::CADENCE_MONTHLY_RETAINER, $schedule->cadence);
         $this->assertSame(1, (int) $schedule->collection_day);
+    }
+
+    private function assertWebsiteAuditDemoFixture(): void
+    {
+        $client = DB::table('clients')->where('nzbn', '9429000000133')->first();
+        $this->assertNotNull($client, 'Expected the Website Review Demo client.');
+
+        $document = DB::table('documents')
+            ->where('client_id', $client->id)
+            ->where('stored_path', 'seed/documents/website-audit-financial-statements')
+            ->first();
+        $this->assertNotNull($document, 'Expected Website Review Demo financial statements.');
+        $this->assertStringContainsString(
+            'website-review-demo-financial-statements.pdf',
+            Storage::disk('secure_local')->get($document->stored_path),
+        );
+
+        $proposal = DB::table('proposals')
+            ->join('fee_calculations', 'fee_calculations.id', '=', 'proposals.fee_calculation_id')
+            ->where('proposals.client_id', $client->id)
+            ->where('fee_calculations.method', 'integration')
+            ->where('proposals.status', 'released')
+            ->select('proposals.scope')
+            ->first();
+        $this->assertNotNull($proposal, 'Expected a released integration proposal for Website Review Demo.');
+
+        $scope = json_decode((string) $proposal->scope, true, flags: JSON_THROW_ON_ERROR);
+        $hosting = data_get($scope, 'integration_quote_pack.hosting');
+        $this->assertSame(true, data_get($hosting, 'enabled'));
+        $this->assertSame(41.32, (float) data_get($hosting, 'monthly_fee'));
+        $this->assertArrayNotHasKey('monthly_cost', $hosting);
+        $this->assertArrayNotHasKey('markup_percent', $hosting);
     }
 }

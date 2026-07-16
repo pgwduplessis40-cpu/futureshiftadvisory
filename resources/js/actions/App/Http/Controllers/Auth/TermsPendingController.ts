@@ -75,7 +75,7 @@ show619dc3a99425f668ea9cab64e6648cb4.head = (options?: RouteQueryOptions): Route
                     }),
             method: 'get',
         })
-
+    
     show619dc3a99425f668ea9cab64e6648cb4.form = show619dc3a99425f668ea9cab64e6648cb4Form
     /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::show
@@ -153,7 +153,7 @@ show5487df76140b55c3bdaed66107ccd928.head = (options?: RouteQueryOptions): Route
                     }),
             method: 'get',
         })
-
+    
     show5487df76140b55c3bdaed66107ccd928.form = show5487df76140b55c3bdaed66107ccd928Form
 
 /**
@@ -242,7 +242,7 @@ download.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::accept
@@ -297,7 +297,7 @@ accept.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: accept.url(options),
             method: 'post',
         })
-
+    
     accept.form = acceptForm
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::decline
@@ -352,7 +352,7 @@ decline.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: decline.url(options),
             method: 'post',
         })
-
+    
     decline.form = declineForm
 /**
 * @see \App\Http\Controllers\Auth\TermsPendingController::declined
@@ -430,7 +430,7 @@ declined.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     declined.form = declinedForm
 const TermsPendingController = { show, download, accept, decline, declined }
 

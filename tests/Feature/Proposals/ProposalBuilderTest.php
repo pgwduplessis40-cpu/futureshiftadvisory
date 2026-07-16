@@ -19,6 +19,7 @@ use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
+use App\Models\IntegrationScope;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\ServiceActivation;
@@ -232,6 +233,60 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('Align the product and service pages', $this->renderer->html);
         $this->assertStringContainsString('Sources: Website audit evidence comes from the submitted questionnaire. (Client questionnaire answer)', $this->renderer->html);
         $this->assertStringNotContainsString('Sources: questionnaire_answer:website-fixture', $this->renderer->html);
+    }
+
+    public function test_integration_proposal_includes_the_selected_fsa_hosting_charge(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('proposal-hosting-advisor@example.test');
+        $scope = IntegrationScope::query()->create([
+            'client_id' => $client->getKey(),
+            'status' => IntegrationScope::STATUS_COMPLETE,
+            'delivery_mode' => IntegrationScope::DELIVERY_INHOUSE,
+            'fsa_hosting_enabled' => true,
+            'computed' => [
+                'complexity_band' => 'M',
+                'quote_range' => [
+                    'scope_description' => 'Configured systems and workflow delivery.',
+                ],
+                'hosting' => [
+                    'enabled' => true,
+                    'monthly_cost' => 20.66,
+                    'markup_percent' => 100.0,
+                    'monthly_fee' => 41.32,
+                    'annual_fee' => 495.84,
+                    'currency' => 'NZD',
+                ],
+            ],
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+        $calculation = FeeCalculation::query()->create([
+            'client_id' => $client->getKey(),
+            'integration_scope_id' => $scope->getKey(),
+            'method' => FeeMethod::Integration,
+            'inputs' => ['integration_scope_id' => $scope->getKey()],
+            'suggested_low' => 8_000,
+            'suggested_mid' => 10_000,
+            'suggested_high' => 12_000,
+            'improvement_pv_total' => 40_000,
+            'risk_cost_pv_total' => 0,
+            'roi_ratio' => 4.0,
+            'justification' => ['method' => FeeMethod::Integration->value],
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->assertSame(41.32, $proposal->scope['integration_quote_pack']['hosting']['monthly_fee']);
+        $this->assertArrayNotHasKey('monthly_cost', $proposal->scope['integration_quote_pack']['hosting']);
+        $this->assertArrayNotHasKey('markup_percent', $proposal->scope['integration_quote_pack']['hosting']);
+
+        app(ProposalBuilder::class)->rerenderPdf($proposal);
+
+        $this->assertStringContainsString('FSA-hosted application', $this->renderer->html);
+        $this->assertStringContainsString('NZD 41.32 per month ex GST', $this->renderer->html);
+        $this->assertStringNotContainsString('NZD 20.66', $this->renderer->html);
     }
 
     public function test_proposal_deduplicates_repeated_historical_focus_findings(): void

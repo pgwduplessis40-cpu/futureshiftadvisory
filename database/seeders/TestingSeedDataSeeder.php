@@ -50,6 +50,7 @@ use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Fees\FeeCalculator;
 use App\Services\Integrations\IntegrationScopeService;
 use App\Services\Learning\LayerCadenceRegistry;
+use App\Services\Proposals\ProposalBuilder;
 use App\Services\Proposals\SignedProposalEvidenceRenderer;
 use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
@@ -1744,6 +1745,7 @@ XML);
             ['XL', 'mixed', 47000, 47000, 47000],
         ];
 
+        $hostingPricing = IntegrationFeeBand::defaultHostingPricing();
         foreach ($bands as [$band, $deliveryMode, $low, $mid, $high]) {
             IntegrationFeeBand::query()->updateOrCreate([
                 'complexity_band' => $band,
@@ -1753,6 +1755,9 @@ XML);
                 'fee_mid' => $mid,
                 'fee_high' => $high,
                 'currency' => 'NZD',
+                'scope_description' => IntegrationFeeBand::defaultScopeDescriptionFor($band),
+                'hosting_monthly_cost' => $hostingPricing['monthly_cost'],
+                'hosting_markup_percent' => $hostingPricing['markup_percent'],
                 'is_active' => true,
                 'updated_by_user_id' => $advisor->getKey(),
             ]);
@@ -1940,6 +1945,115 @@ XML);
         $this->ids['integration_fee_calculation'] = $calculation->getKey();
         $this->ids['integration_scoping_activation'] = $activationId;
         $this->ids['integration_scoping_credit'] = $creditId;
+
+        $this->seedWebsiteAuditIntegrationProposal($advisor);
+    }
+
+    private function seedWebsiteAuditIntegrationProposal(User $advisor): void
+    {
+        $client = $this->clients['websiteAudit'];
+        $scope = IntegrationScope::query()
+            ->where('client_id', $client->getKey())
+            ->first();
+
+        if (! $scope instanceof IntegrationScope) {
+            $scope = app(IntegrationScopeService::class)->create($client, [
+                'systems' => [
+                    [
+                        'id' => 'website',
+                        'name' => 'Public website',
+                        'vendor' => 'Website platform',
+                        'role' => 'Lead capture and service information',
+                        'api_quality' => 'rest_public',
+                        'auth' => 'oauth',
+                        'monthly_records' => 900,
+                        'confidence' => 'known',
+                        'source' => 'manual',
+                    ],
+                    [
+                        'id' => 'crm',
+                        'name' => 'Client CRM',
+                        'vendor' => 'CRM provider',
+                        'role' => 'Prospect and enquiry management',
+                        'api_quality' => 'rest_public',
+                        'auth' => 'oauth',
+                        'monthly_records' => 650,
+                        'confidence' => 'known',
+                        'source' => 'manual',
+                    ],
+                ],
+                'tasks' => [[
+                    'id' => 'website-lead-entry',
+                    'description' => 'Copy website enquiries into the client CRM',
+                    'system_ids' => ['website', 'crm'],
+                    'minutes_per_occurrence' => 8,
+                    'occurrences_per' => 'week',
+                    'people_count' => 1,
+                    'hourly_cost' => 55,
+                    'confidence' => 'known',
+                    'source' => 'manual',
+                ]],
+                'connections' => [[
+                    'id' => 'website-to-crm',
+                    'from_system' => 'website',
+                    'to_system' => 'crm',
+                    'direction' => 'one_way',
+                    'transform_complexity' => 'low',
+                    'task_ids' => ['website-lead-entry'],
+                    'confidence' => 'known',
+                    'source' => 'manual',
+                ]],
+                'delivery_mode' => IntegrationScope::DELIVERY_INHOUSE,
+                'capture_percent' => 80,
+                'savings_horizon_years' => 3,
+                'discount_rate_percent' => 12,
+                'fsa_hosting_enabled' => true,
+            ], $advisor);
+        }
+
+        $calculation = FeeCalculation::query()
+            ->where('client_id', $client->getKey())
+            ->where('integration_scope_id', $scope->getKey())
+            ->where('method', FeeMethod::Integration)
+            ->first();
+
+        if (! $calculation instanceof FeeCalculation) {
+            $calculation = app(FeeCalculator::class)->calculate($client, FeeMethod::Integration, [
+                'integration_scope_id' => $scope->getKey(),
+            ], [
+                'created_by_user_id' => $advisor->getKey(),
+            ]);
+        }
+
+        $proposal = Proposal::query()
+            ->where('client_id', $client->getKey())
+            ->where('fee_calculation_id', $calculation->getKey())
+            ->first();
+
+        if (! $proposal instanceof Proposal) {
+            $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [
+                'scope' => [
+                    'summary' => 'Website-to-CRM integration and FSA managed hosting proposal for Website Review Demo Limited.',
+                    'included' => [
+                        'Website enquiry to CRM connection',
+                        'Field mapping, configuration, testing, and handover',
+                        'FSA managed hosting while the service is active',
+                    ],
+                    'excluded' => [
+                        'Third-party software subscriptions and vendor charges',
+                        'Additional integrations or data migration not included in the agreed scope',
+                    ],
+                ],
+            ], [
+                'created_by_user_id' => $advisor->getKey(),
+            ]);
+
+            app(ProposalBuilder::class)->release($proposal, $advisor, 30);
+        }
+
+        $this->ids['website_audit_integration_scope'] = $scope->getKey();
+        $this->ids['website_audit_integration_fee_calculation'] = $calculation->getKey();
+        $this->ids['website_audit_integration_proposal'] = $proposal->getKey();
     }
 
     private function seedIntegrationQuoteSourcePlan(IntegrationScope $scope, Client $client, User $advisor): IntegrationScope
@@ -2074,11 +2188,16 @@ XML);
             'verification_outcome_at_use' => 'verified',
         ]);
 
+        $sourceDocumentIds = array_values(array_unique([
+            ...((array) $scope->source_document_ids),
+            $documentId,
+        ]));
+        if ($sourceDocumentIds === (array) $scope->source_document_ids) {
+            return $scope;
+        }
+
         return app(IntegrationScopeService::class)->update($scope, [
-            'source_document_ids' => array_values(array_unique([
-                ...((array) $scope->source_document_ids),
-                $documentId,
-            ])),
+            'source_document_ids' => $sourceDocumentIds,
         ], $advisor);
     }
 
@@ -5858,9 +5977,11 @@ XML);
     ): string|int|null {
         $storedPath = "seed/documents/{$key}";
         $disk = Storage::disk('secure_local');
+        $contents = $this->fixtureDocumentContent($filename, $key, $mimeType);
 
-        if (! $disk->exists($storedPath)) {
-            $disk->put($storedPath, $this->fixtureDocumentContent($filename, $key, $mimeType));
+        // Seed fixtures must be rewritten so their encrypted envelope matches the current APP_KEY.
+        if (! $disk->put($storedPath, $contents)) {
+            throw new \RuntimeException("Unable to write seeded document [{$key}].");
         }
 
         $values = [

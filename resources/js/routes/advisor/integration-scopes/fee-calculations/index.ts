@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:142
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:144
  * @route '/advisor/integration-scopes/{integrationScope}/fee-calculations'
  */
 export const store = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:142
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:144
  * @route '/advisor/integration-scopes/{integrationScope}/fee-calculations'
  */
 store.url = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions) => {
@@ -27,7 +27,7 @@ store.url = (args: { integrationScope: string | { id: string } } | [integrationS
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -49,7 +49,7 @@ store.url = (args: { integrationScope: string | { id: string } } | [integrationS
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:142
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:144
  * @route '/advisor/integration-scopes/{integrationScope}/fee-calculations'
  */
 store.post = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -59,7 +59,7 @@ store.post = (args: { integrationScope: string | { id: string } } | [integration
 
     /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:142
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:144
  * @route '/advisor/integration-scopes/{integrationScope}/fee-calculations'
  */
     const storeForm = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -69,14 +69,14 @@ store.post = (args: { integrationScope: string | { id: string } } | [integration
 
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::store
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:142
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:144
  * @route '/advisor/integration-scopes/{integrationScope}/fee-calculations'
  */
         storeForm.post = (args: { integrationScope: string | { id: string } } | [integrationScope: string | { id: string } ] | string | { id: string }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const feeCalculations = {
     store: Object.assign(store, store),

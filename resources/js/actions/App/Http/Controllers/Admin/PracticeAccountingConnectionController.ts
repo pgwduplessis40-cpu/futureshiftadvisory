@@ -24,7 +24,7 @@ connect.url = (args: { provider: string | number } | [provider: string | number 
         args = { provider: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -94,7 +94,7 @@ connect.head = (args: { provider: string | number } | [provider: string | number
                     }),
             method: 'get',
         })
-
+    
     connect.form = connectForm
 /**
 * @see \App\Http\Controllers\Admin\PracticeAccountingConnectionController::callback
@@ -121,7 +121,7 @@ callback.url = (args: { provider: string | number } | [provider: string | number
         args = { provider: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -191,7 +191,7 @@ callback.head = (args: { provider: string | number } | [provider: string | numbe
                     }),
             method: 'get',
         })
-
+    
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Admin\PracticeAccountingConnectionController::revoke
@@ -221,7 +221,7 @@ revoke.url = (args: { practiceAccountingConnection: string | { id: string } } | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { practiceAccountingConnection: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     practiceAccountingConnection: args[0],
@@ -280,7 +280,7 @@ revoke.patch = (args: { practiceAccountingConnection: string | { id: string } } 
                     }),
             method: 'post',
         })
-
+    
     revoke.form = revokeForm
 const PracticeAccountingConnectionController = { connect, callback, revoke }
 

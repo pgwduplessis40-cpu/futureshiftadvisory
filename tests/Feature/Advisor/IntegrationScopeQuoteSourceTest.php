@@ -124,6 +124,35 @@ final class IntegrationScopeQuoteSourceTest extends TestCase
             ->assertSessionHasErrors('fee_calculation');
     }
 
+    public function test_advisor_can_enable_fsa_hosting_with_a_cost_plus_markup_charge(): void
+    {
+        [$advisor, , $scope] = $this->scopeFixture();
+
+        $this->actingAsMfa($advisor)
+            ->patch(route('advisor.integration-scopes.update', $scope), [
+                'fsa_hosting_enabled' => true,
+            ])
+            ->assertRedirect()
+            ->assertSessionHasNoErrors();
+
+        $scope->refresh();
+
+        $this->assertTrue($scope->fsa_hosting_enabled);
+        $this->assertSame(20.66, $scope->computed['hosting']['monthly_cost']);
+        $this->assertEquals(100.0, $scope->computed['hosting']['markup_percent']);
+        $this->assertSame(41.32, $scope->computed['hosting']['monthly_fee']);
+        $this->assertSame(495.84, $scope->computed['hosting']['annual_fee']);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.integration-scopes.show', $scope))
+            ->assertOk()
+            ->assertInertia(fn ($page) => $page
+                ->where('scope.fsa_hosting_enabled', true)
+                ->where('scope.computed.hosting.monthly_fee', 41.32)
+                ->missing('scope.computed.hosting.monthly_cost')
+                ->missing('scope.computed.hosting.markup_percent'));
+    }
+
     /** @return array{0:User,1:Client,2:IntegrationScope} */
     private function scopeFixture(): array
     {

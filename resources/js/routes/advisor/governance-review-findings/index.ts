@@ -27,7 +27,7 @@ review.url = (args: { governanceReviewFinding: string | { id: string } } | [gove
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { governanceReviewFinding: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     governanceReviewFinding: args[0],
@@ -86,7 +86,7 @@ review.patch = (args: { governanceReviewFinding: string | { id: string } } | [go
                     }),
             method: 'post',
         })
-
+    
     review.form = reviewForm
 const governanceReviewFindings = {
     review: Object.assign(review, review),

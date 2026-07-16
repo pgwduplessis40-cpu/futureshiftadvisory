@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:203
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:215
  * @route '/admin/service-rates/integration-fee-bands'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:203
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:215
  * @route '/admin/service-rates/integration-fee-bands'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:203
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:215
  * @route '/admin/service-rates/integration-fee-bands'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:203
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:215
  * @route '/admin/service-rates/integration-fee-bands'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,18 +45,18 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::store
- * @see app/Http/Controllers/Admin/ServiceRateController.php:203
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:215
  * @route '/admin/service-rates/integration-fee-bands'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
- * @see app/Http/Controllers/Admin/ServiceRateController.php:214
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:226
  * @route '/admin/service-rates/integration-fee-bands/import'
  */
 export const importMethod = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -71,7 +71,7 @@ importMethod.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
- * @see app/Http/Controllers/Admin/ServiceRateController.php:214
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:226
  * @route '/admin/service-rates/integration-fee-bands/import'
  */
 importMethod.url = (options?: RouteQueryOptions) => {
@@ -80,7 +80,7 @@ importMethod.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
- * @see app/Http/Controllers/Admin/ServiceRateController.php:214
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:226
  * @route '/admin/service-rates/integration-fee-bands/import'
  */
 importMethod.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -90,7 +90,7 @@ importMethod.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
- * @see app/Http/Controllers/Admin/ServiceRateController.php:214
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:226
  * @route '/admin/service-rates/integration-fee-bands/import'
  */
     const importMethodForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -100,14 +100,14 @@ importMethod.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::importMethod
- * @see app/Http/Controllers/Admin/ServiceRateController.php:214
+ * @see app/Http/Controllers/Admin/ServiceRateController.php:226
  * @route '/admin/service-rates/integration-fee-bands/import'
  */
         importMethodForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: importMethod.url(options),
             method: 'post',
         })
-
+    
     importMethod.form = importMethodForm
 const integrationFeeBands = {
     store: Object.assign(store, store),

@@ -24,7 +24,7 @@ store.url = (args: { token: string | number } | [token: string | number ] | stri
         args = { token: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -71,7 +71,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const guestUploads = {
     store: Object.assign(store, store),

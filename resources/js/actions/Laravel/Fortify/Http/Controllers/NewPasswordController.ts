@@ -24,7 +24,7 @@ create.url = (args: { token: string | number } | [token: string | number ] | str
         args = { token: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -94,7 +94,7 @@ create.head = (args: { token: string | number } | [token: string | number ] | st
                     }),
             method: 'get',
         })
-
+    
     create.form = createForm
 /**
 * @see \Laravel\Fortify\Http\Controllers\NewPasswordController::store
@@ -149,7 +149,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const NewPasswordController = { create, store }
 

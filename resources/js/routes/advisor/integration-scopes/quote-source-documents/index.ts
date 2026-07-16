@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
 export const show = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ show.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
 show.url = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions) => {
@@ -44,7 +44,7 @@ show.url = (args: { integrationScope: string | { id: string }, document: string 
 
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
 show.get = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -53,7 +53,7 @@ show.get = (args: { integrationScope: string | { id: string }, document: string 
 })
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
 show.head = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -63,7 +63,7 @@ show.head = (args: { integrationScope: string | { id: string }, document: string
 
     /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
     const showForm = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -73,7 +73,7 @@ show.head = (args: { integrationScope: string | { id: string }, document: string
 
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
         showForm.get = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -82,7 +82,7 @@ show.head = (args: { integrationScope: string | { id: string }, document: string
         })
             /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::show
- * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:263
+ * @see app/Http/Controllers/Advisor/IntegrationScopeController.php:265
  * @route '/advisor/integration-scopes/{integrationScope}/quote-source-documents/{document}'
  */
         showForm.head = (args: { integrationScope: string | { id: string }, document: string | number } | [integrationScope: string | { id: string }, document: string | number ], options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -94,7 +94,7 @@ show.head = (args: { integrationScope: string | { id: string }, document: string
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const quoteSourceDocuments = {
     show: Object.assign(show, show),

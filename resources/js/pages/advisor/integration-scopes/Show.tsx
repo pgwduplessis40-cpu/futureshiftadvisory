@@ -22,6 +22,7 @@ type Scope = {
     client_name: string | null;
     status: string;
     delivery_mode: string | null;
+    fsa_hosting_enabled: boolean;
     systems: Record<string, unknown>[];
     tasks: Record<string, unknown>[];
     connections: Record<string, unknown>[];
@@ -69,6 +70,7 @@ type Props = {
     scope: Scope;
     urls: {
         index: string;
+        update: string;
         recalculate: string;
         feeCalculation: string;
         quoteSourceExtraction: string;
@@ -78,6 +80,14 @@ type Props = {
 
 export default function IntegrationScopeShow({ scope, urls }: Props) {
     const computed = scope.computed;
+    const quoteRange = computed.quote_range;
+    const quoteScopeDescription =
+        typeof quoteRange === 'object' && quoteRange !== null
+            ? String((quoteRange as Record<string, unknown>).scope_description ?? '')
+            : '';
+    const hosting = objectValue(computed.hosting);
+    const hostingMonthlyFee = numericValue(hosting?.monthly_fee);
+    const hostingAnnualFee = numericValue(hosting?.annual_fee);
     const [showCalculation, setShowCalculation] = useState(false);
     const [description, setDescription] = useState('');
     const [planFiles, setPlanFiles] = useState<File[]>([]);
@@ -501,6 +511,60 @@ export default function IntegrationScopeShow({ scope, urls }: Props) {
                         </Badge>
                     </div>
 
+                    {quoteScopeDescription ? (
+                        <div className="rounded-md border bg-muted/30 p-4">
+                            <div className="text-xs font-medium text-muted-foreground">
+                                Scope included in this band
+                            </div>
+                            <p className="mt-1 text-sm leading-6">
+                                {quoteScopeDescription}
+                            </p>
+                        </div>
+                    ) : null}
+
+                    <div className="flex flex-col gap-3 rounded-md border bg-muted/30 p-4 sm:flex-row sm:items-center sm:justify-between">
+                        <div>
+                            <h3 className="text-sm font-medium">
+                                FSA-hosted application
+                            </h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Add a recurring managed-hosting charge when FSA
+                                will host and operate the application.
+                            </p>
+                        </div>
+                        <label className="flex items-center gap-2 text-sm font-medium">
+                            <input
+                                type="checkbox"
+                                checked={scope.fsa_hosting_enabled}
+                                onChange={(event) =>
+                                    router.patch(
+                                        urls.update,
+                                        {
+                                            fsa_hosting_enabled:
+                                                event.target.checked,
+                                        },
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            />
+                            FSA hosts this application
+                        </label>
+                    </div>
+
+                    {scope.fsa_hosting_enabled ? (
+                        <dl className="grid gap-4 rounded-md border p-4 sm:grid-cols-2">
+                            <Detail
+                                label="Client hosting charge ex GST"
+                                value={`${money(hostingMonthlyFee)} / month`}
+                                emphasis
+                            />
+                            <Detail
+                                label="Annual client charge ex GST"
+                                value={money(hostingAnnualFee)}
+                            />
+                        </dl>
+                    ) : null}
+
                     <dl className="grid gap-4 border-y py-4 sm:grid-cols-2 lg:grid-cols-4">
                         <Detail
                             label="Quoted fee ex GST"
@@ -796,6 +860,14 @@ function number(value: unknown): string {
               value,
           )
         : '-';
+}
+function objectValue(value: unknown): Record<string, unknown> | null {
+    return typeof value === 'object' && value !== null
+        ? (value as Record<string, unknown>)
+        : null;
+}
+function numericValue(value: unknown): number | undefined {
+    return typeof value === 'number' ? value : undefined;
 }
 function money(value: unknown): string {
     return typeof value === 'number'

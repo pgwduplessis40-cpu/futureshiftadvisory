@@ -27,7 +27,7 @@ analysis.url = (args: { client: string | { id: string } } | [client: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ analysis.post = (args: { client: string | { id: string } } | [client: string | {
             action: analysis.url(args, options),
             method: 'post',
         })
-
+    
     analysis.form = analysisForm
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::websiteUrl
@@ -106,7 +106,7 @@ websiteUrl.url = (args: { client: string | { id: string } } | [client: string | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -155,7 +155,7 @@ websiteUrl.post = (args: { client: string | { id: string } } | [client: string |
             action: websiteUrl.url(args, options),
             method: 'post',
         })
-
+    
     websiteUrl.form = websiteUrlForm
 /**
 * @see \App\Http\Controllers\Advisor\StandardAdvisoryController::pack
@@ -185,7 +185,7 @@ pack.url = (args: { client: string | { id: string } } | [client: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -234,7 +234,7 @@ pack.post = (args: { client: string | { id: string } } | [client: string | { id:
             action: pack.url(args, options),
             method: 'post',
         })
-
+    
     pack.form = packForm
 const standardAdvisory = {
     analysis: Object.assign(analysis, analysis),

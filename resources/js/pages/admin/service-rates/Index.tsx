@@ -11,7 +11,7 @@ import {
     X,
 } from 'lucide-react';
 import type { FormEvent } from 'react';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
@@ -87,6 +87,9 @@ type IntegrationFeeBand = {
     fee_mid: number;
     fee_high: number;
     currency: string;
+    scope_description: string | null;
+    hosting_monthly_cost: number | null;
+    hosting_markup_percent: number | null;
     is_active: boolean;
     updated_by_name: string | null;
     updated_at: string | null;
@@ -109,6 +112,14 @@ type Props = {
     integrationFeeBands: IntegrationFeeBand[];
     integrationFeeBandStoreUrl: string;
     integrationFeeBandImportUrl: string;
+    integrationFeeBandScopeDefaults: Record<
+        IntegrationFeeBand['complexity_band'],
+        string
+    >;
+    integrationFeeBandHostingDefaults: Record<
+        IntegrationFeeBand['complexity_band'],
+        { monthly_cost: number; markup_percent: number }
+    >;
 };
 
 const defaultPackageFormData = {
@@ -139,6 +150,8 @@ export default function ServiceRatesIndex({
     integrationFeeBands,
     integrationFeeBandStoreUrl,
     integrationFeeBandImportUrl,
+    integrationFeeBandScopeDefaults,
+    integrationFeeBandHostingDefaults,
 }: Props) {
     const effectiveRate = current?.hourly_rate ?? fallback.hourly_rate;
     const effectiveCurrency = current?.currency ?? fallback.currency;
@@ -157,24 +170,39 @@ export default function ServiceRatesIndex({
         notes: '',
     });
     const packageForm = useForm(defaultPackageFormData);
-    const feeBandForm = useForm({
+    const defaultIntegrationFeeBandForm = {
         complexity_band: 'M',
         delivery_mode: 'inhouse',
         fee_low: '',
         fee_mid: '',
         fee_high: '',
         currency: effectiveCurrency,
+        scope_description: integrationFeeBandScopeDefaults.M,
+        hosting_monthly_cost: valueToString(
+            integrationFeeBandHostingDefaults.M.monthly_cost,
+        ),
+        hosting_markup_percent: valueToString(
+            integrationFeeBandHostingDefaults.M.markup_percent,
+        ),
         is_active: true,
-    });
+    };
+    const feeBandForm = useForm(defaultIntegrationFeeBandForm);
     const importForm = useForm<{ pricing_file: File | null }>({
         pricing_file: null,
     });
     const [editingPackageId, setEditingPackageId] = useState<string | null>(
         null,
     );
+    const [editingIntegrationFeeBandId, setEditingIntegrationFeeBandId] =
+        useState<string | null>(null);
+    const integrationPricingForm = useRef<HTMLFormElement>(null);
     const editingPackage =
         packages.find((ratePackage) => ratePackage.id === editingPackageId) ??
         null;
+    const editingIntegrationFeeBand =
+        integrationFeeBands.find(
+            (band) => band.id === editingIntegrationFeeBandId,
+        ) ?? null;
 
     function submit(event: FormEvent) {
         event.preventDefault();
@@ -271,8 +299,87 @@ export default function ServiceRatesIndex({
         event.preventDefault();
         feeBandForm.post(integrationFeeBandStoreUrl, {
             preserveScroll: true,
-            onSuccess: () =>
-                feeBandForm.reset('fee_low', 'fee_mid', 'fee_high'),
+            onSuccess: () => {
+                setEditingIntegrationFeeBandId(null);
+                feeBandForm.clearErrors();
+            },
+        });
+    }
+
+    function editIntegrationFeeBand(band: IntegrationFeeBand) {
+        setEditingIntegrationFeeBandId(band.id);
+        feeBandForm.clearErrors();
+        feeBandForm.setData({
+            complexity_band: band.complexity_band,
+            delivery_mode: band.delivery_mode,
+            fee_low: valueToString(band.fee_low),
+            fee_mid: valueToString(band.fee_mid),
+            fee_high: valueToString(band.fee_high),
+            currency: band.currency,
+            scope_description:
+                band.scope_description ??
+                integrationFeeBandScopeDefaults[band.complexity_band],
+            hosting_monthly_cost: valueToString(
+                band.hosting_monthly_cost ??
+                    integrationFeeBandHostingDefaults[band.complexity_band]
+                        .monthly_cost,
+            ),
+            hosting_markup_percent: valueToString(
+                band.hosting_markup_percent ??
+                    integrationFeeBandHostingDefaults[band.complexity_band]
+                        .markup_percent,
+            ),
+            is_active: band.is_active,
+        });
+
+        window.requestAnimationFrame(() =>
+            integrationPricingForm.current?.scrollIntoView({
+                behavior: 'smooth',
+                block: 'start',
+            }),
+        );
+    }
+
+    function cancelIntegrationFeeBandEdit() {
+        setEditingIntegrationFeeBandId(null);
+        feeBandForm.clearErrors();
+        feeBandForm.setData(defaultIntegrationFeeBandForm);
+    }
+
+    function updateIntegrationComplexityBand(
+        complexityBand: IntegrationFeeBand['complexity_band'],
+    ) {
+        const currentBand = feeBandForm.data
+            .complexity_band as IntegrationFeeBand['complexity_band'];
+        const currentScope = feeBandForm.data.scope_description.trim();
+        const nextScope =
+            currentScope === '' ||
+            currentScope === integrationFeeBandScopeDefaults[currentBand]
+                ? integrationFeeBandScopeDefaults[complexityBand]
+                : feeBandForm.data.scope_description;
+        const currentHostingDefaults =
+            integrationFeeBandHostingDefaults[currentBand];
+        const nextHostingDefaults =
+            integrationFeeBandHostingDefaults[complexityBand];
+        const nextHostingMonthlyCost =
+            feeBandForm.data.hosting_monthly_cost === '' ||
+            Number(feeBandForm.data.hosting_monthly_cost) ===
+                currentHostingDefaults.monthly_cost
+                ? valueToString(nextHostingDefaults.monthly_cost)
+                : feeBandForm.data.hosting_monthly_cost;
+        const nextHostingMarkup =
+            feeBandForm.data.hosting_markup_percent === '' ||
+            Number(feeBandForm.data.hosting_markup_percent) ===
+                currentHostingDefaults.markup_percent
+                ? valueToString(nextHostingDefaults.markup_percent)
+                : feeBandForm.data.hosting_markup_percent;
+
+        feeBandForm.setData({
+            ...feeBandForm.data,
+            complexity_band: complexityBand,
+            scope_description: nextScope,
+            hosting_monthly_cost: nextHostingMonthlyCost,
+            hosting_markup_percent: nextHostingMarkup,
         });
     }
 
@@ -287,9 +394,9 @@ export default function ServiceRatesIndex({
 
     function downloadIntegrationFeeBandTemplate() {
         const csv = [
-            'complexity_band,delivery_mode,fee_low,fee_mid,fee_high,currency,is_active',
-            'S,inhouse,3500,4500,5500,NZD,true',
-            'M,inhouse,6500,8000,9500,NZD,true',
+            'complexity_band,delivery_mode,fee_low,fee_mid,fee_high,currency,scope_description,hosting_monthly_cost,hosting_markup_percent,is_active',
+            'S,inhouse,3500,4500,5500,NZD,"Up to two systems and one workflow, including testing and handover.",20.66,100,true',
+            'M,inhouse,6500,8000,9500,NZD,"Two to three systems with monitoring and hypercare.",20.66,100,true',
         ].join('\n');
         const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
         const anchor = document.createElement('a');
@@ -1095,13 +1202,32 @@ export default function ServiceRatesIndex({
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(360px,0.7fr)_minmax(0,1fr)]">
                     <div className="space-y-4 rounded-md border bg-background p-4">
-                        <div className="flex items-center gap-2">
-                            <Table2 className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">
-                                Integration pricing
-                            </h2>
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Table2 className="size-4" aria-hidden="true" />
+                                <h2 className="text-sm font-medium">
+                                    {editingIntegrationFeeBand
+                                        ? `Edit ${editingIntegrationFeeBand.complexity_band} band`
+                                        : 'Integration pricing'}
+                                </h2>
+                            </div>
+                            {editingIntegrationFeeBand ? (
+                                <Button
+                                    type="button"
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={cancelIntegrationFeeBandEdit}
+                                >
+                                    <X
+                                        className="size-3.5"
+                                        aria-hidden="true"
+                                    />
+                                    Cancel edit
+                                </Button>
+                            ) : null}
                         </div>
                         <form
+                            ref={integrationPricingForm}
                             onSubmit={submitIntegrationFeeBand}
                             className="grid gap-4"
                         >
@@ -1114,8 +1240,7 @@ export default function ServiceRatesIndex({
                                         id="integration_complexity_band"
                                         value={feeBandForm.data.complexity_band}
                                         onChange={(event) =>
-                                            feeBandForm.setData(
-                                                'complexity_band',
+                                            updateIntegrationComplexityBand(
                                                 event.target
                                                     .value as IntegrationFeeBand['complexity_band'],
                                             )
@@ -1171,6 +1296,7 @@ export default function ServiceRatesIndex({
                                 <BandInput
                                     id="integration_fee_low"
                                     label="Low ex GST"
+                                    description="Straightforward delivery with known requirements."
                                     value={feeBandForm.data.fee_low}
                                     onChange={(value) =>
                                         feeBandForm.setData('fee_low', value)
@@ -1180,6 +1306,7 @@ export default function ServiceRatesIndex({
                                 <BandInput
                                     id="integration_fee_mid"
                                     label="Mid ex GST"
+                                    description="Expected fee and the default quoted amount."
                                     value={feeBandForm.data.fee_mid}
                                     onChange={(value) =>
                                         feeBandForm.setData('fee_mid', value)
@@ -1189,11 +1316,92 @@ export default function ServiceRatesIndex({
                                 <BandInput
                                     id="integration_fee_high"
                                     label="High ex GST"
+                                    description="Uncertainty or additional effort within the agreed scope."
                                     value={feeBandForm.data.fee_high}
                                     onChange={(value) =>
                                         feeBandForm.setData('fee_high', value)
                                     }
                                     error={feeBandForm.errors.fee_high}
+                                />
+                            </div>
+                            <div className="grid gap-4 rounded-md border bg-muted/30 p-4 sm:grid-cols-2">
+                                <BandInput
+                                    id="integration_hosting_monthly_cost"
+                                    label="FSA hosting cost per month ex GST"
+                                    value={feeBandForm.data.hosting_monthly_cost}
+                                    onChange={(value) =>
+                                        feeBandForm.setData(
+                                            'hosting_monthly_cost',
+                                            value,
+                                        )
+                                    }
+                                    error={
+                                        feeBandForm.errors
+                                            .hosting_monthly_cost
+                                    }
+                                />
+                                <BandInput
+                                    id="integration_hosting_markup_percent"
+                                    label="Hosting markup %"
+                                    value={
+                                        feeBandForm.data
+                                            .hosting_markup_percent
+                                    }
+                                    onChange={(value) =>
+                                        feeBandForm.setData(
+                                            'hosting_markup_percent',
+                                            value,
+                                        )
+                                    }
+                                    error={
+                                        feeBandForm.errors
+                                            .hosting_markup_percent
+                                    }
+                                />
+                                <p className="sm:col-span-2 text-sm text-muted-foreground">
+                                    Client charge when FSA hosting is selected:{' '}
+                                    <span className="font-medium text-foreground">
+                                        {formatMoney(
+                                            hostingMonthlyFee(
+                                                feeBandForm.data
+                                                    .hosting_monthly_cost,
+                                                feeBandForm.data
+                                                    .hosting_markup_percent,
+                                            ),
+                                            effectiveCurrency,
+                                        )}
+                                    </span>{' '}
+                                    per month ex GST.
+                                </p>
+                            </div>
+                            <div className="grid gap-2">
+                                <div>
+                                    <Label htmlFor="integration_scope_description">
+                                        Scope
+                                    </Label>
+                                    <p className="mt-1 text-xs text-muted-foreground">
+                                        Client-facing wording for the selected{' '}
+                                        {feeBandForm.data.complexity_band} band.
+                                        It is included in the integration quote
+                                        and proposal.
+                                    </p>
+                                </div>
+                                <textarea
+                                    id="integration_scope_description"
+                                    rows={5}
+                                    value={feeBandForm.data.scope_description}
+                                    onChange={(event) =>
+                                        feeBandForm.setData(
+                                            'scope_description',
+                                            event.target.value,
+                                        )
+                                    }
+                                    className="min-h-28 rounded-md border border-input bg-transparent px-3 py-2 text-sm shadow-xs outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                                />
+                                <InputError
+                                    message={
+                                        feeBandForm.errors.scope_description
+                                    }
                                 />
                             </div>
                             <label className="flex items-center gap-2 text-sm">
@@ -1218,7 +1426,9 @@ export default function ServiceRatesIndex({
                                         className="size-4"
                                         aria-hidden="true"
                                     />
-                                    Save band
+                                    {editingIntegrationFeeBand
+                                        ? 'Update band'
+                                        : 'Save band'}
                                 </Button>
                             </div>
                         </form>
@@ -1276,27 +1486,46 @@ export default function ServiceRatesIndex({
                                 Current integration fee bands
                             </h2>
                         </div>
+                        <p className="text-sm text-muted-foreground">
+                            Low is for a straightforward delivery with known
+                            requirements. Mid is the expected fee and default
+                            quote. High allows for unresolved complexity within
+                            the agreed scope; material scope changes are priced
+                            separately.
+                        </p>
                         <div className="overflow-hidden rounded-md border">
                             <table className="fsa-responsive-table table-fixed md:table-fixed">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
-                                        <th className="w-[12%] px-3 py-2 font-medium">
+                                        <th className="w-[8%] px-3 py-2 font-medium">
                                             Band
                                         </th>
-                                        <th className="w-[24%] px-3 py-2 font-medium">
-                                            Delivery
+                                        <th className="w-[32%] px-3 py-2 font-medium">
+                                            Delivery and scope
                                         </th>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
-                                            Low
+                                        <th className="w-[13%] px-3 py-2 font-medium">
+                                            <span className="block">Low</span>
+                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                                Straightforward
+                                            </span>
                                         </th>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
-                                            Mid
+                                        <th className="w-[13%] px-3 py-2 font-medium">
+                                            <span className="block">Mid</span>
+                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                                Expected fee
+                                            </span>
                                         </th>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
-                                            High
+                                        <th className="w-[13%] px-3 py-2 font-medium">
+                                            <span className="block">High</span>
+                                            <span className="mt-0.5 block text-xs font-normal text-muted-foreground">
+                                                Complexity allowance
+                                            </span>
                                         </th>
-                                        <th className="w-[16%] px-3 py-2 font-medium">
+                                        <th className="w-[11%] px-3 py-2 font-medium">
                                             Status
+                                        </th>
+                                        <th className="w-[10%] px-3 py-2 font-medium">
+                                            Actions
                                         </th>
                                     </tr>
                                 </thead>
@@ -1304,7 +1533,7 @@ export default function ServiceRatesIndex({
                                     {integrationFeeBands.length === 0 ? (
                                         <tr>
                                             <td
-                                                colSpan={6}
+                                                colSpan={7}
                                                 className="px-3 py-3 text-muted-foreground"
                                             >
                                                 No integration fee bands
@@ -1327,12 +1556,49 @@ export default function ServiceRatesIndex({
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
-                                                    data-label="Delivery"
+                                                    data-label="Delivery and scope"
                                                 >
-                                                    {band.delivery_mode.replaceAll(
-                                                        '_',
-                                                        ' ',
-                                                    )}
+                                                    <div>
+                                                        {band.delivery_mode.replaceAll(
+                                                            '_',
+                                                            ' ',
+                                                        )}
+                                                    </div>
+                                                    {band.scope_description ? (
+                                                        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+                                                            {
+                                                                band.scope_description
+                                                            }
+                                                        </p>
+                                                    ) : null}
+                                                    {band.hosting_monthly_cost !==
+                                                        null &&
+                                                    band.hosting_markup_percent !==
+                                                        null ? (
+                                                        <p className="mt-2 text-xs text-muted-foreground">
+                                                            FSA hosting: {formatMoney(
+                                                                band.hosting_monthly_cost,
+                                                                band.currency,
+                                                            )}{' '}
+                                                            cost +{' '}
+                                                            {formatPercent(
+                                                                band.hosting_markup_percent,
+                                                            )}{' '}
+                                                            markup ={' '}
+                                                            {formatMoney(
+                                                                hostingMonthlyFee(
+                                                                    String(
+                                                                        band.hosting_monthly_cost,
+                                                                    ),
+                                                                    String(
+                                                                        band.hosting_markup_percent,
+                                                                    ),
+                                                                ),
+                                                                band.currency,
+                                                            )}{' '}
+                                                            per month ex GST
+                                                        </p>
+                                                    ) : null}
                                                 </td>
                                                 <td
                                                     className="px-3 py-3"
@@ -1376,6 +1642,27 @@ export default function ServiceRatesIndex({
                                                             ? 'Active'
                                                             : 'Inactive'}
                                                     </Badge>
+                                                </td>
+                                                <td
+                                                    className="px-3 py-3"
+                                                    data-label="Actions"
+                                                >
+                                                    <Button
+                                                        type="button"
+                                                        variant="outline"
+                                                        size="sm"
+                                                        onClick={() =>
+                                                            editIntegrationFeeBand(
+                                                                band,
+                                                            )
+                                                        }
+                                                    >
+                                                        <Pencil
+                                                            className="size-3.5"
+                                                            aria-hidden="true"
+                                                        />
+                                                        Edit
+                                                    </Button>
                                                 </td>
                                             </tr>
                                         ))
@@ -1542,19 +1829,28 @@ function formatMoney(value: number, currency: string) {
 function BandInput({
     id,
     label,
+    description,
     value,
     onChange,
     error,
 }: {
     id: string;
     label: string;
+    description?: string;
     value: string;
     onChange: (value: string) => void;
     error?: string;
 }) {
     return (
         <div className="grid gap-2">
-            <Label htmlFor={id}>{label}</Label>
+            <div>
+                <Label htmlFor={id}>{label}</Label>
+                {description ? (
+                    <p className="mt-1 text-xs text-muted-foreground">
+                        {description}
+                    </p>
+                ) : null}
+            </div>
             <Input
                 id={id}
                 type="number"
@@ -1587,6 +1883,17 @@ function formatPercent(value: number) {
 
 function valueToString(value: number | null) {
     return value === null ? '' : String(value);
+}
+
+function hostingMonthlyFee(monthlyCost: string, markupPercent: string): number {
+    const cost = Number(monthlyCost);
+    const markup = Number(markupPercent);
+
+    if (!Number.isFinite(cost) || !Number.isFinite(markup)) {
+        return 0;
+    }
+
+    return Math.max(0, cost) * (1 + Math.max(0, markup) / 100);
 }
 
 function rateStatusLabel(rate: ServiceRate) {

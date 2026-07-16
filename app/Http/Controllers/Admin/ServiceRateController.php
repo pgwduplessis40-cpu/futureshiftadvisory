@@ -66,6 +66,18 @@ final class ServiceRateController extends Controller
                 ->values(),
             'integrationFeeBandStoreUrl' => route('admin.service-rates.integration-fee-bands.store', absolute: false),
             'integrationFeeBandImportUrl' => route('admin.service-rates.integration-fee-bands.import', absolute: false),
+            'integrationFeeBandScopeDefaults' => collect([
+                IntegrationFeeBand::BAND_S,
+                IntegrationFeeBand::BAND_M,
+                IntegrationFeeBand::BAND_L,
+                IntegrationFeeBand::BAND_XL,
+            ])->mapWithKeys(fn (string $band): array => [$band => IntegrationFeeBand::defaultScopeDescriptionFor($band)])->all(),
+            'integrationFeeBandHostingDefaults' => collect([
+                IntegrationFeeBand::BAND_S,
+                IntegrationFeeBand::BAND_M,
+                IntegrationFeeBand::BAND_L,
+                IntegrationFeeBand::BAND_XL,
+            ])->mapWithKeys(fn (string $band): array => [$band => IntegrationFeeBand::defaultHostingPricing()])->all(),
         ]);
     }
 
@@ -281,6 +293,9 @@ final class ServiceRateController extends Controller
             'fee_mid' => $band->fee_mid,
             'fee_high' => $band->fee_high,
             'currency' => $band->currency,
+            'scope_description' => $band->scope_description,
+            'hosting_monthly_cost' => $band->hosting_monthly_cost,
+            'hosting_markup_percent' => $band->hosting_markup_percent,
             'is_active' => $band->is_active,
             'updated_by_name' => $band->updatedBy?->name,
             'updated_at' => $band->updated_at?->toIso8601String(),
@@ -377,12 +392,23 @@ final class ServiceRateController extends Controller
             'fee_mid' => ['required', 'numeric', 'min:0', 'max:999999999.99', 'gte:fee_low'],
             'fee_high' => ['required', 'numeric', 'min:0', 'max:999999999.99', 'gte:fee_mid'],
             'currency' => ['nullable', 'string', 'size:3'],
+            'scope_description' => ['nullable', 'string', 'max:4000'],
+            'hosting_monthly_cost' => ['nullable', 'numeric', 'min:0', 'max:999999999.99'],
+            'hosting_markup_percent' => ['nullable', 'numeric', 'min:0', 'max:10000'],
             'is_active' => ['nullable', 'boolean'],
         ])->validate();
+
+        $scopeDescription = trim((string) ($validated['scope_description'] ?? ''));
+        $hostingDefaults = IntegrationFeeBand::defaultHostingPricing();
 
         return [
             ...$validated,
             'currency' => strtoupper((string) ($validated['currency'] ?? 'NZD')),
+            'scope_description' => $scopeDescription !== ''
+                ? $scopeDescription
+                : IntegrationFeeBand::defaultScopeDescriptionFor((string) $validated['complexity_band']),
+            'hosting_monthly_cost' => $validated['hosting_monthly_cost'] ?? $hostingDefaults['monthly_cost'],
+            'hosting_markup_percent' => $validated['hosting_markup_percent'] ?? $hostingDefaults['markup_percent'],
             'is_active' => (bool) ($validated['is_active'] ?? true),
         ];
     }
@@ -398,6 +424,9 @@ final class ServiceRateController extends Controller
             'fee_mid' => $attributes['fee_mid'],
             'fee_high' => $attributes['fee_high'],
             'currency' => $attributes['currency'],
+            'scope_description' => $attributes['scope_description'],
+            'hosting_monthly_cost' => $attributes['hosting_monthly_cost'],
+            'hosting_markup_percent' => $attributes['hosting_markup_percent'],
             'is_active' => $attributes['is_active'],
             'updated_by_user_id' => $user->getKey(),
         ])->refresh();
@@ -418,7 +447,7 @@ final class ServiceRateController extends Controller
                 : [];
             $required = ['complexity_band', 'delivery_mode', 'fee_low', 'fee_mid', 'fee_high'];
             if (array_diff($required, $header) !== []) {
-                throw ValidationException::withMessages(['pricing_file' => 'Use CSV columns: complexity_band, delivery_mode, fee_low, fee_mid, fee_high, currency, is_active.']);
+                throw ValidationException::withMessages(['pricing_file' => 'Use CSV columns: complexity_band, delivery_mode, fee_low, fee_mid, fee_high, currency, scope_description, hosting_monthly_cost, hosting_markup_percent, is_active.']);
             }
 
             $rows = [];

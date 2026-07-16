@@ -29,6 +29,7 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use League\Flysystem\UnableToReadFile;
 use Symfony\Component\HttpFoundation\Response as SymfonyResponse;
 use Symfony\Component\HttpFoundation\ResponseHeaderBag;
 use Throwable;
@@ -73,13 +74,20 @@ final class DocumentController extends Controller
         $disk = Storage::disk('secure_local');
         abort_unless($disk->exists($document->stored_path), 404);
 
+        try {
+            $contents = $disk->get($document->stored_path);
+        } catch (UnableToReadFile $exception) {
+            report($exception);
+            abort(404);
+        }
+
         $disposition = (new ResponseHeaderBag)->makeDisposition(
             ResponseHeaderBag::DISPOSITION_INLINE,
             $document->original_filename,
             Str::ascii($document->original_filename) ?: 'document',
         );
 
-        return response($disk->get($document->stored_path), 200, [
+        return response($contents, 200, [
             'Content-Disposition' => $disposition,
             'Content-Type' => $document->mime_type ?: 'application/octet-stream',
             'X-Content-Type-Options' => 'nosniff',
