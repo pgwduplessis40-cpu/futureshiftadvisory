@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    ArrowRightLeft,
     BadgeDollarSign,
     Bell,
     BookOpen,
@@ -90,6 +91,12 @@ const integrationScopesNavItem: NavItem = {
     title: 'Integration scopes',
     href: '/advisor/integration-scopes',
     icon: PlugZap,
+};
+
+const clientTransfersNavItem: NavItem = {
+    title: 'Client transfers',
+    href: '/advisor/client-transfers',
+    icon: ArrowRightLeft,
 };
 
 const entrepreneursNavItem: NavItem = {
@@ -198,6 +205,12 @@ const staffNavItem: NavItem = {
     title: 'Staff',
     href: '/admin/staff',
     icon: UsersRound,
+};
+
+const clientAllocationsNavItem: NavItem = {
+    title: 'Client allocations',
+    href: '/admin/client-allocations',
+    icon: ArrowRightLeft,
 };
 
 const principlesRolesNavItem: NavItem = {
@@ -314,12 +327,17 @@ const defaultNavItems: NavItem[] = [
     notificationsNavItem,
 ];
 
-const advisorClientNavItems: NavItem[] = [
+const clientWorkspaceNavItems: NavItem[] = [
     advisoryClientsNavItem,
     integrationScopesNavItem,
     dueDiligenceNavItem,
     npoNavItem,
     entrepreneursNavItem,
+];
+
+const advisorClientNavItems: NavItem[] = [
+    ...clientWorkspaceNavItems,
+    clientTransfersNavItem,
 ];
 
 const advisorPartnerNavItems: NavItem[] = [brokersNavItem, coachesNavItem];
@@ -348,6 +366,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     integrationCredentialsNavItem,
     projectSettingsNavItem,
     staffNavItem,
+    clientAllocationsNavItem,
     principlesRolesNavItem,
     serviceRatesNavItem,
     ratingFrameworkNavItem,
@@ -580,7 +599,7 @@ function navGroupsFor(
     if (userType === 'super_admin') {
         return internalNavGroups({
             platformItems: [dashboardNavItem, prospectsNavItem],
-            clientItems: advisorClientNavItems,
+            clientItems: clientWorkspaceNavItems,
             communicationItems: superAdminCommunicationNavItems,
             calendarItem: advisorCalendarNavItem,
             partnerItems: advisorPartnerNavItems,

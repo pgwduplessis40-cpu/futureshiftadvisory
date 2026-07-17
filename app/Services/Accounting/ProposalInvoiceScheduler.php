@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\Xero\LiveXeroClient;
+use App\Services\Payments\ClientBillingCode;
 use App\Services\Payments\GstCalculator;
 use App\Support\RequestContext;
 use Carbon\CarbonImmutable;
@@ -31,6 +32,7 @@ final class ProposalInvoiceScheduler
         private readonly PracticeAccountingConnector $practiceConnector,
         private readonly LiveXeroClient $xero,
         private readonly GstCalculator $gst,
+        private readonly ClientBillingCode $billingCodes,
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $activations,
         private readonly RequestContext $requestContext,
@@ -271,7 +273,7 @@ final class ProposalInvoiceScheduler
 
         $payload = [
             'Name' => mb_substr($client->legal_name ?: $client->trading_name ?: 'Future Shift client', 0, 255),
-            'ContactNumber' => mb_substr('FSA-'.str_replace('-', '', (string) $client->getKey()), 0, 50),
+            'ContactNumber' => $this->billingCodes->xeroContactNumber($client),
         ];
 
         $email = $client->primaryContact?->email;
@@ -289,8 +291,12 @@ final class ProposalInvoiceScheduler
     {
         $proposal = $batch->proposal;
         $clientName = $batch->proposal?->client?->legal_name ?? 'Client';
+        $clientCode = $batch->proposal?->client instanceof Client
+            ? $this->billingCodes->shortCode($batch->proposal->client)
+            : $this->billingCodes->shortCode((string) $batch->client_id);
         $reference = sprintf(
-            'Proposal v%s %s/%s %s',
+            '%s Proposal v%s %s/%s %s',
+            $clientCode,
             $proposal?->version ?? 1,
             $invoice->sequence,
             $batch->term_months,

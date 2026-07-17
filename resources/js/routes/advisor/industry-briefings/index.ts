@@ -27,7 +27,7 @@ review.url = (args: { industryBriefing: string | { id: string } } | [industryBri
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { industryBriefing: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     industryBriefing: args[0],
@@ -86,7 +86,7 @@ review.patch = (args: { industryBriefing: string | { id: string } } | [industryB
                     }),
             method: 'post',
         })
-    
+
     review.form = reviewForm
 const industryBriefings = {
     review: Object.assign(review, review),

@@ -8,6 +8,7 @@ use App\Http\Controllers\Controller;
 use App\Models\InviteToken;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Clients\AdvisorClientCapacity;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -19,6 +20,10 @@ use Spatie\Permission\Models\Role;
 
 final class StaffController extends Controller
 {
+    public function __construct(
+        private readonly AdvisorClientCapacity $clientCapacity,
+    ) {}
+
     public function index(): Response
     {
         $staffTypes = $this->staffUserTypes();
@@ -70,6 +75,13 @@ final class StaffController extends Controller
             'user_type' => ['required', 'string', Rule::in($staffTypes)],
             'primary_role' => ['required', 'string', Rule::in($staffTypes)],
             'session_timeout_minutes' => ['required', 'integer', 'min:5', 'max:240'],
+            'advisor_client_capacity_limit' => [
+                'nullable',
+                'required_if:user_type,'.User::TYPE_ADVISOR.','.User::TYPE_JUNIOR_ADVISOR,
+                'integer',
+                'min:1',
+                'max:500',
+            ],
             'suspended' => ['required', 'boolean'],
             'suspended_reason' => ['nullable', 'string', 'max:500'],
         ]);
@@ -97,6 +109,9 @@ final class StaffController extends Controller
                 'user_type' => $validated['user_type'],
                 'primary_role' => $validated['primary_role'],
                 'session_timeout_minutes' => (int) $validated['session_timeout_minutes'],
+                'advisor_client_capacity_limit' => $this->isAdvisorType((string) $validated['user_type'])
+                    ? (int) $validated['advisor_client_capacity_limit']
+                    : null,
                 'suspended_at' => $suspended ? ($user->suspended_at ?? now()) : null,
                 'suspended_reason' => $suspended ? ($validated['suspended_reason'] ?: 'Suspended by administrator') : null,
             ])->save();
@@ -129,6 +144,8 @@ final class StaffController extends Controller
      */
     private function userPayload(User $user): array
     {
+        $isAdvisor = $this->isAdvisorType($user->user_type);
+
         return [
             'id' => $user->id,
             'name' => $user->name,
@@ -136,10 +153,17 @@ final class StaffController extends Controller
             'user_type' => $user->user_type,
             'primary_role' => $user->primary_role,
             'session_timeout_minutes' => $user->session_timeout_minutes,
+            'advisor_client_capacity_limit' => $user->advisor_client_capacity_limit,
+            'client_capacity' => $isAdvisor ? $this->clientCapacity->summary($user) : null,
             'mfa_enabled_at' => $user->mfa_enabled_at?->toIso8601String(),
             'suspended_at' => $user->suspended_at?->toIso8601String(),
             'suspended_reason' => $user->suspended_reason,
             'update_url' => route('admin.staff.update', $user, absolute: false),
         ];
+    }
+
+    private function isAdvisorType(?string $userType): bool
+    {
+        return in_array($userType, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR], true);
     }
 }

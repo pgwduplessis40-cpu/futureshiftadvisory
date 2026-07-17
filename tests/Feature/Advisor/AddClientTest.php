@@ -295,6 +295,40 @@ final class AddClientTest extends TestCase
         $this->assertDatabaseCount('conflict_declarations', 0);
     }
 
+    public function test_advisor_cannot_create_or_invite_clients_over_their_admin_set_capacity(): void
+    {
+        Mail::fake();
+        $this->seed(RoleSeeder::class);
+        $advisor = $this->advisor();
+        $advisor->forceFill(['advisor_client_capacity_limit' => 1])->save();
+        $this->clientForAdvisor($advisor, 'Existing Client Limited', EngagementType::STANDARD_ADVISORY);
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.store'), [
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'nzbn' => '9429000000000',
+                'conflict' => [
+                    'declared' => true,
+                    'referral_type' => 'client_creation',
+                    'existing_relationship' => false,
+                    'details' => null,
+                ],
+            ])
+            ->assertSessionHasErrors('capacity');
+
+        $this->actingAsMfa($advisor)
+            ->post(route('advisor.clients.invite.store'), [
+                'email' => 'over-capacity@example.com',
+                'engagement_type' => EngagementType::STANDARD_ADVISORY->value,
+                'return_to' => route('advisor.clients.index', absolute: false),
+            ])
+            ->assertSessionHasErrors('capacity');
+
+        $this->assertDatabaseCount('clients', 1);
+        $this->assertDatabaseCount('invite_tokens', 0);
+        Mail::assertNothingSent();
+    }
+
     public function test_clients_index_can_filter_by_engagement_type_for_sidebar_shortcuts(): void
     {
         $this->seed(RoleSeeder::class);

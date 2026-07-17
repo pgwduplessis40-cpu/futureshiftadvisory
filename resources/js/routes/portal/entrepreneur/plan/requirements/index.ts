@@ -52,7 +52,7 @@ assist.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: assist.url(options),
             method: 'post',
         })
-    
+
     assist.form = assistForm
 const requirements = {
     assist: Object.assign(assist, assist),

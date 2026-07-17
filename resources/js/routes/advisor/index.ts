@@ -1,6 +1,7 @@
 import calendar from './calendar'
 import messages from './messages'
 import clients from './clients'
+import clientTransfers from './client-transfers'
 import serviceActivations from './service-activations'
 import integrationScopes from './integration-scopes'
 import proposals from './proposals'
@@ -30,6 +31,7 @@ const advisor = {
     calendar: Object.assign(calendar, calendar),
 messages: Object.assign(messages, messages),
 clients: Object.assign(clients, clients),
+clientTransfers: Object.assign(clientTransfers, clientTransfers),
 serviceActivations: Object.assign(serviceActivations, serviceActivations),
 integrationScopes: Object.assign(integrationScopes, integrationScopes),
 proposals: Object.assign(proposals, proposals),

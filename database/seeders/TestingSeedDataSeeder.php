@@ -111,11 +111,13 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedProposalTemplate();
             $this->seedProspectIntake();
             $this->seedClients();
+            $this->seedClientAllocationTestData();
             $this->seedServicePackagesAndActivationFlow();
             $this->seedClientDocumentsAndQuestionnaires();
             $this->seedFinancialsAndAnalysis();
             $this->seedIntegrationEfficiencyService();
             $this->seedEntrepreneurJourney();
+            $this->seedIdeaValidationTestScenarios();
             $this->seedGoalsProposalsAndPayments();
             $this->seedNpoModuleData();
             $this->seedEngagementTouchpoints();
@@ -132,12 +134,15 @@ final class TestingSeedDataSeeder extends Seeder
         $records = [
             'admin' => ['Seed Super Admin', 'seed.admin@futureshiftadvisory.test', User::TYPE_SUPER_ADMIN, 45],
             'advisor' => ['Seed Lead Advisor', 'seed.advisor@futureshiftadvisory.test', User::TYPE_ADVISOR, 30],
+            'transferAdvisor' => ['Seed Receiving Advisor', 'seed.receiving.advisor@futureshiftadvisory.test', User::TYPE_ADVISOR, 30],
             'junior' => ['Seed Junior Advisor', 'seed.junior@futureshiftadvisory.test', User::TYPE_JUNIOR_ADVISOR, 30],
             'primary' => ['Seed Client Principal', 'seed.client.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'team' => ['Seed Finance Lead', 'seed.client.team@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
             'buyer' => ['Seed Buyer Principal', 'seed.buyer.primary@futureshiftadvisory.test', User::TYPE_CLIENT_PRIMARY, 20],
             'analyst' => ['Seed Buyer Analyst', 'seed.buyer.analyst@futureshiftadvisory.test', User::TYPE_CLIENT_TEAM, 20],
             'entrepreneur' => ['Seed Founder', 'seed.entrepreneur@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaValidationStart' => ['Seed Idea Validation Starter', 'seed.idea.start@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
+            'ideaValidationReview' => ['Seed Idea Validation Review', 'seed.idea.review@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR, 20],
             'broker' => ['Seed Broker Partner', 'seed.broker@futureshiftadvisory.test', User::TYPE_BROKER, 20],
             'coach' => ['Seed Coach Partner', 'seed.coach@futureshiftadvisory.test', User::TYPE_COACH, 20],
             'mentor' => ['Seed Entrepreneur Mentor', 'seed.mentor@futureshiftadvisory.test', User::TYPE_ENTREPRENEUR_MENTOR, 20],
@@ -754,6 +759,26 @@ XML);
                 ],
             );
         }
+    }
+
+    private function seedClientAllocationTestData(): void
+    {
+        if (! Schema::hasTable('advisor_client_transfer_requests')) {
+            return;
+        }
+
+        $this->upsert('advisor_client_transfer_requests', [
+            'client_id' => $this->clients['websiteAudit']->getKey(),
+            'requested_by_user_id' => $this->users['advisor']->getKey(),
+            'target_advisor_user_id' => $this->users['transferAdvisor']->getKey(),
+        ], [
+            'reason' => 'Seeded review scenario: website and digital-channel experience is a better fit with the receiving advisor.',
+            'status' => 'pending',
+            'decision_reason' => null,
+            'reviewed_by_user_id' => null,
+            'reviewed_at' => null,
+            'completed_at' => null,
+        ]);
     }
 
     private function seedClientTeam(): void
@@ -2410,6 +2435,100 @@ XML);
             entrepreneurProfileId: (string) $profileId,
             planSectionId: (string) ($this->ids['entrepreneur_customer_section'] ?? ''),
         );
+    }
+
+    private function seedIdeaValidationTestScenarios(): void
+    {
+        $startProfileId = $this->upsert('entrepreneur_profiles', [
+            'email' => $this->users['ideaValidationStart']->email,
+        ], [
+            'user_id' => $this->users['ideaValidationStart']->getKey(),
+            'client_id' => null,
+            'assigned_advisor_id' => $this->users['advisor']->getKey(),
+            'invite_token_id' => null,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'name' => 'Seed Idea Validation Starter',
+            'stage' => EntrepreneurStage::IDEA_VALIDATION->value,
+            'concept_summary' => 'A new mobile app concept ready for a founder to complete the idea validation form.',
+            'gamification_on' => true,
+        ]);
+        $this->ids['idea_validation_start_profile'] = $startProfileId;
+
+        $reviewProfileId = $this->upsert('entrepreneur_profiles', [
+            'email' => $this->users['ideaValidationReview']->email,
+        ], [
+            'user_id' => $this->users['ideaValidationReview']->getKey(),
+            'client_id' => null,
+            'assigned_advisor_id' => $this->users['advisor']->getKey(),
+            'invite_token_id' => null,
+            'intended_service_type' => ServiceActivation::SERVICE_ENTREPRENEUR,
+            'intended_package_scope' => ServiceRatePackage::SCOPE_ENTREPRENEUR_IDEA_VALIDATION,
+            'name' => 'Seed Idea Validation Review',
+            'stage' => EntrepreneurStage::IDEA_VALIDATION->value,
+            'concept_summary' => 'A submitted clinic appointment app concept awaiting an advisor gate decision.',
+            'gamification_on' => true,
+        ]);
+        $this->ids['idea_validation_review_profile'] = $reviewProfileId;
+
+        $this->ids['idea_validation_review'] = $this->upsert('idea_validations', [
+            'entrepreneur_profile_id' => $reviewProfileId,
+            'evaluated_at' => $this->stableTimestamp('2026-07-16 10:30:00'),
+        ], [
+            'revision_number' => 1,
+            'previous_validation_id' => null,
+            'problem' => 'Independent clinics lose appointments because patients cannot quickly see availability, join a cancellation list, or receive timely reminders.',
+            'target_customer' => 'Owner-managed New Zealand allied-health clinics with three to fifteen practitioners and recurring appointment demand.',
+            'solution' => 'A clinic app that fills cancelled appointment slots through an opt-in patient waitlist, automated reminders, and a simple staff dashboard.',
+            'value_proposition' => 'Help small clinics recover missed revenue and give patients faster access to care without replacing their existing practice system.',
+            'demand_signal' => 'Eight clinic owners described cancellations as a weekly issue, and three have agreed to test a no-cost prototype with their patients.',
+            'revenue_model' => 'Monthly subscription per clinic location with a setup fee for waitlist messaging, onboarding, and staff training.',
+            'ai_evaluation' => $this->json([
+                'summary' => 'The problem is specific and early demand is credible. Before approval, confirm patient consent requirements, integration feasibility, and whether clinic staff will adopt a separate workflow.',
+                'model' => 'seeded-idea-review',
+                'prompt_id' => 'entrepreneur.idea_validation',
+                'prompt_hash' => hash('sha256', 'seeded-idea-validation-review'),
+                'uncertainty' => 'medium',
+                'past_plan_pattern' => [
+                    'source_reference' => 'past_plan_patterns:health',
+                    'cohort' => 2,
+                    'industry' => 'health',
+                    'note' => 'Comparable health-service plans show adoption and practice-system integration as the main commercial risks.',
+                ],
+                'validation_evidence_loop' => [
+                    'status' => 'experiments_recorded',
+                    'source_reference' => 'idea_validation:experiments:founder_supplied',
+                    'experiment_count' => 1,
+                    'completed_experiment_count' => 1,
+                    'experiments' => [[
+                        'name' => 'Clinic owner discovery interviews',
+                        'hypothesis' => 'Clinic owners will pay to recover cancellation revenue without changing their core practice software.',
+                        'evidence' => 'Eight interviews and three prototype commitments.',
+                        'result' => 'Validated for initial pilot clinics.',
+                        'next_step' => 'Run a four-week patient waitlist pilot with one clinic.',
+                        'status' => 'completed',
+                    ]],
+                ],
+                'metadata' => [
+                    'advisor_gate_status' => 'advisor_review',
+                    'fixture' => true,
+                ],
+            ]),
+            'viability_alerts' => $this->json([
+                [
+                    'severity' => 'informational',
+                    'type' => 'integration_feasibility',
+                    'message' => 'Confirm the first practice-management integration and patient consent approach before committing to a build timeline.',
+                    'blocking' => false,
+                ],
+            ]),
+            'evaluated_by_user_id' => $this->users['ideaValidationReview']->getKey(),
+            'advisor_gate_passed_at' => null,
+            'advisor_gate_passed_by_user_id' => null,
+            'advisor_gate_note' => null,
+            'recalled_at' => null,
+            'recalled_by_user_id' => null,
+        ]);
     }
 
     private function seedGoalsProposalsAndPayments(): void

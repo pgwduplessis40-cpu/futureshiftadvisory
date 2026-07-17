@@ -36,6 +36,7 @@ use App\Models\User;
 use App\Models\WellbeingCheckin;
 use App\Services\Audit\AuditWriter;
 use App\Services\Budgets\StrategicBudgetService;
+use App\Services\Clients\AdvisorClientCapacity;
 use App\Services\Conflicts\ConflictDeclarer;
 use App\Services\Dashboards\EconomicExposureMapper;
 use App\Services\Dashboards\PaymentStatusReport;
@@ -69,6 +70,7 @@ final class ClientController extends Controller
 {
     public function __construct(
         private readonly AuditWriter $auditWriter,
+        private readonly AdvisorClientCapacity $clientCapacity,
         private readonly ConflictDeclarer $conflicts,
         private readonly DataQualityScorer $dataQuality,
         private readonly GoalTracker $goals,
@@ -90,10 +92,21 @@ final class ClientController extends Controller
         $engagementFilter = null;
         $filter = null;
         $user = $request->user();
-        $clientIds = $user instanceof User && $user->user_type === User::TYPE_ADVISOR
+        $showAdvisorAssignments = $user instanceof User && $user->user_type === User::TYPE_SUPER_ADMIN;
+        $isAdvisor = $user instanceof User && in_array($user->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR], true);
+        $canRequestTransfer = $isAdvisor;
+        $clientIds = $isAdvisor
             ? $user->accessibleClientIds()
             : null;
         $query = Client::query()->latest();
+
+        if ($showAdvisorAssignments) {
+            $query->with([
+                'teamMembers' => fn ($teamMembers) => $teamMembers
+                    ->whereIn('role', ['lead_advisor', 'advisor'])
+                    ->with(['user:id,name', 'advisorTeam:id,name']),
+            ]);
+        }
 
         if (is_array($clientIds)) {
             $clientIds === []
@@ -132,10 +145,17 @@ final class ClientController extends Controller
             'clients' => $query
                 ->limit(100)
                 ->get()
-                ->map(fn (Client $client): array => $this->clientSummary($client))
+                ->map(fn (Client $client): array => $this->clientSummary($client, $showAdvisorAssignments))
                 ->values(),
             'engagementFilter' => $engagementFilter,
             'exposureFilter' => $filter,
+            'showAdvisorAssignments' => $showAdvisorAssignments,
+            'allocationUrl' => $showAdvisorAssignments
+                ? route('admin.client-allocations.index', absolute: false)
+                : null,
+            'transferRequestUrl' => $canRequestTransfer
+                ? route('advisor.client-transfers.index', absolute: false)
+                : null,
         ]);
     }
 
@@ -216,6 +236,7 @@ final class ClientController extends Controller
         ]);
 
         $engagement = EngagementType::from((string) $validated['engagement_type']);
+        $this->clientCapacity->ensureCanAdd($user);
 
         DB::transaction(function () use ($engagement, $issuer, $user, $validated): void {
             $issued = $issuer->issue(
@@ -285,6 +306,7 @@ final class ClientController extends Controller
         ]);
 
         $lookup = $populate->handle($validated['nzbn']);
+        $this->clientCapacity->ensureCanAdd($user);
 
         $client = DB::transaction(function () use ($user, $validated, $lookup): Client {
             $summary = $lookup['summary'];
@@ -902,7 +924,7 @@ final class ClientController extends Controller
     /**
      * @return array<string, mixed>
      */
-    private function clientSummary(Client $client): array
+    private function clientSummary(Client $client, bool $includeAdvisorAssignments = false): array
     {
         $engagementType = $client->engagement_type instanceof EngagementType
             ? $client->engagement_type
@@ -911,7 +933,7 @@ final class ClientController extends Controller
             ? $client->status
             : ClientStatus::from((string) ($client->status ?? ClientStatus::ACTIVE->value));
 
-        return [
+        $summary = [
             'id' => $client->id,
             'engagement_type' => $engagementType->value,
             'engagement_type_label' => $engagementType->label(),
@@ -926,6 +948,19 @@ final class ClientController extends Controller
             'filing_status' => $client->filing_status,
             'data_quality' => $client->data_quality,
         ];
+
+        if ($includeAdvisorAssignments) {
+            $summary['advisor_assignments'] = $client->teamMembers
+                ->map(fn (ClientTeamMember $member): array => [
+                    'advisor_name' => $member->user?->name,
+                    'role' => $member->role,
+                    'team_name' => $member->advisorTeam?->name,
+                ])
+                ->values()
+                ->all();
+        }
+
+        return $summary;
     }
 
     /**

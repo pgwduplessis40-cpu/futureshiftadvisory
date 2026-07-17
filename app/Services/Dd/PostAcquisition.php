@@ -25,6 +25,7 @@ use App\Models\QuestionnaireResponse;
 use App\Models\Report;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Clients\AdvisorClientCapacity;
 use App\Services\Proposals\ProposalBuilder;
 use App\Services\Reports\ReportComposer;
 use Illuminate\Support\Collection;
@@ -37,6 +38,7 @@ final class PostAcquisition
         private readonly ReportComposer $reports,
         private readonly ProposalBuilder $proposals,
         private readonly AuditWriter $audit,
+        private readonly AdvisorClientCapacity $clientCapacity,
     ) {}
 
     public function convert(DdEngagement $engagement, User $actor): PostAcquisitionMigration
@@ -57,6 +59,7 @@ final class PostAcquisition
 
         return DB::transaction(function () use ($engagement, $actor): PostAcquisitionMigration {
             $owner = $this->conversionOwner($engagement, $actor);
+            $this->clientCapacity->ensureCanAdd($owner);
             $report = $this->latestDdReport($engagement) ?? $this->reports->composeDueDiligence($engagement, $actor);
             $plan = $this->foundingPlan($engagement);
             $advisoryClient = $this->createAdvisoryClient($engagement, $owner);

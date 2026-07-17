@@ -19,6 +19,7 @@ use App\Models\PaymentWebhookEvent;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
+use App\Services\Integration\Stripe\LiveStripeClient;
 use App\Services\Payments\Gateway;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentChargeRequest;
@@ -28,6 +29,7 @@ use App\Services\Storage\KeyEnvelope;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\Config;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Mail;
@@ -154,7 +156,7 @@ final class PaymentGatewayTest extends TestCase
         Config::set('integrations.payments.stripe.secret', 'sk_test_feature');
         Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test_feature');
         Config::set('integrations.retry.attempts', 1);
-        app()->forgetInstance(StripeClient::class);
+        app()->forgetInstance(LiveStripeClient::class);
 
         Http::fake([
             'https://api.stripe.com/v1/payment_intents' => Http::response([
@@ -163,7 +165,7 @@ final class PaymentGatewayTest extends TestCase
             ], 200),
         ]);
 
-        $result = app(StripeClient::class)->charge(new PaymentChargeRequest(
+        $result = app(LiveStripeClient::class)->charge(new PaymentChargeRequest(
             clientId: 'client-live',
             proposalId: 'proposal-live',
             authorityId: 'authority-live',
@@ -173,10 +175,19 @@ final class PaymentGatewayTest extends TestCase
             currency: 'NZD',
             gateway: PaymentAuthority::GATEWAY_STRIPE,
             idempotencyKey: 'live-stripe-fixture',
+            metadata: ['client_code' => 'FSA-019F0B'],
         ));
 
         $this->assertSame('pi_live_fixture', $result->gatewayRef);
         $this->assertSame(PaymentAuthority::GATEWAY_STRIPE, $result->gateway);
+        Http::assertSent(function (Request $request): bool {
+            $payload = $request->data();
+
+            return $request->url() === 'https://api.stripe.com/v1/payment_intents'
+                && data_get($payload, 'description') === 'Future Shift Advisory FSA-019F0B'
+                && data_get($payload, 'statement_descriptor_suffix') === 'FSA-019F0B'
+                && data_get($payload, 'metadata.client_code') === 'FSA-019F0B';
+        });
         $this->assertDatabaseHas('integration_calls', [
             'service' => 'stripe',
             'status' => IntegrationCall::STATUS_SUCCESS,
@@ -189,7 +200,7 @@ final class PaymentGatewayTest extends TestCase
         Config::set('integrations.payments.stripe.secret', 'sk_test_feature');
         Config::set('integrations.payments.stripe.webhook_secret', 'whsec_test_feature');
         Config::set('integrations.retry.attempts', 1);
-        app()->forgetInstance(StripeClient::class);
+        app()->forgetInstance(LiveStripeClient::class);
 
         Http::fake([
             'https://api.stripe.com/v1/setup_intents/seti_live_fixture' => Http::response([
@@ -200,7 +211,7 @@ final class PaymentGatewayTest extends TestCase
             ], 200),
         ]);
 
-        $token = app(StripeClient::class)->captureAuthority(new PaymentAuthorityRequest(
+        $token = app(LiveStripeClient::class)->captureAuthority(new PaymentAuthorityRequest(
             clientId: 'client-live',
             proposalId: 'proposal-live',
             type: PaymentAuthority::TYPE_CARD,

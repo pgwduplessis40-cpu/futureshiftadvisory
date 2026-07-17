@@ -80,6 +80,9 @@ final class TestingSeedDataSeederTest extends TestCase
             'npo_value_calculations',
             'npo_impact_metrics',
             'bulk_communications',
+            'entrepreneur_profiles',
+            'idea_validations',
+            'advisor_client_transfer_requests',
         ];
 
         $countsAfterFirstRun = collect($tables)
@@ -125,6 +128,14 @@ final class TestingSeedDataSeederTest extends TestCase
             'client_id' => $advisoryClient->id,
             'user_id' => $advisor->id,
             'role' => 'lead_advisor',
+        ]);
+        $this->assertDatabaseHas('users', [
+            'email' => 'seed.receiving.advisor@futureshiftadvisory.test',
+            'user_type' => User::TYPE_ADVISOR,
+        ]);
+        $this->assertDatabaseHas('advisor_client_transfer_requests', [
+            'client_id' => DB::table('clients')->where('nzbn', '9429000000133')->value('id'),
+            'status' => 'pending',
         ]);
 
         $this->assertAtLeast(6, 'clients');
@@ -175,6 +186,7 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertAtLeast(1, 'plan_revisions');
         $this->assertAtLeast(1, 'advisory_readiness_signals');
         $this->assertAtLeast(2, 'outcome_follow_ups');
+        $this->assertSeededIdeaValidationTestScenarios();
 
         $this->assertAtLeast(2, 'panel_members');
         $this->assertAtLeast(2, 'panel_agreements');
@@ -303,6 +315,31 @@ final class TestingSeedDataSeederTest extends TestCase
     private function assertAtLeast(int $minimum, string $table): void
     {
         $this->assertGreaterThanOrEqual($minimum, DB::table($table)->count(), "Expected [{$table}] to have seed coverage.");
+    }
+
+    private function assertSeededIdeaValidationTestScenarios(): void
+    {
+        $starter = DB::table('entrepreneur_profiles')
+            ->where('email', 'seed.idea.start@futureshiftadvisory.test')
+            ->first();
+        $review = DB::table('entrepreneur_profiles')
+            ->where('email', 'seed.idea.review@futureshiftadvisory.test')
+            ->first();
+
+        $this->assertNotNull($starter);
+        $this->assertNotNull($review);
+        $this->assertSame('idea_validation', $starter->stage);
+        $this->assertSame('idea_validation', $review->stage);
+        $this->assertSame('idea_validation', $starter->intended_package_scope);
+        $this->assertSame('idea_validation', $review->intended_package_scope);
+        $this->assertDatabaseMissing('idea_validations', [
+            'entrepreneur_profile_id' => $starter->id,
+        ]);
+        $this->assertDatabaseHas('idea_validations', [
+            'entrepreneur_profile_id' => $review->id,
+            'revision_number' => 1,
+            'advisor_gate_passed_at' => null,
+        ]);
     }
 
     private function assertPvWaterfallSeedCoverage(): void

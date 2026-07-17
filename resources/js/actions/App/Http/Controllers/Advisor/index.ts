@@ -1,6 +1,7 @@
 import CalendarController from './CalendarController'
 import MessageInboxController from './MessageInboxController'
 import ClientController from './ClientController'
+import ClientTransferRequestController from './ClientTransferRequestController'
 import ServiceActivationController from './ServiceActivationController'
 import IntegrationScopeController from './IntegrationScopeController'
 import OffboardingController from './OffboardingController'
@@ -43,6 +44,7 @@ const Advisor = {
     CalendarController: Object.assign(CalendarController, CalendarController),
 MessageInboxController: Object.assign(MessageInboxController, MessageInboxController),
 ClientController: Object.assign(ClientController, ClientController),
+ClientTransferRequestController: Object.assign(ClientTransferRequestController, ClientTransferRequestController),
 ServiceActivationController: Object.assign(ServiceActivationController, ServiceActivationController),
 IntegrationScopeController: Object.assign(IntegrationScopeController, IntegrationScopeController),
 OffboardingController: Object.assign(OffboardingController, OffboardingController),

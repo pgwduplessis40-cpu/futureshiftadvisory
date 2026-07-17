@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payments;
 
+use App\Models\Client;
 use App\Models\Payment;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentInstallment;
@@ -24,6 +25,7 @@ final class InstallmentPaymentProcessor
         private readonly AuditWriter $audit,
         private readonly ApplyProposalPaymentOutcome $outcomes,
         private readonly BillingAdjustmentAllocator $adjustments,
+        private readonly ClientBillingCode $billingCodes,
     ) {}
 
     /** @return array{scanned:int,succeeded:int,retrying:int,failed:int,receipts:int} */
@@ -72,10 +74,14 @@ final class InstallmentPaymentProcessor
         }
 
         try {
+            $billingCode = $schedule->client instanceof Client
+                ? $this->billingCodes->shortCode($schedule->client)
+                : $this->billingCodes->shortCode((string) $locked->client_id);
             $charge = $this->gateway->charge($claim['authority'], $payment->amount, [
                 'currency' => $schedule->currency,
                 'idempotency_key' => $payment->idempotency_key,
                 'metadata' => [
+                    'client_code' => $billingCode,
                     'payment_id' => $payment->getKey(),
                     'payment_installment_id' => $locked->getKey(),
                     'payment_schedule_id' => $schedule->getKey(),
@@ -262,7 +268,7 @@ final class InstallmentPaymentProcessor
     {
         return DB::transaction(function () use ($installment, $now): array {
             $installment = PaymentInstallment::query()->lockForUpdate()->findOrFail($installment->getKey());
-            $schedule = PaymentSchedule::query()->with('paymentAuthority')->lockForUpdate()->findOrFail($installment->payment_schedule_id);
+            $schedule = PaymentSchedule::query()->with(['client', 'paymentAuthority'])->lockForUpdate()->findOrFail($installment->payment_schedule_id);
             $authority = $schedule->paymentAuthority;
             if (! $authority instanceof PaymentAuthority || $authority->status !== PaymentAuthority::STATUS_ACTIVE || $authority->revoked_at !== null) {
                 throw new InvalidArgumentException('The installment has no active payment authority.');

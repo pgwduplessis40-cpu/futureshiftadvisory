@@ -44,6 +44,9 @@ final class StaffManagementTest extends TestCase
                 ->component('admin/staff/Index')
                 ->has('staff', 2)
                 ->where('staff.0.email', $advisor->email)
+                ->where('staff.0.advisor_client_capacity_limit', null)
+                ->where('staff.0.client_capacity.active_count', 0)
+                ->where('staff.0.client_capacity.limit', 30)
                 ->has('pendingInvites', 1)
                 ->where('pendingInvites.0.email', 'new.advisor@example.test')
                 ->where('inviteUrl', route('admin.invitations.create', [
@@ -62,6 +65,7 @@ final class StaffManagementTest extends TestCase
                 'user_type' => User::TYPE_JUNIOR_ADVISOR,
                 'primary_role' => User::TYPE_JUNIOR_ADVISOR,
                 'session_timeout_minutes' => 45,
+                'advisor_client_capacity_limit' => 18,
                 'suspended' => true,
                 'suspended_reason' => 'Capacity pause',
             ])
@@ -72,6 +76,7 @@ final class StaffManagementTest extends TestCase
         $this->assertSame(User::TYPE_JUNIOR_ADVISOR, $advisor->user_type);
         $this->assertSame(User::TYPE_JUNIOR_ADVISOR, $advisor->primary_role);
         $this->assertSame(45, $advisor->session_timeout_minutes);
+        $this->assertSame(18, $advisor->advisor_client_capacity_limit);
         $this->assertNotNull($advisor->suspended_at);
         $this->assertSame('Capacity pause', $advisor->suspended_reason);
         $this->assertTrue($advisor->hasRole(User::TYPE_JUNIOR_ADVISOR));

@@ -63,6 +63,14 @@ final class Client extends Model
     }
 
     /**
+     * @return HasMany<AdvisorClientTransferRequest>
+     */
+    public function advisorTransferRequests(): HasMany
+    {
+        return $this->hasMany(AdvisorClientTransferRequest::class);
+    }
+
+    /**
      * @return HasMany<ConflictDeclaration>
      */
     public function conflictDeclarations(): HasMany

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Enums\Permission;
 use App\Http\Controllers\Admin\AuditTrailController;
+use App\Http\Controllers\Admin\ClientAllocationController;
 use App\Http\Controllers\Admin\InspirationBoardController;
 use App\Http\Controllers\Admin\IntegrationCredentialController;
 use App\Http\Controllers\Admin\IntegrationHealthController;
@@ -60,6 +61,17 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('staff/{user}', [StaffController::class, 'update'])
                 ->middleware('require.fresh-step-up')
                 ->name('staff.update');
+            Route::get('client-allocations', [ClientAllocationController::class, 'index'])
+                ->name('client-allocations.index');
+            Route::patch('client-allocations/{client}', [ClientAllocationController::class, 'reassign'])
+                ->middleware('require.fresh-step-up')
+                ->name('client-allocations.reassign');
+            Route::patch('client-transfers/{transfer}/approve', [ClientAllocationController::class, 'approve'])
+                ->middleware('require.fresh-step-up')
+                ->name('client-transfers.approve');
+            Route::patch('client-transfers/{transfer}/reject', [ClientAllocationController::class, 'reject'])
+                ->middleware('require.fresh-step-up')
+                ->name('client-transfers.reject');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');

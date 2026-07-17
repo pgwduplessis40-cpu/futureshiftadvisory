@@ -27,7 +27,7 @@ generate.url = (args: { proposal: string | { id: string } } | [proposal: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -76,7 +76,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
             action: generate.url(args, options),
             method: 'post',
         })
-    
+
     generate.form = generateForm
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::pdf
@@ -106,7 +106,7 @@ pdf.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { strategicPlan: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     strategicPlan: args[0],
@@ -178,7 +178,7 @@ pdf.head = (args: { strategicPlan: string | { id: string } } | [strategicPlan: s
                     }),
             method: 'get',
         })
-    
+
     pdf.form = pdfForm
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::update
@@ -208,7 +208,7 @@ update.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { strategicPlan: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     strategicPlan: args[0],
@@ -267,7 +267,7 @@ update.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Advisor\StrategicPlanController::deploy
@@ -297,7 +297,7 @@ deploy.url = (args: { strategicPlan: string | { id: string } } | [strategicPlan:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { strategicPlan: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     strategicPlan: args[0],
@@ -356,7 +356,7 @@ deploy.patch = (args: { strategicPlan: string | { id: string } } | [strategicPla
                     }),
             method: 'post',
         })
-    
+
     deploy.form = deployForm
 const StrategicPlanController = { generate, pdf, update, deploy }
 

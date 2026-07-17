@@ -13,11 +13,15 @@ use App\Models\OffboardingRecord;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use InvalidArgumentException;
 
 final class AdvisorTeamManager
 {
-    public function __construct(private readonly AuditWriter $audit) {}
+    public function __construct(
+        private readonly AuditWriter $audit,
+        private readonly AdvisorClientCapacity $clientCapacity,
+    ) {}
 
     public function createTeam(string $name, User $leadAdvisor): AdvisorTeam
     {
@@ -141,6 +145,84 @@ final class AdvisorTeamManager
         ]);
 
         return $count;
+    }
+
+    public function reassignClientToAdvisor(
+        Client $client,
+        User $targetAdvisor,
+        User $actor,
+        string $reason,
+    ): ClientTeamMember {
+        if (! in_array($targetAdvisor->user_type, [User::TYPE_ADVISOR, User::TYPE_JUNIOR_ADVISOR], true)) {
+            throw ValidationException::withMessages([
+                'target_advisor_id' => 'Select an active advisor as the new client owner.',
+            ]);
+        }
+
+        if ($targetAdvisor->suspended_at !== null) {
+            throw ValidationException::withMessages([
+                'target_advisor_id' => 'A suspended advisor cannot receive client assignments.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($actor, $client, $reason, $targetAdvisor): ClientTeamMember {
+            $advisorAssignments = ClientTeamMember::query()
+                ->where('client_id', $client->getKey())
+                ->whereIn('role', ['lead_advisor', 'advisor'])
+                ->get();
+
+            $targetIsCurrentLead = $advisorAssignments->contains(
+                fn (ClientTeamMember $assignment): bool => (string) $assignment->user_id === (string) $targetAdvisor->getKey()
+                    && $assignment->role === 'lead_advisor',
+            );
+
+            if (! $targetIsCurrentLead) {
+                $this->clientCapacity->ensureCanAdd($targetAdvisor);
+            }
+
+            $before = $advisorAssignments
+                ->map(fn (ClientTeamMember $assignment): array => [
+                    'user_id' => $assignment->user_id,
+                    'advisor_team_id' => $assignment->advisor_team_id,
+                    'role' => $assignment->role,
+                    'granted_modules' => $assignment->granted_modules,
+                ])
+                ->all();
+            $existingTargetAssignment = $advisorAssignments
+                ->first(fn (ClientTeamMember $assignment): bool => (string) $assignment->user_id === (string) $targetAdvisor->getKey());
+            $engagementType = $client->engagement_type;
+            $moduleGrant = $existingTargetAssignment?->granted_modules
+                ?? $advisorAssignments->first()?->granted_modules
+                ?? [is_string($engagementType) ? $engagementType : $engagementType->value];
+
+            ClientTeamMember::query()
+                ->where('client_id', $client->getKey())
+                ->whereIn('role', ['lead_advisor', 'advisor'])
+                ->where('user_id', '!=', $targetAdvisor->getKey())
+                ->delete();
+
+            $assignment = ClientTeamMember::query()->updateOrCreate(
+                [
+                    'client_id' => $client->getKey(),
+                    'user_id' => $targetAdvisor->getKey(),
+                ],
+                [
+                    'advisor_team_id' => null,
+                    'role' => 'lead_advisor',
+                    'granted_modules' => $moduleGrant,
+                ],
+            );
+
+            $this->audit->record('advisor_team.client_reassigned_to_advisor', subject: $client, actor: $actor, before: [
+                'advisor_assignments' => $before,
+            ], after: [
+                'target_advisor_user_id' => $targetAdvisor->getKey(),
+                'reason' => $reason,
+                'client_role' => 'lead_advisor',
+            ]);
+
+            return $assignment->refresh();
+        });
     }
 
     /**

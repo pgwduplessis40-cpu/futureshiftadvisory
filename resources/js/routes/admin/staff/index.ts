@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition, applyUrlDefaults } from './../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
 export const index = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -16,7 +16,7 @@ index.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
 index.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ index.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
 index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
@@ -34,7 +34,7 @@ index.get = (options?: RouteQueryOptions): RouteDefinition<'get'> => ({
 })
 /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
 index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
@@ -44,7 +44,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
     /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
     const indexForm = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -54,7 +54,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
 
             /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
         indexForm.get = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -63,7 +63,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
         })
             /**
 * @see \App\Http\Controllers\Admin\StaffController::index
- * @see app/Http/Controllers/Admin/StaffController.php:22
+ * @see app/Http/Controllers/Admin/StaffController.php:27
  * @route '/admin/staff'
  */
         indexForm.head = (options?: RouteQueryOptions): RouteFormDefinition<'get'> => ({
@@ -75,11 +75,11 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-    
+
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\StaffController::update
- * @see app/Http/Controllers/Admin/StaffController.php:60
+ * @see app/Http/Controllers/Admin/StaffController.php:65
  * @route '/admin/staff/{user}'
  */
 export const update = (args: { user: number | { id: number } } | [user: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -94,7 +94,7 @@ update.definition = {
 
 /**
 * @see \App\Http\Controllers\Admin\StaffController::update
- * @see app/Http/Controllers/Admin/StaffController.php:60
+ * @see app/Http/Controllers/Admin/StaffController.php:65
  * @route '/admin/staff/{user}'
  */
 update.url = (args: { user: number | { id: number } } | [user: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions) => {
@@ -105,7 +105,7 @@ update.url = (args: { user: number | { id: number } } | [user: number | { id: nu
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { user: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     user: args[0],
@@ -127,7 +127,7 @@ update.url = (args: { user: number | { id: number } } | [user: number | { id: nu
 
 /**
 * @see \App\Http\Controllers\Admin\StaffController::update
- * @see app/Http/Controllers/Admin/StaffController.php:60
+ * @see app/Http/Controllers/Admin/StaffController.php:65
  * @route '/admin/staff/{user}'
  */
 update.patch = (args: { user: number | { id: number } } | [user: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteDefinition<'patch'> => ({
@@ -137,7 +137,7 @@ update.patch = (args: { user: number | { id: number } } | [user: number | { id: 
 
     /**
 * @see \App\Http\Controllers\Admin\StaffController::update
- * @see app/Http/Controllers/Admin/StaffController.php:60
+ * @see app/Http/Controllers/Admin/StaffController.php:65
  * @route '/admin/staff/{user}'
  */
     const updateForm = (args: { user: number | { id: number } } | [user: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -152,7 +152,7 @@ update.patch = (args: { user: number | { id: number } } | [user: number | { id: 
 
             /**
 * @see \App\Http\Controllers\Admin\StaffController::update
- * @see app/Http/Controllers/Admin/StaffController.php:60
+ * @see app/Http/Controllers/Admin/StaffController.php:65
  * @route '/admin/staff/{user}'
  */
         updateForm.patch = (args: { user: number | { id: number } } | [user: number | { id: number } ] | number | { id: number }, options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -164,7 +164,7 @@ update.patch = (args: { user: number | { id: number } } | [user: number | { id: 
                     }),
             method: 'post',
         })
-    
+
     update.form = updateForm
 const staff = {
     index: Object.assign(index, index),

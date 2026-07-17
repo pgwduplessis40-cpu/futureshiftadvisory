@@ -34,6 +34,7 @@ use Throwable;
     'mfa_method',
     'last_password_set_at',
     'session_timeout_minutes',
+    'advisor_client_capacity_limit',
     'suspended_at',
     'suspended_reason',
     'deactivation_requested_at',
@@ -83,6 +84,7 @@ class User extends Authenticatable
             'mfa_enabled_at' => 'datetime',
             'last_password_set_at' => 'datetime',
             'session_timeout_minutes' => 'integer',
+            'advisor_client_capacity_limit' => 'integer',
             'suspended_at' => 'datetime',
             'deactivation_requested_at' => 'datetime',
         ];
@@ -134,6 +136,22 @@ class User extends Authenticatable
     public function advisorTeamMemberships(): HasMany
     {
         return $this->hasMany(AdvisorTeamMember::class);
+    }
+
+    /**
+     * @return HasMany<AdvisorClientTransferRequest>
+     */
+    public function requestedClientTransfers(): HasMany
+    {
+        return $this->hasMany(AdvisorClientTransferRequest::class, 'requested_by_user_id');
+    }
+
+    /**
+     * @return HasMany<AdvisorClientTransferRequest>
+     */
+    public function incomingClientTransfers(): HasMany
+    {
+        return $this->hasMany(AdvisorClientTransferRequest::class, 'target_advisor_user_id');
     }
 
     /**

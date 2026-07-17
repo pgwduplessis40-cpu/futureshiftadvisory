@@ -27,7 +27,7 @@ store.url = (args: { client: string | { id: string } } | [client: string | { id:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { client: string | { id: string } } | [client: string | { id
             action: store.url(args, options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::release
@@ -106,7 +106,7 @@ release.url = (args: { proposal: string | { id: string } } | [proposal: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -165,7 +165,7 @@ release.patch = (args: { proposal: string | { id: string } } | [proposal: string
                     }),
             method: 'post',
         })
-    
+
     release.form = releaseForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::recall
@@ -195,7 +195,7 @@ recall.url = (args: { proposal: string | { id: string } } | [proposal: string | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -254,7 +254,7 @@ recall.patch = (args: { proposal: string | { id: string } } | [proposal: string 
                     }),
             method: 'post',
         })
-    
+
     recall.form = recallForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::renew
@@ -284,7 +284,7 @@ renew.url = (args: { proposal: string | { id: string } } | [proposal: string | {
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -343,7 +343,7 @@ renew.patch = (args: { proposal: string | { id: string } } | [proposal: string |
                     }),
             method: 'post',
         })
-    
+
     renew.form = renewForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::show
@@ -373,7 +373,7 @@ show.url = (args: { proposal: string | { id: string } } | [proposal: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -445,7 +445,7 @@ show.head = (args: { proposal: string | { id: string } } | [proposal: string | {
                     }),
             method: 'get',
         })
-    
+
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\ProposalController::download
@@ -475,7 +475,7 @@ download.url = (args: { proposal: string | { id: string } } | [proposal: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-    
+
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -547,7 +547,7 @@ download.head = (args: { proposal: string | { id: string } } | [proposal: string
                     }),
             method: 'get',
         })
-    
+
     download.form = downloadForm
 const ProposalController = { store, release, recall, renew, show, download }
 

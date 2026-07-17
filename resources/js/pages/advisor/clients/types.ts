@@ -15,6 +15,11 @@ export type ClientSummary = {
     filing_status: string | null;
     data_quality: string;
     data_quality_summary?: DataQualitySummary;
+    advisor_assignments?: Array<{
+        advisor_name: string | null;
+        role: string;
+        team_name: string | null;
+    }>;
 };
 
 export type RegistryLookup = {

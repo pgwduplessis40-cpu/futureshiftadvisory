@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Payments;
 
+use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\Payment;
 use App\Models\PaymentAuthority;
@@ -31,6 +32,7 @@ final class PaymentProcessor implements ProvidesMethodology
         private readonly AuditWriter $audit,
         private readonly GstCalculator $gst,
         private readonly InstallmentPaymentProcessor $installments,
+        private readonly ClientBillingCode $billingCodes,
     ) {}
 
     /**
@@ -102,10 +104,14 @@ final class PaymentProcessor implements ProvidesMethodology
         $payment = $attempt['payment'];
 
         try {
+            $billingCode = $schedule->client instanceof Client
+                ? $this->billingCodes->shortCode($schedule->client)
+                : $this->billingCodes->shortCode((string) $schedule->client_id);
             $charge = $this->gateway->charge($schedule->paymentAuthority, $payment->amount, [
                 'currency' => $schedule->currency,
                 'idempotency_key' => 'payment-'.$payment->getKey().'-attempt-'.$attempt['number'],
                 'metadata' => [
+                    'client_code' => $billingCode,
                     'payment_id' => $payment->getKey(),
                     'payment_schedule_id' => $schedule->getKey(),
                     'gst_rate_percent' => $this->gst->ratePercent(),

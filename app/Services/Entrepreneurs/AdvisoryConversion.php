@@ -12,6 +12,7 @@ use App\Models\DdEngagement;
 use App\Models\EntrepreneurProfile;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Clients\AdvisorClientCapacity;
 use Illuminate\Support\Facades\DB;
 use InvalidArgumentException;
 
@@ -19,10 +20,12 @@ final class AdvisoryConversion
 {
     public function __construct(
         private readonly AuditWriter $audit,
+        private readonly AdvisorClientCapacity $clientCapacity,
     ) {}
 
     public function convert(EntrepreneurProfile $profile, User $actor, ?BusinessPlan $sourcePlan = null): Client
     {
+        $this->clientCapacity->ensureCanAdd($actor);
         $profile->loadMissing('user', 'advisoryReadinessSignals');
         $sourcePlan ??= BusinessPlan::query()
             ->where('entrepreneur_profile_id', $profile->getKey())
@@ -70,6 +73,7 @@ final class AdvisoryConversion
 
     public function handoffDdPlan(BusinessPlan $plan, User $actor): Client
     {
+        $this->clientCapacity->ensureCanAdd($actor);
         $plan->loadMissing('ddEngagement.client');
         $engagement = $plan->ddEngagement;
 

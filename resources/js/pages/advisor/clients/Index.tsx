@@ -1,5 +1,5 @@
 import { Head, Link } from '@inertiajs/react';
-import { Plus, Search, Send } from 'lucide-react';
+import { ArrowRightLeft, Plus, Search, Send, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { ClientSummary } from './types';
@@ -19,12 +19,18 @@ type Props = {
         unknown_count: number;
         clear_url: string;
     } | null;
+    showAdvisorAssignments: boolean;
+    allocationUrl: string | null;
+    transferRequestUrl: string | null;
 };
 
 export default function ClientsIndex({
     clients,
     engagementFilter,
     exposureFilter,
+    showAdvisorAssignments,
+    allocationUrl,
+    transferRequestUrl,
 }: Props) {
     const pageTitle = engagementFilter?.label ?? 'Clients';
     const emptyLabel = engagementFilter
@@ -51,6 +57,17 @@ export default function ClientsIndex({
                         )}
                     </div>
                     <div className="flex flex-wrap justify-end gap-2">
+                        {allocationUrl ? (
+                            <Button asChild size="sm" variant="outline">
+                                <Link href={allocationUrl}>
+                                    <UsersRound
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                    Client allocations
+                                </Link>
+                            </Button>
+                        ) : null}
                         <Button asChild size="sm">
                             <Link href={inviteUrl}>
                                 <Send className="size-4" aria-hidden="true" />
@@ -115,6 +132,11 @@ export default function ClientsIndex({
                                     <th className="px-3 py-2 font-medium">
                                         Quality
                                     </th>
+                                    {showAdvisorAssignments ? (
+                                        <th className="px-3 py-2 font-medium">
+                                            Advisors
+                                        </th>
+                                    ) : null}
                                     <th className="px-3 py-2 text-right font-medium">
                                         Actions
                                     </th>
@@ -182,11 +204,64 @@ export default function ClientsIndex({
                                                 {client.data_quality}
                                             </Badge>
                                         </td>
+                                        {showAdvisorAssignments ? (
+                                            <td
+                                                className="px-3 py-2"
+                                                data-label="Advisors"
+                                            >
+                                                {client.advisor_assignments
+                                                    ?.length ? (
+                                                    <div className="space-y-1 text-sm">
+                                                        {client.advisor_assignments.map(
+                                                            (assignment, index) => (
+                                                                <div key={`${assignment.advisor_name}-${index}`}>
+                                                                    <span className="font-medium">
+                                                                        {assignment.advisor_name ??
+                                                                            'Unknown advisor'}
+                                                                    </span>
+                                                                    <span className="text-muted-foreground">
+                                                                        {' '}
+                                                                        ({formatRole(
+                                                                            assignment.role,
+                                                                        )}
+                                                                        {assignment.team_name
+                                                                            ? `, ${assignment.team_name}`
+                                                                            : ''}
+                                                                        )
+                                                                    </span>
+                                                                </div>
+                                                            ),
+                                                        )}
+                                                    </div>
+                                                ) : (
+                                                    <span className="text-sm text-muted-foreground">
+                                                        Unassigned
+                                                    </span>
+                                                )}
+                                            </td>
+                                        ) : null}
                                         <td
                                             className="px-3 py-2"
                                             data-label="Actions"
                                         >
-                                            <div className="flex justify-start md:justify-end">
+                                            <div className="flex flex-wrap justify-start gap-2 md:justify-end">
+                                                {transferRequestUrl ? (
+                                                    <Button
+                                                        asChild
+                                                        size="sm"
+                                                        variant="outline"
+                                                    >
+                                                        <Link
+                                                            href={`${transferRequestUrl}?client_id=${encodeURIComponent(client.id)}`}
+                                                        >
+                                                            <ArrowRightLeft
+                                                                className="size-4"
+                                                                aria-hidden="true"
+                                                            />
+                                                            Request transfer
+                                                        </Link>
+                                                    </Button>
+                                                ) : null}
                                                 <Button
                                                     asChild
                                                     size="sm"
@@ -227,3 +302,10 @@ ClientsIndex.layout = {
         },
     ],
 };
+
+function formatRole(value: string) {
+    return value
+        .split('_')
+        .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+        .join(' ');
+}

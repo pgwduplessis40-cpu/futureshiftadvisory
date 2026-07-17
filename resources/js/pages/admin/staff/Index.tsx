@@ -16,6 +16,15 @@ type StaffUser = {
     user_type: string;
     primary_role: string;
     session_timeout_minutes: number | null;
+    advisor_client_capacity_limit: number | null;
+    client_capacity: {
+        active_count: number;
+        limit: number;
+        warning_threshold: number;
+        remaining: number;
+        warning: boolean;
+        blocked: boolean;
+    } | null;
     mfa_enabled_at: string | null;
     suspended_at: string | null;
     suspended_reason: string | null;
@@ -36,6 +45,7 @@ type StaffForm = {
     user_type: string;
     primary_role: string;
     session_timeout_minutes: number;
+    advisor_client_capacity_limit: number;
     suspended: boolean;
     suspended_reason: string;
 };
@@ -96,6 +106,9 @@ export default function StaffIndex({
                                     Timeout (minutes)
                                 </th>
                                 <th className="w-[14%] px-3 py-2 font-medium">
+                                    Client capacity
+                                </th>
+                                <th className="w-[12%] px-3 py-2 font-medium">
                                     Status
                                 </th>
                                 <th className="w-[8%] px-3 py-2 text-right font-medium">
@@ -107,7 +120,7 @@ export default function StaffIndex({
                             {staff.length === 0 ? (
                                 <tr>
                                     <td
-                                        colSpan={7}
+                                        colSpan={8}
                                         className="px-3 py-4 text-muted-foreground"
                                     >
                                         No staff accounts yet.
@@ -229,6 +242,8 @@ function StaffRow({
         user_type: user.user_type,
         primary_role: user.primary_role,
         session_timeout_minutes: user.session_timeout_minutes ?? 30,
+        advisor_client_capacity_limit:
+            user.advisor_client_capacity_limit ?? user.client_capacity?.limit ?? 30,
         suspended: user.suspended_at !== null,
         suspended_reason: user.suspended_reason ?? '',
     });
@@ -308,6 +323,50 @@ function StaffRow({
                 />
                 <InputError message={form.errors.session_timeout_minutes} />
             </td>
+            <td className="px-3 py-3" data-label="Client capacity">
+                {isAdvisor(form.data.user_type) ? (
+                    <div className="grid gap-2">
+                        <Input
+                            form={`staff-${user.id}`}
+                            type="number"
+                            min="1"
+                            max="500"
+                            aria-label="Active client capacity"
+                            value={form.data.advisor_client_capacity_limit}
+                            onChange={(event) =>
+                                form.setData(
+                                    'advisor_client_capacity_limit',
+                                    Number(event.target.value),
+                                )
+                            }
+                        />
+                        {user.client_capacity ? (
+                            <div className="flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                                <span>
+                                    {user.client_capacity.active_count} active /{' '}
+                                    {form.data.advisor_client_capacity_limit}
+                                </span>
+                                <Badge
+                                    variant={
+                                        user.client_capacity.blocked
+                                            ? 'destructive'
+                                            : user.client_capacity.warning
+                                              ? 'secondary'
+                                              : 'outline'
+                                    }
+                                >
+                                    {user.client_capacity.remaining} remaining
+                                </Badge>
+                            </div>
+                        ) : null}
+                        <InputError
+                            message={form.errors.advisor_client_capacity_limit}
+                        />
+                    </div>
+                ) : (
+                    <span className="text-sm text-muted-foreground">Not applicable</span>
+                )}
+            </td>
             <td className="px-3 py-3" data-label="Status">
                 <div className="grid gap-2">
                     <div className="flex items-center gap-2">
@@ -366,4 +425,8 @@ function formatRole(value: string) {
         .split('_')
         .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
         .join(' ');
+}
+
+function isAdvisor(userType: string) {
+    return userType === 'advisor' || userType === 'junior_advisor';
 }

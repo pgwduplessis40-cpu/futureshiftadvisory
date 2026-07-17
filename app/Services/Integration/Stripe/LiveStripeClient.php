@@ -151,9 +151,11 @@ final class LiveStripeClient implements StripeClient
                     'amount' => (int) round(((float) $request->amount) * 100),
                     'currency' => strtolower($request->currency),
                     'customer' => $request->customerRef,
+                    'description' => $this->paymentDescription($request),
                     'payment_method' => $request->token,
                     'confirm' => 'true',
                     'off_session' => 'true',
+                    'statement_descriptor_suffix' => $this->statementDescriptorSuffix($request),
                     'metadata' => $this->metadata([
                         'client_id' => $request->clientId,
                         'proposal_id' => $request->proposalId,
@@ -362,6 +364,28 @@ final class LiveStripeClient implements StripeClient
     private function params(array $params): array
     {
         return array_filter($params, fn (mixed $value): bool => $value !== null && $value !== '' && $value !== []);
+    }
+
+    private function paymentDescription(PaymentChargeRequest $request): string
+    {
+        $code = $this->payloadString($request->metadata, 'client_code');
+
+        return $code !== null
+            ? "Future Shift Advisory {$code}"
+            : 'Future Shift Advisory client payment';
+    }
+
+    private function statementDescriptorSuffix(PaymentChargeRequest $request): ?string
+    {
+        $code = $this->payloadString($request->metadata, 'client_code');
+        if ($code === null) {
+            return null;
+        }
+
+        $code = strtoupper(preg_replace('/[^A-Z0-9 -]+/i', '', $code) ?? '');
+        $code = trim($code);
+
+        return $code === '' ? null : mb_substr($code, 0, 10);
     }
 
     /**

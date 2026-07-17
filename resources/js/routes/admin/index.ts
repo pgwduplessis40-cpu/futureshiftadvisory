@@ -1,5 +1,7 @@
 import invitations from './invitations'
 import staff from './staff'
+import clientAllocations from './client-allocations'
+import clientTransfers from './client-transfers'
 import questionnaires from './questionnaires'
 import surveys from './surveys'
 import terms from './terms'
@@ -21,6 +23,8 @@ import panelMembers from './panel-members'
 const admin = {
     invitations: Object.assign(invitations, invitations),
 staff: Object.assign(staff, staff),
+clientAllocations: Object.assign(clientAllocations, clientAllocations),
+clientTransfers: Object.assign(clientTransfers, clientTransfers),
 questionnaires: Object.assign(questionnaires, questionnaires),
 surveys: Object.assign(surveys, surveys),
 terms: Object.assign(terms, terms),

@@ -1,7 +1,7 @@
 import { queryParams, type RouteQueryOptions, type RouteDefinition, type RouteFormDefinition } from './../../../../wayfinder'
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:196
+ * @see app/Http/Controllers/Advisor/ClientController.php:216
  * @route '/advisor/clients/invite'
  */
 export const store = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -16,7 +16,7 @@ store.definition = {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:196
+ * @see app/Http/Controllers/Advisor/ClientController.php:216
  * @route '/advisor/clients/invite'
  */
 store.url = (options?: RouteQueryOptions) => {
@@ -25,7 +25,7 @@ store.url = (options?: RouteQueryOptions) => {
 
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:196
+ * @see app/Http/Controllers/Advisor/ClientController.php:216
  * @route '/advisor/clients/invite'
  */
 store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
@@ -35,7 +35,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
     /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:196
+ * @see app/Http/Controllers/Advisor/ClientController.php:216
  * @route '/advisor/clients/invite'
  */
     const storeForm = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
@@ -45,14 +45,14 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
 
             /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
- * @see app/Http/Controllers/Advisor/ClientController.php:196
+ * @see app/Http/Controllers/Advisor/ClientController.php:216
  * @route '/advisor/clients/invite'
  */
         storeForm.post = (options?: RouteQueryOptions): RouteFormDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-    
+
     store.form = storeForm
 const invite = {
     store: Object.assign(store, store),

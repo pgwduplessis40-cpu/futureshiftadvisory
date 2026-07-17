@@ -15,6 +15,7 @@ use App\Http\Controllers\Advisor\ClientEmailController;
 use App\Http\Controllers\Advisor\ClientLifecycleController;
 use App\Http\Controllers\Advisor\ClientMessageController;
 use App\Http\Controllers\Advisor\ClientStrategicBudgetController;
+use App\Http\Controllers\Advisor\ClientTransferRequestController;
 use App\Http\Controllers\Advisor\DocumentVerificationController;
 use App\Http\Controllers\Advisor\EntrepreneurActionController;
 use App\Http\Controllers\Advisor\EntrepreneurAssessmentController;
@@ -73,6 +74,12 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients', [ClientController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.index');
+        Route::get('client-transfers', [ClientTransferRequestController::class, 'index'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('client-transfers.index');
+        Route::post('client-transfers', [ClientTransferRequestController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->name('client-transfers.store');
         Route::get('service-activations', [ServiceActivationController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('service-activations.index');
