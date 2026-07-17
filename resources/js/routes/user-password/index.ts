@@ -62,7 +62,7 @@ update.put = (options?: RouteQueryOptions): RouteDefinition<'put'> => ({
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 const userPassword = {
     update: Object.assign(update, update),

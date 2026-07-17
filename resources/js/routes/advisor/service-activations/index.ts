@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::show
@@ -105,7 +105,7 @@ show.url = (args: { serviceActivation: string | { id: string } } | [serviceActiv
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -177,7 +177,7 @@ show.head = (args: { serviceActivation: string | { id: string } } | [serviceActi
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::packageMethod
@@ -207,7 +207,7 @@ packageMethod.url = (args: { serviceActivation: string | { id: string } } | [ser
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -256,7 +256,7 @@ packageMethod.post = (args: { serviceActivation: string | { id: string } } | [se
             action: packageMethod.url(args, options),
             method: 'post',
         })
-
+    
     packageMethod.form = packageMethodForm
 /**
 * @see \App\Http\Controllers\Advisor\ServiceActivationController::balanceReceived
@@ -286,7 +286,7 @@ balanceReceived.url = (args: { serviceActivation: string | { id: string } } | [s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceActivation: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceActivation: args[0],
@@ -335,7 +335,7 @@ balanceReceived.post = (args: { serviceActivation: string | { id: string } } | [
             action: balanceReceived.url(args, options),
             method: 'post',
         })
-
+    
     balanceReceived.form = balanceReceivedForm
 const serviceActivations = {
     index: Object.assign(index, index),

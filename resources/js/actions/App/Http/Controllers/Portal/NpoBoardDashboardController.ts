@@ -75,6 +75,6 @@ NpoBoardDashboardController.head = (options?: RouteQueryOptions): RouteDefinitio
                     }),
             method: 'get',
         })
-
+    
     NpoBoardDashboardController.form = NpoBoardDashboardControllerForm
 export default NpoBoardDashboardController

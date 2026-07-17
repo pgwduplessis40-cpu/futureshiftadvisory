@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\ClientLeavePeriodController::destroy
@@ -82,7 +82,7 @@ destroy.url = (args: { leavePeriod: string | { id: string } } | [leavePeriod: st
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { leavePeriod: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     leavePeriod: args[0],
@@ -141,7 +141,7 @@ destroy.delete = (args: { leavePeriod: string | { id: string } } | [leavePeriod:
                     }),
             method: 'post',
         })
-
+    
     destroy.form = destroyForm
 const leavePeriods = {
     store: Object.assign(store, store),

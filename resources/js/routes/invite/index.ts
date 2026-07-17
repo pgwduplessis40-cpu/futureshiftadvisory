@@ -24,7 +24,7 @@ accept.url = (args: { token: string | number } | [token: string | number ] | str
         args = { token: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -94,7 +94,7 @@ accept.head = (args: { token: string | number } | [token: string | number ] | st
                     }),
             method: 'get',
         })
-
+    
     accept.form = acceptForm
 /**
 * @see \App\Http\Controllers\Auth\InviteAcceptController::store
@@ -121,7 +121,7 @@ store.url = (args: { token: string | number } | [token: string | number ] | stri
         args = { token: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     token: args[0],
@@ -168,7 +168,7 @@ store.post = (args: { token: string | number } | [token: string | number ] | str
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const invite = {
     accept: Object.assign(accept, accept),

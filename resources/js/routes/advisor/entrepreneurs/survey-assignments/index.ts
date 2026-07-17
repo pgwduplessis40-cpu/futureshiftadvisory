@@ -27,7 +27,7 @@ store.url = (args: { entrepreneurProfile: string | { id: string } } | [entrepren
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { entrepreneurProfile: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     entrepreneurProfile: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { entrepreneurProfile: string | { id: string } } | [entrepre
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const surveyAssignments = {
     store: Object.assign(store, store),

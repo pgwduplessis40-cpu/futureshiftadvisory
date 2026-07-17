@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reassign
@@ -105,7 +105,7 @@ reassign.url = (args: { client: string | { id: string } } | [client: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -164,7 +164,7 @@ reassign.patch = (args: { client: string | { id: string } } | [client: string | 
                     }),
             method: 'post',
         })
-
+    
     reassign.form = reassignForm
 const clientAllocations = {
     index: Object.assign(index, index),

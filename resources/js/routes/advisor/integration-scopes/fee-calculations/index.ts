@@ -27,7 +27,7 @@ store.url = (args: { integrationScope: string | { id: string } } | [integrationS
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { integrationScope: string | { id: string } } | [integration
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 const feeCalculations = {
     store: Object.assign(store, store),

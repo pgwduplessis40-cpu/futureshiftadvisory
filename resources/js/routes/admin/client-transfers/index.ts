@@ -27,7 +27,7 @@ approve.url = (args: { transfer: string | { id: string } } | [transfer: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { transfer: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     transfer: args[0],
@@ -86,7 +86,7 @@ approve.patch = (args: { transfer: string | { id: string } } | [transfer: string
                     }),
             method: 'post',
         })
-
+    
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reject
@@ -116,7 +116,7 @@ reject.url = (args: { transfer: string | { id: string } } | [transfer: string | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { transfer: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     transfer: args[0],
@@ -175,7 +175,7 @@ reject.patch = (args: { transfer: string | { id: string } } | [transfer: string 
                     }),
             method: 'post',
         })
-
+    
     reject.form = rejectForm
 const clientTransfers = {
     approve: Object.assign(approve, approve),

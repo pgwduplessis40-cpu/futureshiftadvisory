@@ -77,7 +77,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::store
@@ -132,7 +132,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::edit
@@ -162,7 +162,7 @@ edit.url = (args: { termsVersion: string | { id: string } } | [termsVersion: str
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -234,7 +234,7 @@ edit.head = (args: { termsVersion: string | { id: string } } | [termsVersion: st
                     }),
             method: 'get',
         })
-
+    
     edit.form = editForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::update
@@ -264,7 +264,7 @@ update.url = (args: { termsVersion: string | { id: string } } | [termsVersion: s
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -323,7 +323,7 @@ update.put = (args: { termsVersion: string | { id: string } } | [termsVersion: s
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::preview
@@ -353,7 +353,7 @@ preview.url = (args: { termsVersion: string | { id: string } } | [termsVersion: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -425,7 +425,7 @@ preview.head = (args: { termsVersion: string | { id: string } } | [termsVersion:
                     }),
             method: 'get',
         })
-
+    
     preview.form = previewForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::download
@@ -455,7 +455,7 @@ download.url = (args: { termsVersion: string | { id: string } } | [termsVersion:
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -527,7 +527,7 @@ download.head = (args: { termsVersion: string | { id: string } } | [termsVersion
                     }),
             method: 'get',
         })
-
+    
     download.form = downloadForm
 /**
 * @see \App\Http\Controllers\Admin\TermsController::publish
@@ -557,7 +557,7 @@ publish.url = (args: { termsVersion: string | { id: string } } | [termsVersion: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { termsVersion: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     termsVersion: args[0],
@@ -606,7 +606,7 @@ publish.post = (args: { termsVersion: string | { id: string } } | [termsVersion:
             action: publish.url(args, options),
             method: 'post',
         })
-
+    
     publish.form = publishForm
 const terms = {
     index: Object.assign(index, index),

@@ -52,7 +52,7 @@ draft.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: draft.url(options),
             method: 'post',
         })
-
+    
     draft.form = draftForm
 const questionnaire = {
     draft: Object.assign(draft, draft),

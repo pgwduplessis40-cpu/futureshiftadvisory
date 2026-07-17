@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reassign
@@ -105,7 +105,7 @@ reassign.url = (args: { client: string | { id: string } } | [client: string | { 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -164,7 +164,7 @@ reassign.patch = (args: { client: string | { id: string } } | [client: string | 
                     }),
             method: 'post',
         })
-
+    
     reassign.form = reassignForm
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::approve
@@ -194,7 +194,7 @@ approve.url = (args: { transfer: string | { id: string } } | [transfer: string |
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { transfer: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     transfer: args[0],
@@ -253,7 +253,7 @@ approve.patch = (args: { transfer: string | { id: string } } | [transfer: string
                     }),
             method: 'post',
         })
-
+    
     approve.form = approveForm
 /**
 * @see \App\Http\Controllers\Admin\ClientAllocationController::reject
@@ -283,7 +283,7 @@ reject.url = (args: { transfer: string | { id: string } } | [transfer: string | 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { transfer: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     transfer: args[0],
@@ -342,7 +342,7 @@ reject.patch = (args: { transfer: string | { id: string } } | [transfer: string 
                     }),
             method: 'post',
         })
-
+    
     reject.form = rejectForm
 const ClientAllocationController = { index, reassign, approve, reject }
 

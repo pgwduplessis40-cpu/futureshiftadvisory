@@ -27,7 +27,7 @@ generate.url = (args: { proposal: string | { id: string } } | [proposal: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { proposal: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     proposal: args[0],
@@ -76,7 +76,7 @@ generate.post = (args: { proposal: string | { id: string } } | [proposal: string
             action: generate.url(args, options),
             method: 'post',
         })
-
+    
     generate.form = generateForm
 const strategicPlan = {
     generate: Object.assign(generate, generate),

@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::update
@@ -82,7 +82,7 @@ update.url = (args: { serviceRatePackage: string | { id: string } } | [serviceRa
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRatePackage: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceRatePackage: args[0],
@@ -141,7 +141,7 @@ update.patch = (args: { serviceRatePackage: string | { id: string } } | [service
                     }),
             method: 'post',
         })
-
+    
     update.form = updateForm
 /**
 * @see \App\Http\Controllers\Admin\ServiceRateController::toggle
@@ -171,7 +171,7 @@ toggle.url = (args: { serviceRatePackage: string | { id: string } } | [serviceRa
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { serviceRatePackage: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     serviceRatePackage: args[0],
@@ -230,7 +230,7 @@ toggle.patch = (args: { serviceRatePackage: string | { id: string } } | [service
                     }),
             method: 'post',
         })
-
+    
     toggle.form = toggleForm
 const packages = {
     store: Object.assign(store, store),

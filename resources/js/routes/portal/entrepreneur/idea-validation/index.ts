@@ -52,7 +52,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::recall
@@ -107,7 +107,7 @@ recall.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: recall.url(options),
             method: 'post',
         })
-
+    
     recall.form = recallForm
 /**
 * @see \App\Http\Controllers\Portal\EntrepreneurPlanController::restore
@@ -137,7 +137,7 @@ restore.url = (args: { ideaValidation: string | { id: string } } | [ideaValidati
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { ideaValidation: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     ideaValidation: args[0],
@@ -186,7 +186,7 @@ restore.post = (args: { ideaValidation: string | { id: string } } | [ideaValidat
             action: restore.url(args, options),
             method: 'post',
         })
-
+    
     restore.form = restoreForm
 const ideaValidation = {
     store: Object.assign(store, store),

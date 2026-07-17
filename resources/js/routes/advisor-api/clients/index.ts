@@ -77,7 +77,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\AdvisorApi\ClientController::show
@@ -107,7 +107,7 @@ show.url = (args: { client: string | { id: string } } | [client: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -179,7 +179,7 @@ show.head = (args: { client: string | { id: string } } | [client: string | { id:
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const clients = {
     index: Object.assign(index, index),

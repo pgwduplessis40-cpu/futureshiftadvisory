@@ -96,7 +96,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::create
@@ -174,7 +174,7 @@ create.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     create.form = createForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::invite
@@ -252,7 +252,7 @@ invite.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     invite.form = inviteForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::lookupNzbn
@@ -307,7 +307,7 @@ lookupNzbn.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: lookupNzbn.url(options),
             method: 'post',
         })
-
+    
     lookupNzbn.form = lookupNzbnForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::store
@@ -362,7 +362,7 @@ store.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: store.url(options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\SurveyResultController::surveys
@@ -392,7 +392,7 @@ surveys.url = (args: { client: string | { id: string } } | [client: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -464,7 +464,7 @@ surveys.head = (args: { client: string | { id: string } } | [client: string | { 
                     }),
             method: 'get',
         })
-
+    
     surveys.form = surveysForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientEmailController::compose
@@ -494,7 +494,7 @@ compose.url = (args: { client: string | { id: string } } | [client: string | { i
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -566,7 +566,7 @@ compose.head = (args: { client: string | { id: string } } | [client: string | { 
                     }),
             method: 'get',
         })
-
+    
     compose.form = composeForm
 /**
 * @see \App\Http\Controllers\Advisor\ClientController::show
@@ -596,7 +596,7 @@ show.url = (args: { client: string | { id: string } } | [client: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { client: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     client: args[0],
@@ -668,7 +668,7 @@ show.head = (args: { client: string | { id: string } } | [client: string | { id:
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const clients = {
     index: Object.assign(index, index),

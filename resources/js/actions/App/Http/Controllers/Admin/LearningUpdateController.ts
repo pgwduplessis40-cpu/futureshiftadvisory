@@ -75,7 +75,7 @@ index.head = (options?: RouteQueryOptions): RouteDefinition<'head'> => ({
                     }),
             method: 'get',
         })
-
+    
     index.form = indexForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rerun
@@ -130,7 +130,7 @@ rerun.post = (options?: RouteQueryOptions): RouteDefinition<'post'> => ({
             action: rerun.url(options),
             method: 'post',
         })
-
+    
     rerun.form = rerunForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::decide
@@ -160,7 +160,7 @@ decide.url = (args: { learningUpdate: string | { id: string } } | [learningUpdat
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { learningUpdate: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     learningUpdate: args[0],
@@ -219,7 +219,7 @@ decide.patch = (args: { learningUpdate: string | { id: string } } | [learningUpd
                     }),
             method: 'post',
         })
-
+    
     decide.form = decideForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::reviewImpact
@@ -249,7 +249,7 @@ reviewImpact.url = (args: { learningUpdateImplementation: string | { id: string 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { learningUpdateImplementation: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     learningUpdateImplementation: args[0],
@@ -308,7 +308,7 @@ reviewImpact.patch = (args: { learningUpdateImplementation: string | { id: strin
                     }),
             method: 'post',
         })
-
+    
     reviewImpact.form = reviewImpactForm
 /**
 * @see \App\Http\Controllers\Admin\LearningUpdateController::rollback
@@ -338,7 +338,7 @@ rollback.url = (args: { learningUpdateImplementation: string | { id: string } } 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { learningUpdateImplementation: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     learningUpdateImplementation: args[0],
@@ -397,7 +397,7 @@ rollback.patch = (args: { learningUpdateImplementation: string | { id: string } 
                     }),
             method: 'post',
         })
-
+    
     rollback.form = rollbackForm
 const LearningUpdateController = { index, rerun, decide, reviewImpact, rollback }
 

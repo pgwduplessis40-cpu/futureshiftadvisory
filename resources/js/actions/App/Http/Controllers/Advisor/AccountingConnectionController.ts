@@ -94,7 +94,7 @@ connect.head = (args: { client: string | { id: string }, provider: string | numb
                     }),
             method: 'get',
         })
-
+    
     connect.form = connectForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callbackFromState
@@ -121,7 +121,7 @@ callbackFromState.url = (args: { provider: string | number } | [provider: string
         args = { provider: args }
     }
 
-
+    
     if (Array.isArray(args)) {
         args = {
                     provider: args[0],
@@ -191,7 +191,7 @@ callbackFromState.head = (args: { provider: string | number } | [provider: strin
                     }),
             method: 'get',
         })
-
+    
     callbackFromState.form = callbackFromStateForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::callback
@@ -288,7 +288,7 @@ callback.head = (args: { client: string | { id: string }, provider: string | num
                     }),
             method: 'get',
         })
-
+    
     callback.form = callbackForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::pull
@@ -364,7 +364,7 @@ pull.post = (args: { client: string | { id: string }, accountingConnection: stri
             action: pull.url(args, options),
             method: 'post',
         })
-
+    
     pull.form = pullForm
 /**
 * @see \App\Http\Controllers\Advisor\AccountingConnectionController::revoke
@@ -450,7 +450,7 @@ revoke.patch = (args: { client: string | { id: string }, accountingConnection: s
                     }),
             method: 'post',
         })
-
+    
     revoke.form = revokeForm
 const AccountingConnectionController = { connect, callbackFromState, callback, pull, revoke }
 

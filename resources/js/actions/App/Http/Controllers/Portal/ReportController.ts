@@ -27,7 +27,7 @@ show.url = (args: { report: string | { id: string } } | [report: string | { id: 
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { report: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     report: args[0],
@@ -99,7 +99,7 @@ show.head = (args: { report: string | { id: string } } | [report: string | { id:
                     }),
             method: 'get',
         })
-
+    
     show.form = showForm
 const ReportController = { show }
 

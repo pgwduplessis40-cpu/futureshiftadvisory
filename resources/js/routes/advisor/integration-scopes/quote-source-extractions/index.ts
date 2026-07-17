@@ -27,7 +27,7 @@ store.url = (args: { integrationScope: string | { id: string } } | [integrationS
             if (typeof args === 'object' && !Array.isArray(args) && 'id' in args) {
             args = { integrationScope: args.id }
         }
-
+    
     if (Array.isArray(args)) {
         args = {
                     integrationScope: args[0],
@@ -76,7 +76,7 @@ store.post = (args: { integrationScope: string | { id: string } } | [integration
             action: store.url(args, options),
             method: 'post',
         })
-
+    
     store.form = storeForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::retry
@@ -152,7 +152,7 @@ retry.post = (args: { integrationScope: string | { id: string }, quoteSourceExtr
             action: retry.url(args, options),
             method: 'post',
         })
-
+    
     retry.form = retryForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::confirm
@@ -228,7 +228,7 @@ confirm.post = (args: { integrationScope: string | { id: string }, quoteSourceEx
             action: confirm.url(args, options),
             method: 'post',
         })
-
+    
     confirm.form = confirmForm
 /**
 * @see \App\Http\Controllers\Advisor\IntegrationScopeController::reject
@@ -304,7 +304,7 @@ reject.post = (args: { integrationScope: string | { id: string }, quoteSourceExt
             action: reject.url(args, options),
             method: 'post',
         })
-
+    
     reject.form = rejectForm
 const quoteSourceExtractions = {
     store: Object.assign(store, store),
