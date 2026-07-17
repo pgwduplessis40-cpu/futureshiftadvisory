@@ -32,6 +32,7 @@ final class IdeaValidationService implements ProvidesMethodology
         private readonly AuditWriter $audit,
         private readonly EntrepreneurMilestones $milestones,
         private readonly MessageThreadService $messages,
+        private readonly IdeaViabilityGate $viabilityGate,
     ) {}
 
     /**
@@ -342,6 +343,13 @@ final class IdeaValidationService implements ProvidesMethodology
     {
         $this->assertNotRecalled($validation, 'advisor_gate_note');
 
+        $gate = $this->viabilityGate->assess($validation->refresh());
+        if (! $gate['approval_available']) {
+            throw ValidationException::withMessages([
+                'advisor_gate' => implode(' ', [$gate['summary'], ...$gate['reasons']]),
+            ]);
+        }
+
         $note = trim($note);
 
         if ($note === '') {
@@ -350,7 +358,7 @@ final class IdeaValidationService implements ProvidesMethodology
             ]);
         }
 
-        return DB::transaction(function () use ($validation, $advisor, $note): IdeaValidation {
+        return DB::transaction(function () use ($validation, $advisor, $gate, $note): IdeaValidation {
             $evaluation = $validation->ai_evaluation ?? [];
             data_set($evaluation, 'metadata.advisor_gate_status', 'approved');
             data_set($evaluation, 'metadata.advisor_gate_approved_at', now()->toIso8601String());
@@ -370,6 +378,7 @@ final class IdeaValidationService implements ProvidesMethodology
             $this->audit->record('entrepreneur.idea_gate_passed', subject: $validation, actor: $advisor, after: [
                 'entrepreneur_profile_id' => $validation->entrepreneur_profile_id,
                 'advisor_gate_passed_at' => $validation->advisor_gate_passed_at?->toIso8601String(),
+                'viability_gate' => $gate,
             ]);
             $this->milestones->awardIdeaValidated($validation->refresh()->load('entrepreneurProfile'));
 
@@ -566,6 +575,13 @@ final class IdeaValidationService implements ProvidesMethodology
     {
         $alerts = [];
 
+        $coreFields = [
+            'problem',
+            'target_customer',
+            'solution',
+            'value_proposition',
+        ];
+
         foreach ([
             'problem' => 'Clarify the customer problem before investing in solution detail.',
             'target_customer' => 'Define a narrower target customer segment.',
@@ -574,28 +590,30 @@ final class IdeaValidationService implements ProvidesMethodology
             'demand_signal' => 'Add stronger demand evidence before launch.',
             'revenue_model' => 'Explain how revenue will be earned and collected.',
         ] as $field => $message) {
-            if (str_word_count(trim((string) ($payload[$field] ?? ''))) < 4) {
+            if (str_word_count(trim((string) ($payload[$field] ?? ''))) < $this->minimumFieldWords()) {
+                $blocking = in_array($field, $coreFields, true);
+
                 $alerts[] = [
-                    'severity' => 'informational',
+                    'severity' => $blocking ? 'blocking' : 'warning',
                     'type' => $field.'_weakness',
                     'message' => $message,
-                    'blocking' => false,
+                    'blocking' => $blocking,
                 ];
             }
         }
 
         if (str_contains(strtolower((string) ($payload['demand_signal'] ?? '')), 'none')) {
             $alerts[] = [
-                'severity' => 'informational',
+                'severity' => 'warning',
                 'type' => 'demand_not_evidenced',
                 'message' => 'Demand is not yet evidenced; validate before committing material spend.',
                 'blocking' => false,
             ];
         }
 
-        if (($evidenceLoop['status'] ?? null) !== 'experiments_recorded') {
+        if (($evidenceLoop['status'] ?? null) !== 'experiments_recorded' && ! $this->viabilityGate->hasSufficientDemandEvidence($payload)) {
             $alerts[] = [
-                'severity' => 'informational',
+                'severity' => 'warning',
                 'type' => 'experiment_loop_missing',
                 'message' => 'Record at least one customer experiment with hypothesis, evidence, result, and next step before committing material spend.',
                 'blocking' => false,
@@ -603,6 +621,11 @@ final class IdeaValidationService implements ProvidesMethodology
         }
 
         return $alerts;
+    }
+
+    private function minimumFieldWords(): int
+    {
+        return max(4, (int) config('entrepreneurs.idea_viability.minimum_field_words', 6));
     }
 
     /**

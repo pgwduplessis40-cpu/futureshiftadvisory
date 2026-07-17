@@ -21,11 +21,12 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class PlanDocumentsTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -128,7 +129,7 @@ final class PlanDocumentsTest extends TestCase
             'demand_signal' => 'Customer interviews are complete.',
             'revenue_model' => 'Advisory subscription and implementation support.',
         ], $advisor);
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready for verified planning.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready for verified planning.');
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
         $section = app(PlanBuilder::class)->upsertSection(
             plan: $plan,

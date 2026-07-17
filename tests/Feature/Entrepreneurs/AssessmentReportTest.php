@@ -28,11 +28,12 @@ use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class AssessmentReportTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     private object $renderer;
 
@@ -189,7 +190,7 @@ final class AssessmentReportTest extends TestCase
             'demand_signal' => 'Pilot interviews and customer evidence are complete.',
             'revenue_model' => 'Subscription revenue with onboarding support.',
         ], $advisor);
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready for assessment reporting.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready for assessment reporting.');
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
 
         foreach ([

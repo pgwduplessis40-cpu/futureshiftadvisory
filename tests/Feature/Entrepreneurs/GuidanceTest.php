@@ -18,11 +18,12 @@ use App\Support\RequestContext;
 use Database\Seeders\NzResourceSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class GuidanceTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -171,7 +172,7 @@ final class GuidanceTest extends TestCase
             'demand_signal' => 'Five customer interviews are complete.',
             'revenue_model' => 'Monthly subscription and setup support.',
         ], $advisor);
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready for guided planning.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready for guided planning.');
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
         $section = app(PlanBuilder::class)->upsertSection(
             plan: $plan,

@@ -27,11 +27,12 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class GamificationTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -446,7 +447,7 @@ final class GamificationTest extends TestCase
             'revenue_model' => 'Monthly advisory subscription with milestone-based support.',
         ], $advisor);
 
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready to start planning.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready to start planning.');
     }
 
     private function completePlan(BusinessPlan $plan, User $actor): void

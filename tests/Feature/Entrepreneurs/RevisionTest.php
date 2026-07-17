@@ -22,11 +22,12 @@ use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class RevisionTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     private const RLS_APP_ROLE = 'fsa_plan_revisions_rls_app';
 
@@ -226,7 +227,7 @@ final class RevisionTest extends TestCase
             'demand_signal' => 'Pilot interviews and customer evidence are complete.',
             'revenue_model' => 'Subscription revenue with onboarding support.',
         ], $advisor);
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready for revision.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready for revision.');
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
 
         foreach ([

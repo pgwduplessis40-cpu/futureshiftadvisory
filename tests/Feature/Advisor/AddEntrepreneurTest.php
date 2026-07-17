@@ -500,6 +500,8 @@ final class AddEntrepreneurTest extends TestCase
                 ->component('advisor/entrepreneurs/Show')
                 ->where('entrepreneur.idea_validation.id', $validation->id)
                 ->where('entrepreneur.idea_validation.ai_deferred', true)
+                ->where('entrepreneur.idea_validation.viability_gate.status', 'red')
+                ->where('entrepreneur.idea_validation.viability_gate.approval_available', false)
                 ->where('entrepreneur.idea_validation.refresh_status', null)
                 ->where('entrepreneur.idea_validation.refresh_stale', false)
                 ->where('entrepreneur.idea_validation.problem', 'Business Advisory')

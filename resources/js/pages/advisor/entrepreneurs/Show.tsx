@@ -144,6 +144,21 @@ export default function EntrepreneursShow({
                 ? 'Recalled for revision'
                 : 'Gate needed'
         : 'Needed';
+    const ideaViabilityGate = ideaValidation?.viability_gate;
+    const ideaGateCanBeApproved =
+        ideaViabilityGate?.approval_available === true;
+    const ideaViabilityGateClass =
+        ideaViabilityGate?.status === 'green'
+            ? 'border-emerald-200 bg-emerald-50 text-emerald-950'
+            : ideaViabilityGate?.status === 'amber'
+              ? 'border-amber-200 bg-amber-50 text-amber-950'
+              : 'border-red-200 bg-red-50 text-red-950';
+    const ideaViabilityDotClass =
+        ideaViabilityGate?.status === 'green'
+            ? 'bg-emerald-500'
+            : ideaViabilityGate?.status === 'amber'
+              ? 'bg-amber-500'
+              : 'bg-red-500';
     const ideaGateBadgeVariant: 'secondary' | 'destructive' | 'outline' =
         ideaGateStatus === 'approved'
             ? 'secondary'
@@ -700,8 +715,8 @@ export default function EntrepreneursShow({
                     ) : null}
                 </section>
 
-                <div className="grid gap-6 lg:grid-cols-3">
-                    <section className="space-y-4 rounded-md border bg-background p-4">
+                <div className="grid items-start gap-6 lg:grid-cols-3">
+                    <section className="self-start space-y-4 rounded-md border bg-background p-4 lg:sticky lg:top-6">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <ClipboardCheck
@@ -796,6 +811,21 @@ export default function EntrepreneursShow({
                                 <Badge variant={ideaGateBadgeVariant}>
                                     {ideaGateLabel}
                                 </Badge>
+                                {ideaViabilityGate ? (
+                                    <Badge
+                                        variant="outline"
+                                        className={ideaViabilityGateClass}
+                                    >
+                                        <span
+                                            className={cn(
+                                                'size-2 rounded-full',
+                                                ideaViabilityDotClass,
+                                            )}
+                                            aria-hidden="true"
+                                        />
+                                        {ideaViabilityGate.label}
+                                    </Badge>
+                                ) : null}
                             </div>
                         </div>
                         {ideaValidation ? (
@@ -871,6 +901,42 @@ export default function EntrepreneursShow({
                                     ) : null}
                                 </div>
 
+                                {ideaViabilityGate ? (
+                                    <div
+                                        className={cn(
+                                            'rounded-md border p-3 text-sm',
+                                            ideaViabilityGateClass,
+                                        )}
+                                    >
+                                        <div className="flex items-center gap-2">
+                                            <span
+                                                className={cn(
+                                                    'size-2 rounded-full',
+                                                    ideaViabilityDotClass,
+                                                )}
+                                                aria-hidden="true"
+                                            />
+                                            <p className="font-medium">
+                                                {ideaViabilityGate.label}
+                                            </p>
+                                        </div>
+                                        <p className="mt-1">
+                                            {ideaViabilityGate.summary}
+                                        </p>
+                                        {ideaViabilityGate.reasons.length > 0 ? (
+                                            <ul className="mt-2 list-disc space-y-1 pl-5">
+                                                {ideaViabilityGate.reasons.map(
+                                                    (reason) => (
+                                                        <li key={reason}>
+                                                            {reason}
+                                                        </li>
+                                                    ),
+                                                )}
+                                            </ul>
+                                        ) : null}
+                                    </div>
+                                ) : null}
+
                                 <dl className="grid gap-3 text-sm">
                                     {submittedIdeaFields.map((field) => (
                                         <Detail
@@ -921,7 +987,12 @@ export default function EntrepreneursShow({
                                             (alert, index) => (
                                                 <div
                                                     key={`${alert.type ?? 'alert'}-${index}`}
-                                                    className="rounded-md border border-amber-200 bg-amber-50 px-3 py-2 text-amber-950"
+                                                    className={cn(
+                                                        'rounded-md border px-3 py-2',
+                                                        alert.blocking
+                                                            ? 'border-red-200 bg-red-50 text-red-950'
+                                                            : 'border-amber-200 bg-amber-50 text-amber-950',
+                                                    )}
                                                 >
                                                     {alert.message ??
                                                         'Review this validation detail before approval.'}
@@ -1036,9 +1107,14 @@ export default function EntrepreneursShow({
                                                 type="button"
                                                 size="sm"
                                                 disabled={
+                                                    !ideaGateCanBeApproved ||
                                                     gateNote.trim().length < 10
                                                 }
                                                 onClick={approveIdeaGate}
+                                                className={cn(
+                                                    ideaGateCanBeApproved &&
+                                                        'bg-emerald-700 text-white hover:bg-emerald-800 disabled:bg-emerald-700 disabled:text-white disabled:opacity-60',
+                                                )}
                                             >
                                                 <CheckCircle2
                                                     className="size-4"
@@ -1046,6 +1122,16 @@ export default function EntrepreneursShow({
                                                 />
                                                 Approve builder gate
                                             </Button>
+                                            {!ideaGateCanBeApproved ? (
+                                                <p className="text-xs text-muted-foreground">
+                                                    {ideaViabilityGate?.summary}
+                                                </p>
+                                            ) : gateNote.trim().length < 10 ? (
+                                                <p className="text-xs text-emerald-800">
+                                                    Add a brief gate note to approve
+                                                    the eligible idea.
+                                                </p>
+                                            ) : null}
                                         </div>
                                     </div>
                                 ) : ideaGateStatus === 'changes_requested' ? (

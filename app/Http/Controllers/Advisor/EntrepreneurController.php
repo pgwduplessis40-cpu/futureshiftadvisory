@@ -28,6 +28,7 @@ use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
+use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Security\InviteIssuer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
@@ -49,6 +50,7 @@ final class EntrepreneurController extends Controller
         private readonly AuditWriter $auditWriter,
         private readonly InviteIssuer $inviteIssuer,
         private readonly EntrepreneurGamification $gamification,
+        private readonly IdeaViabilityGate $ideaViabilityGate,
     ) {}
 
     public function index(Request $request): Response
@@ -654,6 +656,7 @@ final class EntrepreneurController extends Controller
             'demand_signal' => $validation->demand_signal,
             'revenue_model' => $validation->revenue_model,
             'viability_alerts' => $validation->viability_alerts ?? [],
+            'viability_gate' => $this->ideaViabilityGate->assess($validation),
             'proposed_change_request' => $this->proposedChangeRequest($validation),
             'uncertainty' => data_get($evaluation, 'uncertainty'),
             'past_plan_pattern' => data_get($evaluation, 'past_plan_pattern', []),

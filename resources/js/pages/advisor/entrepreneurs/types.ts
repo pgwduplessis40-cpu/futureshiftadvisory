@@ -107,7 +107,15 @@ export type EntrepreneurDetail = EntrepreneurSummary & {
             message?: string;
             severity?: string;
             type?: string;
+            blocking?: boolean;
         }[];
+        viability_gate: {
+            status: 'red' | 'amber' | 'green';
+            label: string;
+            summary: string;
+            reasons: string[];
+            approval_available: boolean;
+        };
         uncertainty: string | null;
         past_plan_pattern: {
             source_reference?: string;

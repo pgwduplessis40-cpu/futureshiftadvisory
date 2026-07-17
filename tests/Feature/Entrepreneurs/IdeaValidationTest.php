@@ -17,17 +17,19 @@ use App\Services\Ai\Contracts\PromptEnvelope;
 use App\Services\Ai\Contracts\Uncertainty;
 use App\Services\Ai\Fake\FakeAiClient;
 use App\Services\Entrepreneurs\IdeaValidationService;
+use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Support\RequestContext;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Validation\ValidationException;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class IdeaValidationTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     private const RLS_APP_ROLE = 'fsa_idea_validation_rls_app';
 
@@ -82,7 +84,7 @@ final class IdeaValidationTest extends TestCase
         $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
     }
 
-    public function test_viability_alerts_are_informational_and_do_not_open_plan_builder(): void
+    public function test_weak_core_fields_block_the_builder_gate(): void
     {
         [$advisor, $profile] = $this->profile('weak-idea@example.test');
 
@@ -96,8 +98,8 @@ final class IdeaValidationTest extends TestCase
         ], $advisor);
 
         $this->assertNotEmpty($validation->viability_alerts);
-        $this->assertFalse((bool) data_get($validation->viability_alerts, '0.blocking'));
-        $this->assertSame('informational', data_get($validation->viability_alerts, '0.severity'));
+        $this->assertTrue((bool) data_get($validation->viability_alerts, '0.blocking'));
+        $this->assertSame('blocking', data_get($validation->viability_alerts, '0.severity'));
         $this->assertTrue(collect($validation->viability_alerts)->contains('type', 'experiment_loop_missing'));
         $this->assertFalse(app(IdeaValidationService::class)->planBuilderUnlocked($profile));
     }
@@ -108,7 +110,7 @@ final class IdeaValidationTest extends TestCase
         $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
 
         $this->expectException(ValidationException::class);
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, '   ');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, '   ');
     }
 
     public function test_advisor_gate_opens_builder_and_records_reviewer(): void
@@ -116,7 +118,7 @@ final class IdeaValidationTest extends TestCase
         [$advisor, $profile] = $this->profile('open-idea@example.test');
         $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
 
-        $opened = app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Evidence is enough to start the plan builder.');
+        $opened = app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Evidence is enough to start the plan builder.');
 
         $this->assertInstanceOf(IdeaValidation::class, $opened);
         $this->assertNotNull($opened->advisor_gate_passed_at);
@@ -127,6 +129,54 @@ final class IdeaValidationTest extends TestCase
             'action' => 'entrepreneur.idea_gate_passed',
             'subject_id' => $validation->id,
         ]);
+    }
+
+    public function test_degraded_ai_review_is_red_and_cannot_be_approved(): void
+    {
+        [$advisor, $profile] = $this->profile('degraded-gate@example.test');
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+
+        $gate = app(IdeaViabilityGate::class)->assess($validation);
+
+        $this->assertSame(IdeaViabilityGate::STATUS_RED, $gate['status']);
+        $this->assertFalse($gate['approval_available']);
+        $this->assertStringContainsString('successful ai review', strtolower(implode(' ', $gate['reasons'])));
+
+        try {
+            app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Attempting to approve a deferred review.');
+            $this->fail('Expected a validation exception for a red idea review.');
+        } catch (ValidationException $exception) {
+            $this->assertArrayHasKey('advisor_gate', $exception->errors());
+        }
+    }
+
+    public function test_completed_review_without_demand_evidence_is_amber_and_cannot_be_approved(): void
+    {
+        [$advisor, $profile] = $this->profile('amber-gate@example.test');
+        $payload = $this->strongPayload();
+        $payload['demand_signal'] = 'Several founders say the workflow could help their business operations.';
+        unset($payload['experiments']);
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $payload, $advisor);
+        $validation = $this->completedIdeaReview($validation, withMinimumEvidence: false);
+
+        $gate = app(IdeaViabilityGate::class)->assess($validation);
+
+        $this->assertSame(IdeaViabilityGate::STATUS_AMBER, $gate['status']);
+        $this->assertFalse($gate['approval_available']);
+
+        $this->expectException(ValidationException::class);
+        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Attempting to approve an idea without demand evidence.');
+    }
+
+    public function test_completed_review_with_minimum_evidence_is_green(): void
+    {
+        [$advisor, $profile] = $this->profile('green-gate@example.test');
+        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+
+        $gate = app(IdeaViabilityGate::class)->assess($this->completedIdeaReview($validation));
+
+        $this->assertSame(IdeaViabilityGate::STATUS_GREEN, $gate['status']);
+        $this->assertTrue($gate['approval_available']);
     }
 
     public function test_advisor_can_request_idea_changes_and_notify_founder(): void

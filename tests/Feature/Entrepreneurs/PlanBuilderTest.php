@@ -20,11 +20,12 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Inertia\Testing\AssertableInertia as Assert;
 use InvalidArgumentException;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class PlanBuilderTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     private const RLS_APP_ROLE = 'fsa_entrepreneur_plan_rls_app';
 
@@ -210,7 +211,7 @@ final class PlanBuilderTest extends TestCase
             'revenue_model' => 'Monthly advisory subscription with milestone-based support.',
         ], $advisor);
 
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready to start planning.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready to start planning.');
     }
 
     private function currentRoleBypassesRls(): bool

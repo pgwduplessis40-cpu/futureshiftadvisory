@@ -24,11 +24,12 @@ use Database\Seeders\RatingFrameworkSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class AssessmentTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     protected function setUp(): void
     {
@@ -159,7 +160,7 @@ final class AssessmentTest extends TestCase
             'demand_signal' => 'Pilot interviews and customer evidence are complete.',
             'revenue_model' => 'Subscription revenue with onboarding support.',
         ], $advisor);
-        app(IdeaValidationService::class)->passAdvisorGate($validation, $advisor, 'Ready for scoring.');
+        app(IdeaValidationService::class)->passAdvisorGate($this->completedIdeaReview($validation), $advisor, 'Ready for scoring.');
         $plan = app(PlanBuilder::class)->start($profile, $advisor);
 
         foreach ([
