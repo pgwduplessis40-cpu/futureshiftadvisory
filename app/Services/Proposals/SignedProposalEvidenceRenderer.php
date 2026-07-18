@@ -7,6 +7,7 @@ namespace App\Services\Proposals;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\User;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Pdf\PdfRenderer;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Carbon;
@@ -16,6 +17,7 @@ final class SignedProposalEvidenceRenderer
     public function __construct(
         private readonly PdfRenderer $renderer,
         private readonly ProposalBuilder $proposals,
+        private readonly ProposalPricingTerms $pricing,
     ) {}
 
     /**
@@ -113,22 +115,31 @@ CSS;
         $authorityPayload = $this->stepPayload($proposal, ProposalSignoffStep::STEP_AUTHORITY);
         $collectionDay = $this->validCollectionDay($authorityPayload['collection_day'] ?? $method['collection_day'] ?? null);
         $termMonths = $this->proposalTermMonths($proposal);
-        $monthlyAmount = $this->proposalMonthlyAmount($proposal, $termMonths);
+        $paymentRequired = $this->pricing->requiresPayment($proposal);
+        $monthlyAmount = $this->pricing->monthlyAmount($proposal, $termMonths);
+        $paymentRows = $paymentRequired
+            ? sprintf(
+                '<dt>Monthly collection</dt><dd>NZD %s per month</dd><dt>GST</dt><dd>Amounts are GST exclusive. GST at 15%% is added to each payment collected.</dd><dt>Collection date</dt><dd>%s of each month</dd>',
+                number_format($monthlyAmount, 0),
+                $this->ordinal($collectionDay),
+            )
+            : '<dt>Payment</dt><dd>No payment authority or payment collection is required for this proposal.</dd>';
+        $paymentAuthoritySummary = $paymentRequired
+            ? 'Authorised using password'.((bool) ($identity['mfa_required'] ?? false) ? ' and MFA' : '').' before signature. The payment method is tokenised by the selected gateway; raw card details are not stored by Future Shift Advisory.'
+            : 'No payment authority was required because the proposal has no payable fee.';
 
         return sprintf(
             <<<'HTML'
 <section class="proposal-signature-certificate">
 <h1>Signed proposal certificate</h1>
-<p>This certificate records the client acceptance, payment authority, and identity checks attached to the signed proposal.</p>
+<p>This certificate records the client acceptance and identity checks attached to the signed proposal.</p>
 <h2>Proposal</h2>
 <dl>
 <dt>Client</dt><dd>%s</dd>
 <dt>Proposal</dt><dd>Proposal v%s</dd>
 <dt>Total proposal</dt><dd>NZD %s</dd>
 <dt>Term</dt><dd>%s months</dd>
-<dt>Monthly collection</dt><dd>NZD %s per month</dd>
-<dt>GST</dt><dd>Amounts are GST exclusive. GST at 15%% is added to each payment collected.</dd>
-<dt>Collection date</dt><dd>%s of each month</dd>
+%s
 </dl>
 <h2>Signature</h2>
 <dl>
@@ -145,15 +156,14 @@ CSS;
 <dt>MFA</dt><dd>%s</dd>
 </dl>
 <h2>Payment authority</h2>
-<p>Authorised using password%s before signature. The payment method is tokenised by the selected gateway; raw card details are not stored by Future Shift Advisory.</p>
+<p>%s</p>
 </section>
 HTML,
             $this->escape($proposal->client?->legal_name ?? 'Client'),
             $proposal->version,
-            number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
+            number_format($this->pricing->totalAmount($proposal, $termMonths), 0),
             $termMonths,
-            number_format($monthlyAmount, 0),
-            $this->ordinal($collectionDay),
+            $paymentRows,
             $this->escape($signedAt->format('j M Y, g:i A T')),
             $this->escape($actor->name),
             $this->escape($actor->email),
@@ -163,7 +173,7 @@ HTML,
             $this->escape((string) ($payload['user_agent'] ?? '')),
             $this->escape($this->formatEvidenceDate($identity['password_verified_at'] ?? null)),
             $this->escape($this->mfaEvidenceLine($identity)),
-            (bool) ($identity['mfa_required'] ?? false) ? ' and MFA' : '',
+            $paymentAuthoritySummary,
         );
     }
 
@@ -216,21 +226,6 @@ HTML,
             ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
 
         return max(1, (int) (is_numeric($months) ? $months : 6));
-    }
-
-    private function proposalMonthlyAmount(Proposal $proposal, int $termMonths): float
-    {
-        $monthly = data_get($proposal->feeCalculation?->justification, 'retainer.monthly_fee')
-            ?? data_get($proposal->feeCalculation?->justification, 'monthly_retainer_fee')
-            ?? data_get($proposal->pv_summary, 'monthly_retainer_fee');
-
-        if (is_numeric($monthly) && (float) $monthly > 0) {
-            return round((float) $monthly, 2);
-        }
-
-        $total = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
-
-        return round(((float) $total) / max(1, $termMonths), 2);
     }
 
     /**

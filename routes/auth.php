@@ -13,6 +13,7 @@ use App\Http\Controllers\Admin\LearningUpdateController;
 use App\Http\Controllers\Admin\MicrosoftGraphMailOAuthController;
 use App\Http\Controllers\Admin\PanelMemberController;
 use App\Http\Controllers\Admin\PartnerAgreementController;
+use App\Http\Controllers\Admin\PilotFeeWaiverController;
 use App\Http\Controllers\Admin\PracticeAccountingConnectionController;
 use App\Http\Controllers\Admin\PrinciplesRolesController;
 use App\Http\Controllers\Admin\ProjectSettingsController;
@@ -72,6 +73,14 @@ Route::middleware(['auth', 'verified'])->group(function (): void {
             Route::patch('client-transfers/{transfer}/reject', [ClientAllocationController::class, 'reject'])
                 ->middleware('require.fresh-step-up')
                 ->name('client-transfers.reject');
+            Route::get('pilot-fee-waivers', [PilotFeeWaiverController::class, 'index'])
+                ->name('pilot-fee-waivers.index');
+            Route::patch('pilot-fee-waivers/program', [PilotFeeWaiverController::class, 'updateProgram'])
+                ->middleware('require.fresh-step-up')
+                ->name('pilot-fee-waivers.program.update');
+            Route::patch('pilot-fee-waivers/clients/{client}', [PilotFeeWaiverController::class, 'updateClient'])
+                ->middleware('require.fresh-step-up')
+                ->name('pilot-fee-waivers.clients.update');
 
             Route::get('questionnaires', [QuestionnaireController::class, 'index'])->name('questionnaires.index');
             Route::post('questionnaires', [QuestionnaireController::class, 'store'])->name('questionnaires.store');

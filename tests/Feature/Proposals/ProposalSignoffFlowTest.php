@@ -391,6 +391,94 @@ final class ProposalSignoffFlowTest extends TestCase
         $this->assertSame(5, $proposal->signoffSteps()->count());
     }
 
+    public function test_fee_inactive_proposal_skips_stripe_when_the_list_fee_is_positive(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-pilot-waiver-advisor@example.test');
+        $proposal = $this->releasedProposal($client, $advisor, suggestedMid: 10_000);
+        $proposal->forceFill([
+            'pricing_terms' => [
+                'fee_active' => false,
+                'payment_required' => false,
+                'payable_fee' => ['low' => 0, 'mid' => 0, 'high' => 0],
+                'treatment' => 'pilot_fee_waiver',
+            ],
+        ])->save();
+        $flow = app(SignoffFlow::class);
+
+        $this->assertFalse($flow->payload($proposal)['payment_required']);
+
+        $this->actingAsMfa($clientUser)
+            ->postJson(route('portal.proposals.signoff.payment-setup', $proposal), [
+                'type' => PaymentAuthority::TYPE_CARD,
+                'gateway' => PaymentAuthority::GATEWAY_STRIPE,
+            ])
+            ->assertStatus(422)
+            ->assertJsonValidationErrors('payment_method_ref');
+
+        $flow->complete($proposal, ProposalSignoffStep::STEP_REVIEW, [], $clientUser);
+        $flow->complete($proposal, ProposalSignoffStep::STEP_INSURANCE_CONSENT, [
+            'election' => Consent::ELECTION_OPT_IN,
+        ], $clientUser);
+        $flow->complete($proposal, ProposalSignoffStep::STEP_COACH_CONSENT, [
+            'election' => Consent::ELECTION_OPT_OUT,
+        ], $clientUser);
+        $proposal = $flow->complete($proposal, ProposalSignoffStep::STEP_SIGNATURE, [
+            'signature_name' => 'Pilot Fee Signer',
+            'accepted' => true,
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
+            'ip' => '203.0.113.30',
+            'user_agent' => 'Feature test',
+        ], $clientUser);
+
+        $this->assertSame(ProposalStatus::Signed, $proposal->status);
+        $this->assertDatabaseMissing('payment_authorities', ['proposal_id' => $proposal->id]);
+        $this->assertDatabaseMissing('payment_schedules', ['proposal_id' => $proposal->id]);
+    }
+
+    public function test_pilot_advisory_waiver_still_requires_payment_for_fsa_hosting(): void
+    {
+        [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-pilot-hosting-advisor@example.test');
+        $proposal = $this->releasedProposal($client, $advisor, suggestedMid: 10_000);
+        $proposal->forceFill([
+            'pricing_terms' => [
+                'fee_active' => true,
+                'payment_required' => true,
+                'advisory_fee_active' => false,
+                'payable_fee' => ['low' => 0, 'mid' => 0, 'high' => 0],
+                'hosting' => ['enabled' => true, 'monthly_fee' => 41.32, 'annual_fee' => 495.84, 'currency' => 'NZD'],
+                'treatment' => 'pilot_fee_waiver',
+            ],
+        ])->save();
+        $flow = app(SignoffFlow::class);
+
+        $this->assertTrue($flow->payload($proposal)['payment_required']);
+
+        $proposal = $this->completeToAuthority($flow, $proposal, $clientUser);
+        $proposal = $flow->complete($proposal, ProposalSignoffStep::STEP_SIGNATURE, [
+            'signature_name' => 'Pilot Hosting Signer',
+            'accepted' => true,
+            'identity_verification' => [
+                'password_verified_at' => now()->toIso8601String(),
+                'mfa_required' => false,
+                'mfa_verified_at' => null,
+                'mfa_method' => null,
+            ],
+            'ip' => '203.0.113.31',
+            'user_agent' => 'Feature test',
+        ], $clientUser);
+
+        $this->assertSame(ProposalStatus::Signed, $proposal->status);
+        $this->assertDatabaseHas('payment_schedules', [
+            'proposal_id' => $proposal->id,
+            'amount' => '41.32',
+        ]);
+    }
+
     public function test_raw_card_numbers_are_rejected_before_persistence(): void
     {
         [$advisor, $client, $clientUser] = $this->clientWithUsers('signoff-pan-advisor@example.test');

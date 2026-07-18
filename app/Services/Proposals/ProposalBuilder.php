@@ -19,6 +19,7 @@ use App\Models\StrategicPlan;
 use App\Models\Template;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integrations\IntegrationScopeProposalGuard;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Pv\PvWaterfallBuilder;
@@ -41,6 +42,7 @@ final class ProposalBuilder
         private readonly AuditWriter $audit,
         private readonly UploadedReportTemplateRenderer $uploadedTemplates,
         private readonly IntegrationScopeProposalGuard $integrationScopeGuard,
+        private readonly ProposalPricingTerms $pricing,
     ) {}
 
     /**
@@ -81,6 +83,7 @@ final class ProposalBuilder
                 'pv_summary' => $this->pvSummary($client, $feeCalculation, $npoEngagementId),
                 'roi_ratio' => $feeCalculation->roi_ratio,
                 'acceptance_terms' => $this->acceptanceTerms($feeCalculation),
+                'pricing_terms' => $this->pricing->snapshot($client, $feeCalculation),
                 'created_by_user_id' => $createdByUserId,
             ]);
 
@@ -779,8 +782,7 @@ final class ProposalBuilder
 <section class="proposal-panel">
 <h2>Fee</h2>
 <p>Method: %s</p>
-<p>Suggested range: NZD %s - NZD %s - NZD %s</p>
-<p>All proposal rates and amounts are GST exclusive. GST at 15%% is added to any final payment collected.</p>
+%s
 %s
 </section>
 %s
@@ -806,9 +808,7 @@ HTML,
             $integrationQuotePack,
             $focusAreas,
             $this->escape(Str::headline($proposal->feeCalculation?->method?->value ?? '')),
-            number_format($proposal->feeCalculation?->suggested_low ?? 0, 0),
-            number_format($proposal->feeCalculation?->suggested_mid ?? 0, 0),
-            number_format($proposal->feeCalculation?->suggested_high ?? 0, 0),
+            $this->feeSummaryHtml($proposal),
             $roiLine,
             $conversionCredit,
             $budgetReadiness,
@@ -847,9 +847,10 @@ HTML,
             })
             ->implode('');
         $hosting = (array) ($pack['hosting'] ?? []);
-        $hostingHtml = (bool) ($hosting['enabled'] ?? false) && (float) ($hosting['monthly_fee'] ?? 0) > 0
-            ? '<h3>FSA-hosted application</h3><p>FSA will host and operate the application for NZD '.number_format((float) $hosting['monthly_fee'], 2).' per month ex GST.</p>'
-            : '';
+        $hostingEnabled = (bool) ($hosting['enabled'] ?? false) && (float) ($hosting['monthly_fee'] ?? 0) > 0;
+        $hostingHtml = ! $hostingEnabled
+            ? ''
+            : '<h3>FSA-hosted application</h3><p>FSA will host and operate the application for NZD '.number_format((float) $hosting['monthly_fee'], 2).' per month ex GST. This direct hosting charge is payable even when an advisory fee waiver applies.</p>';
 
         return sprintf(
             <<<'HTML'
@@ -941,7 +942,7 @@ HTML,
     {
         $clientName = $proposal->client?->legal_name ?? 'Client';
         $proposalDate = $this->proposalDate($proposal);
-        $feeMid = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
+        $feeMid = $this->pricing->payableMid($proposal);
         $createdBy = $proposal->createdBy?->name ?: 'Future Shift Advisory';
         $roiSnapshot = $this->proposalHasPositiveFee($proposal)
             ? sprintf('<div><dt>Modelled fee return</dt><dd>NZD %s per NZD 1 fee</dd></div>', number_format($proposal->roi_ratio, 2))
@@ -978,7 +979,7 @@ HTML,
 <div><dt>Status</dt><dd>%s</dd></div>
 <div><dt>Generated</dt><dd>%s</dd></div>
 <div><dt>Prepared by</dt><dd>%s</dd></div>
-<div><dt>Suggested fee</dt><dd>%s</dd></div>
+<div><dt>Fee</dt><dd>%s</dd></div>
 %s
 </dl>
 </section>
@@ -1051,12 +1052,12 @@ HTML,
             '{{scope_summary}}' => $this->escape((string) data_get($proposal->scope, 'summary')),
             '{{ fee_method }}' => $this->escape($feeCalculation?->method?->value ?? ''),
             '{{fee_method}}' => $this->escape($feeCalculation?->method?->value ?? ''),
-            '{{ fee_low }}' => $this->money($feeCalculation?->suggested_low ?? 0),
-            '{{fee_low}}' => $this->money($feeCalculation?->suggested_low ?? 0),
-            '{{ fee_mid }}' => $this->money($feeCalculation?->suggested_mid ?? 0),
-            '{{fee_mid}}' => $this->money($feeCalculation?->suggested_mid ?? 0),
-            '{{ fee_high }}' => $this->money($feeCalculation?->suggested_high ?? 0),
-            '{{fee_high}}' => $this->money($feeCalculation?->suggested_high ?? 0),
+            '{{ fee_low }}' => $this->money(data_get($this->pricing->for($proposal), 'payable_fee.low', 0)),
+            '{{fee_low}}' => $this->money(data_get($this->pricing->for($proposal), 'payable_fee.low', 0)),
+            '{{ fee_mid }}' => $this->money($this->pricing->payableMid($proposal)),
+            '{{fee_mid}}' => $this->money($this->pricing->payableMid($proposal)),
+            '{{ fee_high }}' => $this->money(data_get($this->pricing->for($proposal), 'payable_fee.high', 0)),
+            '{{fee_high}}' => $this->money(data_get($this->pricing->for($proposal), 'payable_fee.high', 0)),
             '{{ monthly_investment }}' => $this->money($monthlyInvestment),
             '{{monthly_investment}}' => $this->money($monthlyInvestment),
             '{{ monthly_investment_plain }}' => number_format($monthlyInvestment, 0),
@@ -1145,17 +1146,7 @@ HTML,
 
     private function proposalMonthlyInvestment(Proposal $proposal, int $termMonths): float
     {
-        $monthly = data_get($proposal->feeCalculation?->justification, 'retainer.monthly_fee')
-            ?? data_get($proposal->feeCalculation?->justification, 'monthly_retainer_fee')
-            ?? data_get($proposal->pv_summary, 'monthly_retainer_fee');
-
-        if (is_numeric($monthly) && (float) $monthly > 0) {
-            return (float) $monthly;
-        }
-
-        $mid = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
-
-        return round(((float) $mid) / max(1, $termMonths), 2);
+        return $this->pricing->monthlyAmount($proposal, $termMonths);
     }
 
     private function proposalImprovementPv(Proposal $proposal): float
@@ -1169,10 +1160,31 @@ HTML,
 
     private function proposalHasPositiveFee(Proposal $proposal): bool
     {
-        $mid = $proposal->feeCalculation?->suggested_mid
-            ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
+        return $this->pricing->hasPayableAdvisoryFee($proposal);
+    }
 
-        return is_numeric($mid) && (float) $mid > 0;
+    private function feeSummaryHtml(Proposal $proposal): string
+    {
+        $terms = $this->pricing->for($proposal);
+
+        if ($this->pricing->isPilotWaiver($proposal)) {
+            $hostingCharge = $this->pricing->hostingMonthlyFee($proposal);
+
+            return $hostingCharge > 0
+                ? '<p><strong>Pilot programme advisory fee waiver: NZD 0 ex GST.</strong></p><p>The FSA-hosted application charge of NZD '.number_format($hostingCharge, 2).' per month ex GST remains payable.</p>'
+                : '<p><strong>Pilot programme advisory fee waiver: NZD 0 ex GST.</strong></p><p>No payment will be collected for this proposal.</p>';
+        }
+
+        if (! (bool) ($terms['fee_active'] ?? false)) {
+            return '<p><strong>Fee: NZD 0 ex GST.</strong></p><p>No payment will be collected for this proposal.</p>';
+        }
+
+        return sprintf(
+            '<p>Suggested range: NZD %s - NZD %s - NZD %s</p><p>All proposal rates and amounts are GST exclusive. GST at 15%% is added to any final payment collected.</p>',
+            number_format((float) data_get($terms, 'payable_fee.low', 0), 0),
+            number_format($this->pricing->payableMid($proposal), 0),
+            number_format((float) data_get($terms, 'payable_fee.high', 0), 0),
+        );
     }
 
     /**

@@ -28,6 +28,7 @@ final class Proposal extends Model
         'pv_summary' => 'array',
         'roi_ratio' => 'float',
         'acceptance_terms' => 'array',
+        'pricing_terms' => 'array',
         'pdf_byte_size' => 'integer',
         'released_at' => 'datetime',
         'expires_at' => 'datetime',

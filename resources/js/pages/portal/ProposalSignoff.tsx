@@ -37,6 +37,8 @@ type ProposalPayload = {
     scope_summary: string;
     brief: string;
     suggested_mid: number | null;
+    fee_label: string;
+    hosting_monthly_fee: number;
     payment_terms: PaymentTermsPayload;
     roi_ratio: number;
     view_url: string;
@@ -59,6 +61,7 @@ type PaymentTermsPayload = {
     gst_rate_percent: number;
     tax_mode: 'gst_exclusive';
     cancellation_notice_days: number | null;
+    payment_required: boolean;
 };
 
 type SignoffPayload = {
@@ -164,9 +167,18 @@ export default function ProposalSignoff({ proposal, signoff }: Props) {
                             <span>{proposal.client_name}</span>
                             <span aria-hidden="true">/</span>
                             <span>
-                                {formatCurrency(proposal.suggested_mid ?? 0)} ex
-                                GST
+                                {proposal.fee_label}:{' '}
+                                {formatCurrency(proposal.suggested_mid ?? 0)} ex GST
                             </span>
+                            {proposal.hosting_monthly_fee > 0 ? (
+                                <span>
+                                    FSA hosting:{' '}
+                                    {formatCurrency(
+                                        proposal.hosting_monthly_fee,
+                                    )}{' '}
+                                    ex GST per month
+                                </span>
+                            ) : null}
                         </div>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">

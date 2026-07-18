@@ -201,6 +201,12 @@ const serviceRatesNavItem: NavItem = {
     icon: BadgeDollarSign,
 };
 
+const pilotFeeWaiversNavItem: NavItem = {
+    title: 'Pilot Fee Waivers',
+    href: '/admin/pilot-fee-waivers',
+    icon: BadgeDollarSign,
+};
+
 const staffNavItem: NavItem = {
     title: 'Staff',
     href: '/admin/staff',
@@ -369,6 +375,7 @@ const superAdminAdministrationNavItems: NavItem[] = [
     clientAllocationsNavItem,
     principlesRolesNavItem,
     serviceRatesNavItem,
+    pilotFeeWaiversNavItem,
     ratingFrameworkNavItem,
     termsNavItem,
     partnerAgreementNavItem,

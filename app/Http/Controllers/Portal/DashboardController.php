@@ -36,6 +36,7 @@ use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Dashboards\BusinessHealthRadarBuilder;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Goals\GoalTracker;
 use App\Services\Notifications\NotificationCenter;
 use App\Services\Npo\NpoFunderMonitor;
@@ -74,6 +75,7 @@ final class DashboardController extends Controller
         private readonly StrategicBudgetService $strategicBudgets,
         private readonly StrategicPlanService $strategicPlans,
         private readonly ProposalBrief $proposalBriefs,
+        private readonly ProposalPricingTerms $pricing,
     ) {}
 
     public function __invoke(Request $request): Response|RedirectResponse
@@ -290,7 +292,7 @@ final class DashboardController extends Controller
                 'version' => $proposal->version,
                 'status' => $proposal->status->value,
                 'status_label' => str($proposal->status->value)->replace('_', ' ')->title()->toString(),
-                'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                'suggested_mid' => $this->pricing->payableMid($proposal),
                 'brief' => $this->proposalBriefs->for($proposal),
                 'signed_at' => $proposal->signed_at?->toIso8601String(),
                 'signoff_url' => route('portal.proposals.signoff.show', $proposal, absolute: false),
@@ -505,7 +507,7 @@ final class DashboardController extends Controller
                 'id' => $proposal->id,
                 'status' => $proposalStatus,
                 'status_label' => str((string) $proposalStatus)->replace('_', ' ')->title()->toString(),
-                'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                'suggested_mid' => $this->pricing->payableMid($proposal),
                 'client_visible' => $proposalClientVisible,
                 'signoff_url' => $proposalClientVisible ? route('portal.proposals.signoff.show', $proposal, absolute: false) : null,
             ] : null,

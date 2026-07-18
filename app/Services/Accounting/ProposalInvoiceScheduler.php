@@ -14,6 +14,7 @@ use App\Models\PracticeAccountingConnection;
 use App\Models\Proposal;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\Xero\LiveXeroClient;
 use App\Services\Payments\ClientBillingCode;
@@ -36,6 +37,7 @@ final class ProposalInvoiceScheduler
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $activations,
         private readonly RequestContext $requestContext,
+        private readonly ProposalPricingTerms $pricing,
     ) {}
 
     public function sync(Proposal $proposal, ?User $actor = null): ?AccountingInvoiceBatch
@@ -48,6 +50,16 @@ final class ProposalInvoiceScheduler
         $proposal = $proposal->refresh()->loadMissing(['client.primaryContact', 'feeCalculation', 'paymentSchedules']);
 
         if ($proposal->status !== ProposalStatus::Signed) {
+            return null;
+        }
+
+        if (! $this->pricing->requiresPayment($proposal)) {
+            $this->audit->record('accounting_invoice_batch.skipped', subject: $proposal, actor: $actor, after: [
+                'reason' => (bool) data_get($this->pricing->for($proposal), 'fee_active', false)
+                    ? 'no_payable_fee'
+                    : 'fee_inactive',
+            ]);
+
             return null;
         }
 
@@ -358,17 +370,7 @@ final class ProposalInvoiceScheduler
 
     private function proposalMonthlyAmount(Proposal $proposal, int $termMonths): float
     {
-        $monthly = data_get($proposal->feeCalculation?->justification, 'retainer.monthly_fee')
-            ?? data_get($proposal->feeCalculation?->justification, 'monthly_retainer_fee')
-            ?? data_get($proposal->pv_summary, 'monthly_retainer_fee');
-
-        if (is_numeric($monthly) && (float) $monthly > 0) {
-            return round((float) $monthly, 2);
-        }
-
-        $total = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
-
-        return round(((float) $total) / max(1, $termMonths), 2);
+        return $this->pricing->monthlyAmount($proposal, $termMonths);
     }
 
     /**

@@ -34,6 +34,7 @@ use App\Models\NpoValueCalculation;
 use App\Models\OutcomeFollowUp;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
+use App\Models\PilotFeeWaiverProgram;
 use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\Questionnaire;
@@ -48,6 +49,7 @@ use App\Models\Template;
 use App\Models\User;
 use App\Services\Budgets\StrategicBudgetService;
 use App\Services\Fees\FeeCalculator;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integrations\IntegrationScopeService;
 use App\Services\Learning\LayerCadenceRegistry;
 use App\Services\Proposals\ProposalBuilder;
@@ -111,6 +113,7 @@ final class TestingSeedDataSeeder extends Seeder
             $this->seedProposalTemplate();
             $this->seedProspectIntake();
             $this->seedClients();
+            $this->seedPilotFeeWaiverProgram();
             $this->seedClientAllocationTestData();
             $this->seedServicePackagesAndActivationFlow();
             $this->seedClientDocumentsAndQuestionnaires();
@@ -726,6 +729,28 @@ XML);
         $this->seedPvWaterfallClients();
         $this->seedClientTeam();
         $this->seedConflictDeclarations();
+    }
+
+    private function seedPilotFeeWaiverProgram(): void
+    {
+        PilotFeeWaiverProgram::query()->updateOrCreate(
+            ['key' => PilotFeeWaiverProgram::KEY_DEFAULT],
+            [
+                'status' => PilotFeeWaiverProgram::STATUS_OPEN,
+                'updated_by_user_id' => $this->users['admin']->getKey(),
+            ],
+        );
+
+        $this->clients['websiteAudit']->forceFill([
+            'pilot_fee_waiver_enabled' => true,
+            'pilot_fee_waiver_starts_at' => $this->now->copy()->subDays(7),
+            'pilot_fee_waiver_expires_at' => $this->now->copy()->addMonths(3)->endOfDay(),
+            'pilot_fee_waiver_reason' => 'Approved test-environment pilot client for proposal, sign-off, and invoice waiver verification.',
+            'pilot_fee_waiver_approved_by_user_id' => $this->users['admin']->getKey(),
+            'pilot_fee_waiver_approved_at' => $this->now->copy()->subDays(7),
+        ])->save();
+
+        $this->clients['websiteAudit'] = $this->clients['websiteAudit']->refresh();
     }
 
     private function seedPvWaterfallClients(): void
@@ -2074,6 +2099,12 @@ XML);
             ]);
 
             app(ProposalBuilder::class)->release($proposal, $advisor, 30);
+        }
+
+        if (! is_array($proposal->pricing_terms) || ! array_key_exists('hosting', $proposal->pricing_terms)) {
+            $proposal->forceFill([
+                'pricing_terms' => app(ProposalPricingTerms::class)->snapshot($client, $calculation),
+            ])->save();
         }
 
         $this->ids['website_audit_integration_scope'] = $scope->getKey();

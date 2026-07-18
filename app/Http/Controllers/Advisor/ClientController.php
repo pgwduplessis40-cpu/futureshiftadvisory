@@ -43,6 +43,7 @@ use App\Services\Dashboards\PaymentStatusReport;
 use App\Services\DataQuality\DataQualityScorer;
 use App\Services\Dd\DataRoom;
 use App\Services\Dd\DdOnboarding;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Goals\GoalTracker;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Npo\GovernanceReviewConversion;
@@ -79,6 +80,7 @@ final class ClientController extends Controller
         private readonly NpoEngagementSetup $npoEngagements,
         private readonly IntegrationActivationResolver $integrations,
         private readonly ProposalBrief $proposalBriefs,
+        private readonly ProposalPricingTerms $pricing,
     ) {}
 
     public function index(Request $request, EconomicExposureMapper $economicExposure): Response
@@ -639,7 +641,7 @@ final class ClientController extends Controller
                     'version' => $proposal->version,
                     'fee_method_label' => str($method)->replace('_', ' ')->title()->toString(),
                     'brief' => $this->proposalBriefs->for($proposal),
-                    'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+                    'suggested_mid' => $this->pricing->payableMid($proposal),
                     'roi_ratio' => $proposal->roi_ratio,
                     'released_at' => $proposal->released_at?->toIso8601String(),
                     'expires_at' => $proposal->expires_at?->toIso8601String(),

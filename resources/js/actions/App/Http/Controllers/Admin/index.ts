@@ -1,6 +1,7 @@
 import InvitationController from './InvitationController'
 import StaffController from './StaffController'
 import ClientAllocationController from './ClientAllocationController'
+import PilotFeeWaiverController from './PilotFeeWaiverController'
 import QuestionnaireController from './QuestionnaireController'
 import SurveyController from './SurveyController'
 import TermsController from './TermsController'
@@ -24,6 +25,7 @@ const Admin = {
     InvitationController: Object.assign(InvitationController, InvitationController),
 StaffController: Object.assign(StaffController, StaffController),
 ClientAllocationController: Object.assign(ClientAllocationController, ClientAllocationController),
+PilotFeeWaiverController: Object.assign(PilotFeeWaiverController, PilotFeeWaiverController),
 QuestionnaireController: Object.assign(QuestionnaireController, QuestionnaireController),
 SurveyController: Object.assign(SurveyController, SurveyController),
 TermsController: Object.assign(TermsController, TermsController),

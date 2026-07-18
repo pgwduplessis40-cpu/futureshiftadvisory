@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Proposals;
 
-use App\Enums\ProposalStatus;
 use App\Enums\FeeMethod;
+use App\Enums\ProposalStatus;
 use App\Models\Consent;
 use App\Models\PaymentAuthority;
 use App\Models\PaymentSchedule;
@@ -14,6 +14,7 @@ use App\Models\ProposalSignoffStep;
 use App\Models\User;
 use App\Services\Accounting\ProposalInvoiceScheduler;
 use App\Services\Audit\AuditWriter;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Payments\AuthorityCapture;
 use App\Services\Payments\PaymentGatewayException;
@@ -37,6 +38,7 @@ final class SignoffFlow
         private readonly KeyEnvelope $envelope,
         private readonly AuditWriter $audit,
         private readonly IntegrationActivationResolver $integrations,
+        private readonly ProposalPricingTerms $pricing,
     ) {}
 
     /**
@@ -634,15 +636,7 @@ final class SignoffFlow
 
     private function proposalRequiresPayment(Proposal $proposal): bool
     {
-        $amount = $proposal->feeCalculation?->suggested_mid;
-
-        if (is_numeric($amount)) {
-            return (float) $amount > 0;
-        }
-
-        $summaryAmount = data_get($proposal->pv_summary, 'fee_suggested_mid');
-
-        return is_numeric($summaryAmount) && (float) $summaryAmount > 0;
+        return $this->pricing->requiresPayment($proposal);
     }
 
     private function ensurePaymentSchedule(Proposal $proposal, PaymentAuthority $authority, User $actor): ?PaymentSchedule
@@ -683,16 +677,6 @@ final class SignoffFlow
 
     private function proposalMonthlyAmount(Proposal $proposal, int $termMonths): float
     {
-        $monthly = data_get($proposal->feeCalculation?->justification, 'retainer.monthly_fee')
-            ?? data_get($proposal->feeCalculation?->justification, 'monthly_retainer_fee')
-            ?? data_get($proposal->pv_summary, 'monthly_retainer_fee');
-
-        if (is_numeric($monthly) && (float) $monthly > 0) {
-            return round((float) $monthly, 2);
-        }
-
-        $total = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
-
-        return round(((float) $total) / max(1, $termMonths), 2);
+        return $this->pricing->monthlyAmount($proposal, $termMonths);
     }
 }

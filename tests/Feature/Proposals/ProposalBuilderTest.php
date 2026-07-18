@@ -20,6 +20,7 @@ use App\Models\ClientTeamMember;
 use App\Models\Consent;
 use App\Models\FeeCalculation;
 use App\Models\IntegrationScope;
+use App\Models\PilotFeeWaiverProgram;
 use App\Models\Proposal;
 use App\Models\PvCalculation;
 use App\Models\ServiceActivation;
@@ -28,6 +29,7 @@ use App\Models\StrategicPlan;
 use App\Models\StrategicPlanMilestone;
 use App\Models\Template;
 use App\Models\User;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Pdf\PdfRenderer;
 use App\Services\Proposals\ProposalBuilder;
 use App\Services\StrategicPlans\StrategicPlanService;
@@ -169,6 +171,41 @@ final class ProposalBuilderTest extends TestCase
         $this->assertStringContainsString('For every NZD 1 of advisory fee', $this->renderer->html);
     }
 
+    public function test_pilot_client_proposal_snapshots_a_zero_payable_fee_without_changing_the_list_fee(): void
+    {
+        [$advisor, $client] = $this->clientWithTeam('pilot-pricing-advisor@example.test');
+        PilotFeeWaiverProgram::query()->create([
+            'key' => PilotFeeWaiverProgram::KEY_DEFAULT,
+            'status' => PilotFeeWaiverProgram::STATUS_OPEN,
+            'updated_by_user_id' => $advisor->getKey(),
+        ]);
+        $client->forceFill([
+            'pilot_fee_waiver_enabled' => true,
+            'pilot_fee_waiver_starts_at' => now()->subDay(),
+            'pilot_fee_waiver_expires_at' => now()->addMonth(),
+            'pilot_fee_waiver_reason' => 'Pilot verification.',
+            'pilot_fee_waiver_approved_by_user_id' => $advisor->getKey(),
+            'pilot_fee_waiver_approved_at' => now(),
+        ])->save();
+        $calculation = $this->feeCalculation($client, 12_000, 3.5);
+
+        $proposal = app(ProposalBuilder::class)->generate($client, $calculation, [], [
+            'created_by_user_id' => $advisor->getKey(),
+        ]);
+
+        $this->assertFalse($proposal->pricing_terms['fee_active']);
+        $this->assertFalse($proposal->pricing_terms['payment_required']);
+        $this->assertSame('pilot_fee_waiver', $proposal->pricing_terms['treatment']);
+        $this->assertEquals(12_000.0, $proposal->pricing_terms['list_fee']['mid']);
+        $this->assertEquals(0.0, $proposal->pricing_terms['payable_fee']['mid']);
+
+        PilotFeeWaiverProgram::query()
+            ->where('key', PilotFeeWaiverProgram::KEY_DEFAULT)
+            ->update(['status' => PilotFeeWaiverProgram::STATUS_CLOSED]);
+
+        $this->assertFalse((bool) $proposal->refresh()->pricing_terms['fee_active']);
+    }
+
     public function test_zero_fee_proposal_suppresses_roi_ratio_copy(): void
     {
         [$advisor, $client] = $this->clientWithTeam('proposal-zero-fee-advisor@example.test');
@@ -182,7 +219,7 @@ final class ProposalBuilderTest extends TestCase
 
         app(ProposalBuilder::class)->rerenderPdf($proposal);
 
-        $this->assertStringContainsString('Suggested range: NZD 0 - NZD 0 - NZD 0', $this->renderer->html);
+        $this->assertStringContainsString('Fee: NZD 0 ex GST.', $this->renderer->html);
         $this->assertStringNotContainsString('For every NZD 1 of advisory fee', $this->renderer->html);
     }
 
@@ -238,6 +275,19 @@ final class ProposalBuilderTest extends TestCase
     public function test_integration_proposal_includes_the_selected_fsa_hosting_charge(): void
     {
         [$advisor, $client] = $this->clientWithTeam('proposal-hosting-advisor@example.test');
+        PilotFeeWaiverProgram::query()->create([
+            'key' => PilotFeeWaiverProgram::KEY_DEFAULT,
+            'status' => PilotFeeWaiverProgram::STATUS_OPEN,
+            'updated_by_user_id' => $advisor->getKey(),
+        ]);
+        $client->forceFill([
+            'pilot_fee_waiver_enabled' => true,
+            'pilot_fee_waiver_starts_at' => now()->subDay(),
+            'pilot_fee_waiver_expires_at' => now()->addMonth(),
+            'pilot_fee_waiver_reason' => 'Hosting charge coverage.',
+            'pilot_fee_waiver_approved_by_user_id' => $advisor->getKey(),
+            'pilot_fee_waiver_approved_at' => now(),
+        ])->save();
         $scope = IntegrationScope::query()->create([
             'client_id' => $client->getKey(),
             'status' => IntegrationScope::STATUS_COMPLETE,
@@ -281,11 +331,19 @@ final class ProposalBuilderTest extends TestCase
         $this->assertSame(41.32, $proposal->scope['integration_quote_pack']['hosting']['monthly_fee']);
         $this->assertArrayNotHasKey('monthly_cost', $proposal->scope['integration_quote_pack']['hosting']);
         $this->assertArrayNotHasKey('markup_percent', $proposal->scope['integration_quote_pack']['hosting']);
+        $this->assertSame('pilot_fee_waiver', $proposal->pricing_terms['treatment']);
+        $this->assertTrue($proposal->pricing_terms['fee_active']);
+        $this->assertTrue($proposal->pricing_terms['payment_required']);
+        $this->assertEquals(0.0, $proposal->pricing_terms['payable_fee']['mid']);
+        $this->assertSame(41.32, $proposal->pricing_terms['hosting']['monthly_fee']);
+        $this->assertSame(41.32, app(ProposalPricingTerms::class)->monthlyAmount($proposal, 6));
+        $this->assertSame(247.92, app(ProposalPricingTerms::class)->totalAmount($proposal, 6));
 
         app(ProposalBuilder::class)->rerenderPdf($proposal);
 
         $this->assertStringContainsString('FSA-hosted application', $this->renderer->html);
         $this->assertStringContainsString('NZD 41.32 per month ex GST', $this->renderer->html);
+        $this->assertStringContainsString('Pilot programme advisory fee waiver: NZD 0 ex GST', $this->renderer->html);
         $this->assertStringNotContainsString('NZD 20.66', $this->renderer->html);
     }
 

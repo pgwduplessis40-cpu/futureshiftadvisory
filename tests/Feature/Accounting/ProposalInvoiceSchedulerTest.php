@@ -91,6 +91,32 @@ final class ProposalInvoiceSchedulerTest extends TestCase
         });
     }
 
+    public function test_fee_inactive_signed_proposal_does_not_create_a_zero_value_xero_invoice(): void
+    {
+        [$advisor, $client, $proposal] = $this->signedProposal();
+        $proposal->forceFill([
+            'pricing_terms' => [
+                'fee_active' => false,
+                'payment_required' => false,
+                'payable_fee' => ['low' => 0, 'mid' => 0, 'high' => 0],
+                'treatment' => 'pilot_fee_waiver',
+            ],
+        ])->save();
+
+        Http::fake();
+
+        $batch = app(ProposalInvoiceScheduler::class)->sync($proposal, $advisor);
+
+        $this->assertNull($batch);
+        $this->assertDatabaseCount('accounting_invoice_batches', 0);
+        $this->assertDatabaseCount('accounting_invoices', 0);
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'accounting_invoice_batch.skipped',
+            'subject_id' => $proposal->getKey(),
+        ]);
+        Http::assertNothingSent();
+    }
+
     /**
      * @return array{0: User, 1: Client, 2: Proposal}
      */

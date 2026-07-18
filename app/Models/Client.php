@@ -36,6 +36,10 @@ final class Client extends Model
         'registry_sources' => 'array',
         'onboarding_wizard_state' => 'array',
         'engagement_type_locked_at' => 'datetime',
+        'pilot_fee_waiver_enabled' => 'boolean',
+        'pilot_fee_waiver_starts_at' => 'datetime',
+        'pilot_fee_waiver_expires_at' => 'datetime',
+        'pilot_fee_waiver_approved_at' => 'datetime',
     ];
 
     /**
@@ -52,6 +56,14 @@ final class Client extends Model
     public function primaryContact(): BelongsTo
     {
         return $this->belongsTo(User::class, 'primary_contact_user_id');
+    }
+
+    /**
+     * @return BelongsTo<User, Client>
+     */
+    public function pilotFeeWaiverApprovedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'pilot_fee_waiver_approved_by_user_id');
     }
 
     /**

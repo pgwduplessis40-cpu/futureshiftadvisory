@@ -1,6 +1,8 @@
 import { Head, router, useForm } from '@inertiajs/react';
 import {
     BadgeDollarSign,
+    ChevronDown,
+    ChevronUp,
     History,
     Package,
     Pencil,
@@ -16,6 +18,11 @@ import InputError from '@/components/input-error';
 import { PageHeader } from '@/components/page-header';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+    Collapsible,
+    CollapsibleContent,
+    CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -195,6 +202,11 @@ export default function ServiceRatesIndex({
     );
     const [editingIntegrationFeeBandId, setEditingIntegrationFeeBandId] =
         useState<string | null>(null);
+    const [packageEditorOpen, setPackageEditorOpen] = useState(false);
+    const [packageListOpen, setPackageListOpen] = useState(false);
+    const [integrationEditorOpen, setIntegrationEditorOpen] = useState(false);
+    const [integrationListOpen, setIntegrationListOpen] = useState(false);
+    const [rateHistoryOpen, setRateHistoryOpen] = useState(false);
     const integrationPricingForm = useRef<HTMLFormElement>(null);
     const editingPackage =
         packages.find((ratePackage) => ratePackage.id === editingPackageId) ??
@@ -218,6 +230,7 @@ export default function ServiceRatesIndex({
 
         const onSuccess = () => {
             setEditingPackageId(null);
+            setPackageEditorOpen(false);
             packageForm.clearErrors();
             packageForm.setData(defaultPackageFormData);
         };
@@ -239,6 +252,7 @@ export default function ServiceRatesIndex({
 
     function editPackage(ratePackage: ServiceRatePackage) {
         setEditingPackageId(ratePackage.id);
+        setPackageEditorOpen(true);
         packageForm.clearErrors();
         packageForm.setData({
             service_type: ratePackage.service_type,
@@ -261,6 +275,7 @@ export default function ServiceRatesIndex({
 
     function cancelPackageEdit() {
         setEditingPackageId(null);
+        setPackageEditorOpen(false);
         packageForm.clearErrors();
         packageForm.setData(defaultPackageFormData);
     }
@@ -308,6 +323,7 @@ export default function ServiceRatesIndex({
 
     function editIntegrationFeeBand(band: IntegrationFeeBand) {
         setEditingIntegrationFeeBandId(band.id);
+        setIntegrationEditorOpen(true);
         feeBandForm.clearErrors();
         feeBandForm.setData({
             complexity_band: band.complexity_band,
@@ -342,6 +358,7 @@ export default function ServiceRatesIndex({
 
     function cancelIntegrationFeeBandEdit() {
         setEditingIntegrationFeeBandId(null);
+        setIntegrationEditorOpen(false);
         feeBandForm.clearErrors();
         feeBandForm.setData(defaultIntegrationFeeBandForm);
     }
@@ -596,24 +613,60 @@ export default function ServiceRatesIndex({
                 </section>
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(420px,0.8fr)_minmax(0,1fr)]">
-                    <form
-                        onSubmit={submitPackage}
-                        className="grid gap-4 rounded-md border bg-background p-4"
+                    <Collapsible
+                        open={packageEditorOpen}
+                        onOpenChange={setPackageEditorOpen}
+                        className="rounded-md border bg-background p-4"
                     >
-                        <div className="flex items-center gap-2">
-                            <Package className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">
-                                {editingPackage
-                                    ? 'Edit workspace package'
-                                    : 'Add workspace package'}
-                            </h2>
-                            {editingPackage ? (
-                                <Badge variant="outline">
-                                    {editingPackage.client_label}
-                                </Badge>
-                            ) : null}
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Package
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    {editingPackage
+                                        ? 'Edit workspace package'
+                                        : 'Add workspace package'}
+                                </h2>
+                                {editingPackage ? (
+                                    <Badge variant="outline">
+                                        {editingPackage.client_label}
+                                    </Badge>
+                                ) : null}
+                            </div>
+                            <CollapsibleTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    aria-label={
+                                        packageEditorOpen
+                                            ? 'Collapse package editor'
+                                            : 'Expand package editor'
+                                    }
+                                >
+                                    {packageEditorOpen ? (
+                                        <ChevronUp
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <ChevronDown
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    {packageEditorOpen ? 'Collapse' : 'Add'}
+                                </Button>
+                            </CollapsibleTrigger>
                         </div>
 
+                        <CollapsibleContent className="pt-4">
+                            <form
+                                onSubmit={submitPackage}
+                                className="grid gap-4"
+                            >
                         <div className="grid gap-4 sm:grid-cols-2">
                             <div className="grid gap-2">
                                 <Label htmlFor="package_service_type">
@@ -1030,17 +1083,57 @@ export default function ServiceRatesIndex({
                                     : 'Save package'}
                             </Button>
                         </div>
-                    </form>
+                            </form>
+                        </CollapsibleContent>
+                    </Collapsible>
 
-                    <section className="space-y-3 rounded-md border bg-background p-4">
-                        <div className="flex items-center gap-2">
-                            <Package className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">
-                                Service packages
-                            </h2>
+                    <Collapsible
+                        open={packageListOpen}
+                        onOpenChange={setPackageListOpen}
+                        className="rounded-md border bg-background p-4"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Package
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Service packages
+                                </h2>
+                                <Badge variant="outline">
+                                    {packages.length}
+                                </Badge>
+                            </div>
+                            <CollapsibleTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    aria-label={
+                                        packageListOpen
+                                            ? 'Collapse service packages'
+                                            : 'Expand service packages'
+                                    }
+                                >
+                                    {packageListOpen ? (
+                                        <ChevronUp
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <ChevronDown
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    {packageListOpen ? 'Collapse' : 'View'}
+                                </Button>
+                            </CollapsibleTrigger>
                         </div>
 
-                        <div className="overflow-hidden rounded-md border">
+                        <CollapsibleContent className="pt-4">
+                            <div className="overflow-hidden rounded-md border">
                             <table className="fsa-responsive-table table-fixed md:table-fixed">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
@@ -1196,12 +1289,17 @@ export default function ServiceRatesIndex({
                                     )}
                                 </tbody>
                             </table>
-                        </div>
-                    </section>
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                 </section>
 
                 <section className="grid gap-4 lg:grid-cols-[minmax(360px,0.7fr)_minmax(0,1fr)]">
-                    <div className="space-y-4 rounded-md border bg-background p-4">
+                    <Collapsible
+                        open={integrationEditorOpen}
+                        onOpenChange={setIntegrationEditorOpen}
+                        className="rounded-md border bg-background p-4"
+                    >
                         <div className="flex flex-wrap items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <Table2 className="size-4" aria-hidden="true" />
@@ -1211,26 +1309,56 @@ export default function ServiceRatesIndex({
                                         : 'Integration pricing'}
                                 </h2>
                             </div>
-                            {editingIntegrationFeeBand ? (
-                                <Button
-                                    type="button"
-                                    size="sm"
-                                    variant="outline"
-                                    onClick={cancelIntegrationFeeBandEdit}
-                                >
-                                    <X
-                                        className="size-3.5"
-                                        aria-hidden="true"
-                                    />
-                                    Cancel edit
-                                </Button>
-                            ) : null}
+                            <div className="flex items-center gap-2">
+                                {editingIntegrationFeeBand ? (
+                                    <Button
+                                        type="button"
+                                        size="sm"
+                                        variant="outline"
+                                        onClick={cancelIntegrationFeeBandEdit}
+                                    >
+                                        <X
+                                            className="size-3.5"
+                                            aria-hidden="true"
+                                        />
+                                        Cancel edit
+                                    </Button>
+                                ) : null}
+                                <CollapsibleTrigger asChild>
+                                    <Button
+                                        type="button"
+                                        variant="outline"
+                                        size="sm"
+                                        aria-label={
+                                            integrationEditorOpen
+                                                ? 'Collapse integration pricing editor'
+                                                : 'Expand integration pricing editor'
+                                        }
+                                    >
+                                        {integrationEditorOpen ? (
+                                            <ChevronUp
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        ) : (
+                                            <ChevronDown
+                                                className="size-4"
+                                                aria-hidden="true"
+                                            />
+                                        )}
+                                        {integrationEditorOpen
+                                            ? 'Collapse'
+                                            : 'Add'}
+                                    </Button>
+                                </CollapsibleTrigger>
+                            </div>
                         </div>
-                        <form
-                            ref={integrationPricingForm}
-                            onSubmit={submitIntegrationFeeBand}
-                            className="grid gap-4"
-                        >
+                        <CollapsibleContent className="pt-4">
+                            <form
+                                ref={integrationPricingForm}
+                                onSubmit={submitIntegrationFeeBand}
+                                className="grid gap-4"
+                            >
                             <div className="grid gap-4 sm:grid-cols-2">
                                 <div className="grid gap-2">
                                     <Label htmlFor="integration_complexity_band">
@@ -1431,11 +1559,11 @@ export default function ServiceRatesIndex({
                                         : 'Save band'}
                                 </Button>
                             </div>
-                        </form>
-                        <form
-                            onSubmit={importIntegrationFeeBands}
-                            className="border-t pt-4"
-                        >
+                            </form>
+                            <form
+                                onSubmit={importIntegrationFeeBands}
+                                className="border-t pt-4"
+                            >
                             <div className="flex flex-col gap-3 sm:flex-row sm:items-end">
                                 <div className="grid flex-1 gap-2">
                                     <Label htmlFor="integration_pricing_file">
@@ -1477,23 +1605,62 @@ export default function ServiceRatesIndex({
                                     Import
                                 </Button>
                             </div>
-                        </form>
-                    </div>
-                    <section className="space-y-3 rounded-md border bg-background p-4">
-                        <div className="flex items-center gap-2">
-                            <Table2 className="size-4" aria-hidden="true" />
-                            <h2 className="text-sm font-medium">
-                                Current integration fee bands
-                            </h2>
+                            </form>
+                        </CollapsibleContent>
+                    </Collapsible>
+                    <Collapsible
+                        open={integrationListOpen}
+                        onOpenChange={setIntegrationListOpen}
+                        className="rounded-md border bg-background p-4"
+                    >
+                        <div className="flex flex-wrap items-center justify-between gap-3">
+                            <div className="flex items-center gap-2">
+                                <Table2
+                                    className="size-4"
+                                    aria-hidden="true"
+                                />
+                                <h2 className="text-sm font-medium">
+                                    Current integration fee bands
+                                </h2>
+                                <Badge variant="outline">
+                                    {integrationFeeBands.length}
+                                </Badge>
+                            </div>
+                            <CollapsibleTrigger asChild>
+                                <Button
+                                    type="button"
+                                    variant="outline"
+                                    size="sm"
+                                    aria-label={
+                                        integrationListOpen
+                                            ? 'Collapse integration fee bands'
+                                            : 'Expand integration fee bands'
+                                    }
+                                >
+                                    {integrationListOpen ? (
+                                        <ChevronUp
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    ) : (
+                                        <ChevronDown
+                                            className="size-4"
+                                            aria-hidden="true"
+                                        />
+                                    )}
+                                    {integrationListOpen ? 'Collapse' : 'View'}
+                                </Button>
+                            </CollapsibleTrigger>
                         </div>
-                        <p className="text-sm text-muted-foreground">
+                        <CollapsibleContent className="pt-4">
+                            <p className="text-sm text-muted-foreground">
                             Low is for a straightforward delivery with known
                             requirements. Mid is the expected fee and default
                             quote. High allows for unresolved complexity within
                             the agreed scope; material scope changes are priced
                             separately.
-                        </p>
-                        <div className="overflow-hidden rounded-md border">
+                            </p>
+                            <div className="mt-3 overflow-hidden rounded-md border">
                             <table className="fsa-responsive-table table-fixed md:table-fixed">
                                 <thead className="bg-muted/60 text-left">
                                     <tr>
@@ -1669,17 +1836,53 @@ export default function ServiceRatesIndex({
                                     )}
                                 </tbody>
                             </table>
-                        </div>
-                    </section>
+                            </div>
+                        </CollapsibleContent>
+                    </Collapsible>
                 </section>
 
-                <section className="space-y-3 rounded-md border bg-background p-4">
-                    <div className="flex items-center gap-2">
-                        <History className="size-4" aria-hidden="true" />
-                        <h2 className="text-sm font-medium">Rate history</h2>
+                <Collapsible
+                    open={rateHistoryOpen}
+                    onOpenChange={setRateHistoryOpen}
+                    className="rounded-md border bg-background p-4"
+                >
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                            <History className="size-4" aria-hidden="true" />
+                            <h2 className="text-sm font-medium">
+                                Rate history
+                            </h2>
+                            <Badge variant="outline">{history.length}</Badge>
+                        </div>
+                        <CollapsibleTrigger asChild>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                size="sm"
+                                aria-label={
+                                    rateHistoryOpen
+                                        ? 'Collapse rate history'
+                                        : 'Expand rate history'
+                                }
+                            >
+                                {rateHistoryOpen ? (
+                                    <ChevronUp
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                ) : (
+                                    <ChevronDown
+                                        className="size-4"
+                                        aria-hidden="true"
+                                    />
+                                )}
+                                {rateHistoryOpen ? 'Collapse' : 'View'}
+                            </Button>
+                        </CollapsibleTrigger>
                     </div>
 
-                    <div className="overflow-hidden rounded-md border">
+                    <CollapsibleContent className="pt-4">
+                        <div className="overflow-hidden rounded-md border">
                         <table className="fsa-responsive-table table-fixed md:table-fixed">
                             <thead className="bg-muted/60 text-left">
                                 <tr>
@@ -1811,8 +2014,9 @@ export default function ServiceRatesIndex({
                                 )}
                             </tbody>
                         </table>
-                    </div>
-                </section>
+                        </div>
+                    </CollapsibleContent>
+                </Collapsible>
             </div>
         </>
     );

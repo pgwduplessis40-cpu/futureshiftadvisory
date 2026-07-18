@@ -12,13 +12,14 @@ use App\Models\Proposal;
 use App\Models\ProposalSignoffStep;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
+use App\Services\Fees\ProposalPricingTerms;
 use App\Services\Integration\Stripe\Contracts\StripeClient;
 use App\Services\Payments\GstCalculator;
 use App\Services\Payments\PaymentAuthorityRequest;
 use App\Services\Payments\PaymentGatewayException;
 use App\Services\Portal\ClientPortalResolver;
-use App\Services\Proposals\ProposalBuilder;
 use App\Services\Proposals\ProposalBrief;
+use App\Services\Proposals\ProposalBuilder;
 use App\Services\Proposals\SignoffFlow;
 use App\Services\Security\MfaChallenger;
 use Illuminate\Http\JsonResponse;
@@ -36,7 +37,10 @@ use LogicException;
 
 final class ProposalSignoffController extends Controller
 {
-    public function __construct(private readonly ProposalBrief $proposalBriefs) {}
+    public function __construct(
+        private readonly ProposalBrief $proposalBriefs,
+        private readonly ProposalPricingTerms $pricing,
+    ) {}
 
     public function show(
         Request $request,
@@ -102,7 +106,7 @@ final class ProposalSignoffController extends Controller
         $user = $request->user();
         abort_unless($user instanceof User, 403);
 
-        if ($this->proposalTotalAmount($proposal) <= 0) {
+        if (! $this->pricing->requiresPayment($proposal)) {
             throw ValidationException::withMessages([
                 'payment_method_ref' => 'No payment setup is required for a zero-fee proposal.',
             ]);
@@ -260,7 +264,9 @@ final class ProposalSignoffController extends Controller
             'client_name' => $proposal->client?->legal_name,
             'scope_summary' => (string) data_get($proposal->scope, 'summary', ''),
             'brief' => $this->proposalBriefs->for($proposal),
-            'suggested_mid' => $proposal->feeCalculation?->suggested_mid,
+            'suggested_mid' => $this->pricing->payableMid($proposal),
+            'fee_label' => $this->pricing->isPilotWaiver($proposal) ? 'Pilot advisory fee waiver' : 'Fee',
+            'hosting_monthly_fee' => $this->pricing->hostingMonthlyFee($proposal),
             'payment_terms' => $this->paymentTermsPayload($proposal),
             'roi_ratio' => $proposal->roi_ratio,
             'view_url' => route('portal.proposals.show', $proposal, absolute: false),
@@ -281,8 +287,8 @@ final class ProposalSignoffController extends Controller
     {
         $gst = app(GstCalculator::class);
         $termMonths = $this->proposalTermMonths($proposal);
-        $monthlyAmount = $this->proposalMonthlyAmount($proposal, $termMonths);
-        $totalAmount = $this->proposalTotalAmount($proposal, $monthlyAmount, $termMonths);
+        $monthlyAmount = $this->pricing->monthlyAmount($proposal, $termMonths);
+        $totalAmount = $this->pricing->totalAmount($proposal, $termMonths);
 
         return [
             'currency' => 'NZD',
@@ -296,6 +302,7 @@ final class ProposalSignoffController extends Controller
             'gst_rate_percent' => $gst->ratePercent(),
             'tax_mode' => 'gst_exclusive',
             'cancellation_notice_days' => $this->positiveInteger(data_get($proposal->acceptance_terms, 'cancellation_notice_days')),
+            'payment_required' => $this->pricing->requiresPayment($proposal),
         ];
     }
 
@@ -307,42 +314,6 @@ final class ProposalSignoffController extends Controller
             ?? data_get($proposal->feeCalculation?->justification, 'retainer_months');
 
         return max(1, (int) (is_numeric($months) ? $months : 6));
-    }
-
-    private function proposalMonthlyAmount(Proposal $proposal, int $termMonths): float
-    {
-        $monthly = data_get($proposal->feeCalculation?->justification, 'retainer.monthly_fee')
-            ?? data_get($proposal->feeCalculation?->justification, 'monthly_retainer_fee')
-            ?? data_get($proposal->pv_summary, 'monthly_retainer_fee');
-
-        if (is_numeric($monthly) && (float) $monthly > 0) {
-            return round((float) $monthly, 2);
-        }
-
-        $total = $proposal->feeCalculation?->suggested_mid ?? data_get($proposal->pv_summary, 'fee_suggested_mid', 0);
-
-        return round(((float) $total) / max(1, $termMonths), 2);
-    }
-
-    private function proposalTotalAmount(Proposal $proposal, ?float $monthlyAmount = null, ?int $termMonths = null): float
-    {
-        $feeAmount = $proposal->feeCalculation?->suggested_mid;
-
-        if (is_numeric($feeAmount)) {
-            return round((float) $feeAmount, 2);
-        }
-
-        $summaryAmount = data_get($proposal->pv_summary, 'fee_suggested_mid');
-
-        if (is_numeric($summaryAmount)) {
-            return round((float) $summaryAmount, 2);
-        }
-
-        if ($monthlyAmount !== null && $monthlyAmount > 0) {
-            return round($monthlyAmount * max(1, $termMonths ?? $this->proposalTermMonths($proposal)), 2);
-        }
-
-        return 0.0;
     }
 
     private function positiveInteger(mixed $value): ?int

@@ -524,6 +524,11 @@ final class TestingSeedDataSeederTest extends TestCase
     {
         $client = DB::table('clients')->where('nzbn', '9429000000133')->first();
         $this->assertNotNull($client, 'Expected the Website Review Demo client.');
+        $this->assertTrue((bool) $client->pilot_fee_waiver_enabled);
+        $this->assertNotNull($client->pilot_fee_waiver_expires_at);
+        $this->assertSame('open', DB::table('pilot_fee_waiver_programs')
+            ->where('key', 'pilot-fee-waiver')
+            ->value('status'));
 
         $document = DB::table('documents')
             ->where('client_id', $client->id)
@@ -540,7 +545,7 @@ final class TestingSeedDataSeederTest extends TestCase
             ->where('proposals.client_id', $client->id)
             ->where('fee_calculations.method', 'integration')
             ->where('proposals.status', 'released')
-            ->select('proposals.scope')
+            ->select('proposals.scope', 'proposals.pricing_terms')
             ->first();
         $this->assertNotNull($proposal, 'Expected a released integration proposal for Website Review Demo.');
 
@@ -550,5 +555,12 @@ final class TestingSeedDataSeederTest extends TestCase
         $this->assertSame(41.32, (float) data_get($hosting, 'monthly_fee'));
         $this->assertArrayNotHasKey('monthly_cost', $hosting);
         $this->assertArrayNotHasKey('markup_percent', $hosting);
+
+        $pricingTerms = json_decode((string) $proposal->pricing_terms, true, flags: JSON_THROW_ON_ERROR);
+        $this->assertSame('pilot_fee_waiver', data_get($pricingTerms, 'treatment'));
+        $this->assertTrue((bool) data_get($pricingTerms, 'fee_active'));
+        $this->assertTrue((bool) data_get($pricingTerms, 'payment_required'));
+        $this->assertSame(0, data_get($pricingTerms, 'payable_fee.mid'));
+        $this->assertSame(41.32, (float) data_get($pricingTerms, 'hosting.monthly_fee'));
     }
 }
