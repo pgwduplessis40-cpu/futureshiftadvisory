@@ -28,4 +28,42 @@ export default defineConfig({
             formVariants: true,
         }),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks(id) {
+                    if (!id.includes('node_modules')) {
+                        return;
+                    }
+
+                    const normalizedId = id.replace(/\\/g, '/');
+
+                    if (
+                        normalizedId.includes('/react/') ||
+                        normalizedId.includes('/react-dom/') ||
+                        normalizedId.includes('/scheduler/')
+                    ) {
+                        return 'vendor-react';
+                    }
+
+                    if (normalizedId.includes('/@inertiajs/')) {
+                        return 'vendor-inertia';
+                    }
+
+                    if (
+                        normalizedId.includes('/@radix-ui/') ||
+                        normalizedId.includes('/lucide-react/') ||
+                        normalizedId.includes('/sonner/') ||
+                        normalizedId.includes('/class-variance-authority/') ||
+                        normalizedId.includes('/clsx/') ||
+                        normalizedId.includes('/tailwind-merge/')
+                    ) {
+                        return 'vendor-ui';
+                    }
+
+                    return 'vendor';
+                },
+            },
+        },
+    },
 });

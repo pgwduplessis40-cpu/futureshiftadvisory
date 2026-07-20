@@ -1,4 +1,5 @@
-const CACHE_NAME = 'fsa-portal-shell-v3';
+const CACHE_NAME = 'fsa-portal-shell-v4';
+const BUILD_MANIFEST_URL = '/build/manifest.json';
 const SHELL_URLS = [
     '/offline.html',
     '/manifest.webmanifest',
@@ -12,7 +13,12 @@ const SYNC_TAG = 'portal-offline-sync';
 
 self.addEventListener('install', (event) => {
     event.waitUntil(
-        caches.open(CACHE_NAME).then((cache) => cache.addAll(SHELL_URLS)),
+        (async () => {
+            const cache = await caches.open(CACHE_NAME);
+
+            await cache.addAll(SHELL_URLS);
+            await precacheBuildAssets(cache);
+        })(),
     );
     self.skipWaiting();
 });
@@ -108,4 +114,59 @@ async function notifyClientsToSync() {
     for (const client of clients) {
         client.postMessage({ type: 'PORTAL_OFFLINE_SYNC' });
     }
+}
+
+async function precacheBuildAssets(cache) {
+    const urls = await buildAssetUrls();
+
+    await Promise.all(
+        urls.map((url) => cache.add(url).catch(() => null)),
+    );
+}
+
+async function buildAssetUrls() {
+    try {
+        const response = await fetch(BUILD_MANIFEST_URL, {
+            cache: 'no-cache',
+        });
+
+        if (!response.ok) {
+            return [];
+        }
+
+        const manifest = await response.json();
+        const urls = new Set([BUILD_MANIFEST_URL]);
+
+        for (const entry of Object.values(manifest)) {
+            collectBuildAssetUrls(entry, urls);
+        }
+
+        return [...urls];
+    } catch {
+        return [];
+    }
+}
+
+function collectBuildAssetUrls(entry, urls) {
+    if (!entry || typeof entry !== 'object') {
+        return;
+    }
+
+    addBuildAssetUrl(entry.file, urls);
+
+    for (const cssPath of entry.css || []) {
+        addBuildAssetUrl(cssPath, urls);
+    }
+
+    for (const assetPath of entry.assets || []) {
+        addBuildAssetUrl(assetPath, urls);
+    }
+}
+
+function addBuildAssetUrl(path, urls) {
+    if (typeof path !== 'string' || path === '') {
+        return;
+    }
+
+    urls.add(path.startsWith('/') ? path : `/build/${path}`);
 }

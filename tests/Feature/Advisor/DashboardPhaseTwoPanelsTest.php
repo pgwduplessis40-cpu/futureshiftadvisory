@@ -63,8 +63,6 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 ->where('proposalStatus.expiry_alerts.0.id', $proposal->id)
                 ->where('proposalStatus.expiry_alerts.0.client_id', $client->id)
                 ->where('proposalStatus.expiry_alerts.0.brief', 'Dashboard proposal fixture.')
-                ->where('questionnaireOptimisation.summary.detected_candidates', 1)
-                ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory')
                 ->where('panelOperations.broker.summary.total', 1)
                 ->where('panelOperations.broker.summary.active', 1)
                 ->where('panelOperations.broker.items.0.id', $brokerReferral->id)
@@ -80,6 +78,9 @@ final class DashboardPhaseTwoPanelsTest extends TestCase
                 ->where('panelOperations.approvals.items.0.panel_type', PanelMember::TYPE_BROKER)
                 ->where('panelOperations.approvals.items.0.business_name', 'Pending Broker Limited')
                 ->where('panelOperations.learning.summary.detected', 1)
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('questionnaireOptimisation.summary.detected_candidates', 1)
+                    ->where('questionnaireOptimisation.items.0.questionnaire_title', 'Standard Advisory'))
                 ->where('panelOperations.learning.queue_url', route('admin.learning-updates.index', absolute: false))
                 ->where('panelOperations.learning.items.0.id', $learningUpdate->id));
     }

@@ -69,10 +69,11 @@ final class CoachSignalDetectorTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('coachSignals.summary.total', 1)
-                ->where('coachSignals.summary.auto_referrals', 0)
-                ->where('coachSignals.items.0.client_name', 'Signal Dashboard Limited')
-                ->where('coachSignals.items.0.suggested_specialisation', CoachSpecialisation::BUSINESS_EXECUTIVE->value));
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('coachSignals.summary.total', 1)
+                    ->where('coachSignals.summary.auto_referrals', 0)
+                    ->where('coachSignals.items.0.client_name', 'Signal Dashboard Limited')
+                    ->where('coachSignals.items.0.suggested_specialisation', CoachSpecialisation::BUSINESS_EXECUTIVE->value)));
     }
 
     public function test_calibration_layer_emits_governed_candidates_only(): void

@@ -73,6 +73,8 @@ final class AuditTrailTest extends TestCase
             ->assertInertia(fn (Assert $page) => $page
                 ->component('admin/audit-trail/Index')
                 ->where('events.total', 1)
+                ->where('events.current_page', 1)
+                ->where('events.last_page', 1)
                 ->where('events.data.0.action', 'reference_data.updated')
                 ->where('events.data.0.actor.name', 'Aroha Reviewer')
                 ->where('events.data.0.actor.email', 'aroha.reviewer@example.test')

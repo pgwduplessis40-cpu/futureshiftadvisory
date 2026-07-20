@@ -24,6 +24,8 @@ import { useEffect, useState } from 'react';
 import InputError from '@/components/input-error';
 import { InsightHoverCard } from '@/components/insight/InsightHoverCard';
 import type { InsightHoverCardRow } from '@/components/insight/InsightHoverCard';
+import { AdvisorSupportAction } from '@/components/screen-share/AdvisorSupportAction';
+import type { AdvisorScreenShareConfig } from '@/components/screen-share/AdvisorSupportAction';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,6 +48,7 @@ import type {
 type Props = {
     entrepreneur: EntrepreneurDetail;
     serviceOptions: ServiceOption[];
+    screenShare: AdvisorScreenShareConfig | null;
 };
 
 type InviteDetailsForm = {
@@ -58,6 +61,7 @@ type InviteDetailsForm = {
 export default function EntrepreneursShow({
     entrepreneur,
     serviceOptions,
+    screenShare,
 }: Props) {
     const latestAssessment = entrepreneur.latest_plan?.latest_assessment;
     const latestAssessmentUsesCurrentRubric =
@@ -343,6 +347,7 @@ export default function EntrepreneursShow({
                         </div>
                     </div>
                     <div className="flex flex-wrap gap-2">
+                        <AdvisorSupportAction config={screenShare} />
                         <Button asChild size="sm">
                             <Link href={entrepreneur.messages.url}>
                                 <MessageSquare

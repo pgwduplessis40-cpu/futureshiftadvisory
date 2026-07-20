@@ -30,6 +30,7 @@ use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
 use App\Services\Security\InviteIssuer;
+use App\Services\ScreenShare\ScreenShareAuthorizer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -51,6 +52,7 @@ final class EntrepreneurController extends Controller
         private readonly InviteIssuer $inviteIssuer,
         private readonly EntrepreneurGamification $gamification,
         private readonly IdeaViabilityGate $ideaViabilityGate,
+        private readonly ScreenShareAuthorizer $screenShareAuthorizer,
     ) {}
 
     public function index(Request $request): Response
@@ -423,7 +425,36 @@ final class EntrepreneurController extends Controller
                 ],
             ],
             'serviceOptions' => ServiceRatePackage::entrepreneurPackageScopeOptions(),
+            'screenShare' => $this->screenSharePayload($viewer, $entrepreneurProfile),
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function screenSharePayload(User $viewer, EntrepreneurProfile $profile): ?array
+    {
+        if (
+            ! $profile->user instanceof User
+            || ! $this->screenShareAuthorizer->canRequestForEntrepreneur($viewer, $profile, $profile->user)
+        ) {
+            return null;
+        }
+
+        return [
+            'connection_url' => route('advisor.entrepreneurs.screen-share.connections.store', $profile, absolute: false),
+            'request_url' => route('advisor.entrepreneurs.screen-share.sessions.store', $profile, absolute: false),
+            'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
+            'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
+            'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
+            'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+            'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
+            'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+            'participants' => [[
+                'id' => (string) $profile->user->getKey(),
+                'name' => $profile->user->name,
+            ]],
+        ];
     }
 
     private function actor(Request $request): User
@@ -615,8 +646,8 @@ final class EntrepreneurController extends Controller
             'outcome' => $assessment?->outcome,
             'assessed_at' => $assessment?->assessed_at?->toIso8601String(),
             'action_label' => $assessment instanceof ReadinessAssessment
-                ? 'Review surveys'
-                : 'Send readiness questionnaire',
+                ? 'Feedback surveys'
+                : 'Send feedback survey',
             'action_url' => route('advisor.entrepreneurs.surveys', $profile, absolute: false),
         ];
     }

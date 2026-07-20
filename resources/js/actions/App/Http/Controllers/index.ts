@@ -6,6 +6,7 @@ import Public from './Public'
 import Auth from './Auth'
 import Admin from './Admin'
 import Advisor from './Advisor'
+import ScreenShare from './ScreenShare'
 import Portal from './Portal'
 import CalendarController from './CalendarController'
 import DocumentController from './DocumentController'
@@ -26,6 +27,7 @@ Public: Object.assign(Public, Public),
 Auth: Object.assign(Auth, Auth),
 Admin: Object.assign(Admin, Admin),
 Advisor: Object.assign(Advisor, Advisor),
+ScreenShare: Object.assign(ScreenShare, ScreenShare),
 Portal: Object.assign(Portal, Portal),
 CalendarController: Object.assign(CalendarController, CalendarController),
 DocumentController: Object.assign(DocumentController, DocumentController),

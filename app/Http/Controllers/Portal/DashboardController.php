@@ -47,6 +47,7 @@ use App\Services\Portal\OnboardingWizard;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
 use App\Services\Proposals\ProposalBrief;
 use App\Services\ServiceActivations\ServiceActivationNavigation;
+use App\Services\ScreenShare\ClientPortalContextTokens;
 use App\Services\StandardAdvisory\StandardAdvisoryWorkflow;
 use App\Services\StrategicPlans\StrategicPlanService;
 use Illuminate\Http\RedirectResponse;
@@ -76,6 +77,7 @@ final class DashboardController extends Controller
         private readonly StrategicPlanService $strategicPlans,
         private readonly ProposalBrief $proposalBriefs,
         private readonly ProposalPricingTerms $pricing,
+        private readonly ClientPortalContextTokens $screenShareContexts,
     ) {}
 
     public function __invoke(Request $request): Response|RedirectResponse
@@ -114,6 +116,21 @@ final class DashboardController extends Controller
 
         return Inertia::render('portal/Dashboard', [
             'client' => $this->clientPayload($client),
+            'screenShare' => $request->query('client') === (string) $client->getKey()
+                ? [
+                    'portal_context_token' => $this->screenShareContexts->issue($viewer, $client, 'portal.dashboard'),
+                    'connection_url' => route('portal.screen-share.connections.store', absolute: false),
+                    'response_url' => route('portal.screen-share.sessions.response', ['session' => '__session__'], absolute: false),
+                    'browser_permission_url' => route('portal.screen-share.sessions.browser-permission', ['session' => '__session__'], absolute: false),
+                    'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
+                    'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
+                    'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
+                    'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+                    'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
+                    'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+                    'warning_at_minutes' => max(0, (int) config('screen-share.warning_at_minutes', 25)),
+                ]
+                : null,
             'progress' => $this->wizard->progress($client),
             'currentStep' => $this->wizard->currentStepSlug($client),
             'welcomeMessage' => $this->welcomeMessage->renderForClient(

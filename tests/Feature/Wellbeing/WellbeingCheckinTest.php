@@ -278,12 +278,13 @@ final class WellbeingCheckinTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('wellbeingAnalytics.summary.checkins', 2)
-                ->where('wellbeingAnalytics.summary.clients', 1)
-                ->where('wellbeingAnalytics.summary.average_personal_coping', 2.5)
-                ->where('wellbeingAnalytics.summary.low_personal_coping_checkins', 1)
-                ->where('wellbeingAnalytics.summary.current_period_completion_rate', 1)
-                ->has('wellbeingAnalytics.monthly', 2));
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('wellbeingAnalytics.summary.checkins', 2)
+                    ->where('wellbeingAnalytics.summary.clients', 1)
+                    ->where('wellbeingAnalytics.summary.average_personal_coping', 2.5)
+                    ->where('wellbeingAnalytics.summary.low_personal_coping_checkins', 1)
+                    ->where('wellbeingAnalytics.summary.current_period_completion_rate', 1)
+                    ->has('wellbeingAnalytics.monthly', 2)));
     }
 
     public function test_monthly_command_prompts_due_client_users_only(): void

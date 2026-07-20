@@ -105,12 +105,13 @@ final class DashboardTest extends TestCase
                 ->where('pendingTermsReacceptance.items.0.user_name', 'Client Contact')
                 ->where('prospectInbox.total', 2)
                 ->where('prospectInbox.triage_enabled', true)
-                ->where('integrationHealth.summary.total', 1)
                 ->where('feeStatus.free_access_mode', false)
                 ->where('feeStatus.charging_enabled', true)
                 ->where('feeStatus.can_manage', false)
                 ->where('feeStatus.manage_url', null)
-                ->where('integrationHealth.services.0.service', 'nzbn'));
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('integrationHealth.summary.total', 1)
+                    ->where('integrationHealth.services.0.service', 'nzbn')));
     }
 
     public function test_super_admin_dashboard_surfaces_inactive_rates_free_access_mode(): void

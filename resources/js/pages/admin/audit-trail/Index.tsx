@@ -1,6 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
 import {
     CalendarDays,
+    ChevronLeft,
+    ChevronRight,
     History,
     RotateCcw,
     Search,
@@ -14,7 +16,6 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { cn } from '@/lib/utils';
 
 type AuditActor = {
     label: string;
@@ -42,18 +43,13 @@ type AuditEvent = {
     request_id: string | null;
 };
 
-type PaginationLink = {
-    url: string | null;
-    label: string;
-    active: boolean;
-};
-
 type PaginatedEvents = {
+    current_page: number;
     data: AuditEvent[];
     from: number | null;
+    last_page: number;
     to: number | null;
     total: number;
-    links: PaginationLink[];
 };
 
 type Filters = {
@@ -100,27 +96,28 @@ export default function AuditTrailIndex({ events, filters }: Props) {
         <>
             <Head title="Audit trail" />
 
-            <div className="space-y-6">
-                <PageHeader
-                    eyebrow="Administration"
-                    icon={History}
-                    title="Audit trail"
-                    description="Immutable record of platform activity."
-                    actions={
-                        <Badge variant="outline">
-                            <ShieldCheck
-                                className="size-3"
-                                aria-hidden="true"
-                            />
-                            {events.total} events
-                        </Badge>
-                    }
-                />
+            <div className="space-y-6 lg:flex lg:h-[calc(100svh-7rem)] lg:min-h-0 lg:flex-col lg:gap-4 lg:space-y-0">
+                <div className="space-y-6 lg:shrink-0 lg:space-y-4">
+                    <PageHeader
+                        eyebrow="Administration"
+                        icon={History}
+                        title="Audit trail"
+                        description="Immutable record of platform activity."
+                        actions={
+                            <Badge variant="outline">
+                                <ShieldCheck
+                                    className="size-3"
+                                    aria-hidden="true"
+                                />
+                                {events.total} events
+                            </Badge>
+                        }
+                    />
 
-                <form
-                    onSubmit={submit}
-                    className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto_auto]"
-                >
+                    <form
+                        onSubmit={submit}
+                        className="grid gap-3 rounded-md border bg-background p-4 lg:grid-cols-[1.4fr_1fr_1fr_1fr_auto_auto]"
+                    >
                     <Field label="Search" htmlFor="audit_q">
                         <Input
                             id="audit_q"
@@ -193,25 +190,27 @@ export default function AuditTrailIndex({ events, filters }: Props) {
                         />
                     </Field>
 
-                    <div className="flex gap-2 lg:col-span-6">
-                        <Button type="submit">
-                            <Search className="size-4" aria-hidden="true" />
-                            Search
-                        </Button>
-                        <Button
-                            type="button"
-                            variant="outline"
-                            onClick={clearFilters}
-                        >
-                            <RotateCcw className="size-4" aria-hidden="true" />
-                            Reset
-                        </Button>
-                    </div>
-                </form>
+                        <div className="flex gap-2 lg:col-span-6">
+                            <Button type="submit">
+                                <Search className="size-4" aria-hidden="true" />
+                                Search
+                            </Button>
+                            <Button
+                                type="button"
+                                variant="outline"
+                                onClick={clearFilters}
+                            >
+                                <RotateCcw className="size-4" aria-hidden="true" />
+                                Reset
+                            </Button>
+                        </div>
+                    </form>
+                </div>
 
-                <div className="overflow-hidden rounded-md border bg-background">
-                    <table className="fsa-responsive-table">
-                        <thead className="bg-muted/60 text-left">
+                <div className="overflow-hidden rounded-md border bg-background lg:min-h-0 lg:flex-1">
+                    <div className="lg:h-full lg:overflow-auto">
+                        <table className="fsa-responsive-table">
+                            <thead className="bg-muted text-left lg:sticky lg:top-0 lg:z-10 lg:shadow-sm [&_th]:bg-muted">
                             <tr>
                                 <th className="px-3 py-2 font-medium">Time</th>
                                 <th className="px-3 py-2 font-medium">
@@ -228,8 +227,8 @@ export default function AuditTrailIndex({ events, filters }: Props) {
                                     Details
                                 </th>
                             </tr>
-                        </thead>
-                        <tbody>
+                            </thead>
+                            <tbody>
                             {events.data.length > 0 ? (
                                 events.data.map((event) => (
                                     <AuditEventRow
@@ -248,11 +247,12 @@ export default function AuditTrailIndex({ events, filters }: Props) {
                                     </td>
                                 </tr>
                             )}
-                        </tbody>
-                    </table>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
 
-                <Pagination events={events} />
+                <Pagination events={events} filters={filters} />
             </div>
         </>
     );
@@ -366,42 +366,110 @@ function JsonPanel({ label, value }: { label: string; value: unknown }) {
     );
 }
 
-function Pagination({ events }: { events: PaginatedEvents }) {
-    if (events.links.length <= 3) {
+function Pagination({
+    events,
+    filters,
+}: {
+    events: PaginatedEvents;
+    filters: Filters;
+}) {
+    if (events.last_page <= 1) {
         return null;
     }
 
+    const pageWindowSize = 5;
+    const firstPageInWindow =
+        Math.floor((events.current_page - 1) / pageWindowSize) *
+            pageWindowSize +
+        1;
+    const lastPageInWindow = Math.min(
+        firstPageInWindow + pageWindowSize - 1,
+        events.last_page,
+    );
+    const visiblePages = Array.from(
+        { length: lastPageInWindow - firstPageInWindow + 1 },
+        (_, index) => firstPageInWindow + index,
+    );
+    const previousWindowPage =
+        firstPageInWindow > 1 ? firstPageInWindow - pageWindowSize : null;
+    const nextWindowPage =
+        lastPageInWindow < events.last_page ? lastPageInWindow + 1 : null;
+
     return (
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex shrink-0 flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className="text-sm text-muted-foreground">
                 Showing {events.from ?? 0} to {events.to ?? 0} of {events.total}
             </p>
-            <div className="flex flex-wrap gap-2">
-                {events.links.map((link, index) =>
-                    link.url ? (
-                        <Button
-                            key={`${link.label}-${index}`}
-                            asChild
-                            size="sm"
-                            variant={link.active ? 'default' : 'outline'}
-                        >
-                            <Link href={link.url}>
-                                {cleanLinkLabel(link.label)}
-                            </Link>
-                        </Button>
-                    ) : (
-                        <span
-                            key={`${link.label}-${index}`}
-                            className={cn(
-                                'inline-flex h-8 items-center rounded-md border px-3 text-sm text-muted-foreground opacity-60',
-                            )}
-                        >
-                            {cleanLinkLabel(link.label)}
-                        </span>
-                    ),
-                )}
+            <div className="flex items-center gap-2" aria-label="Audit trail pages">
+                <PageWindowControl
+                    href={
+                        previousWindowPage
+                            ? auditTrailPageUrl(filters, previousWindowPage)
+                            : null
+                    }
+                    direction="previous"
+                    disabled={!previousWindowPage}
+                />
+                {visiblePages.map((page) => (
+                    <Button
+                        key={page}
+                        asChild
+                        size="sm"
+                        variant={
+                            page === events.current_page ? 'default' : 'outline'
+                        }
+                    >
+                        <Link href={auditTrailPageUrl(filters, page)}>
+                            {page}
+                        </Link>
+                    </Button>
+                ))}
+                <PageWindowControl
+                    href={
+                        nextWindowPage
+                            ? auditTrailPageUrl(filters, nextWindowPage)
+                            : null
+                    }
+                    direction="next"
+                    disabled={!nextWindowPage}
+                />
             </div>
         </div>
+    );
+}
+
+function PageWindowControl({
+    href,
+    direction,
+    disabled,
+}: {
+    href: string | null;
+    direction: 'previous' | 'next';
+    disabled: boolean;
+}) {
+    const isPrevious = direction === 'previous';
+    const label = isPrevious ? 'Show previous five pages' : 'Show next five pages';
+    const Icon = isPrevious ? ChevronLeft : ChevronRight;
+
+    return (
+        <Button
+            asChild={Boolean(href)}
+            size="icon"
+            variant="outline"
+            disabled={disabled}
+            aria-label={label}
+            title={label}
+        >
+            {href ? (
+                <Link href={href} aria-label={label}>
+                    <Icon className="size-4" aria-hidden="true" />
+                </Link>
+            ) : (
+                <span>
+                    <Icon className="size-4" aria-hidden="true" />
+                </span>
+            )}
+        </Button>
     );
 }
 
@@ -411,8 +479,11 @@ function compactFilters(filters: Filters) {
     );
 }
 
-function cleanLinkLabel(label: string) {
-    return label.replace('&laquo;', 'Previous').replace('&raquo;', 'Next');
+function auditTrailPageUrl(filters: Filters, page: number) {
+    const query = new URLSearchParams(compactFilters(filters));
+    query.set('page', String(page));
+
+    return `/admin/audit-trail?${query.toString()}`;
 }
 
 AuditTrailIndex.layout = {

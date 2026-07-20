@@ -25,12 +25,25 @@ use App\Http\Controllers\Portal\StrategicBudgetController;
 use App\Http\Controllers\Portal\StrategicPlanMilestoneController;
 use App\Http\Controllers\Portal\SurveyController;
 use App\Http\Controllers\Portal\WellbeingController;
+use App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController;
+use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
+use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
     ->prefix('portal')
     ->name('portal.')
     ->group(function (): void {
+        Route::post('screen-share/connections', [ScreenShareConnectionController::class, 'registerClient'])
+            ->name('screen-share.connections.store');
+        Route::post('entrepreneur-screen-share/connections', [EntrepreneurScreenShareController::class, 'registerPortalParticipant'])
+            ->name('entrepreneur-screen-share.connections.store');
+        Route::post('screen-share-sessions/{session}/response', [ScreenShareSessionController::class, 'respond'])
+            ->whereUuid('session')
+            ->name('screen-share.sessions.response');
+        Route::post('screen-share-sessions/{session}/browser-permission', [ScreenShareSessionController::class, 'browserPermission'])
+            ->whereUuid('session')
+            ->name('screen-share.sessions.browser-permission');
         Route::get('/', ClientPortalDashboardController::class)->name('dashboard');
         Route::redirect('strategic-plan-budget', 'business-plan-budget');
         Route::get('business-plan-budget', [StrategicBudgetController::class, 'show'])->name('business-plan-budget.show');

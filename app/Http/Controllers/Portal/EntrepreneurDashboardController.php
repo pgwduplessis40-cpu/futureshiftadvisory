@@ -23,6 +23,7 @@ use App\Services\Board\InspirationBoard;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\EntrepreneurInviteReconciler;
 use App\Services\Portal\Welcome\WelcomeMessageRenderer;
+use App\Services\ScreenShare\ClientPortalContextTokens;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -36,6 +37,7 @@ final class EntrepreneurDashboardController extends Controller
         private readonly EntrepreneurGamification $gamification,
         private readonly EntrepreneurInviteReconciler $entrepreneurInvites,
         private readonly WelcomeMessageRenderer $welcomeMessage,
+        private readonly ClientPortalContextTokens $screenShareContexts,
     ) {}
 
     public function __invoke(Request $request): Response
@@ -115,6 +117,7 @@ final class EntrepreneurDashboardController extends Controller
             'documentUploadUrl' => route('portal.documents.store', absolute: false),
             'notificationsUrl' => route('notifications.index', absolute: false),
             'settingsUrl' => route('profile.edit', absolute: false),
+            'screenShare' => $this->screenSharePayload($user, $profile),
             'surveys' => $profile ? $this->surveyPayload($profile) : [
                 'total_open' => 0,
                 'index_url' => route('portal.entrepreneur.surveys.index', absolute: false),
@@ -134,6 +137,38 @@ final class EntrepreneurDashboardController extends Controller
                 ? $this->welcomeMessage->renderForEntrepreneur($profile, $user)
                 : ['has_message' => false, 'html' => '', 'version' => null],
         ]);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    private function screenSharePayload(User $user, ?EntrepreneurProfile $profile): ?array
+    {
+        if (
+            ! $profile instanceof EntrepreneurProfile
+            || $user->user_type !== User::TYPE_ENTREPRENEUR
+            || (string) $profile->user_id !== (string) $user->getKey()
+        ) {
+            return null;
+        }
+
+        return [
+            'portal_context_token' => $this->screenShareContexts->issueForEntrepreneur(
+                $user,
+                $profile,
+                'portal.entrepreneur.dashboard',
+            ),
+            'connection_url' => route('portal.entrepreneur-screen-share.connections.store', absolute: false),
+            'response_url' => route('portal.screen-share.sessions.response', ['session' => '__session__'], absolute: false),
+            'browser_permission_url' => route('portal.screen-share.sessions.browser-permission', ['session' => '__session__'], absolute: false),
+            'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
+            'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
+            'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
+            'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+            'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
+            'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+            'warning_at_minutes' => max(1, (int) config('screen-share.warning_at_minutes', 25)),
+        ];
     }
 
     /**

@@ -19,6 +19,8 @@ final class ProjectSettings
 {
     public const GROUP_PARTNER_AGREEMENT = 'partner_agreement';
 
+    public const GROUP_SCREEN_SHARE = 'screen_share';
+
     public const TYPE_STRING = 'string';
 
     public const TYPE_SECRET = 'secret';
@@ -57,6 +59,10 @@ final class ProjectSettings
             'title' => 'Microsoft Graph',
             'description' => 'Outlook calendar OAuth and Graph API connection settings.',
         ],
+        self::GROUP_SCREEN_SHARE => [
+            'title' => 'Screen support',
+            'description' => 'Server-enforced screen-support timing limits. Changes are audited.',
+        ],
         self::GROUP_PARTNER_AGREEMENT => [
             'title' => 'Partner Agreement',
             'description' => 'Broker and coach agreement wording used when partner applications are approved.',
@@ -68,6 +74,7 @@ final class ProjectSettings
         'slack_notifications',
         'logging_slack',
         'microsoft_graph',
+        self::GROUP_SCREEN_SHARE,
     ];
 
     /**
@@ -368,6 +375,66 @@ final class ProjectSettings
             'type' => self::TYPE_STRING_LIST,
             'config_path' => 'integrations.calendar.microsoft.scopes',
             'default' => "Calendars.ReadWrite\noffline_access",
+        ],
+        [
+            'key' => 'screen-share.max_duration_minutes',
+            'group' => self::GROUP_SCREEN_SHARE,
+            'label' => 'Maximum duration (minutes)',
+            'type' => self::TYPE_INTEGER,
+            'config_path' => 'screen-share.max_duration_minutes',
+            'default' => 30,
+            'min' => 1,
+            'max' => 120,
+        ],
+        [
+            'key' => 'screen-share.warning_at_minutes',
+            'group' => self::GROUP_SCREEN_SHARE,
+            'label' => 'Warning at (minutes)',
+            'type' => self::TYPE_INTEGER,
+            'config_path' => 'screen-share.warning_at_minutes',
+            'default' => 25,
+            'min' => 0,
+            'max' => 119,
+        ],
+        [
+            'key' => 'screen-share.request_timeout_seconds',
+            'group' => self::GROUP_SCREEN_SHARE,
+            'label' => 'Request timeout (seconds)',
+            'type' => self::TYPE_INTEGER,
+            'config_path' => 'screen-share.request_timeout_seconds',
+            'default' => 60,
+            'min' => 15,
+            'max' => 300,
+        ],
+        [
+            'key' => 'screen-share.picker_timeout_seconds',
+            'group' => self::GROUP_SCREEN_SHARE,
+            'label' => 'Browser picker timeout (seconds)',
+            'type' => self::TYPE_INTEGER,
+            'config_path' => 'screen-share.picker_timeout_seconds',
+            'default' => 90,
+            'min' => 30,
+            'max' => 600,
+        ],
+        [
+            'key' => 'screen-share.reconnect_grace_seconds',
+            'group' => self::GROUP_SCREEN_SHARE,
+            'label' => 'Reconnect grace (seconds)',
+            'type' => self::TYPE_INTEGER,
+            'config_path' => 'screen-share.reconnect_grace_seconds',
+            'default' => 15,
+            'min' => 5,
+            'max' => 120,
+        ],
+        [
+            'key' => 'screen-share.heartbeat_interval_seconds',
+            'group' => self::GROUP_SCREEN_SHARE,
+            'label' => 'Heartbeat interval (seconds)',
+            'type' => self::TYPE_INTEGER,
+            'config_path' => 'screen-share.heartbeat_interval_seconds',
+            'default' => 10,
+            'min' => 5,
+            'max' => 60,
         ],
         [
             'key' => 'panels.agreements.title',

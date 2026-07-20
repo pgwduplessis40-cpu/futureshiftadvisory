@@ -18,6 +18,7 @@ import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
 import { InspirationCard } from '@/components/inspiration/InspirationCard';
 import type { InspirationPost } from '@/components/inspiration/InspirationCard';
+import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -177,6 +178,20 @@ type WelcomeMessage = {
     version: number | null;
 };
 
+type ScreenShareConfig = {
+    portal_context_token: string;
+    connection_url: string;
+    response_url: string;
+    browser_permission_url: string;
+    ice_servers_url: string;
+    active_url: string;
+    signal_url: string;
+    heartbeat_url: string;
+    end_url: string;
+    heartbeat_seconds: number;
+    warning_at_minutes: number;
+} | null;
+
 type Props = {
     profile: EntrepreneurProfile;
     inspirationBoard: InspirationPost | null;
@@ -190,6 +205,7 @@ type Props = {
     outcomeFollowUps: PendingOutcomeFollowUpsPayload;
     gamification: GamificationPayload;
     welcomeMessage: WelcomeMessage;
+    screenShare: ScreenShareConfig;
 };
 
 export default function EntrepreneurDashboard({
@@ -205,6 +221,7 @@ export default function EntrepreneurDashboard({
     outcomeFollowUps,
     gamification,
     welcomeMessage,
+    screenShare,
 }: Props) {
     const [documents, setDocuments] = useState<UploadedDocument[]>(
         profile?.latest_documents ?? [],
@@ -306,6 +323,7 @@ export default function EntrepreneurDashboard({
     return (
         <>
             <Head title="Entrepreneur dashboard" />
+            <ClientSupport config={screenShare} />
 
             <div className="space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

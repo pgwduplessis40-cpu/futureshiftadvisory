@@ -46,6 +46,9 @@ use App\Http\Controllers\Advisor\SurveyResultController;
 use App\Http\Controllers\Advisor\TemplateController;
 use App\Http\Controllers\Advisor\TestimonialController;
 use App\Http\Controllers\Advisor\VoiceNoteController;
+use App\Http\Controllers\ScreenShare\EntrepreneurScreenShareController;
+use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
+use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified', 'mfa'])
@@ -74,6 +77,14 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::get('clients', [ClientController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('clients.index');
+        Route::post('clients/{client}/screen-share/connections', [ScreenShareConnectionController::class, 'registerAdvisor'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->whereUuid('client')
+            ->name('clients.screen-share.connections.store');
+        Route::post('clients/{client}/screen-share-sessions', [ScreenShareSessionController::class, 'store'])
+            ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
+            ->whereUuid('client')
+            ->name('clients.screen-share.sessions.store');
         Route::get('client-transfers', [ClientTransferRequestController::class, 'index'])
             ->middleware('permission:'.Permission::CLIENTS_VIEW->value)
             ->name('client-transfers.index');
@@ -376,6 +387,14 @@ Route::middleware(['auth', 'verified', 'mfa'])
         Route::post('entrepreneurs/manual', [EntrepreneurController::class, 'storeManual'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_ASSESS->value)
             ->name('entrepreneurs.store-manual');
+        Route::post('entrepreneurs/{entrepreneurProfile}/screen-share/connections', [EntrepreneurScreenShareController::class, 'registerAdvisor'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->whereUuid('entrepreneurProfile')
+            ->name('entrepreneurs.screen-share.connections.store');
+        Route::post('entrepreneurs/{entrepreneurProfile}/screen-share-sessions', [EntrepreneurScreenShareController::class, 'store'])
+            ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
+            ->whereUuid('entrepreneurProfile')
+            ->name('entrepreneurs.screen-share.sessions.store');
         Route::get('entrepreneurs/{entrepreneurProfile}/messages', [EntrepreneurMessageController::class, 'index'])
             ->middleware('permission:'.Permission::ENTREPRENEURS_VIEW->value)
             ->name('entrepreneurs.messages.index');

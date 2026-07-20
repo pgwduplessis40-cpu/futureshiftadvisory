@@ -15,7 +15,7 @@ import { registerTargetHighlighting } from '@/lib/target-highlight';
 
 const appName = import.meta.env.VITE_APP_NAME || 'Future Shift Advisory';
 
-createInertiaApp({
+void createInertiaApp({
     title: (title) => (title ? `${title} - ${appName}` : appName),
     layout: (name) => {
         switch (true) {
@@ -53,6 +53,10 @@ createInertiaApp({
     progress: {
         color: '#4B5563',
     },
+}).then(() => {
+    if (typeof document !== 'undefined') {
+        document.getElementById('app-launch-skeleton')?.remove();
+    }
 });
 
 // This will set light / dark mode on load...

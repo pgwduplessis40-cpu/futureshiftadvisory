@@ -430,6 +430,26 @@ final class ClientController extends Controller
                 'npo_social_enterprise' => $socialEnterprise->clientSummary($client),
                 'created_at' => $client->created_at?->toIso8601String(),
             ],
+            'screenShare' => [
+                'connection_url' => route('advisor.clients.screen-share.connections.store', $client, absolute: false),
+                'request_url' => route('advisor.clients.screen-share.sessions.store', $client, absolute: false),
+                'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
+                'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
+                'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
+                'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
+                'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
+                'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),
+                'participants' => $client->teamMembers()
+                    ->with('user')
+                    ->get()
+                    ->map(fn (ClientTeamMember $member): ?array => $member->user instanceof User
+                        && in_array($member->user->user_type, [User::TYPE_CLIENT_PRIMARY, User::TYPE_CLIENT_TEAM], true)
+                        ? ['id' => (string) $member->user->getKey(), 'name' => $member->user->name]
+                        : null)
+                    ->filter()
+                    ->values()
+                    ->all(),
+            ],
             'conflictDeclaration' => $client->conflictDeclarations()
                 ->latest('declared_at')
                 ->first()

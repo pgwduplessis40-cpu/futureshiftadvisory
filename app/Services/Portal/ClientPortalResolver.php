@@ -41,6 +41,15 @@ final class ClientPortalResolver
         $clientIds = $user->accessibleClientIds();
         abort_if($clientIds === [], 403, 'No client portal is assigned to this account yet.');
 
+        $selectedClientId = $request->query('client');
+        if (is_string($selectedClientId) && $selectedClientId !== '') {
+            return Client::query()
+                ->whereKey($selectedClientId)
+                ->whereIn('id', $clientIds)
+                ->where('status', '!=', ClientStatus::SUSPENDED->value)
+                ->firstOrFail();
+        }
+
         return Client::query()
             ->whereIn('id', $clientIds)
             ->where('status', '!=', ClientStatus::SUSPENDED->value)

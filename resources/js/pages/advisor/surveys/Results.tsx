@@ -1,6 +1,7 @@
 import { Head, Link, useForm } from '@inertiajs/react';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, ClipboardCheck, Send } from 'lucide-react';
 import type { FormEvent } from 'react';
+import { EmptyState } from '@/components/empty-state';
 import { ExplainedMetricCard } from '@/components/explainer';
 import type { Explanation } from '@/components/explainer';
 import { Badge } from '@/components/ui/badge';
@@ -53,6 +54,8 @@ export default function AdvisorSurveyResults({
     surveys,
     results,
 }: Props) {
+    const subjectLabel =
+        subject.type === 'entrepreneur' ? 'founder' : 'client';
     const form = useForm({
         survey_id: surveys[0]?.id ?? '',
         due_at: '',
@@ -80,8 +83,12 @@ export default function AdvisorSurveyResults({
                             </Link>
                         </Button>
                         <h1 className="mt-3 text-xl font-semibold">
-                            {subject.name} surveys
+                            {subject.name} feedback surveys
                         </h1>
+                        <p className="mt-1 text-sm text-muted-foreground">
+                            Post-delivery feedback on support, sentiment, and
+                            delivered materials.
+                        </p>
                     </div>
                     <form
                         onSubmit={submit}
@@ -156,67 +163,84 @@ export default function AdvisorSurveyResults({
                     />
                 </div>
 
-                <div className="overflow-hidden rounded-md border">
-                    <table className="fsa-responsive-table">
-                        <thead className="bg-muted/60 text-left">
-                            <tr>
-                                <th className="px-3 py-2 font-medium">
-                                    Survey
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Status
-                                </th>
-                                <th className="px-3 py-2 font-medium">
-                                    Deliverables
-                                </th>
-                                <th className="px-3 py-2 font-medium">Score</th>
-                                <th className="px-3 py-2 font-medium">NPS</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {results.items.map((item) => (
-                                <tr key={item.id} className="border-t">
-                                    <td
-                                        className="px-3 py-2"
-                                        data-label="Survey"
-                                    >
-                                        <div className="font-medium">
-                                            {item.survey_title}
-                                        </div>
-                                        <div className="text-sm text-muted-foreground">
-                                            {formatDate(item.activated_at)}
-                                        </div>
-                                    </td>
-                                    <td
-                                        className="px-3 py-2"
-                                        data-label="Status"
-                                    >
-                                        <Badge variant="secondary">
-                                            {item.status}
-                                        </Badge>
-                                    </td>
-                                    <td
-                                        className="px-3 py-2"
-                                        data-label="Deliverables"
-                                    >
-                                        {item.deliverable_count}
-                                    </td>
-                                    <td
-                                        className="px-3 py-2"
-                                        data-label="Score"
-                                    >
-                                        {formatScore(
-                                            item.response?.overall_score,
-                                        )}
-                                    </td>
-                                    <td className="px-3 py-2" data-label="NPS">
-                                        {formatScore(item.response?.nps_score)}
-                                    </td>
+                {results.items.length === 0 ? (
+                    <EmptyState
+                        icon={ClipboardCheck}
+                        title="No feedback surveys assigned yet."
+                        description={`Feedback surveys are sent after advisory work or deliverables, so there are no responses to review for this ${subjectLabel} yet.`}
+                    />
+                ) : (
+                    <div className="overflow-hidden rounded-md border">
+                        <table className="fsa-responsive-table">
+                            <thead className="bg-muted/60 text-left">
+                                <tr>
+                                    <th className="px-3 py-2 font-medium">
+                                        Survey
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Status
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Deliverables
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        Score
+                                    </th>
+                                    <th className="px-3 py-2 font-medium">
+                                        NPS
+                                    </th>
                                 </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                            </thead>
+                            <tbody>
+                                {results.items.map((item) => (
+                                    <tr key={item.id} className="border-t">
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Survey"
+                                        >
+                                            <div className="font-medium">
+                                                {item.survey_title}
+                                            </div>
+                                            <div className="text-sm text-muted-foreground">
+                                                {formatDate(item.activated_at)}
+                                            </div>
+                                        </td>
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Status"
+                                        >
+                                            <Badge variant="secondary">
+                                                {item.status}
+                                            </Badge>
+                                        </td>
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Deliverables"
+                                        >
+                                            {item.deliverable_count}
+                                        </td>
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="Score"
+                                        >
+                                            {formatScore(
+                                                item.response?.overall_score,
+                                            )}
+                                        </td>
+                                        <td
+                                            className="px-3 py-2"
+                                            data-label="NPS"
+                                        >
+                                            {formatScore(
+                                                item.response?.nps_score,
+                                            )}
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                )}
             </div>
         </>
     );

@@ -5,6 +5,7 @@ use App\Console\Commands\AlertStuckRedIntegrations;
 use App\Console\Commands\CheckReferenceDataFreshness;
 use App\Console\Commands\CreatePracticeHealthSnapshots;
 use App\Console\Commands\ExpireProposals;
+use App\Console\Commands\ExpireScreenShareSessions;
 use App\Console\Commands\GenerateBenchmarkCommunityAggregate;
 use App\Console\Commands\GenerateMonthlyIndustryBriefings;
 use App\Console\Commands\GeneratePreMeetingBriefs;
@@ -42,6 +43,7 @@ use App\Http\Middleware\EnsureRole;
 use App\Http\Middleware\HandleAppearance;
 use App\Http\Middleware\HandleInertiaRequests;
 use App\Http\Middleware\LogAuditEvent;
+use App\Http\Middleware\MeasureDashboardLaunch;
 use App\Http\Middleware\NormalizePortalOfflineSyncResponse;
 use App\Http\Middleware\PreventEntrepreneurTwoFactorDisable;
 use App\Http\Middleware\RequireAcceptedTerms;
@@ -62,6 +64,7 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         api: __DIR__.'/../routes/api.php',
         commands: __DIR__.'/../routes/console.php',
+        channels: __DIR__.'/../routes/channels.php',
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
@@ -72,6 +75,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // are always set. See PLAN.md section 6.2 and 7.4.
         $middleware->web(append: [
             NormalizePortalOfflineSyncResponse::class,
+            MeasureDashboardLaunch::class,
             HandleAppearance::class,
             HandleInertiaRequests::class,
             AddLinkHeadersForPreloadedAssets::class,
@@ -196,6 +200,11 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command(ExpireProposals::class)
             ->dailyAt('00:20')
             ->name('fsa-proposals-expire')
+            ->withoutOverlapping();
+
+        $schedule->command(ExpireScreenShareSessions::class)
+            ->everyMinute()
+            ->name('fsa-screen-share-expire')
             ->withoutOverlapping();
 
         $schedule->command(GenerateMonthlyIndustryBriefings::class)

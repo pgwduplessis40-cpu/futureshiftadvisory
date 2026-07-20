@@ -21,6 +21,7 @@ import {
 import { useState } from 'react';
 import type { ComponentType, MouseEvent, ReactNode } from 'react';
 import { DataQualityBadge } from '@/components/data-quality/DataQualityBadge';
+import { ClientSupport } from '@/components/screen-share/ClientSupport';
 import type { DataQualitySummary } from '@/components/data-quality/DataQualityBadge';
 import FileDropzone from '@/components/file-dropzone';
 import InputError from '@/components/input-error';
@@ -71,6 +72,19 @@ type Progress = {
 
 type Props = {
     client: ClientPayload;
+    screenShare: {
+        portal_context_token: string;
+        connection_url: string;
+        response_url: string;
+        browser_permission_url: string;
+        ice_servers_url: string;
+        active_url: string;
+        signal_url: string;
+        heartbeat_url: string;
+        end_url: string;
+        heartbeat_seconds: number;
+        warning_at_minutes: number;
+    } | null;
     progress: Progress;
     currentStep: string;
     onboardingUrl: string;
@@ -564,6 +578,7 @@ function WelcomeBanner({ welcomeMessage }: { welcomeMessage: WelcomeMessage }) {
 
 export default function PortalDashboard({
     client,
+    screenShare,
     progress,
     onboardingUrl,
     notificationSummary,
@@ -795,6 +810,7 @@ export default function PortalDashboard({
     return (
         <>
             <Head title="Client portal" />
+            <ClientSupport config={screenShare} />
 
             <main className="flex-1 space-y-6">
                 <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">

@@ -10,15 +10,16 @@ use App\Models\AdvisorApiClient;
 use App\Models\Client;
 use App\Notifications\Channels\FsaDatabaseChannel;
 use App\Observers\ClientLifecycleObserver;
+use App\Services\Analysis\WebsiteAuditSnapshotContext;
 use App\Services\Integration\IntegrationActivationResolver;
 use App\Services\Integration\Resilience\RetryPolicy;
-use App\Services\Analysis\WebsiteAuditSnapshotContext;
 use App\Services\Integration\VirusScanner\ClamAvScanner;
 use App\Services\Integration\VirusScanner\Contracts\FileScanner;
 use App\Services\Integration\VirusScanner\NoopScanner;
 use App\Services\Integration\VirusScanner\UnavailableScanner;
 use App\Services\Pdf\BrowsershotRenderer;
 use App\Services\Pdf\PdfRenderer;
+use App\Services\Performance\DashboardLaunchTiming;
 use App\Services\Pptx\Contracts\PptxGenerator;
 use App\Services\Pptx\OpenXmlPptxGenerator;
 use App\Services\Settings\ProjectSettings;
@@ -35,6 +36,7 @@ use App\Services\Voice\LiveWhisperClient;
 use Carbon\CarbonImmutable;
 use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Database\Events\MigrationsEnded;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Filesystem\FilesystemAdapter as LaravelFilesystemAdapter;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
@@ -61,6 +63,7 @@ class AppServiceProvider extends ServiceProvider
     {
         $this->app->singleton(RetryPolicy::class, fn (): RetryPolicy => RetryPolicy::fromConfig());
         $this->app->scoped(WebsiteAuditSnapshotContext::class);
+        $this->app->scoped(DashboardLaunchTiming::class);
         $this->app->singleton(FileScanner::class, function (): FileScanner {
             if ((bool) config('virus-scanner.live', false)) {
                 return $this->app->make(ClamAvScanner::class);
@@ -106,6 +109,7 @@ class AppServiceProvider extends ServiceProvider
         Event::listen(NpoEngagementWeightingChanged::class, RecomputeNpoScoresForWeightingChange::class);
         Event::listen(MigrationsEnded::class, SyncRbacAfterMigrations::class);
         $this->registerRateLimiters();
+        $this->registerDashboardLaunchTiming();
         $this->configureDefaults();
         $this->app->make(ProjectSettings::class)->applyRuntimeOverrides();
     }
@@ -169,6 +173,17 @@ class AppServiceProvider extends ServiceProvider
                 : hash('sha256', (string) $request->bearerToken());
 
             return Limit::perMinute(120)->by($key ?: $request->ip());
+        });
+    }
+
+    protected function registerDashboardLaunchTiming(): void
+    {
+        if (! (bool) config('performance.dashboard_launch_timing', false)) {
+            return;
+        }
+
+        DB::listen(function (QueryExecuted $query): void {
+            $this->app->make(DashboardLaunchTiming::class)->record($query);
         });
     }
 

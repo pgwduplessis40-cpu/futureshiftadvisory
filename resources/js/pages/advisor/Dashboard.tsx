@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Deferred, Head, Link, router } from '@inertiajs/react';
 import {
     Activity,
     AlertTriangle,
@@ -704,6 +704,79 @@ type ActionSummaryItem = {
     icon: React.ReactNode;
 };
 
+const advisorSignalDeferredProps = [
+    'integrationHealth',
+    'economicIndicators',
+    'questionnaireOptimisation',
+    'wellbeingAnalytics',
+    'coachSignals',
+    'funnelAnalytics',
+];
+
+const emptyIntegrationHealth: IntegrationHealthPayload = {
+    summary: {
+        total: 0,
+        green: 0,
+        amber: 0,
+        red: 0,
+    },
+    index_url: null,
+    services: [],
+};
+
+const emptyEconomicIndicators: EconomicIndicatorsPayload = {
+    summary: {
+        indicators: 0,
+        exchange_rates: 0,
+        change_alerts: 0,
+        latest_fetched_at: null,
+    },
+    indicators: [],
+    exchange_rates: [],
+    alerts: [],
+};
+
+const emptyQuestionnaireOptimisation: QuestionnaireOptimisationPayload = {
+    summary: {
+        detected_candidates: 0,
+        latest_run_at: null,
+        latest_candidates_created: 0,
+    },
+    items: [],
+};
+
+const emptyWellbeingAnalytics: WellbeingAnalyticsPayload = {
+    summary: {
+        checkins: 0,
+        clients: 0,
+        average_business_confidence: 0,
+        average_personal_coping: 0,
+        low_personal_coping_checkins: 0,
+        active_low_coping_signals: 0,
+        current_period_completion_rate: 0,
+    },
+    monthly: [],
+    signals: [],
+};
+
+const emptyCoachSignals: CoachSignalsPayload = {
+    summary: {
+        total: 0,
+        auto_referrals: 0,
+    },
+    items: [],
+};
+
+const emptyFunnelAnalytics: FunnelAnalyticsPayload = {
+    summary: {
+        events: 0,
+        abandoned: 0,
+        completed: 0,
+        worst_drop_off_rate: 0,
+    },
+    steps: [],
+};
+
 const signalPanelTargetIds = new Set([
     'advisor-panel-operations',
     'advisor-panel-approvals',
@@ -725,21 +798,21 @@ type Props = {
     strategicPlanDeployments: StrategicPlanDeploymentsPayload;
     pendingTermsReacceptance: PendingTermsPayload;
     prospectInbox: ProspectInboxPayload;
-    integrationHealth: IntegrationHealthPayload;
-    economicIndicators: EconomicIndicatorsPayload;
+    integrationHealth?: IntegrationHealthPayload;
+    economicIndicators?: EconomicIndicatorsPayload;
     pvWaterfall: PvWaterfallPayload;
     practiceHealth: PracticeHealthPayload;
     proposalStatus: ProposalStatusPayload;
     paymentStatus: PaymentStatusPayload;
     feeStatus: FeeStatusPayload;
-    questionnaireOptimisation: QuestionnaireOptimisationPayload;
-    wellbeingAnalytics: WellbeingAnalyticsPayload;
-    coachSignals: CoachSignalsPayload;
+    questionnaireOptimisation?: QuestionnaireOptimisationPayload;
+    wellbeingAnalytics?: WellbeingAnalyticsPayload;
+    coachSignals?: CoachSignalsPayload;
     npoPendingConversions: NpoPendingConversionsPayload;
     npoFunding: NpoFundingPayload;
     referenceDataTasks: ReferenceDataTasksPayload;
     scenarioPlanning: ScenarioPlanningPayload;
-    funnelAnalytics: FunnelAnalyticsPayload;
+    funnelAnalytics?: FunnelAnalyticsPayload;
     panelOperations: PanelOperationsPayload;
 };
 
@@ -793,6 +866,25 @@ export default function AdvisorDashboard({
     const actionQueueCount = actionItems.filter(
         (item) => item.value > 0 && item.priority !== 'neutral',
     ).length;
+    const loadedIntegrationHealth =
+        integrationHealth ?? emptyIntegrationHealth;
+    const loadedEconomicIndicators =
+        economicIndicators ?? emptyEconomicIndicators;
+    const loadedQuestionnaireOptimisation =
+        questionnaireOptimisation ?? emptyQuestionnaireOptimisation;
+    const loadedWellbeingAnalytics =
+        wellbeingAnalytics ?? emptyWellbeingAnalytics;
+    const loadedCoachSignals = coachSignals ?? emptyCoachSignals;
+    const loadedFunnelAnalytics = funnelAnalytics ?? emptyFunnelAnalytics;
+    const signalQueueCount =
+        loadedIntegrationHealth.summary.amber +
+        loadedIntegrationHealth.summary.red +
+        loadedEconomicIndicators.summary.change_alerts +
+        referenceDataTasks.summary.missing +
+        referenceDataTasks.summary.overdue +
+        referenceDataTasks.summary.due_soon +
+        loadedFunnelAnalytics.summary.abandoned +
+        loadedQuestionnaireOptimisation.summary.detected_candidates;
 
     return (
         <>
@@ -872,17 +964,7 @@ export default function AdvisorDashboard({
                         active={activeTab === 'signals'}
                         onClick={() => setActiveTab('signals')}
                         label="Signals"
-                        count={
-                            integrationHealth.summary.amber +
-                            integrationHealth.summary.red +
-                            economicIndicators.summary.change_alerts +
-                            referenceDataTasks.summary.missing +
-                            referenceDataTasks.summary.overdue +
-                            referenceDataTasks.summary.due_soon +
-                            funnelAnalytics.summary.abandoned +
-                            questionnaireOptimisation.summary
-                                .detected_candidates
-                        }
+                        count={signalQueueCount}
                         controls="advisor-dashboard-signals"
                     />
                 </div>
@@ -957,57 +1039,118 @@ export default function AdvisorDashboard({
                         role="tabpanel"
                         className="space-y-6"
                     >
-                        <DashboardSection
-                            title="Panel operations"
-                            description="Track partner hand-offs and governed learning work that supports the advisory team."
+                        <Deferred
+                            data={advisorSignalDeferredProps}
+                            fallback={<AdvisorSignalsFallback />}
                         >
-                            <PanelOperations payload={panelOperations} />
-                        </DashboardSection>
+                            <>
+                                <DashboardSection
+                                    title="Panel operations"
+                                    description="Track partner hand-offs and governed learning work that supports the advisory team."
+                                >
+                                    <PanelOperations payload={panelOperations} />
+                                </DashboardSection>
 
-                        <DashboardSection
-                            title="Specialist workflows"
-                            description="Monitor NPO conversion, funding, wellbeing, coaching, and prospect signals."
-                        >
-                            <div className="grid gap-4 xl:grid-cols-3">
-                                <NpoPendingConversions
-                                    payload={npoPendingConversions}
-                                />
-                                <NpoFundingPanel payload={npoFunding} />
-                                <ProspectInbox payload={prospectInbox} />
-                            </div>
+                                <DashboardSection
+                                    title="Specialist workflows"
+                                    description="Monitor NPO conversion, funding, wellbeing, coaching, and prospect signals."
+                                >
+                                    <div className="grid gap-4 xl:grid-cols-3">
+                                        <NpoPendingConversions
+                                            payload={npoPendingConversions}
+                                        />
+                                        <NpoFundingPanel payload={npoFunding} />
+                                        <ProspectInbox payload={prospectInbox} />
+                                    </div>
 
-                            <div className="grid gap-4 xl:grid-cols-3">
-                                <WellbeingAnalytics
-                                    payload={wellbeingAnalytics}
-                                />
-                                <CoachSignals payload={coachSignals} />
-                            </div>
-                        </DashboardSection>
+                                    <div className="grid gap-4 xl:grid-cols-3">
+                                        <WellbeingAnalytics
+                                            payload={loadedWellbeingAnalytics}
+                                        />
+                                        <CoachSignals
+                                            payload={loadedCoachSignals}
+                                        />
+                                    </div>
+                                </DashboardSection>
 
-                        <DashboardSection
-                            title="Operating signals"
-                            description="Use these lower-urgency indicators to spot systemic issues and improvement opportunities."
-                        >
-                            <div className="grid gap-4 xl:grid-cols-3">
-                                <EconomicIndicators
-                                    payload={economicIndicators}
-                                />
-                                <ReferenceDataTasksPanel
-                                    payload={referenceDataTasks}
-                                />
-                                <IntegrationHealth
-                                    payload={integrationHealth}
-                                />
-                                <FunnelAnalytics payload={funnelAnalytics} />
-                                <QuestionnaireOptimisation
-                                    payload={questionnaireOptimisation}
-                                />
-                            </div>
-                        </DashboardSection>
+                                <DashboardSection
+                                    title="Operating signals"
+                                    description="Use these lower-urgency indicators to spot systemic issues and improvement opportunities."
+                                >
+                                    <div className="grid gap-4 xl:grid-cols-3">
+                                        <EconomicIndicators
+                                            payload={loadedEconomicIndicators}
+                                        />
+                                        <ReferenceDataTasksPanel
+                                            payload={referenceDataTasks}
+                                        />
+                                        <IntegrationHealth
+                                            payload={loadedIntegrationHealth}
+                                        />
+                                        <FunnelAnalytics
+                                            payload={loadedFunnelAnalytics}
+                                        />
+                                        <QuestionnaireOptimisation
+                                            payload={
+                                                loadedQuestionnaireOptimisation
+                                            }
+                                        />
+                                    </div>
+                                </DashboardSection>
+                            </>
+                        </Deferred>
                     </div>
                 )}
             </div>
         </>
+    );
+}
+
+function AdvisorSignalsFallback() {
+    return (
+        <>
+            <DashboardSection
+                title="Panel operations"
+                description="Track partner hand-offs and governed learning work that supports the advisory team."
+            >
+                <SignalSkeletonGrid cards={3} />
+            </DashboardSection>
+
+            <DashboardSection
+                title="Specialist workflows"
+                description="Monitor NPO conversion, funding, wellbeing, coaching, and prospect signals."
+            >
+                <SignalSkeletonGrid cards={5} />
+            </DashboardSection>
+
+            <DashboardSection
+                title="Operating signals"
+                description="Use these lower-urgency indicators to spot systemic issues and improvement opportunities."
+            >
+                <SignalSkeletonGrid cards={5} />
+            </DashboardSection>
+        </>
+    );
+}
+
+function SignalSkeletonGrid({ cards }: { cards: number }) {
+    return (
+        <div className="grid gap-4 xl:grid-cols-3">
+            {Array.from({ length: cards }).map((_, index) => (
+                <div
+                    key={index}
+                    className="min-h-[180px] animate-pulse rounded-md border bg-card p-4"
+                >
+                    <div className="h-4 w-28 rounded bg-muted" />
+                    <div className="mt-4 h-8 w-16 rounded bg-muted" />
+                    <div className="mt-5 space-y-2">
+                        <div className="h-3 rounded bg-muted" />
+                        <div className="h-3 w-4/5 rounded bg-muted" />
+                        <div className="h-3 w-2/3 rounded bg-muted" />
+                    </div>
+                </div>
+            ))}
+        </div>
     );
 }
 

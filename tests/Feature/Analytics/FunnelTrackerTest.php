@@ -94,12 +94,13 @@ final class FunnelTrackerTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('funnelAnalytics.summary.events', 2)
-                ->where('funnelAnalytics.summary.abandoned', 1)
-                ->where('funnelAnalytics.steps.0.flow', FunnelEvent::FLOW_ONBOARDING)
-                ->where('funnelAnalytics.steps.0.dropped_count', 1)
-                ->where('funnelAnalytics.steps.0.returned_count', 0)
-                ->where('funnelAnalytics.steps.0.dropped_clients.0.id', $client->id));
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('funnelAnalytics.summary.events', 2)
+                    ->where('funnelAnalytics.summary.abandoned', 1)
+                    ->where('funnelAnalytics.steps.0.flow', FunnelEvent::FLOW_ONBOARDING)
+                    ->where('funnelAnalytics.steps.0.dropped_count', 1)
+                    ->where('funnelAnalytics.steps.0.returned_count', 0)
+                    ->where('funnelAnalytics.steps.0.dropped_clients.0.id', $client->id)));
     }
 
     public function test_step_summary_includes_dropped_clients_and_same_step_returns(): void

@@ -9,6 +9,8 @@ use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\NotificationController;
 use App\Http\Controllers\PanelAgreementController;
 use App\Http\Controllers\PanelApplicationController;
+use App\Http\Controllers\ScreenShare\ScreenShareConnectionController;
+use App\Http\Controllers\ScreenShare\ScreenShareSessionController;
 use Illuminate\Support\Facades\Route;
 
 /*
@@ -26,6 +28,24 @@ Route::get('communications/open/{token}.gif', BulkCommunicationOpenController::c
     ->name('communications.open');
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
+    Route::post('screen-share/connections/{connection}/heartbeat', [ScreenShareConnectionController::class, 'heartbeat'])
+        ->whereUuid('connection')
+        ->name('screen-share.connections.heartbeat');
+    Route::post('screen-share/sessions/{session}/active', [ScreenShareSessionController::class, 'active'])
+        ->whereUuid('session')
+        ->name('screen-share.sessions.active');
+    Route::post('screen-share/sessions/{session}/signal', [ScreenShareSessionController::class, 'signal'])
+        ->whereUuid('session')
+        ->name('screen-share.sessions.signal');
+    Route::post('screen-share/sessions/{session}/ice-servers', [ScreenShareSessionController::class, 'iceServers'])
+        ->whereUuid('session')
+        ->name('screen-share.sessions.ice-servers');
+    Route::post('screen-share/sessions/{session}/heartbeat', [ScreenShareSessionController::class, 'heartbeat'])
+        ->whereUuid('session')
+        ->name('screen-share.sessions.heartbeat');
+    Route::post('screen-share/sessions/{session}/end', [ScreenShareSessionController::class, 'end'])
+        ->whereUuid('session')
+        ->name('screen-share.sessions.end');
     Route::get('dashboard', DashboardController::class)->name('dashboard');
     Route::get('calendar', ActivityCalendarController::class)->name('calendar.index');
     Route::get('notifications', [NotificationController::class, 'index'])

@@ -265,28 +265,29 @@ final class EconomicIndicatorsTest extends TestCase
             ->assertOk()
             ->assertInertia(fn (Assert $page): Assert => $page
                 ->component('advisor/Dashboard')
-                ->where('economicIndicators.summary.indicators', 6)
-                ->where('economicIndicators.summary.exchange_rates', 2)
-                ->where('economicIndicators.summary.change_alerts', 1)
-                ->where('economicIndicators.indicators.0.indicator', EconomicIndicator::OCR)
-                ->where('economicIndicators.indicators.0.value', 6)
-                ->where('economicIndicators.indicators.0.previous_value', 5.5)
-                ->where('economicIndicators.indicators.0.change_pct', 9.09)
-                ->where('economicIndicators.indicators.0.direction', 'up')
-                ->where('economicIndicators.indicators.0.exposure.exposed_count', 1)
-                ->where('economicIndicators.indicators.0.exposure.unknown_count', 0)
-                ->where('economicIndicators.indicators.0.exposure.drill_url', route('advisor.clients.index', ['exposed_to' => 'ocr'], absolute: false))
-                ->where('economicIndicators.exchange_rates.0.base_currency', 'NZD')
-                ->where('economicIndicators.exchange_rates', function ($rates): bool {
-                    $usd = $rates->firstWhere('quote_currency', 'USD');
+                ->loadDeferredProps('advisor-signals', fn (Assert $page): Assert => $page
+                    ->where('economicIndicators.summary.indicators', 6)
+                    ->where('economicIndicators.summary.exchange_rates', 2)
+                    ->where('economicIndicators.summary.change_alerts', 1)
+                    ->where('economicIndicators.indicators.0.indicator', EconomicIndicator::OCR)
+                    ->where('economicIndicators.indicators.0.value', 6)
+                    ->where('economicIndicators.indicators.0.previous_value', 5.5)
+                    ->where('economicIndicators.indicators.0.change_pct', 9.09)
+                    ->where('economicIndicators.indicators.0.direction', 'up')
+                    ->where('economicIndicators.indicators.0.exposure.exposed_count', 1)
+                    ->where('economicIndicators.indicators.0.exposure.unknown_count', 0)
+                    ->where('economicIndicators.indicators.0.exposure.drill_url', route('advisor.clients.index', ['exposed_to' => 'ocr'], absolute: false))
+                    ->where('economicIndicators.exchange_rates.0.base_currency', 'NZD')
+                    ->where('economicIndicators.exchange_rates', function ($rates): bool {
+                        $usd = $rates->firstWhere('quote_currency', 'USD');
 
-                    return $usd !== null
-                        && $usd['previous_rate'] === 0.6123
-                        && $usd['direction'] === 'down'
-                        && $usd['exposure']['supported'] === false
-                        && $usd['exposure']['drill_url'] === null;
-                })
-                ->where('economicIndicators.alerts.0.summary', 'OCR changed from 5.50% to 6.00%; review PV discount-rate assumptions.'));
+                        return $usd !== null
+                            && $usd['previous_rate'] === 0.6123
+                            && $usd['direction'] === 'down'
+                            && $usd['exposure']['supported'] === false
+                            && $usd['exposure']['drill_url'] === null;
+                    })
+                    ->where('economicIndicators.alerts.0.summary', 'OCR changed from 5.50% to 6.00%; review PV discount-rate assumptions.')));
     }
 
     private function clientFor(User $advisor, string $name): Client
