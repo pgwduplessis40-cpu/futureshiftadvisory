@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Monitor, PhoneOff } from 'lucide-react';
+import { Maximize2, Monitor, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     closeScreenShareEcho,
@@ -456,13 +456,25 @@ export function AdvisorSupport({ config }: Props) {
         setSession(null);
     }
 
+    async function enterFullscreen(): Promise<void> {
+        if (!video.current) {
+            return;
+        }
+
+        try {
+            await video.current.requestFullscreen();
+        } catch {
+            setError('The browser could not open the shared screen in full-screen mode.');
+        }
+    }
+
     if (config.participants.length === 0) {
         return null;
     }
 
     return (
-        <section className="border border-border bg-card p-4 shadow-sm">
-            <div className="flex flex-wrap items-center justify-between gap-3">
+        <section className="flex h-full min-h-0 flex-col border-0 bg-card p-4 shadow-none">
+            <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 pr-10">
                 <div>
                     <h2 className="text-sm font-semibold">Screen support</h2>
                     <p className="text-sm text-muted-foreground">
@@ -475,6 +487,20 @@ export function AdvisorSupport({ config }: Props) {
                     <select className="h-9 rounded-md border bg-background px-3 text-sm" value={participant} onChange={(event) => setParticipant(event.target.value)} disabled={sessionId !== null}>
                         {config.participants.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
                     </select>
+                    {sessionId ? (
+                        <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="size-9 p-0"
+                            title="View shared screen full screen"
+                            aria-label="View shared screen full screen"
+                            disabled={!connected}
+                            onClick={() => void enterFullscreen()}
+                        >
+                            <Maximize2 className="size-4" aria-hidden="true" />
+                        </Button>
+                    ) : null}
                     {sessionId
                         ? <Button variant="destructive" size="sm" onClick={() => void end()}><PhoneOff className="size-4" />End</Button>
                         : <Button size="sm" onClick={() => void request()} disabled={!credentials}><Monitor className="size-4" />Request view</Button>}
@@ -482,10 +508,21 @@ export function AdvisorSupport({ config }: Props) {
             </div>
             {error ? <p className="mt-2 text-sm text-destructive">{error}</p> : null}
             {sessionId ? (
-                <div className="mt-4">
-                    <video ref={video} autoPlay playsInline className="aspect-video w-full bg-black object-contain" />
-                    <p className="mt-2 text-sm text-muted-foreground">
-                        {overSharing ? 'The client is sharing a window or their entire screen.' : 'Waiting for the client to approve and choose a screen.'}
+                <div className="mt-4 flex min-h-0 flex-1 flex-col">
+                    <video
+                        ref={video}
+                        autoPlay
+                        playsInline
+                        className="min-h-0 flex-1 bg-black object-contain"
+                        title="Double-click to view full screen"
+                        onDoubleClick={() => void enterFullscreen()}
+                    />
+                    <p className="mt-2 shrink-0 text-sm text-muted-foreground">
+                        {connected
+                            ? overSharing
+                                ? 'The client is sharing a window or their entire screen.'
+                                : 'The client is sharing their browser.'
+                            : 'Waiting for the client to approve and choose a screen.'}
                     </p>
                 </div>
             ) : null}

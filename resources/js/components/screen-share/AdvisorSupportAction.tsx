@@ -49,7 +49,7 @@ export function AdvisorSupportAction({ config }: Props) {
                 Screen support
             </Button>
             {config ? (
-                <DialogContent className="max-w-5xl p-0">
+                <DialogContent className="h-[92vh] w-[96vw] max-w-none gap-0 overflow-hidden p-0 sm:max-w-none">
                     <DialogHeader className="sr-only">
                         <DialogTitle>Screen support</DialogTitle>
                     </DialogHeader>
