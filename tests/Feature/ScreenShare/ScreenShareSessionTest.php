@@ -247,6 +247,9 @@ final class ScreenShareSessionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('signals.0.type', 'offer')
             ->assertJsonPath('signals.0.payload.sdp', 'v=0');
+        $this->assertTrue(
+            $advisorConnection->connection->fresh()->expires_at->isAfter(now()->addSeconds(40)),
+        );
         $this->assertDatabaseHas('audit_events', [
             'action' => 'screen_share.offer_sent',
             'actor_user_key' => (string) $this->clientUser->getKey(),

@@ -401,7 +401,9 @@ final class ScreenShareSessions
         string $connectionSecret,
         int $afterId,
     ): array {
-        $connection = $this->presence->assertConnection($user, $connectionId, $connectionSecret);
+        // Signal polling is an active participant interaction. Renew its short-lived
+        // presence here so background-browser timer throttling cannot orphan a live negotiation.
+        $connection = $this->presence->heartbeat($user, $connectionId, $connectionSecret);
 
         return $this->context->withSystemContext(function () use ($afterId, $connection, $session, $user): array {
             $locked = ScreenShareSession::query()->findOrFail($session->getKey());
