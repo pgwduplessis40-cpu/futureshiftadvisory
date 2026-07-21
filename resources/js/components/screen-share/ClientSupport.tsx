@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import {
     closeScreenShareEcho,
+    normalizeScreenShareDescription,
     registerScreenShareConnection,
     screenShareEcho,
     screenSharePost,
@@ -367,7 +368,7 @@ export function ClientSupport({ config }: Props) {
                 throw new Error('The browser did not prepare a screen-share offer.');
             }
 
-            await signal(nextSessionId, 'offer', descriptionPayload(localDescription));
+            await signal(nextSessionId, 'offer', normalizeScreenShareDescription(localDescription));
             offerSignaled.current = true;
             for (const candidate of outboundCandidates.current.splice(0)) {
                 void signal(nextSessionId, 'candidate', candidate).catch(() => undefined);
@@ -430,7 +431,9 @@ export function ClientSupport({ config }: Props) {
         }
 
         if (event.type === 'answer') {
-            await peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
+            await peer.current.setRemoteDescription(
+                normalizeScreenShareDescription(event.payload as RTCSessionDescriptionInit),
+            );
             for (const candidate of pendingCandidates.current.splice(0)) {
                 await addIceCandidate(peer.current, candidate);
             }
@@ -568,13 +571,6 @@ async function addIceCandidate(
     } catch {
         // Candidates are alternatives; one unsupported route must not block negotiation.
     }
-}
-
-function descriptionPayload(description: RTCSessionDescription): RTCSessionDescriptionInit {
-    return {
-        type: description.type,
-        sdp: description.sdp,
-    };
 }
 
 function playTone(context: AudioContext, frequency: number, start: number): void {

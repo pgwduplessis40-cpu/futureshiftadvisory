@@ -3,6 +3,7 @@ import { Monitor, PhoneOff } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
     closeScreenShareEcho,
+    normalizeScreenShareDescription,
     registerScreenShareConnection,
     screenShareEcho,
     screenSharePost,
@@ -287,7 +288,9 @@ export function AdvisorSupport({ config }: Props) {
 
             if (event.type === 'offer') {
                 stage = 'apply-offer';
-                await connection.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
+                await connection.setRemoteDescription(
+                    normalizeScreenShareDescription(event.payload as RTCSessionDescriptionInit),
+                );
                 stage = 'create-answer';
                 const answer = await connection.createAnswer();
                 stage = 'apply-answer';
@@ -298,7 +301,12 @@ export function AdvisorSupport({ config }: Props) {
                 }
 
                 stage = 'send-answer';
-                await signal(currentSessionId, nextCredentials, 'answer', descriptionPayload(localDescription));
+                await signal(
+                    currentSessionId,
+                    nextCredentials,
+                    'answer',
+                    normalizeScreenShareDescription(localDescription),
+                );
                 answerSignaled.current = true;
                 for (const candidate of outboundCandidates.current.splice(0)) {
                     void signal(currentSessionId, nextCredentials, 'candidate', candidate).catch(() => undefined);
@@ -509,13 +517,6 @@ async function addIceCandidate(
     } catch {
         // Candidates are alternatives; one unsupported route must not block negotiation.
     }
-}
-
-function descriptionPayload(description: RTCSessionDescription): RTCSessionDescriptionInit {
-    return {
-        type: description.type,
-        sdp: description.sdp,
-    };
 }
 
 class ScreenShareNegotiationError extends Error {

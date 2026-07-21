@@ -221,14 +221,22 @@ final class ScreenShareSessionTest extends TestCase
             $prompt->broadcastWith()['nonce'],
             true,
         );
-        $sessions->signal(
-            $this->clientUser,
-            $session,
-            (string) $clientConnection->connection->getKey(),
-            $clientConnection->secret,
-            'offer',
-            ['type' => 'offer', 'sdp' => 'v=0'],
-        );
+        $offerSdp = "v=0\r\na=ssrc:1234 msid:stream track";
+        $this->actingAs($this->clientUser)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->clientUser->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.sessions.signal', $session),
+                [
+                    'connection_id' => (string) $clientConnection->connection->getKey(),
+                    'connection_secret' => $clientConnection->secret,
+                    'type' => 'offer',
+                    'payload' => ['type' => 'offer', 'sdp' => $offerSdp],
+                ],
+            )
+            ->assertNoContent();
 
         $advisorPoll = $this->actingAs($this->advisor)
             ->withSession([
@@ -247,7 +255,7 @@ final class ScreenShareSessionTest extends TestCase
         $advisorPoll
             ->assertOk()
             ->assertJsonPath('signals.0.type', 'offer')
-            ->assertJsonPath('signals.0.payload.sdp', 'v=0');
+            ->assertJsonPath('signals.0.payload.sdp', $offerSdp."\r\n");
         $this->assertTrue(
             $advisorConnection->connection->fresh()->expires_at->isAfter(now()->addSeconds(40)),
         );
@@ -271,16 +279,24 @@ final class ScreenShareSessionTest extends TestCase
             )
             ->assertOk()
             ->assertJsonPath('signals.0.type', 'offer')
-            ->assertJsonPath('signals.0.payload.sdp', 'v=0');
+            ->assertJsonPath('signals.0.payload.sdp', $offerSdp."\r\n");
 
-        $sessions->signal(
-            $this->advisor,
-            $session,
-            (string) $advisorConnection->connection->getKey(),
-            $advisorConnection->secret,
-            'answer',
-            ['type' => 'answer', 'sdp' => 'v=0-answer'],
-        );
+        $answerSdp = "v=0\r\na=sendrecv";
+        $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.sessions.signal', $session),
+                [
+                    'connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'connection_secret' => $advisorConnection->secret,
+                    'type' => 'answer',
+                    'payload' => ['type' => 'answer', 'sdp' => $answerSdp],
+                ],
+            )
+            ->assertNoContent();
         $this->assertDatabaseHas('audit_events', [
             'action' => 'screen_share.answer_sent',
             'actor_user_key' => (string) $this->advisor->getKey(),
@@ -301,7 +317,7 @@ final class ScreenShareSessionTest extends TestCase
             )
             ->assertOk()
             ->assertJsonPath('signals.0.type', 'answer')
-            ->assertJsonPath('signals.0.payload.sdp', 'v=0-answer');
+            ->assertJsonPath('signals.0.payload.sdp', $answerSdp."\r\n");
 
         $sessions->end(
             $this->advisor,

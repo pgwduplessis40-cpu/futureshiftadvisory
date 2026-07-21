@@ -68,6 +68,20 @@ export function closeScreenShareEcho(): void {
     echo = null;
 }
 
+export function normalizeScreenShareDescription(
+    description: RTCSessionDescriptionInit,
+): RTCSessionDescriptionInit {
+    const sdp = description.sdp;
+
+    return {
+        type: description.type,
+        sdp:
+            typeof sdp === 'string' && sdp !== ''
+                ? sdp.replace(/[\r\n]+$/, '') + '\r\n'
+                : sdp,
+    };
+}
+
 export async function screenSharePost<T>(url: string, body: Record<string, unknown>): Promise<T> {
     const response = await fetch(url, {
         method: 'POST',

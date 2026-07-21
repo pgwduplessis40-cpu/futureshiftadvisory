@@ -95,8 +95,9 @@ final class ScreenShareSessionController
             'type' => ['required', 'in:offer,answer,candidate'],
             'payload' => ['required', 'array'],
         ]);
-        abort_if(strlen(json_encode($data['payload'], JSON_THROW_ON_ERROR)) > 9_000, 422);
-        $this->sessions->signal($this->user($request), $session, $data['connection_id'], $data['connection_secret'], $data['type'], $data['payload']);
+        $payload = $this->normalizeSignalPayload($data['type'], $data['payload']);
+        abort_if(strlen(json_encode($payload, JSON_THROW_ON_ERROR)) > 9_000, 422);
+        $this->sessions->signal($this->user($request), $session, $data['connection_id'], $data['connection_secret'], $data['type'], $payload);
 
         return response()->json(status: 204);
     }
@@ -164,6 +165,24 @@ final class ScreenShareSessionController
         abort_unless($user instanceof User, 403);
 
         return $user;
+    }
+
+    /**
+     * @param  array<string, mixed>  $payload
+     * @return array<string, mixed>
+     */
+    private function normalizeSignalPayload(string $type, array $payload): array
+    {
+        if (! in_array($type, ['offer', 'answer'], true)) {
+            return $payload;
+        }
+
+        abort_unless(($payload['type'] ?? null) === $type, 422, 'The session description type is invalid.');
+        abort_unless(is_string($payload['sdp'] ?? null) && $payload['sdp'] !== '', 422, 'A session description is required.');
+
+        $payload['sdp'] = rtrim($payload['sdp'], "\r\n")."\r\n";
+
+        return $payload;
     }
 
     /** @return array<string, mixed> */
