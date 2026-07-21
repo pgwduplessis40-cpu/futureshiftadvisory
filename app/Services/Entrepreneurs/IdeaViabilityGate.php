@@ -20,6 +20,26 @@ final class IdeaViabilityGate
     public function assess(IdeaValidation $validation): array
     {
         $evaluation = is_array($validation->ai_evaluation) ? $validation->ai_evaluation : [];
+
+        if ($validation->recalled_at !== null) {
+            return $this->result(
+                self::STATUS_AMBER,
+                'Amber - recalled for revision',
+                'The founder has recalled this idea validation. Wait for a resubmission before approving the business plan builder.',
+                ['Await founder resubmission before approving the business plan builder.'],
+            );
+        }
+
+        $advisorGateStatus = trim((string) data_get($evaluation, 'metadata.advisor_gate_status'));
+        if ($validation->advisor_gate_passed_at === null && $advisorGateStatus === 'changes_requested') {
+            return $this->result(
+                self::STATUS_AMBER,
+                'Amber - changes requested',
+                'Advisor changes are still outstanding. The founder must update and resubmit the idea validation before it can be approved for the builder.',
+                ['Await founder resubmission before approving the business plan builder.'],
+            );
+        }
+
         $redReasons = [];
         $amberReasons = [];
 

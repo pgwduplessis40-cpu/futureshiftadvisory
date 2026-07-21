@@ -26,7 +26,11 @@
       "Bash(grep -nE \"flag on\\\\b|flag-gated|FEATURE_STATS_NZ_LIVE|with the flag on|flag\\\\.\\\\*\\\\*$\" PLAN-ADMIN-DATA-AND-CREDENTIALS.md)",
       "Read(//tmp/v24x/**)",
       "Bash(python -c ' *)",
-      "Bash(php -r ' *)"
+      "Bash(php -r ' *)",
+      "Bash(grep -n \"EzypayTokenStore\\\\|EzypayWebhookReconciler\\\\|FakeEzypayClient\\\\|Integration\\\\\\\\\\\\\\\\Ezypay\\\\|GATEWAY_EZYPAY = \\\\|webhooks/payments/ezypay\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
+      "Bash(grep -n \"14\\\\.90\\\\|1\\\\.49%\\\\|\\\\$0\\\\.27\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
+      "Bash(grep -n \"\\\\`retired\\\\` is rejected\\\\|retired.*no.*rejected at the route\" PLAN-DIRECT-DEBIT-EZYPAY.md)",
+      "Bash(grep -n \"default \\\\`card\\\\`\\\\|no default\" PLAN-DIRECT-DEBIT-EZYPAY.md)"
     ]
   }
 }

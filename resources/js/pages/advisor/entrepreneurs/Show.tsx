@@ -51,6 +51,10 @@ type Props = {
     screenShare: AdvisorScreenShareConfig | null;
 };
 
+type IdeaViabilityGatePayload = NonNullable<
+    EntrepreneurDetail['idea_validation']
+>['viability_gate'];
+
 type InviteDetailsForm = {
     name: string;
     email: string;
@@ -148,8 +152,42 @@ export default function EntrepreneursShow({
                 ? 'Recalled for revision'
                 : 'Gate needed'
         : 'Needed';
-    const ideaViabilityGate = ideaValidation?.viability_gate;
+    const rawIdeaViabilityGate = ideaValidation?.viability_gate;
+    const ideaViabilityGate: IdeaViabilityGatePayload | undefined =
+        rawIdeaViabilityGate && ideaGateStatus === 'changes_requested'
+            ? {
+                  ...rawIdeaViabilityGate,
+                  status: 'amber',
+                  label: 'Amber - changes requested',
+                  summary:
+                      'Advisor changes are still outstanding. The founder must update and resubmit the idea validation before it can be approved for the builder.',
+                  reasons:
+                      rawIdeaViabilityGate.reasons.length > 0
+                          ? rawIdeaViabilityGate.reasons
+                          : [
+                                'Await founder resubmission before approving the business plan builder.',
+                            ],
+                  approval_available: false,
+              }
+            : rawIdeaViabilityGate && ideaGateStatus === 'recalled'
+              ? {
+                    ...rawIdeaViabilityGate,
+                    status: 'amber',
+                    label: 'Amber - recalled for revision',
+                    summary:
+                        'The founder has recalled this idea validation. Wait for a resubmission before approving the business plan builder.',
+                    reasons:
+                        rawIdeaViabilityGate.reasons.length > 0
+                            ? rawIdeaViabilityGate.reasons
+                            : [
+                                  'Await founder resubmission before approving the business plan builder.',
+                              ],
+                    approval_available: false,
+                }
+              : rawIdeaViabilityGate;
     const ideaGateCanBeApproved =
+        ideaGateStatus !== 'changes_requested' &&
+        ideaGateStatus !== 'recalled' &&
         ideaViabilityGate?.approval_available === true;
     const ideaViabilityGateClass =
         ideaViabilityGate?.status === 'green'
@@ -721,7 +759,7 @@ export default function EntrepreneursShow({
                 </section>
 
                 <div className="grid items-start gap-6 lg:grid-cols-3">
-                    <section className="self-start space-y-4 rounded-md border bg-background p-4 lg:sticky lg:top-6">
+                    <section className="space-y-4 self-start rounded-md border bg-background p-4 lg:sticky lg:top-6">
                         <div className="flex items-center justify-between gap-3">
                             <div className="flex items-center gap-2">
                                 <ClipboardCheck
@@ -928,7 +966,8 @@ export default function EntrepreneursShow({
                                         <p className="mt-1">
                                             {ideaViabilityGate.summary}
                                         </p>
-                                        {ideaViabilityGate.reasons.length > 0 ? (
+                                        {ideaViabilityGate.reasons.length >
+                                        0 ? (
                                             <ul className="mt-2 list-disc space-y-1 pl-5">
                                                 {ideaViabilityGate.reasons.map(
                                                     (reason) => (
@@ -1133,8 +1172,8 @@ export default function EntrepreneursShow({
                                                 </p>
                                             ) : gateNote.trim().length < 10 ? (
                                                 <p className="text-xs text-emerald-800">
-                                                    Add a brief gate note to approve
-                                                    the eligible idea.
+                                                    Add a brief gate note to
+                                                    approve the eligible idea.
                                                 </p>
                                             ) : null}
                                         </div>

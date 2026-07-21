@@ -29,8 +29,8 @@ use App\Services\Audit\AuditWriter;
 use App\Services\Entrepreneurs\AdvisorEntrepreneurCapacity;
 use App\Services\Entrepreneurs\EntrepreneurGamification;
 use App\Services\Entrepreneurs\IdeaViabilityGate;
-use App\Services\Security\InviteIssuer;
 use App\Services\ScreenShare\ScreenShareAuthorizer;
+use App\Services\Security\InviteIssuer;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -672,6 +672,7 @@ final class EntrepreneurController extends Controller
         $aiDeferred = (bool) data_get($evaluation, 'metadata.degraded', false)
             || data_get($evaluation, 'model') === 'fake-ai-client';
         $gateStatus = $this->ideaGateStatus($validation);
+        $viabilityGate = $this->ideaViabilityGatePayload($validation, $gateStatus);
         $refreshStatus = data_get($evaluation, 'metadata.refresh_status');
         $refreshRequestedAt = data_get($evaluation, 'metadata.refresh_requested_at');
         $refreshStartedAt = data_get($evaluation, 'metadata.refresh_started_at');
@@ -688,7 +689,7 @@ final class EntrepreneurController extends Controller
             'demand_signal' => $validation->demand_signal,
             'revenue_model' => $validation->revenue_model,
             'viability_alerts' => $validation->viability_alerts ?? [],
-            'viability_gate' => $this->ideaViabilityGate->assess($validation),
+            'viability_gate' => $viabilityGate,
             'proposed_change_request' => $this->proposedChangeRequest($validation),
             'uncertainty' => data_get($evaluation, 'uncertainty'),
             'past_plan_pattern' => data_get($evaluation, 'past_plan_pattern', []),
@@ -712,6 +713,29 @@ final class EntrepreneurController extends Controller
             'request_changes_url' => route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation], absolute: false),
             'refresh_url' => route('advisor.entrepreneurs.idea-validations.refresh', [$profile, $validation], absolute: false),
         ];
+    }
+
+    /**
+     * @return array{status: string, label: string, summary: string, reasons: array<int, string>, approval_available: bool}
+     */
+    private function ideaViabilityGatePayload(IdeaValidation $validation, string $gateStatus): array
+    {
+        $gate = $this->ideaViabilityGate->assess($validation);
+
+        if ($validation->advisor_gate_passed_at === null && $gateStatus === 'changes_requested') {
+            return [
+                ...$gate,
+                'status' => IdeaViabilityGate::STATUS_AMBER,
+                'label' => 'Amber - changes requested',
+                'summary' => 'Advisor changes are still outstanding. The founder must update and resubmit the idea validation before it can be approved for the builder.',
+                'reasons' => $gate['reasons'] !== []
+                    ? $gate['reasons']
+                    : ['Await founder resubmission before approving the business plan builder.'],
+                'approval_available' => false,
+            ];
+        }
+
+        return $gate;
     }
 
     private function proposedChangeRequest(IdeaValidation $validation): string

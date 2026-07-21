@@ -183,7 +183,7 @@ final class IdeaValidationTest extends TestCase
     {
         Notification::fake();
         [$advisor, $profile] = $this->profile('changes-requested@example.test');
-        $validation = app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor);
+        $validation = $this->completedIdeaReview(app(IdeaValidationService::class)->evaluate($profile, $this->strongPayload(), $advisor));
 
         $updated = app(IdeaValidationService::class)->requestChanges(
             $validation,
@@ -199,6 +199,12 @@ final class IdeaValidationTest extends TestCase
         $this->assertNotNull(data_get($updated->ai_evaluation, 'metadata.changes_requested_at'));
         $this->assertFalse(app(IdeaValidationService::class)->planBuilderUnlocked($profile));
         $this->assertSame(EntrepreneurStage::IDEA_VALIDATION, $profile->refresh()->stage);
+
+        $gate = app(IdeaViabilityGate::class)->assess($updated);
+        $this->assertSame(IdeaViabilityGate::STATUS_AMBER, $gate['status']);
+        $this->assertFalse($gate['approval_available']);
+        $this->assertStringContainsString('resubmit', $gate['summary']);
+
         $this->assertDatabaseHas('audit_events', [
             'action' => 'entrepreneur.idea_changes_requested',
             'subject_id' => $validation->id,
@@ -215,6 +221,13 @@ final class IdeaValidationTest extends TestCase
             (string) $thread->messages()->first()?->body,
         );
         Notification::assertSentTo($profile->user, NewMessageNotification::class);
+
+        $this->expectException(ValidationException::class);
+        app(IdeaValidationService::class)->passAdvisorGate(
+            $updated,
+            $advisor,
+            'Attempting to approve before the founder resubmits.',
+        );
     }
 
     public function test_refresh_retry_clears_stale_failure_and_records_provider_failure_reason(): void

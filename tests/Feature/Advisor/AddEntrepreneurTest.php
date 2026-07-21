@@ -26,11 +26,12 @@ use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Inertia\Testing\AssertableInertia as Assert;
+use Tests\Concerns\MakesIdeaReviewEligible;
 use Tests\TestCase;
 
 final class AddEntrepreneurTest extends TestCase
 {
-    use RefreshDatabase;
+    use MakesIdeaReviewEligible, RefreshDatabase;
 
     public function test_advisor_can_create_entrepreneur_profile_and_issue_invite(): void
     {
@@ -569,6 +570,7 @@ final class AddEntrepreneurTest extends TestCase
             'viability_alerts' => [],
             'evaluated_at' => now()->subMinute(),
         ]);
+        $validation = $this->completedIdeaReview($validation);
 
         $this->actingAsMfa($advisor)
             ->patch(route('advisor.entrepreneurs.idea-validations.request-changes', [$profile, $validation]), [
@@ -589,6 +591,18 @@ final class AddEntrepreneurTest extends TestCase
             'entrepreneur_profile_id' => $profile->id,
             'subject' => 'Idea validation changes requested',
         ]);
+
+        $this->actingAsMfa($advisor)
+            ->get(route('advisor.entrepreneurs.show', $profile))
+            ->assertOk()
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('advisor/entrepreneurs/Show')
+                ->where('entrepreneur.idea_validation.id', $validation->id)
+                ->where('entrepreneur.idea_validation.advisor_gate_status', 'changes_requested')
+                ->where('entrepreneur.idea_validation.viability_gate.status', 'amber')
+                ->where('entrepreneur.idea_validation.viability_gate.label', 'Amber - changes requested')
+                ->where('entrepreneur.idea_validation.viability_gate.approval_available', false)
+            );
     }
 
     public function test_capacity_warning_is_exposed_at_twenty_four_active_entrepreneurs(): void
