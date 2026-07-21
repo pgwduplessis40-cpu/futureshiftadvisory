@@ -82,6 +82,7 @@ type Props = {
         ice_servers_url: string;
         active_url: string;
         signal_url: string;
+        pending_signals_url: string;
         heartbeat_url: string;
         end_url: string;
         heartbeat_seconds: number;

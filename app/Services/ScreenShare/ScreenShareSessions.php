@@ -11,6 +11,7 @@ use App\Jobs\EndScreenShareSessionIfDisconnected;
 use App\Models\Client;
 use App\Models\ScreenShareConnection;
 use App\Models\ScreenShareSession;
+use App\Models\ScreenShareSignalMessage;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Support\RequestContext;
@@ -342,7 +343,7 @@ final class ScreenShareSessions
         abort_unless(in_array($type, ['offer', 'answer', 'candidate'], true), 422);
         $connection = $this->presence->assertConnection($user, $connectionId, $connectionSecret);
 
-        $target = $this->context->withSystemContext(function () use ($connection, $session, $user): ?string {
+        $delivery = $this->context->withSystemContext(function () use ($connection, $payload, $session, $type, $user): array {
             $locked = ScreenShareSession::query()->findOrFail($session->getKey());
             abort_unless(in_array($locked->status, [
                 ScreenShareSession::STATUS_APPROVED_PENDING_BROWSER,
@@ -350,13 +351,64 @@ final class ScreenShareSessions
             ], true), 409);
             abort_unless($this->isBoundParticipant($locked, $user, $connection), 403);
 
-            return (string) $locked->advisor_connection_id === (string) $connection->getKey()
+            $target = (string) $locked->advisor_connection_id === (string) $connection->getKey()
                 ? $locked->client_connection_id
                 : $locked->advisor_connection_id;
+            abort_unless(is_string($target) && $target !== '', 409);
+
+            $message = ScreenShareSignalMessage::query()->create([
+                'session_id' => $locked->getKey(),
+                'recipient_connection_id' => $target,
+                'type' => $type,
+                'payload' => $payload,
+            ]);
+
+            return [
+                'connection_id' => $target,
+                'message_id' => (int) $message->getKey(),
+            ];
         });
 
-        abort_unless(is_string($target) && $target !== '', 409);
-        ScreenShareSignal::dispatch($target, (string) $session->getKey(), (string) $connection->getKey(), $type, $payload);
+        ScreenShareSignal::dispatch(
+            (string) $delivery['connection_id'],
+            (string) $session->getKey(),
+            (string) $connection->getKey(),
+            (int) $delivery['message_id'],
+            $type,
+            $payload,
+        );
+    }
+
+    /**
+     * @return array<int, array{id:int, type:string, payload:array<string, mixed>}>
+     */
+    public function pendingSignals(
+        User $user,
+        ScreenShareSession $session,
+        string $connectionId,
+        string $connectionSecret,
+        int $afterId,
+    ): array {
+        $connection = $this->presence->assertConnection($user, $connectionId, $connectionSecret);
+
+        return $this->context->withSystemContext(function () use ($afterId, $connection, $session, $user): array {
+            $locked = ScreenShareSession::query()->findOrFail($session->getKey());
+            abort_unless($this->isBoundParticipant($locked, $user, $connection), 403);
+
+            return ScreenShareSignalMessage::query()
+                ->where('session_id', $locked->getKey())
+                ->where('recipient_connection_id', $connection->getKey())
+                ->where('id', '>', $afterId)
+                ->orderBy('id')
+                ->limit(100)
+                ->get()
+                ->map(fn (ScreenShareSignalMessage $message): array => [
+                    'id' => (int) $message->getKey(),
+                    'type' => $message->type,
+                    'payload' => $message->payload,
+                ])
+                ->all();
+        });
     }
 
     public function heartbeat(
@@ -511,6 +563,9 @@ final class ScreenShareSessions
 
     private function endLocked(ScreenShareSession $session, string $reason): void
     {
+        ScreenShareSignalMessage::query()
+            ->where('session_id', $session->getKey())
+            ->delete();
         $session->status = ScreenShareSession::STATUS_ENDED;
         $session->end_reason = $reason;
         $session->session_ended_at = now();

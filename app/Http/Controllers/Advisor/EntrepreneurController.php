@@ -447,6 +447,7 @@ final class EntrepreneurController extends Controller
             'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
             'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
             'signal_url' => route('screen-share.sessions.signal', ['session' => '__session__'], absolute: false),
+            'pending_signals_url' => route('screen-share.sessions.pending-signals', ['session' => '__session__'], absolute: false),
             'heartbeat_url' => route('screen-share.sessions.heartbeat', ['session' => '__session__'], absolute: false),
             'end_url' => route('screen-share.sessions.end', ['session' => '__session__'], absolute: false),
             'heartbeat_seconds' => max(5, (int) config('screen-share.heartbeat_interval_seconds', 10)),

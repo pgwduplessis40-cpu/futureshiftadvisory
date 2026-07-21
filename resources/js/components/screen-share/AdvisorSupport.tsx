@@ -15,6 +15,7 @@ type Props = {
         ice_servers_url: string;
         active_url: string;
         signal_url: string;
+        pending_signals_url: string;
         heartbeat_url: string;
         end_url: string;
         heartbeat_seconds: number;
@@ -25,9 +26,18 @@ type Props = {
 type Credentials = { connection_id: string; connection_secret: string; channel: string };
 
 type Signal = {
+    id?: number;
     session_id: string;
     type: string;
     payload: RTCSessionDescriptionInit | RTCIceCandidateInit;
+};
+
+type PendingSignalsResponse = {
+    signals: Array<{
+        id: number;
+        type: string;
+        payload: RTCSessionDescriptionInit | RTCIceCandidateInit;
+    }>;
 };
 
 export function AdvisorSupport({ config }: Props) {
@@ -42,6 +52,8 @@ export function AdvisorSupport({ config }: Props) {
     const peer = useRef<RTCPeerConnection | null>(null);
     const sessionIdRef = useRef<string | null>(null);
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
+    const lastPolledSignalId = useRef(0);
+    const receivedSignalIds = useRef(new Set<number>());
 
     useEffect(() => {
         let active = true;
@@ -53,9 +65,7 @@ export function AdvisorSupport({ config }: Props) {
             setCredentials(next);
             const channel = screenShareEcho(next).private(next.channel);
             channel.listen('.screen-share.signal', (event: Signal) => {
-                if (event.session_id === sessionIdRef.current) {
-                    void handleSignal(event, next);
-                }
+                void handleIncomingSignal(event, next);
             });
             channel.listen('.screen-share.session-updated', (event: {
                 session_id: string;
@@ -79,6 +89,53 @@ export function AdvisorSupport({ config }: Props) {
             closeScreenShareEcho();
         };
     }, [config.connection_url]);
+
+    useEffect(() => {
+        if (!credentials || !sessionId) {
+            return;
+        }
+
+        let active = true;
+        let polling = false;
+        const poll = (): void => {
+            if (polling) {
+                return;
+            }
+
+            polling = true;
+            void screenSharePost<PendingSignalsResponse>(
+                replaceSession(config.pending_signals_url, sessionId),
+                {
+                    ...participantPayload(credentials),
+                    after_id: lastPolledSignalId.current,
+                },
+            ).then(async ({ signals }) => {
+                for (const signal of signals) {
+                    if (!active) {
+                        return;
+                    }
+
+                    await handleIncomingSignal({
+                        id: signal.id,
+                        session_id: sessionId,
+                        type: signal.type,
+                        payload: signal.payload,
+                    }, credentials);
+                    lastPolledSignalId.current = Math.max(lastPolledSignalId.current, signal.id);
+                }
+            }).catch(() => undefined).finally(() => {
+                polling = false;
+            });
+        };
+
+        poll();
+        const interval = window.setInterval(poll, 1_000);
+
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
+    }, [config.pending_signals_url, credentials, sessionId]);
 
     useEffect(() => {
         if (!credentials || !sessionId || !connected) {
@@ -179,6 +236,22 @@ export function AdvisorSupport({ config }: Props) {
         }
     }
 
+    async function handleIncomingSignal(event: Signal, nextCredentials: Credentials): Promise<void> {
+        if (event.session_id !== sessionIdRef.current) {
+            return;
+        }
+
+        if (event.id !== undefined) {
+            if (receivedSignalIds.current.has(event.id)) {
+                return;
+            }
+
+            receivedSignalIds.current.add(event.id);
+        }
+
+        await handleSignal(event, nextCredentials);
+    }
+
     async function signal(
         currentSessionId: string,
         nextCredentials: Credentials,
@@ -203,6 +276,10 @@ export function AdvisorSupport({ config }: Props) {
     }
 
     function setSession(nextSessionId: string | null): void {
+        if (sessionIdRef.current !== nextSessionId) {
+            lastPolledSignalId.current = 0;
+            receivedSignalIds.current.clear();
+        }
         sessionIdRef.current = nextSessionId;
         setSessionId(nextSessionId);
     }

@@ -27,6 +27,7 @@ type Props = {
         ice_servers_url: string;
         active_url: string;
         signal_url: string;
+        pending_signals_url: string;
         heartbeat_url: string;
         end_url: string;
         heartbeat_seconds: number;
@@ -48,9 +49,18 @@ type Prompt = {
 };
 
 type Signal = {
+    id?: number;
     session_id: string;
     type: string;
     payload: RTCSessionDescriptionInit | RTCIceCandidateInit;
+};
+
+type PendingSignalsResponse = {
+    signals: Array<{
+        id: number;
+        type: string;
+        payload: RTCSessionDescriptionInit | RTCIceCandidateInit;
+    }>;
 };
 
 type PendingPromptResponse = {
@@ -71,6 +81,8 @@ export function ClientSupport({ config }: Props) {
     const callTone = useRef<{ context: AudioContext; interval: number } | null>(null);
     const sessionIdRef = useRef<string | null>(null);
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
+    const lastPolledSignalId = useRef(0);
+    const receivedSignalIds = useRef(new Set<number>());
 
     useEffect(() => {
         if (!config) {
@@ -111,27 +123,7 @@ export function ClientSupport({ config }: Props) {
                 const channel = screenShareEcho(next).private(next.channel);
                 channel.listen('.screen-share.prompt', (event: Prompt) => setPrompt(event));
                 channel.listen('.screen-share.signal', (event: Signal) => {
-                    if (event.session_id !== sessionIdRef.current || !peer.current) {
-                        return;
-                    }
-
-                    if (event.type === 'answer') {
-                        void peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit)
-                            .then(async () => {
-                                for (const candidate of pendingCandidates.current.splice(0)) {
-                                    await peer.current?.addIceCandidate(candidate);
-                                }
-                            });
-                    }
-
-                    if (event.type === 'candidate') {
-                        const candidate = event.payload as RTCIceCandidateInit;
-                        if (peer.current.remoteDescription) {
-                            void peer.current.addIceCandidate(candidate);
-                        } else {
-                            pendingCandidates.current.push(candidate);
-                        }
-                    }
+                    void handleIncomingSignal(event);
                 });
                 channel.listen('.screen-share.session-updated', (event: { session_id: string; status: string }) => {
                     if (event.session_id === sessionIdRef.current && event.status === 'ended') {
@@ -159,6 +151,53 @@ export function ClientSupport({ config }: Props) {
             closeScreenShareEcho();
         };
     }, [config]);
+
+    useEffect(() => {
+        if (!config || !credentials || !sessionId) {
+            return;
+        }
+
+        let active = true;
+        let polling = false;
+        const poll = (): void => {
+            if (polling) {
+                return;
+            }
+
+            polling = true;
+            void screenSharePost<PendingSignalsResponse>(
+                replaceSession(config.pending_signals_url, sessionId),
+                {
+                    ...participant(credentials),
+                    after_id: lastPolledSignalId.current,
+                },
+            ).then(async ({ signals }) => {
+                for (const signal of signals) {
+                    if (!active) {
+                        return;
+                    }
+
+                    await handleIncomingSignal({
+                        id: signal.id,
+                        session_id: sessionId,
+                        type: signal.type,
+                        payload: signal.payload,
+                    });
+                    lastPolledSignalId.current = Math.max(lastPolledSignalId.current, signal.id);
+                }
+            }).catch(() => undefined).finally(() => {
+                polling = false;
+            });
+        };
+
+        poll();
+        const interval = window.setInterval(poll, 1_000);
+
+        return () => {
+            active = false;
+            window.clearInterval(interval);
+        };
+    }, [config, credentials, sessionId]);
 
     useEffect(() => {
         setIsMobile(/Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent));
@@ -329,6 +368,36 @@ export function ClientSupport({ config }: Props) {
         });
     }
 
+    async function handleIncomingSignal(event: Signal): Promise<void> {
+        if (event.session_id !== sessionIdRef.current || !peer.current) {
+            return;
+        }
+
+        if (event.id !== undefined) {
+            if (receivedSignalIds.current.has(event.id)) {
+                return;
+            }
+
+            receivedSignalIds.current.add(event.id);
+        }
+
+        if (event.type === 'answer') {
+            await peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
+            for (const candidate of pendingCandidates.current.splice(0)) {
+                await peer.current.addIceCandidate(candidate);
+            }
+        }
+
+        if (event.type === 'candidate') {
+            const candidate = event.payload as RTCIceCandidateInit;
+            if (peer.current.remoteDescription) {
+                await peer.current.addIceCandidate(candidate);
+            } else {
+                pendingCandidates.current.push(candidate);
+            }
+        }
+    }
+
     async function end(nextSessionId: string, reason: string): Promise<void> {
         if (config && credentials && nextSessionId) {
             await screenSharePost(replaceSession(config.end_url, nextSessionId), {
@@ -340,6 +409,10 @@ export function ClientSupport({ config }: Props) {
     }
 
     function setSession(nextSessionId: string | null): void {
+        if (sessionIdRef.current !== nextSessionId) {
+            lastPolledSignalId.current = 0;
+            receivedSignalIds.current.clear();
+        }
         sessionIdRef.current = nextSessionId;
         setSessionId(nextSessionId);
     }

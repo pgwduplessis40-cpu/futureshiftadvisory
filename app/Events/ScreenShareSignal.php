@@ -21,6 +21,7 @@ final class ScreenShareSignal implements ShouldBroadcastNow
         private readonly string $connectionId,
         private readonly string $sessionId,
         private readonly string $fromConnectionId,
+        private readonly int $signalId,
         private readonly string $signalType,
         private readonly array $payload,
     ) {}
@@ -41,6 +42,7 @@ final class ScreenShareSignal implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
+            'id' => $this->signalId,
             'session_id' => $this->sessionId,
             'from_connection_id' => $this->fromConnectionId,
             'type' => $this->signalType,

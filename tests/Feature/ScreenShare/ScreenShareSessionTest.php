@@ -6,6 +6,7 @@ namespace Tests\Feature\ScreenShare;
 
 use App\Enums\EngagementType;
 use App\Events\ScreenSharePrompt;
+use App\Events\ScreenShareSignal;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
@@ -15,6 +16,7 @@ use App\Models\User;
 use App\Services\ScreenShare\ClientPortalContextTokens;
 use App\Services\ScreenShare\EntrepreneurScreenSharePresence;
 use App\Services\ScreenShare\EntrepreneurScreenShareRequests;
+use App\Services\ScreenShare\ScreenShareConnectionCredentials;
 use App\Services\ScreenShare\ScreenShareIceServers;
 use App\Services\ScreenShare\ScreenSharePresence;
 use App\Services\ScreenShare\ScreenShareSessions;
@@ -193,6 +195,84 @@ final class ScreenShareSessionTest extends TestCase
             $nonces[(string) $clientTab->connection->getKey()],
             $response->json('prompt.nonce'),
         );
+    }
+
+    public function test_participants_can_poll_for_persisted_signals(): void
+    {
+        Event::fake([ScreenSharePrompt::class, ScreenShareSignal::class]);
+        $sessions = app(ScreenShareSessions::class);
+        $advisorConnection = app(ScreenSharePresence::class)->registerAdvisor($this->advisor, $this->client);
+        $clientConnection = $this->clientConnection($this->clientUser);
+        $session = $sessions->request(
+            $this->advisor,
+            $this->client,
+            $this->clientUser,
+            (string) $advisorConnection->connection->getKey(),
+            $advisorConnection->secret,
+        );
+        $prompt = Event::dispatched(ScreenSharePrompt::class)[0][0];
+
+        $sessions->respond(
+            $this->clientUser,
+            $session,
+            (string) $clientConnection->connection->getKey(),
+            $clientConnection->secret,
+            $prompt->broadcastWith()['nonce'],
+            true,
+        );
+        $sessions->signal(
+            $this->clientUser,
+            $session,
+            (string) $clientConnection->connection->getKey(),
+            $clientConnection->secret,
+            'offer',
+            ['type' => 'offer', 'sdp' => 'v=0'],
+        );
+
+        $advisorPoll = $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.sessions.pending-signals', $session),
+                [
+                    'connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'connection_secret' => $advisorConnection->secret,
+                    'after_id' => 0,
+                ],
+            );
+
+        $advisorPoll
+            ->assertOk()
+            ->assertJsonPath('signals.0.type', 'offer')
+            ->assertJsonPath('signals.0.payload.sdp', 'v=0');
+
+        $sessions->signal(
+            $this->advisor,
+            $session,
+            (string) $advisorConnection->connection->getKey(),
+            $advisorConnection->secret,
+            'answer',
+            ['type' => 'answer', 'sdp' => 'v=0-answer'],
+        );
+
+        $this->actingAs($this->clientUser)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->clientUser->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.sessions.pending-signals', $session),
+                [
+                    'connection_id' => (string) $clientConnection->connection->getKey(),
+                    'connection_secret' => $clientConnection->secret,
+                    'after_id' => 0,
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath('signals.0.type', 'answer')
+            ->assertJsonPath('signals.0.payload.sdp', 'v=0-answer');
     }
 
     public function test_assigned_advisor_can_request_support_from_an_entrepreneur_profile(): void
@@ -472,7 +552,7 @@ final class ScreenShareSessionTest extends TestCase
     /**
      * @return array{
      *     0: ScreenShareSession,
-     *     1: array<int, \App\Services\ScreenShare\ScreenShareConnectionCredentials>,
+     *     1: array<int, ScreenShareConnectionCredentials>,
      *     2: array<string, string>
      * }
      */
@@ -512,11 +592,10 @@ final class ScreenShareSessionTest extends TestCase
         return [$session, $clientConnections, $nonces];
     }
 
-    private function clientConnection(User $user): \App\Services\ScreenShare\ScreenShareConnectionCredentials
+    private function clientConnection(User $user): ScreenShareConnectionCredentials
     {
         $token = app(ClientPortalContextTokens::class)->issue($user, $this->client, 'portal.dashboard');
 
         return app(ScreenSharePresence::class)->registerClient($user, $token);
     }
-
 }

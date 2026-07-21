@@ -101,6 +101,25 @@ final class ScreenShareSessionController
         return response()->json(status: 204);
     }
 
+    public function pendingSignals(Request $request, ScreenShareSession $session): JsonResponse
+    {
+        $data = $request->validate([
+            'connection_id' => ['required', 'uuid'],
+            'connection_secret' => ['required', 'string', 'size:64'],
+            'after_id' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        return response()->json([
+            'signals' => $this->sessions->pendingSignals(
+                $this->user($request),
+                $session,
+                $data['connection_id'],
+                $data['connection_secret'],
+                (int) ($data['after_id'] ?? 0),
+            ),
+        ]);
+    }
+
     public function iceServers(Request $request, ScreenShareSession $session): JsonResponse
     {
         $data = $request->validate([

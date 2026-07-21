@@ -40,6 +40,9 @@ Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
     Route::post('screen-share/sessions/{session}/signal', [ScreenShareSessionController::class, 'signal'])
         ->whereUuid('session')
         ->name('screen-share.sessions.signal');
+    Route::post('screen-share/sessions/{session}/pending-signals', [ScreenShareSessionController::class, 'pendingSignals'])
+        ->whereUuid('session')
+        ->name('screen-share.sessions.pending-signals');
     Route::post('screen-share/sessions/{session}/ice-servers', [ScreenShareSessionController::class, 'iceServers'])
         ->whereUuid('session')
         ->name('screen-share.sessions.ice-servers');
