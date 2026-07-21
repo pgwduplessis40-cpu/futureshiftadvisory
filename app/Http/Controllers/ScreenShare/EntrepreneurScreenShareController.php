@@ -45,7 +45,7 @@ final class EntrepreneurScreenShareController
         EntrepreneurProfile $entrepreneurProfile,
     ): JsonResponse {
         $data = $request->validate([
-            'client_user_id' => ['required', 'uuid'],
+            'client_user_id' => ['required', 'integer'],
             'advisor_connection_id' => ['required', 'uuid'],
             'advisor_connection_secret' => ['required', 'string', 'size:64'],
         ]);

@@ -145,6 +145,31 @@ final class ScreenShareSessionTest extends TestCase
         $this->assertSame(ScreenShareSession::STATUS_REQUESTED, $session->refresh()->status);
     }
 
+    public function test_client_request_endpoint_accepts_the_browser_string_user_id(): void
+    {
+        Event::fake([ScreenSharePrompt::class]);
+        $advisorConnection = app(ScreenSharePresence::class)->registerAdvisor($this->advisor, $this->client);
+        $this->clientConnection($this->clientUser);
+
+        $response = $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('advisor.clients.screen-share.sessions.store', $this->client),
+                [
+                    'client_user_id' => (string) $this->clientUser->getKey(),
+                    'advisor_connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'advisor_connection_secret' => $advisorConnection->secret,
+                ],
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
+    }
+
     public function test_assigned_advisor_can_request_support_from_an_entrepreneur_profile(): void
     {
         Event::fake([ScreenSharePrompt::class]);
@@ -192,6 +217,49 @@ final class ScreenShareSessionTest extends TestCase
         $this->assertSame((string) $profile->getKey(), (string) $approved->entrepreneur_profile_id);
         $this->assertSame('entrepreneur_assignment', $approved->authorization_basis['path']);
         $this->assertSame(ScreenShareSession::STATUS_APPROVED_PENDING_BROWSER, $approved->status);
+    }
+
+    public function test_entrepreneur_request_endpoint_accepts_the_browser_string_user_id(): void
+    {
+        Event::fake([ScreenSharePrompt::class]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Endpoint Support Entrepreneur',
+            'email' => 'endpoint-support-entrepreneur@example.test',
+        ]);
+
+        $presence = app(EntrepreneurScreenSharePresence::class);
+        $advisorConnection = $presence->registerAdvisor($this->advisor, $profile);
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.dashboard',
+        );
+        $presence->registerPortalParticipant($entrepreneur, $token);
+
+        $response = $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('advisor.entrepreneurs.screen-share.sessions.store', $profile),
+                [
+                    'client_user_id' => (string) $entrepreneur->getKey(),
+                    'advisor_connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'advisor_connection_secret' => $advisorConnection->secret,
+                ],
+            );
+
+        $response
+            ->assertCreated()
+            ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
     }
 
     public function test_super_admin_can_request_support_from_an_entrepreneur_profile(): void
