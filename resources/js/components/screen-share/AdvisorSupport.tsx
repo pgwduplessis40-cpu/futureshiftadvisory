@@ -55,6 +55,7 @@ export function AdvisorSupport({ config }: Props) {
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
     const lastPolledSignalId = useRef(0);
     const receivedSignalIds = useRef(new Set<number>());
+    const processingSignalIds = useRef(new Set<number>());
 
     useEffect(() => {
         let active = true;
@@ -116,13 +117,15 @@ export function AdvisorSupport({ config }: Props) {
                         return;
                     }
 
-                    await handleIncomingSignal({
+                    const processed = await handleIncomingSignal({
                         id: signal.id,
                         session_id: sessionId,
                         type: signal.type,
                         payload: signal.payload,
                     }, credentials);
-                    lastPolledSignalId.current = Math.max(lastPolledSignalId.current, signal.id);
+                    if (processed) {
+                        lastPolledSignalId.current = Math.max(lastPolledSignalId.current, signal.id);
+                    }
                 }
             }).catch(() => undefined).finally(() => {
                 polling = false;
@@ -214,6 +217,12 @@ export function AdvisorSupport({ config }: Props) {
             return;
         }
 
+        if (event.type === 'candidate' && !peer.current) {
+            pendingCandidates.current.push(event.payload as RTCIceCandidateInit);
+
+            return;
+        }
+
         if (!peer.current) {
             const ice = await screenSharePost<RTCIceServer[]>(
                 replaceSession(config.ice_servers_url, currentSessionId),
@@ -262,20 +271,40 @@ export function AdvisorSupport({ config }: Props) {
         }
     }
 
-    async function handleIncomingSignal(event: Signal, nextCredentials: Credentials): Promise<void> {
+    async function handleIncomingSignal(event: Signal, nextCredentials: Credentials): Promise<boolean> {
         if (event.session_id !== sessionIdRef.current) {
-            return;
+            return false;
         }
 
         if (event.id !== undefined) {
             if (receivedSignalIds.current.has(event.id)) {
-                return;
+                return true;
             }
 
-            receivedSignalIds.current.add(event.id);
+            if (processingSignalIds.current.has(event.id)) {
+                return false;
+            }
+
+            processingSignalIds.current.add(event.id);
         }
 
-        await handleSignal(event, nextCredentials);
+        try {
+            await handleSignal(event, nextCredentials);
+            if (event.id !== undefined) {
+                receivedSignalIds.current.add(event.id);
+            }
+            setError(null);
+
+            return true;
+        } catch {
+            setError('Screen support could not establish a connection. Keep the client sharing and try again.');
+
+            return false;
+        } finally {
+            if (event.id !== undefined) {
+                processingSignalIds.current.delete(event.id);
+            }
+        }
     }
 
     async function signal(
@@ -305,6 +334,7 @@ export function AdvisorSupport({ config }: Props) {
         if (sessionIdRef.current !== nextSessionId) {
             lastPolledSignalId.current = 0;
             receivedSignalIds.current.clear();
+            processingSignalIds.current.clear();
         }
         sessionIdRef.current = nextSessionId;
         setSessionId(nextSessionId);
@@ -314,6 +344,7 @@ export function AdvisorSupport({ config }: Props) {
         peer.current?.close();
         peer.current = null;
         pendingCandidates.current = [];
+        processingSignalIds.current.clear();
         if (video.current) {
             video.current.srcObject = null;
         }
