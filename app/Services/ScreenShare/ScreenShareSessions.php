@@ -366,6 +366,9 @@ final class ScreenShareSessions
             return [
                 'connection_id' => $target,
                 'message_id' => (int) $message->getKey(),
+                'recipient' => (string) $target === (string) $locked->advisor_connection_id
+                    ? ScreenShareConnection::TYPE_ADVISOR
+                    : ScreenShareConnection::TYPE_CLIENT,
             ];
         });
 
@@ -377,6 +380,15 @@ final class ScreenShareSessions
             $type,
             $payload,
         );
+
+        if (in_array($type, ['offer', 'answer'], true)) {
+            $this->audit->record(
+                'screen_share.'.$type.'_sent',
+                subject: $session,
+                actor: $user,
+                after: ['recipient' => $delivery['recipient']],
+            );
+        }
     }
 
     /**
@@ -533,7 +545,9 @@ final class ScreenShareSessions
                         ? 'connection_lost'
                         : match ($session->status) {
                             ScreenShareSession::STATUS_REQUESTED => 'request_timed_out',
-                            ScreenShareSession::STATUS_APPROVED_PENDING_BROWSER => 'browser_permission_timed_out',
+                            ScreenShareSession::STATUS_APPROVED_PENDING_BROWSER => $session->browser_permission_granted
+                                ? 'signaling_timed_out'
+                                : 'browser_permission_timed_out',
                             default => 'max_duration_reached',
                         };
                     $this->endLocked($session, $reason);

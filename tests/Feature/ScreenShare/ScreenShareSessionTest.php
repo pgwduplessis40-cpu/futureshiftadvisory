@@ -247,6 +247,10 @@ final class ScreenShareSessionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('signals.0.type', 'offer')
             ->assertJsonPath('signals.0.payload.sdp', 'v=0');
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'screen_share.offer_sent',
+            'actor_user_key' => (string) $this->clientUser->getKey(),
+        ]);
 
         $sessions->signal(
             $this->advisor,
@@ -256,6 +260,10 @@ final class ScreenShareSessionTest extends TestCase
             'answer',
             ['type' => 'answer', 'sdp' => 'v=0-answer'],
         );
+        $this->assertDatabaseHas('audit_events', [
+            'action' => 'screen_share.answer_sent',
+            'actor_user_key' => (string) $this->advisor->getKey(),
+        ]);
 
         $this->actingAs($this->clientUser)
             ->withSession([
