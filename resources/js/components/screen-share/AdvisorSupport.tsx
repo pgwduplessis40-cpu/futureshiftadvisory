@@ -109,7 +109,9 @@ export function AdvisorSupport({ config }: Props) {
                 replaceSession(config.pending_signals_url, sessionId),
                 {
                     ...participantPayload(credentials),
-                    after_id: lastPolledSignalId.current,
+                    // Until an offer has created the peer connection, re-read this
+                    // short-lived session from the start so a stale cursor cannot hide it.
+                    after_id: peer.current ? lastPolledSignalId.current : 0,
                 },
             ).then(async ({ signals }) => {
                 for (const signal of signals) {
