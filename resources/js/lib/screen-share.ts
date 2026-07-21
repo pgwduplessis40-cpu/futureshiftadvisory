@@ -82,7 +82,8 @@ export async function screenSharePost<T>(url: string, body: Record<string, unkno
 
     if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { message?: string } | null;
-        throw new Error(payload?.message ?? 'Screen support request failed.');
+        const message = payload?.message ?? 'Screen support request failed.';
+        throw new Error(message + ' (HTTP ' + response.status + ')');
     }
 
     if (response.status === 204) {

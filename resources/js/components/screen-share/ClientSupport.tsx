@@ -82,6 +82,8 @@ export function ClientSupport({ config }: Props) {
     const callTone = useRef<{ context: AudioContext; interval: number } | null>(null);
     const sessionIdRef = useRef<string | null>(null);
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
+    const outboundCandidates = useRef<RTCIceCandidateInit[]>([]);
+    const offerSignaled = useRef(false);
     const lastPolledSignalId = useRef(0);
     const receivedSignalIds = useRef(new Set<number>());
 
@@ -331,10 +333,19 @@ export function ClientSupport({ config }: Props) {
             );
             const connection = new RTCPeerConnection({ iceServers: ice });
             peer.current = connection;
+            offerSignaled.current = false;
+            outboundCandidates.current = [];
             captured.getTracks().forEach((mediaTrack) => connection.addTrack(mediaTrack, captured));
             connection.onicecandidate = ({ candidate }) => {
                 if (candidate) {
-                    void signal(nextSessionId, 'candidate', candidate.toJSON());
+                    const payload = candidate.toJSON();
+                    if (!offerSignaled.current) {
+                        outboundCandidates.current.push(payload);
+
+                        return;
+                    }
+
+                    void signal(nextSessionId, 'candidate', payload).catch(() => undefined);
                 }
             };
             connection.onconnectionstatechange = () => {
@@ -343,7 +354,7 @@ export function ClientSupport({ config }: Props) {
                     setSharing(true);
                 }
 
-                if (['failed', 'closed'].includes(connection.connectionState)) {
+                if (connection.connectionState === 'failed') {
                     void end(nextSessionId, 'connection_lost');
                 }
             };
@@ -351,7 +362,16 @@ export function ClientSupport({ config }: Props) {
 
             const offer = await connection.createOffer();
             await connection.setLocalDescription(offer);
-            await signal(nextSessionId, 'offer', offer);
+            const localDescription = connection.localDescription;
+            if (!localDescription) {
+                throw new Error('The browser did not prepare a screen-share offer.');
+            }
+
+            await signal(nextSessionId, 'offer', descriptionPayload(localDescription));
+            offerSignaled.current = true;
+            for (const candidate of outboundCandidates.current.splice(0)) {
+                void signal(nextSessionId, 'candidate', candidate).catch(() => undefined);
+            }
             setPrompt(null);
         } catch (caught) {
             if (approved && !browserPermissionGranted) {
@@ -455,6 +475,8 @@ export function ClientSupport({ config }: Props) {
         stream.current?.getTracks().forEach((track) => track.stop());
         stream.current = null;
         pendingCandidates.current = [];
+        outboundCandidates.current = [];
+        offerSignaled.current = false;
         setPrompt(null);
         setSession(null);
         setSharing(false);
@@ -546,6 +568,13 @@ async function addIceCandidate(
     } catch {
         // Candidates are alternatives; one unsupported route must not block negotiation.
     }
+}
+
+function descriptionPayload(description: RTCSessionDescription): RTCSessionDescriptionInit {
+    return {
+        type: description.type,
+        sdp: description.sdp,
+    };
 }
 
 function playTone(context: AudioContext, frequency: number, start: number): void {

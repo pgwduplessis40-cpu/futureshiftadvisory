@@ -41,6 +41,14 @@ type PendingSignalsResponse = {
     }>;
 };
 
+type NegotiationStage =
+    | 'load-relay-settings'
+    | 'prepare-viewer'
+    | 'apply-offer'
+    | 'create-answer'
+    | 'apply-answer'
+    | 'send-answer';
+
 export function AdvisorSupport({ config }: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [participant, setParticipant] = useState(config.participants[0]?.id ?? '');
@@ -53,9 +61,12 @@ export function AdvisorSupport({ config }: Props) {
     const peer = useRef<RTCPeerConnection | null>(null);
     const sessionIdRef = useRef<string | null>(null);
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
+    const outboundCandidates = useRef<RTCIceCandidateInit[]>([]);
+    const answerSignaled = useRef(false);
     const lastPolledSignalId = useRef(0);
     const receivedSignalIds = useRef(new Set<number>());
     const processingSignalIds = useRef(new Set<number>());
+    const signalProcessingQueue = useRef<Promise<void>>(Promise.resolve());
 
     useEffect(() => {
         let active = true;
@@ -225,51 +236,86 @@ export function AdvisorSupport({ config }: Props) {
             return;
         }
 
-        if (!peer.current) {
-            const ice = await screenSharePost<RTCIceServer[]>(
-                replaceSession(config.ice_servers_url, currentSessionId),
-                participantPayload(nextCredentials),
-            );
-            peer.current = new RTCPeerConnection({ iceServers: ice });
-            peer.current.ontrack = (trackEvent) => {
-                if (video.current) {
-                    video.current.srcObject = trackEvent.streams[0];
-                }
-            };
-            peer.current.onicecandidate = ({ candidate }) => {
-                if (candidate) {
-                    void signal(currentSessionId, nextCredentials, 'candidate', candidate.toJSON());
-                }
-            };
-            peer.current.onconnectionstatechange = () => {
-                if (peer.current?.connectionState === 'connected') {
-                    void screenSharePost(
-                        replaceSession(config.active_url, currentSessionId),
-                        participantPayload(nextCredentials),
-                    );
-                    setConnected(true);
-                }
-                if (['failed', 'closed'].includes(peer.current?.connectionState ?? '')) {
-                    void end();
-                }
-            };
-        }
+        let stage: NegotiationStage = 'load-relay-settings';
 
-        if (event.type === 'offer') {
-            await peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
-            const answer = await peer.current.createAnswer();
-            await peer.current.setLocalDescription(answer);
-            await signal(currentSessionId, nextCredentials, 'answer', answer);
-            for (const candidate of pendingCandidates.current.splice(0)) {
-                await addIceCandidate(peer.current, candidate);
+        try {
+            let connection = peer.current;
+            if (!connection) {
+                const ice = await screenSharePost<RTCIceServer[]>(
+                    replaceSession(config.ice_servers_url, currentSessionId),
+                    participantPayload(nextCredentials),
+                );
+                stage = 'prepare-viewer';
+                connection = new RTCPeerConnection({ iceServers: ice });
+                peer.current = connection;
+                const viewer = connection;
+                answerSignaled.current = false;
+                outboundCandidates.current = [];
+                connection.ontrack = (trackEvent) => {
+                    if (video.current) {
+                        video.current.srcObject = trackEvent.streams[0] ?? null;
+                    }
+                };
+                connection.onicecandidate = ({ candidate }) => {
+                    if (!candidate) {
+                        return;
+                    }
+
+                    const payload = candidate.toJSON();
+                    if (!answerSignaled.current) {
+                        outboundCandidates.current.push(payload);
+
+                        return;
+                    }
+
+                    void signal(currentSessionId, nextCredentials, 'candidate', payload).catch(() => undefined);
+                };
+                connection.onconnectionstatechange = () => {
+                    if (viewer.connectionState === 'connected') {
+                        void screenSharePost(
+                            replaceSession(config.active_url, currentSessionId),
+                            participantPayload(nextCredentials),
+                        );
+                        setConnected(true);
+                        setError(null);
+                    }
+                    if (viewer.connectionState === 'failed') {
+                        void end();
+                    }
+                };
             }
-        } else if (event.type === 'candidate') {
-            const candidate = event.payload as RTCIceCandidateInit;
-            if (peer.current.remoteDescription) {
-                await addIceCandidate(peer.current, candidate);
-            } else {
-                pendingCandidates.current.push(candidate);
+
+            if (event.type === 'offer') {
+                stage = 'apply-offer';
+                await connection.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
+                stage = 'create-answer';
+                const answer = await connection.createAnswer();
+                stage = 'apply-answer';
+                await connection.setLocalDescription(answer);
+                const localDescription = connection.localDescription;
+                if (!localDescription) {
+                    throw new Error('The browser did not prepare a screen-share answer.');
+                }
+
+                stage = 'send-answer';
+                await signal(currentSessionId, nextCredentials, 'answer', descriptionPayload(localDescription));
+                answerSignaled.current = true;
+                for (const candidate of outboundCandidates.current.splice(0)) {
+                    void signal(currentSessionId, nextCredentials, 'candidate', candidate).catch(() => undefined);
+                }
+                for (const candidate of pendingCandidates.current.splice(0)) {
+                    await addIceCandidate(connection, candidate);
+                }
+            } else if (event.type === 'candidate') {
+                const candidate = event.payload as RTCIceCandidateInit;
+                if (connection.remoteDescription) {
+                    await addIceCandidate(connection, candidate);
+                } else {
+                    pendingCandidates.current.push(candidate);
+                }
             }
+        } catch (caught) {
+            throw new ScreenShareNegotiationError(stage, caught);
         }
     }
 
@@ -290,23 +336,41 @@ export function AdvisorSupport({ config }: Props) {
             processingSignalIds.current.add(event.id);
         }
 
-        try {
-            await handleSignal(event, nextCredentials);
-            if (event.id !== undefined) {
-                receivedSignalIds.current.add(event.id);
-            }
-            setError(null);
+        const operation = signalProcessingQueue.current.then(async (): Promise<boolean> => {
+            if (event.session_id !== sessionIdRef.current) {
+                if (event.id !== undefined) {
+                    processingSignalIds.current.delete(event.id);
+                }
 
-            return true;
-        } catch {
-            setError('Screen support could not establish a connection. Keep the client sharing and try again.');
-
-            return false;
-        } finally {
-            if (event.id !== undefined) {
-                processingSignalIds.current.delete(event.id);
+                return false;
             }
-        }
+
+            try {
+                await handleSignal(event, nextCredentials);
+                if (event.id !== undefined) {
+                    receivedSignalIds.current.add(event.id);
+                }
+                if (event.type === 'offer') {
+                    setError(null);
+                }
+
+                return true;
+            } catch (caught) {
+                if (event.type === 'offer') {
+                    resetPeerForRetry();
+                }
+                setError(messageForNegotiationFailure(caught));
+
+                return false;
+            } finally {
+                if (event.id !== undefined) {
+                    processingSignalIds.current.delete(event.id);
+                }
+            }
+        });
+        signalProcessingQueue.current = operation.then(() => undefined, () => undefined);
+
+        return operation;
     }
 
     async function signal(
@@ -342,10 +406,39 @@ export function AdvisorSupport({ config }: Props) {
         setSessionId(nextSessionId);
     }
 
-    function stop(): void {
-        peer.current?.close();
+    function resetPeerForRetry(): void {
+        const connection = peer.current;
         peer.current = null;
+        if (connection) {
+            connection.onconnectionstatechange = null;
+            connection.onicecandidate = null;
+            connection.ontrack = null;
+            connection.close();
+        }
         pendingCandidates.current = [];
+        outboundCandidates.current = [];
+        answerSignaled.current = false;
+        lastPolledSignalId.current = 0;
+        receivedSignalIds.current.clear();
+        if (video.current) {
+            video.current.srcObject = null;
+        }
+        setConnected(false);
+        setOverSharing(false);
+    }
+
+    function stop(): void {
+        const connection = peer.current;
+        peer.current = null;
+        if (connection) {
+            connection.onconnectionstatechange = null;
+            connection.onicecandidate = null;
+            connection.ontrack = null;
+            connection.close();
+        }
+        pendingCandidates.current = [];
+        outboundCandidates.current = [];
+        answerSignaled.current = false;
         processingSignalIds.current.clear();
         if (video.current) {
             video.current.srcObject = null;
@@ -416,6 +509,41 @@ async function addIceCandidate(
     } catch {
         // Candidates are alternatives; one unsupported route must not block negotiation.
     }
+}
+
+function descriptionPayload(description: RTCSessionDescription): RTCSessionDescriptionInit {
+    return {
+        type: description.type,
+        sdp: description.sdp,
+    };
+}
+
+class ScreenShareNegotiationError extends Error {
+    constructor(
+        readonly stage: NegotiationStage,
+        original: unknown,
+    ) {
+        super(original instanceof Error ? original.message : 'The browser could not continue.');
+        this.name = 'ScreenShareNegotiationError';
+    }
+}
+
+function messageForNegotiationFailure(caught: unknown): string {
+    if (!(caught instanceof ScreenShareNegotiationError)) {
+        return 'Screen support could not establish a connection. Keep the client sharing and try again.';
+    }
+
+    const labels: Record<NegotiationStage, string> = {
+        'load-relay-settings': 'loading the secure connection settings',
+        'prepare-viewer': 'preparing the browser viewer',
+        'apply-offer': 'reading the client screen-share offer',
+        'create-answer': 'preparing the advisor response',
+        'apply-answer': 'activating the advisor response',
+        'send-answer': 'sending the advisor response',
+    };
+    const detail = caught.message ? ' ' + caught.message : '';
+
+    return 'Screen support stopped while ' + labels[caught.stage] + '.' + detail + ' It will retry while the client keeps sharing.';
 }
 
 function formatDuration(seconds: number): string {
