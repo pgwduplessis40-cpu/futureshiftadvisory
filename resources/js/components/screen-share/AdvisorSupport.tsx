@@ -257,16 +257,16 @@ export function AdvisorSupport({ config }: Props) {
 
         if (event.type === 'offer') {
             await peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
-            for (const candidate of pendingCandidates.current.splice(0)) {
-                await peer.current.addIceCandidate(candidate);
-            }
             const answer = await peer.current.createAnswer();
             await peer.current.setLocalDescription(answer);
             await signal(currentSessionId, nextCredentials, 'answer', answer);
+            for (const candidate of pendingCandidates.current.splice(0)) {
+                await addIceCandidate(peer.current, candidate);
+            }
         } else if (event.type === 'candidate') {
             const candidate = event.payload as RTCIceCandidateInit;
             if (peer.current.remoteDescription) {
-                await peer.current.addIceCandidate(candidate);
+                await addIceCandidate(peer.current, candidate);
             } else {
                 pendingCandidates.current.push(candidate);
             }
@@ -405,6 +405,17 @@ function replaceSession(url: string, sessionId: string): string {
 
 function replaceConnection(url: string, connectionId: string): string {
     return url.replace('__connection__', connectionId);
+}
+
+async function addIceCandidate(
+    connection: RTCPeerConnection,
+    candidate: RTCIceCandidateInit,
+): Promise<void> {
+    try {
+        await connection.addIceCandidate(candidate);
+    } catch {
+        // Candidates are alternatives; one unsupported route must not block negotiation.
+    }
 }
 
 function formatDuration(seconds: number): string {

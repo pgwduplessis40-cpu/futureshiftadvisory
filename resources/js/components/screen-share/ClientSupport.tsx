@@ -407,24 +407,26 @@ export function ClientSupport({ config }: Props) {
             if (receivedSignalIds.current.has(event.id)) {
                 return;
             }
-
-            receivedSignalIds.current.add(event.id);
         }
 
         if (event.type === 'answer') {
             await peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit);
             for (const candidate of pendingCandidates.current.splice(0)) {
-                await peer.current.addIceCandidate(candidate);
+                await addIceCandidate(peer.current, candidate);
             }
         }
 
         if (event.type === 'candidate') {
             const candidate = event.payload as RTCIceCandidateInit;
             if (peer.current.remoteDescription) {
-                await peer.current.addIceCandidate(candidate);
+                await addIceCandidate(peer.current, candidate);
             } else {
                 pendingCandidates.current.push(candidate);
             }
+        }
+
+        if (event.id !== undefined) {
+            receivedSignalIds.current.add(event.id);
         }
     }
 
@@ -533,6 +535,17 @@ function replaceSession(url: string, sessionId: string): string {
 
 function replaceConnection(url: string, connectionId: string): string {
     return url.replace('__connection__', connectionId);
+}
+
+async function addIceCandidate(
+    connection: RTCPeerConnection,
+    candidate: RTCIceCandidateInit,
+): Promise<void> {
+    try {
+        await connection.addIceCandidate(candidate);
+    } catch {
+        // Candidates are alternatives; one unsupported route must not block negotiation.
+    }
 }
 
 function playTone(context: AudioContext, frequency: number, start: number): void {
