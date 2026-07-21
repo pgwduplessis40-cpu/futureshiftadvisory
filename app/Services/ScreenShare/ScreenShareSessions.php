@@ -409,10 +409,17 @@ final class ScreenShareSessions
             $locked = ScreenShareSession::query()->findOrFail($session->getKey());
             abort_unless($this->isBoundParticipant($locked, $user, $connection), 403);
 
+            // Until negotiation succeeds, replay the short-lived signal set. Both
+            // browsers deduplicate message IDs, and a stale cursor must not hide
+            // the only offer or answer needed to establish the connection.
+            $effectiveAfterId = $locked->status === ScreenShareSession::STATUS_APPROVED_PENDING_BROWSER
+                ? 0
+                : $afterId;
+
             return ScreenShareSignalMessage::query()
                 ->where('session_id', $locked->getKey())
                 ->where('recipient_connection_id', $connection->getKey())
-                ->where('id', '>', $afterId)
+                ->where('id', '>', $effectiveAfterId)
                 ->orderBy('id')
                 ->limit(100)
                 ->get()
@@ -460,24 +467,28 @@ final class ScreenShareSessions
     ): ScreenShareSession {
         $connection = $this->presence->assertConnection($user, $connectionId, $connectionSecret);
 
-        $updated = $this->context->withSystemContext(function () use ($connection, $reason, $session, $user): ScreenShareSession {
-            return DB::transaction(function () use ($connection, $reason, $session, $user): ScreenShareSession {
+        [$updated, $ended] = $this->context->withSystemContext(function () use ($connection, $reason, $session, $user): array {
+            return DB::transaction(function () use ($connection, $reason, $session, $user): array {
                 $locked = ScreenShareSession::query()->whereKey($session->getKey())->lockForUpdate()->firstOrFail();
                 abort_unless($this->isBoundParticipant($locked, $user, $connection), 403);
 
+                $ended = false;
                 if (! $locked->isTerminal()) {
                     $this->endLocked($locked, $reason);
                     $locked->save();
+                    $ended = true;
                 }
 
-                return $locked->refresh();
+                return [$locked->refresh(), $ended];
             });
         });
 
-        $this->audit->record('screen_share.ended', subject: $updated, actor: $user, after: [
-            'end_reason' => $updated->end_reason,
-        ]);
-        $this->broadcastUpdate($updated);
+        if ($ended) {
+            $this->audit->record('screen_share.ended', subject: $updated, actor: $user, after: [
+                'end_reason' => $updated->end_reason,
+            ]);
+            $this->broadcastUpdate($updated);
+        }
 
         return $updated;
     }

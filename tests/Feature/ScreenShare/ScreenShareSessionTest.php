@@ -7,6 +7,7 @@ namespace Tests\Feature\ScreenShare;
 use App\Enums\EngagementType;
 use App\Events\ScreenSharePrompt;
 use App\Events\ScreenShareSignal;
+use App\Models\AuditEvent;
 use App\Models\Client;
 use App\Models\ClientTeamMember;
 use App\Models\EntrepreneurProfile;
@@ -255,6 +256,23 @@ final class ScreenShareSessionTest extends TestCase
             'actor_user_key' => (string) $this->clientUser->getKey(),
         ]);
 
+        $this->actingAs($this->advisor)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->advisor->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.sessions.pending-signals', $session),
+                [
+                    'connection_id' => (string) $advisorConnection->connection->getKey(),
+                    'connection_secret' => $advisorConnection->secret,
+                    'after_id' => PHP_INT_MAX,
+                ],
+            )
+            ->assertOk()
+            ->assertJsonPath('signals.0.type', 'offer')
+            ->assertJsonPath('signals.0.payload.sdp', 'v=0');
+
         $sessions->signal(
             $this->advisor,
             $session,
@@ -284,6 +302,26 @@ final class ScreenShareSessionTest extends TestCase
             ->assertOk()
             ->assertJsonPath('signals.0.type', 'answer')
             ->assertJsonPath('signals.0.payload.sdp', 'v=0-answer');
+
+        $sessions->end(
+            $this->advisor,
+            $session,
+            (string) $advisorConnection->connection->getKey(),
+            $advisorConnection->secret,
+            'completed_advisor_ended',
+        );
+        $sessions->end(
+            $this->clientUser,
+            $session,
+            (string) $clientConnection->connection->getKey(),
+            $clientConnection->secret,
+            'connection_lost',
+        );
+
+        $this->assertSame(1, AuditEvent::query()
+            ->where('subject_id', $session->getKey())
+            ->where('action', 'screen_share.ended')
+            ->count());
     }
 
     public function test_assigned_advisor_can_request_support_from_an_entrepreneur_profile(): void
