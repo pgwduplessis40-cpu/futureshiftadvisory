@@ -11,6 +11,7 @@ import {
 
 export type AdvisorScreenShareConfig = {
     connection_url: string;
+    connection_heartbeat_url: string;
     request_url: string;
     ice_servers_url: string;
     active_url: string;

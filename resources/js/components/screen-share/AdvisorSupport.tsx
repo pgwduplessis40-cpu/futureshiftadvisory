@@ -11,6 +11,7 @@ import {
 type Props = {
     config: {
         connection_url: string;
+        connection_heartbeat_url: string;
         request_url: string;
         ice_servers_url: string;
         active_url: string;
@@ -138,7 +139,25 @@ export function AdvisorSupport({ config }: Props) {
     }, [config.pending_signals_url, credentials, sessionId]);
 
     useEffect(() => {
-        if (!credentials || !sessionId) {
+        if (!credentials) {
+            return;
+        }
+
+        const heartbeat = (): void => {
+            void screenSharePost(
+                replaceConnection(config.connection_heartbeat_url, credentials.connection_id),
+                { connection_secret: credentials.connection_secret },
+            ).catch(() => setError('Screen support connection was lost. Please request it again.'));
+        };
+
+        heartbeat();
+        const interval = window.setInterval(heartbeat, config.heartbeat_seconds * 1000);
+
+        return () => window.clearInterval(interval);
+    }, [config.connection_heartbeat_url, config.heartbeat_seconds, credentials]);
+
+    useEffect(() => {
+        if (!credentials || !sessionId || !connected) {
             return;
         }
 
@@ -146,7 +165,7 @@ export function AdvisorSupport({ config }: Props) {
             void screenSharePost(
                 replaceSession(config.heartbeat_url, sessionId),
                 participantPayload(credentials),
-            ).catch(() => setError('Screen support connection was lost. Please request it again.'));
+            ).catch(() => undefined);
         };
 
         heartbeat();
@@ -155,7 +174,7 @@ export function AdvisorSupport({ config }: Props) {
         }, config.heartbeat_seconds * 1000);
 
         return () => window.clearInterval(interval);
-    }, [config.heartbeat_seconds, config.heartbeat_url, credentials, sessionId]);
+    }, [config.heartbeat_seconds, config.heartbeat_url, connected, credentials, sessionId]);
 
     useEffect(() => {
         if (!connected) {
@@ -349,6 +368,10 @@ function participantPayload(credentials: Credentials): Record<string, string> {
 
 function replaceSession(url: string, sessionId: string): string {
     return url.replace('__session__', sessionId);
+}
+
+function replaceConnection(url: string, connectionId: string): string {
+    return url.replace('__connection__', connectionId);
 }
 
 function formatDuration(seconds: number): string {

@@ -432,6 +432,7 @@ final class ClientController extends Controller
             ],
             'screenShare' => [
                 'connection_url' => route('advisor.clients.screen-share.connections.store', $client, absolute: false),
+                'connection_heartbeat_url' => route('screen-share.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
                 'request_url' => route('advisor.clients.screen-share.sessions.store', $client, absolute: false),
                 'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
                 'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),

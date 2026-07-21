@@ -443,6 +443,7 @@ final class EntrepreneurController extends Controller
 
         return [
             'connection_url' => route('advisor.entrepreneurs.screen-share.connections.store', $profile, absolute: false),
+            'connection_heartbeat_url' => route('screen-share.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
             'request_url' => route('advisor.entrepreneurs.screen-share.sessions.store', $profile, absolute: false),
             'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),
             'active_url' => route('screen-share.sessions.active', ['session' => '__session__'], absolute: false),
