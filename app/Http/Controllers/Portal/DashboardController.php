@@ -120,6 +120,8 @@ final class DashboardController extends Controller
                 ? [
                     'portal_context_token' => $this->screenShareContexts->issue($viewer, $client, 'portal.dashboard'),
                     'connection_url' => route('portal.screen-share.connections.store', absolute: false),
+                    'prompt_url' => route('screen-share.connections.pending-prompt', ['connection' => '__connection__'], absolute: false),
+                    'connection_heartbeat_url' => route('screen-share.connections.heartbeat', ['connection' => '__connection__'], absolute: false),
                     'response_url' => route('portal.screen-share.sessions.response', ['session' => '__session__'], absolute: false),
                     'browser_permission_url' => route('portal.screen-share.sessions.browser-permission', ['session' => '__session__'], absolute: false),
                     'ice_servers_url' => route('screen-share.sessions.ice-servers', ['session' => '__session__'], absolute: false),

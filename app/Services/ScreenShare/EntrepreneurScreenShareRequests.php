@@ -11,6 +11,7 @@ use App\Models\ScreenShareSession;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Support\RequestContext;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -58,6 +59,7 @@ final class EntrepreneurScreenShareRequests
                     return [
                         'connection_id' => (string) $connection->getKey(),
                         'nonce_hash' => hash('sha256', $nonce),
+                        'nonce_encrypted' => Crypt::encryptString($nonce),
                         'context_key' => $connection->context_key,
                         'prompted_at' => $now->toIso8601String(),
                         'expires_at' => $deadline->toIso8601String(),

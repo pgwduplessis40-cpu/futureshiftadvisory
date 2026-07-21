@@ -14,7 +14,9 @@ use App\Models\ScreenShareSession;
 use App\Models\User;
 use App\Services\Audit\AuditWriter;
 use App\Support\RequestContext;
+use Illuminate\Contracts\Encryption\DecryptException;
 use Illuminate\Database\Eloquent\Collection;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
@@ -61,6 +63,7 @@ final class ScreenShareSessions
                     return [
                         'connection_id' => (string) $connection->getKey(),
                         'nonce_hash' => hash('sha256', $nonce),
+                        'nonce_encrypted' => Crypt::encryptString($nonce),
                         'context_key' => $connection->context_key,
                         'prompted_at' => $now->toIso8601String(),
                         'expires_at' => $deadline->toIso8601String(),
@@ -102,6 +105,59 @@ final class ScreenShareSessions
         }
 
         return $session;
+    }
+
+    /**
+     * @return array{
+     *     session_id:string,
+     *     nonce:string,
+     *     advisor_name:string,
+     *     context:array{key:string, label:string}
+     * }|null
+     */
+    public function pendingPrompt(User $clientUser, ScreenShareConnection $connection): ?array
+    {
+        abort_unless(
+            $connection->participant_type === ScreenShareConnection::TYPE_CLIENT
+            && (string) $connection->user_id === (string) $clientUser->getKey(),
+            403,
+        );
+
+        return $this->context->withSystemContext(function () use ($clientUser, $connection): ?array {
+            $sessions = ScreenShareSession::query()
+                ->with('advisor')
+                ->where('client_user_id', $clientUser->getKey())
+                ->where('status', ScreenShareSession::STATUS_REQUESTED)
+                ->where('expires_at', '>', now())
+                ->latest('requested_at')
+                ->get();
+
+            foreach ($sessions as $session) {
+                $prompt = collect($session->prompted_connections ?? [])
+                    ->first(fn (mixed $item): bool => is_array($item)
+                        && ($item['connection_id'] ?? null) === (string) $connection->getKey()
+                        && ! isset($item['consumed_at']));
+
+                if (! is_array($prompt) || ! is_string($prompt['nonce_encrypted'] ?? null)) {
+                    continue;
+                }
+
+                try {
+                    $nonce = Crypt::decryptString($prompt['nonce_encrypted']);
+                } catch (DecryptException) {
+                    continue;
+                }
+
+                return [
+                    'session_id' => (string) $session->getKey(),
+                    'nonce' => $nonce,
+                    'advisor_name' => $session->advisor?->name ?? 'Your advisor',
+                    'context' => $this->contextCopy($connection->context_key),
+                ];
+            }
+
+            return null;
+        });
     }
 
     public function respond(
@@ -487,6 +543,8 @@ final class ScreenShareSessions
     private function contextCopy(string $key): array
     {
         return match ($key) {
+            'portal.dashboard' => ['key' => $key, 'label' => 'your client portal'],
+            'portal.entrepreneur.dashboard' => ['key' => $key, 'label' => 'your entrepreneur workspace'],
             'portal.dd.questionnaire' => ['key' => $key, 'label' => 'your due diligence questionnaire'],
             default => ['key' => 'portal.generic', 'label' => 'the page you are currently on'],
         };

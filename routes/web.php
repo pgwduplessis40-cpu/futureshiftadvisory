@@ -28,6 +28,9 @@ Route::get('communications/open/{token}.gif', BulkCommunicationOpenController::c
     ->name('communications.open');
 
 Route::middleware(['auth', 'verified', 'mfa'])->group(function () {
+    Route::post('screen-share/connections/{connection}/pending-prompt', [ScreenShareConnectionController::class, 'pendingPrompt'])
+        ->whereUuid('connection')
+        ->name('screen-share.connections.pending-prompt');
     Route::post('screen-share/connections/{connection}/heartbeat', [ScreenShareConnectionController::class, 'heartbeat'])
         ->whereUuid('connection')
         ->name('screen-share.connections.heartbeat');

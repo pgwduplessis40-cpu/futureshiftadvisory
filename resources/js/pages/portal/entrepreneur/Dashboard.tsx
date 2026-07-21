@@ -181,6 +181,8 @@ type WelcomeMessage = {
 type ScreenShareConfig = {
     portal_context_token: string;
     connection_url: string;
+    prompt_url: string;
+    connection_heartbeat_url: string;
     response_url: string;
     browser_permission_url: string;
     ice_servers_url: string;

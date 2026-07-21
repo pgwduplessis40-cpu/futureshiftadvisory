@@ -20,6 +20,8 @@ type Props = {
     config: {
         portal_context_token: string;
         connection_url: string;
+        prompt_url: string;
+        connection_heartbeat_url: string;
         response_url: string;
         browser_permission_url: string;
         ice_servers_url: string;
@@ -51,6 +53,10 @@ type Signal = {
     payload: RTCSessionDescriptionInit | RTCIceCandidateInit;
 };
 
+type PendingPromptResponse = {
+    prompt: Prompt | null;
+};
+
 export function ClientSupport({ config }: Props) {
     const [credentials, setCredentials] = useState<Credentials | null>(null);
     const [prompt, setPrompt] = useState<Prompt | null>(null);
@@ -62,6 +68,7 @@ export function ClientSupport({ config }: Props) {
     const [isMobile, setIsMobile] = useState(false);
     const peer = useRef<RTCPeerConnection | null>(null);
     const stream = useRef<MediaStream | null>(null);
+    const callTone = useRef<{ context: AudioContext; interval: number } | null>(null);
     const sessionIdRef = useRef<string | null>(null);
     const pendingCandidates = useRef<RTCIceCandidateInit[]>([]);
 
@@ -71,6 +78,8 @@ export function ClientSupport({ config }: Props) {
         }
 
         let active = true;
+        let promptPoll: number | null = null;
+        let connectionHeartbeat: number | null = null;
         void registerScreenShareConnection(config.connection_url, {
             portal_context_token: config.portal_context_token,
         }).then((next) => {
@@ -79,44 +88,73 @@ export function ClientSupport({ config }: Props) {
             }
 
             setCredentials(next);
-            const channel = screenShareEcho(next).private(next.channel);
-            channel.listen('.screen-share.prompt', (event: Prompt) => setPrompt(event));
-            channel.listen('.screen-share.signal', (event: Signal) => {
-                if (event.session_id !== sessionIdRef.current || !peer.current) {
-                    return;
-                }
-
-                if (event.type === 'answer') {
-                    void peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit)
-                        .then(async () => {
-                            for (const candidate of pendingCandidates.current.splice(0)) {
-                                await peer.current?.addIceCandidate(candidate);
-                            }
-                        });
-                }
-
-                if (event.type === 'candidate') {
-                    const candidate = event.payload as RTCIceCandidateInit;
-                    if (peer.current.remoteDescription) {
-                        void peer.current.addIceCandidate(candidate);
-                    } else {
-                        pendingCandidates.current.push(candidate);
+            const pollForPrompt = (): void => {
+                void screenSharePost<PendingPromptResponse>(
+                    replaceConnection(config.prompt_url, next.connection_id),
+                    participant(next),
+                ).then((response) => {
+                    if (active && response.prompt) {
+                        setPrompt(response.prompt);
                     }
-                }
-            });
-            channel.listen('.screen-share.session-updated', (event: { session_id: string; status: string }) => {
-                if (event.session_id === sessionIdRef.current && event.status === 'ended') {
-                    stop();
-                }
+                }).catch(() => undefined);
+            };
+            pollForPrompt();
+            promptPoll = window.setInterval(pollForPrompt, 3_000);
+            connectionHeartbeat = window.setInterval(() => {
+                void screenSharePost(
+                    replaceConnection(config.connection_heartbeat_url, next.connection_id),
+                    participant(next),
+                ).catch(() => undefined);
+            }, config.heartbeat_seconds * 1000);
 
-                if (event.session_id === sessionIdRef.current && event.status !== 'requested') {
-                    setPrompt(null);
-                }
-            });
+            try {
+                const channel = screenShareEcho(next).private(next.channel);
+                channel.listen('.screen-share.prompt', (event: Prompt) => setPrompt(event));
+                channel.listen('.screen-share.signal', (event: Signal) => {
+                    if (event.session_id !== sessionIdRef.current || !peer.current) {
+                        return;
+                    }
+
+                    if (event.type === 'answer') {
+                        void peer.current.setRemoteDescription(event.payload as RTCSessionDescriptionInit)
+                            .then(async () => {
+                                for (const candidate of pendingCandidates.current.splice(0)) {
+                                    await peer.current?.addIceCandidate(candidate);
+                                }
+                            });
+                    }
+
+                    if (event.type === 'candidate') {
+                        const candidate = event.payload as RTCIceCandidateInit;
+                        if (peer.current.remoteDescription) {
+                            void peer.current.addIceCandidate(candidate);
+                        } else {
+                            pendingCandidates.current.push(candidate);
+                        }
+                    }
+                });
+                channel.listen('.screen-share.session-updated', (event: { session_id: string; status: string }) => {
+                    if (event.session_id === sessionIdRef.current && event.status === 'ended') {
+                        stop();
+                    }
+
+                    if (event.session_id === sessionIdRef.current && event.status !== 'requested') {
+                        setPrompt(null);
+                    }
+                });
+            } catch {
+                // The authenticated polling fallback continues when realtime is unavailable.
+            }
         }).catch(() => undefined);
 
         return () => {
             active = false;
+            if (promptPoll !== null) {
+                window.clearInterval(promptPoll);
+            }
+            if (connectionHeartbeat !== null) {
+                window.clearInterval(connectionHeartbeat);
+            }
             stop();
             closeScreenShareEcho();
         };
@@ -125,6 +163,50 @@ export function ClientSupport({ config }: Props) {
     useEffect(() => {
         setIsMobile(/Android|iPhone|iPad|iPod|IEMobile|Opera Mini/i.test(navigator.userAgent));
     }, []);
+
+    useEffect(() => {
+        if (!prompt) {
+            return;
+        }
+
+        let active = true;
+        let context: AudioContext | null = null;
+        try {
+            context = new AudioContext();
+            const audioContext = context;
+            const playRing = (): void => {
+                const start = audioContext.currentTime;
+                playTone(audioContext, 740, start);
+                playTone(audioContext, 880, start + 0.32);
+            };
+
+            void audioContext.resume().then(() => {
+                if (!active) {
+                    void audioContext.close();
+                    return;
+                }
+
+                playRing();
+                callTone.current = {
+                    context: audioContext,
+                    interval: window.setInterval(playRing, 2_600),
+                };
+            }).catch(() => audioContext.close());
+        } catch {
+            // The approval dialog remains visible when the browser blocks audio.
+        }
+
+        return () => {
+            active = false;
+            if (callTone.current !== null) {
+                window.clearInterval(callTone.current.interval);
+                void callTone.current.context.close();
+                callTone.current = null;
+            } else if (context !== null) {
+                void context.close();
+            }
+        };
+    }, [prompt?.session_id]);
 
     useEffect(() => {
         if (!config || !credentials || !sharing || !sessionId) {
@@ -330,6 +412,25 @@ function participant(credentials: Credentials): Record<string, string> {
 
 function replaceSession(url: string, sessionId: string): string {
     return url.replace('__session__', sessionId);
+}
+
+function replaceConnection(url: string, connectionId: string): string {
+    return url.replace('__connection__', connectionId);
+}
+
+function playTone(context: AudioContext, frequency: number, start: number): void {
+    const oscillator = context.createOscillator();
+    const gain = context.createGain();
+
+    oscillator.frequency.value = frequency;
+    oscillator.type = 'sine';
+    gain.gain.setValueAtTime(0.0001, start);
+    gain.gain.exponentialRampToValueAtTime(0.08, start + 0.02);
+    gain.gain.exponentialRampToValueAtTime(0.0001, start + 0.25);
+    oscillator.connect(gain);
+    gain.connect(context.destination);
+    oscillator.start(start);
+    oscillator.stop(start + 0.26);
 }
 
 function formatDuration(seconds: number): string {

@@ -170,6 +170,31 @@ final class ScreenShareSessionTest extends TestCase
             ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
     }
 
+    public function test_client_can_poll_for_a_pending_screen_support_prompt(): void
+    {
+        [$session, $tabs, $nonces] = $this->requestedSession();
+        $clientTab = $tabs[0];
+
+        $response = $this->actingAs($this->clientUser)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $this->clientUser->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.connections.pending-prompt', $clientTab->connection),
+                ['connection_secret' => $clientTab->secret],
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('prompt.session_id', (string) $session->getKey())
+            ->assertJsonPath('prompt.context.label', 'your client portal');
+        $this->assertSame(
+            $nonces[(string) $clientTab->connection->getKey()],
+            $response->json('prompt.nonce'),
+        );
+    }
+
     public function test_assigned_advisor_can_request_support_from_an_entrepreneur_profile(): void
     {
         Event::fake([ScreenSharePrompt::class]);
@@ -260,6 +285,55 @@ final class ScreenShareSessionTest extends TestCase
         $response
             ->assertCreated()
             ->assertJsonPath('status', ScreenShareSession::STATUS_REQUESTED);
+    }
+
+    public function test_entrepreneur_can_poll_for_a_pending_screen_support_prompt(): void
+    {
+        Event::fake([ScreenSharePrompt::class]);
+        $entrepreneur = User::factory()->withTwoFactor()->create([
+            'user_type' => User::TYPE_ENTREPRENEUR,
+            'primary_role' => User::TYPE_ENTREPRENEUR,
+        ]);
+        $entrepreneur->assignRole(User::TYPE_ENTREPRENEUR);
+        $profile = EntrepreneurProfile::query()->create([
+            'user_id' => $entrepreneur->getKey(),
+            'assigned_advisor_id' => $this->advisor->getKey(),
+            'name' => 'Polling Support Entrepreneur',
+            'email' => 'polling-support-entrepreneur@example.test',
+        ]);
+
+        $presence = app(EntrepreneurScreenSharePresence::class);
+        $advisorConnection = $presence->registerAdvisor($this->advisor, $profile);
+        $token = app(ClientPortalContextTokens::class)->issueForEntrepreneur(
+            $entrepreneur,
+            $profile,
+            'portal.entrepreneur.dashboard',
+        );
+        $entrepreneurConnection = $presence->registerPortalParticipant($entrepreneur, $token);
+        $session = app(EntrepreneurScreenShareRequests::class)->request(
+            $this->advisor,
+            $profile,
+            $entrepreneur,
+            (string) $advisorConnection->connection->getKey(),
+            $advisorConnection->secret,
+        );
+        $prompt = Event::dispatched(ScreenSharePrompt::class)[0][0];
+
+        $response = $this->actingAs($entrepreneur)
+            ->withSession([
+                'auth.mfa_user_id' => (string) $entrepreneur->getKey(),
+                'auth.mfa_confirmed_at' => now()->getTimestamp(),
+            ])
+            ->postJson(
+                route('screen-share.connections.pending-prompt', $entrepreneurConnection->connection),
+                ['connection_secret' => $entrepreneurConnection->secret],
+            );
+
+        $response
+            ->assertOk()
+            ->assertJsonPath('prompt.session_id', (string) $session->getKey())
+            ->assertJsonPath('prompt.context.label', 'your entrepreneur workspace');
+        $this->assertSame($prompt->broadcastWith()['nonce'], $response->json('prompt.nonce'));
     }
 
     public function test_super_admin_can_request_support_from_an_entrepreneur_profile(): void
