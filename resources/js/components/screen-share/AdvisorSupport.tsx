@@ -138,17 +138,24 @@ export function AdvisorSupport({ config }: Props) {
     }, [config.pending_signals_url, credentials, sessionId]);
 
     useEffect(() => {
-        if (!credentials || !sessionId || !connected) {
+        if (!credentials || !sessionId) {
             return;
         }
 
+        const heartbeat = (): void => {
+            void screenSharePost(
+                replaceSession(config.heartbeat_url, sessionId),
+                participantPayload(credentials),
+            ).catch(() => setError('Screen support connection was lost. Please request it again.'));
+        };
+
+        heartbeat();
         const interval = window.setInterval(() => {
-            void screenSharePost(replaceSession(config.heartbeat_url, sessionId), participantPayload(credentials))
-                .catch(() => undefined);
+            heartbeat();
         }, config.heartbeat_seconds * 1000);
 
         return () => window.clearInterval(interval);
-    }, [config.heartbeat_seconds, config.heartbeat_url, connected, credentials, sessionId]);
+    }, [config.heartbeat_seconds, config.heartbeat_url, credentials, sessionId]);
 
     useEffect(() => {
         if (!connected) {
