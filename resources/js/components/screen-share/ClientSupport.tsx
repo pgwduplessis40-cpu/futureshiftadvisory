@@ -76,6 +76,7 @@ export function ClientSupport({ config }: Props) {
     const [advisorName, setAdvisorName] = useState<string | null>(null);
     const [elapsedSeconds, setElapsedSeconds] = useState(0);
     const [isMobile, setIsMobile] = useState(false);
+    const [shareError, setShareError] = useState<string | null>(null);
     const peer = useRef<RTCPeerConnection | null>(null);
     const stream = useRef<MediaStream | null>(null);
     const callTone = useRef<{ context: AudioContext; interval: number } | null>(null);
@@ -281,20 +282,37 @@ export function ClientSupport({ config }: Props) {
 
         const currentPrompt = prompt;
         const nextSessionId = currentPrompt.session_id;
-        await screenSharePost(replaceSession(config.response_url, nextSessionId), {
-            action: 'approve',
-            ...participant(credentials),
-            nonce: currentPrompt.nonce,
-        });
-        setSession(nextSessionId);
-        setAdvisorName(currentPrompt.advisor_name);
+        let capture: Promise<MediaStream>;
 
         try {
-            const captured = await navigator.mediaDevices.getDisplayMedia({
+            // This must run synchronously from the button click. Awaiting the
+            // approval request first can make Chromium discard user activation.
+            capture = navigator.mediaDevices.getDisplayMedia({
                 video: { frameRate: { ideal: 20, max: 30 } },
                 audio: false,
                 preferCurrentTab: true,
             } as DisplayMediaStreamOptions);
+        } catch (caught) {
+            setShareError(messageFor(caught));
+
+            return;
+        }
+
+        setShareError(null);
+        let approved = false;
+        let browserPermissionGranted = false;
+
+        try {
+            await screenSharePost(replaceSession(config.response_url, nextSessionId), {
+                action: 'approve',
+                ...participant(credentials),
+                nonce: currentPrompt.nonce,
+            });
+            approved = true;
+            setSession(nextSessionId);
+            setAdvisorName(currentPrompt.advisor_name);
+
+            const captured = await capture;
             stream.current = captured;
             const track = captured.getVideoTracks()[0];
             const displaySurface = track?.getSettings().displaySurface;
@@ -305,6 +323,7 @@ export function ClientSupport({ config }: Props) {
                 granted: true,
                 display_surface: displaySurface,
             });
+            browserPermissionGranted = true;
 
             const ice = await screenSharePost<RTCIceServer[]>(
                 replaceSession(config.ice_servers_url, nextSessionId),
@@ -334,11 +353,22 @@ export function ClientSupport({ config }: Props) {
             await connection.setLocalDescription(offer);
             await signal(nextSessionId, 'offer', offer);
             setPrompt(null);
-        } catch {
-            await screenSharePost(replaceSession(config.browser_permission_url, nextSessionId), {
-                ...participant(credentials),
-                granted: false,
-            }).catch(() => undefined);
+        } catch (caught) {
+            if (approved && !browserPermissionGranted) {
+                await screenSharePost(replaceSession(config.browser_permission_url, nextSessionId), {
+                    ...participant(credentials),
+                    granted: false,
+                }).catch(() => undefined);
+            } else if (approved) {
+                await screenSharePost(replaceSession(config.end_url, nextSessionId), {
+                    ...participant(credentials),
+                    reason: 'connection_lost',
+                }).catch(() => undefined);
+            } else {
+                void capture.then((captured) => captured.getTracks().forEach((mediaTrack) => mediaTrack.stop()))
+                    .catch(() => undefined);
+            }
+            setShareError(messageFor(caught));
             stop();
         }
     }
@@ -432,28 +462,42 @@ export function ClientSupport({ config }: Props) {
 
     return (
         <>
-            <Dialog open={prompt !== null}>
+            <Dialog open={prompt !== null || shareError !== null}>
                 <DialogContent
                     onEscapeKeyDown={(event) => event.preventDefault()}
                     onInteractOutside={(event) => event.preventDefault()}
                 >
-                    <DialogHeader>
-                        <DialogTitle>Screen support request</DialogTitle>
-                        <DialogDescription>
-                            {isMobile
-                                ? 'Screen support is available from a desktop browser. This request cannot start on this device.'
-                                : prompt?.advisor_name + ' would like to view ' + prompt?.context.label + '. Your browser will ask you what to share next; choose This Tab where it is available.'}
-                        </DialogDescription>
-                    </DialogHeader>
-                    <DialogFooter>
-                        <Button variant="outline" onClick={() => void decline()}>Decline</Button>
-                        {!isMobile ? (
-                            <Button onClick={() => void approve()}>
-                                <MonitorUp className="size-4" />
-                                Continue
-                            </Button>
-                        ) : null}
-                    </DialogFooter>
+                    {shareError ? (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Screen support could not start</DialogTitle>
+                                <DialogDescription>{shareError}</DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button onClick={() => setShareError(null)}>Close</Button>
+                            </DialogFooter>
+                        </>
+                    ) : (
+                        <>
+                            <DialogHeader>
+                                <DialogTitle>Screen support request</DialogTitle>
+                                <DialogDescription>
+                                    {isMobile
+                                        ? 'Screen support is available from a desktop browser. This request cannot start on this device.'
+                                        : prompt?.advisor_name + ' would like to view ' + prompt?.context.label + '. Your browser will ask you what to share next; choose This Tab where it is available.'}
+                                </DialogDescription>
+                            </DialogHeader>
+                            <DialogFooter>
+                                <Button variant="outline" onClick={() => void decline()}>Decline</Button>
+                                {!isMobile ? (
+                                    <Button onClick={() => void approve()}>
+                                        <MonitorUp className="size-4" />
+                                        Continue
+                                    </Button>
+                                ) : null}
+                            </DialogFooter>
+                        </>
+                    )}
                 </DialogContent>
             </Dialog>
             {sharing && sessionId ? (
@@ -504,6 +548,20 @@ function playTone(context: AudioContext, frequency: number, start: number): void
     gain.connect(context.destination);
     oscillator.start(start);
     oscillator.stop(start + 0.26);
+}
+
+function messageFor(caught: unknown): string {
+    if (caught instanceof Error && caught.message === 'Screen support relay is unavailable.') {
+        return 'Screen support is temporarily unavailable. Please ask your advisor to try again shortly.';
+    }
+
+    if (caught instanceof Error && caught.name === 'NotAllowedError') {
+        return 'Screen sharing was not started. Choose a screen or tab, then select Share.';
+    }
+
+    return caught instanceof Error
+        ? caught.message
+        : 'Screen sharing could not start. Please try again.';
 }
 
 function formatDuration(seconds: number): string {
