@@ -61,19 +61,34 @@ php artisan route:cache
 php artisan view:cache
 
 log "Restarting SSR process"
-if systemctl list-unit-files 2>/dev/null | grep -q "^${SSR_SERVICE}\.service"; then
+# Detect the unit with `systemctl cat`, which needs no pipeline. Piping into
+# `grep -q` looks equivalent but breaks under `set -o pipefail`: grep exits on
+# the first match, systemctl dies of SIGPIPE (141), and an existing unit is
+# misreported as missing - which would then stop SSR instead of restarting it.
+if systemctl cat "$SSR_SERVICE" >/dev/null 2>&1; then
     $SUDO systemctl restart "$SSR_SERVICE"
     echo "Restarted ${SSR_SERVICE}."
 else
-    echo "systemd unit '${SSR_SERVICE}' not found."
-    echo "Falling back to stopping the SSR process so it reloads on next boot."
-    echo "For persistent SSR, see docs/deployment-ssr.md."
-    php artisan inertia:stop-ssr || true
+    echo "systemd unit '${SSR_SERVICE}' not found - see docs/deployment-ssr.md."
+    echo "Starting SSR in the background; it will not survive a reboot."
+    php artisan inertia:stop-ssr >/dev/null 2>&1 || true
+    nohup php artisan inertia:start-ssr >/dev/null 2>&1 &
 fi
 
 log "Verifying the site is server-rendered"
-sleep 3
-if curl -fsS --max-time 20 "$SITE_URL/" | grep -q 'data-server-rendered'; then
+# Poll rather than sleeping once: a restarted daemon needs a few seconds
+# (RestartSec plus PHP and Node start-up) before it serves rendered HTML.
+ssr_ok=no
+for attempt in 1 2 3 4 5; do
+    sleep 3
+    if curl -fsS --max-time 20 "$SITE_URL/" 2>/dev/null | grep -q 'data-server-rendered'; then
+        ssr_ok=yes
+        break
+    fi
+    echo "  not ready yet (attempt ${attempt}/5)..."
+done
+
+if [ "$ssr_ok" = "yes" ]; then
     echo "OK - pages are server-rendered and visible to crawlers."
 else
     echo "WARNING: ${SITE_URL} is NOT server-rendered."
