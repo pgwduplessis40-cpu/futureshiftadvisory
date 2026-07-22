@@ -103,13 +103,27 @@ export default function About() {
             <Section className="py-20">
                 <div className="grid gap-12 md:grid-cols-12">
                     <div className="md:col-span-5">
+                        {/*
+                          Portrait placeholder. To use a real photo, save it as
+                          public/images/pieter-du-plessis.jpg and swap this block for:
+                          <img
+                              src="/images/pieter-du-plessis.jpg"
+                              alt="Pieter Du Plessis, Principal Advisor at Future Shift Advisory"
+                              loading="lazy"
+                              className="h-full w-full rounded-lg object-cover"
+                          />
+                        */}
                         <div className="aspect-[4/5] w-full overflow-hidden rounded-xl bg-[var(--fs-admiralty)] p-1">
-                            <img
-                                src="/images/pieter-du-plessis.jpg"
-                                alt="Pieter Du Plessis, Principal Advisor at Future Shift Advisory"
-                                loading="lazy"
-                                className="h-full w-full rounded-lg object-cover"
-                            />
+                            <div className="flex h-full w-full items-center justify-center rounded-lg bg-gradient-to-br from-[var(--fs-commodore)] via-[var(--fs-harbour)] to-[var(--fs-pacific)] text-[var(--fs-parchment)]">
+                                <div className="text-center">
+                                    <div className="font-display text-6xl">
+                                        PD
+                                    </div>
+                                    <div className="mt-3 text-[11px] tracking-[0.2em] text-[var(--fs-warm-gold)] uppercase">
+                                        Principal Advisor
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
 

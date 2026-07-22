@@ -15,11 +15,18 @@ return [
     |
     */
 
+    /*
+    | Production SSR requires three things on the server:
+    |   1. `npm run build:ssr` at deploy time (writes bootstrap/ssr/app.js)
+    |   2. `php artisan inertia:start-ssr` running as a persistent process
+    |   3. a restart of that process after each deploy
+    | Locally the Vite dev server provides SSR, so no bundle is needed.
+    | See docs/deployment-ssr.md.
+    */
     'ssr' => [
         'enabled' => true,
         'url' => 'http://127.0.0.1:13714',
-        // 'bundle' => base_path('bootstrap/ssr/ssr.mjs'),
-
+        'bundle' => base_path('bootstrap/ssr/app.js'),
     ],
 
     /*

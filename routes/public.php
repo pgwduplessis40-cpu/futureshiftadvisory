@@ -6,6 +6,7 @@ use App\Http\Controllers\Public\AboutController;
 use App\Http\Controllers\Public\ContactController;
 use App\Http\Controllers\Public\FaqController;
 use App\Http\Controllers\Public\HomeController;
+use App\Http\Controllers\Public\LlmsTxtController;
 use App\Http\Controllers\Public\ServicesController;
 use App\Http\Controllers\Public\SitemapController;
 use Illuminate\Support\Facades\Route;
@@ -36,3 +37,6 @@ Route::name('public.')->group(function (): void {
 
 // XML sitemap for search engines and AI answer engines.
 Route::get('/sitemap.xml', SitemapController::class)->name('public.sitemap');
+
+// Plain-markdown practice summary for AI answer engines (llmstxt.org).
+Route::get('/llms.txt', LlmsTxtController::class)->name('public.llms');

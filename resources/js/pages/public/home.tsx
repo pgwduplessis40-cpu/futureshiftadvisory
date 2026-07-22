@@ -43,7 +43,7 @@ export default function Home({
     return (
         <>
             <Seo
-                title="Future Shift Advisory - honest, evidence-based advice for NZ businesses"
+                title="Honest business advisory for New Zealand SMEs"
                 description="A Hamilton-based advisory practice for New Zealand SMEs, founders, buyers, and not-for-profits. Clear, kind, evidence-based advice you can act on."
                 jsonLd={[organizationLd(base), webSiteLd(base)]}
             />

@@ -11,3 +11,6 @@ Disallow: /admin
 Disallow: /contact/thanks
 
 Sitemap: https://futureshiftadvisory.nz/sitemap.xml
+
+# Plain-markdown summary of the practice for AI answer engines (llmstxt.org)
+# https://futureshiftadvisory.nz/llms.txt
