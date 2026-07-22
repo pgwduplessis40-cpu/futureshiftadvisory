@@ -61,6 +61,46 @@ export default function Contact({
                 </p>
             </Section>
 
+            {/* ── WHAT HAPPENS NEXT ───────────────────────────── */}
+            <Section className="pb-16">
+                <div className="rounded-xl border border-[var(--fs-sand)] bg-[var(--fs-linen)] p-6 md:p-8">
+                    <div className="eyebrow">What happens next</div>
+                    <div className="mt-6 grid gap-6 md:grid-cols-3">
+                        {[
+                            {
+                                step: '1',
+                                title: 'Book a 30-minute call',
+                                body: 'No charge, no slides, no pressure. Just a conversation about what is going on in your business.',
+                            },
+                            {
+                                step: '2',
+                                title: 'We listen, and we are straight with you',
+                                body: 'We ask a few good questions and tell you honestly whether we are the right fit - or if someone else would serve you better.',
+                            },
+                            {
+                                step: '3',
+                                title: 'You get a clear scope and fee',
+                                body: 'If we go ahead, you will see what we will do, what it costs, and when we start - all before any work begins.',
+                            },
+                        ].map((s) => (
+                            <div key={s.step} className="flex gap-4">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-[var(--fs-admiralty)] text-sm font-semibold text-[var(--fs-parchment)]">
+                                    {s.step}
+                                </div>
+                                <div>
+                                    <h2 className="text-sm font-semibold text-[var(--fs-admiralty)]">
+                                        {s.title}
+                                    </h2>
+                                    <p className="mt-1.5 text-sm leading-relaxed text-[var(--fs-graphite)]">
+                                        {s.body}
+                                    </p>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </div>
+            </Section>
+
             <Section className="pb-24">
                 <div className="grid gap-10 lg:grid-cols-12">
                     {/* ── FORM ────────────────────────────────── */}
