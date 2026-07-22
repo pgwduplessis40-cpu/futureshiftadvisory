@@ -35,7 +35,12 @@ if [ "$(id -u)" -ne 0 ]; then
 fi
 
 log "Pulling latest code"
-git pull --ff-only
+# Name the remote and branch explicitly. A bare `git pull --ff-only` fails with
+# "Cannot fast-forward to multiple branches" when the checked-out branch has no
+# single configured upstream, because every fetched branch becomes a candidate.
+GIT_REMOTE="${GIT_REMOTE:-origin}"
+GIT_BRANCH="${GIT_BRANCH:-$(git rev-parse --abbrev-ref HEAD)}"
+git pull --ff-only "$GIT_REMOTE" "$GIT_BRANCH"
 
 log "Installing PHP dependencies"
 composer install --no-dev --optimize-autoloader --no-interaction
